@@ -60,15 +60,25 @@ DeckitModule.define(
         // The plugin this view runs, made and contributed. `show` puts it on screen and `dismiss` puts the panel away;
         // `layers` is what floats in the page. Resolves { plugin, definition, parts, tell }, parts null when it did not
         // start; `tell(name)` calls one of its parts (didAppear, didDisappear) the way every call into it is made.
-        async function start({ theme, ui, layers, show, dismiss }) {
+        async function start(options) {
+            try {
+                return await run(options);
+            } catch (error) {
+                fail(`deckit could not start it: ${error.message || error}`);
+                return stopped(null);
+            }
+        }
+
+        // MARK: - Private
+        async function run({ theme, ui, layers, show, dismiss }) {
             const loaded = PROTOCOL.load.invoke();
             plugin = loaded.manifest;
             WEB.listen();
             NOTIFY.listen(deliver);
             const definition = evaluate(loaded.source);
-            if (!definition) return { plugin, definition: null, parts: null, tell: () => {} };
+            if (!definition) return stopped(null);
             const requires = await requirementsOf();
-            if (!requires) return { plugin, definition, parts: null, tell: () => {} };
+            if (!requires) return stopped(definition);
             let context = null;
             const settings = SETTINGS.of({
                 declared: definition.settings || {},
@@ -79,13 +89,17 @@ DeckitModule.define(
             });
             context = contextOf({ theme, ui, settings, requires, main: loaded.main, show });
             const parts = make(definition, context);
-            if (!parts) return { plugin, definition, parts: null, tell: () => {} };
+            if (!parts) return stopped(definition);
             contribute(definition, parts, { layers, dismiss });
             const tell = (name) => typeof parts[name] === 'function' && deliver(`${name}()`, () => parts[name]());
             return { plugin, definition, parts, tell };
         }
 
-        // MARK: - Private
+        function stopped(definition) {
+            PROTOCOL.stopped.send();
+            return { plugin, definition, parts: null, tell: () => {} };
+        }
+
         // A throw, or a promise that rejects, is recorded against the plugin, never only a console line.
         function deliver(what, listener, ...args) {
             try {
@@ -96,7 +110,7 @@ DeckitModule.define(
         }
 
         function fail(why) {
-            LOG.warn(`${plugin.id}: ${why}`);
+            LOG.warn(`${plugin?.id ?? 'a plugin'}: ${why}`);
             failures.push(why);
             PROTOCOL.failed.send({ why: String(why) });
         }

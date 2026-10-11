@@ -35,8 +35,11 @@ DeckitModule.define(
             return STORAGE.state.read(FORGOTTEN, []);
         }
 
-        function clearForgotten() {
-            STORAGE.state.write(FORGOTTEN, []);
+        function clearForgotten(name) {
+            STORAGE.state.write(
+                FORGOTTEN,
+                forgotten().filter((id) => id !== name)
+            );
         }
 
         // MARK: - Private

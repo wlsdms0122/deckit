@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/plugin/host/setting',
     {
         uses: ['deckit/service/storage', 'deckit/service/plugin/identity', 'deckit/service/plugin/host/model/protocol'],
-        provides: ['start', 'declare', 'valuesOf'],
+        provides: ['start', 'declare', 'forget', 'valuesOf'],
         runs: 'main',
     },
     (STORAGE, IDENTITY, PROTOCOL) => {
@@ -35,6 +35,10 @@ DeckitModule.define(
                 if (TYPES.has(declaration.type)) kept[key] = declaration;
             }
             declared.set(plugin.id, { name: plugin.name, settings: kept });
+        }
+
+        function forget(pluginId) {
+            declared.delete(pluginId);
         }
 
         // A value saved for a setting the plugin no longer declares is not handed back.
@@ -122,6 +126,6 @@ DeckitModule.define(
             return out;
         }
 
-        return { start, declare, valuesOf };
+        return { start, declare, forget, valuesOf };
     }
 );

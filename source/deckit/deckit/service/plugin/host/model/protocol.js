@@ -7,6 +7,7 @@ DeckitModule.define(
             'load',
             'started',
             'failed',
+            'stopped',
             'requirements',
             'callExport',
             'exportCalled',
@@ -46,6 +47,8 @@ DeckitModule.define(
         }),
         // A problem recorded against the plugin, which Settings shows.
         failed: IPC.rendererToMain('deckit:plugin-failed', { why: 'string' }),
+        // It did not start, for the reason it sent as `failed`.
+        stopped: IPC.rendererToMain('deckit:plugin-stopped', {}),
         // Answers once every plugin it requires has started or failed: { [id]: { values, functions } or { error } }.
         requirements: IPC.rendererToMain('deckit:plugin-requirements', {}, { reply: true }),
         callExport: IPC.rendererToMain(

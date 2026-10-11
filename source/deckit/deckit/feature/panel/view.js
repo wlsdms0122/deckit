@@ -79,7 +79,10 @@ DeckitModule.define(
                 if (open === on) return;
                 open = on;
                 appear();
-                if (!animate) return;
+                if (!animate) {
+                    if (on) showAtOnce();
+                    return;
+                }
                 if (on) fadeIn();
                 else fadeOut(() => !open && PROTOCOL.hidden.send({ token }));
             });
@@ -125,6 +128,15 @@ DeckitModule.define(
                     root.style.opacity = '1';
                     root.style.transform = 'none';
                 });
+            }
+
+            // A view that faded out while it was on screen comes back where it stood.
+            function showAtOnce() {
+                clearTimeout(leaving);
+                leaving = null;
+                root.style.transition = 'none';
+                root.style.opacity = '1';
+                root.style.transform = 'none';
             }
 
             function fadeOut(then) {

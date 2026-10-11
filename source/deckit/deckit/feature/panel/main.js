@@ -176,6 +176,11 @@ DeckitModule.define(
                     known.view.webContents.close();
                 }
                 create(entry);
+                // The plugin on screen stays on screen in its new view.
+                if (current === entry.id) {
+                    current = null;
+                    select(entry.id, { fromHistory: true });
+                }
             }
             if (!current) select(firstShown());
             broadcast();
@@ -190,6 +195,7 @@ DeckitModule.define(
             return (
                 before.folder === after.folder &&
                 before.version === after.version &&
+                before.installs === after.installs &&
                 JSON.stringify(before.permissions) === JSON.stringify(after.permissions)
             );
         }
@@ -259,9 +265,11 @@ DeckitModule.define(
         }
 
         // Which plugin is on screen. No fade: here it is a swap of views, on the most repeated action in the panel.
+        // Answers whether it is on screen now.
         function select(id, { fromHistory = false } = {}) {
             const next = views.get(id);
-            if (!next || current === id || next.screen?.content === false) return;
+            if (!next || next.screen?.content === false) return false;
+            if (current === id) return true;
             if (!fromHistory) {
                 history.list.splice(history.at + 1, Infinity, id);
                 if (history.list.length > HISTORY_LIMIT) history.list.shift();
@@ -279,6 +287,7 @@ DeckitModule.define(
                 focus();
             }
             broadcast();
+            return true;
         }
 
         // A plugin no longer there is passed over, and its place goes to the one before it.
@@ -286,8 +295,8 @@ DeckitModule.define(
             let at = history.at + by;
             while (at >= 0 && at < history.list.length && !views.has(history.list[at])) at += by;
             if (at < 0 || at >= history.list.length) return;
+            if (!select(history.list[at], { fromHistory: true })) return;
             history.at = at;
-            select(history.list[at], { fromHistory: true });
             broadcast();
         }
 

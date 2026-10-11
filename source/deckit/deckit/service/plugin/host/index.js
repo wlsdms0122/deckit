@@ -41,6 +41,8 @@ DeckitModule.define(
         let entries = [];
         const started = new Map(); // plugin id -> what it said it contributes
         const failures = new Map(); // plugin id -> the first reason recorded against it
+        // plugin id -> how many times it was installed while deckit ran: a copy of the same version is new code too
+        const installs = new Map();
         const listeners = new Set();
 
         // MARK: - Initializer
@@ -51,7 +53,7 @@ DeckitModule.define(
             RECORD.start();
             SETTING.start();
             EXPORT.start();
-            entries = CATALOG.list();
+            entries = catalog();
             for (const entry of entries) if (entry.problem) LOG.warn(`plugin ${entry.id} not loaded: ${entry.problem}`);
             listen();
         }
@@ -89,7 +91,12 @@ DeckitModule.define(
 
         // MARK: - Private
         function listen() {
-            PROTOCOL.load.handle((_payload, sender) => loadOf(IDENTITY.pluginFrom(sender)));
+            PROTOCOL.load.handle((_payload, sender) => {
+                const plugin = IDENTITY.pluginFrom(sender);
+                // Whoever requires it waits until it has started, so a view that goes first answers them too.
+                IDENTITY.whenPageEnds(sender, () => EXPORT.fail(plugin.id, 'its view went away before it started'));
+                return loadOf(plugin);
+            });
             PROTOCOL.started.on(({ settings, exports, summary }, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
                 SETTING.declare(plugin, settings);
@@ -97,6 +104,10 @@ DeckitModule.define(
                 started.set(plugin.id, summary);
             });
             PROTOCOL.failed.on(({ why }, sender) => record(IDENTITY.pluginFrom(sender).id, why));
+            PROTOCOL.stopped.on((_payload, sender) => {
+                const plugin = IDENTITY.pluginFrom(sender);
+                EXPORT.fail(plugin.id, failures.get(plugin.id) || 'it did not start');
+            });
             PROTOCOL.plugins.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
                 return describe();
@@ -142,7 +153,6 @@ DeckitModule.define(
         function record(pluginId, why) {
             LOG.warn(`${pluginId}: ${why}`);
             if (!failures.has(pluginId)) failures.set(pluginId, why);
-            EXPORT.fail(pluginId, why);
         }
 
         // What Settings shows about every plugin folder, loaded or not, and what each running one contributes.
@@ -200,6 +210,7 @@ DeckitModule.define(
         function install(from) {
             const manifest = installable(from);
             INSTALL.install(from);
+            installs.set(manifest.id, (installs.get(manifest.id) || 0) + 1);
             HALF.restartFor(manifest.id);
             refresh();
             return { ...publicOf(manifest), restart: HALF.restartPending().some(({ id }) => id === manifest.id) };
@@ -216,29 +227,39 @@ DeckitModule.define(
             return manifest;
         }
 
-        function remove(id, data) {
+        // Its view closes before its pages' storage is cleared, so the page cannot write it back.
+        async function remove(id, data) {
             const entry = entries.find((candidate) => candidate.id === id);
             if (entry && !entry.installed)
                 throw new Error(`${id} is read from ${entry.folder}, not installed, so it is removed there`);
             const removed = REMOVE.remove(id, { data });
-            if (removed.data) {
-                SESSION.forget(id);
-                REMOVE.clearForgotten();
-            }
             HALF.unload(id);
+            SETTING.forget(id);
             refresh();
+            if (removed.data) await forget(id);
             return removed;
         }
 
         // A plugin whose data the command line removed: its pages' storage and sessions are cleared here.
         function forgetRemoved() {
-            for (const id of REMOVE.forgotten()) SESSION.forget(id);
-            REMOVE.clearForgotten();
+            for (const id of REMOVE.forgotten()) {
+                forget(id).catch((error) => LOG.warn(`could not clear the web storage of ${id}`, error));
+            }
+        }
+
+        // The record that it is to be cleared goes only once it is, so a failure is tried again at the next start.
+        async function forget(id) {
+            await SESSION.forget(id);
+            REMOVE.clearForgotten(id);
         }
 
         function refresh() {
-            entries = CATALOG.list();
+            entries = catalog();
             notify();
+        }
+
+        function catalog() {
+            return CATALOG.list().map((entry) => ({ ...entry, installs: installs.get(entry.id) || 0 }));
         }
 
         function notify() {
