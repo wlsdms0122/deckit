@@ -1,27 +1,39 @@
 #!/usr/bin/env node
-const path = require("path");
+const path = require('path');
 
 const here = __dirname;
 const argv = process.argv.slice(2);
 let config = null;
 const ship = [];
-while (argv[0] === "--config" || argv[0] === "--ship") {
-  const [flag, value] = argv.splice(0, 2);
-  if (!value) { process.stderr.write(`${flag} needs a path\n`); process.exit(1); }
-  if (flag === "--config") config = path.resolve(value);
-  else ship.push(path.resolve(value));
+while (argv[0] === '--config' || argv[0] === '--ship') {
+    const [flag, value] = argv.splice(0, 2);
+    if (!value) {
+        process.stderr.write(`${flag} needs a path\n`);
+        process.exit(1);
+    }
+    if (flag === '--config') config = path.resolve(value);
+    else ship.push(path.resolve(value));
 }
 const [command, ...args] = argv;
 
 const load = (file, what) => {
-  try { require(file); }
-  catch (e) { process.stderr.write(`cannot load ${what} ${file}: ${String(e?.message || e).split("\n")[0]}\n`); process.exit(1); }
+    try {
+        require(file);
+    } catch (e) {
+        process.stderr.write(`cannot load ${what} ${file}: ${String(e?.message || e).split('\n')[0]}\n`);
+        process.exit(1);
+    }
 };
-load(path.join(here, "..", "registry.js"), "deckit's registry");
-if (config) load(config, "--config");
-load(path.join(here, "..", "cli.js"), "deckit's command line bundle");
-load(path.join(here, "commands.js"), "deckit's commands");
+load(path.join(here, '..', 'registry.js'), "deckit's registry");
+if (config) load(config, '--config');
+load(path.join(here, '..', 'cli.js'), "deckit's command line bundle");
+load(path.join(here, 'commands.js'), "deckit's commands");
 Promise.resolve()
-  .then(() => DeckitModule.use(["cli/commands"], (CLI) => CLI.run({ command, args, ship })))
-  .then((code) => { process.exitCode = code; })
-  .catch((e) => { process.stderr.write(`${e?.message || e}\n`); process.exitCode = 1; });
+    .then(() => DeckitModule.use(['cli/commands'], (CLI) => CLI.run({ command, args, ship })))
+    .then((code) => {
+        process.exitCode = code;
+    })
+    .catch((e) => {
+        process.stderr.write(`${e?.message || e}\n`);
+        process.exitCode = 1;
+    });
