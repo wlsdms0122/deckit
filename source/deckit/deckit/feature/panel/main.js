@@ -206,6 +206,10 @@ DeckitModule.define(
                 OPEN.open(details.url, WEB.windowOptions(details));
                 return { action: 'deny' };
             });
+            // The view stays where it is (identity holds it to its origin); a link that leaves it is opened instead.
+            LOG.guard(contents, 'will-navigate', (details) => {
+                if (!details.url.startsWith(IDENTITY.originOf(entry.id) + '/')) OPEN.open(details.url, {});
+            });
             LOG.guard(
                 contents,
                 'console-message',

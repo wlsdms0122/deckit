@@ -1,11 +1,11 @@
 DeckitModule.define(
     'deckit/feature/panel/sidebar',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/kit'],
+        uses: ['deckit/ui/token', 'deckit/ui/kit', 'deckit/ui/glyph'],
         provides: ['make'],
         runs: 'page',
     },
-    (TOKEN, UI) => {
+    (TOKEN, UI, GLYPH) => {
         // MARK: - Property
         // A generous ceiling: in a window of its own the panel has room, and sidebar lists want width.
         const WIDTH_MIN = 240;
@@ -276,7 +276,7 @@ DeckitModule.define(
                 row.setAttribute('role', 'tab');
                 row.setAttribute('aria-selected', String(plugin.id === current));
                 const glyph = element('span', { display: 'flex', flex: '0 0 auto' });
-                glyph.innerHTML = plugin.icon;
+                glyph.append(GLYPH.glyphOf(plugin.icon));
                 const name = element('span', {});
                 name.textContent = plugin.name;
                 row.append(glyph, name);

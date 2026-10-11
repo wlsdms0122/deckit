@@ -70,7 +70,7 @@ DeckitModule.define(
         // Made the first time it is asked for. A page that reloads (a theme change reloads it) cannot hold an open list.
         function build() {
             if (state.view) return state.view;
-            const view = makeView('deckit://switcher', { webview: false });
+            const view = makeView(IDENTITY.SWITCHER_ORIGIN, { webview: false });
             const contents = view.webContents;
             IDENTITY.add(contents, { switcher: true });
             KEYMAP.listen(contents, {
@@ -101,7 +101,7 @@ DeckitModule.define(
                 { once: true }
             );
             view.setVisible(false);
-            contents.loadURL('deckit://switcher/');
+            contents.loadURL(IDENTITY.SWITCHER_ORIGIN + '/');
             state.view = view;
             return view;
         }

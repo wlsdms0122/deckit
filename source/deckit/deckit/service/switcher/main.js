@@ -18,6 +18,8 @@ DeckitModule.define(
         const NOW_MAX = 3;
         // How long the list waits for slow Now rows before it opens; later ones arrive on their own.
         const NOW_WAIT_MS = 150;
+        // A plugin that has not answered by then answers nothing, so one stuck page does not hold the list.
+        const ANSWER_MS = 2000;
         const sources = new Map(); // plugin id -> { icon, aliases, opens, resolves }
         const entries = new Map(); // entry id -> { plugin, local, kind, group, label }
         let session = 0;
@@ -31,7 +33,7 @@ DeckitModule.define(
             PROTOCOL.source.on((source, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
                 sources.set(plugin.id, source);
-                sender.once('destroyed', () => sources.get(plugin.id) === source && sources.delete(plugin.id));
+                IDENTITY.whenPageEnds(sender, () => sources.get(plugin.id) === source && sources.delete(plugin.id));
             });
             PROTOCOL.need.on((_payload, sender) => IDENTITY.isSwitcher(sender) && supply());
             PROTOCOL.query.on(
@@ -149,7 +151,7 @@ DeckitModule.define(
         function ask(end, plugin, payload, fallback) {
             const view = IDENTITY.viewOf(plugin.id);
             if (!view) return Promise.resolve(fallback);
-            return end.invoke(view, payload).catch((error) => {
+            return end.invoke(view, payload, { timeout: ANSWER_MS }).catch((error) => {
                 LOG.warn(`${plugin.id}: the switcher's question failed`, error);
                 return fallback;
             });

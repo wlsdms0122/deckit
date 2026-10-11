@@ -22,7 +22,7 @@ DeckitModule.define(
 
         // The plugin's open(url, options), asked when an address of a scheme it names is opened.
         function answer(openURL) {
-            PROTOCOL.offer.handle(({ url, options }) => openURL(url, options));
+            PROTOCOL.offer.handle(async ({ url, options }) => (await openURL(url, options)) === true);
             PROTOCOL.handles.send();
         }
 

@@ -34,12 +34,16 @@ DeckitModule.define(
             PROTOCOL.scope.on(({ keys }, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
                 scopes.set(plugin.id, keys);
-                sender.once('destroyed', () => scopes.get(plugin.id) === keys && scopes.delete(plugin.id));
+                IDENTITY.whenPageEnds(sender, () => scopes.get(plugin.id) === keys && scopes.delete(plugin.id));
                 announce();
             });
             PROTOCOL.typing.on(({ on }, sender) => mark(typing, sender, on));
             PROTOCOL.floating.on(({ on }, sender) => mark(floating, sender, on));
-            PROTOCOL.record.on(({ on }, sender) => (on ? startRecording(sender) : stopRecording(false)));
+            PROTOCOL.record.on(({ on }, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.key-map');
+                if (on) startRecording(sender);
+                else if (recording?.webContents === sender) stopRecording(false);
+            });
             PROTOCOL.chord.handle(({ id }) => chordOf(id));
             PROTOCOL.bindings.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.key-map');
@@ -295,15 +299,15 @@ DeckitModule.define(
         function startRecording(webContents) {
             stopRecording(false);
             const end = () => recording?.webContents === webContents && stopRecording(true);
-            webContents.once('destroyed', end);
-            recording = { webContents, end, timer: setTimeout(end, RECORDING_MS) };
+            const drop = IDENTITY.whenPageEnds(webContents, end);
+            recording = { webContents, drop, timer: setTimeout(end, RECORDING_MS) };
         }
 
         function stopRecording(tell) {
             if (!recording) return;
-            const { webContents, end, timer } = recording;
+            const { webContents, drop, timer } = recording;
             clearTimeout(timer);
-            webContents.removeListener('destroyed', end);
+            drop();
             recording = null;
             if (tell) PROTOCOL.recorded.send(webContents, { cancel: true });
         }

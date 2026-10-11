@@ -2,13 +2,24 @@ DeckitModule.define(
     'deckit/service/plugin/identity',
     {
         uses: [],
-        provides: ['originOf', 'add', 'pluginOf', 'pluginFrom', 'isSwitcher', 'viewOf'],
+        provides: [
+            'SWITCHER_ORIGIN',
+            'originOf',
+            'add',
+            'whenPageEnds',
+            'pluginOf',
+            'pluginFrom',
+            'isSwitcher',
+            'viewOf',
+        ],
         runs: 'main',
     },
     () => {
         // MARK: - Property
+        const SWITCHER_ORIGIN = 'deckit://switcher';
         const owners = new Map(); // webContents id -> { plugin } or { switcher: true }
         const views = new Map(); // plugin id -> its webContents
+        const ends = new Map(); // webContents id -> Set of what undoes what its page set up
 
         // MARK: - Initializer
         // MARK: - Public
@@ -23,11 +34,34 @@ DeckitModule.define(
         function add(webContents, owner) {
             const id = webContents.id;
             owners.set(id, owner);
+            pin(webContents, owner.plugin ? originOf(owner.plugin.id) : SWITCHER_ORIGIN);
             if (owner.plugin) views.set(owner.plugin.id, webContents);
+            ends.set(id, new Set());
+            const end = () => {
+                const runs = [...ends.get(id)];
+                ends.get(id).clear();
+                for (const run of runs) run();
+            };
+            // A reload or a crashed renderer keeps the webContents and its id, but the page that set things up is gone.
+            webContents.on(
+                'did-start-navigation',
+                (details) => details.isMainFrame && !details.isSameDocument && end()
+            );
+            webContents.on('render-process-gone', end);
             webContents.once('destroyed', () => {
+                end();
+                ends.delete(id);
                 owners.delete(id);
                 if (owner.plugin && views.get(owner.plugin.id) === webContents) views.delete(owner.plugin.id);
             });
+        }
+
+        // What a page set up lasts as long as the page: `run` undoes it once, when the page navigates away, crashes or
+        // is gone. Calling what this returns drops `run` unrun.
+        function whenPageEnds(webContents, run) {
+            const runs = ends.get(webContents.id);
+            runs.add(run);
+            return () => runs.delete(run);
         }
 
         // The plugin a renderer runs, or null for one that is not a plugin's.
@@ -56,7 +90,24 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // A navigation keeps the webContents, so a view that left its origin would still be known as its plugin
+        // while it ran another's page with that one's storage. Only main's own loadURL passes without these events.
+        function pin(webContents, origin) {
+            const leaves = (details) => details.isMainFrame && originFrom(details.url) !== origin;
+            webContents.on('will-frame-navigate', (details) => leaves(details) && details.preventDefault());
+            webContents.on('will-redirect', (details) => leaves(details) && details.preventDefault());
+        }
 
-        return { originOf, add, pluginOf, pluginFrom, isSwitcher, viewOf };
+        // Node's URL gives a scheme it does not know the origin `null`, so the origin is put together here.
+        function originFrom(url) {
+            try {
+                const parsed = new URL(url);
+                return `${parsed.protocol}//${parsed.host}`;
+            } catch {
+                return '';
+            }
+        }
+
+        return { SWITCHER_ORIGIN, originOf, add, whenPageEnds, pluginOf, pluginFrom, isSwitcher, viewOf };
     }
 );

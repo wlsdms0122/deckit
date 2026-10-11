@@ -9,7 +9,8 @@ DeckitModule.define(
         // MARK: - Property
         const electron = require('electron');
         const inMain = process.type === 'browser';
-        const pending = new Map(); // channel -> Map(id -> { resolve, reject, webContents, gone })
+        const pending = new Map(); // channel -> Map(id -> { resolve, reject, webContents, timer })
+        const watched = new WeakSet(); // webContents whose page going away rejects what was asked of it
         let sequence = 0;
 
         // MARK: - Initializer
@@ -28,10 +29,12 @@ DeckitModule.define(
 
         function mainToRenderer(channel, { reply = false } = {}) {
             if (inMain) {
-                if (reply) return { invoke: (webContents, payload = {}) => ask(webContents, channel, payload) };
+                if (reply)
+                    return {
+                        invoke: (webContents, payload = {}, options) => ask(webContents, channel, payload, options),
+                    };
                 return { send: (webContents, payload = {}) => deliver(webContents, channel, payload) };
             }
-            const { ipcRenderer } = electron;
             if (!reply) return { on: (listener) => hear(channel, LISTENER.wrap(listener, channel)) };
             return { handle: (answer) => answerFor(channel, answer) };
         }
@@ -127,31 +130,59 @@ DeckitModule.define(
             webContents.send(channel, payload);
         }
 
-        function ask(webContents, channel, payload) {
+        // A question to a page is answered by that page, or rejected once it cannot be: the page is gone, crashed or
+        // was replaced by a navigation, or `timeout` ran out.
+        function ask(webContents, channel, payload, { timeout = 0 } = {}) {
             if (!pending.has(channel)) hearAnswers(channel);
             if (webContents.isDestroyed()) return Promise.reject(new Error(`${channel}: the page is gone`));
+            watch(webContents);
             const id = ++sequence;
             return new Promise((resolve, reject) => {
-                const gone = () => {
-                    pending.get(channel).delete(id);
-                    reject(new Error(`${channel}: the page is gone`));
-                };
-                pending.get(channel).set(id, { resolve, reject, webContents, gone });
-                webContents.once('destroyed', gone);
+                const timer = timeout
+                    ? setTimeout(
+                          () => settleAsked(channel, id, { error: { message: `${channel}: no answer` } }),
+                          timeout
+                      )
+                    : null;
+                pending.get(channel).set(id, { resolve, reject, webContents, timer });
                 webContents.send(channel, { id, payload });
             });
         }
 
+        function watch(webContents) {
+            if (watched.has(webContents)) return;
+            watched.add(webContents);
+            const end = () => {
+                for (const [channel, waiting] of pending) {
+                    for (const [id, asked] of waiting) {
+                        if (asked.webContents === webContents)
+                            settleAsked(channel, id, { error: { message: `${channel}: the page is gone` } });
+                    }
+                }
+            };
+            webContents.on(
+                'did-start-navigation',
+                (details) => details.isMainFrame && !details.isSameDocument && end()
+            );
+            webContents.on('render-process-gone', end);
+            webContents.once('destroyed', end);
+        }
+
+        function settleAsked(channel, id, { value, error }) {
+            const asked = pending.get(channel).get(id);
+            if (!asked) return;
+            pending.get(channel).delete(id);
+            clearTimeout(asked.timer);
+            if (error) asked.reject(failure(error));
+            else asked.resolve(value);
+        }
+
         function hearAnswers(channel) {
-            const waiting = new Map();
-            pending.set(channel, waiting);
-            electron.ipcMain.on(channel + ':answer', (event, { id, value, error }) => {
-                const asked = waiting.get(id);
+            pending.set(channel, new Map());
+            electron.ipcMain.on(channel + ':answer', (event, answer) => {
+                const asked = pending.get(channel).get(answer?.id);
                 if (!asked || asked.webContents !== event.sender) return;
-                waiting.delete(id);
-                asked.webContents.removeListener('destroyed', asked.gone);
-                if (error) asked.reject(failure(error));
-                else asked.resolve(value);
+                settleAsked(channel, answer.id, { value: answer.value, error: answer.error && errorOf(answer.error) });
             });
         }
 
@@ -162,9 +193,14 @@ DeckitModule.define(
         function answerFor(channel, answer) {
             const { ipcRenderer } = electron;
             ipcRenderer.on(channel, (_event, { id, payload }) => {
-                settle(() => answer(payload)).then((result) =>
-                    ipcRenderer.send(channel + ':answer', { id, ...result })
-                );
+                settle(() => answer(payload)).then((result) => {
+                    // An answer that cannot cross a process goes back as the error it is, so the question is not left open.
+                    try {
+                        ipcRenderer.send(channel + ':answer', { id, ...result });
+                    } catch (error) {
+                        ipcRenderer.send(channel + ':answer', { id, error: errorOf(error) });
+                    }
+                });
             });
         }
 

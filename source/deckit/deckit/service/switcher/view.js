@@ -102,7 +102,10 @@ DeckitModule.define(
                 searching.delete(id);
                 return (Array.isArray(found) ? found : []).map((command) => entryOf(command, 'page')).filter(Boolean);
             });
-            PROTOCOL.run.handle(({ id }) => local.get(id)?.run?.());
+            // What a command's run returns stays in the page: only that it ran crosses back.
+            PROTOCOL.run.handle(async ({ id }) => {
+                await local.get(id)?.run?.();
+            });
         }
 
         // The switcher's list: what main supplies, and what the person types and picks.

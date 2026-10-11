@@ -17,6 +17,8 @@ DeckitModule.define(
         const fs = require('fs');
         const path = require('path');
         const CHOSEN = 'open-with';
+        // A handler that has not answered by then passes, so one stuck page does not hold every link.
+        const OFFER_MS = 3000;
         // What deckit opens by itself, after every plugin that takes the scheme: the answer that is always last.
         const SYSTEM = new Map([
             ['http', 'browser'],
@@ -35,7 +37,7 @@ DeckitModule.define(
             PROTOCOL.handles.on((_payload, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
                 handlers.add(plugin.id);
-                sender.once('destroyed', () => handlers.delete(plugin.id));
+                IDENTITY.whenPageEnds(sender, () => handlers.delete(plugin.id));
             });
             PROTOCOL.reveal.handle(({ file }, sender) => {
                 IDENTITY.pluginFrom(sender);
@@ -139,10 +141,12 @@ DeckitModule.define(
                 if (!handler.on) continue;
                 const view = IDENTITY.viewOf(handler.id);
                 if (!view) continue;
-                const taken = await PROTOCOL.offer.invoke(view, { url, options }).catch((error) => {
-                    LOG.warn(`${handler.id} could not open ${url}`, error);
-                    return false;
-                });
+                const taken = await PROTOCOL.offer
+                    .invoke(view, { url, options }, { timeout: OFFER_MS })
+                    .catch((error) => {
+                        LOG.warn(`${handler.id} could not open ${url}`, error);
+                        return false;
+                    });
                 if (taken === true) return true;
             }
             return false;

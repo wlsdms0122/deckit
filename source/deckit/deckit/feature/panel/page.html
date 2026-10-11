@@ -1,6 +1,9 @@
 <!doctype html>
 <meta charset="utf-8">
 <title></title>
+<!-- Nothing runs in the page's own world: deckit and the plugin run in the preload's isolated world, which this
+     policy does not reach. The ranker's worker is made from a blob there. -->
+<meta http-equiv="Content-Security-Policy" content="script-src 'none'; worker-src blob:; object-src 'none'; base-uri 'none'">
 <!-- Transparent: the view is a rectangle, and the rounded corners and shadow are drawn inside it over
      the app around the edges. No drag selection: text meant to be copied opts in (ui.selectable). -->
 <style>

@@ -4,6 +4,7 @@ DeckitModule.define(
         uses: [
             'deckit/ui/token',
             'deckit/ui/kit',
+            'deckit/ui/glyph',
             'deckit/module/match',
             'deckit/service/switcher/view',
             'deckit/service/switcher/model/tone',
@@ -11,7 +12,7 @@ DeckitModule.define(
         ],
         provides: ['open', 'boot'],
     },
-    (TOKEN, UI, MATCH, ENTRIES, TONE, PROTOCOL) => {
+    (TOKEN, UI, GLYPH, MATCH, ENTRIES, TONE, PROTOCOL) => {
         // MARK: - Property
         const { MOTION, WASH, aimOnMove, isDark } = TOKEN;
         const { TIER, matchFields } = MATCH;
@@ -295,7 +296,7 @@ DeckitModule.define(
 
                     // Only the left mark and the glyph carry the tone: coloured small text is harder to read.
                     const glyph = document.createElement('span');
-                    glyph.innerHTML = item.icon || '';
+                    if (item.icon) glyph.append(GLYPH.glyphOf(item.icon));
                     Object.assign(
                         glyph.style,
                         item.lead
@@ -447,7 +448,7 @@ DeckitModule.define(
                             opacity: '.55',
                         });
                         const glyph = document.createElement('span');
-                        glyph.innerHTML = heading.icon || '';
+                        if (heading.icon) glyph.append(GLYPH.glyphOf(heading.icon));
                         Object.assign(glyph.style, {
                             display: 'flex',
                             flex: '0 0 auto',
@@ -516,7 +517,7 @@ DeckitModule.define(
                     chip.textContent = '';
                     if (item.page.icon) {
                         const glyph = document.createElement('span');
-                        glyph.innerHTML = item.page.icon;
+                        glyph.append(GLYPH.glyphOf(item.page.icon));
                         Object.assign(glyph.style, {
                             display: 'flex',
                             flex: '0 0 auto',
