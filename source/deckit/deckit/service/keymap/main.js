@@ -110,12 +110,12 @@ DeckitModule.define(
 
         function effective(id, key) {
             const spec = Object.hasOwn(overrides, id) ? overrides[id] : key;
-            return spec ? CHORD.normal(spec) : null;
+            return spec ? CHORD.normalize(spec) : null;
         }
 
         function bindingOf(owner, ownerName, scope, { action, key, label, run }) {
             const id = owner + '.' + action;
-            const written = CHORD.normal(key);
+            const written = CHORD.normalize(key);
             const spec = effective(id, written);
             return {
                 id,
@@ -218,7 +218,7 @@ DeckitModule.define(
         function bind(id, spec) {
             const binding = bindings().find((candidate) => candidate.id === id);
             if (!binding) throw new Error('no such shortcut: ' + id);
-            const wanted = spec ? CHORD.normal(spec) : '';
+            const wanted = spec ? CHORD.normalize(spec) : '';
             if (spec && !wanted) throw new Error('not a chord: ' + spec);
             const next = { ...overrides };
             delete next[id];

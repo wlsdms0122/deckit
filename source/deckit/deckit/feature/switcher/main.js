@@ -79,6 +79,11 @@ DeckitModule.define(
                     run: () => PROTOCOL.number.send(contents, { number }),
                 })),
             });
+            LOG.guard(
+                contents,
+                'console-message',
+                ({ level, message }) => level === 'error' && LOG.error(`switcher: ${message}`)
+            );
             LOG.guard(contents, 'did-start-loading', () => {
                 const was = state.ready;
                 state.ready = false;

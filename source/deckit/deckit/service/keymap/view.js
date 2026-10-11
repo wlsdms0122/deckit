@@ -17,7 +17,7 @@ DeckitModule.define(
         function scope(keys, { invalid, global }) {
             const declared = [];
             for (const [action, entry] of Object.entries(keys || {})) {
-                const key = entry && CHORD.normal(entry.key);
+                const key = entry && CHORD.normalize(entry.key);
                 if (!key || typeof entry.run !== 'function') {
                     invalid(`key "${action}" cannot be used: it needs a chord in "key" and a function in "run"`);
                     continue;
