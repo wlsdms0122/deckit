@@ -7,12 +7,13 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
             'deckit/service/plugin/host',
+            'deckit/service/plugin/package/model/permission',
             'deckit/service/open/model/scheme',
             'deckit/service/open/model/protocol',
         ],
         provides: ['start', 'open'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, HOST, SCHEME, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, HOST, PERMISSION, SCHEME, PROTOCOL) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -34,18 +35,22 @@ DeckitModule.define(
                 IDENTITY.pluginFrom(sender);
                 return open(request.url, {
                     ...request,
-                    userInitiated: request.userInitiated && IDENTITY.hasUserActivation(sender),
+                    userInitiated: request.userInitiated && spendsUserActivation(sender),
                 });
             });
             PROTOCOL.handles.on((_payload, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
                 handlers.add(plugin.id);
-                IDENTITY.whenPageEnds(sender, () => handlers.delete(plugin.id));
+                // A view being replaced ends after its successor is up: only the view on duty drops the handler.
+                IDENTITY.whenPageEnds(
+                    sender,
+                    () => IDENTITY.viewOf(plugin.id) === sender && handlers.delete(plugin.id)
+                );
             });
             // Only on a person's click or key: otherwise any plugin could open Finder at will, or learn which paths exist.
             PROTOCOL.reveal.handle(({ file }, sender) => {
                 IDENTITY.pluginFrom(sender);
-                return IDENTITY.hasUserActivation(sender) && reveal(file);
+                return spendsUserActivation(sender) && reveal(file);
             });
             PROTOCOL.lines.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.url-schemes');
@@ -75,6 +80,14 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // A plugin with a main half runs its own code in this process and could open the file itself, so its word is
+        // taken; any other has to show a person's press.
+        function spendsUserActivation(sender) {
+            const plugin = IDENTITY.pluginFrom(sender);
+            if (plugin.permissions.some(({ id }) => id === PERMISSION.MAIN_PROCESS)) return true;
+            return IDENTITY.consumeUserActivation(sender);
+        }
+
         function schemeOf(url) {
             const at = url.indexOf(':');
             const scheme = at > 0 ? url.slice(0, at).toLowerCase() : '';

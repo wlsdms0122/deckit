@@ -141,10 +141,11 @@ DeckitModule.define(
             if (entry.kind === 'command') remember(entry);
             if (entry.local === 'open') return hooks.reveal(entry.plugin);
             const view = IDENTITY.viewOf(entry.plugin);
-            if (view)
-                PROTOCOL.run
-                    .invoke(view, { id: entry.local })
-                    .catch((error) => LOG.warn(`${entry.plugin}: a switcher entry failed`, error));
+            if (!view) return;
+            IDENTITY.passUserActivation(view);
+            PROTOCOL.run
+                .invoke(view, { id: entry.local })
+                .catch((error) => LOG.warn(`${entry.plugin}: a switcher entry failed`, error));
         }
 
         // What a plugin's view answers; one that fails or went away answers `fallback`, recorded against it.

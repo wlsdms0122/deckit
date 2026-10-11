@@ -85,11 +85,7 @@ DeckitModule.define(
             };
             webContents.once('destroyed', () => local.delete(webContents.id));
             // A reload or a crashed renderer keeps the webContents and its id, but the page's state is gone.
-            LOG.guard(
-                webContents,
-                'did-start-navigation',
-                (details) => details.isMainFrame && !details.isSameDocument && forget()
-            );
+            LOG.guard(webContents, 'did-navigate', forget);
             LOG.guard(webContents, 'render-process-gone', forget);
             webContents.once('destroyed', forget);
         }

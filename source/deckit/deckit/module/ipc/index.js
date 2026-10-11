@@ -36,7 +36,7 @@ DeckitModule.define(
                 return { send: (webContents, payload = {}) => deliver(webContents, channel, payload) };
             }
             if (!reply) return { on: (listener) => hear(channel, LISTENER.wrap(listener, channel)) };
-            return { handle: (answer) => answerFor(channel, answer) };
+            return questionsFor(channel);
         }
 
         // MARK: - Private
@@ -160,10 +160,8 @@ DeckitModule.define(
                     }
                 }
             };
-            webContents.on(
-                'did-start-navigation',
-                (details) => details.isMainFrame && !details.isSameDocument && end()
-            );
+            // A main-frame navigation that commits replaces the page; one refused before it commits leaves it be.
+            webContents.on('did-navigate', end);
             webContents.on('render-process-gone', end);
             webContents.once('destroyed', end);
         }
@@ -190,9 +188,14 @@ DeckitModule.define(
             electron.ipcRenderer.on(channel, (_event, payload) => listener(payload));
         }
 
-        function answerFor(channel, answer) {
+        // Heard from the moment the page declares the channel: a question that arrives before the page's code says how
+        // to answer it waits for that, and is not lost.
+        function questionsFor(channel) {
             const { ipcRenderer } = electron;
-            ipcRenderer.on(channel, (_event, { id, payload }) => {
+            const waiting = [];
+            let answer = null;
+            ipcRenderer.on(channel, (_event, question) => (answer ? reply(question) : waiting.push(question)));
+            function reply({ id, payload }) {
                 settle(() => answer(payload)).then((result) => {
                     // An answer that cannot cross a process goes back as the error it is, so the question is not left open.
                     try {
@@ -201,7 +204,13 @@ DeckitModule.define(
                         ipcRenderer.send(channel + ':answer', { id, error: errorOf(error) });
                     }
                 });
-            });
+            }
+            return {
+                handle(given) {
+                    answer = given;
+                    for (const question of waiting.splice(0)) reply(question);
+                },
+            };
         }
 
         return { rendererToMain, mainToRenderer };

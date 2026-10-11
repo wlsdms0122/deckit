@@ -212,9 +212,10 @@ DeckitModule.define(
                 OPEN.open(details.url, WEB.windowOptions(details));
                 return { action: 'deny' };
             });
-            // The view stays where it is (identity holds it to its origin); a link that leaves it is opened instead.
-            LOG.guard(contents, 'will-navigate', (details) => {
-                if (!details.url.startsWith(IDENTITY.originOf(entry.id) + '/')) OPEN.open(details.url, {});
+            // Identity holds the view to its origin, and a link that leaves it opens through Open With.
+            LOG.guard(contents, 'will-frame-navigate', (details) => {
+                if (details.isMainFrame && !details.url.startsWith(IDENTITY.originOf(entry.id) + '/'))
+                    OPEN.open(details.url, {});
             });
             LOG.guard(
                 contents,
@@ -290,14 +291,19 @@ DeckitModule.define(
             return true;
         }
 
-        // A plugin no longer there is passed over, and its place goes to the one before it.
+        // A plugin no longer there, or with nothing to show, is passed over.
         function step(by) {
             let at = history.at + by;
-            while (at >= 0 && at < history.list.length && !views.has(history.list[at])) at += by;
+            while (at >= 0 && at < history.list.length && !isShown(history.list[at])) at += by;
             if (at < 0 || at >= history.list.length) return;
             if (!select(history.list[at], { fromHistory: true })) return;
             history.at = at;
             broadcast();
+        }
+
+        // A plugin that is there and has something to show.
+        function isShown(id) {
+            return views.has(id) && views.get(id).screen?.content !== false;
         }
 
         function currentContents() {

@@ -65,7 +65,7 @@ DeckitModule.define(
                 return await run(options);
             } catch (error) {
                 fail(`deckit could not start it: ${error.message || error}`);
-                return stopped(null);
+                return stop(null);
             }
         }
 
@@ -76,9 +76,9 @@ DeckitModule.define(
             WEB.listen();
             NOTIFY.listen(deliver);
             const definition = evaluate(loaded.source);
-            if (!definition) return stopped(null);
+            if (!definition) return stop(null);
             const requires = await requirementsOf();
-            if (!requires) return stopped(definition);
+            if (!requires) return stop(definition);
             let context = null;
             const settings = SETTINGS.of({
                 declared: definition.settings || {},
@@ -89,14 +89,14 @@ DeckitModule.define(
             });
             context = contextOf({ theme, ui, settings, requires, main: loaded.main, show });
             const parts = make(definition, context);
-            if (!parts) return stopped(definition);
+            if (!parts) return stop(definition);
             contribute(definition, parts, { layers, dismiss });
             const tell = (name) => typeof parts[name] === 'function' && deliver(`${name}()`, () => parts[name]());
             return { plugin, definition, parts, tell };
         }
 
-        function stopped(definition) {
-            PROTOCOL.stopped.send();
+        function stop(definition) {
+            PROTOCOL.stopped.send({ why: String(failures.at(-1) || 'it did not start') });
             return { plugin, definition, parts: null, tell: () => {} };
         }
 

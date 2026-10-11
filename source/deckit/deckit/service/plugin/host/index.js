@@ -94,7 +94,13 @@ DeckitModule.define(
             PROTOCOL.load.handle((_payload, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
                 // Whoever requires it waits until it has started, so a view that goes first answers them too.
-                IDENTITY.whenPageEnds(sender, () => EXPORT.fail(plugin.id, 'its view went away before it started'));
+                // A view being replaced ends after its successor is up, and fails only what is still its own.
+                IDENTITY.whenPageEnds(
+                    sender,
+                    () =>
+                        IDENTITY.viewOf(plugin.id) === sender &&
+                        EXPORT.fail(plugin.id, 'its view went away before it started')
+                );
                 return loadOf(plugin);
             });
             PROTOCOL.started.on(({ settings, exports, summary }, sender) => {
@@ -104,10 +110,7 @@ DeckitModule.define(
                 started.set(plugin.id, summary);
             });
             PROTOCOL.failed.on(({ why }, sender) => record(IDENTITY.pluginFrom(sender).id, why));
-            PROTOCOL.stopped.on((_payload, sender) => {
-                const plugin = IDENTITY.pluginFrom(sender);
-                EXPORT.fail(plugin.id, failures.get(plugin.id) || 'it did not start');
-            });
+            PROTOCOL.stopped.on(({ why }, sender) => EXPORT.fail(IDENTITY.pluginFrom(sender).id, why));
             PROTOCOL.plugins.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
                 return describe();

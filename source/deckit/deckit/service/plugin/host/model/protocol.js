@@ -17,7 +17,6 @@ DeckitModule.define(
             'writeRecord',
             'removeRecord',
             'recordKeys',
-            'recordPath',
             'setSetting',
             'settingChanged',
             'settingOptions',
@@ -47,8 +46,8 @@ DeckitModule.define(
         }),
         // A problem recorded against the plugin, which Settings shows.
         failed: IPC.rendererToMain('deckit:plugin-failed', { why: 'string' }),
-        // It did not start, for the reason it sent as `failed`.
-        stopped: IPC.rendererToMain('deckit:plugin-stopped', {}),
+        // It did not start, and why: what the plugins that require it are told.
+        stopped: IPC.rendererToMain('deckit:plugin-stopped', { why: 'string' }),
         // Answers once every plugin it requires has started or failed: { [id]: { values, functions } or { error } }.
         requirements: IPC.rendererToMain('deckit:plugin-requirements', {}, { reply: true }),
         callExport: IPC.rendererToMain(
@@ -64,7 +63,6 @@ DeckitModule.define(
         writeRecord: IPC.rendererToMain('deckit:record-write', { key: 'string', value: 'any' }, { reply: true }),
         removeRecord: IPC.rendererToMain('deckit:record-remove', { key: 'string' }, { reply: true }),
         recordKeys: IPC.rendererToMain('deckit:record-keys', {}, { reply: true, sync: true }),
-        recordPath: IPC.rendererToMain('deckit:record-path', { key: 'string?' }, { reply: true, sync: true }),
 
         setSetting: IPC.rendererToMain('deckit:setting-set', { key: 'string', value: 'any' }, { reply: true }),
         settingChanged: IPC.mainToRenderer('deckit:setting-changed'),

@@ -7,7 +7,8 @@ DeckitModule.define(
             'originOf',
             'add',
             'whenPageEnds',
-            'hasUserActivation',
+            'consumeUserActivation',
+            'passUserActivation',
             'pluginOf',
             'pluginFrom',
             'isSwitcher',
@@ -56,10 +57,8 @@ DeckitModule.define(
                 for (const run of runs) run();
             };
             // A reload or a crashed renderer keeps the webContents and its id, but the page that set things up is gone.
-            webContents.on(
-                'did-start-navigation',
-                (details) => details.isMainFrame && !details.isSameDocument && end()
-            );
+            // A navigation ends it only once it commits: one that pin refuses never does.
+            webContents.on('did-navigate', end);
             webContents.on('render-process-gone', end);
             webContents.once('destroyed', () => {
                 end();
@@ -78,10 +77,17 @@ DeckitModule.define(
             return () => runs.delete(run);
         }
 
-        // Whether a person just pressed a key or the mouse in this view. Main sees the input itself, so a page cannot
-        // claim it.
-        function hasUserActivation(webContents) {
-            return Date.now() - (activated.get(webContents.id) || 0) < ACTIVATION_MS;
+        // Whether a person just pressed a key or the mouse in this view, used up by the answer: one press, one act.
+        // Main sees the input itself, so a page cannot claim it.
+        function consumeUserActivation(webContents) {
+            const fresh = Date.now() - (activated.get(webContents.id) || 0) < ACTIVATION_MS;
+            activated.delete(webContents.id);
+            return fresh;
+        }
+
+        // A press elsewhere that acts in this view: a pick in the switcher runs the plugin's command.
+        function passUserActivation(webContents) {
+            activated.set(webContents.id, Date.now());
         }
 
         // The plugin a renderer runs, or null for one that is not a plugin's.
@@ -133,7 +139,8 @@ DeckitModule.define(
             originOf,
             add,
             whenPageEnds,
-            hasUserActivation,
+            consumeUserActivation,
+            passUserActivation,
             pluginOf,
             pluginFrom,
             isSwitcher,

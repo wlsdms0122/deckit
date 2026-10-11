@@ -35,10 +35,10 @@ DeckitModule.define(
             return STORAGE.state.read(FORGOTTEN, []);
         }
 
-        function clearForgotten(name) {
+        function clearForgotten(pluginId) {
             STORAGE.state.write(
                 FORGOTTEN,
-                forgotten().filter((id) => id !== name)
+                forgotten().filter((id) => id !== pluginId)
             );
         }
 
