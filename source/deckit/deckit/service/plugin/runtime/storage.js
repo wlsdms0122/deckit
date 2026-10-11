@@ -58,7 +58,6 @@ DeckitModule.define(
                 remove: (key) =>
                     write(String(key), undefined, () => PROTOCOL.removeRecord.invoke({ key: String(key) })),
                 keys: () => PROTOCOL.recordKeys.invoke(),
-                path: (key = '') => PROTOCOL.recordPath.invoke(key ? { key: String(key) } : {}),
             };
         }
 

@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/home',
     {
         uses: ['deckit/config'],
-        provides: ['folder', 'plugins', 'staging', 'shipped', 'data', 'settings', 'state', 'logs'],
+        provides: ['folder', 'plugins', 'staging', 'shipped', 'data', 'records', 'settings', 'state', 'logs'],
         runs: 'node',
     },
     (CONFIG) => {
@@ -25,7 +25,9 @@ DeckitModule.define(
             staging: path.join(folder, '.plugins-installing'),
             // Inside the plugins, so what removes them removes the record too.
             shipped: path.join(plugins, '.shipped'),
+            // A plugin's main half owns its data folder whole; what deckit keeps for a plugin is beside it.
             data: path.join(folder, 'data'),
+            records: path.join(folder, 'records'),
             settings: path.join(folder, 'settings'),
             state: path.join(folder, 'state'),
             logs: path.join(folder, 'logs'),

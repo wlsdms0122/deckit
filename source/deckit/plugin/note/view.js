@@ -83,7 +83,6 @@ Deckit.register({
         const parentOf = (rel) => (rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '');
         const noteName = (rel) => baseName(rel).replace(/\.md$/i, '');
         const within = (rel, folder) => rel === folder || rel.startsWith(folder + '/');
-        // The host reads the kind ("GONE") off the front of main's error message into error.kind.
         const kindOf = (e) => e?.kind || '';
         const said = (e) => String(e?.message || e);
 

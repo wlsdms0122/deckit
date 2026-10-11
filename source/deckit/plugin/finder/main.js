@@ -90,8 +90,12 @@ module.exports = ({ handle, send, files }) => {
     };
     handle('list', async (dir) => {
         const at = absolute(dir);
-        const names = (await fsp.readdir(at)).filter((n) => n !== '.DS_Store');
-        return (await Promise.all(names.map((n) => describe(at, n)))).filter(Boolean);
+        // macOS answers EPERM for a folder it has not given the app, and a folder's own mode answers EACCES.
+        const names = await fsp.readdir(at).catch((error) => {
+            if (error.code === 'EACCES' || error.code === 'EPERM') throw files.refuse('NOT_PERMITTED', error.message);
+            throw error;
+        });
+        return (await Promise.all(names.filter((n) => n !== '.DS_Store').map((n) => describe(at, n)))).filter(Boolean);
     });
 
     handle('mkdir', (dir) => files.fresh(absolute(dir), 'untitled folder', (full) => fsp.mkdir(full)));

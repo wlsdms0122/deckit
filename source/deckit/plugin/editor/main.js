@@ -27,21 +27,19 @@ module.exports = ({ handle, files }) => {
     // Asynchronous throughout: in the main process, a synchronous read stalls every window of the app.
     const fsp = fs.promises;
 
-    // The kind leads the message: only the message crosses IPC, and the host reads it back as error.kind.
-    const refusal = (kind, message) => new Error(`${kind}: ${message}`);
     handle('read', async (p) => {
         const file = absolute(p);
         let st;
         try {
             st = await fsp.stat(file);
         } catch {
-            throw refusal('GONE', 'no such file');
+            throw files.refuse('GONE', 'no such file');
         }
-        if (!st.isFile()) throw refusal('NOT_TEXT', 'not a file');
+        if (!st.isFile()) throw files.refuse('NOT_TEXT', 'not a file');
         if (st.size > LIMIT)
-            throw refusal('NOT_TEXT', `too big to open here (${Math.round(st.size / 1024 / 1024)} MB)`);
+            throw files.refuse('NOT_TEXT', `too big to open here (${Math.round(st.size / 1024 / 1024)} MB)`);
         const text = decodeText(await fsp.readFile(file));
-        if (text === null) throw refusal('NOT_TEXT', 'not a UTF-8 text file');
+        if (text === null) throw files.refuse('NOT_TEXT', 'not a UTF-8 text file');
         return { text, mtime: st.mtimeMs };
     });
 
@@ -62,7 +60,7 @@ module.exports = ({ handle, files }) => {
                 now = (await fsp.stat(file)).mtimeMs;
             } catch {}
             if (now !== null && Math.abs(now - seen) > 1)
-                throw refusal('CHANGED', 'changed on disk since it was opened');
+                throw files.refuse('CHANGED', 'changed on disk since it was opened');
         }
         // In place, not a temp file and a rename: a rename breaks hard links and looks like a delete to watchers.
         await fsp.writeFile(file, String(text), 'utf8');
@@ -122,7 +120,7 @@ module.exports = ({ handle, files }) => {
         try {
             listed = await fsp.readdir(at, { withFileTypes: true });
         } catch (e) {
-            throw /^(ENOENT|ENOTDIR)$/.test(e.code) ? refusal('GONE', 'that folder is no longer there') : e;
+            throw /^(ENOENT|ENOTDIR)$/.test(e.code) ? files.refuse('GONE', 'that folder is no longer there') : e;
         }
         const entries = listed.filter((e) => !HIDDEN.has(e.name));
         const out = await Promise.all(
@@ -389,7 +387,7 @@ module.exports = ({ handle, files }) => {
         for (const f of kept.length ? kept : ['']) ((await isDir(path.join(root, f))) ? tops : gone).push(f);
         // A path is never the first word: it is shown as a sentence, which would capitalise it.
         const said = 'No longer there: ' + gone.join(', ');
-        if (!tops.length) throw refusal('GONE', kept.length ? said : "The workspace's folder is no longer there");
+        if (!tops.length) throw files.refuse('GONE', kept.length ? said : "The workspace's folder is no longer there");
         return { tops: tops.map((f) => path.join(root, f)), warning: gone.length ? said : '' };
     };
     const searchIn = async (root, query, opts, turn) => {
@@ -403,15 +401,13 @@ module.exports = ({ handle, files }) => {
                 return false;
             }
             if (!byFile.has(file)) byFile.set(file, []);
-            byFile
-                .get(file)
-                .push({
-                    line,
-                    col,
-                    length,
-                    hit: text.slice(col, col + length),
-                    text: text.length > 400 ? text.slice(0, 400) : text,
-                });
+            byFile.get(file).push({
+                line,
+                col,
+                length,
+                hit: text.slice(col, col + length),
+                text: text.length > 400 ? text.slice(0, 400) : text,
+            });
             total += 1;
             return true;
         };

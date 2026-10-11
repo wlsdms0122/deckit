@@ -12,12 +12,12 @@ DeckitModule.define(
         const KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
         const COUNT_LIMIT = 1000;
 
-        // A plugin's records: JSON by key, in its own folder, beside whatever its main half keeps there.
+        // A plugin's records: JSON by key, kept by deckit apart from the folder its main half owns.
         const records = {
             read: (pluginId, key) => STORE.read(recordFile(pluginId, key)),
             write: (pluginId, key, value) => STORE.write(recordFile(pluginId, key), value),
             remove: (pluginId, key) => STORE.remove(recordFile(pluginId, key)),
-            keys: (pluginId) => keysOf(folderOf(pluginId)),
+            keys: (pluginId) => keysOf(path.join(HOME.records, pluginId)),
         };
 
         // A plugin's settings are deckit's to keep, so they live outside the plugin's folder.
@@ -39,16 +39,18 @@ DeckitModule.define(
             return path.join(HOME.data, pluginId);
         }
 
-        // Every file counts, not only records: forgetting takes the whole folder, a plugin's own files included.
+        // Every file counts, its main half's included: forgetting takes them all.
         async function count(pluginId) {
             const seen = { count: 0, capped: false, hidden: false };
             await walk(folderOf(pluginId), 0, seen);
+            await walk(path.join(HOME.records, pluginId), 0, seen);
             return seen;
         }
 
         // What deckit kept for a plugin. Its pages' storage and its web sessions are their sessions' to clear.
         function forget(pluginId) {
             fs.rmSync(folderOf(pluginId), { recursive: true, force: true });
+            fs.rmSync(path.join(HOME.records, pluginId), { recursive: true, force: true });
             fs.rmSync(path.join(HOME.settings, pluginId + '.json'), { force: true });
         }
 
@@ -57,7 +59,7 @@ DeckitModule.define(
             if (!KEY.test(String(key)) || String(key).includes('..')) {
                 throw Object.assign(new Error('not a record key: ' + key), { kind: 'KEY' });
             }
-            return path.join(folderOf(pluginId), key + '.json');
+            return path.join(HOME.records, pluginId, key + '.json');
         }
 
         function keysOf(folder) {

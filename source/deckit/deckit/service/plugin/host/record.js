@@ -7,8 +7,6 @@ DeckitModule.define(
     },
     (STORAGE, IDENTITY, PROTOCOL) => {
         // MARK: - Property
-        const path = require('path');
-
         // MARK: - Initializer
         // MARK: - Public
         // A plugin reaches its own records and no one else's: which ones is who asked.
@@ -23,10 +21,6 @@ DeckitModule.define(
                 return true;
             });
             PROTOCOL.recordKeys.handle((_payload, sender) => STORAGE.records.keys(IDENTITY.pluginFrom(sender).id));
-            PROTOCOL.recordPath.handle(({ key }, sender) => {
-                const folder = STORAGE.folderOf(IDENTITY.pluginFrom(sender).id);
-                return key ? path.join(folder, key + '.json') : folder;
-            });
         }
 
         // MARK: - Private

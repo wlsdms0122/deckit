@@ -839,13 +839,14 @@ Deckit.register({
                 return {
                     list: [],
                     v: ++listingSeq,
-                    failure: /EACCES|EPERM|not permitted/i.test(said)
-                        ? {
-                              title: host.about().name + ' cannot read this folder',
-                              hint: 'macOS gives an app a folder in System Settings \u203a Privacy & Security \u203a Files and Folders.',
-                              permission: true,
-                          }
-                        : { title: 'Could not read this folder', hint: said, permission: false },
+                    failure:
+                        e?.kind === 'NOT_PERMITTED'
+                            ? {
+                                  title: host.about().name + ' cannot read this folder',
+                                  hint: 'macOS gives an app a folder in System Settings \u203a Privacy & Security \u203a Files and Folders.',
+                                  permission: true,
+                              }
+                            : { title: 'Could not read this folder', hint: said, permission: false },
                 };
             }
         };

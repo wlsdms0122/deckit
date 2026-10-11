@@ -1,10 +1,29 @@
 Deckit.register({
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`,
     keywords: ['브라우저', '웹', '인터넷', 'browser', 'web'],
+    settings: {
+        homepage: {
+            label: 'Homepage',
+            type: 'text',
+            default: 'https://www.google.com/',
+            hint: 'What a new tab opens.',
+        },
+        searchEngine: {
+            label: 'Search engine',
+            type: 'choice',
+            default: 'https://www.google.com/search?q=',
+            hint: 'Where words typed in the address bar are searched.',
+            options: [
+                { value: 'https://www.google.com/search?q=', label: 'Google' },
+                { value: 'https://duckduckgo.com/?q=', label: 'DuckDuckGo' },
+                { value: 'https://www.bing.com/search?q=', label: 'Bing' },
+            ],
+        },
+    },
 
-    make({ theme, ui, storage, web, host }) {
+    make({ theme, ui, storage, web, host, settings }) {
         const { values: store, records: data } = storage;
-        const HOME = 'https://www.google.com/';
+        const home = () => parseAddress(settings.get('homepage')) || 'about:blank';
         const safeHost = (url) => {
             try {
                 return new URL(url).hostname;
@@ -594,7 +613,7 @@ Deckit.register({
                 return null;
             }
         };
-        const searchFor = (raw) => 'https://www.google.com/search?q=' + encodeURIComponent(raw);
+        const searchFor = (raw) => settings.get('searchEngine') + encodeURIComponent(raw);
         const notAnAddress = (raw) =>
             ui.dialog({ title: 'Not a web address', message: raw, confirmLabel: 'OK', cancelLabel: 'Close' });
 
@@ -764,7 +783,7 @@ Deckit.register({
             });
         };
 
-        const newTab = (url = HOME, title = '', icon = '', background = false) => {
+        const newTab = (url = home(), title = '', icon = '', background = false) => {
             const id = ++seq;
             const page = pageFor(url);
             page.element.style.visibility = 'hidden';
@@ -1250,11 +1269,11 @@ Deckit.register({
 
         const saved = data.get('session', null);
         if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
-            const ids = saved.tabs.map((t) => newTab(t.url || HOME, t.title || '', t.icon || ''));
+            const ids = saved.tabs.map((t) => newTab(t.url || home(), t.title || '', t.icon || ''));
             const target = ids[Math.min(Math.max(0, saved.active | 0), ids.length - 1)];
             if (target) setActiveTab(target);
         } else {
-            newTab(HOME);
+            newTab(home());
         }
         renderMarks();
 

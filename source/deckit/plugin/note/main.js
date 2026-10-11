@@ -8,10 +8,7 @@ module.exports = ({ folder: data, handle, send, files }) => {
     const MAX_READ = 5 * 1024 * 1024;
     const MAX_DEPTH = 16;
     const BOM = '\uFEFF';
-    // The kind is the message's first word: the view handles each kind differently.
-    const fail = (kind, message) => new Error(kind + ': ' + message);
-
-    // The data folder also holds the plugin's settings JSON, so a note is decided by this rule alone.
+    // A dot file is the system's or another app's, not a note.
     const visible = (name) => !name.startsWith('.');
     const isNote = (name) => visible(name) && name.toLowerCase().endsWith(EXT);
 
@@ -30,7 +27,7 @@ module.exports = ({ folder: data, handle, send, files }) => {
         const text = String(rel ?? '');
         const parts = text.split('/').filter(Boolean);
         if (path.isAbsolute(text) || text.includes('\\') || parts.some((p) => p === '..' || p === '.' || !visible(p))) {
-            throw fail('OUTSIDE', 'not a place in the notes folder: ' + text);
+            throw files.refuse('OUTSIDE', 'not a place in the notes folder: ' + text);
         }
         const full = path.join(root, ...parts);
         for (let probe = full; ; ) {
@@ -40,7 +37,7 @@ module.exports = ({ folder: data, handle, send, files }) => {
             } catch {}
             if (real) {
                 if (real !== root && !real.startsWith(root + path.sep))
-                    throw fail('OUTSIDE', 'a link out of the notes folder: ' + text);
+                    throw files.refuse('OUTSIDE', 'a link out of the notes folder: ' + text);
                 break;
             }
             const up = path.dirname(probe);
@@ -51,12 +48,13 @@ module.exports = ({ folder: data, handle, send, files }) => {
     };
     const resolveNote = async (rel) => {
         const at = await inside(rel);
-        if (at.full === at.root || !isNote(path.basename(at.full))) throw fail('NOT_NOTE', 'not a note: ' + rel);
+        if (at.full === at.root || !isNote(path.basename(at.full)))
+            throw files.refuse('NOT_NOTE', 'not a note: ' + rel);
         let st = null;
         try {
             st = await fsp.stat(at.full);
         } catch {}
-        if (st && !st.isFile()) throw fail('NOT_NOTE', 'not a note: ' + rel);
+        if (st && !st.isFile()) throw files.refuse('NOT_NOTE', 'not a note: ' + rel);
         return at;
     };
     const resolveFolder = async (rel) => {
@@ -65,25 +63,25 @@ module.exports = ({ folder: data, handle, send, files }) => {
         try {
             st = await fsp.stat(at.full);
         } catch {}
-        if (!st) throw fail('GONE', 'no such folder: ' + rel);
-        if (!st.isDirectory()) throw fail('NOT_FOLDER', 'not a folder: ' + rel);
+        if (!st) throw files.refuse('GONE', 'no such folder: ' + rel);
+        if (!st.isDirectory()) throw files.refuse('NOT_FOLDER', 'not a folder: ' + rel);
         return at;
     };
     const resolveEntry = async (rel) => {
         const at = await inside(rel);
-        if (at.full === at.root) throw fail('OUTSIDE', 'the notes folder itself is not changed from here');
+        if (at.full === at.root) throw files.refuse('OUTSIDE', 'the notes folder itself is not changed from here');
         let st = null;
         try {
             st = await fsp.lstat(at.full);
         } catch {}
-        if (!st) throw fail('GONE', 'no longer there: ' + rel);
-        if (!st.isDirectory() && !isNote(path.basename(at.full))) throw fail('NOT_NOTE', 'not a note: ' + rel);
+        if (!st) throw files.refuse('GONE', 'no longer there: ' + rel);
+        if (!st.isDirectory() && !isNote(path.basename(at.full))) throw files.refuse('NOT_NOTE', 'not a note: ' + rel);
         return { ...at, folder: st.isDirectory() };
     };
 
     const cleanName = (raw) => {
         const name = files.name(raw);
-        if (!visible(name)) throw fail('NAME', `"${name}" cannot be a name: it would be hidden`);
+        if (!visible(name)) throw files.refuse('NAME', `"${name}" cannot be a name: it would be hidden`);
         return name;
     };
     const exists = async (p) => {
@@ -119,10 +117,10 @@ module.exports = ({ folder: data, handle, send, files }) => {
         try {
             st = await fsp.stat(full);
         } catch (e) {
-            if (e.code === 'ENOENT') throw fail('GONE', 'the note is no longer there');
+            if (e.code === 'ENOENT') throw files.refuse('GONE', 'the note is no longer there');
             throw e;
         }
-        if (st.size > MAX_READ) throw fail('TOO_BIG', 'this note is larger than 5 MB');
+        if (st.size > MAX_READ) throw files.refuse('TOO_BIG', 'this note is larger than 5 MB');
         const torn = await exists(backupOf(full, st.ino));
         const buf = await fsp.readFile(full);
         let text;
@@ -133,7 +131,7 @@ module.exports = ({ folder: data, handle, send, files }) => {
         try {
             text = new TextDecoder('utf-8', { fatal: !torn, ignoreBOM: true }).decode(buf);
         } catch {
-            throw fail('NOT_TEXT', 'this file is not UTF-8 text');
+            throw files.refuse('NOT_TEXT', 'this file is not UTF-8 text');
         }
         const bom = text.startsWith(BOM);
         if (bom) text = text.slice(1);
@@ -252,8 +250,8 @@ module.exports = ({ folder: data, handle, send, files }) => {
             st = await fsp.stat(full);
         } catch {}
         if (base != null) {
-            if (!st) throw fail('GONE', 'the note is no longer there');
-            if (Math.abs(st.mtimeMs - base) > 1) throw fail('CHANGED', 'the note was changed somewhere else');
+            if (!st) throw files.refuse('GONE', 'the note is no longer there');
+            if (Math.abs(st.mtimeMs - base) > 1) throw files.refuse('CHANGED', 'the note was changed somewhere else');
         }
         let out = String(text);
         if (eol === '\r\n') out = out.replace(/\r?\n/g, '\r\n');
@@ -273,7 +271,7 @@ module.exports = ({ folder: data, handle, send, files }) => {
                     }
                 } catch (e) {
                     await fsp.unlink(backup).catch(() => {});
-                    throw fail(
+                    throw files.refuse(
                         'NO_ROOM',
                         `the note was not changed: there is no room to keep its last version while saving (${e.code || e.message})`
                     );
@@ -283,7 +281,7 @@ module.exports = ({ folder: data, handle, send, files }) => {
                 await putInPlace(fh, Buffer.from(out, 'utf8'));
             } catch (e) {
                 // TORN only when a backup exists to go back to. A file this write created (wx) is removed.
-                if (backup) throw fail('TORN', `saving stopped partway (${e.code || e.message})`);
+                if (backup) throw files.refuse('TORN', `saving stopped partway (${e.code || e.message})`);
                 if (!st) await fsp.unlink(full).catch(() => {});
                 throw e;
             }
@@ -300,12 +298,13 @@ module.exports = ({ folder: data, handle, send, files }) => {
         const { full, root } = await resolveNote(rel);
         const st = await fsp.stat(full).catch(() => null);
         const backup = st && backupOf(full, st.ino);
-        if (!backup || !(await exists(backup))) throw fail('GONE', 'there is no earlier version kept for this note');
+        if (!backup || !(await exists(backup)))
+            throw files.refuse('GONE', 'there is no earlier version kept for this note');
         const fh = await fsp.open(full, 'r+');
         try {
             await putInPlace(fh, await fsp.readFile(backup));
         } catch (e) {
-            throw fail('TORN', `restoring stopped partway (${e.code || e.message})`);
+            throw files.refuse('TORN', `restoring stopped partway (${e.code || e.message})`);
         } finally {
             await fh.close().catch(() => {});
         }
