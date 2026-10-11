@@ -81,10 +81,15 @@ DeckitModule.define(
             const path = require('path');
             const { pathToFileURL } = require('url');
             const page = pathToFileURL(path.join(__dirname, 'page.html')).toString();
-            SESSION.own().protocol.handle(SCHEME.scheme, (request) => {
+            const own = SESSION.own();
+            own.protocol.handle(SCHEME.scheme, (request) => {
                 const { pathname } = new URL(request.url);
                 return pathname === '/' ? net.fetch(page) : new Response('', { status: 404 });
             });
+            // Electron grants every permission a session has no handler for. A plugin reaches the camera, the
+            // clipboard or a notice through deckit's API, which holds it to its permissions, and never through the web's.
+            own.setPermissionRequestHandler((_webContents, _permission, answer) => answer(false));
+            own.setPermissionCheckHandler(() => false);
         }
 
         // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so the glass under it shows.

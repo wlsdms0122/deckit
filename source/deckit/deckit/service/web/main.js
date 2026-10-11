@@ -4,6 +4,7 @@ DeckitModule.define(
         uses: [
             'deckit/service/window',
             'deckit/service/log/main',
+            'deckit/service/keymap/main',
             'deckit/service/plugin/identity',
             'deckit/service/web/session',
             'deckit/service/web/registry',
@@ -16,8 +17,9 @@ DeckitModule.define(
         ],
         provides: ['start', 'host', 'hostOf', 'holdsKeyboard', 'windowOptions'],
     },
-    (WINDOW, LOG, IDENTITY, SESSION, REGISTRY, PARTITION, AGENT, PERMISSION, CERTIFICATE, SCRIPT, PROTOCOL) => {
+    (WINDOW, LOG, KEYMAP, IDENTITY, SESSION, REGISTRY, PARTITION, AGENT, PERMISSION, CERTIFICATE, SCRIPT, PROTOCOL) => {
         // MARK: - Property
+        const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
         const icons = new Map(); // page id -> the icon it last announced
         const windows = new Map(); // window page id -> { window, host }
         const styles = new Map(); // a plugin's view -> how its windows look now: the panel changes theme
@@ -38,10 +40,16 @@ DeckitModule.define(
             styles.set(view, style);
             view.once('destroyed', () => styles.delete(view));
             LOG.guard(view, 'will-attach-webview', (event, preferences, params) => {
-                delete preferences.preload;
-                preferences.nodeIntegration = false;
-                preferences.contextIsolation = true;
-                preferences.sandbox = true;
+                // A page keeps only what an element may choose; the rules between sites and the sandbox are deckit's.
+                for (const key of Object.keys(preferences)) if (!KEPT_PREFERENCES.has(key)) delete preferences[key];
+                Object.assign(preferences, {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    sandbox: true,
+                    webSecurity: true,
+                    allowRunningInsecureContent: false,
+                    experimentalFeatures: false,
+                });
                 const named = [params.partition, preferences.partition].filter(Boolean).map(PARTITION.read);
                 if (!named.length || named.some((session) => session?.plugin !== plugin.id)) {
                     event.preventDefault();
@@ -184,6 +192,8 @@ DeckitModule.define(
         function adopt(view, style, page, { inPanel }) {
             const id = page.id;
             REGISTRY.add(page, { host: view, plugin: IDENTITY.pluginOf(view).id, tab: id, inPanel });
+            // A page is a webContents of its own: its keystrokes reach the key map only when it is listened to.
+            KEYMAP.listen(page);
             AGENT.presentAsBrowser(page);
             page.once('destroyed', () => icons.delete(id));
             const changed = () => report(view, page);
@@ -240,6 +250,7 @@ DeckitModule.define(
         function watchWindows(view, style, page, tab) {
             LOG.guard(page, 'did-create-window', (child) => {
                 REGISTRY.add(child.webContents, { host: view, plugin: IDENTITY.pluginOf(view).id, tab });
+                KEYMAP.listen(child.webContents);
                 WINDOW.dress(child, style());
                 holdWindowOpen(view, style, child.webContents, { inPanel: false });
                 watchWindows(view, style, child.webContents, tab);

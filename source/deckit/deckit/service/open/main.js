@@ -32,16 +32,20 @@ DeckitModule.define(
         function start() {
             PROTOCOL.open.handle((request, sender) => {
                 IDENTITY.pluginFrom(sender);
-                return open(request.url, request);
+                return open(request.url, {
+                    ...request,
+                    userInitiated: request.userInitiated && IDENTITY.hasUserActivation(sender),
+                });
             });
             PROTOCOL.handles.on((_payload, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
                 handlers.add(plugin.id);
                 IDENTITY.whenPageEnds(sender, () => handlers.delete(plugin.id));
             });
+            // Only on a person's click or key: otherwise any plugin could open Finder at will, or learn which paths exist.
             PROTOCOL.reveal.handle(({ file }, sender) => {
                 IDENTITY.pluginFrom(sender);
-                return reveal(file);
+                return IDENTITY.hasUserActivation(sender) && reveal(file);
             });
             PROTOCOL.lines.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.url-schemes');

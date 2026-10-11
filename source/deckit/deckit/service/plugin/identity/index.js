@@ -7,6 +7,7 @@ DeckitModule.define(
             'originOf',
             'add',
             'whenPageEnds',
+            'hasUserActivation',
             'pluginOf',
             'pluginFrom',
             'isSwitcher',
@@ -17,9 +18,12 @@ DeckitModule.define(
     () => {
         // MARK: - Property
         const SWITCHER_ORIGIN = 'deckit://switcher';
+        // As long as Chromium lets a page act on a person's click or key.
+        const ACTIVATION_MS = 5000;
         const owners = new Map(); // webContents id -> { plugin } or { switcher: true }
         const views = new Map(); // plugin id -> its webContents
         const ends = new Map(); // webContents id -> Set of what undoes what its page set up
+        const activated = new Map(); // webContents id -> when a person last pressed a key or the mouse in it
 
         // MARK: - Initializer
         // MARK: - Public
@@ -35,6 +39,15 @@ DeckitModule.define(
             const id = webContents.id;
             owners.set(id, owner);
             pin(webContents, owner.plugin ? originOf(owner.plugin.id) : SWITCHER_ORIGIN);
+            // A key the key map takes never reaches the page, so keys are counted before it; a click after it.
+            webContents.on(
+                'before-input-event',
+                (_event, input) => input.type === 'keyDown' && activated.set(id, Date.now())
+            );
+            webContents.on(
+                'input-event',
+                (_event, input) => input.type === 'mouseDown' && activated.set(id, Date.now())
+            );
             if (owner.plugin) views.set(owner.plugin.id, webContents);
             ends.set(id, new Set());
             const end = () => {
@@ -51,6 +64,7 @@ DeckitModule.define(
             webContents.once('destroyed', () => {
                 end();
                 ends.delete(id);
+                activated.delete(id);
                 owners.delete(id);
                 if (owner.plugin && views.get(owner.plugin.id) === webContents) views.delete(owner.plugin.id);
             });
@@ -62,6 +76,12 @@ DeckitModule.define(
             const runs = ends.get(webContents.id);
             runs.add(run);
             return () => runs.delete(run);
+        }
+
+        // Whether a person just pressed a key or the mouse in this view. Main sees the input itself, so a page cannot
+        // claim it.
+        function hasUserActivation(webContents) {
+            return Date.now() - (activated.get(webContents.id) || 0) < ACTIVATION_MS;
         }
 
         // The plugin a renderer runs, or null for one that is not a plugin's.
@@ -108,6 +128,16 @@ DeckitModule.define(
             }
         }
 
-        return { SWITCHER_ORIGIN, originOf, add, whenPageEnds, pluginOf, pluginFrom, isSwitcher, viewOf };
+        return {
+            SWITCHER_ORIGIN,
+            originOf,
+            add,
+            whenPageEnds,
+            hasUserActivation,
+            pluginOf,
+            pluginFrom,
+            isSwitcher,
+            viewOf,
+        };
     }
 );
