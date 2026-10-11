@@ -67,16 +67,26 @@ const files = () => {
   return walk("").sort();
 };
 
+// A file's declaration, read by running it against a registry that records define() and makes nothing.
 const moduleOf = (file) => {
-  const plain = code(fs.readFileSync(path.resolve(LIBRARY, file), "utf8"));
-  const defines = [...plain.matchAll(/DeckitModule\.define\(\s*"([^"]+)"\s*,\s*\{\s*uses:\s*\[([^\]]*)\]\s*,\s*provides:\s*\[([^\]]*)\]\s*,?\s*(?:runs:\s*"([a-z]+)"\s*,?\s*)?\}/g)];
-  if (defines.length !== 1) return { problem: `defines ${defines.length} modules, not one, each as define("<name>", { uses: [...], provides: [...], runs? }, make)`, plain };
-  const [, name, list, provided, runs = null] = defines[0];
+  const text = fs.readFileSync(path.resolve(LIBRARY, file), "utf8");
+  const plain = code(text);
+  const defines = [];
+  const recorder = { define: (name, declared) => defines.push({ name, ...declared }), use: () => {} };
+  try {
+    new Function("DeckitModule", text)(recorder);
+  } catch (error) {
+    return { problem: `does not load: ${error.message}`, plain };
+  }
+  if (defines.length !== 1) {
+    return { problem: `defines ${defines.length} modules, not one, each as define("<name>", { uses, provides, runs }, make)`, plain };
+  }
+  const [{ name, uses = [], provides = [], runs = null }] = defines;
   return {
     name,
     runs,
-    uses: [...list.matchAll(/"([^"]+)"/g)].map(([, written]) => ({ name: written.replace(/\?$/, ""), optional: written.endsWith("?") })),
-    provides: [...provided.matchAll(/"([^"]+)"/g)].map(([, written]) => written),
+    uses: uses.map((written) => ({ name: written.replace(/\?$/, ""), optional: written.endsWith("?") })),
+    provides,
     plain,
   };
 };
