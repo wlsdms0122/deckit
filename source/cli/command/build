@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/../../.."
+
+source/cli/command/check || { echo "the files do not hold to their modules: stopping" >&2; exit 1; }
+
+VERSION="$(awk -F'"' '/^\[package\]/{p=1;next} /^\[/{p=0} p&&/^version[ \t]*=/{print $2;exit}' manifest.toml)"
+OUT=.build
+# Built in a folder of its own and moved in whole at the end: `deckit dev` may run two builds at once.
+mkdir -p "$OUT"
+WORK="$(mktemp -d "$OUT/.building.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
+LIB="$WORK/lib"
+mkdir -p "$LIB/document" "$LIB/plugin"
+
+# Read into an array first, where a node that fails stops the build.
+LIBRARY=source/deckit/deckit
+files_of() { node -p "require('./source/cli/library.js').bundles().$1.join(' ')"; }
+BUNDLES=($(node -p "Object.keys(require('./source/cli/library.js').bundles()).join(' ')"))
+for b in "${BUNDLES[@]}"; do
+  FILES=($(files_of "$b"))
+  for f in "${FILES[@]}"; do cat "$LIBRARY/$f"; printf '\n'; done > "$LIB/$b.js"
+done
+
+# Main's and the command line's run as CommonJS; the pages' as a function body.
+for b in main cli; do
+  node --check "$LIB/$b.js" || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
+done
+for b in registry chord page; do
+  node -e "new Function(require('fs').readFileSync('$LIB/$b.js','utf8'))" \
+    || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
+done
+
+cp "$LIBRARY/$(node -p "require('./source/cli/library.js').PAGE")" "$LIB/page.html"
+cp document/EMBEDDING.md document/PLUGIN.md document/UI.md "$LIB/document/"
+
+for dir in source/deckit/plugin/*/; do
+  [ -f "$dir/manifest.toml" ] || continue
+  rsync -a --exclude .DS_Store "${dir%/}" "$LIB/plugin/"
+done
+
+rsync -a --exclude .DS_Store source/deckit/deckit-cli/ "$LIB/deckit-cli/"
+node --check "$LIB/deckit-cli/deckit-cli" && node --check "$LIB/deckit-cli/commands.js" \
+  || { echo "deckit-cli has a syntax error: stopping" >&2; exit 1; }
+
+SOURCE_HASH="$({ find source/deckit/deckit source/deckit/plugin source/deckit/deckit-cli source/cli/library.js source/cli/concept.js -type f -not -name .DS_Store -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+
+# Each bundle is run against a registry stub that records the names it defines and makes nothing.
+DIR="$LIB" VERSION="$VERSION" SOURCE_HASH="$SOURCE_HASH" node -e '
+  const fs = require("fs"), path = require("path");
+  const dir = path.resolve(process.env.DIR);
+  const lists = require("./source/cli/library.js").bundles();
+  const { conceptOf } = require("./source/cli/concept.js");
+  const definedIn = (file) => {
+    const defined = {};
+    // A name outside the concept map counts as a face.
+    const faceOf = (name) => { const c = conceptOf(name); return c ? c.face : true; };
+    const listening = { define: (name, { provides = [] } = {}) => { defined[name] = { provides, face: faceOf(name) }; }, use: () => {} };
+    if (file !== "registry.js") new Function("DeckitModule", "require", fs.readFileSync(path.join(dir, file), "utf8"))(listening, require);
+    return defined;
+  };
+  const bundles = {};
+  for (const name of Object.keys(lists)) bundles[name] = { file: name + ".js", defines: definedIn(name + ".js") };
+  require(path.join(dir, "registry.js"));
+  require(path.join(dir, "cli.js"));
+  const api = DeckitModule.use(["deckit/service/plugin/model/manifest"], (m) => m.HOST_API);
+  const plugins = fs.readdirSync(path.join(dir, "plugin")).sort();
+  const said = { name: "deckit", version: process.env.VERSION, api, source: process.env.SOURCE_HASH, bundles, page: "page.html", cli: "deckit-cli/deckit-cli", plugins };
+  fs.writeFileSync(path.join(dir, "deckit.json"), JSON.stringify(said, null, 2) + "\n");
+'
+
+# Byte for byte the same from the same sources, wherever built: the archive's hash is which deckit it is.
+pack() {
+  local from="$1" to="$2"
+  chmod -R u=rwX,go=rX "$from"
+  TZ=UTC0 find "$from" -exec touch -h -t 200001010000 {} +
+  ( cd "$from" && find . -type f | LC_ALL=C sort > "$OLDPWD/$to.list" )
+  ( cd "$from" && COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --no-acls --uid 0 --gid 0 --uname "" --gname "" -cf - -T "$OLDPWD/$to.list" ) | gzip -n -9 > "$to"
+  rm -f "$to.list"
+  ( cd "$(dirname "$to")" && shasum -a 256 "$(basename "$to")" > "$(basename "$to").sha256" )
+}
+NAME="deckit-lib-$VERSION.tgz"
+pack "$LIB" "$WORK/$NAME"
+rm -f "$OUT"/deckit-lib-*.tgz*
+mv "$WORK/$NAME" "$WORK/$NAME.sha256" "$OUT/"
+ARCHIVE="$OUT/$NAME"
+
+echo "built deckit $VERSION (sources $SOURCE_HASH)"
+echo "  $ARCHIVE  $(cut -c1-12 < "$ARCHIVE.sha256")  $(du -h "$ARCHIVE" | cut -f1 | tr -d ' ')"

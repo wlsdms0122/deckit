@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")/command" && pwd)"
+
+usage() {
+  cat <<TEXT
+deckit: a panel of plugins, as a library an app embeds
+
+  build            deckit-lib, into .build/: what an app embeds
+  app              Deckit.app, into .build/, from the archive the last build made
+  check            hold the files to how they reach each other
+  dev              Deckit.app from the sources, built again when one changes
+  install          Deckit.app into /Applications, as deckit app last made it
+  plugins <id>…    a plugin Deckit ships, brought back after it was removed
+  engine <plugin>  build a plugin's editing engine again (editor, note)
+
+TEXT
+}
+
+cmd="${1:-}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  ""|-h|--help|help) usage ;;
+  engine) exec "$HERE/../engine/build.sh" "$@" ;;
+  *)
+    [ -x "$HERE/$cmd" ] || { echo "unknown command: $cmd" >&2; usage >&2; exit 1; }
+    exec "$HERE/$cmd" "$@"
+    ;;
+esac

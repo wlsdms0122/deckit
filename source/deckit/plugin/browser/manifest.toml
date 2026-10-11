@@ -1,0 +1,11 @@
+id = "browser"
+name = "Browser"
+version = "1.0.0"
+api = "1.0.0"
+url-schemes = ["http", "https"]
+
+[permissions]
+"system.certificates" = "Asks you about a site whose certificate this Mac cannot verify, and loads it once you say yes."
+"system.site-permissions" = "Asks you when a site wants the camera, the microphone or notices, and lets it have them once you say yes."
+"system.notifications" = "Shows a site's notices, the way a browser does."
+"system.files" = "Opens a file on this Mac in a tab when you type its path or a file:// address."

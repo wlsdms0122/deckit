@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/../../.."
+
+ARCHIVE="$(node -p "require('./source/cli/app.js').builtArchive()")"
+ELECTRON_APP="$(node source/cli/electron.js)"
+VERSION="$(node -p "require('./source/cli/electron.js').VERSION")"
+APP=.build/Deckit.app
+NEW="$APP.new"
+
+rm -rf "$NEW"
+# -c clones on APFS; a plain copy where the disk cannot.
+cp -Rc "$ELECTRON_APP" "$NEW" 2>/dev/null || { rm -rf "$NEW"; cp -R "$ELECTRON_APP" "$NEW"; }
+rm -f "$NEW/Contents/Resources/default_app.asar"
+node -e "require('./source/cli/app.js').assemble(process.argv[1], process.argv[2])" "$ARCHIVE" "$NEW/Contents/Resources/app"
+DECKIT_VERSION="$(node -p "require('./$NEW/Contents/Resources/app/package.json').version")"
+PLIST="$NEW/Contents/Info.plist"
+plutil -replace CFBundleName -string Deckit "$PLIST"
+plutil -replace CFBundleDisplayName -string Deckit "$PLIST"
+plutil -replace CFBundleIdentifier -string dev.deckit.app "$PLIST"
+plutil -replace CFBundleShortVersionString -string "$DECKIT_VERSION" "$PLIST"
+plutil -replace CFBundleVersion -string "$DECKIT_VERSION" "$PLIST"
+codesign --force --deep --sign - "$NEW" 2>/dev/null
+codesign --verify --deep "$NEW" || { echo "Deckit.app does not verify: the last one stays" >&2; exit 1; }
+
+rm -rf "$APP"
+mv "$NEW" "$APP"
+echo "made $APP (deckit $DECKIT_VERSION, Electron $VERSION, dev.deckit.app, signed ad hoc)"

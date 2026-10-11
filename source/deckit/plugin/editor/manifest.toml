@@ -1,0 +1,8 @@
+id = "editor"
+name = "Editor"
+version = "1.0.0"
+api = "1.0.0"
+url-schemes = ["file"]
+
+[permissions]
+"system.main-process" = "Reads, writes and searches the files in your workspaces, and puts the ones you delete in the Trash."

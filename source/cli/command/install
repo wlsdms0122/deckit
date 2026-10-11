@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/../../.."
+
+FROM=.build/Deckit.app
+TO=/Applications/Deckit.app
+ID=dev.deckit.app
+[ -d "$FROM" ] || { echo "no $FROM: run deckit build, then deckit app" >&2; exit 1; }
+if [ -e "$TO" ]; then
+  [ "$(plutil -extract CFBundleIdentifier raw "$TO/Contents/Info.plist" 2>/dev/null || true)" = "$ID" ] \
+    || { echo "$TO is not Deckit ($ID): not replaced" >&2; exit 1; }
+fi
+
+RUNNING="$TO/Contents/MacOS/Electron"
+if pgrep -f "$RUNNING" >/dev/null; then
+  osascript -e "tell application id \"$ID\" to quit" >/dev/null 2>&1 || true
+  for _ in $(seq 1 20); do pgrep -f "$RUNNING" >/dev/null || break; sleep 0.5; done
+  pgrep -f "$RUNNING" >/dev/null && { echo "Deckit did not quit: not replaced" >&2; exit 1; }
+fi
+
+# ditto rather than cp: it keeps the signed bundle's layout intact.
+rm -rf "$TO.installing"
+ditto "$FROM" "$TO.installing"
+rm -rf "$TO"
+mv "$TO.installing" "$TO"
+xattr -dr com.apple.quarantine "$TO" 2>/dev/null || true
+echo "installed $TO ($(plutil -extract CFBundleShortVersionString raw "$TO/Contents/Info.plist"))"

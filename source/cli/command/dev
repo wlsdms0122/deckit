@@ -1,0 +1,74 @@
+#!/usr/bin/env node
+const fs = require("fs");
+const path = require("path");
+const { spawn } = require("child_process");
+
+const root = path.join(__dirname, "..", "..", "..");
+const APP = require(path.join(root, "source", "cli", "app.js"));
+const { electronApp } = require(path.join(root, "source", "cli", "electron.js"));
+const RUN = path.join(root, ".build", "dev");
+const NEXT = RUN + ".next";
+// The exit code with which the app asks to be started again (deckit-app/main.js, restart).
+const RESTART = 75;
+const args = process.argv.slice(2);
+const electron = path.join(electronApp(), "Contents", "MacOS", "Electron");
+
+const build = () => new Promise((resolve) => {
+  spawn(path.join(__dirname, "build"), { cwd: root, stdio: "inherit" }).on("exit", (code) => {
+    if (code !== 0) return resolve(false);
+    try { APP.assemble(APP.builtArchive(), NEXT); resolve(true); }
+    catch (e) { console.error("[dev] " + e.message); resolve(false); }
+  });
+});
+
+let app = null;
+let stopping = null;  // expected to exit: its exit is not the person quitting
+const start = () => {
+  const running = spawn(electron, [RUN, ...args], {
+    cwd: root, stdio: "inherit",
+    env: { ...process.env, DECKIT_DEV_DATA: path.join(root, ".dev"), DECKIT_DEV_RESTART: String(RESTART) },
+  });
+  app = running;
+  running.on("exit", (code) => {
+    if (running === stopping) return;
+    app = null;
+    if (code === RESTART) return start();
+    process.exit(0);
+  });
+};
+const stop = () => new Promise((resolve) => {
+  if (!app) return resolve();
+  stopping = app;
+  app = null;
+  stopping.once("exit", () => { stopping = null; resolve(); });
+  stopping.kill("SIGTERM");
+});
+
+// Main loads its bundle once, so a change restarts the app; its folder is swapped only while it is stopped.
+let busy = false, again = false;
+const cycle = async () => {
+  if (busy) { again = true; return; }
+  busy = true;
+  do {
+    again = false;
+    if (!(await build())) { console.log("[dev] the build failed: the app that is up is the last one that built"); continue; }
+    await stop();
+    fs.rmSync(RUN, { recursive: true, force: true });
+    fs.renameSync(NEXT, RUN);
+    start();
+  } while (again);
+  busy = false;
+};
+
+// fs.watch reports one save several times (write, rename, an editor's backup): wait for them to settle.
+let timer = null;
+const changed = () => {
+  clearTimeout(timer);
+  timer = setTimeout(() => { console.log("[dev] building again"); cycle(); }, 300);
+};
+fs.watch(path.join(root, "source", "deckit"), { recursive: true }, changed);
+// These decide what goes into the bundles, so they are sources of the archive too.
+for (const file of ["library.js", "concept.js"]) fs.watch(path.join(root, "source", "cli", file), changed);
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { app?.kill("SIGTERM"); process.exit(0); });
+
+cycle().then(() => { if (!app) process.exit(1); });
