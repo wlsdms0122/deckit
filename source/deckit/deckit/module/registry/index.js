@@ -18,8 +18,7 @@
     },
   });
 
-  /* source/cli/library.js also parses every define's `{ uses, provides, runs }` from source, in that
-     order, to build and order the bundles; `runs` is read only there. Change both together. */
+  // `runs` is the build's: it reads every declaration by running the file against a recorder.
   const define = (name, { uses = [], provides = [] } = {}, make) => {
     if (made.has(name)) throw new Error(`[deckit] ${name} is defined twice`);
     const value = make(...resolve(name, uses));
