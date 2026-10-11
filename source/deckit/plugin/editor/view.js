@@ -1,5 +1,4 @@
 Deckit.register({
-    order: -70,
     keywords: [
         'editor',
         'edit',
@@ -46,7 +45,8 @@ Deckit.register({
         },
     },
 
-    make({ theme, ui, store, data, host, main, settings, util }) {
+    make({ theme, ui, storage, host, main, settings, util }) {
+        const { values: store, records: data } = storage;
         const engine = EditorEngine;
         const { look: LOOK, ink } = editorLook(engine, theme, ui);
         const RECENT_KEEP = 10;

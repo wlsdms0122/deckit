@@ -1,37 +1,84 @@
 DeckitModule.define(
     'deckit/service/storage',
     {
-        uses: ['deckit/service/home', 'deckit/service/storage/model/space', 'deckit/module/store'],
-        provides: ['root', 'folderOf', 'host'],
+        uses: ['deckit/service/home', 'deckit/module/store'],
+        provides: ['folderOf', 'records', 'settings', 'state', 'count', 'forget'],
         runs: 'node',
     },
-    (home, SPACE, STORE) => {
+    (HOME, STORE) => {
+        // MARK: - Property
+        const fs = require('fs');
         const path = require('path');
+        const KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+        const COUNT_LIMIT = 1000;
 
-        // Not the app's userData: an app that updates can be reinstalled under us.
-        const root = path.join(home.folder, 'data');
-        const { read, write } = STORE;
-
-        const folderOf = (space) => {
-            const why = SPACE.nameProblem(space);
-            if (why) throw new Error(why);
-            return path.join(root, String(space));
+        // A plugin's records: JSON by key, in its own folder, beside whatever its main half keeps there.
+        const records = {
+            read: (pluginId, key) => STORE.read(recordFile(pluginId, key)),
+            write: (pluginId, key, value) => STORE.write(recordFile(pluginId, key), value),
+            remove: (pluginId, key) => STORE.remove(recordFile(pluginId, key)),
+            keys: (pluginId) => keysOf(folderOf(pluginId)),
         };
 
-        // The core's keys ("window:bot:main") are encoded rather than refused; encoding leaves no separator.
-        const hostFile = (key) => {
-            const name = String(key || '');
-            if (!name) throw new Error('a host key is needed');
-            return path.join(root, SPACE.RESERVED, encodeURIComponent(name).replace(/^\./, '%2E') + '.json');
+        // A plugin's settings are deckit's to keep, so they live outside the plugin's folder.
+        const settings = {
+            read: (pluginId) => STORE.read(path.join(HOME.settings, pluginId + '.json'), {}),
+            write: (pluginId, values) => STORE.write(path.join(HOME.settings, pluginId + '.json'), values),
         };
 
-        return Object.freeze({
-            root,
-            folderOf,
-            host: Object.freeze({
-                read: (key) => read(hostFile(key)),
-                write: (key, json) => write(hostFile(key), json),
-            }),
-        });
+        // deckit's own state: the key map, the Open With order, the plugin order, window places.
+        const state = {
+            read: (key, fallback) => STORE.read(path.join(HOME.state, key + '.json'), fallback),
+            write: (key, value) => STORE.write(path.join(HOME.state, key + '.json'), value),
+        };
+
+        // MARK: - Initializer
+        // MARK: - Public
+        // Plugin ids are held to their rule before a plugin loads, so an id here is a folder name.
+        function folderOf(pluginId) {
+            return path.join(HOME.data, pluginId);
+        }
+
+        // Every file counts, not only records: forgetting takes the whole folder, a plugin's own files included.
+        async function count(pluginId) {
+            const seen = { count: 0, capped: false, hidden: false };
+            await walk(folderOf(pluginId), 0, seen);
+            return seen;
+        }
+
+        // What deckit kept for a plugin. Its pages' storage and its web sessions are their sessions' to clear.
+        function forget(pluginId) {
+            fs.rmSync(folderOf(pluginId), { recursive: true, force: true });
+            fs.rmSync(path.join(HOME.settings, pluginId + '.json'), { force: true });
+        }
+
+        // MARK: - Private
+        function recordFile(pluginId, key) {
+            if (!KEY.test(String(key)) || String(key).includes('..')) {
+                throw Object.assign(new Error('not a record key: ' + key), { kind: 'KEY' });
+            }
+            return path.join(folderOf(pluginId), key + '.json');
+        }
+
+        function keysOf(folder) {
+            if (!fs.existsSync(folder)) return [];
+            return fs
+                .readdirSync(folder)
+                .filter((name) => name.endsWith('.json') && KEY.test(name.slice(0, -5)))
+                .map((name) => name.slice(0, -5));
+        }
+
+        async function walk(folder, depth, seen) {
+            const entries = await fs.promises.readdir(folder, { withFileTypes: true }).catch(() => []);
+            for (const entry of entries) {
+                if (seen.capped) return;
+                if (entry.name.startsWith('.')) seen.hidden = true;
+                else if (entry.isDirectory() && depth < 8) await walk(path.join(folder, entry.name), depth + 1, seen);
+                else if (entry.isFile() && seen.count >= COUNT_LIMIT) seen.capped = true;
+                else if (entry.isFile()) seen.count++;
+            }
+        }
+
+        return { folderOf, records, settings, state, count, forget };
     }
 );

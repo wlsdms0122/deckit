@@ -9,36 +9,37 @@ DeckitModule.define(
             'query',
             'resolved',
             'pick',
-            'listening',
+            'source',
             'collect',
-            'offer',
-            'offerNow',
+            'collectNow',
+            'resolve',
             'search',
-            'found',
             'run',
         ],
         runs: 'electron',
     },
-    (IPC) =>
-        Object.freeze({
-            /* ---------- the switcher's page and main ---------- */
-            need: IPC.report('deckit:switcher-need', {}),
-            // `now` is sent again on its own when a slow source answers.
-            supply: IPC.tell('deckit:switcher-supply', { items: 'array', now: 'array' }),
-            now: IPC.tell('deckit:switcher-now', { rows: 'array' }),
-            // `page`: the entry whose own page was typed in, or absent for the list.
-            query: IPC.report('deckit:switcher-query', { raw: 'string', page: 'string?' }),
-            resolved: IPC.tell('deckit:switcher-resolved', { raw: 'string', entries: 'array', page: 'string?' }),
-            pick: IPC.report('deckit:switcher-pick', { id: 'string' }),
+    (IPC) => ({
+        // The switcher's list and main.
+        need: IPC.rendererToMain('deckit:switcher-need', {}),
+        supply: IPC.mainToRenderer('deckit:switcher-supply'),
+        // `now` is sent again on its own as a slow source answers.
+        now: IPC.mainToRenderer('deckit:switcher-now'),
+        // `page`: the entry whose own page was typed in, or absent for the list.
+        query: IPC.rendererToMain('deckit:switcher-query', { raw: 'string', page: 'string?' }),
+        resolved: IPC.mainToRenderer('deckit:switcher-resolved'),
+        pick: IPC.rendererToMain('deckit:switcher-pick', { id: 'string' }),
 
-            /* ---------- the panel's page and main ---------- */
-            // Sent once the page's plugins are made and registered.
-            listening: IPC.report('deckit:switcher-listening', {}),
-            collect: IPC.tell('deckit:switcher-collect', {}),
-            offer: IPC.report('deckit:switcher-offer', { items: 'array', now: 'array' }),
-            offerNow: IPC.report('deckit:switcher-offer-now', { rows: 'array' }),
-            search: IPC.tell('deckit:switcher-search', { raw: 'string', page: 'string?' }),
-            found: IPC.report('deckit:switcher-found', { raw: 'string', entries: 'array', page: 'string?' }),
-            run: IPC.tell('deckit:switcher-run', { id: 'string' }),
-        })
+        // A plugin's view and main. `source`: what the sending plugin answers.
+        source: IPC.rendererToMain('deckit:switcher-source', {
+            icon: 'string',
+            aliases: 'array',
+            opens: 'boolean',
+            resolves: 'boolean',
+        }),
+        collect: IPC.mainToRenderer('deckit:switcher-collect', { reply: true }),
+        collectNow: IPC.mainToRenderer('deckit:switcher-collect-now', { reply: true }),
+        resolve: IPC.mainToRenderer('deckit:switcher-resolve', { reply: true }),
+        search: IPC.mainToRenderer('deckit:switcher-search', { reply: true }),
+        run: IPC.mainToRenderer('deckit:switcher-run', { reply: true }),
+    })
 );

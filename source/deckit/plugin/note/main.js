@@ -1,4 +1,4 @@
-module.exports = ({ data, handle, send, files }) => {
+module.exports = ({ folder: data, handle, send, files }) => {
     const fs = require('fs');
     const fsp = fs.promises;
     const path = require('path');

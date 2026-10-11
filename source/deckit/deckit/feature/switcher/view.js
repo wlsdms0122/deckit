@@ -4,15 +4,14 @@ DeckitModule.define(
         uses: [
             'deckit/ui/token',
             'deckit/ui/kit',
-            'deckit/module/query/match',
-            'deckit/module/chord',
-            'deckit/service/keymap/client',
-            'deckit/service/switcher/client',
+            'deckit/module/match',
+            'deckit/service/switcher/view',
+            'deckit/service/switcher/model/tone',
             'deckit/feature/switcher/model/protocol',
         ],
         provides: ['open', 'boot'],
     },
-    (TOKEN, UI, MATCH, CHORD, KEYMAP, ENTRIES, PROTOCOL) => {
+    (TOKEN, UI, MATCH, ENTRIES, TONE, PROTOCOL) => {
         const { MOTION, WASH, icon, aimOnMove, isDark } = TOKEN;
         const { make: makeUI } = UI;
         const { TIER, matchFields } = MATCH;
@@ -38,7 +37,7 @@ DeckitModule.define(
             },
         };
         const NOW_TONE = Object.fromEntries(
-            ENTRIES.TONES.map((tone) => {
+            TONE.TONES.map((tone) => {
                 if (!LOOK[tone]) throw new Error(`[deckit] the switcher has no look for the tone ${tone}`);
                 return [tone, LOOK[tone]];
             })
@@ -745,7 +744,7 @@ DeckitModule.define(
                     run: it.runnable ? () => entries.pick(it.id) : undefined,
                 }));
 
-            const entries = ENTRIES.entries({
+            const entries = ENTRIES.list({
                 supply: ({ items, now }) => {
                     clearTimeout(unanswered);
                     if (live) return;
@@ -771,7 +770,7 @@ DeckitModule.define(
             // If no entries come (the panel's page never came up), put itself away rather than hold the keyboard empty.
             const GIVE_UP_MS = 4000;
             let unanswered = null;
-            PROTOCOL.open.hear(() => {
+            PROTOCOL.open.on(() => {
                 if (live) return;
                 entries.need();
                 clearTimeout(unanswered);
@@ -779,17 +778,10 @@ DeckitModule.define(
                     if (!live) PROTOCOL.close.send();
                 }, GIVE_UP_MS);
             });
-            /* ⌘1..⌘9 go through the keymap: only a chord main catches wins over a meaning the app's menu
-       may give ⌘ and a number. */
-            KEYMAP.connect({ floating: TOKEN.layers }).answer(
-                [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({
-                    id: 'row' + n,
-                    chord: CHORD.parse('mod+' + n),
-                    run: () => live?.takeNumber(n),
-                }))
-            );
+            // ⌘1 to ⌘9 are caught in main, where only a chord taken first wins over the app's menu.
+            PROTOCOL.number.on(({ number }) => live?.takeNumber(number));
             // The list goes with the view, so a reopen never shows stale entries.
-            PROTOCOL.dismiss.hear(({ token }) => {
+            PROTOCOL.dismiss.on(({ token }) => {
                 hideToken = token ?? null;
                 const open = live;
                 live = null;

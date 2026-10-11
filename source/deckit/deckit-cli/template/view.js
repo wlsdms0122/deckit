@@ -7,7 +7,6 @@ Deckit.register({
          </svg>`,
     // Quick switcher aliases besides its name.
     keywords: ['@@ID@@'],
-    order: 50,
 
     make({ theme, ui }) {
         const content = document.createElement('div');

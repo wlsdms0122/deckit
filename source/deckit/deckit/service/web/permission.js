@@ -1,0 +1,187 @@
+DeckitModule.define(
+    'deckit/service/web/permission',
+    {
+        uses: ['deckit/service/web/session', 'deckit/service/web/registry', 'deckit/service/web/model/protocol'],
+        provides: ['start', 'granted', 'ask', 'mayOpenApp', 'originOf', 'onChange', 'notices', 'allow', 'revoke'],
+        runs: 'main',
+    },
+    (SESSION, REGISTRY, PROTOCOL) => {
+        // MARK: - Property
+        // partition|origin|permission. Allowances live until exit: the plugin hands them back through allow(). A
+        // refusal is not kept, so a page refused by mistake can ask again once reloaded.
+        const GRANTED = new Set();
+        const MEDIA = { audio: 'microphone', video: 'camera' };
+        // Asked per scheme, so a site allowed one app is not allowed every app.
+        const NEVER_OUT = new Set([
+            'javascript',
+            'data',
+            'blob',
+            'file',
+            'filesystem',
+            'about',
+            'chrome',
+            'chrome-extension',
+            'devtools',
+            'view-source',
+            'http',
+            'https',
+            'ws',
+            'wss',
+        ]);
+        // Nothing follows a local network check to ask, and Electron does not block the connection either.
+        const LOCAL_NETWORK = new Set(['local-network-access', 'local-network', 'loopback-network']);
+        const questions = new Map(); // ask id -> { host, key, tab, gone, waiting: [resolve] }
+        const questionFor = new Map(); // tab|origin|permissions -> ask id
+        const listeners = new Set();
+        let sequence = 0;
+
+        // MARK: - Initializer
+        // MARK: - Public
+        function start() {
+            SESSION.onCreate((session) => {
+                session.setPermissionRequestHandler(onRequest);
+                session.setPermissionCheckHandler(onCheck);
+            });
+            PROTOCOL.permit.on(({ ask: id, allow }, sender) => {
+                if (questions.get(id)?.host === sender) settle(id, allow);
+            });
+        }
+
+        function granted(partition, origin, permission) {
+            return !!partition && !!origin && GRANTED.has(keyOf(partition, origin, permission));
+        }
+
+        // One question per page, site and set of permissions: a page asking again before it is answered joins the
+        // question already up.
+        function ask(host, tab, origin, permissions, about = {}) {
+            return new Promise((resolve) => {
+                if (!origin || !permissions.length) return resolve(false);
+                const partition = SESSION.partitionOf(tab);
+                if (permissions.every((permission) => granted(partition, origin, permission))) return resolve(true);
+                const key = [tab.id, origin, ...[...permissions].sort()].join('|');
+                const up = questions.get(questionFor.get(key));
+                if (up) {
+                    up.waiting.push(resolve);
+                    return;
+                }
+                const id = ++sequence;
+                const gone = () => settle(id, false);
+                questions.set(id, { host, key, tab, gone, waiting: [resolve] });
+                questionFor.set(key, id);
+                tab.once('destroyed', gone);
+                PROTOCOL.asking.send(host, { id: tab.id, ask: id, origin, permissions, ...about });
+            });
+        }
+
+        // Asked of the top document's site whichever frame wants the app: that is the site the person sees.
+        function mayOpenApp(host, tab, url, asking = tab) {
+            const { app } = require('electron');
+            const scheme = schemeOf(url);
+            if (!scheme || NEVER_OUT.has(scheme)) return Promise.resolve(false);
+            const name = app.getApplicationNameForProtocol(String(url));
+            if (!name) return Promise.resolve(false);
+            return ask(host, tab, originOf(asking.getURL()), ['open:' + scheme], {
+                app: name.replace(/\.app$/i, ''),
+                url: String(url),
+            });
+        }
+
+        function originOf(url) {
+            try {
+                const parsed = new URL(url);
+                return /^https?:$/.test(parsed.protocol) ? parsed.origin : '';
+            } catch {
+                return '';
+            }
+        }
+
+        function onChange(listener) {
+            listeners.add(listener);
+        }
+
+        // The origins a session allows notices, as the page script reads them.
+        function notices(partition) {
+            const table = {};
+            for (const key of GRANTED) {
+                const [keyPartition, origin, permission] = key.split('|');
+                if (keyPartition === partition && permission === 'notifications') table[origin] = 'granted';
+            }
+            return table;
+        }
+
+        function allow(partition, entries) {
+            return change(partition, entries, (key) => GRANTED.add(key));
+        }
+
+        // A page already holding a stream keeps it, and one told "granted" keeps believing it: the plugin reloads
+        // its pages of that origin.
+        function revoke(partition, entries) {
+            return change(partition, entries, (key) => GRANTED.delete(key));
+        }
+
+        // MARK: - Private
+        function keyOf(partition, origin, permission) {
+            return `${partition}|${origin}|${permission}`;
+        }
+
+        function schemeOf(url) {
+            try {
+                return new URL(String(url)).protocol.replace(/:$/, '').toLowerCase();
+            } catch {
+                return '';
+            }
+        }
+
+        function settle(id, allowed) {
+            const question = questions.get(id);
+            if (!question) return;
+            questions.delete(id);
+            questionFor.delete(question.key);
+            question.tab.removeListener('destroyed', question.gone);
+            for (const resolve of question.waiting) resolve(!!allowed);
+        }
+
+        function change(partition, entries, apply) {
+            for (const entry of entries) {
+                const origin = originOf(entry?.origin);
+                if (origin && entry.permission) apply(keyOf(partition, origin, String(entry.permission)));
+            }
+            for (const listener of listeners) listener();
+            return GRANTED.size;
+        }
+
+        // What a page asks is put to the plugin showing it. Anything deckit has no question for keeps Electron's
+        // answer, which allows.
+        function onRequest(page, permission, callback, details) {
+            const at = REGISTRY.tabOf(page);
+            if (!at) return callback(false);
+            const origin = originOf(details?.securityOrigin || details?.requestingUrl || page.getURL());
+            if (permission === 'openExternal') {
+                mayOpenApp(at.host, at.tab, details?.externalURL, page).then(callback);
+                return;
+            }
+            const permissions =
+                permission === 'media'
+                    ? [...new Set((details?.mediaTypes || []).map((type) => MEDIA[type]).filter(Boolean))]
+                    : permission === 'notifications'
+                      ? ['notifications']
+                      : null;
+            if (!permissions) return callback(true);
+            ask(at.host, at.tab, origin, permissions).then(callback);
+        }
+
+        // A check has no way to ask, and a page told no stops before it ever asks, so media says yes and the
+        // request that follows asks.
+        function onCheck(page, permission, requestingOrigin, details) {
+            if (LOCAL_NETWORK.has(permission) || permission === 'media') return true;
+            if (permission !== 'notifications' || !page) return true;
+            return granted(
+                SESSION.partitionOf(page),
+                originOf(details?.securityOrigin || requestingOrigin),
+                'notifications'
+            );
+        }
+
+        return { start, granted, ask, mayOpenApp, originOf, onChange, notices, allow, revoke };
+    }
+);

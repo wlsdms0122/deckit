@@ -2,12 +2,15 @@ DeckitModule.define(
     'app/config',
     {
         uses: [],
-        provides: ['id', 'name', 'restore'],
+        provides: ['id', 'name'],
+        runs: 'any',
     },
-    () =>
-        Object.freeze({
-            id: 'deckit',
-            name: 'Deckit',
-            restore: 'Or, in the deckit package: open-package plugins {id}',
-        })
+    () => {
+        // MARK: - Property
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+
+        return { id: 'deckit', name: 'Deckit' };
+    }
 );

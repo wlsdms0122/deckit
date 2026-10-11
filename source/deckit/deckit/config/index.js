@@ -1,0 +1,31 @@
+DeckitModule.define(
+    'deckit/config',
+    {
+        uses: ['app/config?', 'app/folders?'],
+        provides: ['id', 'name', 'agent', 'openWith', 'home', 'ship', 'sources'],
+        runs: 'any',
+    },
+    (config, folders) => {
+        // MARK: - Property
+        // From app/config, read in every process. id: what everything deckit keeps is named from. agent: names in
+        // the app's user agent, taken out of a web page's. openWith: who is asked first to open an address, by scheme.
+        const CONFIG = { id: 'deckit', name: 'Deckit', agent: [], openWith: {} };
+        // From app/folders, read where there is a disk. home: deckit's folder, ~/.config/<id> when unset.
+        // ship: the plugin folders the app ships. sources: plugin folders read in place, ahead of installed ones.
+        const FOLDERS = { home: null, ship: [], sources: [] };
+
+        // MARK: - Initializer
+        refuseUnknown('app/config', config, CONFIG);
+        refuseUnknown('app/folders', folders, FOLDERS);
+
+        // MARK: - Public
+        // MARK: - Private
+        function refuseUnknown(module, given, known) {
+            const unknown = Object.keys(given || {}).filter((key) => !Object.hasOwn(known, key));
+            if (unknown.length)
+                throw new Error(`[deckit] ${module} sets ${unknown.join(', ')}, which deckit does not read`);
+        }
+
+        return { ...CONFIG, ...config, ...FOLDERS, ...folders };
+    }
+);

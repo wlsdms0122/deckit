@@ -1,5 +1,4 @@
 Deckit.register({
-    order: -65,
     keywords: ['finder', 'files', 'file', 'folder', 'explorer', 'browse', '파인더', '파일', '폴더', '탐색기'],
     // Lucide "folder" (ISC).
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`,
@@ -19,7 +18,8 @@ Deckit.register({
         },
     },
 
-    make({ theme, ui, store, data, host, main, settings, util }) {
+    make({ theme, ui, storage, host, main, settings, util }) {
+        const { values: store, records: data } = storage;
         const el = (tag, style = {}, text) => {
             const e = document.createElement(tag);
             Object.assign(e.style, style);
@@ -1612,7 +1612,6 @@ Deckit.register({
             paintStar();
             for (const r of favList.children) r.repaint?.();
         };
-        data.on('sidebar', () => renderPlaces());
 
         settings.on((key) => {
             if (key === 'showHidden' || key === 'foldersFirst') render();

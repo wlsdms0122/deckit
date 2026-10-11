@@ -1,11 +1,24 @@
 Deckit.register({
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`,
-    homepage: 'https://www.google.com/',
     keywords: ['브라우저', '웹', '인터넷', 'browser', 'web'],
 
-    make({ theme, ui, store, data, storage, web, host, util }) {
-        const HOME = this.homepage;
-        const { safeHost, canon } = util;
+    make({ theme, ui, storage, web, host }) {
+        const { values: store, records: data } = storage;
+        const HOME = 'https://www.google.com/';
+        const safeHost = (url) => {
+            try {
+                return new URL(url).hostname;
+            } catch {
+                return '';
+            }
+        };
+        const canon = (url) => {
+            try {
+                return new URL(url).href;
+            } catch {
+                return url;
+            }
+        };
         const placeOf = (url) => {
             if (/^file:/i.test(String(url || ''))) {
                 try {
@@ -94,8 +107,8 @@ Deckit.register({
         };
 
         // Files get a session of their own (system.files), so a file page never holds the web's cookies.
-        const webSession = storage.web('web');
-        const filesSession = storage.web('files');
+        const webSession = web.session('web');
+        const filesSession = web.session('files');
 
         /* Main refuses an unverifiable certificate by default and forgets every decision on exit, so
        the accepted ones are kept here and replayed at startup. Kept with the fingerprint, so a

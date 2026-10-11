@@ -1,11 +1,17 @@
-const CONCEPT = /^deckit\/(feature|service|module|ui)\/([^/]+)(?:\/(.+))?$/;
+// Which concept and layer a file of the library is. A concept is a module folder, its core files and its model/.
+// The plugin system is one concept cut by process into folders of its own, so all of service/plugin is one.
+const path = require('path');
 
-// A concept's face, what another concept may name, is the files at its root and its model/.
-const conceptOf = (name) => {
-    const found = CONCEPT.exec(name);
-    if (!found) return null;
-    const [, layer, folder, rest = ''] = found;
-    return { concept: `deckit/${layer}/${folder}`, layer, face: !rest.includes('/') || rest.startsWith('model/') };
-};
+const LAYERS = new Set(['config', 'feature', 'service', 'module', 'ui']);
+const ONE_CONCEPT = ['service/plugin'];
 
-module.exports = { conceptOf };
+// `file` is the path under the library, as library.files() lists it.
+function conceptOf(file) {
+    const layer = file.split('/')[0];
+    if (!LAYERS.has(layer)) return null;
+    const folder = path.posix.dirname(file).replace(/\/model$/, '');
+    const whole = ONE_CONCEPT.find((group) => folder === group || folder.startsWith(group + '/'));
+    return { concept: whole || folder, layer };
+}
+
+module.exports = { conceptOf, LAYERS };

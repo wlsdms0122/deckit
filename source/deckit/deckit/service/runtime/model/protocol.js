@@ -5,10 +5,9 @@ DeckitModule.define(
         provides: ['about', 'restart'],
         runs: 'electron',
     },
-    (IPC) =>
-        Object.freeze({
-            // Synchronous: a page draws it in one pass.
-            about: IPC.ask('deckit:about', {}, { now: true }),
-            restart: IPC.ask('deckit:app-restart', {}),
-        })
+    (IPC) => ({
+        // At once: a page draws it in one pass.
+        about: IPC.rendererToMain('deckit:about', {}, { reply: true, sync: true }),
+        restart: IPC.rendererToMain('deckit:restart', {}, { reply: true }),
+    })
 );

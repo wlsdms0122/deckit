@@ -1,3 +1,5 @@
+// Between a plugin's view and main, about the web pages it shows. `name` is a session's name within the plugin;
+// `id` is a page's webContents id, which main hands out and holds.
 DeckitModule.define(
     'deckit/service/web/model/protocol',
     {
@@ -9,71 +11,72 @@ DeckitModule.define(
             'trust',
             'allow',
             'revoke',
-            'act',
-            'permit',
+            'load',
+            'navigate',
             'state',
-            'certificate',
+            'mute',
+            'find',
+            'stopFind',
+            'close',
+            'clickNotification',
+            'permit',
+            'changed',
+            'refused',
             'found',
-            'leave',
-            'opens',
-            'permission',
-            'notification',
+            'leaving',
+            'opening',
+            'asking',
+            'notified',
             'closed',
         ],
         runs: 'electron',
     },
-    (IPC) =>
-        Object.freeze({
-            // By partition. Answers the new page's webContents id, or 0 when it may not be shown.
-            window: IPC.ask('deckit:web-window', { partition: 'string', url: 'string', title: 'string' }),
-            fetchText: IPC.ask('deckit:web-fetch-text', { partition: 'string', url: 'string' }),
-            clear: IPC.ask('deckit:web-clear', { partition: 'string' }),
-            // entries: [{ host, fingerprint }]
-            trust: IPC.ask('deckit:web-trust', { partition: 'string', entries: 'array' }),
-            // entries: [{ origin, permission }]
-            allow: IPC.ask('deckit:web-allow', { partition: 'string', entries: 'array' }),
-            revoke: IPC.ask('deckit:web-revoke', { partition: 'string', entries: 'array' }),
+    (IPC) => ({
+        // Answers the new window page's id, or 0 when it may not be shown.
+        window: IPC.rendererToMain(
+            'deckit:web-window',
+            { name: 'string', url: 'string', title: 'string' },
+            { reply: true }
+        ),
+        fetchText: IPC.rendererToMain('deckit:web-fetch-text', { name: 'string', url: 'string' }, { reply: true }),
+        clear: IPC.rendererToMain('deckit:web-clear', { name: 'string' }, { reply: true }),
+        // entries: [{ host, fingerprint }]
+        trust: IPC.rendererToMain('deckit:web-trust', { name: 'string', entries: 'array' }, { reply: true }),
+        // entries: [{ origin, permission }]
+        allow: IPC.rendererToMain('deckit:web-allow', { name: 'string', entries: 'array' }, { reply: true }),
+        revoke: IPC.rendererToMain('deckit:web-revoke', { name: 'string', entries: 'array' }, { reply: true }),
 
-            /* Between a page and the document that holds it; `id` is the page's webContents id, and main
-     holds the page. op: load, back, forward, reload, stop, state, mute, find, find-stop, close,
-     notification-click. */
-            act: IPC.report('deckit:page-do', { id: 'number', op: 'string', arg: 'any?' }),
-            // Answers the `permission` ask of that number.
-            permit: IPC.report('deckit:page-permit', { ask: 'number', allow: 'boolean' }),
-            state: IPC.tell('deckit:page-state', { id: 'number', state: 'object' }),
-            // certificate: { url, host, error, fingerprint, subject, issuer }
-            certificate: IPC.tell('deckit:page-cert', { id: 'number', certificate: 'object' }),
-            found: IPC.tell('deckit:page-found', {
-                id: 'number',
-                matches: 'number',
-                active: 'number',
-                final: 'boolean',
-            }),
-            // A file page's link to the web, not followed in place.
-            leave: IPC.tell('deckit:page-leave', { id: 'number', url: 'string' }),
-            opens: IPC.tell('deckit:page-window', {
-                id: 'number',
-                url: 'string',
-                activates: 'boolean',
-                target: 'string',
-            }),
-            // Permissions, or opening an app (`app`, `url`); answered with permit.
-            permission: IPC.tell('deckit:page-permission', {
-                id: 'number',
-                ask: 'number',
-                origin: 'string',
-                permissions: 'array',
-                app: 'string?',
-                url: 'string?',
-            }),
-            // A click on it goes back as act's notification-click.
-            notification: IPC.tell('deckit:page-notify', {
-                id: 'number',
-                notification: 'number',
-                title: 'string',
-                body: 'string',
-                silent: 'boolean',
-            }),
-            closed: IPC.tell('deckit:page-closed', { id: 'number' }),
-        })
+        load: IPC.rendererToMain('deckit:page-load', { id: 'number', url: 'string' }),
+        // to: back, forward, reload, stop
+        navigate: IPC.rendererToMain('deckit:page-navigate', { id: 'number', to: 'string' }),
+        state: IPC.rendererToMain('deckit:page-state', { id: 'number' }),
+        mute: IPC.rendererToMain('deckit:page-mute', { id: 'number', on: 'boolean' }),
+        find: IPC.rendererToMain('deckit:page-find', {
+            id: 'number',
+            text: 'string',
+            start: 'boolean',
+            back: 'boolean',
+            matchCase: 'boolean',
+        }),
+        stopFind: IPC.rendererToMain('deckit:page-stop-find', { id: 'number', keepSelection: 'boolean' }),
+        close: IPC.rendererToMain('deckit:page-close', { id: 'number' }),
+        clickNotification: IPC.rendererToMain('deckit:page-click-notification', {
+            id: 'number',
+            notification: 'number',
+        }),
+        // Answers the `asking` of that number.
+        permit: IPC.rendererToMain('deckit:page-permit', { ask: 'number', allow: 'boolean' }),
+
+        changed: IPC.mainToRenderer('deckit:page-changed'),
+        // certificate: { url, host, error, fingerprint, subject, issuer }
+        refused: IPC.mainToRenderer('deckit:page-certificate-refused'),
+        found: IPC.mainToRenderer('deckit:page-found'),
+        // A file page's link to the web, not followed in place.
+        leaving: IPC.mainToRenderer('deckit:page-leaving'),
+        opening: IPC.mainToRenderer('deckit:page-opening'),
+        // Permissions, or opening an app (`app`, `url`); answered with permit.
+        asking: IPC.mainToRenderer('deckit:page-asking'),
+        notified: IPC.mainToRenderer('deckit:page-notified'),
+        closed: IPC.mainToRenderer('deckit:page-closed'),
+    })
 );

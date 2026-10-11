@@ -1,7 +1,7 @@
 id = "finder"
 name = "Finder"
 version = "1.0.0"
-api = "1.0.0"
+api = "2.0.0"
 
 [permissions]
 "system.main-process" = "Lists and watches the folders you browse, draws their icons, shows Quick Look, and makes, renames, moves and trashes files there."

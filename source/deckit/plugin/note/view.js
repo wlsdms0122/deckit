@@ -19,7 +19,6 @@ const NOTE_FONTS = [
 ];
 
 Deckit.register({
-    order: -60,
     keywords: [
         'notes',
         'note',
@@ -60,7 +59,8 @@ Deckit.register({
         },
     },
 
-    make({ theme, ui, store, host, main, settings, util }) {
+    make({ theme, ui, storage, host, main, settings, util }) {
+        const { values: store } = storage;
         const el = (tag, style = {}, text) => {
             const e = document.createElement(tag);
             Object.assign(e.style, style);

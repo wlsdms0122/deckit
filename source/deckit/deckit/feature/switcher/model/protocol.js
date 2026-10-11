@@ -2,17 +2,18 @@ DeckitModule.define(
     'deckit/feature/switcher/model/protocol',
     {
         uses: ['deckit/module/ipc'],
-        provides: ['ready', 'open', 'close', 'dismiss', 'hidden'],
+        provides: ['ready', 'open', 'close', 'dismiss', 'hidden', 'number'],
         runs: 'electron',
     },
-    (IPC) =>
-        Object.freeze({
-            // The page may finish loading after the chord that opened it.
-            ready: IPC.report('deckit:switcher-ready', {}),
-            open: IPC.tell('deckit:switcher-open', {}),
-            close: IPC.report('deckit:switcher-close', {}),
-            // `token` comes back with hidden once the exit has played.
-            dismiss: IPC.tell('deckit:switcher-dismiss', { token: 'number?' }),
-            hidden: IPC.report('deckit:switcher-hidden', { token: 'number?' }),
-        })
+    (IPC) => ({
+        // The page may finish loading after the chord that opened it.
+        ready: IPC.rendererToMain('deckit:switcher-ready', {}),
+        open: IPC.mainToRenderer('deckit:switcher-open'),
+        close: IPC.rendererToMain('deckit:switcher-close', {}),
+        // { token }, which comes back with hidden once the exit has played.
+        dismiss: IPC.mainToRenderer('deckit:switcher-dismiss'),
+        hidden: IPC.rendererToMain('deckit:switcher-hidden', { token: 'number?' }),
+        // { number }: ⌘1 to ⌘9 pressed in the list.
+        number: IPC.mainToRenderer('deckit:switcher-number'),
+    })
 );

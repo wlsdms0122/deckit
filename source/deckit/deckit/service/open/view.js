@@ -1,0 +1,62 @@
+DeckitModule.define(
+    'deckit/service/open/view',
+    {
+        uses: ['deckit/service/open/model/scheme', 'deckit/service/open/model/protocol'],
+        provides: ['open', 'answer', 'reveal', 'fileURL', 'filePath', 'lines', 'setLine', 'EVERY'],
+    },
+    (SCHEME, PROTOCOL) => {
+        // MARK: - Property
+        const EVERY = SCHEME.EVERY;
+
+        // MARK: - Initializer
+        // MARK: - Public
+        function open(url, { activates = true, userInitiated = false, usesDefaultApp = false, target = '' } = {}) {
+            return PROTOCOL.open.invoke({
+                url: String(url),
+                activates,
+                userInitiated,
+                usesDefaultApp,
+                target: String(target),
+            });
+        }
+
+        // The plugin's open(url, options), asked when an address of a scheme it names is opened.
+        function answer(openURL) {
+            PROTOCOL.offer.handle(({ url, options }) => openURL(url, options));
+            PROTOCOL.handles.send();
+        }
+
+        function reveal(file) {
+            return PROTOCOL.reveal.invoke({ file: String(file) });
+        }
+
+        // Each part escaped, so a space or a # stays part of the name.
+        function fileURL(file) {
+            const written = String(file);
+            return written.startsWith('/') ? 'file://' + written.split('/').map(encodeURIComponent).join('/') : '';
+        }
+
+        function filePath(url) {
+            try {
+                const parsed = new URL(String(url));
+                if (parsed.protocol !== 'file:' || (parsed.host && parsed.host !== 'localhost')) return '';
+                const file = decodeURIComponent(parsed.pathname);
+                return file.startsWith('/') ? file : '';
+            } catch {
+                return '';
+            }
+        }
+
+        function lines() {
+            return PROTOCOL.lines.invoke();
+        }
+
+        function setLine(line, { order = [], off = [] } = {}) {
+            return PROTOCOL.setLine.invoke({ line, order, off });
+        }
+
+        // MARK: - Private
+
+        return { open, answer, reveal, fileURL, filePath, lines, setLine, EVERY };
+    }
+);

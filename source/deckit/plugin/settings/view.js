@@ -1,5 +1,4 @@
 Deckit.register({
-    order: 100, // last in the list
     keywords: ['설정', '플러그인', 'settings', 'plugins'],
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
 
@@ -91,15 +90,6 @@ Deckit.register({
                 'Open a row for what it requires, the keys it adds and where it lives.'
         );
 
-        const takeChange = async (done) => {
-            say(done + ' Reloading\u2026');
-            try {
-                await host.plugins.refresh(done);
-            } catch (e) {
-                say(`${done} It could not be taken now (${(e && e.message) || e}); restart ${APP} to finish.`);
-            }
-        };
-
         const notice = document.createElement('div');
         Object.assign(notice.style, {
             display: 'none',
@@ -115,23 +105,7 @@ Deckit.register({
             notice.textContent = text;
             notice.style.display = 'block';
         };
-        // What takeChange said before the reload, carried over by host.plugins.refresh.
-        const said = host.plugins.said();
-        if (said) say(said);
 
-        const PERMISSION_ICONS = {
-            'system.main-process': 'server',
-            'system.files': 'fileText',
-            'system.network': 'globe',
-            'system.certificates': 'shieldCheck',
-            'system.site-permissions': 'mic',
-            'system.clipboard': 'copy',
-            'system.notifications': 'bell',
-            'deckit.plugins': 'puzzle',
-            'deckit.plugin-settings': 'sliders',
-            'deckit.key-map': 'keyboard',
-            'deckit.url-schemes': 'layers',
-        };
         const permissionList = (permissions) => {
             const list = document.createElement('div');
             Object.assign(list.style, { border: theme.border, borderRadius: '10px', overflow: 'hidden' });
@@ -145,7 +119,7 @@ Deckit.register({
                     borderTop: i ? theme.border : '0',
                 });
                 const tile = document.createElement('div');
-                tile.innerHTML = ui.icon(PERMISSION_ICONS[p.id], 15);
+                tile.innerHTML = ui.icon(p.icon, 15);
                 Object.assign(tile.style, {
                     width: '28px',
                     height: '28px',
@@ -172,7 +146,7 @@ Deckit.register({
                     lineHeight: '1.45',
                 });
                 const label = document.createElement('span');
-                label.textContent = p.label;
+                label.textContent = p.name;
                 label.style.font = '600 13.5px ' + theme.font;
                 const id = document.createElement('span');
                 id.textContent = p.id;
@@ -195,8 +169,8 @@ Deckit.register({
             const root = document.createElement('div');
             const trust = document.createElement('div');
             trust.textContent =
-                'These say what it means to do, not what it is kept from: plugins share one page with the app. ' +
-                'Install it only if you trust where it came from.';
+                'A plugin reaches only what is listed here. Main Process is the exception: code there can do whatever ' +
+                'the app can, so install a plugin that asks for it only if you trust where it came from.';
             Object.assign(trust.style, {
                 font: '12px ' + theme.font,
                 lineHeight: '1.5',
@@ -225,7 +199,8 @@ Deckit.register({
                         return say('Could not install: ' + ((e && e.message) || e));
                     }
                     const what = `${done.name} ${done.version || ''}`.trim();
-                    takeChange(`${done.replaced ? 'Replaced' : 'Installed'} ${what}.`);
+                    say(`${picked.replaces ? 'Replaced' : 'Installed'} ${what}.`);
+                    redraw();
                 };
                 const asks = picked.permissions.length > 0;
                 if (!asks && !picked.replaces) return install();
@@ -277,14 +252,15 @@ Deckit.register({
         const askRemove = async (entry) => {
             let kept;
             try {
-                kept = await host.plugins.dataCount(entry.id);
+                kept = await host.plugins.count(entry.id);
             } catch (e) {
                 return say('Could not tell what it stores: ' + ((e && e.message) || e));
             }
             const stored = kept.count > 0 || kept.hidden;
-            const onDisk = host.plugins.installed();
-            const needing = onDisk.filter((d) => d.requires && d.requires[entry.id]).map((d) => d.name);
-            const restore = onDisk.find((d) => d.id === entry.id)?.restore;
+            const needing = host.plugins
+                .list()
+                .installed.filter((d) => d.requires && d.requires[entry.id])
+                .map((d) => d.name);
             const breaks = needing.length
                 ? ` ${needing.join(', ')} ${needing.length === 1 ? 'requires' : 'require'} it and will stop loading.`
                 : '';
@@ -294,7 +270,8 @@ Deckit.register({
                 } catch (e) {
                     return say('Could not remove: ' + ((e && e.message) || e));
                 }
-                takeChange(`Removed ${entry.name}${alsoData ? ' and its data' : ''}.`);
+                say(`Removed ${entry.name}${alsoData ? ' and its data' : ''}.`);
+                redraw();
             };
             ui.dialog({
                 title: `Remove ${entry.name}?`,
@@ -304,8 +281,7 @@ Deckit.register({
                           'unless you say otherwise: keeping them means a reinstall picks up where you left off.'
                         : "This deletes the plugin's code. It has nothing stored.",
                     breaks.trim(),
-                    // Settings itself can be removed, leaving no Install button: the app's `restore` says what brings it back.
-                    'To bring it back, install its folder again with Install Plugin.' + (restore ? ' ' + restore : ''),
+                    'To bring it back, install its folder again with Install Plugin.',
                 ],
                 confirmLabel: 'Remove',
                 cancelLabel: 'Cancel',
@@ -317,8 +293,22 @@ Deckit.register({
             });
         };
 
+        const schemeName = (id) => (id === host.urlSchemes.everyScheme ? 'Every other scheme' : id + ':');
+        const schemeWhen = (id) => {
+            if (id === host.urlSchemes.everyScheme)
+                return 'An address no line above names, for the plugins that take every scheme.';
+            if (id === 'http' || id === 'https')
+                return 'A web address: a link clicked in a plugin, or a page asking for a new window.';
+            if (id === 'file') return 'A file on this Mac, such as a row in a file list.';
+            return `An address that starts with ${id}:, which a plugin named.`;
+        };
+        const SYSTEM_FALLBACK = {
+            browser: 'Opens in the system browser',
+            file: "Opens in the system's app when you asked for it, otherwise shows it in Finder",
+        };
+
         // Opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it.
-        const details = (id, { live, requirements }, { onDisk, openLines }) => {
+        const details = (id, { live, requirements, keys }, { onDisk, openLines }) => {
             const fold = document.createElement('div');
             // The base duration, not the fast one: over the short one a tall row reads as a jump.
             const MOVE = `grid-template-rows ${ui.motion.base} ${ui.motion.ease}, opacity ${ui.motion.base} ${ui.motion.ease}`;
@@ -401,28 +391,30 @@ Deckit.register({
 
             if (live?.urlSchemes.length) {
                 const w = wrap();
-                for (const openLine of openLines.filter((openLine) => openLine.providers.some((p) => p.id === id))) {
-                    const me = openLine.providers.find((p) => p.id === id);
+                for (const openLine of openLines.filter((openLine) => openLine.handlers.some((p) => p.id === id))) {
+                    const me = openLine.handlers.find((p) => p.id === id);
                     // Counted among the ones switched on: a plugin switched off ahead of it is never asked.
-                    const at = openLine.providers.filter((p) => p.on).findIndex((p) => p.id === id);
+                    const at = openLine.handlers.filter((p) => p.on).findIndex((p) => p.id === id);
                     const nth = ['1st', '2nd', '3rd'][at] || `${at + 1}th`;
-                    w.appendChild(pill(`${openLine.name} \u00b7 ${me?.on ? 'asked ' + nth : 'off'}`, !!me?.on));
+                    w.appendChild(
+                        pill(`${schemeName(openLine.id)} \u00b7 ${me?.on ? 'asked ' + nth : 'off'}`, !!me?.on)
+                    );
                 }
                 part('Opens', w);
             }
 
-            if (live?.keys.length) {
+            if (keys.length) {
                 const grid = document.createElement('div');
                 Object.assign(grid.style, {
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
                     gap: '4px 14px',
                 });
-                for (const k of live.keys) {
+                for (const k of keys) {
                     const r = document.createElement('div');
                     Object.assign(r.style, { display: 'flex', alignItems: 'center', gap: '8px', minWidth: '0' });
                     const chord = document.createElement('span');
-                    chord.textContent = k.chord;
+                    chord.textContent = k.spec ? k.chord : 'None';
                     Object.assign(chord.style, {
                         flex: '0 0 auto',
                         minWidth: '26px',
@@ -463,18 +455,19 @@ Deckit.register({
                 });
                 place.appendChild(l);
             };
-            if (disk?.dir) line(home(disk.dir), false);
-            const runs = disk?.hasMain && !disk.mainRunning ? 'main.js did not load' : '';
+            if (disk?.folder) line(home(disk.folder), false);
+            const asksMain = disk?.permissions.some((p) => p.id === 'system.main-process');
+            const runs = asksMain && !disk.main.running ? 'main.js did not load' : '';
             line(runs, true);
-            const said = place.lastChild;
+            const status = place.lastChild;
             // Counted when the row is first opened: it walks the data folder, and most rows are never opened.
             let counted = false;
             const countNow = () => {
                 if (counted) return;
                 counted = true;
-                host.plugins.dataCount(id).then(
+                host.plugins.count(id).then(
                     (kept) => {
-                        said.textContent = said.title = [
+                        status.textContent = status.title = [
                             runs,
                             kept.count || kept.hidden ? `${filesWord(kept)} in data/${id}/` : 'Nothing stored',
                         ]
@@ -499,22 +492,22 @@ Deckit.register({
             return fold;
         };
 
-        // Survives a re-render (every visit redraws the list), not a reload.
+        // Survives a re-render: every visit redraws the list.
         const opened = new Set();
 
         const pluginIcons = new Map(); // plugin id -> icon, as the list was last drawn
         const renderPlugins = () => {
-            // Read once per drawing: asking for the running list asks every plugin for its commands.
-            const live = host.plugins.running();
-            const onDisk = host.plugins.installed();
+            const { installed: onDisk, running: live } = host.plugins.list();
+            const bindings = host.keymap.list();
             const lists = { onDisk, openLines: host.urlSchemes.list() };
             for (const p of live) pluginIcons.set(p.id, p.icon);
             renderPending(onDisk);
             pluginRows.textContent = '';
             const seen = new Set();
 
-            // `error`: why it is not running. `problem`: what went wrong with one that is.
-            const rowFor = (id, { name, version, installed, dir, error, problem, live, requirements }) => {
+            // `notLoaded`: why it is not running. `problem`: what went wrong with one that is.
+            const rowFor = (id, { name, version, installed, folder, notLoaded, problem, live, requirements }) => {
+                const keys = bindings.filter((k) => k.owner === id);
                 const entry = document.createElement('div');
                 Object.assign(entry.style, { cursor: 'pointer' });
                 const row = document.createElement('div');
@@ -548,7 +541,7 @@ Deckit.register({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    opacity: error ? '.45' : '1',
+                    opacity: notLoaded ? '.45' : '1',
                 });
                 nameCell.append(caret, nameText);
 
@@ -569,10 +562,8 @@ Deckit.register({
                 if (live) {
                     if (live.view) gives.appendChild(chip('view'));
                     if (live.sidebar) gives.appendChild(chip('sidebar'));
-                    if (live.commands)
-                        gives.appendChild(chip(live.commands + (live.commands === 1 ? ' command' : ' commands')));
-                    if (live.keys.length)
-                        gives.appendChild(chip(live.keys.length + (live.keys.length === 1 ? ' key' : ' keys')));
+                    if (live.commands) gives.appendChild(chip('commands'));
+                    if (keys.length) gives.appendChild(chip(keys.length + (keys.length === 1 ? ' key' : ' keys')));
                     if (live.now) gives.appendChild(chip('now'));
                     if (live.resolver) gives.appendChild(chip('resolver'));
                     for (const scheme of live.urlSchemes)
@@ -594,7 +585,7 @@ Deckit.register({
                     );
                 } else {
                     const kept = chip('source', 'muted');
-                    kept.title = `Read from ${dir || 'a source folder'}, not installed: it is removed there, not here.`;
+                    kept.title = `Read from ${folder || 'a source folder'}, not installed: it is removed there, not here.`;
                     actions.appendChild(kept);
                 }
 
@@ -602,9 +593,9 @@ Deckit.register({
                 ui.hoverable(row, () => false, { shows: () => opened.has(id) });
                 entry.appendChild(row);
 
-                if (error || problem) {
+                if (notLoaded || problem) {
                     const why = document.createElement('div');
-                    why.textContent = error || problem;
+                    why.textContent = notLoaded || problem;
                     Object.assign(why.style, {
                         padding: '0 8px 8px 21px',
                         marginTop: '-6px',
@@ -617,7 +608,7 @@ Deckit.register({
                     entry.appendChild(ui.selectable(why));
                 }
 
-                entry.appendChild(details(id, { live, requirements }, lists));
+                entry.appendChild(details(id, { live, requirements, keys }, lists));
                 const paint = (animate) => {
                     const open = opened.has(id);
                     caret.style.transform = open ? 'rotate(90deg)' : 'none';
@@ -641,10 +632,10 @@ Deckit.register({
                     name: p.name,
                     version: disk?.version,
                     installed: disk?.installed,
-                    dir: disk?.dir,
+                    folder: disk?.folder,
                     live: p,
                     requirements: disk?.requirements,
-                    problem: disk?.mainError ? 'main.js did not load: ' + disk.mainError : p.problem,
+                    problem: disk?.main.failure ? 'main.js did not load: ' + disk.main.failure : p.problem,
                 });
             }
             for (const d of onDisk) {
@@ -653,15 +644,15 @@ Deckit.register({
                     name: d.name,
                     version: d.version,
                     installed: d.installed,
-                    dir: d.dir,
-                    error: d.error || 'did not load',
+                    folder: d.folder,
+                    notLoaded: d.problem || 'did not load',
                     requirements: d.requirements,
                 });
             }
         };
 
-        /* A main half runs in the app's main process, which no panel reload reaches: when its code
-       changed underneath it, only a restart finishes. Asked on every render, since the reload forgot. */
+        // A main half runs in the app's main process, which reloading a view does not reach: when its code
+        // changed underneath it, only a restart finishes.
         const pending = document.createElement('div');
         Object.assign(pending.style, {
             display: 'none',
@@ -724,18 +715,40 @@ Deckit.register({
         const pluginSettingRows = document.createElement('div');
         pluginSettings.body.appendChild(pluginSettingRows);
         const settingCards = new Map(); // plugin id -> its card, for showCard
+        let settingGroups = []; // as last drawn, for commands(), which cannot wait
+        let settingsDrawing = 0;
 
-        const renderPluginSettings = () => {
+        const withDefaults = (item) => ({
+            ...item,
+            label: item.label || item.key,
+            button: item.button || item.label || item.key,
+            hint: item.hint || '',
+            unit: item.unit || '',
+            placeholder: item.placeholder || '',
+        });
+
+        const renderPluginSettings = async () => {
+            const drawing = ++settingsDrawing;
+            let groups = null;
+            let failed = '';
+            try {
+                groups = (await host.pluginSettings.list()).map((g) => ({ ...g, items: g.items.map(withDefaults) }));
+            } catch (e) {
+                failed = (e && e.message) || e;
+            }
+            // A later drawing started while this one waited: it draws instead.
+            if (drawing !== settingsDrawing) return;
             pluginSettingRows.textContent = '';
             settingCards.clear();
-            const groups = host.pluginSettings.list();
-            if (!groups.length) {
+            const quiet = (text) => {
                 const none = document.createElement('div');
-                none.textContent = 'No plugin has settings.';
+                none.textContent = text;
                 Object.assign(none.style, { opacity: '.45', font: '12.5px ' + theme.font, padding: '0 8px' });
                 pluginSettingRows.appendChild(none);
-                return;
-            }
+            };
+            if (!groups) return quiet('Could not read the plugin settings: ' + failed);
+            settingGroups = groups;
+            if (!groups.length) return quiet('No plugin has settings.');
             for (const g of groups) {
                 const group = document.createElement('div');
                 Object.assign(group.style, {
@@ -818,24 +831,24 @@ Deckit.register({
                         Object.assign(control.style, { flex: '0 0 220px' });
                         control.input.addEventListener('blur', () => set(control.input.value));
                     } else if (item.type === 'action') {
-                        const said = document.createElement('div');
-                        Object.assign(said.style, {
+                        const answer = document.createElement('div');
+                        Object.assign(answer.style, {
                             font: '12px ' + theme.font,
                             opacity: '.6',
                             lineHeight: '1.45',
                             display: 'none',
                         });
-                        words.appendChild(said);
+                        words.appendChild(answer);
                         control = ui.textBtn(item.button, item.label, async () => {
-                            said.style.display = 'none';
+                            answer.style.display = 'none';
                             let text = '';
                             try {
                                 text = await host.pluginSettings.run(g.id, item.key);
                             } catch (e) {
                                 text = 'Did not work: ' + ((e && e.message) || e);
                             }
-                            said.textContent = text;
-                            said.style.display = text ? 'block' : 'none';
+                            answer.textContent = text;
+                            answer.style.display = text ? 'block' : 'none';
                         });
                     } else continue;
                     row.append(words, control);
@@ -865,22 +878,22 @@ Deckit.register({
                     border: theme.border,
                 });
                 const name = document.createElement('div');
-                name.textContent = openLine.name;
+                name.textContent = schemeName(openLine.id);
                 Object.assign(name.style, { font: '600 13px ' + theme.font, padding: '0 12px' });
                 const when = document.createElement('div');
-                when.textContent = openLine.when;
+                when.textContent = schemeWhen(openLine.id);
                 Object.assign(when.style, { font: '12px ' + theme.font, opacity: '.5', padding: '1px 12px 6px' });
                 group.append(name, when);
 
-                const save = (providers) =>
+                const save = (handlers) =>
                     host.urlSchemes.set(openLine.id, {
-                        order: providers.map((p) => p.id),
-                        off: providers.filter((p) => !p.on).map((p) => p.id),
+                        order: handlers.map((p) => p.id),
+                        off: handlers.filter((p) => !p.on).map((p) => p.id),
                     });
-                const providers = openLine.providers;
+                const handlers = openLine.handlers;
                 const list = ui.list();
                 ui.sortable(list, (from, to) => {
-                    const next = [...providers];
+                    const next = [...handlers];
                     next.splice(to, 0, next.splice(from, 1)[0]);
                     save(next);
                     renderURLSchemes();
@@ -927,12 +940,12 @@ Deckit.register({
                     r.append(grip, n, l, trailing);
                     return r;
                 };
-                providers.forEach((p, i) => {
+                handlers.forEach((p, i) => {
                     const sw = ui.toggle({
                         on: p.on,
                         onChange: (on) => {
-                            providers[i] = { ...p, on };
-                            save(providers);
+                            handlers[i] = { ...p, on };
+                            save(handlers);
                             renderURLSchemes();
                         },
                     });
@@ -941,7 +954,7 @@ Deckit.register({
                         : `${p.name} is skipped`;
                     list.appendChild(line(String(i + 1), p.name, sw, { muted: !p.on, drag: true }));
                 });
-                if (!providers.length) {
+                if (!handlers.length) {
                     const none = document.createElement('div');
                     none.textContent = 'No plugin takes this over.';
                     Object.assign(none.style, {
@@ -952,10 +965,11 @@ Deckit.register({
                     group.appendChild(none);
                 }
                 group.appendChild(list);
-                const fallback = openLine.fallback
-                    ? line('\u2014', openLine.fallback, chip('Default', 'muted'), { muted: true })
+                const own = SYSTEM_FALLBACK[openLine.system];
+                const fallback = own
+                    ? line('\u2014', own, chip('Default', 'muted'), { muted: true })
                     : line('\u2014', 'Nothing opens it', document.createElement('span'), { muted: true });
-                fallback.title = openLine.fallback
+                fallback.title = own
                     ? `${APP}'s own answer. It is always last and cannot be switched off.`
                     : `${APP} has no answer of its own here: when every plugin passes, the address is not opened.`;
                 group.appendChild(fallback);
@@ -1182,8 +1196,8 @@ Deckit.register({
         renderToc();
 
         // The card lights for a moment, since the cards around it look the same.
-        const showCard = (id) => {
-            renderPluginSettings();
+        const showCard = async (id) => {
+            await renderPluginSettings();
             requestAnimationFrame(() => {
                 const card = settingCards.get(id);
                 if (!card) return;
@@ -1211,14 +1225,20 @@ Deckit.register({
             });
         };
 
+        const redraw = () => {
+            renderPlugins();
+            renderPluginSettings();
+            renderURLSchemes();
+            renderKeyboard();
+        };
+        // commands() can be asked before the first visit draws anything.
+        renderPluginSettings();
+
         return {
             content,
             sidebar,
             didAppear: () => {
-                renderPlugins();
-                renderPluginSettings();
-                renderURLSchemes();
-                renderKeyboard();
+                redraw();
                 follow();
             },
             didDisappear: () => {
@@ -1245,8 +1265,6 @@ Deckit.register({
                     ],
                     [keyboard, ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys']],
                 ]);
-                // Not host.plugins.running(): that asks every plugin for its commands, this one included.
-                const icons = pluginIcons;
                 const places = [
                     ...[...PART_WORDS].map(([root, words]) => ({
                         label: root.heading,
@@ -1254,10 +1272,10 @@ Deckit.register({
                         keywords: words,
                         run: () => showPart(root),
                     })),
-                    ...host.pluginSettings.list().map((g) => ({
+                    ...settingGroups.map((g) => ({
                         group: 'Plugin Settings',
                         label: g.name + ' Settings',
-                        icon: icons.get(g.id) || ui.icon('sliders', 16),
+                        icon: pluginIcons.get(g.id) || ui.icon('sliders', 16),
                         keywords: ['설정', 'settings', g.id, ...g.items.map((it) => it.label)],
                         run: () => {
                             host.show();

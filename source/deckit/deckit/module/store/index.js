@@ -2,28 +2,39 @@ DeckitModule.define(
     'deckit/module/store',
     {
         uses: [],
-        provides: ['read', 'write'],
+        provides: ['read', 'write', 'remove'],
         runs: 'node',
     },
     () => {
+        // MARK: - Property
         const fs = require('fs');
         const path = require('path');
 
-        const read = (file) => {
+        // MARK: - Initializer
+        // MARK: - Public
+        // A file that is not there, or not JSON, reads as `fallback`: either way there is no value to give.
+        function read(file, fallback = null) {
             try {
-                return fs.readFileSync(file, 'utf8');
+                return JSON.parse(fs.readFileSync(file, 'utf8'));
             } catch {
-                return null;
+                return fallback;
             }
-        };
+        }
+
         // Through a temporary file and a rename, so a crash mid-write leaves the previous version whole.
-        const write = (file, text) => {
+        function write(file, value) {
             fs.mkdirSync(path.dirname(file), { recursive: true });
             const temporary = file + '.tmp';
-            fs.writeFileSync(temporary, String(text));
+            fs.writeFileSync(temporary, JSON.stringify(value));
             fs.renameSync(temporary, file);
-        };
+        }
 
-        return { read, write };
+        function remove(file) {
+            fs.rmSync(file, { force: true });
+        }
+
+        // MARK: - Private
+
+        return { read, write, remove };
     }
 );
