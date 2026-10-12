@@ -3,6 +3,12 @@ DeckitModule.define(
     {
         uses: [
             'deckit/ui/token',
+            'deckit/ui/color',
+            'deckit/ui/icon',
+            'deckit/ui/motion',
+            'deckit/ui/pointer',
+            'deckit/ui/overlay',
+            'deckit/ui/scroll',
             'deckit/ui/component/part',
             'deckit/ui/component/button',
             'deckit/ui/component/field',
@@ -21,73 +27,47 @@ DeckitModule.define(
             'deckit/ui/component/color-picker',
             'deckit/ui/component/dialog',
         ],
-        provides: [
-            'FALLBACK_THEME',
-            'FOCUS_RING',
-            'LIFT',
-            'MOTION',
-            'reducedMotion',
-            'icon',
-            'blend',
-            'alpha',
-            'grabPointer',
-            'scrollFade',
-            'make',
-        ],
+        provides: ['make'],
     },
-    (T, K, ...parts) => {
-        /* Frozen all the way down: plugins are handed the very objects the panel draws with, so a write
-     would restyle the host and every other plugin. The constants are frozen in token.js. */
-        const deepFreeze = (o) => {
-            if (o && typeof o === 'object' && !Object.isFrozen(o)) {
-                Object.freeze(o);
-                for (const k of Object.getOwnPropertyNames(o)) {
-                    const d = Object.getOwnPropertyDescriptor(o, k);
-                    if (d && 'value' in d) deepFreeze(d.value);
-                }
+    (TOKEN, COLOR, ICON, MOTION, POINTER, OVERLAY, SCROLL, PART, ...components) => {
+        // MARK: - Property
+        // MARK: - Initializer
+        // MARK: - Public
+        // The `ui` a page draws with. Frozen all the way down: a plugin is handed the very objects its page draws with.
+        // Components are made in the order of `uses`, as one may lend another something through `inner`.
+        function make(theme) {
+            const ui = {};
+            const inner = PART.look(theme);
+            for (const component of components) Object.assign(ui, component.make(theme, ui, inner));
+            Object.assign(ui, {
+                motion: TOKEN.MOTION,
+                accent: TOKEN.ACCENT,
+                tone: TOKEN.TONE,
+                wash: TOKEN.WASH,
+                icon: ICON.icon,
+                alpha: COLOR.alpha,
+                blend: COLOR.mix,
+                grabPointer: POINTER.capture,
+                aimOnMove: POINTER.hoverIntent,
+                scrollFade: SCROLL.edgeFade,
+                inSight: SCROLL.isFullyVisible,
+                pressable: PART.pressable,
+                selectable: PART.selectable,
+            });
+            return deepFreeze(ui);
+        }
+
+        // MARK: - Private
+        function deepFreeze(value) {
+            if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+            Object.freeze(value);
+            for (const key of Object.getOwnPropertyNames(value)) {
+                const descriptor = Object.getOwnPropertyDescriptor(value, key);
+                if ('value' in descriptor) deepFreeze(descriptor.value);
             }
-            return o;
-        };
+            return value;
+        }
 
-        // In the order of `uses`: a component may lend another something through `inner`.
-        const makeUI = (theme) => {
-            const ui = {},
-                inner = K.look(theme);
-            for (const part of parts) Object.assign(ui, part.make(theme, ui, inner));
-            return deepFreeze(
-                Object.assign(ui, {
-                    z: T.Z,
-                    motion: T.MOTION,
-                    accent: T.ACCENT,
-                    tone: T.TONE,
-                    wash: T.WASH,
-                    play: T.play,
-                    icon: T.icon,
-                    grabPointer: T.grabPointer,
-                    scrollFade: T.scrollFade,
-                    selectable: T.selectable,
-                    aimOnMove: T.aimOnMove,
-                    inSight: K.inSight,
-                    alpha: T.alpha,
-                    blend: T.blend,
-                    pressable: T.pressable,
-                })
-            );
-        };
-
-        return deepFreeze({
-            // For the panel's own chrome, not for plugins.
-            FALLBACK_THEME: T.FALLBACK_THEME,
-            FOCUS_RING: T.FOCUS_RING,
-            LIFT: T.LIFT,
-            MOTION: T.MOTION,
-            reducedMotion: T.reducedMotion,
-            icon: T.icon,
-            blend: T.blend,
-            alpha: T.alpha,
-            grabPointer: T.grabPointer,
-            scrollFade: T.scrollFade,
-            make: makeUI,
-        });
+        return { make };
     }
 );

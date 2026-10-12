@@ -3,6 +3,8 @@ DeckitModule.define(
     {
         uses: [
             'deckit/ui/token',
+            'deckit/ui/pointer',
+            'deckit/ui/overlay',
             'deckit/ui/kit',
             'deckit/service/plugin/runtime',
             'deckit/feature/panel/view',
@@ -11,7 +13,7 @@ DeckitModule.define(
         ],
         provides: ['boot'],
     },
-    (TOKEN, UI, RUNTIME, PANEL, PROTOCOL, SWITCHER) => {
+    (TOKEN, POINTER, OVERLAY, UI, RUNTIME, PANEL, PROTOCOL, SWITCHER) => {
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
@@ -26,14 +28,16 @@ DeckitModule.define(
 
         // MARK: - Private
         async function start() {
+            POINTER.start();
+            OVERLAY.start();
             const setup = PROTOCOL.setup.invoke();
-            const theme = setup.theme || UI.FALLBACK_THEME;
+            const theme = setup.theme || TOKEN.FALLBACK_THEME;
             if (setup.role === 'switcher') return SWITCHER.boot(theme);
             const ui = UI.make(theme);
             const { definition, parts, tell } = await RUNTIME.start({
                 theme,
                 ui,
-                layers: TOKEN.layers,
+                layers: OVERLAY.layers,
                 show: () => PROTOCOL.show.send(),
                 dismiss: () => PROTOCOL.hide.send(),
             });

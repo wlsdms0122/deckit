@@ -1,11 +1,13 @@
 DeckitModule.define(
     'deckit/ui/component/section',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/component/part'],
+        uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/motion', 'deckit/ui/component/part'],
         provides: ['make'],
     },
-    (T, K) => {
-        const { MOTION, icon, pressable } = T;
+    (T, ICON, MOTION_, K) => {
+        const { MOTION } = T;
+        const { icon } = ICON;
+        const { pressable } = K;
         // A fold's caret column, and the gap after it, in front of a heading that folds.
         const CARET = 20,
             HEAD_GAP = 6;
@@ -144,7 +146,7 @@ DeckitModule.define(
                                     }, ms);
                                 else body.style.display = 'none';
                             } else if (animate) {
-                                T.play(body, { display: 'flex', opacity: '0' }, { opacity: '1' });
+                                MOTION_.play(body, { display: 'flex', opacity: '0' }, { opacity: '1' });
                             } else {
                                 Object.assign(body.style, { display: 'flex', opacity: '1' });
                             }

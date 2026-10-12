@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/component/resizer',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/component/part'],
+        uses: ['deckit/ui/token', 'deckit/ui/pointer', 'deckit/ui/gesture'],
         provides: ['make'],
     },
-    (T, K) => {
+    (T, POINTER, GESTURE) => {
         const { MOTION } = T;
 
         return {
@@ -51,11 +51,11 @@ DeckitModule.define(
                             const onMove = (e) => {
                                 const delta = (at(e) - start) * grow;
                                 if (!moving) {
-                                    if (Math.abs(delta) < K.SLOP) return;
+                                    if (Math.abs(delta) < GESTURE.SLOP) return;
                                     travelledLast = true;
                                     if (!sizing) return;
                                     moving = true;
-                                    release = T.grabPointer(axis === 'x' ? 'col-resize' : 'row-resize');
+                                    release = POINTER.capture(axis === 'x' ? 'col-resize' : 'row-resize');
                                     onDrag?.(true);
                                     gesture = { settleNow: () => {} };
                                 }

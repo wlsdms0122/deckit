@@ -1,11 +1,13 @@
 DeckitModule.define(
     'deckit/ui/component/dialog',
     {
-        uses: ['deckit/ui/token'],
+        uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/component/part'],
         provides: ['make'],
     },
-    (TOKEN) => {
-        const { MOTION, WASH, icon, pressable, selectable } = TOKEN;
+    (TOKEN, ICON, K) => {
+        const { MOTION, WASH } = TOKEN;
+        const { icon } = ICON;
+        const { pressable, selectable } = K;
         // Read from `ui` when a dialog opens, not when the kit is assembled, so load order does not matter.
         return {
             make: (theme, ui) => {

@@ -1,10 +1,16 @@
 DeckitModule.define(
     'deckit/ui/component/row',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/component/part'],
+        uses: [
+            'deckit/ui/token',
+            'deckit/ui/motion',
+            'deckit/ui/pointer',
+            'deckit/ui/scroll',
+            'deckit/ui/component/part',
+        ],
         provides: ['make'],
     },
-    (T, K) => {
+    (T, MOTION_, POINTER, SCROLL, K) => {
         const { MOTION } = T;
 
         const FOLDER_TINT = '#5aa9e6';
@@ -16,7 +22,7 @@ DeckitModule.define(
         const litUnder = () => {
             const made = fresh;
             fresh = null;
-            const at = K.pointerAt();
+            const at = POINTER.position();
             if (!at) return;
             const hit = document.elementFromPoint(at.x, at.y);
             if (!hit) return;
@@ -100,7 +106,7 @@ DeckitModule.define(
                                 overflowY: 'auto',
                                 overscrollBehavior: 'contain',
                             });
-                            T.scrollFade(l);
+                            SCROLL.edgeFade(l);
                         }
                         return l;
                     },
@@ -136,7 +142,7 @@ DeckitModule.define(
                             if (over || lit) return;
                             lit = true;
                             // The way back first: a guess made is a guess let go of, whatever happens after it.
-                            K.afterPointer((lost) => {
+                            POINTER.afterMove((lost) => {
                                 if (lost || !row.matches(':hover')) {
                                     lit = false;
                                     paint();
@@ -167,7 +173,7 @@ DeckitModule.define(
                         const height = row.getBoundingClientRect().height;
                         /* T.play forces the style flush: a close from the keyboard touches nothing that would flush it,
            and the row would blink out. */
-                        T.play(
+                        MOTION_.play(
                             row,
                             {
                                 transition: 'none',
@@ -197,7 +203,7 @@ DeckitModule.define(
                     drawInSteps(list, items, draw, { first = 80, slice = 80 } = {}) {
                         const turn = (stepping.get(list) || 0) + 1;
                         stepping.set(list, turn);
-                        const scroller = K.scrollerOf(list);
+                        const scroller = SCROLL.scrollerOf(list);
                         const kept = scroller ? scroller.scrollTop : 0;
                         list.textContent = '';
                         let at = 0;

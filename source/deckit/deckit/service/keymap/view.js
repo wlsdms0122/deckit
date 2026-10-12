@@ -44,10 +44,10 @@ DeckitModule.define(
 
         // `layers` is what floats in the page; `deliver` runs a plugin's function and records what it throws.
         function connect({ layers, deliver, dismiss }) {
-            layers.onChange((count) => PROTOCOL.floating.send({ on: count > 0 }));
+            layers.onChange((floating) => PROTOCOL.floating.send({ on: floating }));
             // A key waits while something floats, so it cannot act on what is behind a dialog.
             PROTOCOL.key.on(({ action }) => {
-                if (!layers.count && runs.has(action)) deliver(`key ${action}`, runs.get(action));
+                if (!layers.count() && runs.has(action)) deliver(`key ${action}`, runs.get(action));
             });
             // Main took this Escape, so the field never saw it: it is played again as a keydown. A field that handles
             // it keeps the caret; one that does not is left, as a browser would, so the next Escape reaches the page.

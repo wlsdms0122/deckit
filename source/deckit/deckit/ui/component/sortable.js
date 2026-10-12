@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/component/sortable',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/component/part'],
+        uses: ['deckit/ui/token', 'deckit/ui/scroll', 'deckit/ui/gesture', 'deckit/ui/component/part'],
         provides: ['make'],
     },
-    (TOKEN, K) => {
+    (TOKEN, SCROLL, GESTURE, K) => {
         const { MOTION } = TOKEN;
 
         return {
@@ -14,13 +14,13 @@ DeckitModule.define(
                         // The rows on screen: a row that is not laid out has no place in the list to move to or from.
                         const rows = () => [...list.children].filter((r) => r.getClientRects().length);
                         const ms = (d) => parseFloat(d) || 0;
-                        K.press(list, {
+                        GESTURE.drag(list, {
                             pick: (target) => {
                                 for (let n = target; n && n !== list; n = n.parentElement)
                                     if (n.parentElement === list) return n;
                                 return null;
                             },
-                            begin: (row, down, finished) => lift(row, down.clientY, finished),
+                            begin: K.heldWhile(list, (row, down, finished) => lift(row, down.clientY, finished)),
                         });
 
                         const lift = (row, startY, finished) => {
@@ -31,7 +31,7 @@ DeckitModule.define(
              ("the list's coordinates at lift"); a scroll since is added to the pointer instead. */
                             const boxes = all.map((r) => r.getBoundingClientRect());
                             const held = boxes[from];
-                            const scroller = K.scrollerOf(list);
+                            const scroller = SCROLL.scrollerOf(list);
                             const scrolledAt = scroller ? scroller.scrollTop : 0;
                             const scrolled = () => (scroller ? scroller.scrollTop - scrolledAt : 0);
                             // How far a row moves to take the held row's place: its height and the gap after it.

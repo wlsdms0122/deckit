@@ -3,14 +3,14 @@ DeckitModule.define(
     {
         uses: [
             'deckit/ui/token',
-            'deckit/ui/kit',
+            'deckit/ui/color',
             'deckit/service/keymap/view',
             'deckit/feature/panel/sidebar',
             'deckit/feature/panel/model/protocol',
         ],
         provides: ['mount'],
     },
-    (TOKEN, UI, KEYMAP, SIDEBAR, PROTOCOL) => {
+    (TOKEN, COLOR, KEYMAP, SIDEBAR, PROTOCOL) => {
         // MARK: - Property
         // The panel is glass: its colour at this strength, with what is behind it blurred through.
         const GLASS_OPACITY = 0.68;
@@ -22,14 +22,14 @@ DeckitModule.define(
         // `tell` calls a part of the plugin (didAppear, didDisappear).
         function mount({ setup, ui, parts, tell }) {
             const { theme } = setup;
-            const { LIFT, MOTION } = UI;
+            const { LIFT, MOTION } = TOKEN;
             let open = setup.shown;
             let look = setup.look;
             let leaving = null;
             let appeared = false;
 
             // So what the browser draws itself (scrollbars, native controls) follows the theme.
-            document.documentElement.style.colorScheme = TOKEN.isDark(theme.contentBg) ? 'dark' : 'light';
+            document.documentElement.style.colorScheme = COLOR.isDark(theme.contentBg) ? 'dark' : 'light';
             // How far the window's bar comes down, so a plugin drawing at its top edge can step out from under it.
             setInset(0);
             const root = element('div', {
@@ -104,7 +104,7 @@ DeckitModule.define(
             function dress() {
                 Object.assign(
                     root.style,
-                    { background: UI.alpha(theme.contentBg, GLASS_OPACITY), boxShadow: 'none' },
+                    { background: COLOR.alpha(theme.contentBg, GLASS_OPACITY), boxShadow: 'none' },
                     look.floating
                         ? {
                               border: '1px solid rgba(255,255,255,.14)',

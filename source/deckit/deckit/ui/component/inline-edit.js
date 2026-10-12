@@ -1,11 +1,11 @@
 DeckitModule.define(
     'deckit/ui/component/inline-edit',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/component/part'],
+        uses: ['deckit/ui/token', 'deckit/ui/overlay', 'deckit/ui/component/part'],
         provides: ['make'],
     },
-    (T, K) => {
-        const { Z } = T;
+    (T, OVERLAY, K) => {
+        const { Z } = OVERLAY;
 
         return {
             make: (theme, ui, inner) => {

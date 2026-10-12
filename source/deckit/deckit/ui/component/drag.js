@@ -1,10 +1,18 @@
 DeckitModule.define(
     'deckit/ui/component/drag',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/component/part'],
+        uses: [
+            'deckit/ui/token',
+            'deckit/ui/color',
+            'deckit/ui/icon',
+            'deckit/ui/overlay',
+            'deckit/ui/scroll',
+            'deckit/ui/gesture',
+            'deckit/ui/component/part',
+        ],
         provides: ['make'],
     },
-    (T, K) => {
+    (T, COLOR, ICON, OVERLAY, SCROLL, GESTURE, K) => {
         const { MOTION } = T;
 
         const zones = new Map(); // zone element -> Set of { kind, placeAt, onDrop }
@@ -13,7 +21,7 @@ DeckitModule.define(
      zone that takes "not on a row" as its top folder would otherwise answer under a row it had just
      refused. */
         const landing = (x, y, kind, payload) => {
-            const el = document.elementsFromPoint(x, y).find((e) => !('deckitVeil' in e.dataset));
+            const el = document.elementsFromPoint(x, y).find((e) => !('deckitCapture' in e.dataset));
             for (let n = el; n; n = n.parentElement) {
                 for (const t of zones.get(n) || []) {
                     if (t.kind !== kind) continue;
@@ -27,7 +35,7 @@ DeckitModule.define(
         const scrollerAt = (x, y, kind) => {
             for (const el of document.elementsFromPoint(x, y)) {
                 for (let n = el; n; n = n.parentElement) {
-                    if ([...(zones.get(n) || [])].some((t) => t.kind === kind)) return K.scrollerOf(el);
+                    if ([...(zones.get(n) || [])].some((t) => t.kind === kind)) return SCROLL.scrollerOf(el);
                 }
             }
             return null;
@@ -52,7 +60,7 @@ DeckitModule.define(
                         position: 'fixed',
                         left: '0',
                         top: '0',
-                        zIndex: String(T.Z.modal + 50),
+                        zIndex: String(OVERLAY.Z.modal + 50),
                         pointerEvents: 'none',
                         display: 'flex',
                         alignItems: 'center',
@@ -73,7 +81,7 @@ DeckitModule.define(
                     if (glyph) {
                         const g = document.createElement('span');
                         Object.assign(g.style, { display: 'flex', flex: '0 0 auto', color: QUIET });
-                        g.innerHTML = /^\s*<svg/.test(glyph) ? glyph : T.icon(glyph, 14);
+                        g.innerHTML = /^\s*<svg/.test(glyph) ? glyph : ICON.icon(glyph, 14);
                         face.appendChild(g);
                     }
                     const words = document.createElement('span');
@@ -83,14 +91,14 @@ DeckitModule.define(
                     tag.appendChild(face);
                     return tag;
                 };
-                const RING = `inset 0 0 0 2px ${T.alpha(T.ACCENT, 0.75)}`;
-                const STAYS = `inset 0 0 0 1.5px ${T.alpha(QUIET, 0.6)}`;
+                const RING = `inset 0 0 0 2px ${COLOR.alpha(T.ACCENT, 0.75)}`;
+                const STAYS = `inset 0 0 0 1.5px ${COLOR.alpha(QUIET, 0.6)}`;
 
                 return {
                     dragSource(area, { itemAt, what }) {
-                        return K.press(area, {
+                        GESTURE.drag(area, {
                             pick: itemAt,
-                            begin: (item, down, finished) => {
+                            begin: K.heldWhile(area, (item, down, finished) => {
                                 const it = what(item);
                                 if (!it) return null;
                                 const tag = label(it);
@@ -109,7 +117,7 @@ DeckitModule.define(
                                     radius: tag.style.borderRadius,
                                 };
                                 const home = () => {
-                                    if (!K.inSight(item)) return null;
+                                    if (!SCROLL.isFullyVisible(item)) return null;
                                     const r = item.getBoundingClientRect();
                                     return {
                                         x: r.left,
@@ -237,8 +245,9 @@ DeckitModule.define(
                                     },
                                     scroller: (x, y) => scrollerAt(x, y, it.kind),
                                 };
-                            },
+                            }),
                         });
+                        return area;
                     },
 
                     movesInto,

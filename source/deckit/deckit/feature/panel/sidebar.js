@@ -1,11 +1,11 @@
 DeckitModule.define(
     'deckit/feature/panel/sidebar',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/kit', 'deckit/ui/glyph'],
+        uses: ['deckit/ui/token', 'deckit/ui/color', 'deckit/ui/icon', 'deckit/ui/scroll'],
         provides: ['make'],
         runs: 'page',
     },
-    (TOKEN, UI, GLYPH) => {
+    (TOKEN, COLOR, ICON, SCROLL) => {
         // MARK: - Property
         // A generous ceiling: in a window of its own the panel has room, and sidebar lists want width.
         const WIDTH_MIN = 240;
@@ -25,8 +25,10 @@ DeckitModule.define(
         // The panel's sidebar card: the plugins' list over the plugin's own sidebar. What it shows is main's
         // (`state`), and what the person changes is told back: `onPick`, `onStep`, `onReorder`, `onLayout`.
         function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, onLayout, chordOf }) {
-            const { MOTION, blend, scrollFade } = UI;
-            const dark = TOKEN.isDark(theme.contentBg);
+            const { MOTION } = TOKEN;
+            const blend = COLOR.mix;
+            const scrollFade = SCROLL.edgeFade;
+            const dark = COLOR.isDark(theme.contentBg);
             // Its ink is the content's, not the sidebar colour, which is chosen against a sidebar fill.
             const wash = (alpha) => (dark ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`);
             const quietRow = blend(theme.contentColor, theme.contentBg, 0.72);
@@ -276,7 +278,7 @@ DeckitModule.define(
                 row.setAttribute('role', 'tab');
                 row.setAttribute('aria-selected', String(plugin.id === current));
                 const glyph = element('span', { display: 'flex', flex: '0 0 auto' });
-                glyph.append(GLYPH.glyphOf(plugin.icon));
+                glyph.append(ICON.sanitize(plugin.icon));
                 const name = element('span', {});
                 name.textContent = plugin.name;
                 row.append(glyph, name);

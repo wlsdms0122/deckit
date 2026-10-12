@@ -1,11 +1,13 @@
 DeckitModule.define(
     'deckit/ui/component/modal',
     {
-        uses: ['deckit/ui/token'],
+        uses: ['deckit/ui/token', 'deckit/ui/motion', 'deckit/ui/overlay'],
         provides: ['make'],
     },
-    (TOKEN) => {
-        const { MOTION, LIFT, TONE, raise, play } = TOKEN;
+    (TOKEN, MOTION_, OVERLAY) => {
+        const { MOTION, LIFT, TONE } = TOKEN;
+        const { play } = MOTION_;
+        const { raise } = OVERLAY;
 
         const makeModal = (theme, ui) => {
             const textBtn = (...args) => ui.textBtn(...args);

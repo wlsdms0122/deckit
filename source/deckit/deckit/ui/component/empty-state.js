@@ -1,11 +1,11 @@
 DeckitModule.define(
     'deckit/ui/component/empty-state',
     {
-        uses: ['deckit/ui/token'],
+        uses: ['deckit/ui/icon'],
         provides: ['make'],
     },
-    (TOKEN) => {
-        const { icon } = TOKEN;
+    (ICON) => {
+        const { icon } = ICON;
 
         return {
             make: (theme, ui, inner) => {
