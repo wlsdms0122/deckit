@@ -6,8 +6,8 @@ plugin="${1:?usage: build.sh <plugin> (a folder beside this script: editor, note
 here="$(cd "$(dirname "$0")/$plugin" && pwd)"
 root="$(cd "$here/../../../.." && pwd)"
 work="$root/.build/engine/$plugin"
-out="$root/source/deckit/plugin/$plugin/view/engine.js"
-# EditorEngine, NoteEngine: the name the plugin's view files call it by.
+out="$root/source/deckit/plugin/$plugin/page/engine.js"
+# EditorEngine, NoteEngine: the name the plugin's page files call it by.
 global="$(printf '%s' "$plugin" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')Engine"
 
 mkdir -p "$work"

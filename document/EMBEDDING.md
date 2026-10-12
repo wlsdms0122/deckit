@@ -78,7 +78,7 @@ What `deck` holds:
 
 | | |
 |---|---|
-| `deck.panel` | `view()`, the panel's container, which the shell places in a window; `contains(webContents)`; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
+| `deck.panel` | `view()`, the panel's container, which the shell places in a window with `deck.window.place` (so a plugin's main half can find the window its page is in); `contains(webContents)`, whether a webContents is a page the panel shows or a web page in one; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
 | `deck.setTheme(theme)` | the app's colours, for every deckit page |
 | `deck.switcher` | `view()`, which the shell puts in front where it was summoned; `open()`, resolving true when it was put away; `close()`, `shown()` |
 | `deck.window` | `place(view, window, { bounds, front, onClose })`, which puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |

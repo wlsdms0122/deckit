@@ -176,7 +176,7 @@ DeckitModule.define(
             const manifest = [`id = "${id}"`, `name = "${name}"`, 'version = "1.0.0"', `api = "${MANIFEST.API}"`];
             // The value is the reason Settings shows whoever installs the plugin.
             if (options.main)
-                manifest.push('', '[permissions]', `"${PERMISSION.MAIN_PROCESS}" = "Answers ping from the view."`);
+                manifest.push('', '[permissions]', `"${PERMISSION.MAIN_PROCESS}" = "Answers ping from the page."`);
             fs.mkdirSync(folder, { recursive: true });
             fs.writeFileSync(path.join(folder, 'manifest.toml'), manifest.join('\n') + '\n');
             fs.writeFileSync(path.join(folder, 'page.js'), fill('page.js'));

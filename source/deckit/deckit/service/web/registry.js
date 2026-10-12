@@ -7,16 +7,16 @@ DeckitModule.define(
     },
     () => {
         // MARK: - Property
-        // page webContents id -> { host, plugin, tab, inPanel }. host: the plugin's view the page answers to. tab: the
-        // id of the page whose delegate answers for it, itself or the page that opened it. inPanel: an element of the
-        // plugin's view rather than a window.
+        // page webContents id -> { host, plugin, tab, inPage }. host: the plugin's page it answers to. tab: the
+        // id of the page whose delegate answers for it, itself or the page that opened it. inPage: an element of the
+        // plugin's page rather than a window.
         const pages = new Map();
 
         // MARK: - Initializer
         // MARK: - Public
-        function add(page, { host, plugin, tab, inPanel = false }) {
+        function add(page, { host, plugin, tab, inPage = false }) {
             const id = page.id;
-            pages.set(id, { host, plugin, tab, inPanel });
+            pages.set(id, { host, plugin, tab, inPage });
             page.once('destroyed', () => pages.delete(id));
         }
 
@@ -40,7 +40,7 @@ DeckitModule.define(
         function pagesIn(host) {
             const { webContents } = require('electron');
             return [...pages]
-                .filter(([id, entry]) => entry.host === host && entry.inPanel && entry.tab === id)
+                .filter(([id, entry]) => entry.host === host && entry.inPage && entry.tab === id)
                 .map(([id]) => webContents.fromId(id))
                 .filter(Boolean);
         }
