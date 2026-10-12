@@ -44,14 +44,17 @@ DeckitModule.define(
             return WEB.hostOf(webContents);
         }
 
-        // Told when a plugin's page is made or closed, and when the plugin has started or ended without starting.
+        // Told when a plugin's page is made or closed, and when the plugin has started or ended.
         function onChange(listener) {
             listeners.add(listener);
         }
 
         // Every plugin starts again in its page, as a new theme asks.
         function reload() {
-            for (const { page } of running.values()) page.webContents.reload();
+            for (const { page, entry } of running.values()) {
+                HOST.prepare(entry);
+                page.webContents.reload();
+            }
         }
 
         // MARK: - Private
@@ -98,6 +101,10 @@ DeckitModule.define(
             LOG.guard(contents, 'will-frame-navigate', (details) => {
                 if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.open(details.url, {});
             });
+            // A page that crashed ran its plugin out with it.
+            LOG.guard(contents, 'render-process-gone', (_event, { reason }) =>
+                HOST.ended(entry.id, `its page ended (${reason})`)
+            );
             LOG.guard(
                 contents,
                 'console-message',

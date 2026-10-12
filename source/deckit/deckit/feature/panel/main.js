@@ -28,6 +28,7 @@ DeckitModule.define(
         let container = null;
         let shell = null;
         let current = null;
+        let returning = null; // the plugin that was on screen while its page runs again
         let shown = false;
         let titled = null; // the title the shell was last told
         let look = { floating: false, dismissible: false };
@@ -58,7 +59,7 @@ DeckitModule.define(
             return !!shell.showsPanel(page);
         }
 
-        // Escape puts the panel away only where it floats over something; in a window of its own Escape is the window's.
+        // Escape puts the panel away only where it floats over something; in its own window Escape is the window's.
         function dismisses(webContents) {
             return showsPanel(webContents) && look.dismissible;
         }
@@ -138,8 +139,9 @@ DeckitModule.define(
             });
         }
 
-        // The pages of the plugins that said they have something to show, as the plugins run. One replaced by a new
-        // run stays on screen in its new page; one with nothing to show gives its place to the next that has.
+        // The pages of the plugins that said they have something to show, as the plugins run. The plugin on screen
+        // whose page is replaced by a new run comes back on screen once the new page says it has something to show;
+        // until then, and when it has nothing, the panel lands as it does at the start.
         function reconcile() {
             const showing = new Map(
                 LIFECYCLE.pages()
@@ -150,27 +152,36 @@ DeckitModule.define(
                 if (showing.get(id) === page) continue;
                 container.removeChildView(page);
                 views.delete(id);
-                if (current === id) current = showing.has(id) ? id : null;
+                if (current !== id) continue;
+                current = null;
+                returning = id;
             }
             for (const [id, page] of showing) {
                 if (views.has(id)) continue;
                 views.set(id, page);
                 page.setVisible(false);
                 container.addChildView(page);
-                if (current === id) {
-                    current = null;
-                    select(id, { fromHistory: true });
-                }
             }
             layout();
-            if (!current) select(firstShown());
+            if (returning && !mayShow(returning)) returning = null;
+            if (returning && views.has(returning)) {
+                select(returning, { fromHistory: true });
+                returning = null;
+            }
+            if (!current && !returning) select(firstShown());
             broadcast();
+        }
+
+        // Running, and not known to have nothing to show.
+        function mayShow(id) {
+            const running = LIFECYCLE.pages().some(({ entry }) => entry.id === id);
+            return running && HOST.summaryOf(id)?.view !== false && !HOST.failed(id);
         }
 
         // In the person's order: the first plugin that has something to show, or may have once it has started. One
         // still starting is waited for, so the panel lands where the order says and not on whoever started first.
         function firstShown() {
-            return HOST.plugins().find(({ id }) => HOST.summaryOf(id)?.view !== false && !HOST.failed(id))?.id;
+            return HOST.plugins().find(({ id }) => mayShow(id))?.id;
         }
 
         function layout() {
@@ -251,7 +262,7 @@ DeckitModule.define(
             return views.has(id);
         }
 
-        // Whether a keystroke or a request in this webContents is the panel's: one of its pages, or a web page one shows.
+        // Whether a keystroke or a request in this webContents is the panel's: one of its pages, or a web page in one.
         function contains(webContents) {
             const page = LIFECYCLE.pageFor(webContents);
             return [...views.values()].some((shown) => shown.webContents === page);

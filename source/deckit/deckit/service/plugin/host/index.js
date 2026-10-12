@@ -17,7 +17,7 @@ DeckitModule.define(
             'deckit/service/plugin/host/export',
             'deckit/service/plugin/host/protocol',
         ],
-        provides: ['start', 'plugins', 'prepare', 'summaryOf', 'failed', 'onChange', 'onStatus', 'order', 'arrange'],
+        provides: ['start', 'plugins', 'prepare', 'summaryOf', 'failed', 'ended', 'onChange', 'onStatus', 'order', 'arrange'],
         runs: 'main',
     },
     (
@@ -83,12 +83,21 @@ DeckitModule.define(
             listeners.add(listener);
         }
 
-        // Whether a plugin ended without starting.
+        // Whether a plugin ended: it never started, or its page went.
         function failed(pluginId) {
             return stopped.has(pluginId);
         }
 
-        // Told each time a plugin has started, or ended without starting.
+        // A plugin that is no longer running in its page, or never started there: whoever requires it is told.
+        function ended(pluginId, why) {
+            record(pluginId, why);
+            EXPORT.fail(pluginId, why);
+            started.delete(pluginId);
+            stopped.add(pluginId);
+            for (const listener of statusListeners) listener(pluginId);
+        }
+
+        // Told each time a plugin has started, or ended.
         function onStatus(listener) {
             statusListeners.add(listener);
         }
@@ -117,7 +126,7 @@ DeckitModule.define(
                     sender,
                     () =>
                         IDENTITY.pageOf(plugin.id) === sender &&
-                        EXPORT.fail(plugin.id, 'its view went away before it started')
+                        EXPORT.fail(plugin.id, 'its page went away before it started')
                 );
                 return loadOf(plugin);
             });
@@ -129,12 +138,7 @@ DeckitModule.define(
                 for (const listener of statusListeners) listener(plugin.id);
             });
             PROTOCOL.failed.on(({ why }, sender) => record(IDENTITY.pluginFrom(sender).id, why));
-            PROTOCOL.stopped.on(({ why }, sender) => {
-                const plugin = IDENTITY.pluginFrom(sender);
-                EXPORT.fail(plugin.id, why);
-                stopped.add(plugin.id);
-                for (const listener of statusListeners) listener(plugin.id);
-            });
+            PROTOCOL.stopped.on(({ why }, sender) => ended(IDENTITY.pluginFrom(sender).id, why));
             PROTOCOL.plugins.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
                 return describe();
@@ -306,6 +310,6 @@ DeckitModule.define(
             return [...list].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
         }
 
-        return { start, plugins, prepare, summaryOf, failed, onChange, onStatus, order, arrange };
+        return { start, plugins, prepare, summaryOf, failed, ended, onChange, onStatus, order, arrange };
     }
 );
