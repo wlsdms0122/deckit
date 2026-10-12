@@ -3,7 +3,6 @@ DeckitModule.define(
     {
         uses: [
             'deckit/ui/token',
-            'deckit/ui/color',
             'deckit/ui/icon',
             'deckit/ui/pointer',
             'deckit/ui/kit',
@@ -14,11 +13,10 @@ DeckitModule.define(
         ],
         provides: ['open', 'boot'],
     },
-    (TOKEN, COLOR, ICON, POINTER, UI, MATCH, ENTRIES, TONE, PROTOCOL) => {
+    (TOKEN, ICON, POINTER, UI, MATCH, ENTRIES, TONE, PROTOCOL) => {
         // MARK: - Property
-        const { MOTION, WASH } = TOKEN;
+        const { MOTION } = TOKEN;
         const aimOnMove = POINTER.hoverIntent;
-        const isDark = COLOR.isDark;
         const { TIER, matchFields } = MATCH;
         // Only `alert` tints the card and `info` has no colour, so a colour still means something.
         const LOOK = {
@@ -295,7 +293,7 @@ DeckitModule.define(
                         margin: item.lead ? '0 0 4px' : '0',
                         cursor: actionable ? 'pointer' : 'default',
                         background: item.lead ? tone.wash || LEAD_BACKGROUND : 'transparent',
-                        transition: `background-color ${MOTION.fast} ${MOTION.ease}`,
+                        transition: `background-color ${MOTION.fast}ms ${MOTION.easing}`,
                     });
 
                     // Only the left mark and the glyph carry the tone: coloured small text is harder to read.
@@ -338,7 +336,7 @@ DeckitModule.define(
                         });
                         if (item.attention) {
                             mark.style.background = tone.attentionMark;
-                            if (MOTION.fast !== '0ms') breathe(row, tone);
+                            if (MOTION.fast) breathe(row, tone);
                         }
                         const stack = document.createElement('div');
                         Object.assign(stack.style, {
@@ -487,7 +485,7 @@ DeckitModule.define(
                     rows.forEach((row, index) => {
                         const item = shown[index];
                         const rest = item?.lead ? NOW_TONE[item.tone]?.wash || LEAD_BACKGROUND : 'transparent';
-                        row.style.background = index === cursor ? WASH.cursor : rest;
+                        row.style.background = index === cursor ? theme.color.selected : rest;
                     });
                 }
 
@@ -712,7 +710,7 @@ DeckitModule.define(
             let giveUpTimer = null;
 
             // Scrollbars and other native drawing follow the theme.
-            document.documentElement.style.colorScheme = isDark(theme.contentBg) ? 'dark' : 'light';
+            document.documentElement.style.colorScheme = theme.dark ? 'dark' : 'light';
             Object.assign(document.body.style, { margin: '0', background: 'transparent' });
 
             const entries = ENTRIES.list({
@@ -769,7 +767,7 @@ DeckitModule.define(
 
             function reportAfterExit() {
                 clearTimeout(exitTimer);
-                const duration = parseFloat(MOTION.base) || 0;
+                const duration = MOTION.base;
                 if (!duration) return reportHidden();
                 closing = true;
                 exitTimer = setTimeout(reportHidden, duration);

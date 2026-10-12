@@ -67,7 +67,7 @@ Deckit.register({
             if (text != null) e.textContent = text;
             return e;
         };
-        const quiet = ui.blend(theme.contentColor, theme.contentBg, 0.55);
+        const quiet = theme.color.muted;
         // Lucide (ISC), for the glyphs the kit does not carry.
         const GLYPH = {
             compose: `<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>`,
@@ -166,7 +166,7 @@ Deckit.register({
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            color: theme.contentColor,
+            color: theme.color.text,
             font: '13px ' + theme.font,
         });
         const keyed = (el, text, action) => ui.tip(el, text, () => host.chordOf(action));
@@ -313,14 +313,14 @@ Deckit.register({
             outline: 'none',
             background: 'transparent',
             padding: '0',
-            color: theme.contentColor,
+            color: theme.color.text,
             font: '800 26px ' + theme.font,
             letterSpacing: '-.01em',
         });
         titleInput.spellcheck = false;
         titleInput.placeholder = 'Untitled';
         const stamp = el('div', { font: '11.5px ' + theme.font, color: quiet, minHeight: '16px', marginTop: '3px' });
-        const titleError = el('div', { font: '12px ' + theme.font, color: ui.tone.alert, minHeight: '0' });
+        const titleError = el('div', { font: '12px ' + theme.font, color: theme.color.alert, minHeight: '0' });
         head.append(titleInput, titleError, stamp);
         const banner = el('div', {
             display: 'none',
@@ -330,7 +330,7 @@ Deckit.register({
             margin: '4px 16px 6px',
             padding: '7px 8px 7px 12px',
             borderRadius: '8px',
-            background: ui.alpha(ui.tone.warn, 0.16),
+            background: ui.alpha(theme.color.warn, 0.16),
             font: '12.5px ' + theme.font,
         });
         // A face not in the list (chosen on another Mac) falls back to the theme's.
@@ -379,7 +379,7 @@ Deckit.register({
                 cursor: 'default',
                 boxSizing: 'border-box',
                 minWidth: '0',
-                transition: `background-color ${ui.motion.fast} ${ui.motion.ease}`,
+                transition: `background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
                 ...style,
             });
             c.addEventListener('mouseenter', () => {
@@ -853,7 +853,7 @@ Deckit.register({
                 banner.appendChild(ui.textBtn(label, title, run, { size: 'sm' }));
         };
         const nudge = () => {
-            if (parseFloat(ui.motion.fast))
+            if (theme.motion.fast)
                 banner.animate(
                     [
                         { transform: 'translateX(0)' },
@@ -861,7 +861,7 @@ Deckit.register({
                         { transform: 'translateX(4px)' },
                         { transform: 'translateX(0)' },
                     ],
-                    { duration: 240, easing: ui.motion.ease }
+                    { duration: 240, easing: theme.motion.easing }
                 );
         };
 

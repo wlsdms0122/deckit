@@ -5,7 +5,7 @@ DeckitModule.define(
         provides: ['make'],
     },
     (TOKEN, ICON, K) => {
-        const { MOTION, WASH } = TOKEN;
+        const { MOTION } = TOKEN;
         const { icon } = ICON;
         const { pressable, selectable } = K;
         // Read from `ui` when a dialog opens, not when the kit is assembled, so load order does not matter.
@@ -124,7 +124,7 @@ DeckitModule.define(
                                                 cursor: 'pointer',
                                                 padding: '0',
                                                 flex: '0 0 auto',
-                                                transition: `box-shadow ${MOTION.fast} ${MOTION.ease}, transform ${MOTION.fast} ${MOTION.ease}`,
+                                                transition: `box-shadow ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.fast}ms ${MOTION.easing}`,
                                             });
                                             b.addEventListener('click', () => {
                                                 values[field.key] = color;
@@ -152,9 +152,9 @@ DeckitModule.define(
                                             cursor: 'pointer',
                                             padding: '0',
                                             flex: '0 0 auto',
-                                            transition: `background-color ${MOTION.fast} ${MOTION.ease}`,
+                                            transition: `background-color ${MOTION.fast}ms ${MOTION.easing}`,
                                         });
-                                        pressable(more, WASH.hover);
+                                        pressable(more, theme);
                                         more.addEventListener('click', () =>
                                             colorPicker({
                                                 value: values[field.key],
@@ -175,7 +175,10 @@ DeckitModule.define(
                                                 if (b === more) continue;
                                                 const on = b.dataset.color === chosen;
                                                 b.style.boxShadow = on
-                                                    ? '0 0 0 2px ' + theme.contentBg + ', 0 0 0 4px ' + b.dataset.color
+                                                    ? '0 0 0 2px ' +
+                                                      theme.color.background +
+                                                      ', 0 0 0 4px ' +
+                                                      b.dataset.color
                                                     : 'none';
                                                 b.style.transform = on ? 'scale(1.08)' : 'none';
                                             }

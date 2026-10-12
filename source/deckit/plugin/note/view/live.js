@@ -50,12 +50,12 @@ const noteOpenAddress = async ({ host, ui }, href) => {
 
 const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNote, onMenu }) => {
     const E = NoteEngine;
-    const quiet = ui.blend(theme.contentColor, theme.contentBg, 0.5);
+    const quiet = theme.color.muted;
     const dark = (() => {
-        const m = String(theme.contentBg || '').match(/^#([0-9a-f]{6})$/i);
+        const m = String(theme.color.background || '').match(/^#([0-9a-f]{6})$/i);
         const rgb = m
             ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16))
-            : (String(theme.contentBg).match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(Number);
+            : (String(theme.color.background).match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(Number);
         return (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 < 0.5;
     })();
     const C = dark
@@ -77,9 +77,9 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
               type: '#953800',
               prop: '#116329',
           };
-    const linkColor = ui.blend(ui.accent, theme.contentColor, 0.85);
+    const linkColor = ui.mix(theme.color.accent, theme.color.text, 0.85);
     // Translucent: the panel is glass, and a solid ground reads as a hole in it.
-    const codeGround = ui.alpha(theme.contentColor, 0.07);
+    const codeGround = ui.alpha(theme.color.text, 0.07);
 
     const t = E.tags;
     const highlight = E.HighlightStyle.define([
@@ -94,7 +94,7 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
         { tag: t.url, color: quiet },
         { tag: t.monospace, fontFamily: NOTE_MONO, fontSize: '.9em' },
         { tag: [t.processingInstruction, t.contentSeparator, t.labelName], color: quiet },
-        { tag: t.quote, color: ui.blend(theme.contentColor, theme.contentBg, 0.78) },
+        { tag: t.quote, color: ui.mix(theme.color.text, theme.color.background, 0.78) },
         // Fenced code in the languages the engine carries.
         { tag: [t.keyword, t.controlKeyword, t.definitionKeyword, t.modifier], color: C.keyword },
         { tag: [t.string, t.regexp], color: C.string },
@@ -110,17 +110,22 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
     );
     const look = E.EditorView.theme(
         {
-            '&': { height: '100%', color: theme.contentColor, backgroundColor: 'transparent' },
+            '&': { height: '100%', color: theme.color.text, backgroundColor: 'transparent' },
             '&.cm-focused': { outline: 'none' },
             // The font face is set only by typeOf below, so two rules never race.
             /* The side margin is on the scroller: the engine paints a selected line from the content's
        outer edge, so a margin inside the content would be painted too. */
             '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 28px' },
-            '.cm-content': { padding: '4px 0 40vh', caretColor: ui.accent, width: '100%', boxSizing: 'border-box' },
+            '.cm-content': {
+                padding: '4px 0 40vh',
+                caretColor: theme.color.accent,
+                width: '100%',
+                boxSizing: 'border-box',
+            },
             '.cm-line': { padding: '0' },
-            '.cm-cursor, .cm-dropCursor': { borderLeftColor: ui.accent, borderLeftWidth: '2px' },
+            '.cm-cursor, .cm-dropCursor': { borderLeftColor: theme.color.accent, borderLeftWidth: '2px' },
             '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
-                { backgroundColor: ui.alpha(ui.accent, 0.28) },
+                { backgroundColor: ui.alpha(theme.color.accent, 0.28) },
             '.cm-placeholder': { color: quiet },
             '.sk-md-h1': { paddingTop: '.35em !important' },
             '.sk-md-h2': { paddingTop: '.5em !important' },
@@ -145,14 +150,14 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
             '.sk-md-fence': { color: quiet, fontSize: '.8em' },
             '.sk-md-fence-off': { color: quiet, fontSize: '.7em', lineHeight: '1.1', textAlign: 'right' },
             '.sk-md-inline-code': {
-                backgroundColor: ui.alpha(theme.contentColor, 0.1),
+                backgroundColor: ui.alpha(theme.color.text, 0.1),
                 borderRadius: '4px',
                 padding: '.05em .25em',
             },
             '.sk-md-link': {
                 color: linkColor,
                 textDecoration: 'underline',
-                textDecorationColor: ui.alpha(ui.accent, 0.45),
+                textDecorationColor: ui.alpha(theme.color.accent, 0.45),
                 textUnderlineOffset: '2px',
                 cursor: 'pointer',
             },
@@ -175,7 +180,7 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
                 cursor: 'pointer',
             },
             '.sk-md-check.sk-on': {
-                background: `${ui.accent} url("data:image/svg+xml,${tick}") center / 68% no-repeat`,
+                background: `${theme.color.accent} url("data:image/svg+xml,${tick}") center / 68% no-repeat`,
                 boxShadow: 'none',
             },
         },

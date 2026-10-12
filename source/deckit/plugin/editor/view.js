@@ -130,7 +130,7 @@ Deckit.register({
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            color: theme.contentColor,
+            color: theme.color.text,
             font: '14px ' + theme.font,
             overflow: 'hidden',
         });
@@ -194,7 +194,7 @@ Deckit.register({
             borderRadius: '7px',
             border: theme.border,
             font: '12.5px ' + theme.font,
-            background: ui.alpha('#ecb22e', 0.1),
+            background: ui.alpha(theme.color.warn, 0.1),
         });
         const noticeText = el('div', { flex: '1 1 auto' });
         const noticeActions = el('div', { display: 'flex', gap: '6px', flex: '0 0 auto' });
@@ -284,7 +284,7 @@ Deckit.register({
             borderRadius: '7px',
             border: theme.border,
             font: '12.5px ' + theme.font,
-            background: ui.alpha('#ecb22e', 0.1),
+            background: ui.alpha(theme.color.warn, 0.1),
         });
         /* Redrawn with paint, so a file opened since leaves the list at once: its draft is then the
        open file's, which a Discard here must not reach. */
@@ -453,7 +453,7 @@ Deckit.register({
 
         /* The strip is redrawn whole, so new tabs are told by comparing with the last drawing. A
        workspace switch swaps the whole row and is not animated. */
-        const TAB_MOVE = `max-width ${ui.motion.base} ${ui.motion.ease}, opacity ${ui.motion.base} ${ui.motion.ease}, padding ${ui.motion.base} ${ui.motion.ease}`;
+        const TAB_MOVE = `max-width ${theme.motion.base}ms ${theme.motion.easing}, opacity ${theme.motion.base}ms ${theme.motion.easing}, padding ${theme.motion.base}ms ${theme.motion.easing}`;
         let drawnTabs = new Set();
         let drawnFor = null;
         // A closed file's tab element stays a moment in its place while it shrinks; the file is already released.
@@ -476,7 +476,7 @@ Deckit.register({
                 background: on ? 'rgba(128,128,128,.16)' : 'transparent',
                 opacity: on ? '1' : '.65',
                 overflow: 'hidden',
-                transition: `background-color ${ui.motion.fast} ${ui.motion.ease}`,
+                transition: `background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
             });
             t.dataset.path = f.path;
             // Opening redraws the strip more than once, so a growing tab carries on from the width it reached.
@@ -493,14 +493,11 @@ Deckit.register({
                 requestAnimationFrame(() =>
                     requestAnimationFrame(() => {
                         if (entering.get(f.path) !== t) return; // redrawn again since; the newer one carries on
-                        t.style.transition = `background-color ${ui.motion.fast} ${ui.motion.ease}, ${TAB_MOVE}`;
+                        t.style.transition = `background-color ${theme.motion.fast}ms ${theme.motion.easing}, ${TAB_MOVE}`;
                         Object.assign(t.style, rest);
-                        setTimeout(
-                            () => {
-                                if (entering.get(f.path) === t) entering.delete(f.path);
-                            },
-                            parseFloat(ui.motion.base) || 0
-                        );
+                        setTimeout(() => {
+                            if (entering.get(f.path) === t) entering.delete(f.path);
+                        }, theme.motion.base);
                     })
                 );
             }
@@ -1100,17 +1097,17 @@ Deckit.register({
             if (inFront) bringForward(space, space?.current ?? null);
             // Closing is the answer to "save changes?", so whatever was not saved is let go.
             forgetDraft(f.path);
-            if (t && at >= 0 && parseFloat(ui.motion.base)) {
+            if (t && at >= 0 && theme.motion.base) {
                 leaving.set(t, at);
                 t.style.pointerEvents = 'none';
-                t.style.transition = `background-color ${ui.motion.fast} ${ui.motion.ease}, ${TAB_MOVE}`;
+                t.style.transition = `background-color ${theme.motion.fast}ms ${theme.motion.easing}, ${TAB_MOVE}`;
                 Object.assign(t.style, { maxWidth: '0px', opacity: '0', padding: '0' });
                 setTimeout(() => {
                     if (leaving.delete(t)) {
                         t.remove();
                         if (!files().length && !leaving.size) strip.style.display = 'none';
                     }
-                }, parseFloat(ui.motion.base));
+                }, theme.motion.base);
             }
             paint();
             persist();

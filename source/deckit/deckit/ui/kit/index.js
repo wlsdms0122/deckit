@@ -2,10 +2,8 @@ DeckitModule.define(
     'deckit/ui/kit',
     {
         uses: [
-            'deckit/ui/token',
             'deckit/ui/color',
             'deckit/ui/icon',
-            'deckit/ui/motion',
             'deckit/ui/pointer',
             'deckit/ui/overlay',
             'deckit/ui/scroll',
@@ -29,29 +27,25 @@ DeckitModule.define(
         ],
         provides: ['make'],
     },
-    (TOKEN, COLOR, ICON, MOTION, POINTER, OVERLAY, SCROLL, PART, ...components) => {
+    (COLOR, ICON, POINTER, OVERLAY, SCROLL, PART, ...components) => {
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
-        // The `ui` a page draws with. Frozen all the way down: a plugin is handed the very objects its page draws with.
-        // Components are made in the order of `uses`, as one may lend another something through `inner`.
-        function make(theme) {
+        // The `ui` a page draws with, for `token`. Frozen all the way down: a plugin is handed the very objects its page
+        // draws with. Components are made in the order of `uses`, as one may lend another something through `inner`.
+        function make(token) {
             const ui = {};
-            const inner = PART.look(theme);
-            for (const component of components) Object.assign(ui, component.make(theme, ui, inner));
+            const inner = {};
+            for (const component of components) Object.assign(ui, component.make(token, ui, inner));
             Object.assign(ui, {
-                motion: TOKEN.MOTION,
-                accent: TOKEN.ACCENT,
-                tone: TOKEN.TONE,
-                wash: TOKEN.WASH,
                 icon: ICON.icon,
                 alpha: COLOR.alpha,
-                blend: COLOR.mix,
+                mix: COLOR.mix,
                 grabPointer: POINTER.capture,
                 aimOnMove: POINTER.hoverIntent,
                 scrollFade: SCROLL.edgeFade,
                 inSight: SCROLL.isFullyVisible,
-                pressable: PART.pressable,
+                pressable: (element) => PART.pressable(element, token),
                 selectable: PART.selectable,
             });
             return deepFreeze(ui);

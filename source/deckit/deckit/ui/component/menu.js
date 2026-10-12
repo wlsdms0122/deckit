@@ -18,7 +18,6 @@ DeckitModule.define(
 
         return {
             make: (theme, ui, inner) => {
-                const { QUIET, DISABLED } = inner;
                 // The menu open under each anchor, for menu() to close it on a second press.
                 const openUnder = new WeakMap();
                 const menuBox = () => {
@@ -30,9 +29,9 @@ DeckitModule.define(
                         padding: '4px',
                         borderRadius: '9px',
                         border: theme.border,
-                        background: COLOR.mix(theme.contentColor, theme.contentBg, 0.06),
+                        background: COLOR.mix(theme.color.text, theme.color.background, 0.06),
                         boxShadow: '0 10px 32px rgba(0,0,0,.32)',
-                        color: theme.contentColor,
+                        color: theme.color.text,
                         font: '12.5px ' + theme.font,
                     });
                     return box;
@@ -57,14 +56,14 @@ DeckitModule.define(
                         borderRadius: '6px',
                         cursor: it.disabled ? 'default' : 'pointer',
                         whiteSpace: 'nowrap',
-                        color: it.disabled ? DISABLED : 'inherit',
+                        color: it.disabled ? theme.color.disabled : 'inherit',
                     });
                     if (ticks) {
                         const tick = document.createElement('span');
                         Object.assign(tick.style, {
                             display: 'flex',
                             flex: '0 0 14px',
-                            color: T.ACCENT,
+                            color: theme.color.accent,
                             visibility: it.checked ? 'visible' : 'hidden',
                         });
                         tick.innerHTML = icon('check', 13);
@@ -72,7 +71,7 @@ DeckitModule.define(
                     }
                     if (it.icon) {
                         const g = document.createElement('span');
-                        Object.assign(g.style, { display: 'flex', flex: '0 0 auto', color: QUIET });
+                        Object.assign(g.style, { display: 'flex', flex: '0 0 auto', color: theme.color.muted });
                         g.innerHTML = /^\s*<svg/.test(it.icon) ? it.icon : icon(it.icon, 14);
                         r.appendChild(g);
                     }
@@ -88,14 +87,14 @@ DeckitModule.define(
                             flex: '0 0 auto',
                             marginLeft: '16px',
                             marginRight: '-6px',
-                            color: QUIET,
+                            color: theme.color.muted,
                         });
                         more.innerHTML = icon('chevronRight', 13);
                         r.appendChild(more);
                     } else if (it.hint) {
                         const h = document.createElement('span');
                         h.textContent = it.hint;
-                        Object.assign(h.style, { flex: '0 0 auto', marginLeft: '16px', color: QUIET });
+                        Object.assign(h.style, { flex: '0 0 auto', marginLeft: '16px', color: theme.color.muted });
                         r.appendChild(h);
                     }
                     return r;
@@ -192,7 +191,7 @@ DeckitModule.define(
                     let at_ = rows[current] && !rows[current].it.disabled ? current : -1;
                     const paint = () => {
                         rows.forEach((row, i) => {
-                            row.el.style.background = i === at_ ? T.WASH.cursor : 'transparent';
+                            row.el.style.background = i === at_ ? theme.color.selected : 'transparent';
                         });
                         rows[at_]?.el.scrollIntoView({ block: 'nearest' });
                     };
@@ -214,11 +213,11 @@ DeckitModule.define(
                         window.removeEventListener('resize', close);
                         window.removeEventListener('blur', close);
                         Object.assign(menu.style, {
-                            transition: `opacity ${MOTION.fast} ${MOTION.ease}, transform ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.fast}ms ${MOTION.easing}`,
                             opacity: '0',
                             transform: menu.dataset.shut,
                         });
-                        setTimeout(() => menu.remove(), parseFloat(MOTION.fast) || 0);
+                        setTimeout(() => menu.remove(), MOTION.fast);
                         onClose?.();
                     };
                     const take = (i, { keyboard }) => {
@@ -312,7 +311,7 @@ DeckitModule.define(
                         menu,
                         { transform: menu.dataset.shut },
                         {
-                            transition: `opacity ${MOTION.fast} ${MOTION.ease}, transform ${MOTION.base} ${MOTION.ease}`,
+                            transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`,
                             opacity: '1',
                             transform: 'none',
                         }
@@ -374,11 +373,11 @@ DeckitModule.define(
                             border: '0',
                             outline: 'none',
                             borderRadius: '999px',
-                            background: T.WASH.hover,
+                            background: theme.color.hover,
                             padding: '0 8px 0 12px',
                             cursor: 'pointer',
                             maxWidth: '240px',
-                            color: theme.contentColor,
+                            color: theme.color.text,
                             font: '12.5px ' + theme.font,
                         });
                         const label = document.createElement('span');
@@ -394,8 +393,8 @@ DeckitModule.define(
                         Object.assign(caret.style, {
                             display: 'flex',
                             flex: '0 0 auto',
-                            color: QUIET,
-                            transition: `transform ${MOTION.fast} ${MOTION.ease}`,
+                            color: theme.color.muted,
+                            transition: `transform ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         box.append(label, caret);
                         const show = () => {
@@ -435,13 +434,13 @@ DeckitModule.define(
                         };
                         // Not pressable(): the pill rests on a grey of its own, a step darker under the pointer.
                         box.addEventListener('mouseenter', () => {
-                            box.style.background = T.WASH.cursor;
+                            box.style.background = theme.color.selected;
                         });
                         box.addEventListener('mouseleave', () => {
-                            box.style.background = T.WASH.hover;
+                            box.style.background = theme.color.hover;
                         });
                         box.addEventListener('focus', () => {
-                            if (box.matches(':focus-visible')) box.style.boxShadow = '0 0 0 2px ' + T.FOCUS_RING;
+                            if (box.matches(':focus-visible')) box.style.boxShadow = '0 0 0 2px ' + theme.color.focus;
                         });
                         box.addEventListener('blur', () => {
                             box.style.boxShadow = 'none';
@@ -475,7 +474,7 @@ DeckitModule.define(
                             let kept = null;
                             if (row) {
                                 kept = row.style.boxShadow;
-                                const ring = `inset 0 0 0 2px ${COLOR.alpha(T.ACCENT, 0.75)}`;
+                                const ring = `inset 0 0 0 2px ${COLOR.alpha(theme.color.accent, 0.75)}`;
                                 row.style.boxShadow = kept && kept !== 'none' ? `${ring}, ${kept}` : ring;
                             }
                             showing = popMenu({
@@ -531,7 +530,7 @@ DeckitModule.define(
                             open = false;
                         const paint = () => {
                             rows.forEach((r, i) => {
-                                r.style.background = i === at ? T.WASH.cursor : 'transparent';
+                                r.style.background = i === at ? theme.color.selected : 'transparent';
                             });
                             rows[at]?.scrollIntoView({ block: 'nearest' });
                         };

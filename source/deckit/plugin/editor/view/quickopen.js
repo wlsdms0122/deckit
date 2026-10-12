@@ -52,7 +52,7 @@ const quickOpen = ({ theme, ui, ranker, list: listOf, root, onOpen }) => {
     // Restyled, not redrawn: a row replaced under the pointer between press and release loses the click.
     const paintAt = () => {
         [...list.children].forEach((r, i) => {
-            r.style.background = i === at ? ui.wash.cursor : 'transparent';
+            r.style.background = i === at ? theme.color.selected : 'transparent';
         });
         list.children[at]?.scrollIntoView({ block: 'nearest' });
     };
@@ -85,7 +85,7 @@ const quickOpen = ({ theme, ui, ranker, list: listOf, root, onOpen }) => {
                 padding: '0 10px',
                 borderRadius: '7px',
                 cursor: 'pointer',
-                background: i === at ? ui.wash.cursor : 'transparent',
+                background: i === at ? theme.color.selected : 'transparent',
             });
             const glyph = el('span', { display: 'flex' });
             glyph.innerHTML = fileIcons.file(rel, 15);

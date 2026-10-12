@@ -23,7 +23,7 @@ DeckitModule.define(
                             boxSizing: 'border-box',
                             padding: '24px 30px',
                             textAlign: 'center',
-                            color: theme.contentColor,
+                            color: theme.color.text,
                         });
                         if (glyph) {
                             const mark = document.createElement('div');

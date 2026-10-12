@@ -14,7 +14,6 @@ DeckitModule.define(
 
         return {
             make: (theme, ui, inner) => {
-                const { QUIET, mix } = inner;
                 return {
                     section(label, opts = {}) {
                         // `icon` is taken here by the option, so the glyph helper is reached by its own name.
@@ -64,12 +63,12 @@ DeckitModule.define(
                             padding: `0 6px 0 ${foldable ? 0 : K.ROW_SIDE}px`,
                             borderRadius: '6px',
                             cursor: pressed ? 'pointer' : 'default',
-                            transition: `background-color ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `background-color ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         if (pressed) {
                             heading.type = 'button';
                             heading.title = foldable ? 'Collapse or expand' : headingTitle || label;
-                            pressable(heading);
+                            pressable(heading, theme);
                         }
                         if (!foldable && onHeading) heading.addEventListener('click', () => onHeading());
                         if (onHeadingMenu)
@@ -85,7 +84,7 @@ DeckitModule.define(
                             flex: '0 0 auto',
                             width: CARET + 'px',
                             justifyContent: 'center',
-                            transition: `transform ${MOTION.base} ${MOTION.ease}, color ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `transform ${MOTION.base}ms ${MOTION.easing}, color ${MOTION.fast}ms ${MOTION.easing}`,
                         });
 
                         const glyph = document.createElement('span');
@@ -128,18 +127,18 @@ DeckitModule.define(
                             flexDirection: 'column',
                             flex: '0 0 auto',
                             paddingLeft: foldable ? CARET + HEAD_GAP - K.ROW_SIDE + 'px' : '0', // a row's first element exactly under the heading's icon
-                            transition: `opacity ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `opacity ${MOTION.fast}ms ${MOTION.easing}`,
                         });
 
                         let folded = !!opts.collapsed;
                         const apply = (animate) => {
                             caret.style.transform = folded ? 'rotate(-90deg)' : 'none';
-                            text.style.color = folded ? mix(0.55) : title ? theme.contentColor : mix(0.95);
-                            glyph.style.color = folded ? mix(0.4) : mix(0.75);
-                            caret.style.color = folded ? mix(0.45) : mix(0.75);
+                            text.style.color = folded ? theme.color.muted : title ? theme.color.text : theme.color.text;
+                            glyph.style.color = folded ? theme.color.disabled : theme.color.muted;
+                            caret.style.color = folded ? theme.color.disabled : theme.color.muted;
                             if (folded) {
                                 body.style.opacity = '0';
-                                const ms = animate ? parseFloat(MOTION.fast) || 0 : 0;
+                                const ms = animate ? MOTION.fast : 0;
                                 if (ms)
                                     setTimeout(() => {
                                         if (folded) body.style.display = 'none';
@@ -167,7 +166,7 @@ DeckitModule.define(
                         /* Through the press, which owns the heading's background: written over it directly, the light
            went at the first pass of the pointer. */
                         root.setCurrent = (on) => {
-                            const color = on ? T.WASH.cursor : '';
+                            const color = on ? theme.color.selected : '';
                             if (heading.setRest) heading.setRest(color);
                             else heading.style.background = color || 'transparent';
                         };
@@ -202,14 +201,14 @@ DeckitModule.define(
                                 background: 'transparent',
                                 padding: '2px 5px',
                                 borderRadius: '5px',
-                                color: current ? theme.contentColor : QUIET,
+                                color: current ? theme.color.text : theme.color.muted,
                                 font: (current ? '600 ' : '') + '13px ' + theme.font,
                                 cursor: current ? 'default' : 'pointer',
                             });
                         const separator = () => {
                             const sep = document.createElement('span');
                             sep.innerHTML = icon('chevronRight', 11);
-                            Object.assign(sep.style, { display: 'flex', flex: '0 0 auto', color: QUIET });
+                            Object.assign(sep.style, { display: 'flex', flex: '0 0 auto', color: theme.color.muted });
                             return sep;
                         };
                         let parts = [];
@@ -220,7 +219,7 @@ DeckitModule.define(
                             more.textContent = '…';
                             more.title = 'Hidden places';
                             partStyle(more, false);
-                            pressable(more);
+                            pressable(more, theme);
                             const moreSep = separator();
                             const items = parts.map((part, i) => {
                                 const b = document.createElement('button');
@@ -230,7 +229,7 @@ DeckitModule.define(
                                 b.dataset.crumb = part.key;
                                 partStyle(b, part.current);
                                 if (!part.current) {
-                                    pressable(b);
+                                    pressable(b, theme);
                                     b.addEventListener('click', () => onGo?.(part.key));
                                 }
                                 return { part, sep: i ? separator() : null, b };

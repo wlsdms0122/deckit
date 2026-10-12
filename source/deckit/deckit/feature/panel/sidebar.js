@@ -1,11 +1,11 @@
 DeckitModule.define(
     'deckit/feature/panel/sidebar',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/color', 'deckit/ui/icon', 'deckit/ui/scroll'],
+        uses: ['deckit/ui/icon', 'deckit/ui/scroll'],
         provides: ['make'],
         runs: 'page',
     },
-    (TOKEN, COLOR, ICON, SCROLL) => {
+    (ICON, SCROLL) => {
         // MARK: - Property
         // A generous ceiling: in a window of its own the panel has room, and sidebar lists want width.
         const WIDTH_MIN = 240;
@@ -25,13 +25,12 @@ DeckitModule.define(
         // The panel's sidebar card: the plugins' list over the plugin's own sidebar. What it shows is main's
         // (`state`), and what the person changes is told back: `onPick`, `onStep`, `onReorder`, `onLayout`.
         function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, onLayout, chordOf }) {
-            const { MOTION } = TOKEN;
-            const blend = COLOR.mix;
+            const { motion: MOTION } = theme;
             const scrollFade = SCROLL.edgeFade;
-            const dark = COLOR.isDark(theme.contentBg);
+            const dark = theme.dark;
             // Its ink is the content's, not the sidebar colour, which is chosen against a sidebar fill.
             const wash = (alpha) => (dark ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`);
-            const quietRow = blend(theme.contentColor, theme.contentBg, 0.72);
+            const quietRow = theme.color.muted;
             let layout = { width: WIDTH_MIN, collapsed: false, navHeight: null };
             let current = null;
             let dragging = false;
@@ -41,7 +40,7 @@ DeckitModule.define(
             const card = element('div', {
                 flex: '0 0 auto',
                 background: `linear-gradient(180deg, ${wash(dark ? 0.045 : 0.03)}, ${wash(dark ? 0.025 : 0.015)})`,
-                color: theme.contentColor,
+                color: theme.color.text,
                 margin: INSET + 'px',
                 borderRadius: RADIUS + 'px',
                 border: `1px solid ${wash(dark ? 0.1 : 0.08)}`,
@@ -110,7 +109,7 @@ DeckitModule.define(
                 width: '100%',
                 borderTop: theme.border,
                 opacity: '.7',
-                transition: `opacity ${MOTION.base} ${MOTION.ease}`,
+                transition: `opacity ${MOTION.base}ms ${MOTION.easing}`,
             });
             splitter.addEventListener('mouseenter', () => (line.style.opacity = '1'));
             splitter.addEventListener('mouseleave', () => (line.style.opacity = '.7'));
@@ -150,8 +149,8 @@ DeckitModule.define(
 
             // On the content, not the card: at left 0 it stands on the boundary whatever the width, and it outlives
             // the card being folded away.
-            const handleIdle = blend(theme.contentColor, theme.contentBg, 0.26);
-            const handleHover = blend(theme.contentColor, theme.contentBg, 0.62);
+            const handleIdle = theme.color.disabled;
+            const handleHover = theme.color.muted;
             const handle = element('button', {
                 position: 'absolute',
                 top: '50%',
@@ -165,8 +164,8 @@ DeckitModule.define(
                 padding: '0',
                 border: '0',
                 background: 'transparent',
-                color: theme.contentColor,
-                transition: `transform ${MOTION.base} ${MOTION.ease}, left ${MOTION.base} ${MOTION.ease}`,
+                color: theme.color.text,
+                transition: `transform ${MOTION.base}ms ${MOTION.easing}, left ${MOTION.base}ms ${MOTION.easing}`,
             });
             handle.type = 'button';
             // The button around the capsule is what is aimed at: a 4px pill alone is not.
@@ -175,7 +174,7 @@ DeckitModule.define(
                 height: '36px',
                 borderRadius: '999px',
                 background: handleIdle,
-                transition: `background-color ${MOTION.fast} ${MOTION.ease}, height ${MOTION.fast} ${MOTION.ease}, width ${MOTION.fast} ${MOTION.ease}`,
+                transition: `background-color ${MOTION.fast}ms ${MOTION.easing}, height ${MOTION.fast}ms ${MOTION.easing}, width ${MOTION.fast}ms ${MOTION.easing}`,
             });
             handle.appendChild(capsule);
             handle.addEventListener('mouseenter', () => paintHandle(true));
@@ -228,7 +227,7 @@ DeckitModule.define(
                 layout = next;
                 const width = clamp(next.width);
                 card.style.transition = animate
-                    ? `width ${MOTION.base} ${MOTION.ease}, margin ${MOTION.base} ${MOTION.ease}, opacity ${MOTION.base} ${MOTION.ease}`
+                    ? `width ${MOTION.base}ms ${MOTION.easing}, margin ${MOTION.base}ms ${MOTION.easing}, opacity ${MOTION.base}ms ${MOTION.easing}`
                     : 'none';
                 body.style.width = width + 'px';
                 card.style.width = next.collapsed ? '0px' : width + 'px';
@@ -267,11 +266,11 @@ DeckitModule.define(
                     borderRadius: '6px',
                     cursor: 'pointer',
                     background: 'transparent',
-                    color: plugin.id === current ? theme.contentColor : quietRow,
+                    color: plugin.id === current ? theme.color.text : quietRow,
                     font: '15px ' + theme.font,
                     textAlign: 'left',
                     boxSizing: 'border-box',
-                    transition: `background-color ${MOTION.fast} ${MOTION.ease}, color ${MOTION.fast} ${MOTION.ease}`,
+                    transition: `background-color ${MOTION.fast}ms ${MOTION.easing}, color ${MOTION.fast}ms ${MOTION.easing}`,
                 });
                 row.type = 'button';
                 row.dataset.pluginId = plugin.id;

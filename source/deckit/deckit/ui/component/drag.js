@@ -51,7 +51,6 @@ DeckitModule.define(
 
         return {
             make: (theme, ui, inner) => {
-                const { QUIET, HELD } = inner;
                 /* The icon and name are one face inside the box, so the box can take the thing's shape with its
        face faded out. */
                 const label = ({ text, icon: glyph }) => {
@@ -70,9 +69,9 @@ DeckitModule.define(
                         padding: '4px 10px 4px 8px',
                         borderRadius: '7px',
                         border: theme.border,
-                        background: HELD.fill,
-                        boxShadow: HELD.shadow,
-                        color: theme.contentColor,
+                        background: theme.color.lifted,
+                        boxShadow: theme.shadow.lifted,
+                        color: theme.color.text,
                         font: '12.5px ' + theme.font,
                         whiteSpace: 'nowrap',
                     });
@@ -80,7 +79,7 @@ DeckitModule.define(
                     Object.assign(face.style, { display: 'flex', alignItems: 'center', gap: '6px', minWidth: '0' });
                     if (glyph) {
                         const g = document.createElement('span');
-                        Object.assign(g.style, { display: 'flex', flex: '0 0 auto', color: QUIET });
+                        Object.assign(g.style, { display: 'flex', flex: '0 0 auto', color: theme.color.muted });
                         g.innerHTML = /^\s*<svg/.test(glyph) ? glyph : ICON.icon(glyph, 14);
                         face.appendChild(g);
                     }
@@ -91,8 +90,8 @@ DeckitModule.define(
                     tag.appendChild(face);
                     return tag;
                 };
-                const RING = `inset 0 0 0 2px ${COLOR.alpha(T.ACCENT, 0.75)}`;
-                const STAYS = `inset 0 0 0 1.5px ${COLOR.alpha(QUIET, 0.6)}`;
+                const RING = `inset 0 0 0 2px ${COLOR.alpha(theme.color.accent, 0.75)}`;
+                const STAYS = `inset 0 0 0 1.5px ${COLOR.alpha(theme.color.muted, 0.6)}`;
 
                 return {
                     dragSource(area, { itemAt, what }) {
@@ -159,16 +158,15 @@ DeckitModule.define(
                                     tag.style.transform = `translate(${x}px, ${y}px)`;
                                 };
                                 const hangAt = (x, y) => moveTo(x - grab.x, y - grab.y);
-                                const durationOf = (duration) => parseFloat(duration) || 0;
                                 const morph = (duration) => {
                                     tag.style.transition = ['transform', 'width', 'height', 'border-radius']
-                                        .map((p) => `${p} ${duration} ${MOTION.ease}`)
+                                        .map((p) => `${p} ${duration}ms ${MOTION.easing}`)
                                         .join(', ');
-                                    face.style.transition = `opacity ${duration} ${MOTION.ease}`;
+                                    face.style.transition = `opacity ${duration}ms ${MOTION.easing}`;
                                 };
                                 // A fade on top of whatever is moving it now, so a lift still under way is not cut short.
                                 const fade = (duration, easing) => {
-                                    tag.style.transition = [tag.style.transition, `opacity ${duration} ${easing}`]
+                                    tag.style.transition = [tag.style.transition, `opacity ${duration}ms ${easing}`]
                                         .filter(Boolean)
                                         .join(', ');
                                     tag.style.opacity = '0';
@@ -186,16 +184,16 @@ DeckitModule.define(
                                 };
                                 const landIn = () => {
                                     light(null);
-                                    if (!durationOf(MOTION.fast)) return end();
+                                    if (!MOTION.fast) return end();
                                     clearTimeout(lifting);
-                                    fade(MOTION.fast, MOTION.ease);
-                                    ending = setTimeout(end, durationOf(MOTION.fast));
+                                    fade(MOTION.fast, MOTION.easing);
+                                    ending = setTimeout(end, MOTION.fast);
                                 };
                                 const goBack = () => {
                                     light(null);
                                     const to = home();
                                     const duration = to ? MOTION.base : MOTION.fast;
-                                    if (!durationOf(duration)) return end();
+                                    if (!duration) return end();
                                     clearTimeout(lifting);
                                     if (to) {
                                         morph(MOTION.base);
@@ -203,18 +201,18 @@ DeckitModule.define(
                                         shape(to, false);
                                         // Faded late, so it is seen arriving in the thing's place and shape before it is gone.
                                         fade(MOTION.base, 'ease-in');
-                                    } else fade(MOTION.fast, MOTION.ease);
+                                    } else fade(MOTION.fast, MOTION.easing);
                                     restoring = item.animate([{ opacity: 0.4 }, { opacity: shownOpacity }], {
-                                        duration: durationOf(duration),
-                                        easing: MOTION.ease,
+                                        duration: duration,
+                                        easing: MOTION.easing,
                                         fill: 'forwards',
                                     });
-                                    ending = setTimeout(end, durationOf(duration));
+                                    ending = setTimeout(end, duration);
                                 };
                                 /* Moves during the lift retarget the same transition, so it catches up with the pointer rather
                than jumping to it. */
                                 const from = home();
-                                if (from && durationOf(MOTION.base)) {
+                                if (from && MOTION.base) {
                                     moveTo(from.x, from.y);
                                     shape(from, false);
                                     tag.getBoundingClientRect(); // where it starts, laid out before it moves
@@ -223,7 +221,7 @@ DeckitModule.define(
                                     lifting = setTimeout(() => {
                                         lifting = 0;
                                         tag.style.transition = '';
-                                    }, durationOf(MOTION.base));
+                                    }, MOTION.base);
                                 }
                                 hangAt(down.clientX, down.clientY);
                                 return {

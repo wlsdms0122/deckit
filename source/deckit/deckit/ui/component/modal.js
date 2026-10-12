@@ -5,7 +5,7 @@ DeckitModule.define(
         provides: ['make'],
     },
     (TOKEN, MOTION_, OVERLAY) => {
-        const { MOTION, LIFT, TONE } = TOKEN;
+        const { MOTION } = TOKEN;
         const { play } = MOTION_;
         const { raise } = OVERLAY;
 
@@ -43,21 +43,21 @@ DeckitModule.define(
                     background: 'rgba(0,0,0,.45)',
                     font: '14px ' + theme.font,
                     opacity: '0',
-                    transition: `opacity ${MOTION.base} ${MOTION.ease}`,
+                    transition: `opacity ${MOTION.base}ms ${MOTION.easing}`,
                 });
                 const card = document.createElement('div');
                 Object.assign(card.style, {
                     width,
                     maxHeight: '80vh',
                     overflowY: 'auto',
-                    background: theme.contentBg,
-                    color: theme.contentColor,
+                    background: theme.color.background,
+                    color: theme.color.text,
                     borderRadius: '12px',
                     border: theme.border,
                     boxShadow: '0 18px 48px rgba(0,0,0,.4)',
                     padding: chrome ? '18px 20px 16px' : '8px',
-                    transform: LIFT,
-                    transition: `transform ${MOTION.base} ${MOTION.ease}`,
+                    transform: MOTION.entrance,
+                    transition: `transform ${MOTION.base}ms ${MOTION.easing}`,
                 });
 
                 // Once: a second close (a handler calling close() on its way out) must not run onClose again.
@@ -69,8 +69,8 @@ DeckitModule.define(
                     document.removeEventListener('keydown', onKey, true);
                     overlay.style.opacity = '0';
                     overlay.style.pointerEvents = 'none';
-                    card.style.transform = LIFT;
-                    const ms = parseFloat(MOTION.base) || 0;
+                    card.style.transform = MOTION.entrance;
+                    const ms = MOTION.base;
                     if (ms) setTimeout(() => overlay.remove(), ms);
                     else overlay.remove();
                     if (before && before !== document.body && before.isConnected)
@@ -129,7 +129,7 @@ DeckitModule.define(
                         close();
                         onExtra?.();
                     });
-                    if (destructive) extra.style.color = TONE.alert;
+                    if (destructive) extra.style.color = theme.color.alert;
                     actions.append(cancel, extra, ...(confirm ? [confirm] : []));
                 } else {
                     actions.append(cancel, ...(confirm ? [confirm] : []));

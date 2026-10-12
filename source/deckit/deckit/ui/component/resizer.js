@@ -88,7 +88,7 @@ DeckitModule.define(
                         });
                         // Through resize, so it is drawn the way a drag is. A page not being drawn is put there at once.
                         const springTo = (now, target, then) => {
-                            const length = parseFloat(MOTION.base) || 0;
+                            const length = MOTION.base;
                             if (now === target || !length || document.hidden) {
                                 resize(target);
                                 then();

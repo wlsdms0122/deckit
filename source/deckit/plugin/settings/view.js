@@ -10,7 +10,7 @@ Deckit.register({
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            color: theme.contentColor,
+            color: theme.color.text,
             font: '14px ' + theme.font,
             overflow: 'hidden',
         });
@@ -127,8 +127,8 @@ Deckit.register({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: ui.alpha(ui.accent, 0.16),
-                    color: ui.accent,
+                    background: ui.alpha(theme.color.accent, 0.16),
+                    color: theme.color.accent,
                 });
                 const words = document.createElement('div');
                 const line = (text, style) => {
@@ -311,7 +311,7 @@ Deckit.register({
         const details = (id, { live, requirements, keys }, { onDisk, openLines }) => {
             const fold = document.createElement('div');
             // The base duration, not the fast one: over the short one a tall row reads as a jump.
-            const MOVE = `grid-template-rows ${ui.motion.base} ${ui.motion.ease}, opacity ${ui.motion.base} ${ui.motion.ease}`;
+            const MOVE = `grid-template-rows ${theme.motion.base}ms ${theme.motion.easing}, opacity ${theme.motion.base}ms ${theme.motion.easing}`;
             Object.assign(fold.style, {
                 display: 'grid',
                 gridTemplateRows: '0fr',
@@ -371,7 +371,7 @@ Deckit.register({
                     width: '6px',
                     height: '6px',
                     borderRadius: '50%',
-                    background: ok ? ui.tone.ok : ui.tone.alert,
+                    background: ok ? theme.color.ok : theme.color.alert,
                 });
                 const t = document.createElement('span');
                 t.textContent = text;
@@ -519,7 +519,7 @@ Deckit.register({
                     minHeight: '34px',
                     padding: '0 8px',
                     borderRadius: '6px',
-                    transition: `background-color ${ui.motion.fast} ${ui.motion.ease}`,
+                    transition: `background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
                 });
 
                 const nameCell = document.createElement('span');
@@ -531,7 +531,7 @@ Deckit.register({
                     flex: '0 0 auto',
                     opacity: '.45',
                     marginLeft: '-4px',
-                    transition: `transform ${ui.motion.fast} ${ui.motion.ease}`,
+                    transition: `transform ${theme.motion.fast}ms ${theme.motion.easing}`,
                 });
                 const nameText = document.createElement('span');
                 nameText.textContent = name;
@@ -599,7 +599,7 @@ Deckit.register({
                     Object.assign(why.style, {
                         padding: '0 8px 8px 21px',
                         marginTop: '-6px',
-                        color: ui.tone.alert,
+                        color: theme.color.alert,
                         font: '12px ' + theme.font,
                         lineHeight: '1.5',
                         wordBreak: 'break-word',
@@ -756,7 +756,7 @@ Deckit.register({
                     padding: '8px 0 4px',
                     borderRadius: '8px',
                     border: theme.border,
-                    transition: `background ${ui.motion.slow} ${ui.motion.ease}`,
+                    transition: `background ${theme.motion.slow}ms ${theme.motion.easing}`,
                 });
                 settingCards.set(g.id, group);
                 const title = document.createElement('div');
@@ -910,7 +910,7 @@ Deckit.register({
                         margin: '0 4px',
                         borderRadius: '6px',
                         cursor: drag ? 'grab' : 'default',
-                        transition: `background-color ${ui.motion.fast} ${ui.motion.ease}`,
+                        transition: `background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
                     });
                     if (drag) ui.hoverable(r);
                     const grip = document.createElement('span');
@@ -987,8 +987,8 @@ Deckit.register({
         keyboard.body.appendChild(keyboardRows);
         const clashes = chip('', 'muted');
         Object.assign(clashes.style, {
-            color: ui.tone.alert,
-            borderColor: ui.alpha(ui.tone.alert, 0.5),
+            color: theme.color.alert,
+            borderColor: ui.alpha(theme.color.alert, 0.5),
             opacity: '1',
             display: 'none',
         });
@@ -1052,9 +1052,9 @@ Deckit.register({
                     }
 
                     const worst = k.issues.find((i) => i.level === 'error')
-                        ? ui.tone.alert
+                        ? theme.color.alert
                         : k.issues.length
-                          ? ui.tone.warn
+                          ? theme.color.warn
                           : null;
                     const key = document.createElement('button');
                     key.type = 'button';
@@ -1080,7 +1080,11 @@ Deckit.register({
                         e.stopPropagation();
                         stopRecording?.();
                         show('Press a shortcut\u2026');
-                        Object.assign(key.style, { borderColor: ui.accent, color: ui.accent, opacity: '1' });
+                        Object.assign(key.style, {
+                            borderColor: theme.color.accent,
+                            color: theme.color.accent,
+                            opacity: '1',
+                        });
                         stopRecording = host.keymap.record((got) => {
                             if (got.error) return show(got.error);
                             stopRecording = null;
@@ -1111,7 +1115,7 @@ Deckit.register({
                             font: '11.5px ' + theme.font,
                             lineHeight: '1.45',
                             padding: '0 0 5px',
-                            color: issue.level === 'error' ? ui.tone.alert : ui.tone.warn,
+                            color: issue.level === 'error' ? theme.color.alert : theme.color.warn,
                         });
                         cellBox.appendChild(note);
                     }
@@ -1211,7 +1215,7 @@ Deckit.register({
                     top: Math.min(Math.max(0, top), body.scrollHeight - body.clientHeight),
                     behavior: 'smooth',
                 });
-                card.style.background = ui.alpha(ui.accent, 0.12);
+                card.style.background = ui.alpha(theme.color.accent, 0.12);
                 setTimeout(() => {
                     card.style.background = 'transparent';
                 }, 1200);

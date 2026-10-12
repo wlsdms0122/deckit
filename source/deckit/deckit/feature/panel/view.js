@@ -2,7 +2,6 @@ DeckitModule.define(
     'deckit/feature/panel/view',
     {
         uses: [
-            'deckit/ui/token',
             'deckit/ui/color',
             'deckit/service/keymap/view',
             'deckit/feature/panel/sidebar',
@@ -10,7 +9,7 @@ DeckitModule.define(
         ],
         provides: ['mount'],
     },
-    (TOKEN, COLOR, KEYMAP, SIDEBAR, PROTOCOL) => {
+    (COLOR, KEYMAP, SIDEBAR, PROTOCOL) => {
         // MARK: - Property
         // The panel is glass: its colour at this strength, with what is behind it blurred through.
         const GLASS_OPACITY = 0.68;
@@ -22,14 +21,14 @@ DeckitModule.define(
         // `tell` calls a part of the plugin (didAppear, didDisappear).
         function mount({ setup, ui, parts, tell }) {
             const { theme } = setup;
-            const { LIFT, MOTION } = TOKEN;
+            const { motion: MOTION } = theme;
             let open = setup.shown;
             let look = setup.look;
             let leaving = null;
             let appeared = false;
 
             // So what the browser draws itself (scrollbars, native controls) follows the theme.
-            document.documentElement.style.colorScheme = COLOR.isDark(theme.contentBg) ? 'dark' : 'light';
+            document.documentElement.style.colorScheme = theme.dark ? 'dark' : 'light';
             // How far the window's bar comes down, so a plugin drawing at its top edge can step out from under it.
             setInset(0);
             const root = element('div', {
@@ -45,7 +44,7 @@ DeckitModule.define(
                 flex: '1 1 auto',
                 minWidth: '0',
                 background: 'transparent',
-                color: theme.contentColor,
+                color: theme.color.text,
                 position: 'relative',
                 display: 'flex',
             });
@@ -104,13 +103,13 @@ DeckitModule.define(
             function dress() {
                 Object.assign(
                     root.style,
-                    { background: COLOR.alpha(theme.contentBg, GLASS_OPACITY), boxShadow: 'none' },
+                    { background: COLOR.alpha(theme.color.background, GLASS_OPACITY), boxShadow: 'none' },
                     look.floating
                         ? {
                               border: '1px solid rgba(255,255,255,.14)',
                               borderRadius: '12px',
                               transformOrigin: 'center',
-                              transition: `opacity ${MOTION.fast} ${MOTION.ease}, transform ${MOTION.base} ${MOTION.ease}`,
+                              transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`,
                           }
                         : { border: '0', borderRadius: '0', opacity: '1', transform: 'none', transition: 'none' }
                 );
@@ -122,9 +121,9 @@ DeckitModule.define(
                 leaving = null;
                 root.style.transition = 'none';
                 root.style.opacity = '0';
-                root.style.transform = LIFT;
+                root.style.transform = MOTION.entrance;
                 requestAnimationFrame(() => {
-                    root.style.transition = `opacity ${MOTION.fast} ${MOTION.ease}, transform ${MOTION.base} ${MOTION.ease}`;
+                    root.style.transition = `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`;
                     root.style.opacity = '1';
                     root.style.transform = 'none';
                 });
@@ -140,11 +139,11 @@ DeckitModule.define(
             }
 
             function fadeOut(then) {
-                root.style.transition = `opacity ${MOTION.fast} ${MOTION.ease}, transform ${MOTION.base} ${MOTION.ease}`;
+                root.style.transition = `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`;
                 root.style.opacity = '0';
-                root.style.transform = LIFT;
+                root.style.transform = MOTION.entrance;
                 clearTimeout(leaving);
-                const duration = parseFloat(MOTION.base);
+                const duration = MOTION.base;
                 if (!duration) return then();
                 leaving = setTimeout(() => {
                     leaving = null;

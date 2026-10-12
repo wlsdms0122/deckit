@@ -154,7 +154,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
             minWidth: '0',
             padding: '1px 2px 1px 6px',
             borderRadius: '5px',
-            background: ui.wash.hover,
+            background: theme.color.hover,
         });
         const name = el('span', { minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
         name.textContent = rel;
@@ -223,7 +223,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
             flex: '0 0 12px',
             opacity: '.5',
             transform: collapsed.has(f.path) ? 'none' : 'rotate(90deg)',
-            transition: `transform ${ui.motion.fast} ${ui.motion.ease}`,
+            transition: `transform ${theme.motion.fast}ms ${theme.motion.easing}`,
         });
         caret.innerHTML = ui.icon('chevronRight', 12);
         const glyph = el('span', { display: 'flex', flex: '0 0 auto' });
@@ -290,7 +290,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         const text = el('span', { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis' });
         const hit = el(
             'span',
-            { background: ui.alpha('#ecb22e', 0.35), borderRadius: '2px' },
+            { background: ui.alpha(theme.color.warn, 0.35), borderRadius: '2px' },
             m.text.slice(m.col, m.col + m.length)
         );
         text.append(document.createTextNode(lead), hit, document.createTextNode(m.text.slice(m.col + m.length)));

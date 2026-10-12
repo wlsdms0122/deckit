@@ -35,9 +35,9 @@ DeckitModule.define(
                             borderRadius: '4px',
                             font: look.font,
                             letterSpacing: look.letterSpacing,
-                            color: theme.contentColor,
-                            background: theme.contentBg,
-                            boxShadow: `0 0 0 2px ${T.FOCUS_RING}`,
+                            color: theme.color.text,
+                            background: theme.color.background,
+                            boxShadow: `0 0 0 2px ${theme.color.focus}`,
                         });
                         // So a list it is in (a menu, a drag) does not act on a press or a text drag inside it.
                         for (const type of [
@@ -83,7 +83,7 @@ DeckitModule.define(
                                 whiteSpace: 'normal',
                                 left: at.left + 'px',
                                 top: at.bottom + 6 + 'px',
-                                color: T.TONE.alert,
+                                color: theme.color.alert,
                             });
                             note.textContent = why;
                             document.body.appendChild(note);

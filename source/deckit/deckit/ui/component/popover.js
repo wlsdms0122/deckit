@@ -17,8 +17,8 @@ DeckitModule.define(
                             padding: '12px 14px',
                             borderRadius: '10px',
                             border: theme.border,
-                            background: theme.contentBg,
-                            color: theme.contentColor,
+                            background: theme.color.background,
+                            color: theme.color.text,
                             boxShadow: '0 10px 32px rgba(0,0,0,.32)',
                             boxSizing: 'border-box',
                             font: '13px ' + theme.font,
@@ -38,9 +38,9 @@ DeckitModule.define(
                             layer.drop();
                             layer = null;
                             window.removeEventListener('keydown', keys, true);
-                            pop.style.transition = `opacity ${MOTION.fast} ${MOTION.ease}, transform ${MOTION.fast} ${MOTION.ease}`;
+                            pop.style.transition = `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.fast}ms ${MOTION.easing}`;
                             Object.assign(pop.style, { opacity: '0', transform: 'translateY(-4px)' });
-                            const ms = parseFloat(MOTION.fast) || 0;
+                            const ms = MOTION.fast;
                             setTimeout(() => {
                                 if (!layer) pop.style.display = 'none';
                             }, ms);
@@ -73,7 +73,7 @@ DeckitModule.define(
                                 pop,
                                 { opacity: '0', transform: 'translateY(-4px)' },
                                 {
-                                    transition: `opacity ${MOTION.fast} ${MOTION.ease}, transform ${MOTION.fast} ${MOTION.ease}`,
+                                    transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.fast}ms ${MOTION.easing}`,
                                     opacity: '1',
                                     transform: 'none',
                                 }

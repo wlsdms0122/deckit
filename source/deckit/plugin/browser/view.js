@@ -192,7 +192,7 @@ Deckit.register({
         const GLASS = { rest: 0.72, open: 0.94 };
         const GLASS_BLUR = 'blur(12px) saturate(1.4)';
 
-        const EASE = `${ui.motion.base} ${ui.motion.ease}`;
+        const EASE = `${theme.motion.base}ms ${theme.motion.easing}`;
         const island = document.createElement('div');
         const ISLAND_TRANSITION =
             `top ${EASE}, bottom ${EASE}, transform ${EASE},` + ` box-shadow ${EASE}, background-color ${EASE}`;
@@ -207,11 +207,11 @@ Deckit.register({
             padding: '0 2px',
             width: 'max-content',
             maxWidth: 'calc(100% - 20px)',
-            color: theme.contentColor,
+            color: theme.color.text,
             font: '13px ' + theme.font,
             borderRadius: '999px',
             border: theme.border,
-            background: ui.alpha(theme.contentBg, GLASS.rest),
+            background: ui.alpha(theme.color.background, GLASS.rest),
             backdropFilter: GLASS_BLUR,
             WebkitBackdropFilter: GLASS_BLUR,
             boxShadow: '0 2px 10px rgba(0,0,0,.26)',
@@ -289,10 +289,10 @@ Deckit.register({
             const t = active();
             if (!t) return;
             bookmarks.toggle(t.url, t.title || placeOf(t.url), t.icon);
-            if (parseFloat(ui.motion.fast)) {
+            if (theme.motion.fast) {
                 star.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
                     duration: 220,
-                    easing: ui.motion.ease,
+                    easing: theme.motion.easing,
                 });
             }
         });
@@ -310,7 +310,7 @@ Deckit.register({
             width: '0px',
             opacity: '0',
             overflow: 'hidden',
-            transition: `width ${ui.motion.base} ${ui.motion.ease}, opacity ${ui.motion.base} ${ui.motion.ease}`,
+            transition: `width ${theme.motion.base}ms ${theme.motion.easing}, opacity ${theme.motion.base}ms ${theme.motion.easing}`,
         });
         nav.append(back, fwd, reload);
         for (const b of [site, star]) {
@@ -319,8 +319,8 @@ Deckit.register({
                 opacity: '0',
                 overflow: 'hidden',
                 transition:
-                    `width ${ui.motion.base} ${ui.motion.ease}, opacity ${ui.motion.base} ${ui.motion.ease},` +
-                    ` background-color ${ui.motion.fast} ${ui.motion.ease}`,
+                    `width ${theme.motion.base}ms ${theme.motion.easing}, opacity ${theme.motion.base}ms ${theme.motion.easing},` +
+                    ` background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
             });
         }
 
@@ -336,12 +336,12 @@ Deckit.register({
             borderRadius: '999px',
             border: '0',
             background: 'transparent',
-            color: theme.contentColor,
+            color: theme.color.text,
             cursor: 'text',
             font: '13px ' + theme.font,
             textAlign: 'left',
             overflow: 'hidden',
-            transition: `background-color ${ui.motion.fast} ${ui.motion.ease}`,
+            transition: `background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
         });
         ui.pressable(addr);
         const iconBox = document.createElement('span');
@@ -366,8 +366,8 @@ Deckit.register({
             paddingLeft: '0px',
             boxSizing: 'border-box',
             transition:
-                `max-width ${ui.motion.base} ${ui.motion.ease}, opacity ${ui.motion.base} ${ui.motion.ease},` +
-                ` padding-left ${ui.motion.base} ${ui.motion.ease}`,
+                `max-width ${theme.motion.base}ms ${theme.motion.easing}, opacity ${theme.motion.base}ms ${theme.motion.easing},` +
+                ` padding-left ${theme.motion.base}ms ${theme.motion.easing}`,
         });
         addr.append(iconBox, hostEl, titleEl);
 
@@ -384,7 +384,7 @@ Deckit.register({
             borderRadius: '999px',
             border: '0',
             background: 'rgba(128,128,128,.14)',
-            color: theme.contentColor,
+            color: theme.color.text,
             font: '13px ' + theme.font,
             outline: 'none',
         });
@@ -394,7 +394,7 @@ Deckit.register({
 
         // Opened by a click, not on hover: a control that unfurls on hover moves out from under the pointer.
         const expand = () => {
-            island.style.background = ui.alpha(theme.contentBg, GLASS.open);
+            island.style.background = ui.alpha(theme.color.background, GLASS.open);
             island.style.boxShadow = '0 6px 18px rgba(0,0,0,.34)';
             nav.style.width = NAV_W + 'px';
             nav.style.opacity = '1';
@@ -406,7 +406,7 @@ Deckit.register({
             titleEl.style.paddingLeft = '6px';
         };
         const collapse = () => {
-            island.style.background = ui.alpha(theme.contentBg, GLASS.rest);
+            island.style.background = ui.alpha(theme.color.background, GLASS.rest);
             island.style.boxShadow = '0 2px 10px rgba(0,0,0,.26)';
             nav.style.width = '0px';
             nav.style.opacity = '0';
@@ -539,11 +539,11 @@ Deckit.register({
                 island.style.transition = ISLAND_TRANSITION;
                 const dx = from.left - to.left,
                     dy = from.top - to.top;
-                const ms = parseFloat(ui.motion.base) || 0;
+                const ms = theme.motion.base;
                 if (ms && (dx || dy)) {
                     island.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }], {
                         duration: ms,
-                        easing: ui.motion.ease,
+                        easing: theme.motion.easing,
                     });
                 }
             };
@@ -980,7 +980,7 @@ Deckit.register({
                 const m = document.createElement('span');
                 m.innerHTML = ui.icon(glyph, 13);
                 m.title = title;
-                Object.assign(m.style, { display: 'flex', color: ui.tone.alert });
+                Object.assign(m.style, { display: 'flex', color: theme.color.alert });
                 box.appendChild(m);
             }
             if (t.audible || t.muted) {
@@ -1169,16 +1169,16 @@ Deckit.register({
             boxSizing: 'border-box',
             opacity: '0',
             transform: 'translateY(-6px) scale(.98)',
-            transition: `opacity ${ui.motion.fast} ${ui.motion.ease}, transform ${ui.motion.fast} ${ui.motion.ease}`,
+            transition: `opacity ${theme.motion.fast}ms ${theme.motion.easing}, transform ${theme.motion.fast}ms ${theme.motion.easing}`,
             height: '36px',
             padding: '0 4px 0 2px',
             borderRadius: '999px',
             border: theme.border,
-            background: ui.alpha(theme.contentBg, GLASS.open),
+            background: ui.alpha(theme.color.background, GLASS.open),
             backdropFilter: GLASS_BLUR,
             WebkitBackdropFilter: GLASS_BLUR,
             boxShadow: '0 2px 10px rgba(0,0,0,.26)',
-            color: theme.contentColor,
+            color: theme.color.text,
             font: '13px ' + theme.font,
         });
         let finding = null; // the tab a find is running on
@@ -1245,12 +1245,9 @@ Deckit.register({
             findOpen = false;
             Object.assign(findBar.style, { opacity: '0', transform: 'translateY(-6px) scale(.98)' });
             clearTimeout(findHide);
-            findHide = setTimeout(
-                () => {
-                    findBar.style.display = 'none';
-                },
-                parseFloat(ui.motion.fast) || 0
-            );
+            findHide = setTimeout(() => {
+                findBar.style.display = 'none';
+            }, theme.motion.fast);
             finding?.page.stopFind({ keepSelection });
             finding = null;
             search.setCount(0, 0);

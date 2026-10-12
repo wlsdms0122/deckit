@@ -85,7 +85,7 @@ Deckit.register({
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            color: theme.contentColor,
+            color: theme.color.text,
             font: '13px ' + theme.font,
             overflow: 'hidden',
         });
@@ -164,10 +164,10 @@ Deckit.register({
                 if (!here) return;
                 if (favorites().includes(here)) setFavorites(favorites().filter((p) => p !== here));
                 else addFavorite(here);
-                if (parseFloat(ui.motion.fast)) {
+                if (theme.motion.fast) {
                     star.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
                         duration: 220,
-                        easing: ui.motion.ease,
+                        easing: theme.motion.easing,
                     });
                 }
             },
@@ -220,7 +220,7 @@ Deckit.register({
             padding: '0 8px',
             borderBottom: theme.border,
             font: '600 11.5px ' + theme.font,
-            color: ui.blend(theme.contentColor, theme.contentBg, 0.55),
+            color: theme.color.muted,
         });
         // Relative: the empty and failure screens are laid over it.
         const listEl = el('div', {
@@ -237,7 +237,7 @@ Deckit.register({
             padding: '5px 20px 8px',
             borderTop: theme.border,
             font: '11.5px ' + theme.font,
-            color: ui.blend(theme.contentColor, theme.contentBg, 0.55),
+            color: theme.color.muted,
         });
         content.append(head, columnsHead, listEl, foot);
         new ResizeObserver(() => {
@@ -426,7 +426,7 @@ Deckit.register({
                     padding: c.right ? '0 8px 0 0' : '0',
                     border: '0',
                     background: 'transparent',
-                    color: sort.key === c.key ? theme.contentColor : 'inherit',
+                    color: sort.key === c.key ? theme.color.text : 'inherit',
                     font: 'inherit',
                     cursor: 'pointer',
                     minWidth: '0',
@@ -451,7 +451,7 @@ Deckit.register({
             }
         };
 
-        const quiet = ui.blend(theme.contentColor, theme.contentBg, 0.6);
+        const quiet = theme.color.muted;
         const rowFor = (e) => {
             const r = el('div', {
                 display: 'grid',

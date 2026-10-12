@@ -23,7 +23,7 @@ DeckitModule.define(
                             boxSizing: 'border-box',
                             display: 'inline-block',
                         });
-                        if (parseFloat(MOTION.base)) {
+                        if (MOTION.base) {
                             el.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], {
                                 duration: 750,
                                 iterations: Infinity,

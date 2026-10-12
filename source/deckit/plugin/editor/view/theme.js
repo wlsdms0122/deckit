@@ -1,7 +1,7 @@
 const editorLook = (engine, theme, ui) => {
     // The theme gives colours, not whether it is dark; contentBg comes as "#1a1d21" or "rgb(26, 29, 33)".
     const dark = (() => {
-        const raw = String(theme.contentBg || '').trim();
+        const raw = String(theme.color.background || '').trim();
         let rgb = null;
         const hex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
         if (hex) {
@@ -67,27 +67,27 @@ const editorLook = (engine, theme, ui) => {
 
     const look = engine.EditorView.theme(
         {
-            '&': { height: '100%', color: theme.contentColor, backgroundColor: 'transparent' },
+            '&': { height: '100%', color: theme.color.text, backgroundColor: 'transparent' },
             '&.cm-focused': { outline: 'none' },
-            '.cm-content': { caretColor: ui.accent, padding: '8px 0' },
-            '.cm-cursor, .cm-dropCursor': { borderLeftColor: ui.accent, borderLeftWidth: '2px' },
+            '.cm-content': { caretColor: theme.color.accent, padding: '8px 0' },
+            '.cm-cursor, .cm-dropCursor': { borderLeftColor: theme.color.accent, borderLeftWidth: '2px' },
             '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
-                { backgroundColor: ui.alpha(ui.accent, 0.28) },
+                { backgroundColor: ui.alpha(theme.color.accent, 0.28) },
             // Transparent: lines scrolled sideways are clipped at its edge instead (clipGutter in view.js).
             '.cm-gutters': {
                 backgroundColor: 'transparent',
-                color: ui.blend(theme.contentColor, theme.contentBg, 0.4),
+                color: ui.mix(theme.color.text, theme.color.background, 0.4),
                 border: '0',
             },
-            '.cm-activeLineGutter': { backgroundColor: 'transparent', color: theme.contentColor },
+            '.cm-activeLineGutter': { backgroundColor: 'transparent', color: theme.color.text },
             '.cm-activeLine': { backgroundColor: 'rgba(128,128,128,.07)' },
             /* The engine draws a partial-line selection at letter height and this band at line height, so
        the two never meet; the band steps aside while text is selected. */
             '&.sk-selecting .cm-activeLine, &.sk-selecting .cm-activeLineGutter': { backgroundColor: 'transparent' },
-            '.cm-matchingBracket': { backgroundColor: ui.alpha(ui.accent, 0.22), outline: 'none' },
+            '.cm-matchingBracket': { backgroundColor: ui.alpha(theme.color.accent, 0.22), outline: 'none' },
             '.cm-selectionMatch': { backgroundColor: 'rgba(128,128,128,.18)' },
-            '.cm-searchMatch': { backgroundColor: ui.alpha('#ecb22e', 0.35), outline: 'none' },
-            '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: ui.alpha('#ecb22e', 0.7) },
+            '.cm-searchMatch': { backgroundColor: ui.alpha(theme.color.warn, 0.35), outline: 'none' },
+            '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: ui.alpha(theme.color.warn, 0.7) },
             // Quieted by colour, not opacity, so the hover square does not fade with the glyph.
             '.cm-foldGutter .cm-gutterElement': {
                 display: 'flex',
@@ -97,12 +97,12 @@ const editorLook = (engine, theme, ui) => {
             },
             '.cm-foldGutter .sk-fold-open, .cm-foldGutter .sk-fold-closed': {
                 cursor: 'pointer',
-                color: ui.blend(theme.contentColor, theme.contentBg, 0.4),
-                transition: `background-color ${ui.motion.fast} ${ui.motion.ease}, color ${ui.motion.fast} ${ui.motion.ease}`,
+                color: ui.mix(theme.color.text, theme.color.background, 0.4),
+                transition: `background-color ${theme.motion.fast}ms ${theme.motion.easing}, color ${theme.motion.fast}ms ${theme.motion.easing}`,
             },
-            '.cm-foldGutter .sk-fold-closed': { color: theme.contentColor },
+            '.cm-foldGutter .sk-fold-closed': { color: theme.color.text },
             '.cm-foldGutter .sk-fold-open:hover, .cm-foldGutter .sk-fold-closed:hover': {
-                color: theme.contentColor,
+                color: theme.color.text,
                 backgroundColor: 'rgba(128,128,128,.18)',
             },
             '.cm-foldPlaceholder': {
@@ -113,12 +113,12 @@ const editorLook = (engine, theme, ui) => {
                 padding: '0 6px',
                 margin: '0 3px',
                 cursor: 'pointer',
-                transition: `background-color ${ui.motion.fast} ${ui.motion.ease}`,
+                transition: `background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
             },
             '.cm-foldPlaceholder:hover': { backgroundColor: 'rgba(128,128,128,.34)' },
-            '.cm-panels': { backgroundColor: 'rgba(128,128,128,.06)', color: theme.contentColor },
+            '.cm-panels': { backgroundColor: 'rgba(128,128,128,.06)', color: theme.color.text },
             '.cm-panels.cm-panels-top': { borderBottom: theme.border },
-            '.cm-tooltip': { backgroundColor: theme.contentBg, border: theme.border, color: theme.contentColor },
+            '.cm-tooltip': { backgroundColor: theme.color.background, border: theme.border, color: theme.color.text },
         },
         { dark }
     );

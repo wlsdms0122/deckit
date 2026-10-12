@@ -31,7 +31,7 @@ DeckitModule.define(
             POINTER.start();
             OVERLAY.start();
             const setup = PROTOCOL.setup.invoke();
-            const theme = setup.theme || TOKEN.FALLBACK_THEME;
+            const theme = TOKEN.tokenOf(setup.theme || TOKEN.FALLBACK_THEME);
             if (setup.role === 'switcher') return SWITCHER.boot(theme);
             const ui = UI.make(theme);
             const { definition, parts, tell } = await RUNTIME.start({

@@ -8,7 +8,6 @@ DeckitModule.define(
 
         return {
             make: (theme, ui, inner) => {
-                const { QUIET } = inner;
                 return {
                     field({
                         placeholder = '',
@@ -34,10 +33,10 @@ DeckitModule.define(
                             height: h + 'px',
                             padding: glyph ? '0 4px 0 9px' : '0 4px 0 11px',
                             borderRadius: '999px',
-                            background: T.WASH.hover,
+                            background: theme.color.hover,
                             boxShadow: 'inset 0 0 0 1px transparent',
                             cursor: 'text',
-                            transition: `box-shadow ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `box-shadow ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         if (glyph) {
                             const g = document.createElement('span');
@@ -57,11 +56,11 @@ DeckitModule.define(
                             border: '0',
                             outline: 'none',
                             background: 'transparent',
-                            color: theme.contentColor,
+                            color: theme.color.text,
                             font: (size === 'sm' ? '12.5px ' : '13px ') + theme.font,
                         });
                         input.addEventListener('focus', () => {
-                            box.style.boxShadow = `inset 0 0 0 1px ${T.FOCUS_RING}`;
+                            box.style.boxShadow = `inset 0 0 0 1px ${theme.color.focus}`;
                         });
                         input.addEventListener('blur', () => {
                             box.style.boxShadow = 'inset 0 0 0 1px transparent';
@@ -81,14 +80,14 @@ DeckitModule.define(
                         if (clearable) {
                             clear.type = 'button';
                             clear.title = 'Clear';
-                            clear.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style="display:block"><circle cx="12" cy="12" r="10" fill="currentColor" opacity=".45"/><path d="m15 9-6 6M9 9l6 6" stroke="${theme.contentBg}" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+                            clear.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style="display:block"><circle cx="12" cy="12" r="10" fill="currentColor" opacity=".45"/><path d="m15 9-6 6M9 9l6 6" stroke="${theme.color.background}" stroke-width="2.2" stroke-linecap="round"/></svg>`;
                             Object.assign(clear.style, {
                                 display: 'none',
                                 flex: '0 0 auto',
                                 padding: '0 2px',
                                 border: '0',
                                 background: 'transparent',
-                                color: theme.contentColor,
+                                color: theme.color.text,
                                 cursor: 'pointer',
                             });
                             clear.addEventListener('mousedown', (e) => e.preventDefault());
@@ -121,7 +120,7 @@ DeckitModule.define(
                             flex: '0 0 auto',
                             height: '26px',
                             borderRadius: '999px',
-                            background: T.WASH.hover,
+                            background: theme.color.hover,
                             padding: '0 2px',
                         });
                         let current = value;
@@ -135,7 +134,7 @@ DeckitModule.define(
                             outline: 'none',
                             background: 'transparent',
                             textAlign: 'center',
-                            color: theme.contentColor,
+                            color: theme.color.text,
                             font: '12.5px ' + theme.font,
                             fontVariantNumeric: 'tabular-nums',
                             padding: '0',
@@ -168,11 +167,11 @@ DeckitModule.define(
                                 border: '0',
                                 borderRadius: '999px',
                                 background: 'transparent',
-                                color: QUIET,
+                                color: theme.color.muted,
                                 cursor: 'pointer',
                                 padding: '0',
                             });
-                            pressable(b);
+                            pressable(b, theme);
                             b.addEventListener('mousedown', (e) => e.preventDefault());
                             // From what is typed, if anything is: the press keeps the focus, so no blur has kept it yet.
                             b.addEventListener('click', () => commit(base() + delta));
@@ -270,7 +269,7 @@ DeckitModule.define(
                         Object.assign(count.style, {
                             flex: '0 0 auto',
                             padding: '0 4px',
-                            color: QUIET,
+                            color: theme.color.muted,
                             font: '12px ' + theme.font,
                             fontVariantNumeric: 'tabular-nums',
                             whiteSpace: 'nowrap',
@@ -300,7 +299,7 @@ DeckitModule.define(
                             caret = ui.iconBtn(icon('chevronRight', 14), 'Replace', () => setReplaceOpen(!open), {
                                 size: 'sm',
                             });
-                            caret.style.transition = `transform ${MOTION.fast} ${MOTION.ease}`;
+                            caret.style.transition = `transform ${MOTION.fast}ms ${MOTION.easing}`;
                             first.appendChild(caret);
                         }
                         find.style.maxWidth = '460px';

@@ -13,7 +13,6 @@ DeckitModule.define(
                     sortable(list, onReorder) {
                         // The rows on screen: a row that is not laid out has no place in the list to move to or from.
                         const rows = () => [...list.children].filter((r) => r.getClientRects().length);
-                        const ms = (d) => parseFloat(d) || 0;
                         GESTURE.drag(list, {
                             pick: (target) => {
                                 for (let n = target; n && n !== list; n = n.parentElement)
@@ -46,7 +45,7 @@ DeckitModule.define(
                                 zIndex: row.style.zIndex,
                                 boxShadow: row.style.boxShadow,
                             };
-                            const slide = `transform ${MOTION.base} ${MOTION.ease}`;
+                            const slide = `transform ${MOTION.base}ms ${MOTION.easing}`;
                             all.forEach((r, i) => {
                                 if (i !== from) r.style.transition = slide;
                             });
@@ -56,7 +55,7 @@ DeckitModule.define(
                             if (getComputedStyle(row).position === 'static') row.style.position = 'relative';
                             Object.assign(row.style, {
                                 zIndex: '2',
-                                boxShadow: `inset 0 0 0 100vmax ${inner.HELD.fill}, ${inner.HELD.shadow}`,
+                                boxShadow: `inset 0 0 0 100vmax ${theme.color.lifted}, ${theme.shadow.lifted}`,
                                 transition: 'none',
                             });
                             const place = (dy, scale) => {
@@ -105,7 +104,7 @@ DeckitModule.define(
                                 row.style.transition = slide;
                                 place(target - held.top, 1);
                                 then = after;
-                                const wait = ms(MOTION.base);
+                                const wait = MOTION.base;
                                 if (wait)
                                     settleTimer = setTimeout(() => {
                                         const t = then;

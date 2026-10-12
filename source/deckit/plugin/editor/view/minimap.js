@@ -8,7 +8,7 @@ const minimap = ({ engine, theme, ui, ink }) => {
     // EDGE: how near the right edge the pointer brings it up; LINGER: milliseconds it stays after a scroll.
     const EDGE = 24,
         LINGER = 1200;
-    const quiet = ui.blend(theme.contentColor, theme.contentBg, 0.45);
+    const quiet = theme.color.muted;
 
     const element = el('div', {
         position: 'absolute',
@@ -17,9 +17,9 @@ const minimap = ({ engine, theme, ui, ink }) => {
         zIndex: '4',
         opacity: '0',
         pointerEvents: 'none',
-        background: ui.blend(theme.contentColor, theme.contentBg, 0.04),
+        background: ui.mix(theme.color.text, theme.color.background, 0.04),
         borderLeft: theme.border,
-        transition: `opacity ${ui.motion.fast} ${ui.motion.ease}`,
+        transition: `opacity ${theme.motion.fast}ms ${theme.motion.easing}`,
     });
     const canvas = el('canvas', { display: 'block', width: '100%', height: '100%' });
     const frame = el('div', {

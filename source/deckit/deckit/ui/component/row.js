@@ -50,7 +50,7 @@ DeckitModule.define(
                         boxSizing: 'border-box',
                         font: (dense ? '13px ' : '15px ') + theme.font,
                         whiteSpace: 'nowrap',
-                        transition: `background-color ${MOTION.fast} ${MOTION.ease}`,
+                        transition: `background-color ${MOTION.fast}ms ${MOTION.easing}`,
                     });
                     return r;
                 };
@@ -78,7 +78,7 @@ DeckitModule.define(
                             justifyContent: 'center',
                             opacity: folds ? '.55' : '0',
                             transform: open ? 'rotate(90deg)' : 'none',
-                            transition: `transform ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `transform ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         caret.dataset.caret = '';
                         caret.innerHTML = ui.icon('chevronRight', 12);
@@ -117,7 +117,11 @@ DeckitModule.define(
                             lit = false;
                         const paint = () => {
                             const hovered = over || lit;
-                            row.style.background = isActive() ? T.WASH.cursor : hovered ? T.WASH.hover : 'transparent';
+                            row.style.background = isActive()
+                                ? theme.color.selected
+                                : hovered
+                                  ? theme.color.hover
+                                  : 'transparent';
                             const shown = hovered || row.matches(':focus-within') || shows();
                             row.querySelectorAll('[data-deckit-reveal]').forEach((b) => {
                                 b.style.opacity = shown ? '1' : '0';
@@ -160,7 +164,7 @@ DeckitModule.define(
                         return row;
                     },
                     leaveRow(row, then) {
-                        const ms = parseFloat(MOTION.fast) || 0;
+                        const ms = MOTION.fast;
                         const list = row?.parentElement;
                         if (row && row.dataset.deckitLeaving) return; // already going; the first press owns it
                         // A folded section or a collapsed sidebar keeps its rows at no height: no exit to wait for.
@@ -183,7 +187,7 @@ DeckitModule.define(
                                 pointerEvents: 'none',
                             },
                             {
-                                transition: `height ${MOTION.fast} ${MOTION.ease}, opacity ${MOTION.fast} ${MOTION.ease}, margin ${MOTION.fast} ${MOTION.ease}`,
+                                transition: `height ${MOTION.fast}ms ${MOTION.easing}, opacity ${MOTION.fast}ms ${MOTION.easing}, margin ${MOTION.fast}ms ${MOTION.easing}`,
                                 height: '0px',
                                 opacity: '0',
                                 marginTop: '0',

@@ -8,7 +8,6 @@ DeckitModule.define(
 
         return {
             make: (theme, ui, inner) => {
-                const { QUIET, DISABLED, mix } = inner;
                 return {
                     iconBtn(svg, title, onClick, { size = 'md', quiet = false } = {}) {
                         const b = document.createElement('button');
@@ -30,15 +29,21 @@ DeckitModule.define(
                             cursor: 'pointer',
                             flex: '0 0 auto',
                             transition:
-                                `background-color ${MOTION.fast} ${MOTION.ease}, color ${MOTION.fast} ${MOTION.ease},` +
-                                ` opacity ${MOTION.fast} ${MOTION.ease}`,
+                                `background-color ${MOTION.fast}ms ${MOTION.easing}, color ${MOTION.fast}ms ${MOTION.easing},` +
+                                ` opacity ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         let over = false,
                             pressed = false,
                             enabled = true;
-                        const rest = quiet ? QUIET : theme.contentColor;
+                        const rest = quiet ? theme.color.muted : theme.color.text;
                         const paint = () => {
-                            b.style.color = !enabled ? DISABLED : pressed ? T.ACCENT : over ? theme.contentColor : rest;
+                            b.style.color = !enabled
+                                ? theme.color.disabled
+                                : pressed
+                                  ? theme.color.accent
+                                  : over
+                                    ? theme.color.text
+                                    : rest;
                         };
                         b.addEventListener('mouseenter', () => {
                             over = true;
@@ -48,7 +53,7 @@ DeckitModule.define(
                             over = false;
                             paint();
                         });
-                        pressable(b);
+                        pressable(b, theme);
                         b.addEventListener('click', onClick);
                         b.setPressed = (on) => {
                             pressed = !!on;
@@ -89,12 +94,17 @@ DeckitModule.define(
                             borderRadius: size === 'sm' ? '7px' : '8px',
                             border: theme.border,
                             background: 'transparent',
-                            color: theme.contentColor,
+                            color: theme.color.text,
                             cursor: 'pointer',
                             font: (size === 'sm' ? '12px ' : '13px ') + theme.font,
-                            transition: `background-color ${MOTION.fast} ${MOTION.ease}, filter ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `background-color ${MOTION.fast}ms ${MOTION.easing}, filter ${MOTION.fast}ms ${MOTION.easing}`,
                         });
-                        const fill = variant === 'primary' ? T.ACCENT : variant === 'destructive' ? T.TONE.alert : null;
+                        const fill =
+                            variant === 'primary'
+                                ? theme.color.accent
+                                : variant === 'destructive'
+                                  ? theme.color.alert
+                                  : null;
                         if (fill) {
                             // A filled button keeps its colour and answers the pointer in brightness; the kit's press would paint over the fill.
                             Object.assign(b.style, { border: '0', background: fill, color: '#fff' });
@@ -127,7 +137,7 @@ DeckitModule.define(
                             });
                             b.repaint = light;
                         } else {
-                            pressable(b);
+                            pressable(b, theme);
                         }
                         b.addEventListener('click', onClick);
                         b.setText = (next) => {
@@ -136,8 +146,8 @@ DeckitModule.define(
                         };
                         b.setEnabled = (on) => {
                             b.disabled = !on;
-                            if (fill) b.style.background = on ? fill : DISABLED;
-                            else b.style.color = on ? theme.contentColor : DISABLED;
+                            if (fill) b.style.background = on ? fill : theme.color.disabled;
+                            else b.style.color = on ? theme.color.text : theme.color.disabled;
                             b.style.cursor = on ? 'pointer' : 'default';
                             b.repaint?.();
                             return b;
@@ -166,10 +176,10 @@ DeckitModule.define(
                             padding: '0',
                             font: '13px ' + theme.font,
                             lineHeight: '1',
-                            transition: `opacity ${MOTION.fast} ${MOTION.ease}, background-color ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, background-color ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         b.dataset.deckitReveal = '';
-                        pressable(b);
+                        pressable(b, theme);
                         b.addEventListener('click', (e) => {
                             e.stopPropagation();
                             onClick();
@@ -190,8 +200,12 @@ DeckitModule.define(
                         const paintOne = (key, e) => {
                             const on = key === current;
                             e.b.setAttribute('aria-pressed', String(on));
-                            e.b.style.background = on ? accent || T.WASH.cursor : e.over ? T.WASH.hover : 'transparent';
-                            e.b.style.color = on ? (accent ? '#fff' : theme.contentColor) : QUIET;
+                            e.b.style.background = on
+                                ? accent || theme.color.selected
+                                : e.over
+                                  ? theme.color.hover
+                                  : 'transparent';
+                            e.b.style.color = on ? (accent ? '#fff' : theme.color.text) : theme.color.muted;
                         };
                         const paint = () => {
                             for (const [key, e] of buttons) paintOne(key, e);
@@ -216,7 +230,7 @@ DeckitModule.define(
                                         cursor: 'pointer',
                                         padding: size === 'sm' ? '3px 10px' : '4px 12px',
                                         font: (size === 'sm' ? '600 12px ' : '600 13px ') + theme.font,
-                                        transition: `background-color ${MOTION.fast} ${MOTION.ease}, color ${MOTION.fast} ${MOTION.ease}`,
+                                        transition: `background-color ${MOTION.fast}ms ${MOTION.easing}, color ${MOTION.fast}ms ${MOTION.easing}`,
                                     });
                                     const text = document.createElement('span');
                                     b.append(text);
@@ -276,14 +290,14 @@ DeckitModule.define(
                             cursor: 'pointer',
                             font: '600 11px ui-monospace, SFMono-Regular, Menlo, monospace',
                             background: 'transparent',
-                            transition: `background-color ${MOTION.fast} ${MOTION.ease}, color ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `background-color ${MOTION.fast}ms ${MOTION.easing}, color ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         let value = !!on,
                             marked = false;
                         const paint = () => {
                             b.setAttribute('aria-pressed', String(value));
-                            b.style.color = value || marked ? T.ACCENT : QUIET;
-                            b.style.background = value ? COLOR.alpha(T.ACCENT, 0.16) : 'transparent';
+                            b.style.color = value || marked ? theme.color.accent : theme.color.muted;
+                            b.style.background = value ? COLOR.alpha(theme.color.accent, 0.16) : 'transparent';
                         };
                         b.setMarked = (v) => {
                             marked = !!v;
@@ -320,7 +334,7 @@ DeckitModule.define(
                             borderRadius: '999px',
                             border: '0',
                             cursor: 'pointer',
-                            transition: `background-color ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `background-color ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         const knob = document.createElement('span');
                         Object.assign(knob.style, {
@@ -332,14 +346,14 @@ DeckitModule.define(
                             borderRadius: '999px',
                             background: '#fff',
                             boxShadow: '0 1px 2px rgba(0,0,0,.3)',
-                            transition: `transform ${MOTION.fast} ${MOTION.ease}`,
+                            transition: `transform ${MOTION.fast}ms ${MOTION.easing}`,
                         });
                         sw.appendChild(knob);
                         let value = !!on;
                         const paint = () => {
                             sw.setAttribute('aria-checked', String(value));
                             // Off is a solid grey: a track that lets the page through does not read as an object.
-                            sw.style.background = value ? T.ACCENT : mix(0.35);
+                            sw.style.background = value ? theme.color.accent : theme.color.disabled;
                             knob.style.transform = value ? 'translateX(14px)' : 'none';
                         };
                         sw.addEventListener('click', () => {
