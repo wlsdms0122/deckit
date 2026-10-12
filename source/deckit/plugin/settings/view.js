@@ -294,6 +294,15 @@ Deckit.register({
             });
         };
 
+        // What a keystroke actually does, in words: `other` is the shortcut the issue is about.
+        const issueText = (binding, { kind, other }) => {
+            const name =
+                other.deckit || other.owner === binding.owner ? other.label : `${other.ownerName} ${other.label}`;
+            if (kind === 'held') return `Not applied: ${other.chord} is already ${name}`;
+            if (kind === 'shadowed') return `Never runs: ${other.chord} is ${name}`;
+            if (kind === 'hides') return `Hides ${other.label} while ${binding.ownerName} is on screen`;
+            return `Not on ${other.ownerName}, where ${other.chord} is ${other.label}`;
+        };
         const schemeName = (id) => (id === host.urlSchemes.everyScheme ? 'Every other scheme' : id + ':');
         const schemeWhen = (id) => {
             if (id === host.urlSchemes.everyScheme)
@@ -1140,7 +1149,7 @@ Deckit.register({
 
                     for (const issue of k.issues) {
                         const note = document.createElement('div');
-                        note.textContent = issue.text;
+                        note.textContent = issueText(k, issue);
                         Object.assign(note.style, {
                             font: '11.5px ' + theme.font,
                             lineHeight: '1.45',

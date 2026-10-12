@@ -103,6 +103,12 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // What a reader needs of the binding an issue is about.
+        function factsOf(binding) {
+            const { id, chord, label, owner, ownerName, scope } = binding;
+            return { id, chord, label, owner, ownerName, scope, deckit: owner === OWNER };
+        }
+
         function mark(set, sender, on) {
             if (on) set.add(sender.id);
             else set.delete(sender.id);
@@ -160,20 +166,19 @@ DeckitModule.define(
             return !(a.scope === 'plugin' && b.scope === 'plugin' && a.owner !== b.owner);
         }
 
-        function nameOf(binding) {
-            return binding.owner === OWNER ? binding.label : `${binding.ownerName} ${binding.label}`;
-        }
-
         // Defaults first, then changes in the order they were made (the saved map's order), so a change landing on a
-        // chord already taken is the one held back. Among defaults nothing is held back; "Never runs" and "Hides"
-        // say how a keystroke is actually resolved.
+        // chord already taken is the one held back. Among defaults nothing is held back. A binding's `issues` say how a
+        // keystroke is actually resolved, each { level, kind, other }: `held` (not applied, the chord is taken),
+        // `shadowed` (never runs, another takes the chord first), `hides` (it hides `other` while its plugin is on
+        // screen), `hidden` (not on `other`'s plugin, where the chord is `other`'s).
         function bindings() {
             const list = catalog();
             const order = Object.keys(overrides);
             const rank = (binding) => (binding.changed ? order.indexOf(binding.id) : -1);
             const at = new Map(list.map((binding, index) => [binding.id, index]));
             const issues = new Map(list.map((binding) => [binding.id, []]));
-            const say = (binding, level, text) => issues.get(binding.id).push({ level, text });
+            const say = (binding, level, kind, other) =>
+                issues.get(binding.id).push({ level, kind, other: factsOf(other) });
             const held = new Set();
             const accepted = [];
             for (const binding of [...list].sort((a, b) => rank(a) - rank(b) || at.get(a.id) - at.get(b.id))) {
@@ -181,7 +186,7 @@ DeckitModule.define(
                 const taken = accepted.find((other) => other.spec === binding.spec && together(other, binding));
                 if (taken && binding.changed) {
                     held.add(binding.id);
-                    say(binding, 'error', `Not applied: ${taken.chord} is already ${nameOf(taken)}`);
+                    say(binding, 'error', 'held', taken);
                     continue;
                 }
                 accepted.push(binding);
@@ -191,20 +196,20 @@ DeckitModule.define(
                     if (other === binding || other.spec !== binding.spec || !together(other, binding)) continue;
                     const earlier = at.get(other.id) < at.get(binding.id);
                     if (other.scope === 'global' && binding.scope !== 'global')
-                        say(binding, 'error', `Never runs: ${other.chord} is ${nameOf(other)}`);
+                        say(binding, 'error', 'shadowed', other);
                     else if (binding.scope === 'global' && other.scope === 'global' && earlier)
-                        say(binding, 'error', `Never runs: ${other.chord} is ${nameOf(other)}`);
+                        say(binding, 'error', 'shadowed', other);
                     else if (
                         binding.scope !== 'global' &&
                         other.owner === binding.owner &&
                         other.scope === binding.scope &&
                         earlier
                     ) {
-                        say(binding, 'error', `Never runs: ${other.chord} is ${other.label}`);
+                        say(binding, 'error', 'shadowed', other);
                     } else if (binding.scope === 'plugin' && other.scope === 'panel')
-                        say(binding, 'warn', `Hides ${other.label} while ${binding.ownerName} is on screen`);
+                        say(binding, 'warn', 'hides', other);
                     else if (binding.scope === 'panel' && other.scope === 'plugin')
-                        say(binding, 'warn', `Not on ${other.ownerName}, where ${other.chord} is ${other.label}`);
+                        say(binding, 'warn', 'hidden', other);
                 }
             }
             return list.map((binding) => ({
