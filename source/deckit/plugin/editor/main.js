@@ -3,7 +3,9 @@
 module.exports = ({ handle, window, files }) => {
     const fs = require('fs');
     const path = require('path');
+    const { Worker } = require('worker_threads');
     const { dialog } = require('electron');
+    const { decodeText, walk } = require('./main/text.js');
     const { stat, readFile, writeFile, readdir, mkdir } = fs.promises;
 
     // Big enough for any source file, small enough that a log or a dump is not opened by mistake.
@@ -13,33 +15,14 @@ module.exports = ({ handle, window, files }) => {
     const SEARCH_TIME_LIMIT_MS = 20000;
     const MATCH_LIMIT = 5000;
     const MATCH_TEXT_LIMIT = 400;
+    const LISTING_TIME_LIMIT_MS = 30000;
     const HIDDEN_NAMES = new Set(['.git', '.DS_Store']);
-    const SKIPPED_FOLDERS = new Set([
-        '.git',
-        'node_modules',
-        '.build',
-        'build',
-        'DerivedData',
-        'Pods',
-        'Carthage',
-        '.gradle',
-        'dist',
-        '.next',
-        '.venv',
-        'venv',
-        '__pycache__',
-        '.idea',
-        '.swiftpm',
-    ]);
-    // Every write is UTF-8, so a file in another encoding would come back with its bytes replaced. ignoreBOM keeps a
-    // byte order mark as a character, so writing the text back writes the mark.
-    const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
     // Listing a big repository takes a moment, so a listing is kept until the view asks for it `fresh`.
     const listings = new Map(); // root -> promise of { files, truncated }
     const listingsUnderWay = new Map(); // root -> the listing under way
     // The view only wants the newest answer, so a new search stops the one before it.
-    const searches = new Map(); // root -> { stopped, stop() }
+    const searches = new Map(); // root -> { stop() }
 
     handle('read', async (given) => {
         const file = absolute(given);
@@ -152,15 +135,12 @@ module.exports = ({ handle, window, files }) => {
         const root = absolute(given);
         searches.get(root)?.stop();
         if (!String(query || '')) return { files: [], total: 0, truncated: false, stoppedBy: '', warning: '' };
-        const search = {
-            stopped: false,
-            stop() {
-                this.stopped = true;
-            },
-        };
+        const { tops, warning } = await searchRootsOf(root, options.folders);
+        const search = searchIn(tops, query, options);
         searches.set(root, search);
         try {
-            return await searchIn(root, query, options, search);
+            const found = await search.result;
+            return { ...found, warning: [warning, found.warning].filter(Boolean).join('. ') };
         } finally {
             if (searches.get(root) === search) searches.delete(root);
         }
@@ -170,15 +150,6 @@ module.exports = ({ handle, window, files }) => {
         const text = String(given || '');
         if (!path.isAbsolute(text)) throw new Error('not an absolute path: ' + text);
         return text;
-    }
-
-    function decodeText(buffer) {
-        if (buffer.includes(0)) return null;
-        try {
-            return UTF8.decode(buffer);
-        } catch {
-            return null;
-        }
     }
 
     async function entryOf(folder, entry) {
@@ -193,117 +164,18 @@ module.exports = ({ handle, window, files }) => {
         return { name: entry.name, path: path.join(folder, entry.name), folder: isFolder };
     }
 
-    // A folder inside that cannot be read is passed over; the root itself refused (macOS privacy) is an error, not
-    // an empty folder.
-    async function* walk(root) {
-        const folders = [root];
-        while (folders.length) {
-            const folder = folders.pop();
-            let entries = [];
-            try {
-                entries = await readdir(folder, { withFileTypes: true });
-            } catch (error) {
-                if (folder === root) throw new Error('the folder could not be read: ' + error.message);
-                continue;
-            }
-            for (const entry of entries) {
-                if (SKIPPED_FOLDERS.has(entry.name) || entry.name === '.DS_Store') continue;
-                const full = path.join(folder, entry.name);
-                if (entry.isDirectory()) folders.push(full);
-                else if (entry.isFile()) yield full;
-            }
-        }
-    }
-
-    async function readText(file) {
-        try {
-            const status = await stat(file);
-            if (status.size > SEARCHED_LIMIT) return null;
-            const text = decodeText(await readFile(file));
-            return text === null ? null : { text, mtime: status.mtimeMs };
-        } catch {
-            return null;
-        }
-    }
-
     async function listFiles(root) {
         const listed = [];
+        const deadline = Date.now() + LISTING_TIME_LIMIT_MS;
         let truncated = false;
         for await (const file of walk(root)) {
             listed.push(path.relative(root, file));
-            if (listed.length >= LISTED_LIMIT) {
+            if (listed.length >= LISTED_LIMIT || Date.now() > deadline) {
                 truncated = true;
                 break;
             }
         }
         return { files: listed.sort(), truncated };
-    }
-
-    // Unicode, as the editor's find in a file reads a pattern.
-    function patternOf(query, { regex = false, caseSensitive = false, word = false } = {}) {
-        let source = regex ? String(query) : String(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        if (word) source = `\\b(?:${source})\\b`;
-        return new RegExp(source, caseSensitive ? 'gu' : 'giu');
-    }
-
-    // A plain name matches anywhere, a path with a slash from the top, and anything with * ? [ { is a glob as written.
-    function globsOf(text) {
-        return String(text || '')
-            .split(',')
-            .map((part) => part.trim().replace(/^\.\//, '').replace(/\/+$/, ''))
-            .filter(Boolean)
-            .flatMap((part) =>
-                /[*?[{]/.test(part)
-                    ? [part.includes('/') ? part : `**/${part}`]
-                    : part.includes('/')
-                      ? [part, `${part}/**`]
-                      : [`**/${part}`, `**/${part}/**`]
-            );
-    }
-
-    function escaped(character) {
-        return character.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-    }
-
-    // A character at a time, so an escaped character is itself and no rule's output is read by the next.
-    function globPattern(glob) {
-        let source = '';
-        for (let index = 0; index < glob.length; index++) {
-            const character = glob[index];
-            if (character === '\\' && index + 1 < glob.length) source += escaped(glob[++index]);
-            else if (character === '*' && glob[index + 1] === '*') {
-                if (glob[index + 2] === '/') {
-                    source += '(?:.*/)?';
-                    index += 2;
-                } else {
-                    source += '.*';
-                    index += 1;
-                }
-            } else if (character === '*') source += '[^/]*';
-            else if (character === '?') source += '[^/]';
-            else if (character === '[') {
-                const close = glob.indexOf(']', index + 1);
-                if (close < 0) {
-                    source += '\\[';
-                    continue;
-                }
-                source += '[' + glob.slice(index + 1, close).replace(/^!/, '^') + ']';
-                index = close;
-            } else if (character === '{') {
-                const close = glob.indexOf('}', index + 1);
-                if (close < 0) {
-                    source += '\\{';
-                    continue;
-                }
-                const choices = glob
-                    .slice(index + 1, close)
-                    .split(',')
-                    .map((choice) => globPattern(choice).source.slice(1, -1));
-                source += '(?:' + choices.join('|') + ')';
-                index = close;
-            } else source += escaped(character);
-        }
-        return new RegExp('^' + source + '$');
     }
 
     // A folder gone since it was picked is reported here only: refused when all are gone, a warning otherwise.
@@ -334,67 +206,49 @@ module.exports = ({ handle, window, files }) => {
         return { tops: tops.map((folder) => path.join(root, folder)), warning: gone.length ? goneMessage : '' };
     }
 
-    async function searchIn(root, query, options, search) {
-        const byFile = new Map();
+    // The search runs in a thread of its own (main/search.js), stopped where it is when it runs out of time or a newer
+    // one replaces it: what it found by then stands.
+    function searchIn(tops, query, options) {
+        const found = [];
         let total = 0;
-        let stoppedBy = '';
-        const addMatch = (file, line, column, length, text) => {
-            if (total >= MATCH_LIMIT) {
-                stoppedBy = 'limit';
-                return false;
-            }
-            if (!byFile.has(file)) byFile.set(file, []);
-            byFile.get(file).push({
-                line,
-                column,
-                length,
-                hit: text.slice(column, column + length),
-                text: text.length > MATCH_TEXT_LIMIT ? text.slice(0, MATCH_TEXT_LIMIT) : text,
-            });
-            total += 1;
-            return true;
-        };
-        const include = globsOf(options.include);
-        const exclude = globsOf(options.exclude);
-        // Each folder is searched from inside, so include and exclude read paths relative to it.
-        const { tops, warning } = await searchRootsOf(root, options.folders);
-        // Taken as the search reads a file: one changed during a long search must not pass as unchanged.
-        const modified = new Map(); // file -> its mtime as read
-        const deadline = Date.now() + SEARCH_TIME_LIMIT_MS;
-        const pattern = patternOf(query, options);
-        const includes = include.map(globPattern);
-        const excludes = exclude.map(globPattern);
-        const candidates = async function* () {
-            for (const top of tops) for await (const file of walk(top)) yield [top, file];
-        };
-        scan: for await (const [top, file] of candidates()) {
-            if (search.stopped) break;
-            if (Date.now() > deadline) {
-                stoppedBy = 'time';
-                break;
-            }
-            const inner = path.relative(top, file);
-            if (includes.length && !includes.some((glob) => glob.test(inner))) continue;
-            if (excludes.some((glob) => glob.test(inner))) continue;
-            const read = await readText(file);
-            if (read == null) continue;
-            const lines = read.text.split('\n');
-            for (let index = 0; index < lines.length; index++) {
-                const line = lines[index].replace(/\r$/, '');
-                pattern.lastIndex = 0;
-                let match;
-                while ((match = pattern.exec(line))) {
-                    if (!match[0].length) {
-                        pattern.lastIndex += 1;
-                        continue;
-                    }
-                    modified.set(file, read.mtime);
-                    if (!addMatch(file, index + 1, match.index, match[0].length, line)) break scan;
+        let settle = null;
+        const worker = new Worker(path.join(__dirname, 'main', 'search.js'), {
+            workerData: {
+                tops,
+                query: String(query),
+                options,
+                limits: { fileSize: SEARCHED_LIMIT, matches: MATCH_LIMIT, text: MATCH_TEXT_LIMIT },
+            },
+        });
+        const result = new Promise((resolve, reject) => {
+            const end = (stoppedBy, warning = '') => {
+                clearTimeout(timer);
+                worker.terminate();
+                found.sort((left, right) => left.path.localeCompare(right.path));
+                resolve({ files: found, total, truncated: !!stoppedBy, stoppedBy, warning });
+            };
+            const timer = setTimeout(() => end('time'), SEARCH_TIME_LIMIT_MS);
+            settle = end;
+            worker.on('message', (message) => {
+                if (message.type === 'file') {
+                    found.push({ path: message.path, matches: message.matches, mtime: message.mtime });
+                    total += message.matches.length;
+                } else if (message.type === 'done') {
+                    const unreadable = message.unreadable.length
+                        ? 'Some folders could not be read: ' + message.unreadable.join('; ')
+                        : '';
+                    end(message.stoppedBy, unreadable);
+                } else if (message.type === 'error') {
+                    clearTimeout(timer);
+                    worker.terminate();
+                    reject(new Error(message.message));
                 }
-            }
-        }
-        const found = [...byFile].map(([file, matches]) => ({ path: file, matches, mtime: modified.get(file) }));
-        found.sort((left, right) => left.path.localeCompare(right.path));
-        return { files: found, total, truncated: !!stoppedBy, stoppedBy, warning };
+            });
+            worker.on('error', (error) => {
+                clearTimeout(timer);
+                reject(error);
+            });
+        });
+        return { result, stop: () => settle?.('') };
     }
 };
