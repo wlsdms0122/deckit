@@ -7,8 +7,8 @@ DeckitModule.define(
             'deckit/service/window',
             'deckit/service/plugin/package/install',
             'deckit/service/plugin/identity',
-            'deckit/service/plugin/host',
-            'deckit/service/plugin/host/lifecycle',
+            'deckit/service/plugin/deck',
+            'deckit/service/plugin/deck/lifecycle',
             'deckit/service/web/session',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
@@ -28,7 +28,7 @@ DeckitModule.define(
         WINDOW,
         INSTALL,
         IDENTITY,
-        HOST,
+        DECK,
         LIFECYCLE,
         SESSION,
         WEB,
@@ -83,7 +83,7 @@ DeckitModule.define(
                 for (const { id, outcome } of INSTALL.installShipped()) LOG.info(`${outcome} ${id}`);
             }
             WINDOW.start({ openWindow: (options) => shell.openWindow(options) });
-            HOST.start();
+            DECK.start();
             WEB.start();
             KEYMAP.start();
             OPEN.start();
@@ -129,7 +129,7 @@ DeckitModule.define(
                 const { host, pathname } = new URL(request.url);
                 if (pathname === '/') return net.fetch(page);
                 const id = host.endsWith('.plugin') ? host.slice(0, -'.plugin'.length) : null;
-                const folder = HOST.plugins().find((entry) => entry.id === id)?.folder;
+                const folder = DECK.plugins().find((entry) => entry.id === id)?.folder;
                 const file = folder && servedFile(folder, pathname);
                 return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
             });

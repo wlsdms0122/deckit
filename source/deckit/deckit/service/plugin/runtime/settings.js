@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/plugin/runtime/settings',
     {
-        uses: ['deckit/service/plugin/host/protocol'],
+        uses: ['deckit/service/plugin/deck/protocol'],
         provides: ['of', 'declarationsOf'],
         runs: 'page',
     },

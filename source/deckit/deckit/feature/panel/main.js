@@ -6,15 +6,15 @@ DeckitModule.define(
             'deckit/service/storage',
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
-            'deckit/service/plugin/host',
-            'deckit/service/plugin/host/lifecycle',
+            'deckit/service/plugin/deck',
+            'deckit/service/plugin/deck/lifecycle',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/feature/panel/protocol',
         ],
         provides: ['start', 'deck', 'showsPanel', 'dismisses', 'reveal', 'awaitReply'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, HOST, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, DECK, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
         // MARK: - Property
         const FRAME = 'panel-frame';
         const HISTORY_LIMIT = 50;
@@ -109,7 +109,7 @@ DeckitModule.define(
             }));
             PROTOCOL.pick.on(({ id }, sender) => IDENTITY.pluginFrom(sender) && select(id));
             PROTOCOL.step.on(({ by }, sender) => IDENTITY.pluginFrom(sender) && step(by));
-            PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.pluginFrom(sender) && HOST.arrange(ids));
+            PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.pluginFrom(sender) && DECK.arrange(ids));
             PROTOCOL.layout.on((change, sender) => {
                 IDENTITY.pluginFrom(sender);
                 setFrame(change);
@@ -175,13 +175,13 @@ DeckitModule.define(
         // Running, and not known to have nothing to show.
         function mayShow(id) {
             const running = LIFECYCLE.pages().some(({ entry }) => entry.id === id);
-            return running && HOST.summaryOf(id)?.view !== false && !HOST.failed(id);
+            return running && DECK.summaryOf(id)?.view !== false && !DECK.failed(id);
         }
 
         // In the person's order: the first plugin that has something to show, or may have once it has started. One
         // still starting is waited for, so the panel lands where the order says and not on whoever started first.
         function firstShown() {
-            return HOST.plugins().find(({ id }) => mayShow(id))?.id;
+            return DECK.plugins().find(({ id }) => mayShow(id))?.id;
         }
 
         function layout() {
@@ -190,9 +190,9 @@ DeckitModule.define(
         }
 
         function stateOf() {
-            const plugins = HOST.plugins()
+            const plugins = DECK.plugins()
                 .filter(({ id }) => views.has(id))
-                .map(({ id, name }) => ({ id, name, icon: HOST.summaryOf(id)?.icon || '' }));
+                .map(({ id, name }) => ({ id, name, icon: DECK.summaryOf(id)?.icon || '' }));
             return {
                 plugins,
                 current,
@@ -205,7 +205,7 @@ DeckitModule.define(
         function broadcast() {
             const state = stateOf();
             for (const page of views.values()) PROTOCOL.state.send(page.webContents, state);
-            const name = HOST.plugins().find(({ id }) => id === current);
+            const name = DECK.plugins().find(({ id }) => id === current);
             const title = name?.name || CONFIG.name;
             if (title !== titled) shell.panelTitled((titled = title));
         }

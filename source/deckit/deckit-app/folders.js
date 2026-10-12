@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'app/folders',
+    'host/folders',
     {
         uses: [],
         provides: ['home', 'ship'],

@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'app/window',
+    'host/window',
     {
-        uses: ['app/config'],
+        uses: ['host/config'],
         provides: ['open', 'viewBounds', 'setTitle'],
         runs: 'main',
     },

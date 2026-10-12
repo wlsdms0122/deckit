@@ -7,10 +7,10 @@ const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 const { conceptOf } = require(path.join(__dirname, '..', 'concept.js'));
 
 const IPC = 'deckit/module/ipc';
-// The entries an app starts, which put a page or main together and so may name any concept's protocol.
+// The entries a host app starts, which put a page or main together and so may name any concept's protocol.
 const ENTRIES = new Set(['deckit/feature/app/main', 'deckit/feature/app/page']);
-// What an app hands deckit, which it may not: named as optional.
-const APP_INPUTS = new Set(['app/config', 'app/folders', 'app/exports']);
+// What a host app hands deckit, which it may not: named as optional.
+const HOST_INPUTS = new Set(['host/config', 'host/folders', 'host/exports']);
 const MAY_NAME = {
     config: new Set(),
     feature: new Set(['config', 'feature', 'service', 'module', 'ui']),
@@ -88,20 +88,20 @@ function checkUses(name, { file, uses }) {
     if (!mine)
         return say(file, 'is in no layer: a module of the library is in config/, feature/, service/, module/ or ui/');
     for (const use of uses) {
-        if (APP_INPUTS.has(use.name)) {
+        if (HOST_INPUTS.has(use.name)) {
             if (!use.optional)
                 say(
                     file,
-                    `names ${use.name} as something it cannot do without; an app may not hand it, so write "${use.name}?"`
+                    `names ${use.name} as something it cannot do without; a host app may not hand it, so write "${use.name}?"`
                 );
             continue;
         }
         const theirs = all.get(use.name);
         if (!theirs) {
-            say(file, `names ${use.name}, which is neither deckit's nor something an app hands it`);
+            say(file, `names ${use.name}, which is neither deckit's nor something a host app hands it`);
             continue;
         }
-        if (ENTRIES.has(use.name)) say(file, `names ${use.name}, an entry, which only an app starts`);
+        if (ENTRIES.has(use.name)) say(file, `names ${use.name}, an entry, which only a host app starts`);
         const other = conceptOf(theirs.file);
         if (!MAY_NAME[mine.layer].has(other.layer))
             say(file, `names ${use.name}, in ${other.layer}/, which ${mine.layer}/ does not name`);

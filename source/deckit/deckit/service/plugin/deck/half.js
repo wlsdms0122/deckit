@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/plugin/host/half',
+    'deckit/service/plugin/deck/half',
     {
         uses: [
             'deckit/module/file',
@@ -7,7 +7,7 @@ DeckitModule.define(
             'deckit/service/window',
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
-            'deckit/service/plugin/host/protocol',
+            'deckit/service/plugin/deck/protocol',
         ],
         provides: ['start', 'load', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',

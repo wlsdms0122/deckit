@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'app/shell',
+    'host/shell',
     {
-        uses: ['app/window'],
+        uses: ['host/window'],
         provides: ['make'],
         runs: 'main',
     },

@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'app/config',
+    'host/config',
     {
         uses: [],
         provides: ['id', 'name'],

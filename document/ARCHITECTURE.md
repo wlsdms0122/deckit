@@ -8,7 +8,7 @@ This document is why deckit is split the way it is, and the rules that keep it s
 
 1. Deckit runs by itself. The package builds, checks and runs from its own sources; nothing outside it is named.
 2. A plugin can do what the app can. Permissions say what a plugin reaches, and the person agrees to them; none is a dead end, and the main process half has the app's full power. A plugin draws its screen as it likes; the kit is the quick way, not the only one.
-3. Deckit owns only what it makes. The process, its menus and its windows are the app's; deckit is handed what it needs through `app/config`, `app/folders`, `connect()` and `app/exports`.
+3. Deckit owns only what it makes. The process, its menus and its windows are the app's; deckit is handed what it needs through `host/config`, `host/folders`, `connect()` and `host/exports`.
 4. A check happens once, where trust changes: main receiving from a page, the host receiving from a plugin's code, input from the disk or the network. Inside, each step trusts what the step before it made.
 5. A fact has one owner. Everyone else asks it.
 6. A folder is a module or a group. A name is the standard term of its field.
@@ -42,9 +42,9 @@ The pages never speak to each other. Main carries everything between them, and e
 | Fact | Owner |
 |---|---|
 | whether the panel is on screen, and where | the app's shell, asked through `feature/panel/main.js` |
-| which plugins run, each in its page | `service/plugin/host/lifecycle.js` |
+| which plugins run, each in its page | `service/plugin/deck/lifecycle.js` |
 | which plugin is on screen, and back and forward | `feature/panel/main.js` |
-| the plugins found, their order, their main halves, their settings and exports | `service/plugin/host` |
+| the plugins found, their order, their main halves, their settings and exports | `service/plugin/deck` |
 | which page is which plugin | `service/plugin/identity` |
 | what a keystroke means | `service/keymap/main.js`; a page only hears the chords it may act on |
 | who opens an address | `service/open/main.js`, in the order the person set |
@@ -53,7 +53,7 @@ The pages never speak to each other. Main carries everything between them, and e
 | a plugin's web sign-ins | its own sessions, `persist:<id>:<plugin>:<name>` |
 | what the person arranged (plugin order, key overrides, each scheme's handlers) | `state/` |
 
-Deckit's folder is `app/folders`' `home`, or `~/.config/<id>`:
+Deckit's folder is `host/folders`' `home`, or `~/.config/<id>`:
 
 ```
 plugins/        installed plugins, a folder each
@@ -72,7 +72,7 @@ A plugin reaches the host only through `context` (PLUGIN.md). Before a plugin ru
 
 Between plugins there are two ways, and one question picks: could the app do this if the other plugin were not there?
 
-- If it could not, it is a dependency. A plugin names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. What the app offers (`app/exports`) is handed to the app's own plugin, whose id is the app's, and another plugin reaches it by requiring that one.
+- If it could not, it is a dependency. A plugin names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. What the app offers (`host/exports`) is handed to the app's own plugin, whose id is the app's, and another plugin reaches it by requiring that one.
 - If it could, it is a URL scheme handler. A plugin asks for an address to be opened (`host.open(url)`) without knowing who answers. The plugins whose manifest names the scheme are its handlers and are asked in the order the person set, ahead of the host's own answer, which is always last.
 
 What reaches past a plugin's own page (the clipboard, notices, any web address, another plugin's settings, the keymap, a main half) is asked for by name in `permissions`, with a reason the person reads when installing. Main checks each one where the plugin asks, by the page it asks from.

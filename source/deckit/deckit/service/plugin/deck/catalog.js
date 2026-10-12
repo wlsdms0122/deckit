@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/plugin/host/catalog',
+    'deckit/service/plugin/deck/catalog',
     {
         uses: [
             'deckit/config',

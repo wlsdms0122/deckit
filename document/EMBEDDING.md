@@ -18,13 +18,13 @@ An app embeds one archive, `deckit-lib-<version>.tgz`, with its sha256 beside it
 | `plugin/<id>/` | deckit's own plugins, a catalog the app picks from |
 | `document/` | this, PLUGIN.md and UI.md |
 
-In main the app loads `registry.js`, its own `app/config` and `app/folders`, `main.js`, then its shell. A deckit page loads, as its preload, a file the app puts together: `registry.js`, the app's `app/config` (and `app/exports`, if it has one), `page.js`, and the start of deckit: `DeckitModule.use(['deckit/feature/app/page'], (APP) => APP.boot(before))`, where `before` is the names the page's global object had before `registry.js` ran, so boot takes away every global the bundles added.
+In main the app loads `registry.js`, its own `host/config` and `host/folders`, `main.js`, then its shell. A deckit page loads, as its preload, a file the app puts together: `registry.js`, the app's `host/config` (and `host/exports`, if it has one), `page.js`, and the start of deckit: `DeckitModule.use(['deckit/feature/app/page'], (APP) => APP.boot(before))`, where `before` is the names the page's global object had before `registry.js` ran, so boot takes away every global the bundles added.
 
-The app's own files are modules too: `DeckitModule.define(name, { uses, provides, runs }, make)`. What `app/config` and `app/folders` set is held to what deckit reads: a key deckit does not read stops the bundle with its name.
+The app's own files are modules too: `DeckitModule.define(name, { uses, provides, runs }, make)`. What `host/config` and `host/folders` set is held to what deckit reads: a key deckit does not read stops the bundle with its name.
 
 ## 2. The configuration
 
-`app/config`, read in every process:
+`host/config`, read in every process:
 
 | Key | What it is | Deckit's own |
 |---|---|---|
@@ -33,7 +33,7 @@ The app's own files are modules too: `DeckitModule.define(name, { uses, provides
 | `agent` | names the app adds to its user agent, taken out of the agent of a page a plugin shows | none |
 | `schemeHandlers` | by scheme, the plugins asked first to open an address, until the person orders them | none |
 
-`app/folders`, read where there is a disk:
+`host/folders`, read where there is a disk:
 
 | Key | What it is | Deckit's own |
 |---|---|---|
@@ -90,10 +90,10 @@ Moving the panel is a re-parent: plugins keep their pages and what they hold, an
 
 ## 4. The app's own plugin, and what the app offers
 
-What a person does with the app from the panel is the app's own plugin: the one whose id is the app's. It ships with the app and can be removed like any other. That is all that sets it apart: it alone is handed what the app offers, the page module `app/exports`, as `context.app`, and it may export that on. A plugin that wants the app requires that plugin like any other. In another app a folder with that id is handed nothing.
+What a person does with the app from the panel is the app's own plugin: the one whose id is the app's. It ships with the app and can be removed like any other. That is all that sets it apart: it alone is handed what the app offers, the page module `host/exports`, as `context.app`, and it may export that on. A plugin that wants the app requires that plugin like any other. In another app a folder with that id is handed nothing.
 
 It may stand first among a scheme's handlers (`schemeHandlers`, and the scheme in its manifest's `url-schemes`): it opens the addresses it knows and passes the rest on. Deckit never asks whose an address is.
 
 ## 5. Deckit.app
 
-`source/deckit/deckit-app` is deckit embedded by itself, the way any app embeds it: its own `app/config` and `app/folders`, a shell that keeps the panel in one window of its own with the switcher in front of it, and an Electron entry that calls `connect`. Its windows carry a bar that is always there: the window's own page, across the top and under the views, clear over the panel's glass so the two read as one surface. To macOS it is the title bar, so it drags, snaps and answers a double click as the person set. `deckit app` builds it from the archive the last build made.
+`source/deckit/deckit-app` is deckit embedded by itself, the way any app embeds it: its own `host/config` and `host/folders`, a shell that keeps the panel in one window of its own with the switcher in front of it, and an Electron entry that calls `connect`. Its windows carry a bar that is always there: the window's own page, across the top and under the views, clear over the panel's glass so the two read as one surface. To macOS it is the title bar, so it drags, snaps and answers a double click as the person set. `deckit app` builds it from the archive the last build made.

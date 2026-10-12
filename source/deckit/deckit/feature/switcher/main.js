@@ -4,7 +4,7 @@ DeckitModule.define(
         uses: [
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
-            'deckit/service/plugin/host/lifecycle',
+            'deckit/service/plugin/deck/lifecycle',
             'deckit/service/keymap/main',
             'deckit/service/switcher/main',
             'deckit/feature/panel/main',

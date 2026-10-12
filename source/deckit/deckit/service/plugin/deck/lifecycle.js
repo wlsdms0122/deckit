@@ -1,10 +1,10 @@
 DeckitModule.define(
-    'deckit/service/plugin/host/lifecycle',
+    'deckit/service/plugin/deck/lifecycle',
     {
         uses: [
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
-            'deckit/service/plugin/host',
+            'deckit/service/plugin/deck',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/service/open/main',
@@ -12,7 +12,7 @@ DeckitModule.define(
         provides: ['start', 'pages', 'pageFor', 'onChange', 'reload'],
         runs: 'main',
     },
-    (LOG, IDENTITY, HOST, WEB, KEYMAP, OPEN) => {
+    (LOG, IDENTITY, DECK, WEB, KEYMAP, OPEN) => {
         // MARK: - Property
         const running = new Map(); // plugin id -> { page, entry }
         const listeners = new Set();
@@ -23,18 +23,18 @@ DeckitModule.define(
         // the view a page runs in.
         function start({ makePage: make }) {
             makePage = make;
-            HOST.onChange(reconcile);
-            HOST.onStatus(notify);
-            reconcile(HOST.plugins());
+            DECK.onChange(reconcile);
+            DECK.onStatus(notify);
+            reconcile(DECK.plugins());
         }
 
         // MARK: - Public
         // The plugins running, in the person's order, each with its page and what it said it contributes once it
         // started (`summary`, null until then).
         function pages() {
-            return HOST.plugins()
+            return DECK.plugins()
                 .filter(({ id }) => running.has(id))
-                .map((entry) => ({ entry, page: running.get(entry.id).page, summary: HOST.summaryOf(entry.id) }));
+                .map((entry) => ({ entry, page: running.get(entry.id).page, summary: DECK.summaryOf(entry.id) }));
         }
 
         // The deckit page a webContents belongs to: a plugin's or the switcher's own, or the plugin's that shows it as
@@ -52,7 +52,7 @@ DeckitModule.define(
         // Every plugin starts again in its page, as a new theme asks.
         function reload() {
             for (const [id, { page }] of running) {
-                HOST.rerun(id);
+                DECK.rerun(id);
                 page.webContents.reload();
             }
         }
@@ -85,7 +85,7 @@ DeckitModule.define(
         }
 
         function run(entry) {
-            HOST.prepare(entry);
+            DECK.prepare(entry);
             const page = makePage();
             const contents = page.webContents;
             const origin = IDENTITY.originOf(entry.id);
@@ -103,7 +103,7 @@ DeckitModule.define(
             });
             // A page that crashed ran its plugin out with it.
             LOG.guard(contents, 'render-process-gone', (_event, { reason }) =>
-                HOST.ended(entry.id, `its page ended (${reason})`)
+                DECK.ended(entry.id, `its page ended (${reason})`)
             );
             LOG.guard(
                 contents,

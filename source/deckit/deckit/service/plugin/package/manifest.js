@@ -75,8 +75,8 @@ DeckitModule.define(
             if (!VERSION.parse(raw.version))
                 return `version must be written as "MAJOR.MINOR.PATCH", not ${JSON.stringify(raw.version)}`;
             if (!VERSION.parse(raw.api))
-                return `api must be written as "MAJOR.MINOR.PATCH" (this host speaks ${API}), not ${JSON.stringify(raw.api)}`;
-            if (!VERSION.satisfies(API, raw.api)) return `needs api ${raw.api}, this host speaks ${API}`;
+                return `api must be written as "MAJOR.MINOR.PATCH" (this deck speaks ${API}), not ${JSON.stringify(raw.api)}`;
+            if (!VERSION.satisfies(API, raw.api)) return `needs api ${raw.api}, this deck speaks ${API}`;
             return requiresProblem(raw) || permissionsProblem(raw) || schemesProblem(raw, manifest);
         }
 

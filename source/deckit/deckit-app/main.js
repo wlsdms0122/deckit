@@ -14,7 +14,7 @@ if (!app.requestSingleInstanceLock()) {
     app.quit();
 } else {
     for (const file of require('./load.json').main) require(path.join(__dirname, file));
-    DeckitModule.use(['deckit/feature/app/main', 'app/shell'], (DECKIT, SHELL) => {
+    DeckitModule.use(['deckit/feature/app/main', 'host/shell'], (DECKIT, SHELL) => {
         protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
         // relaunch() only queues the new instance; quit() still has to end this one.
         const restart = DEVELOPMENT

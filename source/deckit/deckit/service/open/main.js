@@ -6,14 +6,14 @@ DeckitModule.define(
             'deckit/service/storage',
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
-            'deckit/service/plugin/host',
+            'deckit/service/plugin/deck',
             'deckit/service/plugin/package/model/permission',
             'deckit/service/open/model/scheme',
             'deckit/service/open/protocol',
         ],
         provides: ['start', 'open'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, HOST, PERMISSION, SCHEME, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, DECK, PERMISSION, SCHEME, PROTOCOL) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -100,7 +100,7 @@ DeckitModule.define(
 
         // Every scheme with a handler list: deckit's own, then each one a running plugin names, then every other.
         function schemes() {
-            const named = HOST.plugins()
+            const named = DECK.plugins()
                 .filter(({ id }) => answering.has(id))
                 .flatMap(({ urlSchemes }) => urlSchemes);
             const own = named.filter((scheme) => scheme !== SCHEME.EVERY);
@@ -128,7 +128,7 @@ DeckitModule.define(
             const order = orderOf(scheme);
             const off = savedOf(scheme).off;
             const rank = (id) => (order.includes(id) ? order.indexOf(id) : order.length);
-            return HOST.plugins()
+            return DECK.plugins()
                 .filter(
                     (plugin) =>
                         answering.has(plugin.id) &&

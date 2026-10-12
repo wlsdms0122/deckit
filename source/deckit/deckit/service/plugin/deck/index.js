@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/plugin/host',
+    'deckit/service/plugin/deck',
     {
         uses: [
             'deckit/config',
@@ -10,12 +10,12 @@ DeckitModule.define(
             'deckit/service/plugin/package/folder',
             'deckit/service/plugin/package/install',
             'deckit/service/plugin/package/remove',
-            'deckit/service/plugin/host/catalog',
-            'deckit/service/plugin/host/half',
-            'deckit/service/plugin/host/record',
-            'deckit/service/plugin/host/setting',
-            'deckit/service/plugin/host/export',
-            'deckit/service/plugin/host/protocol',
+            'deckit/service/plugin/deck/catalog',
+            'deckit/service/plugin/deck/half',
+            'deckit/service/plugin/deck/record',
+            'deckit/service/plugin/deck/setting',
+            'deckit/service/plugin/deck/export',
+            'deckit/service/plugin/deck/protocol',
         ],
         provides: [
             'start',
