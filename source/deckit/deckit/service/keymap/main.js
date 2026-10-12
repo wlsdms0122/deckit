@@ -25,7 +25,7 @@ DeckitModule.define(
         const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
         let overrides = {};
         let recording = null; // { webContents, timer }
-        let route = { viewOf: () => null, showsPanel: () => false, dismisses: () => false };
+        let route = { pageOf: () => null, showsPanel: () => false, dismisses: () => false };
 
         // MARK: - Initializer
         // MARK: - Public
@@ -61,10 +61,10 @@ DeckitModule.define(
             });
         }
 
-        // The panel's answers: which deckit view a keystroke in a webContents belongs to, whether that view is the
+        // Which deckit page a keystroke in a webContents belongs to, and the panel's answers: whether that page is the
         // panel on screen, and whether Escape there puts the panel away.
-        function connect({ viewOf, showsPanel, dismisses }) {
-            route = { viewOf, showsPanel, dismisses };
+        function connect({ pageOf, showsPanel, dismisses }) {
+            route = { pageOf, showsPanel, dismisses };
         }
 
         // Keystrokes in this webContents go through the key map. deckit listens on its own; an app hands its own
@@ -260,7 +260,7 @@ DeckitModule.define(
                 own.run();
                 return true;
             }
-            const view = route.viewOf(webContents);
+            const view = route.pageOf(webContents);
             if (isEscape(input) && view && (floating.has(view.id) || route.dismisses(webContents))) {
                 PROTOCOL.escape.send(view, { last: route.dismisses(webContents) });
                 return true;

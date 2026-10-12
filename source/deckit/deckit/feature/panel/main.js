@@ -7,30 +7,28 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
             'deckit/service/plugin/host',
+            'deckit/service/plugin/host/lifecycle',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
-            'deckit/service/open/main',
             'deckit/feature/panel/protocol',
         ],
-        provides: ['start', 'deck', 'viewFor', 'reveal', 'awaitReply'],
+        provides: ['start', 'deck', 'showsPanel', 'dismisses', 'reveal', 'awaitReply'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, HOST, WEB, KEYMAP, OPEN, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, HOST, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
         // MARK: - Property
         const FRAME = 'panel-frame';
         const HISTORY_LIMIT = 50;
         // Main waits on a view only for an exit before it moves and a fade before it goes off screen; this guards a
         // view that is gone or stuck.
         const REPLY_TIMEOUT = 400;
-        const views = new Map(); // plugin id -> { view, entry, screen: { content, icon } | null }
+        const views = new Map(); // plugin id -> its page, while the plugin has something to show
         const waiting = new Map(); // reply -> the wait in progress for it
         const heard = new Set(); // replies listened to
         const history = { list: [], at: -1 };
         let container = null;
-        let makeView = null;
         let shell = null;
         let current = null;
         let shown = false;
-        let theme = null;
         let titled = null; // the title the shell was last told
         let look = { floating: false, dismissible: false };
         let frame = { width: 240, collapsed: false, navHeight: null };
@@ -38,9 +36,8 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // `makeView(origin, options)` makes a view of deckit's pages; `shell` is the app's.
-        function start({ makeView: make, shell: answers }) {
-            makeView = make;
+        // The plugins that have something to show, in a container the app's shell places; `shell` is the app's.
+        function start({ shell: answers }) {
             shell = answers;
             frame = { ...frame, ...STORAGE.state.read(FRAME, {}) };
             const { View } = require('electron');
@@ -50,16 +47,20 @@ DeckitModule.define(
             LOG.guard(container, 'bounds-changed', layout);
             listen();
             registerKeys();
-            KEYMAP.connect({ viewOf: viewFor, showsPanel, dismisses });
-            HOST.onChange(reconcile);
-            reconcile(HOST.plugins());
+            LIFECYCLE.onChange(reconcile);
+            reconcile();
         }
 
-        // The deckit view a keystroke or a request in this webContents belongs to: a plugin's, also for a web page
-        // shown in it.
-        function viewFor(webContents) {
-            if (IDENTITY.pluginOf(webContents) || IDENTITY.isSwitcher(webContents)) return webContents;
-            return WEB.hostOf(webContents);
+        // A web page a plugin shows counts as its page; whether the page is what is on screen there is the shell's.
+        function showsPanel(webContents) {
+            const page = LIFECYCLE.pageFor(webContents);
+            if (!page || !shown || page !== currentContents()) return false;
+            return !!shell.showsPanel(page);
+        }
+
+        // Escape puts the panel away only where it floats over something; in a window of its own Escape is the window's.
+        function dismisses(webContents) {
+            return showsPanel(webContents) && look.dismissible;
         }
 
         // A plugin on screen, asked by the plugin itself, the switcher or an address it opened.
@@ -100,24 +101,11 @@ DeckitModule.define(
         // MARK: - Private
         function listen() {
             PROTOCOL.setup.handle((_payload, sender) => ({
-                role: IDENTITY.isSwitcher(sender) ? 'switcher' : 'plugin',
-                theme,
                 look,
                 shown: shown && IDENTITY.pluginOf(sender)?.id === current,
                 frame,
                 state: stateOf(),
             }));
-            PROTOCOL.screen.on(({ content, icon }, sender) => {
-                const entry = views.get(IDENTITY.pluginFrom(sender).id);
-                entry.screen = { content, icon };
-                // A plugin with nothing to show gives its place on screen to the next one that has.
-                if (!content && current === entry.entry.id) {
-                    current = null;
-                    entry.view.setVisible(false);
-                    select(firstShown());
-                }
-                broadcast();
-            });
             PROTOCOL.pick.on(({ id }, sender) => IDENTITY.pluginFrom(sender) && select(id));
             PROTOCOL.step.on(({ by }, sender) => IDENTITY.pluginFrom(sender) && step(by));
             PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.pluginFrom(sender) && HOST.arrange(ids));
@@ -150,85 +138,50 @@ DeckitModule.define(
             });
         }
 
-        // A plugin gets a view as it arrives, loses it as it goes, and one whose folder changed is loaded again.
-        function reconcile(plugins) {
-            const ids = new Set(plugins.map(({ id }) => id));
-            for (const [id, { view }] of views) {
-                if (ids.has(id)) continue;
-                container.removeChildView(view);
-                view.webContents.close();
+        // The pages of the plugins that said they have something to show, as the plugins run. One replaced by a new
+        // run stays on screen in its new page; one with nothing to show gives its place to the next that has.
+        function reconcile() {
+            const showing = new Map(
+                LIFECYCLE.pages()
+                    .filter(({ summary }) => summary?.view)
+                    .map(({ entry, page }) => [entry.id, page])
+            );
+            for (const [id, page] of views) {
+                if (showing.get(id) === page) continue;
+                container.removeChildView(page);
                 views.delete(id);
-                if (current === id) current = null;
+                if (current === id) current = showing.has(id) ? id : null;
             }
-            for (const entry of plugins) {
-                const known = views.get(entry.id);
-                if (known && sameFolder(known.entry, entry)) continue;
-                if (known) {
-                    container.removeChildView(known.view);
-                    known.view.webContents.close();
-                }
-                create(entry);
-                // The plugin on screen stays on screen in its new view.
-                if (current === entry.id) {
+            for (const [id, page] of showing) {
+                if (views.has(id)) continue;
+                views.set(id, page);
+                page.setVisible(false);
+                container.addChildView(page);
+                if (current === id) {
                     current = null;
-                    select(entry.id, { fromHistory: true });
+                    select(id, { fromHistory: true });
                 }
             }
+            layout();
             if (!current) select(firstShown());
             broadcast();
         }
 
-        // In the person's order: the first plugin that is not known to have nothing to show.
+        // In the person's order: the first plugin that has something to show, or may have once it has started. One
+        // still starting is waited for, so the panel lands where the order says and not on whoever started first.
         function firstShown() {
-            return HOST.plugins().find(({ id }) => views.get(id)?.screen?.content !== false)?.id;
-        }
-
-        function sameFolder(before, after) {
-            return (
-                before.folder === after.folder &&
-                before.version === after.version &&
-                before.installs === after.installs &&
-                JSON.stringify(before.permissions) === JSON.stringify(after.permissions)
-            );
-        }
-
-        function create(entry) {
-            HOST.prepare(entry);
-            const view = makeView(IDENTITY.originOf(entry.id), { webview: true });
-            const contents = view.webContents;
-            IDENTITY.add(contents, { plugin: entry });
-            WEB.host(contents);
-            KEYMAP.listen(contents);
-            // Every scheme: which ones open, and how, is Open With's to say.
-            contents.setWindowOpenHandler((details) => {
-                OPEN.open(details.url, WEB.windowOptions(details));
-                return { action: 'deny' };
-            });
-            // Identity holds the view to its origin, and a link that leaves it opens through Open With.
-            LOG.guard(contents, 'will-frame-navigate', (details) => {
-                if (details.isMainFrame && !details.url.startsWith(IDENTITY.originOf(entry.id) + '/'))
-                    OPEN.open(details.url, {});
-            });
-            LOG.guard(
-                contents,
-                'console-message',
-                ({ level, message }) => level === 'error' && LOG.error(`${entry.id}: ${message}`)
-            );
-            container.addChildView(view);
-            views.set(entry.id, { view, entry, screen: null });
-            layout();
-            contents.loadURL(IDENTITY.originOf(entry.id) + '/');
+            return HOST.plugins().find(({ id }) => HOST.summaryOf(id)?.view !== false && !HOST.failed(id))?.id;
         }
 
         function layout() {
             const { width, height } = container.getBounds();
-            for (const { view } of views.values()) view.setBounds({ x: 0, y: 0, width, height });
+            for (const page of views.values()) page.setBounds({ x: 0, y: 0, width, height });
         }
 
         function stateOf() {
             const plugins = HOST.plugins()
-                .filter(({ id }) => views.get(id)?.screen?.content !== false)
-                .map(({ id, name }) => ({ id, name, icon: views.get(id)?.screen?.icon || '' }));
+                .filter(({ id }) => views.has(id))
+                .map(({ id, name }) => ({ id, name, icon: HOST.summaryOf(id)?.icon || '' }));
             return {
                 plugins,
                 current,
@@ -240,7 +193,7 @@ DeckitModule.define(
 
         function broadcast() {
             const state = stateOf();
-            for (const { view } of views.values()) PROTOCOL.state.send(view.webContents, state);
+            for (const page of views.values()) PROTOCOL.state.send(page.webContents, state);
             const name = HOST.plugins().find(({ id }) => id === current);
             const title = name?.name || CONFIG.name;
             if (title !== titled) shell.panelTitled((titled = title));
@@ -261,7 +214,7 @@ DeckitModule.define(
         // Answers whether it is on screen now.
         function select(id, { fromHistory = false } = {}) {
             const next = views.get(id);
-            if (!next || next.screen?.content === false) return false;
+            if (!next) return false;
             if (current === id) return true;
             if (!fromHistory) {
                 history.list.splice(history.at + 1, Infinity, id);
@@ -270,13 +223,13 @@ DeckitModule.define(
             }
             const before = views.get(current);
             current = id;
-            next.view.setVisible(true);
+            next.setVisible(true);
             if (before) {
-                before.view.setVisible(false);
-                if (shown) PROTOCOL.visible.send(before.view.webContents, { open: false, animate: false });
+                before.setVisible(false);
+                if (shown) PROTOCOL.visible.send(before.webContents, { open: false, animate: false });
             }
             if (shown) {
-                PROTOCOL.visible.send(next.view.webContents, { open: true, animate: false });
+                PROTOCOL.visible.send(next.webContents, { open: true, animate: false });
                 focus();
             }
             broadcast();
@@ -295,23 +248,17 @@ DeckitModule.define(
 
         // A plugin that is there and has something to show.
         function isShown(id) {
-            return views.has(id) && views.get(id).screen?.content !== false;
+            return views.has(id);
+        }
+
+        // Whether a keystroke or a request in this webContents is the panel's: one of its pages, or a web page one shows.
+        function contains(webContents) {
+            const page = LIFECYCLE.pageFor(webContents);
+            return [...views.values()].some((shown) => shown.webContents === page);
         }
 
         function currentContents() {
-            return views.get(current)?.view.webContents || null;
-        }
-
-        // A web page a plugin shows counts as its view; whether the view is what is on screen there is the shell's.
-        function showsPanel(webContents) {
-            const view = viewFor(webContents);
-            if (!view || !shown || view !== currentContents()) return false;
-            return !!shell.showsPanel(view);
-        }
-
-        // Escape puts the panel away only where it floats over something; in a window of its own Escape is the window's.
-        function dismisses(webContents) {
-            return showsPanel(webContents) && look.dismissible;
+            return views.get(current)?.webContents || null;
         }
 
         // The view's own idea of whether it is up (didAppear, its keys, its entrance and exit) never parts from this.
@@ -372,31 +319,24 @@ DeckitModule.define(
 
         function present(next) {
             look = { floating: !!next?.floating, dismissible: !!next?.dismissible };
-            for (const { view } of views.values()) PROTOCOL.look.send(view.webContents, look);
-        }
-
-        // A new theme reloads every view, which draws in it from the start.
-        function setTheme(next) {
-            if (JSON.stringify(next) === JSON.stringify(theme)) return;
-            theme = next;
-            for (const { view } of views.values()) view.webContents.reload();
+            for (const page of views.values()) PROTOCOL.look.send(page.webContents, look);
         }
 
         return {
             start,
             deck: {
                 view: () => container,
-                contains: (webContents) => !!viewFor(webContents) && !IDENTITY.isSwitcher(viewFor(webContents)),
+                contains,
                 show,
                 hide,
                 leave,
                 arrive,
                 focus,
                 present,
-                setTheme,
                 shown: () => shown,
             },
-            viewFor,
+            showsPanel,
+            dismisses,
             reveal,
             awaitReply,
         };

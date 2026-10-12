@@ -41,6 +41,7 @@ The pages never speak to each other. Main carries everything between them, and e
 | Fact | Owner |
 |---|---|
 | whether the panel is on screen, and where | the app's shell, asked through `feature/panel/main.js` |
+| which plugins run, each in its page | `service/plugin/host/lifecycle.js` |
 | which plugin is on screen, and back and forward | `feature/panel/main.js` |
 | the plugins found, their order, their main halves, their settings and exports | `service/plugin/host` |
 | which page is which plugin | `service/plugin/identity` |

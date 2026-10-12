@@ -10,14 +10,15 @@ DeckitModule.define(
             'deckit/feature/panel/view',
             'deckit/feature/panel/protocol',
             'deckit/feature/switcher/view',
+            'deckit/feature/app/protocol',
         ],
         provides: ['boot'],
     },
-    (TOKEN, POINTER, OVERLAY, UI, RUNTIME, PANEL, PROTOCOL, SWITCHER) => {
+    (TOKEN, POINTER, OVERLAY, UI, RUNTIME, PANEL, PANEL_PROTOCOL, SWITCHER, PROTOCOL) => {
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
-        // The entry of every view deckit makes: a plugin's, or the switcher's. `before` is the globals the page had
+        // The entry of every page deckit makes: a plugin's, or the switcher's. `before` is the globals the page had
         // before deckit's bundle ran: what the bundle added goes, the registry first, so a plugin reaches deckit only
         // through what it is handed.
         function boot(before) {
@@ -34,15 +35,14 @@ DeckitModule.define(
             const theme = TOKEN.tokenOf(setup.theme || TOKEN.FALLBACK_THEME);
             if (setup.role === 'switcher') return SWITCHER.boot(theme);
             const ui = UI.make(theme);
-            const { definition, parts, tell } = await RUNTIME.start({
+            const { parts, tell } = await RUNTIME.start({
                 theme,
                 ui,
                 layers: OVERLAY.layers,
-                show: () => PROTOCOL.show.send(),
-                dismiss: () => PROTOCOL.hide.send(),
+                show: () => PANEL_PROTOCOL.show.send(),
+                dismiss: () => PANEL_PROTOCOL.hide.send(),
             });
-            PROTOCOL.screen.send({ content: !!parts?.content, icon: String(definition?.icon || '') });
-            if (parts?.content) PANEL.mount({ setup: { ...setup, theme }, ui, parts, tell });
+            if (parts?.content) PANEL.mount({ theme, ui, parts, tell });
         }
 
         return { boot };

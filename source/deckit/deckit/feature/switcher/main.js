@@ -4,14 +4,15 @@ DeckitModule.define(
         uses: [
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
+            'deckit/service/plugin/host/lifecycle',
             'deckit/service/keymap/main',
             'deckit/service/switcher/main',
             'deckit/feature/panel/main',
             'deckit/feature/switcher/protocol',
         ],
-        provides: ['start', 'deck'],
+        provides: ['start', 'reload', 'deck'],
     },
-    (LOG, IDENTITY, KEYMAP, SWITCHER, PANEL, PROTOCOL) => {
+    (LOG, IDENTITY, LIFECYCLE, KEYMAP, SWITCHER, PANEL, PROTOCOL) => {
         // MARK: - Property
         const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
         let makeView = null;
@@ -25,7 +26,7 @@ DeckitModule.define(
                 key: 'mod+shift+g',
                 label: 'Quick switcher',
                 global: true,
-                run: (webContents) => shell.summonSwitcher(PANEL.viewFor(webContents) || webContents),
+                run: (webContents) => shell.summonSwitcher(LIFECYCLE.pageFor(webContents) || webContents),
             });
             SWITCHER.start({ list: () => state.view?.webContents || null, reveal: PANEL.reveal });
             PROTOCOL.ready.on((_payload, sender) => {
@@ -35,6 +36,11 @@ DeckitModule.define(
                 if (state.on) PROTOCOL.open.send(sender, {});
             });
             PROTOCOL.close.on((_payload, sender) => sender === state.view?.webContents && close());
+        }
+
+        // A page made before a new theme is made again in it.
+        function reload() {
+            state.view?.webContents.reload();
         }
 
         // Resolves true when put away (the keyboard is the shell's to give back), false when it never opened or was
@@ -118,6 +124,7 @@ DeckitModule.define(
 
         return {
             start,
+            reload,
             deck: {
                 view: build,
                 open,

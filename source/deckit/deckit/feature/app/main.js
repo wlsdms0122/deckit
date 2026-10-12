@@ -6,7 +6,9 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/window',
             'deckit/service/plugin/package/install',
+            'deckit/service/plugin/identity',
             'deckit/service/plugin/host',
+            'deckit/service/plugin/host/lifecycle',
             'deckit/service/web/session',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
@@ -16,10 +18,29 @@ DeckitModule.define(
             'deckit/service/runtime/main',
             'deckit/feature/panel/main',
             'deckit/feature/switcher/main',
+            'deckit/feature/app/protocol',
         ],
         provides: ['SCHEME', 'connect'],
     },
-    (CONFIG, LOG, WINDOW, INSTALL, HOST, SESSION, WEB, KEYMAP, OPEN, NOTIFY, CLIPBOARD, RUNTIME, PANEL, SWITCHER) => {
+    (
+        CONFIG,
+        LOG,
+        WINDOW,
+        INSTALL,
+        IDENTITY,
+        HOST,
+        LIFECYCLE,
+        SESSION,
+        WEB,
+        KEYMAP,
+        OPEN,
+        NOTIFY,
+        CLIPBOARD,
+        RUNTIME,
+        PANEL,
+        SWITCHER,
+        PROTOCOL
+    ) => {
         // MARK: - Property
         // The scheme deckit's pages load from. Electron takes privileged schemes in one call before the app is ready,
         // and the app makes that call, so it adds this one to its own.
@@ -37,6 +58,7 @@ DeckitModule.define(
             'restart',
         ];
         let connected = false;
+        let theme = null; // the app's, which every deckit page derives its look from
 
         // MARK: - Initializer
         // MARK: - Public
@@ -68,15 +90,29 @@ DeckitModule.define(
             NOTIFY.start({ clicked: () => shell.noticeClicked() });
             CLIPBOARD.start();
             RUNTIME.start({ restart: () => shell.restart() });
-            const makeView = (origin, { webview }) => viewOf(preload, webview);
-            PANEL.start({ makeView, shell });
-            SWITCHER.start({ makeView, shell });
+            PROTOCOL.setup.handle((_payload, sender) => ({
+                role: IDENTITY.isSwitcher(sender) ? 'switcher' : 'plugin',
+                theme,
+            }));
+            PANEL.start({ shell });
+            SWITCHER.start({ makeView: () => pageView(preload, false), shell });
+            KEYMAP.connect({ pageOf: LIFECYCLE.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
+            LIFECYCLE.start({ makePage: () => pageView(preload, true) });
             shell.start({
+                setTheme,
                 panel: PANEL.deck,
                 switcher: SWITCHER.deck,
                 window: { place: WINDOW.place },
                 keymap: { listen: KEYMAP.listen },
             });
+        }
+
+        // A new theme makes every page again, which draws in it from the start.
+        function setTheme(next) {
+            if (JSON.stringify(next) === JSON.stringify(theme)) return;
+            theme = next;
+            LIFECYCLE.reload();
+            SWITCHER.reload();
         }
 
         // Every page of deckit's is the same page.html, whichever origin it is loaded under: what it becomes is asked of
@@ -98,7 +134,7 @@ DeckitModule.define(
         }
 
         // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so the glass under it shows.
-        function viewOf(preload, webview) {
+        function pageView(preload, webview) {
             const { WebContentsView } = require('electron');
             const view = new WebContentsView({
                 webPreferences: {

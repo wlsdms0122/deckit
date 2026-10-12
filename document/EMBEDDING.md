@@ -78,14 +78,15 @@ What `deck` holds:
 
 | | |
 |---|---|
-| `deck.panel` | `view()`, the panel's container, which the shell places in a window; `contains(webContents)`; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`; `setTheme(theme)`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
+| `deck.panel` | `view()`, the panel's container, which the shell places in a window; `contains(webContents)`; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
+| `deck.setTheme(theme)` | the app's colours, for every deckit page |
 | `deck.switcher` | `view()`, which the shell puts in front where it was summoned; `open()`, resolving true when it was put away; `close()`, `shown()` |
 | `deck.window` | `place(view, window, { bounds, front, onClose })`, which puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
 | `deck.keymap` | `listen(webContents)`: a page of the app's own that should hear deckit's global keys |
 
 Moving the panel is a re-parent: plugins keep their pages and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, and whether Escape with nothing else to close puts it away.
 
-`setTheme` gives deckit the app's colours: `{ sidebarBg, sidebarColor, border, contentBg, contentColor, font }`. Every deckit page derives its look from it (UI.md) and is made again when it changes.
+`setTheme` gives deckit the app's colours: `{ sidebarBg, sidebarColor, border, contentBg, contentColor, font }`. Every deckit page derives its look from it (UI.md) and is made again when it changes, headless plugins' included.
 
 ## 4. The app's own plugin, and what the app offers
 

@@ -1,11 +1,10 @@
-// Between main and the views that make up the panel (a plugin's each, and the switcher's), about the panel itself.
+// Between main and the pages the panel shows, about the panel itself.
 DeckitModule.define(
     'deckit/feature/panel/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: [
             'setup',
-            'screen',
             'pick',
             'step',
             'reorder',
@@ -22,10 +21,8 @@ DeckitModule.define(
         runs: 'electron',
     },
     (IPC) => ({
-        // Answers { role: 'plugin' | 'switcher', theme, look, shown, frame, state } at once: a view is built in one pass.
+        // Answers { look, shown, frame, state } at once: the panel's frame is built in one pass.
         setup: IPC.rendererToMain('deckit:panel-setup', {}, { reply: true, sync: true }),
-        // What the sending plugin shows: whether it has a screen, and its icon for the plugins' list.
-        screen: IPC.rendererToMain('deckit:panel-screen', { content: 'boolean', icon: 'string' }),
         pick: IPC.rendererToMain('deckit:panel-pick', { id: 'string' }),
         // by: -1 back, 1 forward, through the plugins shown.
         step: IPC.rendererToMain('deckit:panel-step', { by: 'number' }),

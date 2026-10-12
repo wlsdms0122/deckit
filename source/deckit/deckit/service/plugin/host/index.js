@@ -17,7 +17,7 @@ DeckitModule.define(
             'deckit/service/plugin/host/export',
             'deckit/service/plugin/host/protocol',
         ],
-        provides: ['start', 'plugins', 'prepare', 'onChange', 'order', 'arrange'],
+        provides: ['start', 'plugins', 'prepare', 'summaryOf', 'failed', 'onChange', 'onStatus', 'order', 'arrange'],
         runs: 'main',
     },
     (
@@ -41,9 +41,11 @@ DeckitModule.define(
         let entries = [];
         const started = new Map(); // plugin id -> what it said it contributes
         const failures = new Map(); // plugin id -> the first reason recorded against it
+        const stopped = new Set(); // plugin ids that ended without starting
         // plugin id -> how many times it was installed while deckit ran: a copy of the same version is new code too
         const installs = new Map();
         const listeners = new Set();
+        const statusListeners = new Set();
 
         // MARK: - Initializer
         // MARK: - Public
@@ -63,16 +65,32 @@ DeckitModule.define(
             return arranged(entries.filter((entry) => !entry.problem));
         }
 
-        // Before a plugin's view is made: its main half up, and whoever requires it told to wait.
+        // Before a plugin's page is made: its main half up, and whoever requires it told to wait.
         function prepare(entry) {
             started.delete(entry.id);
             failures.delete(entry.id);
+            stopped.delete(entry.id);
             EXPORT.expect(entry.id);
             if (entry.hasMain) HALF.load(entry);
         }
 
+        // What a running plugin said it contributes as it started, or null before.
+        function summaryOf(pluginId) {
+            return started.get(pluginId) || null;
+        }
+
         function onChange(listener) {
             listeners.add(listener);
+        }
+
+        // Whether a plugin ended without starting.
+        function failed(pluginId) {
+            return stopped.has(pluginId);
+        }
+
+        // Told each time a plugin has started, or ended without starting.
+        function onStatus(listener) {
+            statusListeners.add(listener);
         }
 
         function order() {
@@ -108,9 +126,15 @@ DeckitModule.define(
                 SETTING.declare(plugin, settings);
                 EXPORT.provide(plugin.id, exports);
                 started.set(plugin.id, summary);
+                for (const listener of statusListeners) listener(plugin.id);
             });
             PROTOCOL.failed.on(({ why }, sender) => record(IDENTITY.pluginFrom(sender).id, why));
-            PROTOCOL.stopped.on(({ why }, sender) => EXPORT.fail(IDENTITY.pluginFrom(sender).id, why));
+            PROTOCOL.stopped.on(({ why }, sender) => {
+                const plugin = IDENTITY.pluginFrom(sender);
+                EXPORT.fail(plugin.id, why);
+                stopped.add(plugin.id);
+                for (const listener of statusListeners) listener(plugin.id);
+            });
             PROTOCOL.plugins.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
                 return describe();
@@ -282,6 +306,6 @@ DeckitModule.define(
             return [...list].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
         }
 
-        return { start, plugins, prepare, onChange, order, arrange };
+        return { start, plugins, prepare, summaryOf, failed, onChange, onStatus, order, arrange };
     }
 );

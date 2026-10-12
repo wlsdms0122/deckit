@@ -17,10 +17,10 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // The panel's frame around one plugin's parts, in its own view. `setup` is what main said as the view came up;
-        // `tell` calls a part of the plugin (didAppear, didDisappear).
-        function mount({ setup, ui, parts, tell }) {
-            const { theme } = setup;
+        // The panel's frame around one plugin's parts, in its own page. `tell` calls a part of the plugin (didAppear,
+        // didDisappear).
+        function mount({ theme, ui, parts, tell }) {
+            const setup = PROTOCOL.setup.invoke();
             const { motion: MOTION } = theme;
             let open = setup.shown;
             let look = setup.look;
