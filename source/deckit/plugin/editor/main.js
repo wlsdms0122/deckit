@@ -135,11 +135,17 @@ module.exports = ({ handle, window, files }) => {
         const root = absolute(given);
         searches.get(root)?.stop();
         if (!String(query || '')) return { files: [], total: 0, truncated: false, stoppedBy: '', warning: '' };
-        const { tops, warning } = await searchRootsOf(root, options.folders);
-        const search = searchIn(tops, query, options);
+        const search = {
+            stopped: false,
+            stop() {
+                this.stopped = true;
+            },
+        };
         searches.set(root, search);
         try {
-            const found = await search.result;
+            const { tops, warning } = await searchRootsOf(root, options.folders);
+            if (search.stopped) return { files: [], total: 0, truncated: true, stoppedBy: 'stopped', warning: '' };
+            const found = await searchIn(tops, query, options, search);
             return { ...found, warning: [warning, found.warning].filter(Boolean).join('. ') };
         } finally {
             if (searches.get(root) === search) searches.delete(root);
@@ -207,11 +213,10 @@ module.exports = ({ handle, window, files }) => {
     }
 
     // The search runs in a thread of its own (main/search.js), stopped where it is when it runs out of time or a newer
-    // one replaces it: what it found by then stands.
-    function searchIn(tops, query, options) {
+    // one replaces it (`search.stop()`): what it found by then stands.
+    function searchIn(tops, query, options, search) {
         const found = [];
         let total = 0;
-        let settle = null;
         const worker = new Worker(path.join(__dirname, 'main', 'search.js'), {
             workerData: {
                 tops,
@@ -220,7 +225,7 @@ module.exports = ({ handle, window, files }) => {
                 limits: { fileSize: SEARCHED_LIMIT, matches: MATCH_LIMIT, text: MATCH_TEXT_LIMIT },
             },
         });
-        const result = new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             const end = (stoppedBy, warning = '') => {
                 clearTimeout(timer);
                 worker.terminate();
@@ -228,7 +233,7 @@ module.exports = ({ handle, window, files }) => {
                 resolve({ files: found, total, truncated: !!stoppedBy, stoppedBy, warning });
             };
             const timer = setTimeout(() => end('time'), SEARCH_TIME_LIMIT_MS);
-            settle = end;
+            search.stop = () => end('stopped');
             worker.on('message', (message) => {
                 if (message.type === 'file') {
                     found.push({ path: message.path, matches: message.matches, mtime: message.mtime });
@@ -249,6 +254,5 @@ module.exports = ({ handle, window, files }) => {
                 reject(error);
             });
         });
-        return { result, stop: () => settle?.('') };
     }
 };

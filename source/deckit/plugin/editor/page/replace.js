@@ -41,9 +41,10 @@ function planReplace(lineOf, matches, { query, replacement, options = {} }) {
     return { edits, skipped, reason };
 }
 
-// The search's own pattern, held at a column. Word bounds were checked by the search.
-function stickyPatternOf(query, { regex = false, caseSensitive = false }) {
-    const source = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// The search's own pattern, word bounds included, held at a column.
+function stickyPatternOf(query, { regex = false, caseSensitive = false, word = false }) {
+    let source = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (word) source = `\\b(?:${source})\\b`;
     return new RegExp(source, caseSensitive ? 'uy' : 'iuy');
 }
 
