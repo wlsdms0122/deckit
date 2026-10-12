@@ -6,6 +6,7 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/window',
             'deckit/service/plugin/package/install',
+            'deckit/service/plugin/package/folder',
             'deckit/service/plugin/identity',
             'deckit/service/plugin/deck',
             'deckit/service/plugin/deck/lifecycle',
@@ -27,6 +28,7 @@ DeckitModule.define(
         LOG,
         WINDOW,
         INSTALL,
+        FOLDER,
         IDENTITY,
         DECK,
         LIFECYCLE,
@@ -139,21 +141,14 @@ DeckitModule.define(
             own.setPermissionCheckHandler(() => false);
         }
 
-        // The file of the plugin's folder a path names, where it really is: a link out of the folder and a path that
-        // is not one are not served.
+        // The file of the plugin's folder a path names: a link out of the folder and a path that is not one are not
+        // served.
         function servedFile(folder, pathname) {
-            const fs = require('fs');
-            const path = require('path');
-            let real;
             try {
-                const root = fs.realpathSync(folder);
-                real = fs.realpathSync(path.resolve(root, '.' + decodeURIComponent(pathname)));
-                const inside = path.relative(root, real);
-                if (!inside || inside.split(path.sep)[0] === '..' || path.isAbsolute(inside)) return null;
+                return FOLDER.fileIn(folder, '.' + decodeURIComponent(pathname))?.file || null;
             } catch {
                 return null;
             }
-            return real;
         }
 
         // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so the glass under it shows.

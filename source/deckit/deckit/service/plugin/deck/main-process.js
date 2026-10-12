@@ -7,13 +7,14 @@ DeckitModule.define(
             'deckit/service/window',
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
+            'deckit/service/plugin/package/folder',
             'deckit/service/plugin/package/model/permission',
             'deckit/service/plugin/deck/protocol',
         ],
         provides: ['start', 'prepare', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',
     },
-    (FILE, STORAGE, WINDOW, LOG, IDENTITY, PERMISSION, PROTOCOL) => {
+    (FILE, STORAGE, WINDOW, LOG, IDENTITY, FOLDER, PERMISSION, PROTOCOL) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -22,7 +23,7 @@ DeckitModule.define(
         const modules = new Map();
         // plugin id -> { folder, files, hash }: the files its modules required, as they were when they were.
         const loaded = new Map();
-        const failures = new Map(); // plugin id -> why its last module did not start
+        const failures = new Map(); // plugin id -> Map of module path -> why it did not start
         // What only a restart can finish: a module once required stays in the process.
         const pending = new Map(); // plugin id -> 'updated' | 'removed' | 'reinstalled'
 
@@ -55,7 +56,8 @@ DeckitModule.define(
         }
 
         function failure(pluginId) {
-            return failures.get(pluginId) || null;
+            const failed = [...(failures.get(pluginId)?.values() || [])];
+            return failed.length ? failed.join('; ') : null;
         }
 
         function restartPending() {
@@ -83,23 +85,25 @@ DeckitModule.define(
         }
 
         async function make(plugin, file, relative) {
-            const before = new Set(Object.keys(require.cache));
             try {
                 const factory = require(file);
                 if (typeof factory !== 'function')
-                    throw new Error(`${relative} exports no function; a main process module is (deck) => ({ methods })`);
+                    throw new Error(
+                        `${relative} exports no function; a main process module is (deck) => ({ methods })`
+                    );
                 const made = await factory(deckOf(plugin, relative));
                 const methods = methodsOf(made, relative);
                 remember(plugin);
-                failures.delete(plugin.id);
+                failures.get(plugin.id)?.delete(relative);
                 const paths = [...methods.keys()].map((key) => JSON.parse(key));
                 LOG.info(`${plugin.id} ${relative}: ${paths.map((path) => path.join('.')).join(', ') || 'no methods'}`);
                 return { methods, paths };
             } catch (error) {
-                // A module that threw stays cached, so a fixed version installed later would load the broken one.
                 LOG.error(`${plugin.id} ${relative} failed to start`, error);
-                failures.set(plugin.id, `${relative}: ${error.message || error}`);
-                for (const key of Object.keys(require.cache)) if (!before.has(key)) delete require.cache[key];
+                const why = String(error.message || error);
+                if (!failures.has(plugin.id)) failures.set(plugin.id, new Map());
+                failures.get(plugin.id).set(relative, why.startsWith(relative) ? why : `${relative}: ${why}`);
+                forget(plugin);
                 throw error;
             }
         }
@@ -140,8 +144,11 @@ DeckitModule.define(
         // plugin hears what the module emits.
         function methodsOf(made, relative) {
             if (!made || typeof made !== 'object')
-                throw new Error(`${relative} gave no object of methods; a main process module is (deck) => ({ methods })`);
-            if (Object.hasOwn(made, 'on')) throw new Error(`${relative} has a method "on", which is how its events are heard`);
+                throw new Error(
+                    `${relative} gave no object of methods; a main process module is (deck) => ({ methods })`
+                );
+            if (Object.hasOwn(made, 'on'))
+                throw new Error(`${relative} has a method "on", which is how its events are heard`);
             const methods = new Map();
             const walk = (value, trail) => {
                 if (typeof value === 'function') return methods.set(JSON.stringify(trail), value);
@@ -152,19 +159,19 @@ DeckitModule.define(
             return methods;
         }
 
-        // A file of the plugin's folder, where it really is, by its path from the folder.
         function locate(folder, given) {
-            const root = fs.realpathSync(folder);
-            let file;
-            try {
-                file = fs.realpathSync(path.resolve(root, String(given)));
-            } catch {
-                throw new Error(`no file ${given} in the plugin's folder`);
-            }
-            const inside = path.relative(root, file);
-            if (!inside || inside.startsWith('..') || path.isAbsolute(inside))
-                throw new Error(`${given} is not a file in the plugin's folder`);
-            return { file, relative: inside.split(path.sep).join('/') };
+            const found = FOLDER.fileIn(folder, String(given));
+            if (!found) throw new Error(`${given} is no file in the plugin's folder`);
+            return found;
+        }
+
+        // A module that threw stays cached, so a fixed version installed later would load the broken one. What the
+        // plugin's folder put in the cache goes, but for the files its running modules hold.
+        function forget(plugin) {
+            const root = fs.realpathSync(plugin.folder) + path.sep;
+            const held = new Set(loaded.get(plugin.id)?.files || []);
+            for (const key of Object.keys(require.cache))
+                if (key.startsWith(root) && !held.has(key.slice(root.length))) delete require.cache[key];
         }
 
         // Every file of the folder the process has required for this plugin.

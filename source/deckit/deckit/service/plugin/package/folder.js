@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/plugin/package/folder',
     {
         uses: ['deckit/service/plugin/package/manifest'],
-        provides: ['idOf', 'loadable', 'entryOf'],
+        provides: ['idOf', 'loadable', 'entryOf', 'fileIn'],
         runs: 'node',
     },
     (MANIFEST) => {
@@ -12,9 +12,9 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // The id a plugin folder's manifest gives, whatever the folder is called, or '' when it gives none.
+        // Who the plugin in a folder is: the id its manifest gives, or the folder's name when it gives none.
         function idOf(folder) {
-            return MANIFEST.read(textOf(folder) ?? '', '').manifest.id;
+            return loadable(folder).manifest.id;
         }
 
         // Whether a folder is a plugin deckit loads: { manifest, problem }, the manifest given back with a problem too.
@@ -31,14 +31,22 @@ DeckitModule.define(
             return { manifest, problem: '' };
         }
 
-        // Where the entry a manifest names really is, or null when that is not a file inside the folder.
+        // Where the entry a manifest names really is, or null when that is no file inside the folder.
         function entryOf(folder, manifest) {
+            return fileIn(folder, manifest.main)?.file || null;
+        }
+
+        // The file a path names inside a plugin's folder, where it really is: { file, relative }, `relative` its "/"
+        // separated path from the folder. Null for a path that is no file, or that leads out of the folder, by a link
+        // too.
+        function fileIn(folder, given) {
             try {
                 const root = fs.realpathSync(folder);
-                const file = fs.realpathSync(path.resolve(root, manifest.main));
+                const file = fs.realpathSync(path.resolve(root, String(given)));
                 const inside = path.relative(root, file);
-                if (!inside || inside.startsWith('..') || path.isAbsolute(inside)) return null;
-                return fs.statSync(file).isFile() ? file : null;
+                if (!inside || inside.split(path.sep)[0] === '..' || path.isAbsolute(inside)) return null;
+                if (!fs.statSync(file).isFile()) return null;
+                return { file, relative: inside.split(path.sep).join('/') };
             } catch {
                 return null;
             }
@@ -50,6 +58,6 @@ DeckitModule.define(
             return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
         }
 
-        return { idOf, loadable, entryOf };
+        return { idOf, loadable, entryOf, fileIn };
     }
 );

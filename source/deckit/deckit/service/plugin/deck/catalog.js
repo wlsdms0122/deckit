@@ -25,8 +25,7 @@ DeckitModule.define(
         function list() {
             const shipped = INSTALL.shipped() || new Set();
             const entries = [];
-            for (const [id, { folder, installed }] of found()) {
-                const { manifest, problem } = FOLDER.loadable(folder);
+            for (const [id, { folder, installed, manifest, problem }] of found()) {
                 entries.push({ ...manifest, folder, installed, shipped: installed && shipped.has(id), problem });
             }
             return withRequirements(entries);
@@ -34,23 +33,25 @@ DeckitModule.define(
 
         // The text of the plugin's entry, the one file deckit runs in its sandbox.
         function sourceOf(entry) {
-            return fs.readFileSync(FOLDER.entryOf(entry.folder, entry), 'utf8');
+            const file = FOLDER.entryOf(entry.folder, entry);
+            if (!file) throw new Error(`main = "${entry.main}" names no file in the plugin's folder`);
+            return fs.readFileSync(file, 'utf8');
         }
 
         // MARK: - Private
-        // By the id each manifest gives. A folder with no manifest is not a broken plugin but no plugin.
+        // By plugin id, as each folder is read. A folder with no manifest is not a broken plugin but no plugin.
         function found() {
             const out = new Map();
             for (const root of [...CONFIG.sources, HOME.plugins]) {
                 for (const name of INSTALL.folders(root)) {
                     const folder = path.join(root, name);
                     if (!fs.existsSync(path.join(folder, MANIFEST.FILE))) continue;
-                    const id = FOLDER.idOf(folder) || name;
-                    if (out.has(id)) {
-                        LOG.warn(`${folder} is hidden by ${out.get(id).folder}`);
+                    const { manifest, problem } = FOLDER.loadable(folder);
+                    if (out.has(manifest.id)) {
+                        LOG.warn(`${folder} is hidden by ${out.get(manifest.id).folder}`);
                         continue;
                     }
-                    out.set(id, { folder, installed: root === HOME.plugins });
+                    out.set(manifest.id, { folder, installed: root === HOME.plugins, manifest, problem });
                 }
             }
             return new Map([...out].sort(([a], [b]) => a.localeCompare(b)));

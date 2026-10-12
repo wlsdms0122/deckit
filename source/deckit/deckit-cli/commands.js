@@ -47,11 +47,11 @@ DeckitModule.define(
                 about: 'plugin folders, held to what the app loads, installed',
                 run: ({ operands }) => {
                     const found = operands.map((folder) => {
-                        const { manifest, problem } = FOLDER.loadable(folder);
-                        if (problem) throw new Error(`${folder}: ${problem}`);
-                        const copy = INSTALL.copyProblem(folder);
-                        if (copy) throw new Error(`${folder}: ${copy}`);
-                        return { folder, manifest };
+                        try {
+                            return { folder, manifest: INSTALL.installable(folder) };
+                        } catch (error) {
+                            throw new Error(`${folder}: ${error.message}`);
+                        }
                     });
                     for (const { folder, manifest } of found) {
                         INSTALL.install(folder);
@@ -86,7 +86,10 @@ DeckitModule.define(
                 operands: '<id>',
                 least: 1,
                 most: 1,
-                options: { in: ['<folder>', 'where it is started (required)'], 'main-process': 'with a main process module' },
+                options: {
+                    in: ['<folder>', 'where it is started (required)'],
+                    'main-process': 'with a main process module',
+                },
                 about: 'a plugin started in <folder>/<id>: its manifest and an entry that runs',
                 run: ({ operands: [id], options }) => start(id, options),
             },

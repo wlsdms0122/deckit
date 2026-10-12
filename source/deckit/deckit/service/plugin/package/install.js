@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/plugin/package/install',
     {
         uses: ['deckit/config', 'deckit/service/home', 'deckit/service/plugin/package/folder'],
-        provides: ['folders', 'copyProblem', 'install', 'shipped', 'installShipped'],
+        provides: ['folders', 'installable', 'install', 'shipped', 'installShipped'],
         runs: 'node',
     },
     (CONFIG, HOME, FOLDER) => {
@@ -22,20 +22,26 @@ DeckitModule.define(
                 .sort();
         }
 
-        // Either holding the other would copy into the source, or removing the old one would take the source.
-        function copyProblem(from) {
-            const to = path.join(HOME.plugins, FOLDER.idOf(from));
-            if (path.resolve(from) === path.resolve(to)) return 'that folder is already the installed one';
-            if (inside(to, from) || inside(from, to)) return 'that folder is inside the installed one, or holds it';
-            return '';
+        // The manifest of a folder that can be installed, or a throw that says why not: a plugin deckit would not
+        // load, or a folder that holds the installed copy or is held by it (copying would take the source with it).
+        // `refuse(manifest)` adds the caller's own reason, or ''.
+        function installable(from, refuse = () => '') {
+            const { manifest, problem } = FOLDER.loadable(from);
+            if (problem) throw new Error(problem);
+            const to = path.join(HOME.plugins, manifest.id);
+            if (path.resolve(from) === path.resolve(to)) throw new Error('that folder is already the installed one');
+            if (inside(to, from) || inside(from, to))
+                throw new Error('that folder is inside the installed one, or holds it');
+            const refused = refuse(manifest);
+            if (refused) throw new Error(refused);
+            return manifest;
         }
 
-        // The folder is replaced outright, so a file the new version dropped is not left to load. Only a whole
-        // staged copy takes the old one's place.
-        function install(from) {
-            const problem = copyProblem(from);
-            if (problem) throw new Error(problem);
-            const id = FOLDER.idOf(from);
+        // Installed as plugins/<id>, replaced outright, so a file the new version dropped is not left to load. Only a
+        // whole staged copy takes the old one's place. Answers the manifest.
+        function install(from, refuse) {
+            const manifest = installable(from, refuse);
+            const id = manifest.id;
             const staged = path.join(HOME.staging, id);
             fs.rmSync(staged, { recursive: true, force: true });
             fs.mkdirSync(HOME.staging, { recursive: true });
@@ -44,7 +50,7 @@ DeckitModule.define(
             fs.rmSync(path.join(HOME.plugins, id), { recursive: true, force: true });
             fs.renameSync(staged, path.join(HOME.plugins, id));
             fs.rmSync(HOME.staging, { recursive: true, force: true });
-            return id;
+            return manifest;
         }
 
         // The ids the app shipped at the last install of what it ships, or null before the first.
@@ -81,9 +87,12 @@ DeckitModule.define(
                 }
             }
             for (const id of take) {
-                const { manifest, problem } = FOLDER.loadable(byId.get(id));
-                if (problem) throw new Error(`${byId.get(id)}: ${problem}`);
-                install(byId.get(id));
+                let manifest;
+                try {
+                    manifest = install(byId.get(id));
+                } catch (error) {
+                    throw new Error(`${byId.get(id)}: ${error.message}`);
+                }
                 outcomes.push({ id, outcome: 'installed', version: manifest.version });
             }
 
@@ -106,6 +115,6 @@ DeckitModule.define(
             return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
         }
 
-        return { folders, copyProblem, install, shipped, installShipped };
+        return { folders, installable, install, shipped, installShipped };
     }
 );

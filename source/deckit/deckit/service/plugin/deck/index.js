@@ -87,8 +87,9 @@ DeckitModule.define(
             MAIN_PROCESS.prepare(entry);
         }
 
-        // Before the same plugin's page runs again (a new theme): what it contributes stands until the new run says
-        // it again, and its main process modules keep running.
+        // Before the same plugin's page runs again (a new theme): whoever requires it waits for the new run, what it
+        // said it contributes and its settings stand until the new run says them again, and its main process modules
+        // keep running.
         function rerun(pluginId) {
             runs.set(pluginId, (runs.get(pluginId) || 0) + 1);
             failures.delete(pluginId);
@@ -179,7 +180,7 @@ DeckitModule.define(
             PROTOCOL.reveal.handle(({ id }, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
                 const entry = entries.find((candidate) => candidate.id === id);
-                if (!entry) throw new Error('no plugin folder named ' + id);
+                if (!entry) throw new Error('no plugin ' + id);
                 return require('electron').shell.openPath(entry.folder);
             });
             PROTOCOL.count.handle(({ id }, sender) => {
@@ -249,7 +250,7 @@ DeckitModule.define(
             });
             if (result.canceled || !result.filePaths[0]) return null;
             const from = result.filePaths[0];
-            const manifest = installable(from);
+            const manifest = INSTALL.installable(from, shadowed);
             return {
                 ...publicOf({ ...manifest, requires: manifest.requires }),
                 from,
@@ -259,23 +260,20 @@ DeckitModule.define(
 
         // Any folder, since a plugin may already run code in this process: restricting where it comes from guards nothing.
         function install(from) {
-            const manifest = installable(from);
-            INSTALL.install(from);
+            const manifest = INSTALL.install(from, shadowed);
             installs.set(manifest.id, (installs.get(manifest.id) || 0) + 1);
             MAIN_PROCESS.restartFor(manifest.id);
             refresh();
-            return { ...publicOf(manifest), restart: MAIN_PROCESS.restartPending().some(({ id }) => id === manifest.id) };
+            return {
+                ...publicOf(manifest),
+                restart: MAIN_PROCESS.restartPending().some(({ id }) => id === manifest.id),
+            };
         }
 
-        function installable(from) {
-            const { manifest, problem } = FOLDER.loadable(from);
-            if (problem) throw new Error(problem);
+        // A source folder of the same id would hide the installed copy.
+        function shadowed(manifest) {
             const source = entries.find((entry) => entry.id === manifest.id && !entry.installed);
-            if (source)
-                throw new Error(`${manifest.id} is read from ${source.folder}, which would hide the installed copy`);
-            const copy = INSTALL.copyProblem(from);
-            if (copy) throw new Error(copy);
-            return manifest;
+            return source ? `${manifest.id} is read from ${source.folder}, which would hide the installed copy` : '';
         }
 
         // Its view closes before its pages' storage is cleared, so the page cannot write it back.
