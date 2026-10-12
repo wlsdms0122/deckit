@@ -1,4 +1,4 @@
-// Between a plugin's view and main. Main knows which plugin a message is from by the view it came from.
+// Between a plugin's page and main. Main knows which plugin a message is from by the view it came from.
 DeckitModule.define(
     'deckit/service/plugin/deck/protocol',
     {
@@ -11,8 +11,9 @@ DeckitModule.define(
             'requirements',
             'callExport',
             'exportCalled',
-            'callMain',
-            'mainEvent',
+            'startMainProcess',
+            'callMainProcess',
+            'mainProcessEvent',
             'readRecord',
             'writeRecord',
             'removeRecord',
@@ -35,7 +36,7 @@ DeckitModule.define(
         runs: 'electron',
     },
     (IPC) => ({
-        // What the view runs: the plugin's manifest, its view source, its main half's state, its settings.
+        // What the page runs: the plugin's manifest, its entry's source, its settings.
         load: IPC.rendererToMain('deckit:plugin-load', {}, { reply: true, sync: true }),
         // Made, with what it contributes. `settings`: its declarations, without functions. `exports`: values copied,
         // and the paths of its functions.
@@ -56,8 +57,16 @@ DeckitModule.define(
             { reply: true }
         ),
         exportCalled: IPC.mainToRenderer('deckit:plugin-export-called', { reply: true }),
-        callMain: IPC.rendererToMain('deckit:plugin-call-main', { op: 'string', args: 'array' }, { reply: true }),
-        mainEvent: IPC.mainToRenderer('deckit:plugin-main-event'),
+        // A main process module of the plugin's, by its path in the plugin's folder: started once, answering
+        // { path, methods }, the paths of its functions.
+        startMainProcess: IPC.rendererToMain('deckit:main-process-start', { path: 'string' }, { reply: true }),
+        callMainProcess: IPC.rendererToMain(
+            'deckit:main-process-call',
+            { path: 'string', method: 'array', args: 'array' },
+            { reply: true }
+        ),
+        // What a module emits: { path, name, args }.
+        mainProcessEvent: IPC.mainToRenderer('deckit:main-process-event'),
 
         readRecord: IPC.rendererToMain('deckit:record-read', { key: 'string' }, { reply: true, sync: true }),
         writeRecord: IPC.rendererToMain('deckit:record-write', { key: 'string', value: 'any' }, { reply: true }),

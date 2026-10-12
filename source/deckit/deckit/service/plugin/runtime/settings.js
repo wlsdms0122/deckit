@@ -13,7 +13,7 @@ DeckitModule.define(
         // MARK: - Public
         // A plugin's settings as it reads them: what was saved, over what it declared by default. Changed by main,
         // which checks and keeps them, and tells this view, so a change made in Settings arrives here as on().
-        function of({ declared, saved, context, deliver, fail }) {
+        function of({ declared, saved, deck, deliver, fail }) {
             const values = { ...saved };
             const listeners = new Set();
             PROTOCOL.settingChanged.on(({ key, value }) => {
@@ -23,10 +23,10 @@ DeckitModule.define(
             // Options worked out when Settings draws them, and actions Settings runs, are asked of this view.
             PROTOCOL.settingOptions.handle(({ key }) => {
                 const options = declared[key]?.options;
-                return typeof options === 'function' ? options(context()) : options || [];
+                return typeof options === 'function' ? options(deck()) : options || [];
             });
             PROTOCOL.runSetting.handle(async ({ key }) => {
-                const said = await declared[key]?.run?.(context());
+                const said = await declared[key]?.run?.(deck());
                 return said == null ? '' : String(said);
             });
             return {

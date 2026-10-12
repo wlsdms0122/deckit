@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/plugin/deck/half',
+    'deckit/service/plugin/deck/main-process',
     {
         uses: [
             'deckit/module/file',
@@ -7,79 +7,51 @@ DeckitModule.define(
             'deckit/service/window',
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
+            'deckit/service/plugin/package/model/permission',
             'deckit/service/plugin/deck/protocol',
         ],
-        provides: ['start', 'load', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
+        provides: ['start', 'prepare', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',
     },
-    (FILE, STORAGE, WINDOW, LOG, IDENTITY, PROTOCOL) => {
+    (FILE, STORAGE, WINDOW, LOG, IDENTITY, PERMISSION, PROTOCOL) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
         const crypto = require('crypto');
-        const halves = new Map(); // plugin id -> { ops, hash, folder }
-        const failures = new Map(); // plugin id -> why its main half did not load
-        // What only a restart can finish: a main half once required stays in the process.
+        // `${plugin id}\0${path}` -> promise of { methods, paths }: a module started once, by the first who asks.
+        const modules = new Map();
+        // plugin id -> { folder, files, hash }: the files its modules required, as they were when they were.
+        const loaded = new Map();
+        const failures = new Map(); // plugin id -> why its last module did not start
+        // What only a restart can finish: a module once required stays in the process.
         const pending = new Map(); // plugin id -> 'updated' | 'removed' | 'reinstalled'
 
         // MARK: - Initializer
         // MARK: - Public
         function start() {
-            PROTOCOL.callMain.handle(({ op, args }, sender) => call(IDENTITY.pluginFrom(sender), op, args));
+            PROTOCOL.startMainProcess.handle(({ path: given }, sender) =>
+                load(IDENTITY.pluginFrom(sender, PERMISSION.MAIN_PROCESS), given)
+            );
+            PROTOCOL.callMainProcess.handle(({ path: given, method, args }, sender) =>
+                call(IDENTITY.pluginFrom(sender, PERMISSION.MAIN_PROCESS), given, method, args)
+            );
         }
 
-        // Loaded once and kept: a main half holds state (a token, a watcher), and loading it twice makes two of
-        // everything. An id whose code changed underneath it waits for a restart.
-        function load(entry) {
-            const running = halves.get(entry.id);
-            if (running) {
-                if (running.folder !== entry.folder || hashOf(entry.folder) !== running.hash)
-                    pending.set(entry.id, 'updated');
-                return;
-            }
-            const ops = new Map();
-            const handle = (name, operation) => ops.set(String(name), operation);
-            const send = (name, ...args) => {
-                const view = IDENTITY.pageOf(entry.id);
-                if (view) PROTOCOL.mainEvent.send(view, { name: String(name), args });
-            };
-            // The id is part of the key, so two plugins asking for "log" get two windows and neither closes the other's.
-            const window = {
-                open: (options = {}) => WINDOW.open({ ...options, key: `${entry.id}:${options.key || 'main'}` }),
-                get: (key) => WINDOW.get(`${entry.id}:${key || 'main'}`),
-                close: (key) => WINDOW.close(`${entry.id}:${key || 'main'}`),
-                ofPage: () => {
-                    const page = IDENTITY.pageOf(entry.id);
-                    return page ? WINDOW.windowShowing(page) : null;
-                },
-            };
-            try {
-                require(path.join(entry.folder, 'main.js'))({
-                    id: entry.id,
-                    folder: STORAGE.folderOf(entry.id),
-                    handle,
-                    send,
-                    window,
-                    files: FILE,
-                });
-                halves.set(entry.id, { ops, hash: hashOf(entry.folder), folder: entry.folder });
-                failures.delete(entry.id);
-                LOG.info(`${entry.id} main half: ${[...ops.keys()].join(', ') || 'no ops'}`);
-            } catch (error) {
-                // The view still loads, and Settings says what is missing.
-                LOG.error(`${entry.id} main half failed to load`, error);
-                failures.set(entry.id, String(error.message || error));
-                forgetModule(entry.folder);
-            }
+        // Before a plugin runs again: modules it started from code that has changed since keep running the old code
+        // until a restart.
+        function prepare(entry) {
+            const before = loaded.get(entry.id);
+            if (before && (before.folder !== entry.folder || hashOf(entry.folder, before.files) !== before.hash))
+                pending.set(entry.id, 'updated');
         }
 
-        // A plugin taken away: whatever its main half started keeps going until the process ends.
+        // A plugin taken away: whatever its modules started keeps going until the process ends.
         function unload(pluginId) {
-            if (halves.has(pluginId)) pending.set(pluginId, 'removed');
+            if (loaded.has(pluginId)) pending.set(pluginId, 'removed');
         }
 
         function running(pluginId) {
-            return halves.has(pluginId);
+            return loaded.has(pluginId);
         }
 
         function failure(pluginId) {
@@ -96,39 +68,123 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        async function call(plugin, op, args) {
-            const half = halves.get(plugin.id);
-            if (!half) throw new Error(`${plugin.id} has no main half running`);
-            const operation = half.ops.get(op);
-            if (!operation) throw new Error(`${plugin.id} has no op ${op}`);
-            return operation(...args);
+        // One instance for each plugin and file while the app runs: a module holds state (a token, a watcher), and
+        // starting it twice makes two of everything. Answers { path, methods }, the paths of its functions.
+        async function load(plugin, given) {
+            const { file, relative } = locate(plugin.folder, given);
+            const key = `${plugin.id}\0${relative}`;
+            if (!modules.has(key)) {
+                const made = make(plugin, file, relative);
+                modules.set(key, made);
+                made.catch(() => modules.get(key) === made && modules.delete(key));
+            }
+            const { paths } = await modules.get(key);
+            return { path: relative, methods: paths };
         }
 
-        function hashOf(folder) {
-            const hash = crypto.createHash('sha256').update(fs.readFileSync(path.join(folder, 'main.js')));
-            const parts = path.join(folder, 'main');
-            for (const file of scriptsIn(parts))
-                hash.update('\0' + file + '\0').update(fs.readFileSync(path.join(parts, file)));
-            return hash.digest('hex');
-        }
-
-        function scriptsIn(folder) {
-            if (!fs.existsSync(folder)) return [];
-            return fs
-                .readdirSync(folder, { recursive: true })
-                .filter((file) => file.endsWith('.js'))
-                .sort();
-        }
-
-        // A module that threw stays cached, so a fixed version installed later would load the broken one. Keyed by
-        // the real path, which differs when the plugins folder sits behind a link.
-        function forgetModule(folder) {
-            const real = fs.realpathSync(folder);
-            for (const key of Object.keys(require.cache)) {
-                if (key.startsWith(folder + path.sep) || key.startsWith(real + path.sep)) delete require.cache[key];
+        async function make(plugin, file, relative) {
+            const before = new Set(Object.keys(require.cache));
+            try {
+                const factory = require(file);
+                if (typeof factory !== 'function')
+                    throw new Error(`${relative} exports no function; a main process module is (deck) => ({ methods })`);
+                const made = await factory(deckOf(plugin, relative));
+                const methods = methodsOf(made, relative);
+                remember(plugin);
+                failures.delete(plugin.id);
+                LOG.info(`${plugin.id} ${relative}: ${[...methods.keys()].join(', ') || 'no methods'}`);
+                return { methods, paths: [...methods.keys()].map((key) => JSON.parse(key)) };
+            } catch (error) {
+                // A module that threw stays cached, so a fixed version installed later would load the broken one.
+                LOG.error(`${plugin.id} ${relative} failed to start`, error);
+                failures.set(plugin.id, `${relative}: ${error.message || error}`);
+                for (const key of Object.keys(require.cache)) if (!before.has(key)) delete require.cache[key];
+                throw error;
             }
         }
 
-        return { start, load, unload, running, failure, restartPending, restartFor };
+        async function call(plugin, given, method, args) {
+            const key = `${plugin.id}\0${path.posix.normalize(String(given))}`;
+            if (!modules.has(key)) throw new Error(`${given} is not started; deck.mainProcess() starts it`);
+            const { methods } = await modules.get(key);
+            const found = methods.get(JSON.stringify(method));
+            if (!found) throw new Error(`${given} has no method ${method.join('.')}`);
+            return found(...args);
+        }
+
+        // What a module is handed. The id is part of a window's key, so two plugins asking for "log" get two windows
+        // and neither closes the other's.
+        function deckOf(plugin, relative) {
+            return Object.freeze({
+                id: plugin.id,
+                folder: STORAGE.folderOf(plugin.id),
+                emit(name, ...args) {
+                    const page = IDENTITY.pageOf(plugin.id);
+                    if (page) PROTOCOL.mainProcessEvent.send(page, { path: relative, name: String(name), args });
+                },
+                window: Object.freeze({
+                    open: (options = {}) => WINDOW.open({ ...options, key: `${plugin.id}:${options.key || 'main'}` }),
+                    get: (key) => WINDOW.get(`${plugin.id}:${key || 'main'}`),
+                    close: (key) => WINDOW.close(`${plugin.id}:${key || 'main'}`),
+                    ofPage: () => {
+                        const page = IDENTITY.pageOf(plugin.id);
+                        return page ? WINDOW.windowShowing(page) : null;
+                    },
+                }),
+                files: FILE,
+            });
+        }
+
+        // Its functions by path, nested objects walked, as a plugin's exports are. `on` is the proxy's own: how the
+        // plugin hears what the module emits.
+        function methodsOf(made, relative) {
+            if (!made || typeof made !== 'object')
+                throw new Error(`${relative} gave no object of methods; a main process module is (deck) => ({ methods })`);
+            if (Object.hasOwn(made, 'on')) throw new Error(`${relative} has a method "on", which is how its events are heard`);
+            const methods = new Map();
+            const walk = (value, trail) => {
+                if (typeof value === 'function') return methods.set(JSON.stringify(trail), value);
+                if (value && typeof value === 'object')
+                    for (const [key, inner] of Object.entries(value)) walk(inner, [...trail, key]);
+            };
+            walk(made, []);
+            return methods;
+        }
+
+        // A file of the plugin's folder, where it really is, by its path from the folder.
+        function locate(folder, given) {
+            const root = fs.realpathSync(folder);
+            let file;
+            try {
+                file = fs.realpathSync(path.resolve(root, String(given)));
+            } catch {
+                throw new Error(`no file ${given} in the plugin's folder`);
+            }
+            const inside = path.relative(root, file);
+            if (!inside || inside.startsWith('..') || path.isAbsolute(inside))
+                throw new Error(`${given} is not a file in the plugin's folder`);
+            return { file, relative: inside.split(path.sep).join('/') };
+        }
+
+        // Every file of the folder the process has required for this plugin.
+        function remember(plugin) {
+            const root = fs.realpathSync(plugin.folder) + path.sep;
+            const files = Object.keys(require.cache)
+                .filter((key) => key.startsWith(root))
+                .map((key) => key.slice(root.length))
+                .sort();
+            loaded.set(plugin.id, { folder: plugin.folder, files, hash: hashOf(plugin.folder, files) });
+        }
+
+        function hashOf(folder, files) {
+            const hash = crypto.createHash('sha256');
+            for (const file of files) {
+                const full = path.join(folder, file);
+                hash.update('\0' + file + '\0').update(fs.existsSync(full) ? fs.readFileSync(full) : '');
+            }
+            return hash.digest('hex');
+        }
+
+        return { start, prepare, unload, running, failure, restartPending, restartFor };
     }
 );

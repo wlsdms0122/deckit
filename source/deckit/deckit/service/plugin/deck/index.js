@@ -11,7 +11,7 @@ DeckitModule.define(
             'deckit/service/plugin/package/install',
             'deckit/service/plugin/package/remove',
             'deckit/service/plugin/deck/catalog',
-            'deckit/service/plugin/deck/half',
+            'deckit/service/plugin/deck/main-process',
             'deckit/service/plugin/deck/record',
             'deckit/service/plugin/deck/setting',
             'deckit/service/plugin/deck/export',
@@ -42,7 +42,7 @@ DeckitModule.define(
         INSTALL,
         REMOVE,
         CATALOG,
-        HALF,
+        MAIN_PROCESS,
         RECORD,
         SETTING,
         EXPORT,
@@ -51,6 +51,7 @@ DeckitModule.define(
         // MARK: - Property
         const ORDER = 'plugin-order';
         let entries = [];
+        let shipped = []; // the ids of what the app ships, in its order
         const started = new Map(); // plugin id -> what it said it contributes
         const failures = new Map(); // plugin id -> the first reason recorded against it
         const stopped = new Set(); // plugin ids that ended without starting
@@ -64,10 +65,11 @@ DeckitModule.define(
         // MARK: - Public
         function start() {
             forgetRemoved();
-            HALF.start();
+            MAIN_PROCESS.start();
             RECORD.start();
             SETTING.start();
             EXPORT.start();
+            shipped = CONFIG.ship.map((folder) => FOLDER.idOf(folder));
             entries = catalog();
             for (const entry of entries) if (entry.problem) LOG.warn(`plugin ${entry.id} not loaded: ${entry.problem}`);
             listen();
@@ -78,15 +80,15 @@ DeckitModule.define(
             return arranged(entries.filter((entry) => !entry.problem));
         }
 
-        // Before a plugin's page is made: its main half up, and whoever requires it told to wait.
+        // Before a plugin's page is made: whoever requires it told to wait.
         function prepare(entry) {
             started.delete(entry.id);
             rerun(entry.id);
-            if (entry.hasMain) HALF.load(entry);
+            MAIN_PROCESS.prepare(entry);
         }
 
         // Before the same plugin's page runs again (a new theme): what it contributes stands until the new run says
-        // it again, and its main half keeps running.
+        // it again, and its main process modules keep running.
         function rerun(pluginId) {
             runs.set(pluginId, (runs.get(pluginId) || 0) + 1);
             failures.delete(pluginId);
@@ -186,7 +188,7 @@ DeckitModule.define(
             });
             PROTOCOL.restartPending.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
-                return HALF.restartPending();
+                return MAIN_PROCESS.restartPending();
             });
         }
 
@@ -195,7 +197,6 @@ DeckitModule.define(
             return {
                 manifest: publicOf(entry),
                 source: CATALOG.sourceOf(entry),
-                main: { running: HALF.running(entry.id), failure: HALF.failure(entry.id) },
                 settings: STORAGE.settings.read(entry.id),
             };
         }
@@ -214,7 +215,7 @@ DeckitModule.define(
                     installed: entry.installed,
                     shipped: entry.shipped,
                     problem: entry.problem || failures.get(entry.id) || null,
-                    main: { running: HALF.running(entry.id), failure: HALF.failure(entry.id) },
+                    mainProcess: { running: MAIN_PROCESS.running(entry.id), failure: MAIN_PROCESS.failure(entry.id) },
                     requirements: entry.requirements.map((requirement) => ({
                         ...requirement,
                         ok: requirement.ok && started.has(requirement.id),
@@ -232,8 +233,8 @@ DeckitModule.define(
         }
 
         function publicOf(entry) {
-            const { id, name, version, api, requires, permissions, urlSchemes } = entry;
-            return { id, name, version, api, requires, permissions, urlSchemes };
+            const { id, name, version, api, main, requires, permissions, urlSchemes } = entry;
+            return { id, name, version, api, main, requires, permissions, urlSchemes };
         }
 
         // Picking and installing are two calls because the person is asked in between. A refused folder is refused
@@ -256,14 +257,14 @@ DeckitModule.define(
             };
         }
 
-        // Any folder, since a plugin already runs main.js in this process: restricting where it comes from guards nothing.
+        // Any folder, since a plugin may already run code in this process: restricting where it comes from guards nothing.
         function install(from) {
             const manifest = installable(from);
             INSTALL.install(from);
             installs.set(manifest.id, (installs.get(manifest.id) || 0) + 1);
-            HALF.restartFor(manifest.id);
+            MAIN_PROCESS.restartFor(manifest.id);
             refresh();
-            return { ...publicOf(manifest), restart: HALF.restartPending().some(({ id }) => id === manifest.id) };
+            return { ...publicOf(manifest), restart: MAIN_PROCESS.restartPending().some(({ id }) => id === manifest.id) };
         }
 
         function installable(from) {
@@ -283,7 +284,7 @@ DeckitModule.define(
             if (entry && !entry.installed)
                 throw new Error(`${id} is read from ${entry.folder}, not installed, so it is removed there`);
             const removed = REMOVE.remove(id, { data });
-            HALF.unload(id);
+            MAIN_PROCESS.unload(id);
             SETTING.forget(id);
             refresh();
             if (removed.data) await forget(id);
@@ -320,7 +321,6 @@ DeckitModule.define(
         // and one the app does not ship goes last, by id.
         function arranged(list) {
             const placed = order();
-            const shipped = CONFIG.ship.map((folder) => FOLDER.idOf(folder));
             const rank = (id) => {
                 if (placed.includes(id)) return placed.indexOf(id);
                 if (shipped.includes(id)) return placed.length + shipped.indexOf(id);

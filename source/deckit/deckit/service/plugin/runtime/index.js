@@ -36,30 +36,19 @@ DeckitModule.define(
         STORAGE,
         SETTINGS,
         PROTOCOL,
-        APP
+        HOST
     ) => {
         // MARK: - Property
-        const DEFINITION = new Set(['icon', 'keywords', 'settings', 'make']);
-        const PARTS = new Set([
-            'content',
-            'sidebar',
-            'commands',
-            'now',
-            'resolve',
-            'open',
-            'keys',
-            'exports',
-            'didAppear',
-            'didDisappear',
-        ]);
+        const DEFINITION = new Set(['icon', 'keywords', 'settings', 'start', 'stop']);
         const failures = [];
         let plugin = null;
 
         // MARK: - Initializer
         // MARK: - Public
-        // The plugin this view runs, made and contributed. `show` puts it on screen and `dismiss` puts the panel away;
-        // `layers` is what floats in the page. Resolves { plugin, definition, parts, tell }, parts null when it did not
-        // start; `tell(name)` calls one of its parts (didAppear, didDisappear) the way every call into it is made.
+        // The plugin this page runs, started and contributed. `show` puts it on screen and `dismiss` puts the panel
+        // away; `layers` is what floats in the page. Resolves { plugin, definition, parts, tell }, parts null when it
+        // did not start; `tell(name)` calls one of its view's parts (didAppear, didDisappear) the way every call into
+        // it is made.
         async function start(options) {
             try {
                 return await run(options);
@@ -79,18 +68,26 @@ DeckitModule.define(
             if (!definition) return stop(null);
             const requires = await requirementsOf();
             if (!requires) return stop(definition);
-            let context = null;
+            let deck = null;
             const settings = SETTINGS.of({
                 declared: definition.settings || {},
                 saved: loaded.settings,
-                context: () => context,
+                deck: () => deck,
                 deliver,
                 fail,
             });
-            context = contextOf({ theme, ui, settings, requires, main: loaded.main, show });
-            const parts = make(definition, context);
-            if (!parts) return stop(definition);
+            const registry = registryOf();
+            deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
+            try {
+                await definition.start(deck);
+            } catch (error) {
+                fail(`start() threw: ${error.message || error}`);
+                return stop(definition);
+            }
+            const parts = registry.close();
             contribute(definition, parts, { layers, dismiss });
+            if (typeof definition.stop === 'function')
+                window.addEventListener('pagehide', () => deliver('stop()', () => definition.stop()), { once: true });
             const tell = (name) => typeof parts[name] === 'function' && deliver(`${name}()`, () => parts[name]());
             return { plugin, definition, parts, tell };
         }
@@ -115,27 +112,33 @@ DeckitModule.define(
             PROTOCOL.failed.send({ why: String(why) });
         }
 
-        // The plugin's files run as one function body with only the Deckit facade in reach, and say what the plugin
-        // is with Deckit.register(). Who it is comes from its folder and manifest.
+        // The entry runs as a CommonJS module with nothing else in reach, and is what it sets module.exports to. Who
+        // the plugin is comes from its manifest.
         function evaluate(source) {
-            let definition = null;
-            const facade = Object.freeze({
-                register(given) {
-                    if (definition) return fail('register() is called once');
-                    const unknown = Object.keys(given || {}).filter((key) => !DEFINITION.has(key));
-                    if (unknown.length)
-                        return fail(`register() takes ${[...DEFINITION].join(', ')}, not ${unknown.join(', ')}`);
-                    if (typeof given.make !== 'function') return fail('register() needs make(context)');
-                    definition = given;
-                },
-            });
+            const module = { exports: {} };
             try {
-                new Function('Deckit', `${source}\n//# sourceURL=deckit://${plugin.id}/page.js`)(facade);
+                new Function('module', 'exports', `${source}\n//# sourceURL=deckit://${plugin.id}/${plugin.main}`)(
+                    module,
+                    module.exports
+                );
             } catch (error) {
-                fail(`page.js failed to load: ${error.message || error}`);
+                fail(`${plugin.main} failed to load: ${error.message || error}`);
                 return null;
             }
-            if (!definition) fail('page.js never called Deckit.register()');
+            const definition = module.exports;
+            if (!definition || typeof definition !== 'object') {
+                fail(`${plugin.main} sets module.exports to no object`);
+                return null;
+            }
+            const unknown = Object.keys(definition).filter((key) => !DEFINITION.has(key));
+            if (unknown.length) {
+                fail(`module.exports has ${[...DEFINITION].join(', ')}, not ${unknown.join(', ')}`);
+                return null;
+            }
+            if (typeof definition.start !== 'function') {
+                fail('module.exports needs start(deck)');
+                return null;
+            }
             return definition;
         }
 
@@ -148,53 +151,65 @@ DeckitModule.define(
                     fail(exported.error);
                     return null;
                 }
-                out[id] = proxyOf(id, exported);
+                out[id] = deepFreeze(
+                    proxyOf(exported.functions, structuredClone(exported.values), (path, args) =>
+                        PROTOCOL.callExport.invoke({ plugin: id, path, args })
+                    )
+                );
             }
             return Object.freeze(out);
         }
 
-        function proxyOf(id, { values, functions }) {
-            const out = structuredClone(values);
+        // Values as given, with a function at each path that calls it by its path.
+        function proxyOf(functions, values, call) {
+            const out = values && typeof values === 'object' ? values : {};
             for (const path of functions) {
                 let at = out;
                 for (const key of path.slice(0, -1)) at = at[key] ??= {};
-                at[path.at(-1)] = (...args) => PROTOCOL.callExport.invoke({ plugin: id, path, args });
+                at[path.at(-1)] = (...args) => call(path, args);
             }
-            return deepFreeze(out);
+            return out;
         }
 
-        function contextOf({ theme, ui, settings, requires, main, show }) {
+        // What start() registers, each once and only while it runs: deck contributes it all when start() ends.
+        function registryOf() {
+            const registered = {};
+            let open = true;
+            const once = (name, problemOf) => (value) => {
+                if (!open) return fail(`deck.${name}() is called in start(), and start() has ended`);
+                if (Object.hasOwn(registered, name)) return fail(`deck.${name}() is called once`);
+                const problem = problemOf(value);
+                if (problem) return fail(`deck.${name}() ${problem}`);
+                registered[name] = value;
+            };
+            const fn = (value) => (typeof value === 'function' ? '' : 'takes a function');
+            const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
+            const view = (value) =>
+                value?.content?.nodeType === Node.ELEMENT_NODE
+                    ? ''
+                    : 'takes { content, sidebar, didAppear, didDisappear }, content an element';
+            return {
+                register: {
+                    view: once('view', view),
+                    keys: once('keys', table),
+                    commands: once('commands', fn),
+                    now: once('now', fn),
+                    resolve: once('resolve', fn),
+                    handleURL: once('handleURL', fn),
+                    exports: once('exports', table),
+                },
+                // The parts deck contributes: the view's, its keys, its switcher answers, its URL handler, its exports.
+                close() {
+                    open = false;
+                    const { view: shown = {}, handleURL, ...rest } = registered;
+                    return { ...rest, ...shown, open: handleURL };
+                },
+            };
+        }
+
+        function deckOf({ theme, ui, settings, requires, show, register }) {
             const has = (permission) => plugin.permissions.some(({ id }) => id === permission);
             const opener = { open: (url, options) => OPEN.open(url, options) };
-            const host = {
-                show,
-                open: (url, options) => OPEN.open(url, options),
-                reveal: OPEN.reveal,
-                fileURL: OPEN.fileURL,
-                filePath: OPEN.filePath,
-                about: RUNTIME.about,
-                chordOf: (action) => KEYMAP.chord(`${plugin.id}.${action}`),
-                clipboard: has('system.clipboard')
-                    ? { readText: CLIPBOARD.readText, writeText: CLIPBOARD.writeText }
-                    : { writeText: CLIPBOARD.writeText },
-                ...(has('system.notifications') ? { notify: NOTIFY.notify } : {}),
-                ...(has('deckit.plugins') ? { plugins: pluginsTool() } : {}),
-                ...(has('deckit.plugin-settings') ? { pluginSettings: pluginSettingsTool() } : {}),
-                ...(has('deckit.key-map')
-                    ? {
-                          keymap: {
-                              list: KEYMAP.bindings,
-                              set: KEYMAP.bind,
-                              reset: KEYMAP.reset,
-                              record: KEYMAP.record,
-                              onChange: KEYMAP.onChange,
-                          },
-                      }
-                    : {}),
-                ...(has('deckit.url-schemes')
-                    ? { urlSchemes: { list: OPEN.handlerLists, set: OPEN.setHandlers, everyScheme: OPEN.EVERY } }
-                    : {}),
-            };
             return Object.freeze({
                 id: plugin.id,
                 name: plugin.name,
@@ -208,28 +223,79 @@ DeckitModule.define(
                     owner: { deliver, recordFailure: fail },
                     opener,
                 }),
-                host: Object.freeze(host),
                 requires,
                 util: Object.freeze({ match: MATCH.match, ranker: RANKER.ranker, movePath, tildify: tildifyOf() }),
-                ...(has('system.main-process') ? { main: mainOf(main) } : {}),
-                ...(plugin.id === CONFIG.id && APP ? { app: deepFreeze({ ...APP }) } : {}),
+                ...register,
+                show,
+                open: (url, options) => OPEN.open(url, options),
+                reveal: OPEN.reveal,
+                fileURL: OPEN.fileURL,
+                filePath: OPEN.filePath,
+                about: RUNTIME.about,
+                chordOf: (action) => KEYMAP.chord(`${plugin.id}.${action}`),
+                clipboard: Object.freeze(
+                    has('system.clipboard')
+                        ? { readText: CLIPBOARD.readText, writeText: CLIPBOARD.writeText }
+                        : { writeText: CLIPBOARD.writeText }
+                ),
+                ...(has('system.notifications') ? { notify: NOTIFY.notify } : {}),
+                ...(has('system.main-process') ? { mainProcess: mainProcessOf() } : {}),
+                ...(has('deckit.plugins') ? { plugins: pluginsTool() } : {}),
+                ...(has('deckit.plugin-settings') ? { pluginSettings: pluginSettingsTool() } : {}),
+                ...(has('deckit.key-map')
+                    ? {
+                          keymap: Object.freeze({
+                              list: KEYMAP.bindings,
+                              set: KEYMAP.bind,
+                              reset: KEYMAP.reset,
+                              record: KEYMAP.record,
+                              onChange: KEYMAP.onChange,
+                          }),
+                      }
+                    : {}),
+                ...(has('deckit.url-schemes')
+                    ? {
+                          urlSchemes: Object.freeze({
+                              list: OPEN.handlerLists,
+                              set: OPEN.setHandlers,
+                              everyScheme: OPEN.EVERY,
+                          }),
+                      }
+                    : {}),
+                ...(plugin.id === CONFIG.id && HOST ? { host: deepFreeze({ ...HOST }) } : {}),
             });
         }
 
-        function mainOf({ running }) {
-            const listeners = new Map(); // event name -> Set
-            PROTOCOL.mainEvent.on(({ name, args }) => {
-                for (const listener of listeners.get(name) || []) deliver(`main.on("${name}")`, listener, ...args);
+        // deck.mainProcess(path): the module started once, its methods called through main, `on(name, listener)`
+        // for what it emits. A start that failed is tried again the next time it is asked for.
+        function mainProcessOf() {
+            const listeners = new Map(); // `${path}\0${name}` -> Set
+            const started = new Map(); // the path asked for -> promise of the module's proxy
+            PROTOCOL.mainProcessEvent.on(({ path, name, args }) => {
+                for (const listener of listeners.get(`${path}\0${name}`) || [])
+                    deliver(`on("${name}")`, listener, ...args);
             });
-            return Object.freeze({
-                available: running,
-                call: (op, ...args) => PROTOCOL.callMain.invoke({ op: String(op), args }),
-                on(name, listener) {
-                    if (!listeners.has(name)) listeners.set(name, new Set());
-                    listeners.get(name).add(listener);
-                    return () => listeners.get(name).delete(listener);
-                },
-            });
+            const moduleOf = ({ path, methods }) => {
+                const proxy = proxyOf(methods, {}, (method, args) =>
+                    PROTOCOL.callMainProcess.invoke({ path, method, args })
+                );
+                proxy.on = (name, listener) => {
+                    const key = `${path}\0${name}`;
+                    if (!listeners.has(key)) listeners.set(key, new Set());
+                    listeners.get(key).add(listener);
+                    return () => listeners.get(key).delete(listener);
+                };
+                return deepFreeze(proxy);
+            };
+            return (path) => {
+                const asked = String(path);
+                if (!started.has(asked)) {
+                    const starting = PROTOCOL.startMainProcess.invoke({ path: asked }).then(moduleOf);
+                    starting.catch(() => started.get(asked) === starting && started.delete(asked));
+                    started.set(asked, starting);
+                }
+                return started.get(asked);
+            };
         }
 
         function pluginsTool() {
@@ -253,35 +319,12 @@ DeckitModule.define(
             });
         }
 
-        // A make() that returns no object is refused, or a forgotten return would be a plugin that half started.
-        // Headless, with nothing to show, is a shape, not a failure.
-        function make(definition, context) {
-            let parts;
-            try {
-                parts = definition.make(context);
-            } catch (error) {
-                fail(`make() threw: ${error.message || error}`);
-                return null;
-            }
-            if (!parts || typeof parts !== 'object') {
-                fail('make() returned nothing');
-                return null;
-            }
-            if (typeof parts.then === 'function') {
-                fail("make() returned a promise; it has to return the plugin's parts");
-                return null;
-            }
-            const unknown = Object.keys(parts).filter((key) => !PARTS.has(key));
-            if (unknown.length) fail(`make() returned ${unknown.join(', ')}, which deckit does not read`);
-            return parts;
-        }
-
         function contribute(definition, parts, { layers, dismiss }) {
             const names = plugin.urlSchemes;
             const opens = typeof parts.open === 'function';
-            if (names.length && !opens) fail('manifest.toml names url-schemes, but make() returned no open()');
+            if (names.length && !opens) fail('manifest.toml names url-schemes, but start() registered no deck.handleURL()');
             if (opens && !names.length)
-                fail('make() returned open(), but manifest.toml names no url-schemes, so nothing asks it');
+                fail('start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it');
             if (names.length && opens) OPEN.answer((url, options) => parts.open(url, options));
             SWITCHER.source({
                 icon: definition.icon,
