@@ -30,7 +30,7 @@ Deckit.register({
                     run: () =>
                         ui.dialog({
                             title: '@@NAME@@',
-                            message: 'This is a plugin. Edit @@ID@@/view.js and save.',
+                            message: 'This is a plugin. Edit @@ID@@/page.js and save.',
                             confirmLabel: 'Nice',
                             onConfirm: () => {},
                         }),

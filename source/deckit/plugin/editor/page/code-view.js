@@ -1,7 +1,7 @@
 // The engine's view of an open file, with the editor's extensions, in a box laid over the others. The settings it reads
 // are the font, its size and line wrapping.
 function codeView({ engine, theme, ui, settings, themeExtensions, separatorExtension, createFindPanel, onUpdate }) {
-    // The engine's special characters, less "\r" (kept by CRLF lines in a mixed file, see separatorFor in view/disk.js)
+    // The engine's special characters, less "\r" (kept by CRLF lines in a mixed file, see separatorFor in page/file-disk.js)
     // and the byte order mark.
     const QUIET_SPECIAL_CHARACTERS =
         /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u00ad\u061c\u200b\u200e\u200f\u2028\u2029\u202d\u202e\u2066\u2067\u2069\ufff9-\ufffc]/g;

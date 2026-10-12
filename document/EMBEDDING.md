@@ -18,7 +18,7 @@ An app embeds one archive, `deckit-lib-<version>.tgz`, with its sha256 beside it
 | `plugin/<id>/` | deckit's own plugins, a catalog the app picks from |
 | `document/` | this, PLUGIN.md and UI.md |
 
-In main the app loads `registry.js`, its own `app/config` and `app/folders`, `main.js`, then its shell. A deckit page loads, as its preload, a file the app puts together: `registry.js`, the app's `app/config` (and `app/exports`, if it has one), `page.js`, and the start of deckit: `DeckitModule.use(['deckit/feature/app/view'], (APP) => APP.boot(before))`, where `before` is the names the page's global object had before `registry.js` ran, so boot takes away every global the bundles added.
+In main the app loads `registry.js`, its own `app/config` and `app/folders`, `main.js`, then its shell. A deckit page loads, as its preload, a file the app puts together: `registry.js`, the app's `app/config` (and `app/exports`, if it has one), `page.js`, and the start of deckit: `DeckitModule.use(['deckit/feature/app/page'], (APP) => APP.boot(before))`, where `before` is the names the page's global object had before `registry.js` ran, so boot takes away every global the bundles added.
 
 The app's own files are modules too: `DeckitModule.define(name, { uses, provides, runs }, make)`. What `app/config` and `app/folders` set is held to what deckit reads: a key deckit does not read stops the bundle with its name.
 

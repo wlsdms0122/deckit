@@ -179,7 +179,7 @@ DeckitModule.define(
                 manifest.push('', '[permissions]', `"${PERMISSION.MAIN_PROCESS}" = "Answers ping from the view."`);
             fs.mkdirSync(folder, { recursive: true });
             fs.writeFileSync(path.join(folder, 'manifest.toml'), manifest.join('\n') + '\n');
-            fs.writeFileSync(path.join(folder, 'view.js'), fill('view.js'));
+            fs.writeFileSync(path.join(folder, 'page.js'), fill('page.js'));
             if (options.main) fs.writeFileSync(path.join(folder, 'main.js'), fill('main.js'));
             say('wrote ' + folder);
             for (const file of fs.readdirSync(folder).sort()) say('  ' + file);

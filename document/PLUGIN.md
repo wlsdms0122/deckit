@@ -5,13 +5,13 @@ A plugin is a folder under `plugins/` in deckit's folder, and the folder's name 
 ```
 <id>/
   manifest.toml
-  view.js        the page half
-  view/**/*.js   more of the page half
+  page.js        the page half
+  page/**/*.js   more of the page half
   main.js        the main process half, only if it needs one
   main/**/*.js   more of the main half, which main.js requires
 ```
 
-Each plugin runs in a page of its own, at the origin `deckit://<id>.plugin/`, with its own storage and its own web sessions. Files in `view/` are read before `view.js`, in path order, and run with it as one script: a declaration at the top level of one is in scope for the rest when it is called. The host loads `main.js` and nothing else of the main half; `main.js` requires what it keeps in `main/`.
+Each plugin runs in a page of its own, at the origin `deckit://<id>.plugin/`, with its own storage and its own web sessions. Files in `page/` are read before `page.js`, in path order, and run with it as one script: a declaration at the top level of one is in scope for the rest when it is called. The host loads `main.js` and nothing else of the main half; `main.js` requires what it keeps in `main/`.
 
 ## manifest.toml
 
@@ -72,7 +72,7 @@ What a plugin may reach beyond its own page is asked for by name, with a reason.
 
 A `main.js` without `system.main-process`, or the permission without the file, stops the plugin, so what the person is asked about is what is in the folder. An unknown permission, or one without a reason, stops it too. Without asking, a plugin has its own page, records, values, settings, keys and web sessions, and of the host: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another plugin.
 
-## view.js
+## page.js
 
 ```js
 Deckit.register({
@@ -92,7 +92,7 @@ Deckit.register({
 | `settings` | optional; what the person can choose about the plugin (below) |
 | `make(context)` | makes the plugin; what it returns is what it contributes |
 
-Everything a view reaches is in `context`.
+Everything a page reaches is in `context`.
 
 ### settings
 
@@ -239,7 +239,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 ## Lifecycle
 
-The main half starts once, when the app does, and lives until it quits. The view half is the plugin's page: `make(context)` once when the page comes up, then `didAppear` and `didDisappear`. The page is made again when the plugin is installed again and when the app's theme changes. A main half installed again is taken up at the app's next start; Settings asks for the restart.
+The main half starts once, when the app does, and lives until it quits. The page half is the plugin's page: `make(context)` once when the page comes up, then `didAppear` and `didDisappear`. The page is made again when the plugin is installed again and when the app's theme changes. A main half installed again is taken up at the app's next start; Settings asks for the restart.
 
 `register()` is called once, with `make` and no member but `icon`, `keywords` and `settings`; anything else stops the plugin. Whatever the host calls after `make`, a call that throws or rejects costs that call alone: it is shown on the plugin's row in Settings, and the plugin goes on. A `make` that throws or returns nothing leaves the plugin unmade, with the reason on its row.
 
@@ -264,11 +264,11 @@ module.exports = ({ id, folder, handle, send, window, files }) => {
 
 `folder` is the plugin's data folder; anything the main half keeps goes there, never in its own folder, which an update replaces.
 
-`files` changes a person's files without losing one: `fresh(folder, base, make, extension)` makes something new under the first free name, `rename(path, name)` and `move(path, folder)` never put anything over another entry, `name(text)` checks a typed name, `trash(path)` is the macOS Trash. A refusal is `files.refuse(kind, message)`, an error whose `kind` (`NAME`, `EXISTS`, `GONE`, `INTO_ITSELF`, `OTHER_DISK`, or one of the plugin's own) reaches the view as `error.kind`.
+`files` changes a person's files without losing one: `fresh(folder, base, make, extension)` makes something new under the first free name, `rename(path, name)` and `move(path, folder)` never put anything over another entry, `name(text)` checks a typed name, `trash(path)` is the macOS Trash. A refusal is `files.refuse(kind, message)`, an error whose `kind` (`NAME`, `EXISTS`, `GONE`, `INTO_ITSELF`, `OTHER_DISK`, or one of the plugin's own) reaches the page as `error.kind`.
 
 `window` is a window of the app's, holding a view the main half made: `open({ key, title, view, size, onClose })`, `get(key)`, `close(key)`. The app frames it. `onClose` runs once the view is out of the window, alive. `open` under a key already open brings that window forward and returns it. Keys are the plugin's own: two plugins asking for `log` get two windows.
 
-`main.js` runs in the app's main process and can do what the app can do, which is why it is asked for. The view cannot widen its own reach: only the ops `main.js` handles answer, and main knows which plugin calls by its page.
+`main.js` runs in the app's main process and can do what the app can do, which is why it is asked for. The page cannot widen its own reach: only the ops `main.js` handles answer, and main knows which plugin calls by its page.
 
 ## Installing
 

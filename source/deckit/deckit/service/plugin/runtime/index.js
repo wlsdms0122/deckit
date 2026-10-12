@@ -3,16 +3,16 @@ DeckitModule.define(
     {
         uses: [
             'deckit/config',
-            'deckit/service/log/view',
+            'deckit/service/log/page',
             'deckit/module/match',
             'deckit/module/ranker',
-            'deckit/service/web/view',
-            'deckit/service/notify/view',
-            'deckit/service/clipboard/view',
-            'deckit/service/runtime/view',
-            'deckit/service/open/view',
-            'deckit/service/keymap/view',
-            'deckit/service/switcher/view',
+            'deckit/service/web/page',
+            'deckit/service/notify/page',
+            'deckit/service/clipboard/page',
+            'deckit/service/runtime/page',
+            'deckit/service/open/page',
+            'deckit/service/keymap/page',
+            'deckit/service/switcher/page',
             'deckit/service/plugin/runtime/storage',
             'deckit/service/plugin/runtime/settings',
             'deckit/service/plugin/host/protocol',
@@ -130,12 +130,12 @@ DeckitModule.define(
                 },
             });
             try {
-                new Function('Deckit', `${source}\n//# sourceURL=deckit://${plugin.id}/view.js`)(facade);
+                new Function('Deckit', `${source}\n//# sourceURL=deckit://${plugin.id}/page.js`)(facade);
             } catch (error) {
-                fail(`view.js failed to load: ${error.message || error}`);
+                fail(`page.js failed to load: ${error.message || error}`);
                 return null;
             }
-            if (!definition) fail('view.js never called Deckit.register()');
+            if (!definition) fail('page.js never called Deckit.register()');
             return definition;
         }
 

@@ -12,7 +12,7 @@ DeckitModule.define(
             'pluginOf',
             'pluginFrom',
             'isSwitcher',
-            'viewOf',
+            'pageOf',
         ],
         runs: 'main',
     },
@@ -22,19 +22,19 @@ DeckitModule.define(
         // As long as Chromium lets a page act on a person's click or key.
         const ACTIVATION_MS = 5000;
         const owners = new Map(); // webContents id -> { plugin } or { switcher: true }
-        const views = new Map(); // plugin id -> its webContents
+        const pages = new Map(); // plugin id -> its page's webContents
         const ends = new Map(); // webContents id -> Set of what undoes what its page set up
         const activated = new Map(); // webContents id -> when a person last pressed a key or the mouse in it
 
         // MARK: - Initializer
         // MARK: - Public
-        // Where a plugin's view loads from: an origin of its own, so its page storage is no one else's. Every plugin
-        // host ends in .plugin, so deckit's own views (the switcher's) never share an origin with one.
+        // Where a plugin's page loads from: an origin of its own, so its page storage is no one else's. Every plugin
+        // host ends in .plugin, so deckit's own pages (the switcher's) never share an origin with one.
         function originOf(pluginId) {
             return `deckit://${pluginId}.plugin`;
         }
 
-        // Only main makes the views a plugin or the switcher runs in, so who sent a message is known by which
+        // Only main makes the pages a plugin or the switcher runs in, so who sent a message is known by which
         // webContents it came from, and never by what the message says.
         function add(webContents, owner) {
             const id = webContents.id;
@@ -49,7 +49,7 @@ DeckitModule.define(
                 'input-event',
                 (_event, input) => input.type === 'mouseDown' && activated.set(id, Date.now())
             );
-            if (owner.plugin) views.set(owner.plugin.id, webContents);
+            if (owner.plugin) pages.set(owner.plugin.id, webContents);
             ends.set(id, new Set());
             const end = () => {
                 const runs = [...ends.get(id)];
@@ -65,7 +65,7 @@ DeckitModule.define(
                 ends.delete(id);
                 activated.delete(id);
                 owners.delete(id);
-                if (owner.plugin && views.get(owner.plugin.id) === webContents) views.delete(owner.plugin.id);
+                if (owner.plugin && pages.get(owner.plugin.id) === webContents) pages.delete(owner.plugin.id);
             });
         }
 
@@ -77,7 +77,7 @@ DeckitModule.define(
             return () => runs.delete(run);
         }
 
-        // Whether a person just pressed a key or the mouse in this view, used up by the answer: one press, one act.
+        // Whether a person just pressed a key or the mouse in this page, used up by the answer: one press, one act.
         // Main sees the input itself, so a page cannot claim it.
         function consumeUserActivation(webContents) {
             const fresh = Date.now() - (activated.get(webContents.id) || 0) < ACTIVATION_MS;
@@ -85,7 +85,7 @@ DeckitModule.define(
             return fresh;
         }
 
-        // A press elsewhere that acts in this view: a pick in the switcher runs the plugin's command.
+        // A press elsewhere that acts in this page: a pick in the switcher runs the plugin's command.
         function passUserActivation(webContents) {
             activated.set(webContents.id, Date.now());
         }
@@ -111,12 +111,12 @@ DeckitModule.define(
             return !!owners.get(webContents.id)?.switcher;
         }
 
-        function viewOf(pluginId) {
-            return views.get(pluginId) || null;
+        function pageOf(pluginId) {
+            return pages.get(pluginId) || null;
         }
 
         // MARK: - Private
-        // A navigation keeps the webContents, so a view that left its origin would still be known as its plugin
+        // A navigation keeps the webContents, so a page that left its origin would still be known as its plugin
         // while it ran another's page with that one's storage. Only main's own loadURL passes without these events.
         function pin(webContents, origin) {
             const leaves = (details) => details.isMainFrame && originFrom(details.url) !== origin;
@@ -144,7 +144,7 @@ DeckitModule.define(
             pluginOf,
             pluginFrom,
             isSwitcher,
-            viewOf,
+            pageOf,
         };
     }
 );

@@ -116,7 +116,7 @@ DeckitModule.define(
                 IDENTITY.whenPageEnds(
                     sender,
                     () =>
-                        IDENTITY.viewOf(plugin.id) === sender &&
+                        IDENTITY.pageOf(plugin.id) === sender &&
                         EXPORT.fail(plugin.id, 'its view went away before it started')
                 );
                 return loadOf(plugin);

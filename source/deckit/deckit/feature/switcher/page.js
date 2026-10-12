@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/feature/switcher/view',
+    'deckit/feature/switcher/page',
     {
         uses: [
             'deckit/ui/token',
@@ -7,7 +7,7 @@ DeckitModule.define(
             'deckit/ui/kit',
             'deckit/ui/list',
             'deckit/ui/list/listbox',
-            'deckit/service/switcher/view',
+            'deckit/service/switcher/page',
             'deckit/service/switcher/model/tone',
             'deckit/feature/switcher/view-model',
             'deckit/feature/switcher/protocol',

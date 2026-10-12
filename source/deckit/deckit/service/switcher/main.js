@@ -44,7 +44,7 @@ DeckitModule.define(
 
         // MARK: - Private
         function running() {
-            return HOST.plugins().filter((plugin) => sources.has(plugin.id) && IDENTITY.viewOf(plugin.id));
+            return HOST.plugins().filter((plugin) => sources.has(plugin.id) && IDENTITY.pageOf(plugin.id));
         }
 
         function ownerOf(plugin) {
@@ -140,7 +140,7 @@ DeckitModule.define(
             // Only a command is remembered: a readout or a query's result is not something to run again.
             if (entry.kind === 'command') remember(entry);
             if (entry.local === 'open') return hooks.reveal(entry.plugin);
-            const view = IDENTITY.viewOf(entry.plugin);
+            const view = IDENTITY.pageOf(entry.plugin);
             if (!view) return;
             IDENTITY.passUserActivation(view);
             PROTOCOL.run
@@ -150,7 +150,7 @@ DeckitModule.define(
 
         // What a plugin's view answers; one that fails or went away answers `fallback`, recorded against it.
         function ask(end, plugin, payload, fallback) {
-            const view = IDENTITY.viewOf(plugin.id);
+            const view = IDENTITY.pageOf(plugin.id);
             if (!view) return Promise.resolve(fallback);
             return end.invoke(view, payload, { timeout: ANSWER_MS }).catch((error) => {
                 LOG.warn(`${plugin.id}: the switcher's question failed`, error);

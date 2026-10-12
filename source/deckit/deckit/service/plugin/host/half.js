@@ -40,7 +40,7 @@ DeckitModule.define(
             const ops = new Map();
             const handle = (name, operation) => ops.set(String(name), operation);
             const send = (name, ...args) => {
-                const view = IDENTITY.viewOf(entry.id);
+                const view = IDENTITY.pageOf(entry.id);
                 if (view) PROTOCOL.mainEvent.send(view, { name: String(name), args });
             };
             // The id is part of the key, so two plugins asking for "log" get two windows and neither closes the other's.

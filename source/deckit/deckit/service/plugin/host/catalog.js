@@ -42,14 +42,14 @@ DeckitModule.define(
             return withRequirements(entries);
         }
 
-        // view/ first, in path order, then view.js, as one body: the same text on every machine.
+        // page/ first, in path order, then page.js, as one body: the same text on every machine.
         function sourceOf(entry) {
-            const parts = path.join(entry.folder, 'view');
+            const parts = path.join(entry.folder, 'page');
             return [
                 ...scripts(parts).map(
-                    (file) => `/* view/${file} */\n` + fs.readFileSync(path.join(parts, file), 'utf8')
+                    (file) => `/* page/${file} */\n` + fs.readFileSync(path.join(parts, file), 'utf8')
                 ),
-                '/* view.js */\n' + fs.readFileSync(path.join(entry.folder, 'view.js'), 'utf8'),
+                '/* page.js */\n' + fs.readFileSync(path.join(entry.folder, 'page.js'), 'utf8'),
             ].join('\n;\n');
         }
 

@@ -22,7 +22,7 @@ DeckitModule.define(
                 if (!provider?.exports?.functions.some((written) => written.join('.') === path.join('.'))) {
                     throw new Error(`${plugin} exports no function ${path.join('.')}`);
                 }
-                return PROTOCOL.exportCalled.invoke(IDENTITY.viewOf(plugin), { path, args });
+                return PROTOCOL.exportCalled.invoke(IDENTITY.pageOf(plugin), { path, args });
             });
         }
 

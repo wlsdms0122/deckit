@@ -48,7 +48,7 @@ function codeTheme({ engine, theme, ui }) {
             '.cm-cursor, .cm-dropCursor': { borderLeftColor: theme.color.accent, borderLeftWidth: '2px' },
             '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
                 { backgroundColor: ui.alpha(theme.color.accent, 0.28) },
-            // Transparent: lines scrolled sideways are clipped at its edge (clipGutter in view/code-view.js).
+            // Transparent: lines scrolled sideways are clipped at its edge (clipGutter in page/code-view.js).
             '.cm-gutters': { backgroundColor: 'transparent', color: theme.color.muted, border: '0' },
             '.cm-activeLineGutter': { backgroundColor: 'transparent', color: theme.color.text },
             '.cm-activeLine': { backgroundColor: theme.color.surface },

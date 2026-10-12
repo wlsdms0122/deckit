@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/runtime/view',
+    'deckit/service/runtime/page',
     {
         uses: ['deckit/service/runtime/protocol'],
         provides: ['about', 'restart'],

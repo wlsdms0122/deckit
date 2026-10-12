@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/feature/app/view',
+    'deckit/feature/app/page',
     {
         uses: [
             'deckit/ui/token',
@@ -7,9 +7,9 @@ DeckitModule.define(
             'deckit/ui/overlay',
             'deckit/ui/kit',
             'deckit/service/plugin/runtime',
-            'deckit/feature/panel/view',
+            'deckit/feature/panel/page',
             'deckit/feature/panel/protocol',
-            'deckit/feature/switcher/view',
+            'deckit/feature/switcher/page',
             'deckit/feature/app/protocol',
         ],
         provides: ['boot'],

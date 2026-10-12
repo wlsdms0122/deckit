@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/notify/view',
+    'deckit/service/notify/page',
     {
         uses: ['deckit/service/notify/protocol'],
         provides: ['listen', 'notify'],

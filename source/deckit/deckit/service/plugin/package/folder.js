@@ -25,7 +25,7 @@ DeckitModule.define(
                 return { manifest: MANIFEST.read('', id).manifest, problem: `no ${MANIFEST.FILE} in ${folder}` };
             const { manifest, problem } = MANIFEST.read(fs.readFileSync(file, 'utf8'), id);
             if (problem) return { manifest, problem };
-            if (!fs.existsSync(path.join(folder, 'view.js'))) return { manifest, problem: 'no view.js in the folder' };
+            if (!fs.existsSync(path.join(folder, 'page.js'))) return { manifest, problem: 'no page.js in the folder' };
             const hasMain = fs.existsSync(path.join(folder, 'main.js'));
             const asksMain = manifest.permissions.some(({ id: permission }) => permission === PERMISSION.MAIN_PROCESS);
             if (hasMain && !asksMain) {

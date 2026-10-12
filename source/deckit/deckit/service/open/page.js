@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/open/view',
+    'deckit/service/open/page',
     {
         uses: ['deckit/service/open/model/scheme', 'deckit/service/open/protocol'],
         provides: ['open', 'answer', 'reveal', 'fileURL', 'filePath', 'lines', 'setLine', 'EVERY'],

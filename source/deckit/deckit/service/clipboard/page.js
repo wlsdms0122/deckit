@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/clipboard/view',
+    'deckit/service/clipboard/page',
     {
         uses: ['deckit/service/clipboard/protocol'],
         provides: ['readText', 'writeText'],

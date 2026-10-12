@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/keymap/view',
+    'deckit/service/keymap/page',
     {
         uses: ['deckit/module/chord', 'deckit/service/keymap/protocol'],
         provides: ['scope', 'connect', 'chord', 'bindings', 'bind', 'reset', 'record', 'onChange'],

@@ -61,7 +61,7 @@ DeckitModule.define(
             const values = STORAGE.settings.read(pluginId);
             if (values[key] === next) return next;
             STORAGE.settings.write(pluginId, { ...values, [key]: next });
-            const view = IDENTITY.viewOf(pluginId);
+            const view = IDENTITY.pageOf(pluginId);
             if (view) PROTOCOL.settingChanged.send(view, { key, value: next });
             return next;
         }
@@ -91,14 +91,14 @@ DeckitModule.define(
         // Options worked out when Settings draws them (the fonts on this Mac) are the plugin's to answer.
         function optionsOf(pluginId, key, declaration) {
             if (!declaration.computed) return declaration.options || [];
-            const view = IDENTITY.viewOf(pluginId);
+            const view = IDENTITY.pageOf(pluginId);
             return view ? PROTOCOL.settingOptions.invoke(view, { key }) : [];
         }
 
         async function run(pluginId, key) {
             const declaration = declared.get(pluginId)?.settings[key];
             if (declaration?.type !== 'action') throw new Error(`${pluginId} has no action "${key}"`);
-            const view = IDENTITY.viewOf(pluginId);
+            const view = IDENTITY.pageOf(pluginId);
             if (!view) throw new Error(`${pluginId} is not running`);
             return PROTOCOL.runSetting.invoke(view, { key });
         }

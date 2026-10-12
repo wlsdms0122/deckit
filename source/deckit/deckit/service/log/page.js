@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/log/view',
+    'deckit/service/log/page',
     {
         uses: ['deckit/service/log/protocol'],
         provides: ['info', 'warn', 'error'],

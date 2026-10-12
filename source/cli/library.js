@@ -17,7 +17,7 @@ const ENTRIES = {
             .uses.map(({ name }) => name)
             .filter((name) => name.startsWith('deckit/')),
     main: () => ['deckit/feature/app/main'],
-    page: () => ['deckit/feature/app/view'],
+    page: () => ['deckit/feature/app/page'],
 };
 // A "/" starts a regular expression where a value is expected: after one of these, or at the start.
 const VALUE_BEFORE = '(,=:[!&|?{};+-*%<>~^';

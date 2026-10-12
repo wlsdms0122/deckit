@@ -44,7 +44,7 @@ DeckitModule.define(
                 // A view being replaced ends after its successor is up: only the view on duty drops the handler.
                 IDENTITY.whenPageEnds(
                     sender,
-                    () => IDENTITY.viewOf(plugin.id) === sender && handlers.delete(plugin.id)
+                    () => IDENTITY.pageOf(plugin.id) === sender && handlers.delete(plugin.id)
                 );
             });
             // Only on a person's click or key: otherwise any plugin could open Finder at will, or learn which paths exist.
@@ -156,7 +156,7 @@ DeckitModule.define(
         async function offer(line, url, options) {
             for (const handler of handlersOf(line)) {
                 if (!handler.on) continue;
-                const view = IDENTITY.viewOf(handler.id);
+                const view = IDENTITY.pageOf(handler.id);
                 if (!view) continue;
                 const taken = await PROTOCOL.offer
                     .invoke(view, { url, options }, { timeout: OFFER_MS })

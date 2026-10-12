@@ -1,9 +1,9 @@
 DeckitModule.define(
-    'deckit/feature/panel/view',
+    'deckit/feature/panel/page',
     {
         uses: [
             'deckit/ui/color',
-            'deckit/service/keymap/view',
+            'deckit/service/keymap/page',
             'deckit/feature/panel/sidebar',
             'deckit/feature/panel/protocol',
         ],

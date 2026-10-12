@@ -29,7 +29,7 @@ A new plugin needs no change to the host. A new shell to show the panel in needs
 | Where | What runs there |
 |---|---|
 | main | the host: plugin folders and their main halves, storage, the keymap, open, the switcher's relay, the views it puts in the app's windows, every check of what a page asks |
-| a plugin's page | one plugin's view, in a `WebContentsView` of its own at `deckit://<id>.plugin/`, with the panel's frame around it |
+| a plugin's page | where one plugin's page half runs, headless or not, in a `WebContentsView` of its own at `deckit://<id>.plugin/`; a plugin with something to show has the panel's frame around it there |
 | the switcher's page | the quick switcher's list, at `deckit://switcher` |
 
 A plugin is a renderer and main is the host. Each plugin's page has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is handed to Open With.
@@ -91,9 +91,9 @@ The library is in four layers, and names go one way:
 
 `config/` is the app's configuration (EMBEDDING.md), which `feature/` and `service/` read.
 
-A concept's sides are `main.js` and `view.js` (the shape a plugin has); a one-sided concept is `index.js`; `protocol.js` is how its own sides reach each other and nobody else's, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only).
+A concept's sides are `main.js` and `page.js` (the shape a plugin has); a one-sided concept is `index.js`; `protocol.js` is how its own sides reach each other and nobody else's, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only).
 
-Bundles are worked out from their entries: the main bundle from `feature/app/main`, the page bundle from `feature/app/view`, the chord bundle, the command line's. A bundle carries what its entry names and what those name, each after what it names. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept, where each file runs, every folder a module or a group.
+Bundles are worked out from their entries: the main bundle from `feature/app/main`, the page bundle from `feature/app/page`, the chord bundle, the command line's. A bundle carries what its entry names and what those name, each after what it names. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept, where each file runs, every folder a module or a group.
 
 ## 7. One design system
 

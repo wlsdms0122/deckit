@@ -246,7 +246,7 @@ DeckitModule.define(
 
         function announce() {
             for (const plugin of HOST.plugins()) {
-                const view = IDENTITY.viewOf(plugin.id);
+                const view = IDENTITY.pageOf(plugin.id);
                 if (view) PROTOCOL.changed.send(view, {});
             }
         }
@@ -285,7 +285,7 @@ DeckitModule.define(
                 binding.run(webContents);
                 return true;
             }
-            const view = IDENTITY.viewOf(binding.owner);
+            const view = IDENTITY.pageOf(binding.owner);
             if (!view) return false;
             PROTOCOL.key.send(view, { action: binding.action });
             return true;

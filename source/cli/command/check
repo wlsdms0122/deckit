@@ -8,7 +8,7 @@ const { conceptOf } = require(path.join(__dirname, '..', 'concept.js'));
 
 const IPC = 'deckit/module/ipc';
 // The entries an app starts, which put a page or main together and so may name any concept's protocol.
-const ENTRIES = new Set(['deckit/feature/app/main', 'deckit/feature/app/view']);
+const ENTRIES = new Set(['deckit/feature/app/main', 'deckit/feature/app/page']);
 // What an app hands deckit, which it may not: named as optional.
 const APP_INPUTS = new Set(['app/config', 'app/folders', 'app/exports']);
 const MAY_NAME = {
@@ -125,7 +125,7 @@ function checkCycles() {
     for (const name of all.keys()) visit(name, []);
 }
 
-// Where a file runs follows from its name where its name says it (main.js, view.js, the kit); anywhere else its
+// Where a file runs follows from its name where its name says it (main.js, page.js, the kit); anywhere else its
 // define declares it. Each bundle carries only what runs where it does.
 function checkBundles() {
     const bundles = LIBRARY.bundles();
@@ -135,7 +135,7 @@ function checkBundles() {
         if (!bundled.has(file)) say(file, 'is in no bundle: nothing a bundle starts from names it');
         const named = /(^|\/)main\.js$/.test(file)
             ? 'main'
-            : /(^|\/)view\.js$/.test(file) || file.startsWith('ui/')
+            : /(^|\/)page\.js$/.test(file) || file.startsWith('ui/')
               ? 'page'
               : null;
         if (runs && !RUNS.has(runs)) say(file, `runs "${runs}", which is none of ${[...RUNS].join(', ')}`);

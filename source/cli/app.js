@@ -40,7 +40,7 @@ function assemble(archive, to) {
             'const globalsBefore = new Set(Object.keys(globalThis));',
             read('deckit/' + built.bundles.registry.file),
             ...order.page.map((entry) => read(placed(entry))),
-            "DeckitModule.use(['deckit/feature/app/view'], (APP) => APP.boot(globalsBefore));",
+            "DeckitModule.use(['deckit/feature/app/page'], (APP) => APP.boot(globalsBefore));",
         ].join('\n;\n') + '\n'
     );
     fs.writeFileSync(
