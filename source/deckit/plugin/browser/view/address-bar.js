@@ -66,7 +66,7 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
         }
         .browser-address-bar[data-open] .browser-address-star,
         .browser-address-bar[data-open][data-web] .browser-address-site { width: 30px; opacity: 1; }
-        .browser-address-bar .browser-address {
+        .browser-address {
             flex: 0 1 auto;
             min-width: 0;
             display: flex;
