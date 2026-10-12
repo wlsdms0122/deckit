@@ -9,10 +9,13 @@ DeckitModule.define(
         // MARK: - Property
         const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
         const declared = new Map(); // plugin id -> { name, settings: { key: declaration } }
+        let order = () => []; // the running plugins' ids, in the person's order
 
         // MARK: - Initializer
         // MARK: - Public
-        function start() {
+        // `ordered()` gives the running plugins' ids in the person's order, which Settings lists them in.
+        function start({ ordered }) {
+            order = ordered;
             PROTOCOL.setSetting.handle(({ key, value }, sender) => set(IDENTITY.pluginFrom(sender).id, key, value));
             PROTOCOL.pluginSettings.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugin-settings');
@@ -107,7 +110,8 @@ DeckitModule.define(
         // marked absent, and left as it is.
         async function list() {
             const out = [];
-            for (const [id, { name, settings }] of declared) {
+            for (const id of order().filter((id) => declared.has(id))) {
+                const { name, settings } = declared.get(id);
                 if (!Object.keys(settings).length) continue;
                 const values = valuesOf(id);
                 const items = [];

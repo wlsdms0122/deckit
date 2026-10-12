@@ -67,7 +67,7 @@ DeckitModule.define(
             forgetRemoved();
             MAIN_PROCESS.start();
             RECORD.start();
-            SETTING.start();
+            SETTING.start({ ordered: () => plugins().map(({ id }) => id) });
             EXPORT.start();
             shipped = CONFIG.ship.map((folder) => FOLDER.idOf(folder));
             entries = catalog();
