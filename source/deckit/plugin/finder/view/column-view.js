@@ -23,13 +23,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
             width: 8px;
             cursor: col-resize;
         }
-        .finder-column-body .finder-column-cell {
-            gap: 7px;
-            height: 24px;
-            padding: 0 6px;
-            cursor: default;
-            transition: none;
-        }
+        .finder-column-cell { cursor: default; transition: none; }
         .finder-column-cell[data-hidden] { opacity: 0.55; }
         .finder-column-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .finder-column-more { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }

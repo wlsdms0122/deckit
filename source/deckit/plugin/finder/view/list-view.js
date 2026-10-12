@@ -8,7 +8,7 @@ function listView({ ui, icons, onSort }) {
     ];
     const SHOWS_KIND_FROM = 620;
     const SHOWS_SIZE_FROM = 470;
-    // A row's rule sits under the list to outweigh the kit row's own size.
+    // A row's rule sits under the list to outweigh the gap of the kit's small row: its columns are the header's.
     const STYLE = `
         .finder-list-header {
             display: grid;
@@ -43,12 +43,11 @@ function listView({ ui, icons, onSort }) {
         .finder-list .finder-list-row {
             display: grid;
             gap: 0;
-            height: 26px;
             cursor: default;
             transition: none;
         }
         .finder-list-row[data-hidden] { opacity: 0.55; }
-        .finder-list-name { display: flex; align-items: center; gap: 7px; min-width: 0; }
+        .finder-list-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
         .finder-list-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .finder-alias { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
         .finder-list-cell { overflow: hidden; text-overflow: ellipsis; color: var(--deckit-muted); }
