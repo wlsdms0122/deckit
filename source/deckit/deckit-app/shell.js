@@ -33,15 +33,18 @@ DeckitModule.define(
                     .leave()
                     .then((left) => {
                         if (!left) return null;
-                        state.window = openWindow({
-                            view: deck.panel.view(),
+                        const view = deck.panel.view();
+                        const onClose = () => {
+                            state.window = null;
+                            deck.panel.hide();
+                        };
+                        state.window = WINDOW.open({
+                            view,
                             title: state.title,
                             glass: true,
-                            name: 'panel',
-                            onClose: () => {
-                                state.window = null;
-                                deck.panel.hide();
-                            },
+                            key: 'panel',
+                            place: (window, { bounds }) => deck.window.place(view, window, { bounds, onClose }),
+                            focus: focusPanel,
                         });
                         deck.panel.present({ floating: false, dismissible: false });
                         deck.panel.arrive();
@@ -51,11 +54,10 @@ DeckitModule.define(
                 return state.opening;
             }
 
-            // Every window here is Deckit.app's, and a keystroke on its bar is heard like one in its pages.
-            function openWindow(options) {
-                const window = WINDOW.open({ ...options, place: deck.window.place });
-                deck.keymap.listen(window.webContents);
-                return window;
+            // What has the keyboard in the panel's window: the switcher while it is open, or else the panel.
+            function focusPanel() {
+                if (deck.switcher.shown()) switcher?.webContents.focus();
+                else if (deck.panel.shown()) deck.panel.focus();
             }
 
             function raise(window) {
@@ -79,7 +81,7 @@ DeckitModule.define(
                 if (here || !window || window !== live(state.window)) return;
                 switcher = deck.switcher.view();
                 deck.window.place(switcher, window, {
-                    bounds: WINDOW.area,
+                    bounds: WINDOW.viewBounds,
                     front: true,
                     onClose: () => deck.switcher.close(),
                 });
@@ -100,7 +102,8 @@ DeckitModule.define(
                 // The panel is always presented as not dismissible here, so Escape never asks this.
                 dismiss: () => {},
                 summonSwitcher,
-                openWindow,
+                // Deckit's own windows: a plugin's, a web page's, a popup's.
+                openWindow: (options) => WINDOW.open(options),
                 panelTitled: (title) => {
                     state.title = title;
                     if (live(state.window)) WINDOW.setTitle(state.window, title);

@@ -17,7 +17,7 @@ This document is why deckit is split the way it is, and the rules that keep it s
 ```
 source/deckit/deckit       the library: the host and the kit. Names no app, not even its own
 source/deckit/plugin       deckit's own plugins, Settings among them
-source/deckit/deckit-app   Deckit.app: deckit embedded by itself, one window with the panel in it
+source/deckit/deckit-app   Deckit.app: deckit embedded by itself, its shell framing every window
 source/deckit/deckit-cli   the command line an embedding app ships for its plugins
 source/cli                 what builds, checks and runs deckit
 ```
@@ -49,7 +49,7 @@ The pages never speak to each other. Main carries everything between them, and e
 | what the switcher lists | `service/switcher/main.js`, from what each plugin's page supplies |
 | a plugin's data, records and settings | main, under deckit's folder (below) |
 | a plugin's web sign-ins | its own sessions, `persist:<id>:<plugin>:<name>` |
-| what the person arranged (plugin order, key overrides, Open With, window places) | `state/` |
+| what the person arranged (plugin order, key overrides, Open With) | `state/` |
 
 Deckit's folder is `app/folders`' `home`, or `~/.config/<id>`:
 

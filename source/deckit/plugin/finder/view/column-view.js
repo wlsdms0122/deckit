@@ -8,7 +8,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
     // The size of the system's icons: drawn larger, they blur.
     const PREVIEW_ICON_SIZE = 32;
     // The view and its list of columns lend their place to what is in them: the columns and the preview lay out as
-    // the file area's own flex items. A cell's rule sits under the column's body to outweigh the kit row's own size.
+    // the file area's own flex items.
     const STYLE = `
         .finder-columns,
         .finder-column-list { display: contents; }

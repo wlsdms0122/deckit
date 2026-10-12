@@ -19,12 +19,24 @@ DeckitModule.define(
         }
 
         // MARK: - Public
-        // A window of the app's holding `view`, or the one already open under `key`. `onClose` runs once the view is
-        // out of the window.
+        // A window of the app's holding `view`, of `size`, made by the shell, which puts the view in it with the
+        // `place` it is handed. One open under `key` is brought forward instead. `onClose` runs once the view is out
+        // of the window.
         function open({ key = null, view, title = '', size = null, onClose = null } = {}) {
             const already = key && get(key);
-            if (already) return already;
-            const window = shell.openWindow({ view, title, size, onClose });
+            if (already) {
+                if (already.isMinimized()) already.restore();
+                already.show();
+                already.focus();
+                return already;
+            }
+            const window = shell.openWindow({
+                view,
+                title,
+                size,
+                key,
+                place: (into, { bounds = null } = {}) => place(view, into, { bounds, onClose }),
+            });
             if (key) {
                 windows.set(key, window);
                 LOG.guard(window, 'closed', () => windows.get(key) === window && windows.delete(key));

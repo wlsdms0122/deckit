@@ -53,14 +53,6 @@ DeckitModule.define(
             KEYMAP.connect({ viewOf: viewFor, showsPanel, dismisses });
             HOST.onChange(reconcile);
             reconcile(HOST.plugins());
-            const { app } = require('electron');
-            // On activation Electron gives the keyboard to the window's own document, not the panel inside it, so it
-            // is handed back a tick after, where the panel is what is on screen.
-            LOG.guard(app, 'browser-window-focus', (_event, window) => {
-                const view = views.get(current)?.view;
-                if (!view || !shown || !showsPanel(view.webContents)) return;
-                setImmediate(() => !window.isDestroyed() && window.isFocused() && focus());
-            });
         }
 
         // The deckit view a keystroke or a request in this webContents belongs to: a plugin's, also for a web page

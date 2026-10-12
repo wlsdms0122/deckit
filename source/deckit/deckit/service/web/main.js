@@ -284,21 +284,24 @@ DeckitModule.define(
         // A window a page opened answers to that page's tab, as do the windows it opens in turn.
         function openPopup(view, opener, options) {
             const { WebContentsView } = require('electron');
-            const shown = new WebContentsView({ webContents: options.webContents, webPreferences: options.webPreferences });
-            const page = shown.webContents;
+            const pageView = new WebContentsView({
+                webContents: options.webContents,
+                webPreferences: options.webPreferences,
+            });
+            const page = pageView.webContents;
             const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
             REGISTRY.add(page, { host: view, plugin: IDENTITY.pluginOf(view).id, tab });
             KEYMAP.listen(page);
             holdWindowOpen(view, page, { inPanel: false });
             const size = options.width && options.height ? { width: options.width, height: options.height } : null;
-            showInWindow(shown, { size: size || WINDOW_SIZE });
+            showInWindow(pageView, { size: size || WINDOW_SIZE });
             return page;
         }
 
         function openWindow(view, plugin, name, url, title) {
             if (!mayShow(view, url, { inPanel: false })) return 0;
             const { WebContentsView } = require('electron');
-            const shown = new WebContentsView({
+            const pageView = new WebContentsView({
                 webPreferences: {
                     session: SESSION.of(plugin.id, name),
                     sandbox: true,
@@ -306,9 +309,9 @@ DeckitModule.define(
                     nodeIntegration: false,
                 },
             });
-            const page = shown.webContents;
+            const page = pageView.webContents;
             const id = page.id;
-            const window = showInWindow(shown, { title, size: WINDOW_SIZE });
+            const window = showInWindow(pageView, { title, size: WINDOW_SIZE });
             windows.set(id, { window, host: view });
             LOG.guard(window, 'closed', () => {
                 windows.delete(id);
@@ -321,11 +324,11 @@ DeckitModule.define(
 
         // A page in a window of the app's, the two going together: the page closes with the window, and a page that
         // closes itself takes its window.
-        function showInWindow(shown, { title = '', size }) {
-            const page = shown.webContents;
+        function showInWindow(pageView, { title = '', size }) {
+            const page = pageView.webContents;
             let closing = false;
             const window = WINDOW.open({
-                view: shown,
+                view: pageView,
                 title,
                 size,
                 onClose: () => {

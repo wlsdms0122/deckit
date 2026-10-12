@@ -65,12 +65,14 @@ What a shell answers:
 | `reveal()` | "show me": a plugin's `host.show()`, a switcher choice |
 | `dismiss()` | "put it away": Escape with nothing else to close |
 | `summonSwitcher(webContents)` | the switcher's chord, pressed in that page |
-| `openWindow({ view, title, size, onClose })` | a window deckit needs for a view of its own: a plugin's window, a web page in a window, a page's popup. The shell makes it, frames it, puts `view` in it with `deck.window.place` and `onClose`, and returns it at once |
-| `panelTitled(title)` | the panel's title changed: the name of the plugin in front |
+| `openWindow({ view, title, size, key, place })` | a window deckit needs for a view of its own: a plugin's window, a web page in a window, a page's popup. The shell makes it, frames it, puts `view` in it by calling `place(window, { bounds })`, and returns it at once. `size` is the view's. `key` names a window that is the same one each time it opens (a plugin's), so the shell can open it where it was left |
+| `panelTitled(title)` | the panel's title changed: the name of the plugin in front, or the app's name when none is |
 | `noticeClicked()` | a notice deckit raised was clicked |
 | `restart()` | the app restarts: the process is the app's |
 
-`connect` is called once, with `preload` and a shell that answers every one of these; otherwise it throws and names what is missing.
+`connect` is called once, with `preload` and a shell that answers every one of these; otherwise it throws and names what is missing. `openWindow` and `panelTitled` can be asked as plugins load, before `start`.
+
+The keyboard in a window is the shell's to give. macOS hands it to a window's own page each time the window comes forward, so a shell whose views are not that page gives it to the view: `deck.panel.focus()` for the panel, the view's page for a window it opened.
 
 What `deck` holds:
 
