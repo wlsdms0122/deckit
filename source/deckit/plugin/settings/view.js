@@ -119,7 +119,7 @@ Deckit.register({
                     borderTop: i ? theme.border : '0',
                 });
                 const tile = document.createElement('div');
-                tile.innerHTML = ui.icon(p.icon, 15);
+                tile.innerHTML = ui.icon(p.icon, { size: 15 });
                 Object.assign(tile.style, {
                     width: '28px',
                     height: '28px',
@@ -180,10 +180,10 @@ Deckit.register({
             root.append(permissionList(permissions), trust);
             return root;
         };
-        const installBtn = ui.textBtn(
-            'Install Plugin',
-            '',
-            async () => {
+        const installBtn = ui.textBtn({
+            label: 'Install Plugin',
+            title: '',
+            onClick: async () => {
                 let picked;
                 try {
                     picked = await host.plugins.pick();
@@ -218,9 +218,10 @@ Deckit.register({
                     onConfirm: install,
                 });
             },
-            { size: 'sm', icon: ui.icon('plus', 14) }
-        );
-        plugins.head.appendChild(installBtn);
+            size: 'small',
+            icon: ui.icon('plus', { size: 14 }),
+        });
+        plugins.head.appendChild(installBtn.element);
 
         const pluginHead = document.createElement('div');
         Object.assign(pluginHead.style, {
@@ -525,7 +526,7 @@ Deckit.register({
                 const nameCell = document.createElement('span');
                 Object.assign(nameCell.style, { display: 'flex', alignItems: 'center', gap: '4px', minWidth: '0' });
                 const caret = document.createElement('span');
-                caret.innerHTML = ui.icon('chevronRight', 13);
+                caret.innerHTML = ui.icon('chevronRight', { size: 13 });
                 Object.assign(caret.style, {
                     display: 'flex',
                     flex: '0 0 auto',
@@ -577,11 +578,19 @@ Deckit.register({
                 const actions = document.createElement('div');
                 Object.assign(actions.style, { display: 'flex', alignItems: 'center', gap: '2px', flex: '0 0 auto' });
                 actions.appendChild(
-                    ui.miniBtn(ui.icon('externalWindow', 14), 'Open the plugin folder', () => host.plugins.reveal(id))
+                    ui.miniBtn({
+                        icon: ui.icon('externalWindow', { size: 14 }),
+                        title: 'Open the plugin folder',
+                        onClick: () => host.plugins.reveal(id),
+                    }).element
                 );
                 if (installed) {
                     actions.appendChild(
-                        ui.miniBtn(ui.icon('x', 14), 'Remove this plugin', () => askRemove({ id, name }))
+                        ui.miniBtn({
+                            icon: ui.icon('x', { size: 14 }),
+                            title: 'Remove this plugin',
+                            onClick: () => askRemove({ id, name }),
+                        }).element
                     );
                 } else {
                     const kept = chip('source', 'muted');
@@ -590,7 +599,9 @@ Deckit.register({
                 }
 
                 row.append(nameCell, ver, gives, actions);
-                ui.hoverable(row, () => false, { shows: () => opened.has(id) });
+                const rowHover = ui.hoverable(row);
+                rowHover.setActive(false);
+                rowHover.setRevealed(opened.has(id));
                 entry.appendChild(row);
 
                 if (notLoaded || problem) {
@@ -605,7 +616,8 @@ Deckit.register({
                         wordBreak: 'break-word',
                     });
                     // Selectable: this is what gets pasted into a bug report.
-                    entry.appendChild(ui.selectable(why));
+                    ui.selectable(why);
+                    entry.appendChild(why);
                 }
 
                 entry.appendChild(details(id, { live, requirements, keys }, lists));
@@ -613,7 +625,8 @@ Deckit.register({
                     const open = opened.has(id);
                     caret.style.transform = open ? 'rotate(90deg)' : 'none';
                     entry.lastChild.setOpen(open, animate);
-                    row.repaint();
+                    rowHover.setActive(false);
+                    rowHover.setRevealed(opened.has(id));
                 };
                 row.addEventListener('click', () => {
                     if (opened.has(id)) opened.delete(id);
@@ -667,21 +680,23 @@ Deckit.register({
         });
         const pendingText = document.createElement('div');
         Object.assign(pendingText.style, { flex: '1 1 auto', minWidth: '0', opacity: '.85' });
-        const restartBtn = ui.textBtn(
-            'Restart ' + APP,
-            '',
-            async () => {
-                restartBtn.setEnabled(false).setText('Restarting\u2026');
+        const restartBtn = ui.textBtn({
+            label: 'Restart ' + APP,
+            title: '',
+            onClick: async () => {
+                restartBtn.setEnabled(false);
+                restartBtn.setLabel('Restarting\u2026');
                 try {
                     await host.plugins.restart();
                 } catch (e) {
-                    restartBtn.setEnabled(true).setText('Restart ' + APP);
+                    restartBtn.setEnabled(true);
+                    restartBtn.setLabel('Restart ' + APP);
                     say('Could not restart: ' + ((e && e.message) || e));
                 }
             },
-            { size: 'sm' }
-        );
-        pending.append(pendingText, restartBtn);
+            size: 'small',
+        });
+        pending.append(pendingText, restartBtn.element);
 
         const renderPending = (onDisk) => {
             const list = host.plugins.restartPending();
@@ -791,7 +806,9 @@ Deckit.register({
                         words.appendChild(hint);
                     }
                     // A value out of bounds throws at once, a failed write rejects later: the await catches both.
+                    // Shown at once, as the control did itself before: it is set by its owner now.
                     const set = async (v) => {
+                        control.set(v);
                         try {
                             await host.pluginSettings.set(g.id, item.key, v);
                         } catch (e) {
@@ -804,14 +821,16 @@ Deckit.register({
                             ? item.options.map((o) => (o.absent ? { ...o, label: o.label + ' (not available)' } : o))
                             : [];
                     let control;
-                    if (item.type === 'toggle') control = ui.toggle({ on: !!item.value, onChange: (on) => set(on) });
+                    if (item.type === 'toggle') control = ui.toggle({ value: !!item.value, onChange: (on) => set(on) });
                     else if (item.type === 'choice' && !item.computed && options.length <= 4) {
-                        control = ui.segmented(
-                            options.map((o) => ({ key: o.value, label: o.label })),
-                            { value: item.value, size: 'sm', onChange: set }
-                        );
+                        control = ui.segmented({
+                            items: options.map((o) => ({ key: o.value, label: o.label })),
+                            value: item.value,
+                            size: 'small',
+                            onChange: set,
+                        });
                     } else if (item.type === 'choice')
-                        control = ui.select(options, { value: item.value, onChange: set });
+                        control = ui.select({ options, value: item.value, onChange: set });
                     else if (item.type === 'number') {
                         control = ui.stepper({
                             value: item.value,
@@ -825,10 +844,10 @@ Deckit.register({
                         control = ui.field({
                             value: item.value || '',
                             placeholder: item.placeholder,
-                            size: 'sm',
-                            onEnter: (v) => set(v),
+                            size: 'small',
+                            onSubmit: (v) => set(v),
                         });
-                        Object.assign(control.style, { flex: '0 0 220px' });
+                        Object.assign(control.element.style, { flex: '0 0 220px' });
                         control.input.addEventListener('blur', () => set(control.input.value));
                     } else if (item.type === 'action') {
                         const answer = document.createElement('div');
@@ -839,19 +858,23 @@ Deckit.register({
                             display: 'none',
                         });
                         words.appendChild(answer);
-                        control = ui.textBtn(item.button, item.label, async () => {
-                            answer.style.display = 'none';
-                            let text = '';
-                            try {
-                                text = await host.pluginSettings.run(g.id, item.key);
-                            } catch (e) {
-                                text = 'Did not work: ' + ((e && e.message) || e);
-                            }
-                            answer.textContent = text;
-                            answer.style.display = text ? 'block' : 'none';
+                        control = ui.textBtn({
+                            label: item.button,
+                            title: item.label,
+                            onClick: async () => {
+                                answer.style.display = 'none';
+                                let text = '';
+                                try {
+                                    text = await host.pluginSettings.run(g.id, item.key);
+                                } catch (e) {
+                                    text = 'Did not work: ' + ((e && e.message) || e);
+                                }
+                                answer.textContent = text;
+                                answer.style.display = text ? 'block' : 'none';
+                            },
                         });
                     } else continue;
-                    row.append(words, control);
+                    row.append(words, control.element);
                     group.appendChild(row);
                 }
                 pluginSettingRows.appendChild(group);
@@ -892,11 +915,13 @@ Deckit.register({
                     });
                 const handlers = openLine.handlers;
                 const list = ui.list();
-                ui.sortable(list, (from, to) => {
-                    const next = [...handlers];
-                    next.splice(to, 0, next.splice(from, 1)[0]);
-                    save(next);
-                    renderURLSchemes();
+                ui.sortable(list.element, {
+                    onReorder: (from, to) => {
+                        const next = [...handlers];
+                        next.splice(to, 0, next.splice(from, 1)[0]);
+                        save(next);
+                        renderURLSchemes();
+                    },
                 });
 
                 const line = (place, labelText, trailing, { muted = false, drag = false } = {}) => {
@@ -914,7 +939,7 @@ Deckit.register({
                     });
                     if (drag) ui.hoverable(r);
                     const grip = document.createElement('span');
-                    grip.innerHTML = drag ? ui.icon('grip', 14) : '';
+                    grip.innerHTML = drag ? ui.icon('grip', { size: 14 }) : '';
                     Object.assign(grip.style, { display: 'flex', flex: '0 0 14px', opacity: '.35' });
                     const n = document.createElement('span');
                     n.textContent = place;
@@ -942,17 +967,18 @@ Deckit.register({
                 };
                 handlers.forEach((p, i) => {
                     const sw = ui.toggle({
-                        on: p.on,
+                        value: p.on,
                         onChange: (on) => {
+                            sw.set(on);
                             handlers[i] = { ...p, on };
                             save(handlers);
                             renderURLSchemes();
                         },
                     });
-                    sw.title = p.on
+                    sw.element.title = p.on
                         ? `${p.name} is asked ${i === 0 ? 'first' : 'in this place'}`
                         : `${p.name} is skipped`;
-                    list.appendChild(line(String(i + 1), p.name, sw, { muted: !p.on, drag: true }));
+                    list.element.appendChild(line(String(i + 1), p.name, sw.element, { muted: !p.on, drag: true }));
                 });
                 if (!handlers.length) {
                     const none = document.createElement('div');
@@ -964,7 +990,7 @@ Deckit.register({
                     });
                     group.appendChild(none);
                 }
-                group.appendChild(list);
+                group.appendChild(list.element);
                 const own = SYSTEM_FALLBACK[openLine.system];
                 const fallback = own
                     ? line('\u2014', own, chip('Default', 'muted'), { muted: true })
@@ -1099,13 +1125,17 @@ Deckit.register({
                     });
                     line.appendChild(key);
 
-                    const back = ui.miniBtn(ui.icon('reload', 13), `Back to ${k.defaultChord || 'none'}`, () => {
-                        host.keymap.reset(k.id);
-                        renderKeyboard();
+                    const back = ui.miniBtn({
+                        icon: ui.icon('reload', { size: 13 }),
+                        title: `Back to ${k.defaultChord || 'none'}`,
+                        onClick: () => {
+                            host.keymap.reset(k.id);
+                            renderKeyboard();
+                        },
                     });
-                    back.style.opacity = k.changed ? '.6' : '0';
-                    back.style.pointerEvents = k.changed ? 'auto' : 'none';
-                    line.appendChild(back);
+                    back.element.style.opacity = k.changed ? '.6' : '0';
+                    back.element.style.pointerEvents = k.changed ? 'auto' : 'none';
+                    line.appendChild(back.element);
                     cellBox.appendChild(line);
 
                     for (const issue of k.issues) {
@@ -1133,17 +1163,17 @@ Deckit.register({
         const PARTS = [...body.children].filter((el) => el.heading).map((root) => ({ root, label: root.heading }));
         const sidebar = document.createElement('div');
         Object.assign(sidebar.style, { display: 'flex', flexDirection: 'column', minHeight: '0', flex: '1 1 auto' });
-        const toc = ui.section('Table of Contents', { icon: ui.icon('tableOfContents', 16) });
+        const toc = ui.section({ label: 'Table of Contents', icon: ui.icon('tableOfContents', { size: 16 }) });
         const tocList = ui.list();
-        toc.body.appendChild(tocList);
-        sidebar.appendChild(toc);
+        toc.body.appendChild(tocList.element);
+        sidebar.appendChild(toc.element);
 
         let here = PARTS[0];
         const topOf = (part) =>
             part.root.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
         // Redrawn rather than repainted: hoverable paints the active row only when it is built.
         const renderToc = () => {
-            tocList.textContent = '';
+            tocList.element.textContent = '';
             for (const part of PARTS) {
                 const r = ui.row();
                 const label = document.createElement('span');
@@ -1155,10 +1185,10 @@ Deckit.register({
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                 });
-                r.append(label);
-                r.addEventListener('click', () => go(part));
-                ui.hoverable(r, () => part === here);
-                tocList.appendChild(r);
+                r.element.append(label);
+                r.element.addEventListener('click', () => go(part));
+                r.setActive(part === here);
+                tocList.element.appendChild(r.element);
             }
         };
 
@@ -1272,14 +1302,14 @@ Deckit.register({
                 const places = [
                     ...[...PART_WORDS].map(([root, words]) => ({
                         label: root.heading,
-                        icon: ui.icon('gear', 16),
+                        icon: ui.icon('gear', { size: 16 }),
                         keywords: words,
                         run: () => showPart(root),
                     })),
                     ...settingGroups.map((g) => ({
                         group: 'Plugin Settings',
                         label: g.name + ' Settings',
-                        icon: pluginIcons.get(g.id) || ui.icon('sliders', 16),
+                        icon: pluginIcons.get(g.id) || ui.icon('sliders', { size: 16 }),
                         keywords: ['설정', 'settings', g.id, ...g.items.map((it) => it.label)],
                         run: () => {
                             host.show();

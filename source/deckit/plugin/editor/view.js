@@ -247,17 +247,17 @@ Deckit.register({
             if (trouble?.kind === 'GONE') {
                 noticeText.textContent = `${nameOf(f.path)} was deleted on disk. What is here is all there is of it.`;
                 noticeActions.append(
-                    ui.textBtn('Save As\u2026', '', () => saveElsewhere(f), { size: 'sm' }),
-                    ui.textBtn('Close', '', () => close(f), { size: 'sm' })
+                    ui.textBtn({ label: 'Save As\u2026', onClick: () => saveElsewhere(f), size: 'small' }).element,
+                    ui.textBtn({ label: 'Close', onClick: () => close(f), size: 'small' }).element
                 );
             } else if (trouble) {
                 noticeText.textContent = `${nameOf(f.path)} can no longer be opened here: ${trouble.message}`;
-                noticeActions.append(ui.textBtn('Close', '', () => close(f), { size: 'sm' }));
+                noticeActions.append(ui.textBtn({ label: 'Close', onClick: () => close(f), size: 'small' }).element);
             } else {
                 noticeText.textContent = `${nameOf(f.path)} changed on disk while it had unsaved changes here.`;
                 noticeActions.append(
-                    ui.textBtn('Reload from disk', '', () => reload(f, true), { size: 'sm' }),
-                    ui.textBtn('Keep mine', '', () => keepMine(f), { size: 'sm' })
+                    ui.textBtn({ label: 'Reload from disk', onClick: () => reload(f, true), size: 'small' }).element,
+                    ui.textBtn({ label: 'Keep mine', onClick: () => keepMine(f), size: 'small' }).element
                 );
             }
         };
@@ -319,18 +319,16 @@ Deckit.register({
                 name.title = p;
                 row.append(
                     name,
-                    ui.textBtn(
-                        'Open',
-                        '',
-                        async () => {
+                    ui.textBtn({
+                        label: 'Open',
+                        onClick: async () => {
                             if (await open(p)) showStrays();
                         },
-                        { size: 'sm' }
-                    ),
-                    ui.textBtn(
-                        'Save As…',
-                        '',
-                        async () => {
+                        size: 'small',
+                    }).element,
+                    ui.textBtn({
+                        label: 'Save As…',
+                        onClick: async () => {
                             let to = [];
                             try {
                                 to = await main.call('pick', 'save', p);
@@ -353,12 +351,11 @@ Deckit.register({
                             await open(to[0]);
                             showStrays();
                         },
-                        { size: 'sm' }
-                    ),
-                    ui.textBtn(
-                        'Discard',
-                        '',
-                        () =>
+                        size: 'small',
+                    }).element,
+                    ui.textBtn({
+                        label: 'Discard',
+                        onClick: () =>
                             ui.dialog({
                                 title: `Discard the changes to ${nameOf(p)}?`,
                                 message: 'They were never saved, so they are gone once discarded.',
@@ -370,8 +367,8 @@ Deckit.register({
                                     showStrays();
                                 },
                             }),
-                        { size: 'sm' }
-                    )
+                        size: 'small',
+                    }).element
                 );
                 strays.appendChild(row);
             }
@@ -382,22 +379,25 @@ Deckit.register({
             empty.textContent = '';
             const root = space?.root;
             const buttons = [];
-            const button = (label, action, run) =>
-                ui.tip(ui.textBtn(label, label, run, { size: 'sm' }), label, () => host.chordOf(action));
+            const button = (label, action, run) => {
+                const { element } = ui.textBtn({ label, title: label, onClick: run, size: 'small' });
+                ui.tip(element, { text: label, chord: () => host.chordOf(action) });
+                return element;
+            };
             if (root) buttons.push(button('Open Quickly…', 'quickOpen', () => quick.show()));
             buttons.push(
                 button('Open Folder…', 'openFolder', () => pickFolder()),
                 button('Open File…', 'openFile', () => pickFiles())
             );
             const state = ui.emptyState({
-                icon: ui.icon('fileText', 44),
+                icon: ui.icon('fileText', { size: 44 }),
                 title: root ? nameOf(root) : space ? 'Files' : 'Editor',
                 hint: root
                     ? 'Pick a file in the navigator, or open one by name with Open Quickly'
                     : 'Open a folder to work in it as a workspace',
                 actions: buttons,
             });
-            empty.appendChild(state);
+            empty.appendChild(state.element);
             const recent = recentFolders()
                 .filter((p) => !spaces.some((w) => w.root === p))
                 .slice(0, 6);
@@ -424,9 +424,9 @@ Deckit.register({
                     )
                 );
                 for (const p of recent) {
-                    const r = ui.row({ dense: true });
+                    const r = ui.row({ size: 'small' }).element;
                     const glyph = el('span', { display: 'flex' });
-                    glyph.innerHTML = ui.folderIcon(false, 14);
+                    glyph.innerHTML = ui.folderIcon({ open: false, size: 14 });
                     r.append(
                         glyph,
                         el('span', { fontWeight: '600' }, nameOf(p)),
@@ -443,11 +443,10 @@ Deckit.register({
                             tilde(p)
                         )
                     );
-                    ui.hoverable(r);
                     r.addEventListener('click', () => openFolder(p));
                     list.appendChild(r);
                 }
-                state.appendChild(list);
+                state.element.appendChild(list);
             }
         };
 
@@ -518,7 +517,7 @@ Deckit.register({
                 borderRadius: '4px',
             });
             const shut = () => {
-                end.innerHTML = ui.icon('x', 12);
+                end.innerHTML = ui.icon('x', { size: 12 });
                 end.style.opacity = '.75';
             };
             const rest = () => {
@@ -529,7 +528,7 @@ Deckit.register({
                     );
                     end.style.opacity = '.8';
                 } else {
-                    end.innerHTML = ui.icon('x', 12);
+                    end.innerHTML = ui.icon('x', { size: 12 });
                     end.style.opacity = on ? '.5' : '0';
                 }
             };
@@ -614,7 +613,7 @@ Deckit.register({
                     opacity: last ? '1' : '.6',
                 });
                 const glyph = el('span', { display: 'flex' });
-                glyph.innerHTML = last ? fileIcons.file(part, 12) : ui.folderIcon(false, 12);
+                glyph.innerHTML = last ? fileIcons.file(part, 12) : ui.folderIcon({ open: false, size: 12 });
                 seg.append(glyph, el('span', { overflow: 'hidden', textOverflow: 'ellipsis' }, part));
                 if (!last && inRoot) {
                     seg.style.cursor = 'pointer';
@@ -648,12 +647,12 @@ Deckit.register({
                             caseSensitive: s.caseSensitive,
                             wholeWord: s.word,
                             regexp: s.regex,
-                            replace: bar.replacement,
+                            replace: bar.replacement(),
                         })
                     ),
                 });
             // The replacement is read when it is used, so the query carries it only then.
-            const withReplacement = () => apply(bar.state);
+            const withReplacement = () => apply(bar.state());
             const bar = ui.searchBar({
                 placeholder: 'Find in file',
                 nav: true,
@@ -669,13 +668,13 @@ Deckit.register({
                 },
                 onChange: apply,
                 onNext: () => engine.findNext(view),
-                onPrev: () => engine.findPrevious(view),
-                onEscape: () => {
+                onPrevious: () => engine.findPrevious(view),
+                onCancel: () => {
                     engine.closeSearchPanel(view);
                     view.focus();
                 },
             });
-            dom.appendChild(bar);
+            dom.appendChild(bar.element);
             /* Counted once typing pauses, not in the key that changed it: the key must reach the screen
          first. Which match is a binary search over those found, so stepping is answered at once. */
             let found = null; // for the query and text they were found in
@@ -769,7 +768,7 @@ Deckit.register({
             });
             marker.className = open ? 'sk-fold-open' : 'sk-fold-closed';
             marker.title = open ? 'Fold' : 'Unfold';
-            marker.innerHTML = ui.icon(open ? 'chevronDown' : 'chevronRight', 13);
+            marker.innerHTML = ui.icon(open ? 'chevronDown' : 'chevronRight', { size: 13 });
             return marker;
         };
         // The "…" character sets its dots almost touching, which reads as a smudge at code sizes.
@@ -782,7 +781,7 @@ Deckit.register({
             });
             chip.className = 'cm-foldPlaceholder';
             chip.title = 'Unfold';
-            chip.innerHTML = ui.icon('ellipsis', 16);
+            chip.innerHTML = ui.icon('ellipsis', { size: 16 });
             chip.onclick = onclick;
             return chip;
         };
@@ -1163,8 +1162,8 @@ Deckit.register({
         const renameIn = async (w, from, label, { stem }) => {
             let at = from;
             await ui.inlineEdit(label, {
-                stem,
-                commit: async (name) => {
+                selectStem: stem,
+                onCommit: async (name) => {
                     try {
                         await disk.holding(openUnder(from), async () => {
                             at = await main.call('rename', from, name);
@@ -1582,8 +1581,8 @@ Deckit.register({
         });
         const openMenu = (button) => {
             const recent = recentFolders().filter((p) => !spaces.some((w) => w.root === p));
-            ui.menu(
-                [
+            ui.menu({
+                items: [
                     {
                         label: 'Open Folder\u2026',
                         icon: 'folder',
@@ -1611,20 +1610,23 @@ Deckit.register({
                           ]
                         : []),
                 ],
-                { anchor: button }
-            );
+                anchor: button.element,
+            });
         };
-        const spaceSection = ui.section('Workspaces', {
-            icon: ui.icon('folders', 16),
+        const spaceSection = ui.section({
+            label: 'Workspaces',
+            icon: ui.icon('folders', { size: 16 }),
             actions: [{ title: 'Open', run: openMenu }],
         });
-        const spaceList = ui.list({ most: 4 });
+        const spaceList = ui.list({ maxRows: 4 }).element;
         spaceSection.body.appendChild(spaceList);
-        ui.sortable(spaceList, (from, to) => {
-            const [w] = spaces.splice(from, 1);
-            spaces.splice(to, 0, w);
-            persist();
-            renderSpaces();
+        ui.sortable(spaceList, {
+            onReorder: (from, to) => {
+                const [w] = spaces.splice(from, 1);
+                spaces.splice(to, 0, w);
+                persist();
+                renderSpaces();
+            },
         });
 
         const lead = (svg) => {
@@ -1632,20 +1634,27 @@ Deckit.register({
             g.innerHTML = svg;
             return g;
         };
-        const navBar = ui.segmented(
-            [
-                { key: 'files', label: 'Files', title: 'Files', lead: lead(ui.icon('fileText', 13)) },
-                { key: 'search', label: 'Find', title: 'Find in the workspace', lead: lead(ui.icon('search', 13)) },
+        const navBar = ui.segmented({
+            items: [
+                { key: 'files', label: 'Files', title: 'Files', lead: lead(ui.icon('fileText', { size: 13 })) },
+                {
+                    key: 'search',
+                    label: 'Find',
+                    title: 'Find in the workspace',
+                    lead: lead(ui.icon('search', { size: 13 })),
+                },
             ],
-            { value: 'files', size: 'sm', onChange: (key) => setMode(key) }
-        );
-        navBar.style.alignSelf = 'stretch';
-        for (const b of navBar.children) {
+            value: 'files',
+            size: 'small',
+            onChange: (key) => setMode(key),
+        });
+        navBar.element.style.alignSelf = 'stretch';
+        for (const b of navBar.element.children) {
             b.style.flex = '1 1 0';
             b.style.justifyContent = 'center';
         }
-        ui.tip(navBar.children[0], 'Files', () => host.chordOf('showFiles'));
-        ui.tip(navBar.children[1], 'Find in the workspace', () => host.chordOf('showFind'));
+        ui.tip(navBar.element.children[0], { text: 'Files', chord: () => host.chordOf('showFiles') });
+        ui.tip(navBar.element.children[1], { text: 'Find in the workspace', chord: () => host.chordOf('showFind') });
         const navHead = el('div', { display: 'flex', flexDirection: 'column', flex: '0 0 auto', minWidth: '0' });
         const top = el('div', {
             display: 'flex',
@@ -1654,7 +1663,7 @@ Deckit.register({
             gap: '10px',
             padding: '0 12px 6px',
         });
-        top.append(spaceSection, navBar, navHead);
+        top.append(spaceSection.element, navBar.element, navHead);
         const navBody = el('div', {
             display: 'flex',
             flexDirection: 'column',
@@ -1673,9 +1682,11 @@ Deckit.register({
         const drawSpaces = () => {
             spaceList.textContent = '';
             for (const w of spaces) {
-                const r = ui.row();
+                const { element: r, setActive } = ui.row();
                 const glyph = el('span', { display: 'flex', flex: '0 0 auto' });
-                glyph.innerHTML = w.root ? ui.folderIcon(w === space, 16) : ui.icon('fileText', 16);
+                glyph.innerHTML = w.root
+                    ? ui.folderIcon({ open: w === space, size: 16 })
+                    : ui.icon('fileText', { size: 16 });
                 const label = el(
                     'span',
                     { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis' },
@@ -1694,18 +1705,23 @@ Deckit.register({
                             opacity: '.7',
                         })
                     );
-                r.appendChild(ui.miniBtn(ui.icon('x', 14), 'Close workspace', () => closeSpace(w)));
+                r.appendChild(
+                    ui.miniBtn({
+                        icon: ui.icon('x', { size: 14 }),
+                        title: 'Close workspace',
+                        onClick: () => closeSpace(w),
+                    }).element
+                );
                 r.addEventListener('click', () => switchTo(w));
-                ui.hoverable(r, () => w === space);
+                setActive(w === space);
                 spaceList.appendChild(r);
             }
             if (!spaces.length) {
-                const r = ui.row();
+                const r = ui.row().element;
                 const g = el('span', { display: 'flex', opacity: '.6' });
-                g.innerHTML = ui.icon('plus', 15);
+                g.innerHTML = ui.icon('plus', { size: 15 });
                 r.append(g, el('span', { opacity: '.7' }, 'Open Folder…'));
                 r.addEventListener('click', () => pickFolder());
-                ui.hoverable(r);
                 spaceList.appendChild(r);
             }
             // Only when the front changes, so a list scrolled by hand stays where it was put.
@@ -1720,15 +1736,15 @@ Deckit.register({
             const w = space;
             const want = w ? (w.root || '') + '|' + w.mode : '';
             navBody.style.display = w ? 'flex' : 'none';
-            navBar.style.display = w?.root ? 'flex' : 'none';
+            navBar.element.style.display = w?.root ? 'flex' : 'none';
             if (!w || drawn === want) return;
             drawn = want;
             navBody.textContent = '';
             navHead.textContent = '';
             if (!w.root) {
-                navBar.style.display = 'none';
+                navBar.element.style.display = 'none';
                 for (const f of w.files) {
-                    const r = ui.row({ dense: true });
+                    const { element: r, setActive } = ui.row({ size: 'small' });
                     const g = el('span', { display: 'flex' });
                     g.innerHTML = fileIcons.file(nameOf(f.path), 14);
                     r.append(
@@ -1741,14 +1757,14 @@ Deckit.register({
                     );
                     r.title = f.path;
                     r.addEventListener('click', () => show(f));
-                    ui.hoverable(r, () => f === w.current);
+                    setActive(f === w.current);
                     navBody.appendChild(r);
                 }
                 drawn = null; // a list of its files, so redrawn whenever the files change
                 return;
             }
-            navBar.style.display = 'flex';
-            navBar.setValue(w.mode);
+            navBar.element.style.display = 'flex';
+            navBar.set(w.mode);
             navHead.textContent = '';
             if (w.mode === 'search') navHead.appendChild(w.finder.head);
             navBody.appendChild(w.mode === 'search' ? w.finder.element : w.tree.element);
@@ -1893,7 +1909,7 @@ Deckit.register({
             commands: () => [
                 {
                     label: 'Open Folder\u2026',
-                    icon: ui.icon('folder', 16),
+                    icon: ui.icon('folder', { size: 16 }),
                     keywords: ['열기', '폴더', '워크스페이스', 'open', 'folder', 'workspace', 'project'],
                     run: () => {
                         host.show();
@@ -1902,7 +1918,7 @@ Deckit.register({
                 },
                 {
                     label: 'Open File\u2026',
-                    icon: ui.icon('fileText', 16),
+                    icon: ui.icon('fileText', { size: 16 }),
                     keywords: ['열기', '파일', 'open', 'file'],
                     run: () => {
                         host.show();
@@ -1913,7 +1929,7 @@ Deckit.register({
                     ? [
                           {
                               label: 'New File in ' + nameOf(space.root),
-                              icon: ui.icon('filePlus', 16),
+                              icon: ui.icon('filePlus', { size: 16 }),
                               keywords: ['새 파일', '파일', '만들기', 'new', 'file', 'create'],
                               run: () => {
                                   host.show();
@@ -1928,7 +1944,7 @@ Deckit.register({
                         group: 'Workspaces',
                         label: nameOf(w.root),
                         hint: tilde(w.root),
-                        icon: ui.icon('folders', 16),
+                        icon: ui.icon('folders', { size: 16 }),
                         keywords: ['워크스페이스', 'workspace'],
                         address: w.root,
                         run: () => {
@@ -1942,7 +1958,7 @@ Deckit.register({
                         group: 'Recent Folders',
                         label: nameOf(p),
                         hint: tilde(p),
-                        icon: ui.icon('folder', 16),
+                        icon: ui.icon('folder', { size: 16 }),
                         keywords: ['폴더', 'folder'],
                         address: p,
                         run: () => {
@@ -1956,7 +1972,7 @@ Deckit.register({
                     .map((w) => ({
                         label: 'Search Files in ' + nameOf(w.root),
                         hint: tilde(w.root),
-                        icon: ui.icon('search', 16),
+                        icon: ui.icon('search', { size: 16 }),
                         keywords: [
                             '파일',
                             '검색',
@@ -1979,7 +1995,7 @@ Deckit.register({
                                         {
                                             label: 'Could not list the files',
                                             hint: failureOf(e).message,
-                                            icon: ui.icon('search', 16),
+                                            icon: ui.icon('search', { size: 16 }),
                                         },
                                     ];
                                 }

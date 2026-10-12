@@ -5,164 +5,147 @@ DeckitModule.define(
         provides: ['STYLE', 'make'],
     },
     (TOKEN, SCROLL, GESTURE, LIST) => {
-        const { MOTION } = TOKEN;
+        // MARK: - Property
+        const STYLE = '';
+        // A lifted row grows by this much.
+        const LIFTED = 1.02;
 
-        return {
-            STYLE: '',
-            make: (theme, ui, inner) => {
-                return {
-                    sortable(list, onReorder) {
-                        // The rows on screen: a row that is not laid out has no place in the list to move to or from.
-                        const rows = () => [...list.children].filter((r) => r.getClientRects().length);
-                        GESTURE.drag(list, {
-                            pick: (target) => {
-                                for (let n = target; n && n !== list; n = n.parentElement)
-                                    if (n.parentElement === list) return n;
-                                return null;
-                            },
-                            begin: LIST.heldWhile(list, (row, down, finished) => lift(row, down.clientY, finished)),
-                        });
+        // MARK: - Initializer
+        // MARK: - Public
+        function make(theme) {
+            return { sortable: (list, options) => sortable(theme, list, options) };
+        }
 
-                        const lift = (row, startY, finished) => {
-                            const all = rows();
-                            const from = all.indexOf(row);
-                            if (from < 0 || all.length < 2) return null;
-                            /* Places are read once, as they stood when the row was lifted, and kept in those terms
-             ("the list's coordinates at lift"); a scroll since is added to the pointer instead. */
-                            const boxes = all.map((r) => r.getBoundingClientRect());
-                            const held = boxes[from];
-                            const scroller = SCROLL.scrollerOf(list);
-                            const scrolledAt = scroller ? scroller.scrollTop : 0;
-                            const scrolled = () => (scroller ? scroller.scrollTop - scrolledAt : 0);
-                            // How far a row moves to take the held row's place: its height and the gap after it.
-                            const gap = Math.max(0, boxes[1].top - boxes[0].bottom);
-                            const span = held.height + gap;
-                            const kept = all.map((r) => ({
-                                transition: r.style.transition,
-                                transform: r.style.transform,
-                            }));
-                            const keptHeld = {
-                                position: row.style.position,
-                                zIndex: row.style.zIndex,
-                                boxShadow: row.style.boxShadow,
-                            };
-                            const slide = `transform ${MOTION.base}ms ${MOTION.easing}`;
-                            all.forEach((r, i) => {
-                                if (i !== from) r.style.transition = slide;
-                            });
+        // MARK: - Private
+        // The rows of `list`, its children, put in a new order by a drag. The list itself is not reordered: `onReorder(from,
+        // to)` hears the move and the owner draws the new order. Returns the dispose.
+        function sortable(theme, list, { onReorder }) {
+            return GESTURE.drag(list, {
+                pick: (target) => {
+                    for (let node = target; node && node !== list; node = node.parentElement)
+                        if (node.parentElement === list) return node;
+                    return null;
+                },
+                begin: LIST.heldWhile(list, (row, down, finished) =>
+                    lift(theme, list, row, down.clientY, (from, to) => to !== from && onReorder(from, to), finished)
+                ),
+            });
+        }
 
-                            /* The fill is an inset shadow, not a background: the background is the hover's to paint, and it
-             repaints as the pointer comes and goes during the drag. */
-                            if (getComputedStyle(row).position === 'static') row.style.position = 'relative';
-                            Object.assign(row.style, {
-                                zIndex: '2',
-                                boxShadow: `inset 0 0 0 100vmax ${theme.color.lifted}, ${theme.shadow.lifted}`,
-                                transition: 'none',
-                            });
-                            const place = (dy, scale) => {
-                                row.style.transform = `translateY(${dy}px) scale(${scale})`;
-                            };
-                            place(0, 1.02);
+        // The row lifted, the others sliding aside as it passes them. The rows on screen are those laid out: one that is
+        // not has no place to move to or from.
+        function lift(theme, list, row, startY, reorder, finished) {
+            const MOTION = TOKEN.MOTION;
+            const rows = [...list.children].filter((child) => child.getClientRects().length);
+            const from = rows.indexOf(row);
+            if (from < 0 || rows.length < 2) return null;
+            // Places are read once, as they stood at the lift; a scroll since is added to the pointer instead.
+            const boxes = rows.map((child) => child.getBoundingClientRect());
+            const held = boxes[from];
+            const scroller = SCROLL.scrollerOf(list);
+            const scrolledAt = scroller ? scroller.scrollTop : 0;
+            const scrolled = () => (scroller ? scroller.scrollTop - scrolledAt : 0);
+            // How far a row moves to take the held row's place: its height and the gap after it.
+            const span = held.height + Math.max(0, boxes[1].top - boxes[0].bottom);
+            const kept = rows.map((child) => ({
+                transition: child.style.transition,
+                transform: child.style.transform,
+            }));
+            const keptHeld = { position: row.style.position, zIndex: row.style.zIndex, boxShadow: row.style.boxShadow };
+            const slide = `transform ${MOTION.base}ms ${MOTION.easing}`;
+            rows.forEach((child, index) => index !== from && (child.style.transition = slide));
+            // The fill is an inset shadow, not a background: the background is the hover's, which repaints as the
+            // pointer comes and goes during the drag.
+            if (getComputedStyle(row).position === 'static') row.style.position = 'relative';
+            Object.assign(row.style, {
+                zIndex: '2',
+                boxShadow: `inset 0 0 0 100vmax ${theme.color.lifted}, ${theme.shadow.lifted}`,
+                transition: 'none',
+            });
+            const place = (offset, scale) => (row.style.transform = `translateY(${offset}px) scale(${scale})`);
+            place(0, LIFTED);
+            // Where the row goes is read from the pointer, not from the row held to the list: held, its middle could
+            // never pass the end rows' middles, so no row could go first or last.
+            const lowest = boxes[0].top;
+            const highest = boxes.at(-1).bottom - held.height;
+            let to = from;
+            let timer = 0;
+            let done = false;
+            let then = null;
+            const follow = (y) => {
+                const top = held.top + y + scrolled() - startY;
+                place(Math.min(highest, Math.max(lowest, top)) - held.top, LIFTED);
+                const middle = top + held.height / 2;
+                to = from;
+                for (let index = from + 1; index < rows.length; index++)
+                    if (middle > boxes[index].top + boxes[index].height / 2) to = index;
+                for (let index = from - 1; index >= 0; index--)
+                    if (middle < boxes[index].top + boxes[index].height / 2) to = index;
+                rows.forEach((child, index) => {
+                    if (index === from) return;
+                    const shift = index > from && index <= to ? -span : index < from && index >= to ? span : 0;
+                    child.style.transform = shift ? `translateY(${shift}px)` : '';
+                });
+            };
+            // Everything as it was, all at once, so the next frame is the owner's order and nothing in between.
+            const restore = () => {
+                done = true;
+                clearTimeout(timer);
+                rows.forEach((child, index) => {
+                    child.style.transition = 'none';
+                    child.style.transform = kept[index].transform;
+                });
+                Object.assign(row.style, keptHeld);
+                void list.offsetHeight;
+                rows.forEach((child, index) => (child.style.transition = kept[index].transition));
+            };
+            const runThen = () => {
+                const after = then;
+                then = null;
+                after?.();
+            };
+            const settle = (target, after) => {
+                row.style.transition = slide;
+                place(target - held.top, 1);
+                then = after;
+                if (MOTION.base) timer = setTimeout(runThen, MOTION.base);
+                else runThen();
+            };
+            return {
+                follow: (_x, y) => follow(y),
+                // The list is let go of whatever the owner's reorder does, or every later change would wait on it.
+                drop: () => {
+                    const target = to === from ? held.top : to > from ? boxes[to].bottom - held.height : boxes[to].top;
+                    settle(target, () => {
+                        restore();
+                        try {
+                            reorder(from, to);
+                        } finally {
+                            finished();
+                        }
+                    });
+                },
+                cancel: () => {
+                    rows.forEach((child, index) => index !== from && (child.style.transform = ''));
+                    settle(held.top, () => {
+                        restore();
+                        finished();
+                    });
+                },
+                scroller: () => scroller,
+                // A new press gets the list as it will be, without waiting for the settle.
+                settleNow: () => {
+                    if (then) {
+                        clearTimeout(timer);
+                        runThen();
+                    } else if (!done) {
+                        restore();
+                        finished();
+                    }
+                },
+            };
+        }
 
-                            /* Where the row goes is read from the pointer, not from the row held to the list: held, its middle
-             could never pass the end rows' middles, so no row could be put first or last. */
-                            const lowest = boxes[0].top,
-                                highest = boxes[boxes.length - 1].bottom - held.height;
-                            let to = from,
-                                settleTimer = 0,
-                                done = false;
-                            const follow = (y) => {
-                                const top = held.top + y + scrolled() - startY;
-                                place(Math.min(highest, Math.max(lowest, top)) - held.top, 1.02);
-                                const middle = top + held.height / 2;
-                                to = from;
-                                for (let i = from + 1; i < all.length; i++)
-                                    if (middle > boxes[i].top + boxes[i].height / 2) to = i;
-                                for (let i = from - 1; i >= 0; i--)
-                                    if (middle < boxes[i].top + boxes[i].height / 2) to = i;
-                                all.forEach((r, i) => {
-                                    if (i === from) return;
-                                    const shift = i > from && i <= to ? -span : i < from && i >= to ? span : 0;
-                                    r.style.transform = shift ? `translateY(${shift}px)` : '';
-                                });
-                            };
-                            // Everything as it was, all at once, so the next frame is the caller's order and nothing in between.
-                            const restore = () => {
-                                done = true;
-                                clearTimeout(settleTimer);
-                                all.forEach((r, i) => {
-                                    r.style.transition = 'none';
-                                    r.style.transform = kept[i].transform;
-                                });
-                                Object.assign(row.style, keptHeld);
-                                void list.offsetHeight;
-                                all.forEach((r, i) => {
-                                    r.style.transition = kept[i].transition;
-                                });
-                            };
-                            let then = null;
-                            const settle = (target, after) => {
-                                row.style.transition = slide;
-                                place(target - held.top, 1);
-                                then = after;
-                                const wait = MOTION.base;
-                                if (wait)
-                                    settleTimer = setTimeout(() => {
-                                        const t = then;
-                                        then = null;
-                                        t?.();
-                                    }, wait);
-                                else {
-                                    then = null;
-                                    after();
-                                }
-                            };
-                            const drop = () => {
-                                const target =
-                                    to === from ? held.top : to > from ? boxes[to].bottom - held.height : boxes[to].top;
-                                /* The new order before the list is freed, so a redraw waiting on it (whenFree) draws that; freed
-               whatever onReorder does, or every later redraw would wait. */
-                                settle(target, () => {
-                                    restore();
-                                    try {
-                                        if (to !== from) onReorder(from, to);
-                                    } finally {
-                                        finished();
-                                    }
-                                });
-                            };
-                            const cancel = () => {
-                                all.forEach((r, i) => {
-                                    if (i !== from) r.style.transform = '';
-                                });
-                                settle(held.top, () => {
-                                    restore();
-                                    finished();
-                                });
-                            };
-                            return {
-                                follow: (_x, y) => follow(y),
-                                drop,
-                                cancel,
-                                scroller: () => scroller,
-                                // A new press gets the list as it will be, without waiting for the settle.
-                                settleNow: () => {
-                                    if (then) {
-                                        clearTimeout(settleTimer);
-                                        const t = then;
-                                        then = null;
-                                        t();
-                                    } else if (!done) {
-                                        restore();
-                                        finished();
-                                    }
-                                },
-                            };
-                        };
-                        return list;
-                    },
-                };
-            },
-        };
+        return { STYLE, make };
     }
 );

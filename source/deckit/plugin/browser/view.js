@@ -182,10 +182,10 @@ Deckit.register({
         const labelOf = (p) =>
             opensApp(p) ? `Open \u201c${p.slice(5)}\u201d links in their app` : PERMISSION_LABELS[p];
 
-        const CHEVRON_L = ui.icon('chevronLeft', 17);
-        const CHEVRON_R = ui.icon('chevronRight', 17);
-        const RELOAD = ui.icon('reload', 15);
-        const STAR = (on) => ui.icon('star', 16, { fill: on ? 'currentColor' : 'none' });
+        const CHEVRON_L = ui.icon('chevronLeft', { size: 17 });
+        const CHEVRON_R = ui.icon('chevronRight', { size: 17 });
+        const RELOAD = ui.icon('reload', { size: 15 });
+        const STAR = (on) => ui.icon('star', { size: 16, fill: on ? 'currentColor' : 'none' });
 
         // A translucent fill with a backdrop blur, not element opacity, which would let the page's text
         // show through.
@@ -242,15 +242,15 @@ Deckit.register({
 
         const goBack = () => active()?.page.back();
         const goForward = () => active()?.page.forward();
-        const back = ui.iconBtn(CHEVRON_L, 'Back', goBack);
-        const fwd = ui.iconBtn(CHEVRON_R, 'Forward', goForward);
+        const back = ui.iconBtn({ icon: CHEVRON_L, title: 'Back', onClick: goBack });
+        const fwd = ui.iconBtn({ icon: CHEVRON_R, title: 'Forward', onClick: goForward });
         const reloadActive = () => {
             const t = active();
             if (!t) return;
             certAsked.clear(); // a deliberate retry asks again
             t.page.reload();
         };
-        const reload = ui.iconBtn(RELOAD, 'Reload', reloadActive);
+        const reload = ui.iconBtn({ icon: RELOAD, title: 'Reload', onClick: reloadActive });
         const sitePermissions = () => {
             const t = active();
             const origin = originOf(t?.url);
@@ -284,22 +284,33 @@ Deckit.register({
                 },
             });
         };
-        const site = ui.iconBtn(ui.icon('gear', 15), 'Site permissions', sitePermissions);
-        const star = ui.iconBtn(STAR(false), 'Bookmark', () => {
-            const t = active();
-            if (!t) return;
-            bookmarks.toggle(t.url, t.title || placeOf(t.url), t.icon);
-            if (theme.motion.fast) {
-                star.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
-                    duration: 220,
-                    easing: theme.motion.easing,
-                });
-            }
+        const site = ui.iconBtn({
+            icon: ui.icon('gear', { size: 15 }),
+            title: 'Site permissions',
+            onClick: sitePermissions,
+        });
+        const star = ui.iconBtn({
+            icon: STAR(false),
+            title: 'Bookmark',
+            onClick: () => {
+                const t = active();
+                if (!t) return;
+                bookmarks.toggle(t.url, t.title || placeOf(t.url), t.icon);
+                if (theme.motion.fast) {
+                    star.element.animate(
+                        [{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }],
+                        {
+                            duration: 220,
+                            easing: theme.motion.easing,
+                        }
+                    );
+                }
+            },
         });
 
         // The wings animate their own width and the capsule, sized by its contents, follows: the
         // island's own width has no value to animate to.
-        for (const b of [back, fwd, reload, site, star]) b.style.borderRadius = '999px';
+        for (const b of [back, fwd, reload, site, star]) b.element.style.borderRadius = '999px';
         const NAV_W = 90; // three 30px buttons
         const STAR_W = 30;
         const nav = document.createElement('div');
@@ -312,9 +323,9 @@ Deckit.register({
             overflow: 'hidden',
             transition: `width ${theme.motion.base}ms ${theme.motion.easing}, opacity ${theme.motion.base}ms ${theme.motion.easing}`,
         });
-        nav.append(back, fwd, reload);
+        nav.append(back.element, fwd.element, reload.element);
         for (const b of [site, star]) {
-            Object.assign(b.style, {
+            Object.assign(b.element.style, {
                 width: '0px',
                 opacity: '0',
                 overflow: 'hidden',
@@ -398,8 +409,8 @@ Deckit.register({
             island.style.boxShadow = '0 6px 18px rgba(0,0,0,.34)';
             nav.style.width = NAV_W + 'px';
             nav.style.opacity = '1';
-            star.style.width = STAR_W + 'px';
-            star.style.opacity = '1';
+            star.element.style.width = STAR_W + 'px';
+            star.element.style.opacity = '1';
             paintSite();
             titleEl.style.maxWidth = '360px';
             titleEl.style.opacity = '.55';
@@ -410,8 +421,8 @@ Deckit.register({
             island.style.boxShadow = '0 2px 10px rgba(0,0,0,.26)';
             nav.style.width = '0px';
             nav.style.opacity = '0';
-            star.style.width = '0px';
-            star.style.opacity = '0';
+            star.element.style.width = '0px';
+            star.element.style.opacity = '0';
             paintSite();
             titleEl.style.maxWidth = '0px';
             titleEl.style.opacity = '0';
@@ -419,8 +430,8 @@ Deckit.register({
         };
         const paintSite = () => {
             const on = open && /^https?:/.test(originOf(active()?.url));
-            site.style.width = on ? STAR_W + 'px' : '0px';
-            site.style.opacity = on ? '1' : '0';
+            site.element.style.width = on ? STAR_W + 'px' : '0px';
+            site.element.style.opacity = on ? '1' : '0';
         };
         const setOpen = (on) => {
             if (open === on) return;
@@ -470,7 +481,7 @@ Deckit.register({
             if (t && raw) navigate(t, parseAddress(raw) || searchFor(raw));
             closeEditor();
         });
-        island.append(nav, addr, input, site, star);
+        island.append(nav, addr, input, site.element, star.element);
 
         /* Past DRAG_THRESHOLD a press is a carry and its click is swallowed. Letting go sets the new
        corner first and then animates from where it was, so an animation that never plays (the
@@ -485,8 +496,8 @@ Deckit.register({
             if (
                 input.contains(e.target) ||
                 nav.contains(e.target) ||
-                site.contains(e.target) ||
-                star.contains(e.target)
+                site.element.contains(e.target) ||
+                star.element.contains(e.target)
             )
                 return;
             // No preventDefault: the press must take focus back from the page, or a carry begun while the
@@ -624,9 +635,9 @@ Deckit.register({
             fwd.setEnabled(t.canGoForward);
             hostEl.textContent = placeOf(t.url);
             iconBox.textContent = '';
-            iconBox.appendChild(t.loading ? ui.spinner(13) : favicon(iconOf(t)));
+            iconBox.appendChild(t.loading ? ui.spinner({ size: 13 }).element : favicon(iconOf(t)));
             titleEl.textContent = t.title || '';
-            star.innerHTML = STAR(bookmarks.has(t.url));
+            star.setIcon(STAR(bookmarks.has(t.url)));
             paintSite();
         };
 
@@ -957,15 +968,17 @@ Deckit.register({
         const folds = () => store.get('folds', {});
         const setFold = (key, on) => store.set('folds', { ...folds(), [key]: on });
 
-        const tabList = ui.list(),
-            markList = ui.list();
-        ui.sortable(tabList, (from, to) => {
-            const [t] = tabs.splice(from, 1);
-            tabs.splice(to, 0, t);
-            renderTabs();
-            persist();
+        const tabList = ui.list().element,
+            markList = ui.list().element;
+        ui.sortable(tabList, {
+            onReorder: (from, to) => {
+                const [t] = tabs.splice(from, 1);
+                tabs.splice(to, 0, t);
+                renderTabs();
+                persist();
+            },
         });
-        ui.sortable(markList, (from, to) => bookmarks.move(from, to));
+        ui.sortable(markList, { onReorder: (from, to) => bookmarks.move(from, to) });
 
         const CAPTURE = [
             ['microphone', 'mic', 'Using your microphone'],
@@ -978,22 +991,23 @@ Deckit.register({
             for (const [kind, glyph, title] of CAPTURE) {
                 if (!t.capture[kind]) continue;
                 const m = document.createElement('span');
-                m.innerHTML = ui.icon(glyph, 13);
+                m.innerHTML = ui.icon(glyph, { size: 13 });
                 m.title = title;
                 Object.assign(m.style, { display: 'flex', color: theme.color.alert });
                 box.appendChild(m);
             }
             if (t.audible || t.muted) {
                 box.appendChild(
-                    ui.iconBtn(
-                        ui.icon(t.muted ? 'volumeOff' : 'volume', 13),
-                        t.muted ? 'Unmute tab' : 'Mute tab',
-                        (e) => {
+                    ui.iconBtn({
+                        icon: ui.icon(t.muted ? 'volumeOff' : 'volume', { size: 13 }),
+                        title: t.muted ? 'Unmute tab' : 'Mute tab',
+                        onClick: (e) => {
                             e.stopPropagation();
                             t.page.mute(!t.muted);
                         },
-                        { size: 'sm', quiet: true }
-                    )
+                        size: 'small',
+                        muted: true,
+                    }).element
                 );
             }
             return box;
@@ -1014,16 +1028,16 @@ Deckit.register({
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                 });
-                r.prepend(t.loading ? ui.spinner(13) : favicon(iconOf(t)));
-                r.dataset.tabId = String(t.id); // dropTab finds the row by this, for a chord
-                r.append(
+                r.element.prepend(t.loading ? ui.spinner({ size: 13 }).element : favicon(iconOf(t)));
+                r.element.dataset.tabId = String(t.id); // dropTab finds the row by this, for a chord
+                r.element.append(
                     label,
                     tabMarks(t),
-                    ui.miniBtn(ui.icon('x'), 'Close tab', () => dropTab(t.id))
+                    ui.miniBtn({ icon: ui.icon('x'), title: 'Close tab', onClick: () => dropTab(t.id) }).element
                 );
-                r.addEventListener('click', () => setActiveTab(t.id));
-                ui.hoverable(r, () => t.id === activeId);
-                tabList.appendChild(r);
+                r.element.addEventListener('click', () => setActiveTab(t.id));
+                r.setActive(t.id === activeId);
+                tabList.appendChild(r.element);
             }
         };
 
@@ -1091,11 +1105,15 @@ Deckit.register({
                 },
             });
 
-        const markHead = ui.section('Bookmarks', {
-            icon: ui.icon('bookmark', 16),
+        const markHead = ui.section({
+            label: 'Bookmarks',
+            icon: ui.icon('bookmark', { size: 16 }),
             actions: [{ title: 'Add bookmark', run: () => addDialog() }],
             collapsed: !!folds().bookmarks,
-            onCollapse: (on) => setFold('bookmarks', on),
+            onToggle: (on) => {
+                markHead.setCollapsed(on);
+                setFold('bookmarks', on);
+            },
         });
         const renderMarks = () => ui.whenFree(markList, drawMarks);
         const drawMarks = () => {
@@ -1112,19 +1130,26 @@ Deckit.register({
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                 });
-                r.append(
+                r.element.append(
                     favicon(iconOf(mark)),
                     label,
-                    ui.miniBtn(ui.icon('pencil'), 'Edit name and address', () => editDialog(mark)),
-                    ui.miniBtn(ui.icon('x'), 'Remove', () => ui.leaveRow(r, () => bookmarks.remove(mark.url)))
+                    ui.miniBtn({
+                        icon: ui.icon('pencil'),
+                        title: 'Edit name and address',
+                        onClick: () => editDialog(mark),
+                    }).element,
+                    ui.miniBtn({
+                        icon: ui.icon('x'),
+                        title: 'Remove',
+                        onClick: () => ui.leaveRow(r.element, () => bookmarks.remove(mark.url)),
+                    }).element
                 );
-                r.dataset.url = mark.url;
-                r.addEventListener('click', () => {
+                r.element.dataset.url = mark.url;
+                r.element.addEventListener('click', () => {
                     const t = active();
                     if (t) navigate(t, mark.url);
                 });
-                ui.hoverable(r);
-                markList.appendChild(r);
+                markList.appendChild(r.element);
             }
             syncBar();
         };
@@ -1207,14 +1232,17 @@ Deckit.register({
                 finding = t;
             },
             onNext: () => findStep(false),
-            onPrev: () => findStep(true),
-            onEscape: () => closeFind({ keepSelection: true }),
+            onPrevious: () => findStep(true),
+            onCancel: () => closeFind({ keepSelection: true }),
         });
-        Object.assign(search.style, { flex: '0 0 auto', width: '330px', margin: '0 2px' });
-        const findClose = ui.iconBtn(ui.icon('x', 14), 'Close', () => closeFind({ keepSelection: true }), {
-            size: 'sm',
+        Object.assign(search.element.style, { flex: '0 0 auto', width: '330px', margin: '0 2px' });
+        const findClose = ui.iconBtn({
+            icon: ui.icon('x', { size: 14 }),
+            title: 'Close',
+            onClick: () => closeFind({ keepSelection: true }),
+            size: 'small',
         });
-        findBar.append(search, findClose);
+        findBar.append(search.element, findClose.element);
         content.appendChild(findBar);
 
         const showCount = (r) => search.setCount(r.active, r.matches);
@@ -1253,15 +1281,19 @@ Deckit.register({
             search.setCount(0, 0);
         };
 
-        const tabHead = ui.section('Tabs', {
-            icon: ui.icon('window', 16),
+        const tabHead = ui.section({
+            label: 'Tabs',
+            icon: ui.icon('window', { size: 16 }),
             actions: [{ title: 'New tab', run: () => newTab() }],
             collapsed: !!folds().tabs,
-            onCollapse: (on) => setFold('tabs', on),
+            onToggle: (on) => {
+                tabHead.setCollapsed(on);
+                setFold('tabs', on);
+            },
         });
         tabHead.body.appendChild(tabList);
         markHead.body.appendChild(markList);
-        sidebar.append(tabHead, markHead);
+        sidebar.append(tabHead.element, markHead.element);
         content.append(island);
 
         const saved = data.get('session', null);
@@ -1355,7 +1387,7 @@ Deckit.register({
                     {
                         label: 'Open ' + placeOf(url),
                         hint: 'In a new tab',
-                        icon: ui.icon('window', 16),
+                        icon: ui.icon('window', { size: 16 }),
                         run: () => {
                             host.show();
                             newTab(url);
@@ -1368,7 +1400,7 @@ Deckit.register({
             commands: () => [
                 {
                     label: 'New Tab\u2026',
-                    icon: ui.icon('window', 16),
+                    icon: ui.icon('window', { size: 16 }),
                     keywords: ['웹', '웹페이지', '열기', '주소', '새탭', 'url', 'open', 'web', 'address', 'new tab'],
                     run: () =>
                         ui.dialog({
@@ -1390,7 +1422,7 @@ Deckit.register({
                           {
                               label: 'Reopen Closed Tab',
                               hint: closed[closed.length - 1].title || placeOf(closed[closed.length - 1].url),
-                              icon: ui.icon('window', 16),
+                              icon: ui.icon('window', { size: 16 }),
                               keywords: ['닫은탭', '다시열기', '복구', 'reopen', 'undo', 'closed tab'],
                               run: () => {
                                   host.show();
@@ -1401,7 +1433,7 @@ Deckit.register({
                     : []),
                 {
                     label: 'Search Bookmarks',
-                    icon: ui.icon('bookmark', 16),
+                    icon: ui.icon('bookmark', { size: 16 }),
                     keywords: ['북마크', '즐겨찾기', 'bookmarks'],
                     page: {
                         placeholder: 'Search bookmarks',
@@ -1420,7 +1452,7 @@ Deckit.register({
                 },
                 {
                     label: 'Search Tabs',
-                    icon: ui.icon('window', 16),
+                    icon: ui.icon('window', { size: 16 }),
                     keywords: ['탭', 'tabs'],
                     page: {
                         placeholder: 'Search open tabs',

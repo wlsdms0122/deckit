@@ -3,7 +3,6 @@ DeckitModule.define(
     {
         uses: [
             'deckit/ui/token',
-            'deckit/ui/color',
             'deckit/ui/icon',
             'deckit/ui/overlay',
             'deckit/ui/scroll',
@@ -12,283 +11,259 @@ DeckitModule.define(
         ],
         provides: ['STYLE', 'make'],
     },
-    (T, COLOR, ICON, OVERLAY, SCROLL, GESTURE, LIST) => {
-        const { MOTION } = T;
-
+    (TOKEN, ICON, OVERLAY, SCROLL, GESTURE, LIST) => {
+        // MARK: - Property
+        // The label is one face inside a box, so the box can take the dragged thing's shape with its face faded out.
+        const STYLE = `
+            .deckit-drag-label {
+                position: fixed;
+                left: 0;
+                top: 0;
+                display: flex;
+                align-items: center;
+                max-width: 240px;
+                box-sizing: border-box;
+                overflow: hidden;
+                padding: 4px 10px 4px 8px;
+                border: var(--deckit-border);
+                border-radius: 7px;
+                background: var(--deckit-lifted);
+                box-shadow: var(--deckit-shadow-lifted);
+                color: var(--deckit-text);
+                font: var(--deckit-type-small);
+                white-space: nowrap;
+                pointer-events: none;
+            }
+            .deckit-drag-face { display: flex; align-items: center; gap: 6px; min-width: 0; }
+            .deckit-drag-icon { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
+            .deckit-drag-text { overflow: hidden; text-overflow: ellipsis; }
+            [data-deckit-drop='stays'] { outline: 1.5px solid color-mix(in srgb, var(--deckit-muted) 60%, transparent); outline-offset: -1.5px; }
+        `;
+        // Where the label hangs from the pointer.
+        const GRAB = { x: -12, y: -14 };
+        const LIFTED_OPACITY = 0.4;
         const zones = new Map(); // zone element -> Set of { kind, placeAt, onDrop }
 
-        /* Only the element under the pointer (past the veil) is asked about, never what lies under it: a
-     zone that takes "not on a row" as its top folder would otherwise answer under a row it had just
-     refused. */
-        const landing = (x, y, kind, payload) => {
-            const el = document.elementsFromPoint(x, y).find((e) => !('deckitCapture' in e.dataset));
-            for (let n = el; n; n = n.parentElement) {
-                for (const t of zones.get(n) || []) {
-                    if (t.kind !== kind) continue;
-                    const place = t.placeAt(el, payload);
-                    if (place) return { target: t, place, at: el };
-                }
-            }
-            return null;
-        };
-        // What scrolls under (x, y) inside a zone that takes `kind`, for the edges and the wheel.
-        const scrollerAt = (x, y, kind) => {
-            for (const el of document.elementsFromPoint(x, y)) {
-                for (let n = el; n; n = n.parentElement) {
-                    if ([...(zones.get(n) || [])].some((t) => t.kind === kind)) return SCROLL.scrollerOf(el);
-                }
-            }
-            return null;
-        };
+        // MARK: - Initializer
+        // MARK: - Public
+        function make() {
+            return { dragSource, dropTarget };
+        }
 
-        // The folder a "/"-separated path is in: "" for one at the top of a relative tree, "/" for one at the root of the disk.
-        const parentOf = (p) => {
-            const i = p.lastIndexOf('/');
-            return i > 0 ? p.slice(0, i) : i === 0 ? '/' : '';
-        };
-        const movesInto = (from, folder) =>
-            parentOf(from) !== folder && folder !== from && !folder.startsWith(from + '/');
+        // MARK: - Private
+        // Things in `area` that can be dragged. `itemAt(target)` finds one under a press; `describe(item)` says what it
+        // carries: { kind, payload, text, icon }, or null when it cannot be dragged. A drop target of the same kind takes
+        // it. Returns the dispose.
+        function dragSource(area, { itemAt, describe }) {
+            return GESTURE.drag(area, {
+                pick: itemAt,
+                begin: LIST.heldWhile(area, (item, down, finished) => {
+                    const carried = describe(item);
+                    return carried ? carry(item, carried, down, finished) : null;
+                }),
+            });
+        }
 
-        return {
-            STYLE: '',
-            make: (theme, ui, inner) => {
-                /* The icon and name are one face inside the box, so the box can take the thing's shape with its
-       face faded out. */
-                const label = ({ text, icon: glyph }) => {
-                    const tag = document.createElement('div');
-                    Object.assign(tag.style, {
-                        position: 'fixed',
-                        left: '0',
-                        top: '0',
-                        zIndex: String(OVERLAY.Z.drag),
-                        pointerEvents: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        boxSizing: 'border-box',
-                        maxWidth: '240px',
-                        overflow: 'hidden',
-                        padding: '4px 10px 4px 8px',
-                        borderRadius: '7px',
-                        border: theme.border,
-                        background: theme.color.lifted,
-                        boxShadow: theme.shadow.lifted,
-                        color: theme.color.text,
-                        font: '12.5px ' + theme.font,
-                        whiteSpace: 'nowrap',
-                    });
-                    const face = document.createElement('span');
-                    Object.assign(face.style, { display: 'flex', alignItems: 'center', gap: '6px', minWidth: '0' });
-                    if (glyph) {
-                        const g = document.createElement('span');
-                        Object.assign(g.style, { display: 'flex', flex: '0 0 auto', color: theme.color.muted });
-                        g.innerHTML = /^\s*<svg/.test(glyph) ? glyph : ICON.icon(glyph, 14);
-                        face.appendChild(g);
-                    }
-                    const words = document.createElement('span');
-                    words.textContent = text;
-                    Object.assign(words.style, { overflow: 'hidden', textOverflow: 'ellipsis' });
-                    face.appendChild(words);
-                    tag.appendChild(face);
-                    return tag;
-                };
-                const RING = `inset 0 0 0 2px ${COLOR.alpha(theme.color.accent, 0.75)}`;
-                const STAYS = `inset 0 0 0 1.5px ${COLOR.alpha(theme.color.muted, 0.6)}`;
+        // Where a dragged thing of `kind` can land in `zone`: `placeAt(element, payload)` answers the place under the
+        // pointer ({ mark, stays }) or null, `onDrop(payload, place)` takes it. `mark` is what lights while the thing is
+        // over it; a place that `stays` is where the thing already is. Returns the dispose.
+        function dropTarget(zone, { kind, placeAt, onDrop }) {
+            const target = { kind, placeAt, onDrop };
+            if (!zones.has(zone)) zones.set(zone, new Set());
+            zones.get(zone).add(target);
+            return () => {
+                const targets = zones.get(zone);
+                targets?.delete(target);
+                if (targets && !targets.size) zones.delete(zone);
+            };
+        }
 
+        // The label morphs out of the thing's box when lifted and back into it when taken back. A thing not all in sight
+        // has no box to use (it would be drawn over what covers it), so the label then starts as itself and, taken back,
+        // fades where it is.
+        function carry(item, { kind, payload, text, icon }, down, finished) {
+            const MOTION = TOKEN.MOTION;
+            const label = labelOf(text, icon);
+            const face = label.firstChild;
+            document.body.append(label);
+            // Measured to the fraction and rounded up: a box half a pixel narrower than its name ellipsizes its end.
+            const measured = label.getBoundingClientRect();
+            const chip = {
+                width: Math.ceil(measured.width),
+                height: Math.ceil(measured.height),
+                radius: label.style.borderRadius,
+            };
+            const home = () => {
+                if (!SCROLL.isFullyVisible(item)) return null;
+                const box = item.getBoundingClientRect();
                 return {
-                    dragSource(area, { itemAt, what }) {
-                        GESTURE.drag(area, {
-                            pick: itemAt,
-                            begin: LIST.heldWhile(area, (item, down, finished) => {
-                                const it = what(item);
-                                if (!it) return null;
-                                const tag = label(it);
-                                document.body.appendChild(tag);
-                                const face = tag.firstChild;
-                                const grab = { x: -12, y: -14 };
-                                /* The label morphs out of the thing's box when lifted and back into it when taken back. A thing
-               not all in sight has no box to use (it would be drawn over what covers it), so the label then
-               starts as itself and, taken back, fades where it is. */
-                                /* Measured to the fraction and rounded up: offsetWidth rounds to the nearest pixel, and a
-               box half a pixel narrower than its name ellipsizes the end of it ("archi…"). */
-                                const size = tag.getBoundingClientRect();
-                                const chip = {
-                                    width: Math.ceil(size.width),
-                                    height: Math.ceil(size.height),
-                                    radius: tag.style.borderRadius,
-                                };
-                                const home = () => {
-                                    if (!SCROLL.isFullyVisible(item)) return null;
-                                    const r = item.getBoundingClientRect();
-                                    return {
-                                        x: r.left,
-                                        y: r.top,
-                                        width: r.width,
-                                        height: r.height,
-                                        radius: getComputedStyle(item).borderRadius,
-                                    };
-                                };
-                                const shape = (box, shown) => {
-                                    Object.assign(tag.style, {
-                                        width: box.width + 'px',
-                                        height: box.height + 'px',
-                                        borderRadius: box.radius,
-                                    });
-                                    face.style.opacity = shown ? '1' : '0';
-                                };
-                                tag.style.maxWidth = 'none';
-                                shape(chip, true);
-                                const keptOpacity = item.style.opacity;
-                                const shownOpacity = getComputedStyle(item).opacity;
-                                item.style.opacity = '.4';
-                                let restoring = null; // the thing coming back to full while the label goes back into it
-                                let at = null; // { place, kept }: the place lit now, and the ring it had before
-                                const ringOf = (landed) => (landed.place.stays ? STAYS : RING);
-                                const light = (next) => {
-                                    if (at?.place.mark === next?.place.mark) {
-                                        if (next) {
-                                            at = { ...next, kept: at.kept };
-                                            at.place.mark.style.boxShadow = ringOf(at);
-                                        }
-                                        return;
-                                    }
-                                    if (at) at.place.mark.style.boxShadow = at.kept;
-                                    at = next ? { ...next, kept: next.place.mark.style.boxShadow } : null;
-                                    if (at) at.place.mark.style.boxShadow = ringOf(at);
-                                };
-                                const moveTo = (x, y) => {
-                                    tag.style.transform = `translate(${x}px, ${y}px)`;
-                                };
-                                const hangAt = (x, y) => moveTo(x - grab.x, y - grab.y);
-                                const morph = (duration) => {
-                                    tag.style.transition = ['transform', 'width', 'height', 'border-radius']
-                                        .map((p) => `${p} ${duration}ms ${MOTION.easing}`)
-                                        .join(', ');
-                                    face.style.transition = `opacity ${duration}ms ${MOTION.easing}`;
-                                };
-                                // A fade on top of whatever is moving it now, so a lift still under way is not cut short.
-                                const fade = (duration, easing) => {
-                                    tag.style.transition = [tag.style.transition, `opacity ${duration}ms ${easing}`]
-                                        .filter(Boolean)
-                                        .join(', ');
-                                    tag.style.opacity = '0';
-                                };
-                                let lifting = 0,
-                                    ending = 0;
-                                const end = () => {
-                                    clearTimeout(lifting);
-                                    clearTimeout(ending);
-                                    lifting = ending = 0;
-                                    tag.remove();
-                                    item.style.opacity = keptOpacity;
-                                    restoring?.cancel();
-                                    finished();
-                                };
-                                const landIn = () => {
-                                    light(null);
-                                    if (!MOTION.fast) return end();
-                                    clearTimeout(lifting);
-                                    fade(MOTION.fast, MOTION.easing);
-                                    ending = setTimeout(end, MOTION.fast);
-                                };
-                                const goBack = () => {
-                                    light(null);
-                                    const to = home();
-                                    const duration = to ? MOTION.base : MOTION.fast;
-                                    if (!duration) return end();
-                                    clearTimeout(lifting);
-                                    if (to) {
-                                        morph(MOTION.base);
-                                        moveTo(to.x, to.y);
-                                        shape(to, false);
-                                        // Faded late, so it is seen arriving in the thing's place and shape before it is gone.
-                                        fade(MOTION.base, 'ease-in');
-                                    } else fade(MOTION.fast, MOTION.easing);
-                                    restoring = item.animate([{ opacity: 0.4 }, { opacity: shownOpacity }], {
-                                        duration: duration,
-                                        easing: MOTION.easing,
-                                        fill: 'forwards',
-                                    });
-                                    ending = setTimeout(end, duration);
-                                };
-                                /* Moves during the lift retarget the same transition, so it catches up with the pointer rather
-               than jumping to it. */
-                                const from = home();
-                                if (from && MOTION.base) {
-                                    moveTo(from.x, from.y);
-                                    shape(from, false);
-                                    tag.getBoundingClientRect(); // where it starts, laid out before it moves
-                                    morph(MOTION.base);
-                                    shape(chip, true);
-                                    lifting = setTimeout(() => {
-                                        lifting = 0;
-                                        tag.style.transition = '';
-                                    }, MOTION.base);
-                                }
-                                hangAt(down.clientX, down.clientY);
-                                return {
-                                    follow(x, y) {
-                                        hangAt(x, y);
-                                        light(landing(x, y, it.kind, it.payload));
-                                    },
-                                    drop(x, y) {
-                                        const landed = landing(x, y, it.kind, it.payload);
-                                        if (!landed || landed.place.stays) return goBack();
-                                        landIn();
-                                        landed.target.onDrop(it.payload, landed.place);
-                                    },
-                                    cancel: goBack,
-                                    // A new press ends it at once, with nothing dropped.
-                                    settleNow: () => {
-                                        light(null);
-                                        end();
-                                    },
-                                    scroller: (x, y) => scrollerAt(x, y, it.kind),
-                                };
-                            }),
-                        });
-                        return area;
-                    },
-
-                    movesInto,
-
-                    folderDrop(zone, { kind, path, folderAt, onDrop }) {
-                        return ui.dropTarget(zone, {
-                            kind,
-                            onDrop,
-                            placeAt: (at, held) => {
-                                const place = folderAt(at);
-                                if (!place) return null;
-                                const from = path(held);
-                                if (movesInto(from, place.folder)) return place;
-                                return parentOf(from) === place.folder ? { ...place, stays: true } : null;
-                            },
-                        });
-                    },
-                    treeFolderAt({ row, markOf, top, topMark }) {
-                        return (at) => {
-                            const r = row(at);
-                            if (!r) return { folder: top, mark: topMark };
-                            const folder = r.folder ? r.path : parentOf(r.path);
-                            return {
-                                folder,
-                                mark: folder === top ? topMark : r.folder ? r.el : markOf(folder) || r.el,
-                                row: r,
-                            };
-                        };
-                    },
-
-                    dropTarget(zone, { kind, placeAt, onDrop }) {
-                        const t = { kind, placeAt, onDrop };
-                        if (!zones.has(zone)) zones.set(zone, new Set());
-                        zones.get(zone).add(t);
-                        return () => {
-                            const set = zones.get(zone);
-                            set?.delete(t);
-                            if (set && !set.size) zones.delete(zone);
-                        };
-                    },
+                    x: box.left,
+                    y: box.top,
+                    width: box.width,
+                    height: box.height,
+                    radius: getComputedStyle(item).borderRadius,
                 };
-            },
-        };
+            };
+            const shape = (box, shown) => {
+                Object.assign(label.style, {
+                    width: box.width + 'px',
+                    height: box.height + 'px',
+                    borderRadius: box.radius,
+                });
+                face.style.opacity = shown ? '1' : '0';
+            };
+            const moveTo = (x, y) => (label.style.transform = `translate(${x}px, ${y}px)`);
+            const hangAt = (x, y) => moveTo(x - GRAB.x, y - GRAB.y);
+            const morph = (length) => {
+                label.style.transition = ['transform', 'width', 'height', 'border-radius']
+                    .map((property) => `${property} ${length}ms ${MOTION.easing}`)
+                    .join(', ');
+                face.style.transition = `opacity ${length}ms ${MOTION.easing}`;
+            };
+            // A fade on top of whatever is moving it now, so a lift still under way is not cut short.
+            const fade = (length, easing) => {
+                label.style.transition = [label.style.transition, `opacity ${length}ms ${easing}`]
+                    .filter(Boolean)
+                    .join(', ');
+                label.style.opacity = '0';
+            };
+            label.style.maxWidth = 'none';
+            shape(chip, true);
+            const keptOpacity = item.style.opacity;
+            const shownOpacity = getComputedStyle(item).opacity;
+            item.style.opacity = String(LIFTED_OPACITY);
+            let restoring = null; // the thing coming back to full while the label goes back into it
+            let lit = null; // the mark lit now
+            let lifting = 0;
+            let ending = 0;
+            // The mark a thing would land in is ringed; the one it already is in, faintly.
+            const unlight = () => {
+                lit?.removeAttribute('data-deckit-drop');
+                lit?.removeAttribute('data-deckit-target');
+                lit = null;
+            };
+            const light = ({ place }) => {
+                if (lit !== place.mark) unlight();
+                lit = place.mark;
+                lit.setAttribute('data-deckit-drop', place.stays ? 'stays' : 'lands');
+                lit.toggleAttribute('data-deckit-target', !place.stays);
+            };
+            const end = () => {
+                clearTimeout(lifting);
+                clearTimeout(ending);
+                label.remove();
+                item.style.opacity = keptOpacity;
+                restoring?.cancel();
+                finished();
+            };
+            const landIn = () => {
+                unlight();
+                if (!MOTION.fast) return end();
+                clearTimeout(lifting);
+                fade(MOTION.fast, MOTION.easing);
+                ending = setTimeout(end, MOTION.fast);
+            };
+            const goBack = () => {
+                unlight();
+                const to = home();
+                const length = to ? MOTION.base : MOTION.fast;
+                if (!length) return end();
+                clearTimeout(lifting);
+                if (to) {
+                    morph(length);
+                    moveTo(to.x, to.y);
+                    shape(to, false);
+                    // Faded late, so it is seen arriving in the thing's place and shape before it is gone.
+                    fade(length, 'ease-in');
+                } else fade(length, MOTION.easing);
+                restoring = item.animate([{ opacity: LIFTED_OPACITY }, { opacity: shownOpacity }], {
+                    duration: length,
+                    easing: MOTION.easing,
+                    fill: 'forwards',
+                });
+                ending = setTimeout(end, length);
+            };
+            // Moves during the lift retarget the same transition, so it catches up with the pointer instead of jumping.
+            const from = home();
+            if (from && MOTION.base) {
+                moveTo(from.x, from.y);
+                shape(from, false);
+                void label.offsetHeight;
+                morph(MOTION.base);
+                shape(chip, true);
+                lifting = setTimeout(() => (label.style.transition = ''), MOTION.base);
+            }
+            hangAt(down.clientX, down.clientY);
+            return {
+                follow: (x, y) => {
+                    hangAt(x, y);
+                    const landed = landing(x, y, kind, payload);
+                    if (landed) light(landed);
+                    else unlight();
+                },
+                drop: (x, y) => {
+                    const landed = landing(x, y, kind, payload);
+                    if (!landed || landed.place.stays) return goBack();
+                    landIn();
+                    landed.target.onDrop(payload, landed.place);
+                },
+                cancel: goBack,
+                // A new press ends it at once, with nothing dropped.
+                settleNow: () => {
+                    unlight();
+                    end();
+                },
+                scroller: (x, y) => scrollerAt(x, y, kind),
+            };
+        }
+
+        function labelOf(text, icon) {
+            const label = element('div', 'deckit-drag-label');
+            label.style.zIndex = String(OVERLAY.Z.drag);
+            const face = element('span', 'deckit-drag-face');
+            if (icon) {
+                const glyph = element('span', 'deckit-drag-icon');
+                glyph.innerHTML = /^\s*<svg/.test(icon) ? icon : ICON.icon(icon, { size: 14 });
+                face.append(glyph);
+            }
+            const words = element('span', 'deckit-drag-text');
+            words.textContent = text;
+            face.append(words);
+            label.append(face);
+            return label;
+        }
+
+        // Only the element under the pointer (past the capture cover) is asked about, never what lies under it: a zone
+        // that takes "not on a row" as its top folder would otherwise answer under a row it had just refused.
+        function landing(x, y, kind, payload) {
+            const under = document.elementsFromPoint(x, y).find((element) => !('deckitCapture' in element.dataset));
+            for (let node = under; node; node = node.parentElement) {
+                for (const target of zones.get(node) || []) {
+                    if (target.kind !== kind) continue;
+                    const place = target.placeAt(under, payload);
+                    if (place) return { target, place };
+                }
+            }
+            return null;
+        }
+
+        // What scrolls under (x, y) inside a zone that takes `kind`, for the edges and the wheel.
+        function scrollerAt(x, y, kind) {
+            for (const under of document.elementsFromPoint(x, y)) {
+                for (let node = under; node; node = node.parentElement) {
+                    if ([...(zones.get(node) || [])].some((target) => target.kind === kind))
+                        return SCROLL.scrollerOf(under);
+                }
+            }
+            return null;
+        }
+
+        function element(tag, className) {
+            const made = document.createElement(tag);
+            made.className = className;
+            return made;
+        }
+
+        return { STYLE, make };
     }
 );

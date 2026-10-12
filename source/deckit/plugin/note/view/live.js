@@ -880,9 +880,9 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
     };
     const slashKey = (step) => () => {
         if (!slash) return false;
-        if (step === 'take') suggest.take();
+        if (step === 'take') suggest.pick();
         else if (step === 'close') closeSlash();
-        else suggest.step(step);
+        else suggest.move(step);
         return true;
     };
 
@@ -894,16 +894,16 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
         ['code', 'Code (⌘E)', () => wrap('`')(view)],
         ['link', 'Link (⌘K)', () => editLink()],
     ]) {
-        const b = ui.iconBtn(
-            shape(name, 15),
+        const b = ui.iconBtn({
+            icon: shape(name, 15),
             title,
-            () => {
+            onClick: () => {
                 run();
                 view?.focus();
             },
-            { size: 'sm' }
-        );
-        bar.appendChild(b);
+            size: 'small',
+        });
+        bar.element.appendChild(b.element);
     }
     const followBar = () => {
         const sel = view?.state.selection.main;
@@ -916,21 +916,16 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
             !sel.empty &&
             view.state.doc.lineAt(sel.from).number === view.state.doc.lineAt(sel.to).number;
         if (!show) {
-            bar.style.display = 'none';
+            bar.hide();
             return;
         }
         const a = view.coordsAtPos(sel.from),
             b = view.coordsAtPos(sel.to);
         if (!a || !b) {
-            bar.style.display = 'none';
+            bar.hide();
             return;
         }
-        bar.style.display = 'flex';
-        const w = bar.offsetWidth,
-            h = bar.offsetHeight;
-        const mid = (a.left + b.right) / 2;
-        bar.style.left = Math.max(8, Math.min(mid - w / 2, window.innerWidth - w - 8)) + 'px';
-        bar.style.top = (a.top - h - 8 > 8 ? a.top - h - 8 : b.bottom + 8) + 'px';
+        bar.show({ left: a.left, right: b.right, top: a.top, bottom: b.bottom });
     };
     // Captured, so a scroll in any inner scroller moves the floating menu and bar too.
     element.addEventListener(
@@ -943,7 +938,7 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
     );
     const hideFloats = () => {
         closeSlash();
-        bar.style.display = 'none';
+        bar.hide();
     };
 
     // Highest, to beat the Markdown keymap, which the engine puts at high precedence itself.

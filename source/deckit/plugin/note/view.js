@@ -76,7 +76,7 @@ Deckit.register({
         const glyph = (name, size = 16) =>
             GLYPH[name]
                 ? `<svg viewBox="0 0 24 24" aria-hidden="true" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block">${GLYPH[name]}</svg>`
-                : ui.icon(name, size);
+                : ui.icon(name, { size });
 
         // Paths are relative to the notes folder: "" is the folder itself, "Release/5.280.md" a note.
         const baseName = (rel) => rel.split('/').pop() || '';
@@ -169,7 +169,10 @@ Deckit.register({
             color: theme.color.text,
             font: '13px ' + theme.font,
         });
-        const keyed = (el, text, action) => ui.tip(el, text, () => host.chordOf(action));
+        const keyed = (el, text, action) => {
+            ui.tip(el, { text, chord: () => host.chordOf(action) });
+            return el;
+        };
         const keepFocus = (b) => {
             b.addEventListener('mousedown', (e) => e.preventDefault());
             return b;
@@ -192,7 +195,7 @@ Deckit.register({
                 kind: MOVE,
                 payload: { rel, since: Number(item.dataset.seq) },
                 text: name,
-                icon: item.dataset.rel ? glyph('fileText', 14) : ui.folderIcon(false, 14),
+                icon: item.dataset.rel ? glyph('fileText', 14) : ui.folderIcon({ open: false, size: 14 }),
             };
         };
 
@@ -205,21 +208,25 @@ Deckit.register({
                 padding: '8px 12px 6px',
                 minHeight: '30px',
             });
-            const backBtn = keyed(
-                keepFocus(ui.iconBtn(ui.icon('chevronLeft', 16), 'Back', () => goBack(), { size: 'sm' })),
-                'Back',
-                'back'
-            );
-            const aheadBtn = keyed(
-                keepFocus(ui.iconBtn(ui.icon('chevronRight', 16), 'Forward', () => goAhead(), { size: 'sm' })),
-                'Forward',
-                'forward'
-            );
+            const backBtn = ui.iconBtn({
+                icon: ui.icon('chevronLeft', { size: 16 }),
+                title: 'Back',
+                onClick: () => goBack(),
+                size: 'small',
+            });
+            keyed(keepFocus(backBtn.element), 'Back', 'back');
+            const aheadBtn = ui.iconBtn({
+                icon: ui.icon('chevronRight', { size: 16 }),
+                title: 'Forward',
+                onClick: () => goAhead(),
+                size: 'small',
+            });
+            keyed(keepFocus(aheadBtn.element), 'Forward', 'forward');
             const crumbs = ui.breadcrumb({ onGo: (rel) => showFolder(rel) });
-            crumbs.style.margin = '0 6px';
+            crumbs.element.style.margin = '0 6px';
             const right = el('div', { display: 'flex', alignItems: 'center', gap: '4px', flex: '0 0 auto' });
-            bar.append(backBtn, aheadBtn, crumbs, right);
-            dropZone(crumbs, (at) => {
+            bar.append(backBtn.element, aheadBtn.element, crumbs.element, right);
+            dropZone(crumbs.element, (at) => {
                 const b = at.closest?.('[data-crumb]');
                 return b ? { folder: b.dataset.crumb, mark: b } : null;
             });
@@ -228,7 +235,7 @@ Deckit.register({
                 aheadBtn.setEnabled(ahead.length > 0);
                 const parts = [''];
                 if (rel) rel.split('/').forEach((_, i, all) => parts.push(all.slice(0, i + 1).join('/')));
-                crumbs.setParts(
+                crumbs.set(
                     parts.map((p, i) => ({
                         key: p,
                         label: folderName(p),
@@ -245,31 +252,43 @@ Deckit.register({
         let searchSeq = 0;
         const search = ui.field({
             placeholder: 'Search all notes',
-            size: 'sm',
-            icon: ui.icon('search', 13),
+            size: 'small',
+            icon: ui.icon('search', { size: 13 }),
             clearable: true,
             onInput: (v) => runSearch(v),
-            onEnter: () => {
+            onSubmit: () => {
                 const first = hits?.[0];
                 if (first) openAt(first.rel);
             },
-            onEscape: () => {
-                search.setValue('');
+            onCancel: () => {
+                search.set('');
                 runSearch('');
             },
         });
-        Object.assign(search.style, { flex: '0 1 220px', minWidth: '140px' });
+        Object.assign(search.element.style, { flex: '0 1 220px', minWidth: '140px' });
         galleryNav.right.append(
-            search,
+            search.element,
             keyed(
                 keepFocus(
-                    ui.iconBtn(glyph('folderPlus', 16), 'New folder', () => newFolder(currentFolder()), { size: 'sm' })
+                    ui.iconBtn({
+                        icon: glyph('folderPlus', 16),
+                        title: 'New folder',
+                        onClick: () => newFolder(currentFolder()),
+                        size: 'small',
+                    }).element
                 ),
                 'New folder',
                 'newFolder'
             ),
             keyed(
-                keepFocus(ui.iconBtn(glyph('compose', 16), 'New note', () => newNote(), { size: 'sm' })),
+                keepFocus(
+                    ui.iconBtn({
+                        icon: glyph('compose', 16),
+                        title: 'New note',
+                        onClick: () => newNote(),
+                        size: 'small',
+                    }).element
+                ),
                 'New note',
                 'newNote'
             )
@@ -294,17 +313,16 @@ Deckit.register({
             position: 'relative',
         });
         const noteNav = navBar();
-        const moreBtn = keepFocus(
-            ui.iconBtn(
-                ui.icon('ellipsis', 16),
-                'More',
-                () => {
-                    if (note.rel) ui.menu(noteItems(note.rel), { anchor: moreBtn });
-                },
-                { size: 'sm' }
-            )
-        );
-        noteNav.right.appendChild(moreBtn);
+        const moreBtn = ui.iconBtn({
+            icon: ui.icon('ellipsis', { size: 16 }),
+            title: 'More',
+            onClick: () => {
+                if (note.rel) ui.menu({ items: noteItems(note.rel), anchor: moreBtn.element });
+            },
+            size: 'small',
+        });
+        keepFocus(moreBtn.element);
+        noteNav.right.appendChild(moreBtn.element);
         const head = el('div', { flex: '0 0 auto', width: '100%', padding: '6px 28px 6px', boxSizing: 'border-box' });
         const titleInput = el('input', {
             width: '100%',
@@ -401,7 +419,7 @@ Deckit.register({
             c.dataset.folder = f.rel;
             c.dataset.seq = String(seq);
             const g = el('span', { display: 'flex', flex: '0 0 auto' });
-            g.innerHTML = ui.folderIcon(false, 26);
+            g.innerHTML = ui.folderIcon({ open: false, size: 26 });
             const words = el('div', { minWidth: '0', flex: '1 1 auto' });
             const notes = f.count,
                 folders = f.folders.length;
@@ -533,26 +551,32 @@ Deckit.register({
                         hint: here.rel ? '' : 'A note is a Markdown file, and a folder here is a folder on disk.',
                         actions: [
                             keyed(
-                                ui.textBtn('New Note', 'New note', () => newNote(), {
-                                    size: 'sm',
+                                ui.textBtn({
+                                    label: 'New Note',
+                                    title: 'New note',
+                                    onClick: () => newNote(),
+                                    size: 'small',
                                     icon: glyph('compose', 14),
-                                }),
+                                }).element,
                                 'New note',
                                 'newNote'
                             ),
                             keyed(
-                                ui.textBtn('New Folder', 'New folder', () => newFolder(currentFolder()), {
-                                    size: 'sm',
+                                ui.textBtn({
+                                    label: 'New Folder',
+                                    title: 'New folder',
+                                    onClick: () => newFolder(currentFolder()),
+                                    size: 'small',
                                     icon: glyph('folderPlus', 14),
-                                }),
+                                }).element,
                                 'New folder',
                                 'newFolder'
                             ),
                         ],
                     });
                     // Absolute, so the gallery's padding cannot push it into a scroll.
-                    Object.assign(empty.style, { position: 'absolute', inset: '0' });
-                    galleryBody.appendChild(empty);
+                    Object.assign(empty.element.style, { position: 'absolute', inset: '0' });
+                    galleryBody.appendChild(empty.element);
                 }
             }
             galleryBody.scrollTop = scroll;
@@ -574,7 +598,10 @@ Deckit.register({
                       ? folderItems(c.dataset.folder, Number(c.dataset.seq), c)
                       : folderItems(currentFolder()),
         });
-        ui.dragSource(galleryBody, { itemAt: (t) => t.closest?.('[data-rel], [data-folder]') || null, what: pickUp });
+        ui.dragSource(galleryBody, {
+            itemAt: (t) => t.closest?.('[data-rel], [data-folder]') || null,
+            describe: pickUp,
+        });
         dropZone(galleryBody, (at) => {
             const c = at.closest?.('[data-folder]');
             return c
@@ -613,7 +640,7 @@ Deckit.register({
             reveal(to.rel);
             if (to.kind === 'folder') {
                 if (query) {
-                    search.setValue('');
+                    search.set('');
                     query = '';
                     hits = null;
                 }
@@ -850,7 +877,7 @@ Deckit.register({
                 el('span', { flex: '1 1 auto' }, t.words + (note.trouble.message ? ': ' + note.trouble.message : ''))
             );
             for (const [label, title, run] of typeof t.answers === 'function' ? t.answers() : t.answers)
-                banner.appendChild(ui.textBtn(label, title, run, { size: 'sm' }));
+                banner.appendChild(ui.textBtn({ label, title, onClick: run, size: 'small' }).element);
         };
         const nudge = () => {
             if (theme.motion.fast)
@@ -1333,11 +1360,12 @@ Deckit.register({
                     '-'
                 );
             items.push(...styleItems());
-            ui.menu(items, { at: { x: e.clientX, y: e.clientY } });
+            ui.menu({ items, point: { x: e.clientX, y: e.clientY } });
         };
 
         const sidebar = el('div', { display: 'flex', flexDirection: 'column', minHeight: '0', flex: '1 1 auto' });
-        const section = ui.section('All Notes', {
+        const section = ui.section({
+            label: 'All Notes',
             icon: glyph('notes', 16),
             actions: [
                 { icon: glyph('compose', 16), title: 'New note', run: () => newNote() },
@@ -1347,14 +1375,14 @@ Deckit.register({
                 host.show();
                 showFolder('');
             },
-            onHeadingMenu: (e) => ui.menu(folderItems(''), { at: { x: e.clientX, y: e.clientY } }),
+            onHeadingMenu: (e) => ui.menu({ items: folderItems(''), point: { x: e.clientX, y: e.clientY } }),
         });
-        keyed(section.actions[0], 'New note', 'newNote');
-        keyed(section.actions[1], 'New folder', 'newFolder');
+        keyed(section.actions[0].element, 'New note', 'newNote');
+        keyed(section.actions[1].element, 'New folder', 'newFolder');
         const sectionHeading = section.heading;
-        const treeEl = ui.list();
+        const treeEl = ui.list().element;
         section.body.appendChild(treeEl);
-        sidebar.appendChild(section);
+        sidebar.appendChild(section.element);
 
         const toggle = (rel) => {
             if (expanded.has(rel)) expanded.delete(rel);
@@ -1376,13 +1404,14 @@ Deckit.register({
                 glyph: page,
                 name: name || 'Untitled',
             });
-            if (kind === 'note') r.dataset.rel = rel;
-            else r.dataset.folder = rel;
-            r.title = rel;
-            r.dataset.seq = String(tree.seq ?? 0);
+            if (kind === 'note') r.element.dataset.rel = rel;
+            else r.element.dataset.folder = rel;
+            r.element.title = rel;
+            r.element.dataset.seq = String(tree.seq ?? 0);
             const on =
                 kind === 'note' ? here.kind === 'note' && note.rel === rel : here.kind === 'folder' && here.rel === rel;
-            return ui.hoverable(r, () => on);
+            r.setActive(on);
+            return r.element;
         };
         /* Redrawn only when something shown changed: a save comes back as a tree refresh, and rebuilding
        rows under a pointer pressing one would lose the press. Row events are delegated for the same reason. */
@@ -1437,7 +1466,7 @@ Deckit.register({
                       ? noteItems(r.dataset.rel, Number(r.dataset.seq), r)
                       : folderItems(r.dataset.folder, Number(r.dataset.seq), r),
         });
-        ui.dragSource(treeEl, { itemAt: (t) => t.closest?.('[data-rel], [data-folder]') || null, what: pickUp });
+        ui.dragSource(treeEl, { itemAt: (t) => t.closest?.('[data-rel], [data-folder]') || null, describe: pickUp });
         dropZone(
             sidebar,
             ui.treeFolderAt({
@@ -1496,7 +1525,7 @@ Deckit.register({
         ];
         const renameAt = (label, held, since = relocSeq) =>
             ui.inlineEdit(label, {
-                commit: async (name) => {
+                onCommit: async (name) => {
                     const rel = await currentPath(held, since);
                     if (rel == null) return 'It is no longer there';
                     if (!(await settle(rel))) return 'The open note has a question to answer first';
@@ -1617,7 +1646,7 @@ Deckit.register({
                           {
                               label: 'Only some matches are shown',
                               hint: 'Add a word to narrow it down',
-                              icon: ui.icon('search', 16),
+                              icon: ui.icon('search', { size: 16 }),
                           },
                       ]
                     : [];
@@ -1707,7 +1736,7 @@ Deckit.register({
                 },
                 {
                     label: 'Search Notes',
-                    icon: ui.icon('search', 16),
+                    icon: ui.icon('search', { size: 16 }),
                     keywords: ['노트 검색', '메모 검색', '노트', '메모', 'find', 'notes'],
                     page: { placeholder: 'Search notes', search: searchEntries },
                 },
@@ -1715,7 +1744,7 @@ Deckit.register({
                     group: 'Folders',
                     label: f.name,
                     hint: f.rel === f.name ? '' : parentOf(f.rel),
-                    icon: ui.icon('folder', 16),
+                    icon: ui.icon('folder', { size: 16 }),
                     keywords: ['노트', '폴더', 'note', 'folder'],
                     run: () => {
                         host.show();

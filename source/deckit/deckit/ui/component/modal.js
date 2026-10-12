@@ -102,12 +102,11 @@ DeckitModule.define(
                 card.append(heading);
             }
             const focus = fill?.(card) || null;
-            const cancel = ui.textBtn(cancelLabel, '', close);
-            const confirm = confirms
-                ? ui.textBtn(confirmLabel, '', submit, { variant: destructive ? 'destructive' : 'primary' })
-                : null;
+            const button = (label, onClick, variant = 'plain') => ui.textBtn({ label, variant, onClick }).element;
+            const cancel = button(cancelLabel, close);
+            const confirm = confirms ? button(confirmLabel, submit, destructive ? 'destructive' : 'primary') : null;
             const extra = extraLabel
-                ? ui.textBtn(extraLabel, '', () => {
+                ? button(extraLabel, () => {
                       close();
                       onExtra?.();
                   })

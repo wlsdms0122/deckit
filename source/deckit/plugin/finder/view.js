@@ -98,18 +98,38 @@ Deckit.register({
             minHeight: '30px',
         });
         const chordFor = (action) => () => host.chordOf(action);
-        const backBtn = ui.tip(
-            ui.iconBtn(ui.icon('chevronLeft', 16), 'Back', () => goBack(), { size: 'sm' }),
+        // The control, its element given the tooltip.
+        const tipped = (control, text, chord) => {
+            ui.tip(control.element, { text, chord });
+            return control;
+        };
+        const backBtn = tipped(
+            ui.iconBtn({
+                icon: ui.icon('chevronLeft', { size: 16 }),
+                title: 'Back',
+                onClick: () => goBack(),
+                size: 'small',
+            }),
             'Back',
             chordFor('back')
         );
-        const aheadBtn = ui.tip(
-            ui.iconBtn(ui.icon('chevronRight', 16), 'Forward', () => goAhead(), { size: 'sm' }),
+        const aheadBtn = tipped(
+            ui.iconBtn({
+                icon: ui.icon('chevronRight', { size: 16 }),
+                title: 'Forward',
+                onClick: () => goAhead(),
+                size: 'small',
+            }),
             'Forward',
             chordFor('forward')
         );
-        const upBtn = ui.tip(
-            ui.iconBtn(ui.icon('arrowUp', 15), 'Enclosing folder', () => goUp(), { size: 'sm' }),
+        const upBtn = tipped(
+            ui.iconBtn({
+                icon: ui.icon('arrowUp', { size: 15 }),
+                title: 'Enclosing folder',
+                onClick: () => goUp(),
+                size: 'small',
+            }),
             'Enclosing folder',
             chordFor('enclosing')
         );
@@ -123,11 +143,11 @@ Deckit.register({
                 else go(p);
             },
         });
-        crumbs.style.margin = '0 6px';
+        crumbs.element.style.margin = '0 6px';
         const search = ui.field({
             placeholder: 'Filter this folder',
-            size: 'sm',
-            icon: ui.icon('search', 13),
+            size: 'small',
+            icon: ui.icon('search', { size: 13 }),
             clearable: true,
             onInput: (v) => {
                 const t = current;
@@ -137,15 +157,15 @@ Deckit.register({
                 if (!t.query) t.queryDir = null;
                 render();
             },
-            onEnter: () => {
+            onSubmit: () => {
                 const v = visibleIn(current?.queryDir || walkDir());
                 if (v.length) {
                     select(v[0].path, { reveal: true });
                     listEl.focus();
                 }
             },
-            onEscape: () => {
-                search.setValue('');
+            onCancel: () => {
+                search.set('');
                 if (current) {
                     current.query = '';
                     current.queryDir = null;
@@ -154,54 +174,62 @@ Deckit.register({
                 listEl.focus();
             },
         });
-        Object.assign(search.style, { flex: '0 1 200px', minWidth: '120px' });
-        const STAR = (on) => ui.icon('star', 15, { fill: on ? 'currentColor' : 'none' });
-        const star = ui.iconBtn(
-            STAR(false),
-            'Add to Favorites',
-            () => {
+        Object.assign(search.element.style, { flex: '0 1 200px', minWidth: '120px' });
+        const STAR = (on) => ui.icon('star', { size: 15, fill: on ? 'currentColor' : 'none' });
+        const star = ui.iconBtn({
+            icon: STAR(false),
+            title: 'Add to Favorites',
+            onClick: () => {
                 const here = hereNow();
                 if (!here) return;
                 if (favorites().includes(here)) setFavorites(favorites().filter((p) => p !== here));
                 else addFavorite(here);
                 if (theme.motion.fast) {
-                    star.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
-                        duration: 220,
-                        easing: theme.motion.easing,
-                    });
+                    star.element.animate(
+                        [{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }],
+                        { duration: 220, easing: theme.motion.easing }
+                    );
                 }
             },
-            { size: 'sm' }
-        );
+            size: 'small',
+        });
         const paintStar = () => {
             const on = !!hereNow() && favorites().includes(hereNow());
             star.setIcon(STAR(on));
-            star.title = on ? 'Remove from Favorites' : 'Add to Favorites';
+            star.element.title = on ? 'Remove from Favorites' : 'Add to Favorites';
         };
         const VIEWS = [
             { key: 'columns', label: 'As Columns', icon: 'columns', action: 'columnView' },
             { key: 'list', label: 'As List', icon: 'list', action: 'listView' },
         ];
         const viewGlyph = () =>
-            `<span style="display:flex;align-items:center;gap:1px">${ui.icon(VIEWS.find((v) => v.key === view).icon, 14)}${ui.icon('chevronDown', 10)}</span>`;
-        const viewBar = ui.iconBtn(
-            viewGlyph(),
-            'View',
-            () =>
-                ui.menu(
-                    VIEWS.map((v) => ({
+            `<span style="display:flex;align-items:center;gap:1px">${ui.icon(VIEWS.find((v) => v.key === view).icon, { size: 14 })}${ui.icon('chevronDown', { size: 10 })}</span>`;
+        const viewBar = ui.iconBtn({
+            icon: viewGlyph(),
+            title: 'View',
+            onClick: () =>
+                ui.menu({
+                    items: VIEWS.map((v) => ({
                         label: v.label,
                         icon: v.icon,
                         hint: host.chordOf(v.action),
                         checked: v.key === view,
                         run: () => setView(v.key),
                     })),
-                    { anchor: viewBar }
-                ),
-            { size: 'sm' }
+                    anchor: viewBar.element,
+                }),
+            size: 'small',
+        });
+        Object.assign(viewBar.element.style, { width: 'auto', padding: '0 5px' });
+        head.append(
+            backBtn.element,
+            aheadBtn.element,
+            upBtn.element,
+            crumbs.element,
+            star.element,
+            viewBar.element,
+            search.element
         );
-        Object.assign(viewBar.style, { width: 'auto', padding: '0 5px' });
-        head.append(backBtn, aheadBtn, upBtn, crumbs, star, viewBar, search);
 
         const COLUMNS = [
             { key: 'name', label: 'Name' },
@@ -382,10 +410,9 @@ Deckit.register({
                 return img;
             }
             const g = el('span', { display: 'flex', flex: '0 0 auto', opacity: '.6' });
-            g.innerHTML = ui.icon(
-                e.kind === 'folder' ? 'folder' : e.kind === 'package' ? 'grid' : 'fileText',
-                size - 1
-            );
+            g.innerHTML = ui.icon(e.kind === 'folder' ? 'folder' : e.kind === 'package' ? 'grid' : 'fileText', {
+                size: size - 1,
+            });
             return g;
         };
 
@@ -436,7 +463,7 @@ Deckit.register({
                 cell.append(el('span', { overflow: 'hidden', textOverflow: 'ellipsis' }, c.label));
                 if (sort.key === c.key) {
                     const caret = el('span', { display: 'flex' });
-                    caret.innerHTML = ui.icon(sort.up ? 'chevronUp' : 'chevronDown', 12);
+                    caret.innerHTML = ui.icon(sort.up ? 'chevronUp' : 'chevronDown', { size: 12 });
                     cell.appendChild(caret);
                 }
                 cell.addEventListener('click', () => {
@@ -452,6 +479,7 @@ Deckit.register({
         };
 
         const quiet = theme.color.muted;
+        const repaints = new WeakMap(); // row -> marks it active or not, read again
         const rowFor = (e) => {
             const r = el('div', {
                 display: 'grid',
@@ -471,7 +499,7 @@ Deckit.register({
             name.append(glyphFor(e), label);
             if (e.link) {
                 const arrow = el('span', { display: 'flex', flex: '0 0 auto', color: quiet });
-                arrow.innerHTML = ui.icon('externalWindow', 11);
+                arrow.innerHTML = ui.icon('externalWindow', { size: 11 });
                 arrow.title = 'Alias';
                 name.appendChild(arrow);
             }
@@ -486,7 +514,10 @@ Deckit.register({
                 kind: el('div', { color: quiet, overflow: 'hidden', textOverflow: 'ellipsis' }, kindOf(e)),
             };
             for (const c of shown) r.appendChild(cells[c.key]);
-            ui.hoverable(r, () => e.path === current?.selected);
+            const { setActive } = ui.hoverable(r);
+            const repaint = () => setActive(e.path === current?.selected);
+            repaints.set(r, repaint);
+            repaint();
             return r;
         };
 
@@ -562,11 +593,14 @@ Deckit.register({
             r.append(glyphFor(e), label);
             if (e.kind === 'folder') {
                 const more = el('span', { display: 'flex', flex: '0 0 auto', color: quiet });
-                more.innerHTML = ui.icon('chevronRight', 12);
+                more.innerHTML = ui.icon('chevronRight', { size: 12 });
                 r.appendChild(more);
             }
             // Presses are handled on listEl, which tells a double click even across a redraw.
-            ui.hoverable(r, () => onPath(e.path));
+            const { setActive } = ui.hoverable(r);
+            const repaint = () => setActive(onPath(e.path));
+            repaints.set(r, repaint);
+            repaint();
             return r;
         };
         // Keyed by mtime too, so a file saved again gets a new thumbnail.
@@ -680,7 +714,7 @@ Deckit.register({
                 const key = columnKey(dir);
                 const body = col.body;
                 if (col.dataset.key === key) {
-                    for (const r of body.children) r.repaint?.();
+                    for (const r of body.children) repaints.get(r)?.();
                     return;
                 }
                 col.dataset.key = key;
@@ -759,20 +793,20 @@ Deckit.register({
             } else if (failure) {
                 screen(
                     ui.emptyState({
-                        icon: ui.icon('folder', 44),
+                        icon: ui.icon('folder', { size: 44 }),
                         title: failure.title,
                         hint: failure.hint,
                         actions: failure.permission
                             ? [
-                                  ui.textBtn(
-                                      'Open Privacy Settings',
-                                      '',
-                                      () => main.call('privacySettings').catch(() => {}),
-                                      { size: 'sm' }
-                                  ),
+                                  ui.textBtn({
+                                      label: 'Open Privacy Settings',
+                                      title: '',
+                                      onClick: () => main.call('privacySettings').catch(() => {}),
+                                      size: 'small',
+                                  }).element,
                               ]
                             : [],
-                    })
+                    }).element
                 );
             } else {
                 const list = visible();
@@ -783,27 +817,32 @@ Deckit.register({
                 else if (!list.length && here) {
                     screen(
                         ui.emptyState({
-                            icon: ui.icon('folder', 44),
+                            icon: ui.icon('folder', { size: 44 }),
                             title: 'This folder is empty',
                             hint: entries().length ? 'What is in it is hidden.' : '',
                             actions: [
                                 ...(entries().length
                                     ? [
-                                          ui.tip(
-                                              ui.textBtn(
-                                                  'Show Hidden Files',
-                                                  '',
-                                                  () => settings.set('showHidden', true),
-                                                  { size: 'sm' }
-                                              ),
+                                          tipped(
+                                              ui.textBtn({
+                                                  label: 'Show Hidden Files',
+                                                  title: '',
+                                                  onClick: () => settings.set('showHidden', true),
+                                                  size: 'small',
+                                              }),
                                               'Show hidden files',
                                               chordFor('hidden')
-                                          ),
+                                          ).element,
                                       ]
                                     : []),
-                                ui.textBtn('Show in Finder', '', () => host.reveal(here), { size: 'sm' }),
+                                ui.textBtn({
+                                    label: 'Show in Finder',
+                                    title: '',
+                                    onClick: () => host.reveal(here),
+                                    size: 'small',
+                                }).element,
                             ],
-                        })
+                        }).element
                     );
                 }
             }
@@ -818,7 +857,7 @@ Deckit.register({
                 parts.unshift(p);
                 if (p === home) break;
             }
-            crumbs.setParts(
+            crumbs.set(
                 parts.map((p, i) => ({
                     key: p,
                     label: nameOf(p),
@@ -886,7 +925,7 @@ Deckit.register({
             if (t.query && !shownDirs().includes(t.queryDir)) {
                 t.query = '';
                 t.queryDir = null;
-                search.setValue('');
+                search.set('');
             }
         };
 
@@ -968,7 +1007,7 @@ Deckit.register({
             t.selected = null;
             t.query = '';
             t.queryDir = null;
-            search.setValue('');
+            search.set('');
             return arrive(t, { select: from, scroll: from ? 'reveal' : 0 });
         };
         const goBack = () => {
@@ -1013,7 +1052,7 @@ Deckit.register({
                 watchShown();
             } else {
                 // Repainted in place, so the row under the pointer keeps its hover.
-                for (const r of listEl.children) r.repaint?.();
+                for (const r of listEl.children) repaints.get(r)?.();
             }
             if (show && p) reveal(p);
         };
@@ -1133,8 +1172,8 @@ Deckit.register({
             if (!label) return;
             select(e.path);
             const renamed = await ui.inlineEdit(label, {
-                stem: e.kind !== 'folder',
-                commit: async (name) => {
+                selectStem: e.kind !== 'folder',
+                onCommit: async (name) => {
                     try {
                         relocate(e.path, await main.call('rename', e.path, name));
                     } catch (err) {
@@ -1158,7 +1197,7 @@ Deckit.register({
             if (current !== t || t.here !== here) return;
             t.query = '';
             t.queryDir = null;
-            search.setValue('');
+            search.set('');
             if (into === here) {
                 t.pending = { select: made, scroll: 'reveal' };
                 await load();
@@ -1217,13 +1256,13 @@ Deckit.register({
                 folderAt,
                 onDrop: (held, place) => moveEntry(held.path, place.folder),
             });
-        dropZone(crumbs, (at) => {
+        dropZone(crumbs.element, (at) => {
             const b = at.closest?.('[data-crumb]');
             return b ? { folder: b.dataset.crumb, mark: b } : null;
         });
         ui.dragSource(listEl, {
             itemAt: (t) => t.closest?.('[data-path]') || null,
-            what: (r) => {
+            describe: (r) => {
                 const e = entryOf(r.dataset.path);
                 return (
                     e && {
@@ -1231,7 +1270,11 @@ Deckit.register({
                         payload: { path: e.path },
                         text: e.name,
                         icon:
-                            e.kind === 'folder' ? ui.folderIcon(false, 14) : e.kind === 'package' ? 'grid' : 'fileText',
+                            e.kind === 'folder'
+                                ? ui.folderIcon({ open: false, size: 14 })
+                                : e.kind === 'package'
+                                  ? 'grid'
+                                  : 'fileText',
                     }
                 );
             },
@@ -1388,7 +1431,7 @@ Deckit.register({
             // Only a loaded list's scroll is the tab's own.
             if (current && listings.has(current.here)) current.scroll = listEl.scrollTop;
             current = t;
-            search.setValue(t.query || '');
+            search.set(t.query || '');
             return arrive(t, { select: t.selected, scroll: t.scroll });
         };
         const widthsFrom = (saved) =>
@@ -1452,35 +1495,47 @@ Deckit.register({
         const folds = () => store.get('folds', {});
         const setFold = (key, on) => store.set('folds', { ...folds(), [key]: on });
 
-        const tabSection = ui.section('Tabs', {
-            icon: ui.icon('window', 16),
+        const tabSection = ui.section({
+            label: 'Tabs',
+            icon: ui.icon('window', { size: 16 }),
             actions: [{ title: 'New tab', run: () => newTab() }],
             collapsed: !!folds().tabs,
-            onCollapse: (on) => setFold('tabs', on),
+            onToggle: (on) => {
+                tabSection.setCollapsed(on);
+                setFold('tabs', on);
+            },
         });
-        ui.tip(tabSection.actions[0], 'New tab', chordFor('newTab'));
-        const tabList = ui.list();
+        ui.tip(tabSection.actions[0].element, { text: 'New tab', chord: chordFor('newTab') });
+        const tabList = ui.list().element;
         tabSection.body.appendChild(tabList);
-        ui.sortable(tabList, (from, to) => {
-            const [t] = tabs.splice(from, 1);
-            tabs.splice(to, 0, t);
-            persistTabs();
+        ui.sortable(tabList, {
+            onReorder: (from, to) => {
+                const [t] = tabs.splice(from, 1);
+                tabs.splice(to, 0, t);
+                persistTabs();
+            },
         });
 
-        const favSection = ui.section('Favorites', {
-            icon: ui.icon('star', 16),
+        const favSection = ui.section({
+            label: 'Favorites',
+            icon: ui.icon('star', { size: 16 }),
             collapsed: !!folds().favorites,
-            onCollapse: (on) => setFold('favorites', on),
+            onToggle: (on) => {
+                favSection.setCollapsed(on);
+                setFold('favorites', on);
+            },
         });
-        const favList = ui.list();
+        const favList = ui.list().element;
         favSection.body.appendChild(favList);
-        ui.sortable(favList, (from, to) => {
-            const list = favorites();
-            const [p] = list.splice(from, 1);
-            list.splice(to, 0, p);
-            setFavorites(list);
+        ui.sortable(favList, {
+            onReorder: (from, to) => {
+                const list = favorites();
+                const [p] = list.splice(from, 1);
+                list.splice(to, 0, p);
+                setFavorites(list);
+            },
         });
-        sidebar.append(tabSection, favSection);
+        sidebar.append(tabSection.element, favSection.element);
         dropZone(favList, (at) => {
             const r = at.closest?.('[data-path]');
             return r ? { folder: r.dataset.path, mark: r } : null;
@@ -1494,14 +1549,14 @@ Deckit.register({
         const folderRow = (glyph, label, title) => {
             const r = ui.row();
             const g = el('span', { display: 'flex', flex: '0 0 auto', opacity: '.8' });
-            g.innerHTML = ui.icon(glyph, 16);
+            g.innerHTML = ui.icon(glyph, { size: 16 });
             const t = el(
                 'span',
                 { flex: '1 1 auto', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis' },
                 label
             );
-            r.title = title;
-            r.append(g, t);
+            r.element.title = title;
+            r.element.append(g, t);
             return r;
         };
         // Through whenFree: a row being dragged or on its way out owns the list until it is done.
@@ -1509,17 +1564,26 @@ Deckit.register({
         const drawTabs = () => {
             tabList.textContent = '';
             for (const t of tabs) {
-                const r = folderRow('folder', t.here ? nameOf(t.here) : '\u2026', t.here ? tilde(t.here) : '');
+                const { element: r, setActive } = folderRow(
+                    'folder',
+                    t.here ? nameOf(t.here) : '\u2026',
+                    t.here ? tilde(t.here) : ''
+                );
                 r.dataset.tabId = String(t.id);
                 r.appendChild(
-                    ui.tip(
-                        ui.miniBtn(ui.icon('x', 14), 'Close tab', () => dropTab(t.id)),
+                    tipped(
+                        ui.miniBtn({
+                            icon: ui.icon('x', { size: 14 }),
+                            title: 'Close tab',
+                            onClick: () => dropTab(t.id),
+                        }),
                         'Close tab',
                         chordFor('closeTab')
-                    )
+                    ).element
                 );
                 r.addEventListener('click', () => showTab(t.id));
-                tabList.appendChild(ui.hoverable(r, () => t === current));
+                setActive(t === current);
+                tabList.appendChild(r);
             }
         };
         ui.contextMenu(tabList, {
@@ -1560,15 +1624,17 @@ Deckit.register({
             favList.textContent = '';
             for (const p of favorites()) {
                 const place = placeOf(p);
-                const r = folderRow(
+                const { element: r, setActive } = folderRow(
                     place ? PLACE_ICON[place.id] || 'folder' : 'folder',
                     place ? place.label : nameOf(p),
                     tilde(p)
                 );
                 r.appendChild(
-                    ui.miniBtn(ui.icon('x', 14), 'Remove from Favorites', () =>
-                        ui.leaveRow(r, () => setFavorites(favorites().filter((x) => x !== p)))
-                    )
+                    ui.miniBtn({
+                        icon: ui.icon('x', { size: 14 }),
+                        title: 'Remove from Favorites',
+                        onClick: () => ui.leaveRow(r, () => setFavorites(favorites().filter((x) => x !== p))),
+                    }).element
                 );
                 r.dataset.path = p;
                 r.addEventListener('click', (ev) => {
@@ -1576,7 +1642,10 @@ Deckit.register({
                     if (ev.metaKey) newTab(p);
                     else go(p);
                 });
-                favList.appendChild(ui.hoverable(r, () => p === hereNow()));
+                const repaint = () => setActive(p === hereNow());
+                repaints.set(r, repaint);
+                repaint();
+                favList.appendChild(r);
             }
             paintPlaces();
         };
@@ -1611,7 +1680,7 @@ Deckit.register({
         // Repainted in place: rebuilding the rows would drop a hover, a drag or a row on its way out.
         const paintPlaces = () => {
             paintStar();
-            for (const r of favList.children) r.repaint?.();
+            for (const r of favList.children) repaints.get(r)?.();
         };
 
         settings.on((key) => {
@@ -1738,7 +1807,7 @@ Deckit.register({
                 ...places.map((p) => ({
                     label: p.label,
                     hint: tilde(p.path),
-                    icon: ui.icon(PLACE_ICON[p.id] || 'folder', 16),
+                    icon: ui.icon(PLACE_ICON[p.id] || 'folder', { size: 16 }),
                     keywords: ['폴더', 'folder'],
                     address: p.path,
                     run: () => {
@@ -1751,7 +1820,7 @@ Deckit.register({
                     .map((p) => ({
                         label: nameOf(p),
                         hint: tilde(p),
-                        icon: ui.icon('folder', 16),
+                        icon: ui.icon('folder', { size: 16 }),
                         keywords: ['폴더', 'folder'],
                         address: p,
                         run: () => {

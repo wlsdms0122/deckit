@@ -13,12 +13,13 @@ DeckitModule.define('deckit/ui/component/part', { uses: [], provides: ['STYLE', 
     // Something pressed, washed under the pointer and ringed when the keyboard reaches it.
     function pressable(element) {
         element.classList.add('deckit-pressable');
-        return element;
+        return () => element.classList.remove('deckit-pressable');
     }
 
+    // Text the person can select, in a page where nothing is by default.
     function selectable(element) {
         element.style.userSelect = 'text';
-        return element;
+        return () => (element.style.userSelect = '');
     }
 
     // MARK: - Private

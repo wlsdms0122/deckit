@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/component/row',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/motion', 'deckit/ui/scroll', 'deckit/ui/list'],
+        uses: ['deckit/ui/token', 'deckit/ui/motion', 'deckit/ui/scroll', 'deckit/ui/list'],
         provides: ['STYLE', 'make'],
     },
-    (TOKEN, ICON, MOTION, SCROLL, LIST) => {
+    (TOKEN, MOTION, SCROLL, LIST) => {
         // MARK: - Property
         const STYLE = `
             .deckit-row {
@@ -27,33 +27,17 @@ DeckitModule.define(
             .deckit-hover:hover [data-deckit-reveal],
             .deckit-hover:focus-within [data-deckit-reveal],
             .deckit-hover[data-revealed] [data-deckit-reveal] { opacity: 1; }
-            .deckit-tree-caret {
-                display: flex;
-                flex: 0 0 12px;
-                justify-content: center;
-                opacity: 0;
-                transition: transform var(--deckit-fast) var(--deckit-easing);
-            }
-            .deckit-tree-row[data-folds] .deckit-tree-caret { opacity: 0.55; }
-            .deckit-tree-row[aria-expanded='true'] .deckit-tree-caret { transform: rotate(90deg); }
-            .deckit-tree-mark { display: flex; flex: 0 0 auto; }
-            .deckit-tree-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
             .deckit-list { flex: 0 0 auto; }
             .deckit-list[data-scrolls] { overflow-y: auto; overscroll-behavior: contain; }
         `;
-        const ROW_HEIGHT = Object.freeze({ plain: 28, dense: 24 });
-        const DEPTH_INDENT = 14;
+        const ROW_HEIGHT = Object.freeze({ medium: 28, small: 24 });
         const stepping = new WeakMap(); // list -> the turn of its newest drawInSteps, so an older one stops
 
         // MARK: - Initializer
         // MARK: - Public
-        function make(theme) {
-            const folderIcon = (open = false, size = 15) =>
-                ICON.icon(open ? 'folderOpen' : 'folder', size, { color: theme.color.folder });
+        function make() {
             return {
                 row,
-                folderIcon,
-                treeRow: (options) => treeRow(folderIcon, options),
                 list,
                 hoverable,
                 leaveRow,
@@ -63,60 +47,34 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        function row({ dense = false } = {}) {
-            const made = document.createElement('div');
-            made.className = 'deckit-row';
-            if (dense) made.dataset.size = 'small';
-            return made;
+        // A row of a list, washed under the pointer. `setActive` marks it chosen; `setRevealed` keeps its actions shown.
+        function row({ size = 'medium' } = {}) {
+            const element = document.createElement('div');
+            element.className = 'deckit-row';
+            element.dataset.size = size;
+            return { element, ...hoverable(element) };
         }
 
-        // A row of a tree: a caret when it folds, its mark, its name (marked `data-name`, what a rename types over).
-        function treeRow(
-            folderIcon,
-            { depth = 0, folder = false, folds = folder, open = false, glyph = '', name = '', dense = false } = {}
-        ) {
-            const made = row({ dense });
-            made.classList.add('deckit-tree-row');
-            made.style.paddingLeft = 4 + depth * DEPTH_INDENT + 'px';
-            made.toggleAttribute('data-folds', folds);
-            if (folds) made.setAttribute('aria-expanded', String(open));
-            const caret = document.createElement('span');
-            caret.className = 'deckit-tree-caret';
-            caret.dataset.caret = '';
-            caret.innerHTML = ICON.icon('chevronRight', 12);
-            const mark = document.createElement('span');
-            mark.className = 'deckit-tree-mark';
-            mark.innerHTML = folder ? folderIcon(open, dense ? 14 : 16) : glyph;
-            const label = document.createElement('span');
-            label.className = 'deckit-tree-name';
-            label.dataset.name = '';
-            label.textContent = name;
-            made.append(caret, mark, label);
-            return made;
-        }
-
-        // With `most`, as tall as that many rows, scrolling past them.
-        function list({ most = 0, dense = false } = {}) {
-            const made = document.createElement('div');
-            made.className = 'deckit-list';
-            if (most) {
-                made.dataset.scrolls = '';
-                made.style.maxHeight = most * ROW_HEIGHT[dense ? 'dense' : 'plain'] + 'px';
-                SCROLL.edgeFade(made);
+        // With `maxRows`, as tall as that many rows, scrolling past them.
+        function list({ maxRows = 0, size = 'medium' } = {}) {
+            const element = document.createElement('div');
+            element.className = 'deckit-list';
+            if (maxRows) {
+                element.dataset.scrolls = '';
+                element.style.maxHeight = maxRows * ROW_HEIGHT[size] + 'px';
+                SCROLL.edgeFade(element);
             }
-            return made;
+            return { element };
         }
 
-        // The pointer's wash is the stylesheet's. `isActive()` marks the row chosen, `shows()` keeps its actions out;
-        // both are read again by `repaint()`.
-        function hoverable(made, isActive = () => false, { shows = () => false } = {}) {
-            made.classList.add('deckit-hover');
-            made.repaint = () => {
-                made.toggleAttribute('data-active', !!isActive());
-                made.toggleAttribute('data-revealed', !!shows());
+        // The pointer's wash is the stylesheet's; `setActive` marks the element chosen, `setRevealed` keeps its actions
+        // shown.
+        function hoverable(element) {
+            element.classList.add('deckit-hover');
+            return {
+                setActive: (on) => element.toggleAttribute('data-active', !!on),
+                setRevealed: (on) => element.toggleAttribute('data-revealed', !!on),
             };
-            made.repaint();
-            return made;
         }
 
         // The row folds away before `then`, usually the redraw that drops it. A row with no height has nothing to fold.

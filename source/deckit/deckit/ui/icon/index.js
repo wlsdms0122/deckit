@@ -65,7 +65,7 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        function icon(name, size = 15, { fill = 'none', color = 'currentColor' } = {}) {
+        function icon(name, { size = 15, fill = 'none', color = 'currentColor' } = {}) {
             if (!Object.hasOwn(LUCIDE, name)) throw new Error(`no icon named ${name}`);
             return (
                 `<svg viewBox="0 0 24 24" aria-hidden="true" width="${size}" height="${size}" style="display:block"` +

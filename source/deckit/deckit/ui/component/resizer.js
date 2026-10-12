@@ -1,131 +1,141 @@
 DeckitModule.define(
     'deckit/ui/component/resizer',
-    {
-        uses: ['deckit/ui/token', 'deckit/ui/pointer', 'deckit/ui/gesture'],
-        provides: ['STYLE', 'make'],
-    },
-    (T, POINTER, GESTURE) => {
-        const { MOTION } = T;
+    { uses: ['deckit/ui/token', 'deckit/ui/pointer', 'deckit/ui/gesture'], provides: ['STYLE', 'make'] },
+    (TOKEN, POINTER, GESTURE) => {
+        // MARK: - Property
+        const STYLE = '';
+        // How far past a limit the pointer has gone, as how far the edge goes: never more than REACH.
+        const REACH = 40;
+        const RESISTANCE = 0.35;
 
-        return {
-            STYLE: '',
-            make: (theme, ui, inner) => {
-                return {
-                    resizer(
-                        handle,
-                        {
-                            axis = 'x',
-                            grow = 1,
-                            size,
-                            min = 0,
-                            max = Infinity,
-                            resize,
-                            commit,
-                            onClick = null,
-                            onDrag = null,
-                            resizable = () => true,
-                        }
-                    ) {
-                        const read = (v) => (typeof v === 'function' ? v() : v);
-                        // How far past a limit the pointer has gone, as how far the edge goes: never more than REACH.
-                        const REACH = 40;
-                        const give = (over) => REACH * (1 - 1 / ((over * 0.35) / REACH + 1));
-                        /* The gesture in progress (a drag, or the spring after it): a new press or a click settles it
-           first, or the two would write the size in turns. */
-                        let gesture = null;
-                        const settleNow = () => gesture?.settleNow();
-                        // A press that travelled is not a click, wherever it is let go.
-                        let travelledLast = false;
-                        handle.addEventListener('pointerdown', (down) => {
-                            if (down.button !== 0) return;
-                            down.preventDefault();
-                            settleNow();
-                            const at = (e) => (axis === 'x' ? e.clientX : e.clientY);
-                            const start = at(down),
-                                from = size();
-                            const lo = read(min),
-                                sizing = resizable();
-                            let moving = false,
-                                release = null,
-                                shown = from;
-                            travelledLast = false;
-                            const onMove = (e) => {
-                                const delta = (at(e) - start) * grow;
-                                if (!moving) {
-                                    if (Math.abs(delta) < GESTURE.SLOP) return;
-                                    travelledLast = true;
-                                    if (!sizing) return;
-                                    moving = true;
-                                    release = POINTER.capture(axis === 'x' ? 'col-resize' : 'row-resize');
-                                    onDrag?.(true);
-                                    gesture = { settleNow: () => {} };
-                                }
-                                const wanted = Math.max(0, from + delta);
-                                const hi = read(max);
-                                shown =
-                                    wanted > hi
-                                        ? hi + give(wanted - hi)
-                                        : wanted >= lo
-                                          ? wanted
-                                          : lo - give(lo - wanted);
-                                resize(shown);
-                            };
-                            const onUp = () => {
-                                window.removeEventListener('pointermove', onMove, true);
-                                window.removeEventListener('pointerup', onUp, true);
-                                window.removeEventListener('pointercancel', onUp, true);
-                                if (!moving) return; // a press that did not travel is the click's (below)
-                                release();
-                                onDrag?.(false);
-                                const end = Math.min(read(max), Math.max(lo, shown));
-                                gesture = springTo(shown, end, () => {
-                                    gesture = null;
-                                    commit?.(end);
-                                });
-                            };
-                            window.addEventListener('pointermove', onMove, true);
-                            window.addEventListener('pointerup', onUp, true);
-                            window.addEventListener('pointercancel', onUp, true);
-                        });
-                        // Through resize, so it is drawn the way a drag is. A page not being drawn is put there at once.
-                        const springTo = (now, target, then) => {
-                            const length = MOTION.base;
-                            if (now === target || !length || document.hidden) {
-                                resize(target);
-                                then();
-                                return null;
-                            }
-                            const t0 = performance.now();
-                            let frame = 0;
-                            const step = (t) => {
-                                const k = Math.min(1, (t - t0) / length);
-                                resize(now + (target - now) * (1 - Math.pow(1 - k, 3)));
-                                if (k < 1) frame = requestAnimationFrame(step);
-                                else then();
-                            };
-                            frame = requestAnimationFrame(step);
-                            return {
-                                settleNow: () => {
-                                    cancelAnimationFrame(frame);
-                                    resize(target);
-                                    then();
-                                },
-                            };
-                        };
-                        // The click event is also what Enter and Space on the handle make.
-                        handle.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            if (travelledLast) {
-                                travelledLast = false;
-                                return;
-                            }
-                            settleNow();
-                            onClick?.();
-                        });
-                        return handle;
-                    },
+        // MARK: - Initializer
+        // MARK: - Public
+        function make() {
+            return { resizer };
+        }
+
+        // MARK: - Private
+        // A handle that sizes something by its drag along `axis`. `size()` reads the size, `resize(px)` draws one,
+        // `commit(px)` keeps the one let go of. Past `min` or `max` (numbers or functions read at the press) the edge
+        // gives and springs back. A press that does not travel is a click (`onClick`); `onDrag(on)` hears a drag start
+        // and end; `resizable()` says whether a drag sizes at all. Returns the dispose.
+        function resizer(
+            handle,
+            {
+                axis = 'x',
+                grow = 1,
+                size,
+                min = 0,
+                max = Infinity,
+                resize,
+                commit,
+                onClick = null,
+                onDrag = null,
+                resizable = () => true,
+            }
+        ) {
+            const listening = new AbortController();
+            // The gesture in progress, a drag or the spring after it: a new press or a click settles it first, or the
+            // two would write the size in turns.
+            let gesture = null;
+            // A press that travelled is not a click, wherever it is let go.
+            let travelled = false;
+            const positionOf = (event) => (axis === 'x' ? event.clientX : event.clientY);
+            const press = (down) => {
+                if (down.button !== 0) return;
+                down.preventDefault();
+                gesture?.settleNow();
+                const start = positionOf(down);
+                const from = size();
+                const low = valueOf(min);
+                const sizing = resizable();
+                let moving = false;
+                let release = null;
+                let shown = from;
+                travelled = false;
+                const move = (event) => {
+                    const delta = (positionOf(event) - start) * grow;
+                    if (!moving) {
+                        if (Math.abs(delta) < GESTURE.SLOP) return;
+                        travelled = true;
+                        if (!sizing) return;
+                        moving = true;
+                        release = POINTER.capture(axis === 'x' ? 'col-resize' : 'row-resize');
+                        onDrag?.(true);
+                        gesture = { settleNow: () => {} };
+                    }
+                    const wanted = Math.max(0, from + delta);
+                    const high = valueOf(max);
+                    shown =
+                        wanted > high ? high + give(wanted - high) : wanted >= low ? wanted : low - give(low - wanted);
+                    resize(shown);
                 };
-            },
-        };
+                const up = () => {
+                    window.removeEventListener('pointermove', move, true);
+                    window.removeEventListener('pointerup', up, true);
+                    window.removeEventListener('pointercancel', up, true);
+                    if (!moving) return;
+                    release();
+                    onDrag?.(false);
+                    const end = Math.min(valueOf(max), Math.max(low, shown));
+                    gesture = springTo(resize, shown, end, () => {
+                        gesture = null;
+                        commit?.(end);
+                    });
+                };
+                window.addEventListener('pointermove', move, true);
+                window.addEventListener('pointerup', up, true);
+                window.addEventListener('pointercancel', up, true);
+            };
+            // The click event is also what Enter and Space on the handle make.
+            const click = (event) => {
+                event.preventDefault();
+                if (travelled) {
+                    travelled = false;
+                    return;
+                }
+                gesture?.settleNow();
+                onClick?.();
+            };
+            handle.addEventListener('pointerdown', press, { signal: listening.signal });
+            handle.addEventListener('click', click, { signal: listening.signal });
+            return () => listening.abort();
+        }
+
+        // Through `resize`, so it is drawn the way a drag is. A page not being drawn is put there at once.
+        function springTo(resize, from, to, then) {
+            const length = TOKEN.MOTION.base;
+            if (from === to || !length || document.hidden) {
+                resize(to);
+                then();
+                return null;
+            }
+            const start = performance.now();
+            let frame = 0;
+            const step = (now) => {
+                const progress = Math.min(1, (now - start) / length);
+                resize(from + (to - from) * (1 - Math.pow(1 - progress, 3)));
+                if (progress < 1) frame = requestAnimationFrame(step);
+                else then();
+            };
+            frame = requestAnimationFrame(step);
+            return {
+                settleNow: () => {
+                    cancelAnimationFrame(frame);
+                    resize(to);
+                    then();
+                },
+            };
+        }
+
+        function give(over) {
+            return REACH * (1 - 1 / ((over * RESISTANCE) / REACH + 1));
+        }
+
+        function valueOf(given) {
+            return typeof given === 'function' ? given() : given;
+        }
+
+        return { STYLE, make };
     }
 );

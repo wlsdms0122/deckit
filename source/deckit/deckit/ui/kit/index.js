@@ -18,6 +18,7 @@ DeckitModule.define(
             'deckit/ui/component/inline-edit',
             'deckit/ui/component/sortable',
             'deckit/ui/component/drag',
+            'deckit/ui/component/file-tree',
             'deckit/ui/component/resizer',
             'deckit/ui/component/empty-state',
             'deckit/ui/component/loading',

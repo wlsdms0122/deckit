@@ -80,17 +80,17 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // Under an anchor, one at a time: the press on the anchor is the menu's own, so nothing else would close it.
-        // A second press on the anchor closes it and returns null.
-        function menu(items, { at = null, anchor = null, onClose } = {}) {
+        // A menu under an anchor or at a point. Under an anchor one at a time: the press on the anchor is the menu's own,
+        // so nothing else would close it, and a second press closes it and returns null.
+        function menu({ items, anchor = null, point = null, onClose }) {
             const open = anchor && openUnder.get(anchor);
-            if (open?.open) {
+            if (open?.isOpen()) {
                 open.close();
                 return null;
             }
             const shown = popMenu({
                 items,
-                point: at,
+                point,
                 anchor,
                 onClose: () => {
                     if (anchor && openUnder.get(anchor) === shown) openUnder.delete(anchor);
@@ -101,27 +101,29 @@ DeckitModule.define(
             return shown;
         }
 
-        function select(options, { value = null, onChange } = {}) {
+        // One of `options` ({ value, label, font }), chosen from a menu. A choice is reported; the owner sets it.
+        function select({ options, value = null, onChange }) {
             let current = value;
             let shown = null;
-            const button = element('button', 'deckit-select');
-            button.type = 'button';
-            button.setAttribute('aria-haspopup', 'listbox');
-            button.setAttribute('aria-expanded', 'false');
-            const label = element('span', 'deckit-select-label');
-            const caret = element('span', 'deckit-select-caret');
-            caret.innerHTML = ICON.icon('chevronDown', 13);
-            button.append(label, caret);
-            const draw = () => {
+            const element = tag('button', 'deckit-select');
+            element.type = 'button';
+            element.setAttribute('aria-haspopup', 'listbox');
+            element.setAttribute('aria-expanded', 'false');
+            const label = tag('span', 'deckit-select-label');
+            const caret = tag('span', 'deckit-select-caret');
+            caret.innerHTML = ICON.icon('chevronDown', { size: 13 });
+            element.append(label, caret);
+            const set = (next) => {
+                current = next;
                 const option = options.find((candidate) => candidate.value === current);
                 label.textContent = option ? option.label : '';
                 label.style.fontFamily = option?.font || '';
             };
             const open = () => {
-                button.setAttribute('aria-expanded', 'true');
+                element.setAttribute('aria-expanded', 'true');
                 shown = popMenu({
-                    anchor: button,
-                    minWidth: button.getBoundingClientRect().width,
+                    anchor: element,
+                    minWidth: element.getBoundingClientRect().width,
                     active: Math.max(
                         0,
                         options.findIndex((option) => option.value === current)
@@ -130,34 +132,22 @@ DeckitModule.define(
                         label: option.label,
                         font: option.font,
                         checked: option.value === current,
-                        run: () => {
-                            if (option.value === current) return;
-                            current = option.value;
-                            draw();
-                            onChange?.(option.value);
-                        },
+                        run: () => option.value !== current && onChange?.(option.value),
                     })),
                     onClose: () => {
-                        button.setAttribute('aria-expanded', 'false');
+                        element.setAttribute('aria-expanded', 'false');
                         shown = null;
                     },
                 });
             };
-            button.addEventListener('click', () => (shown ? shown.close() : open()));
-            button.addEventListener('keydown', (event) => {
+            element.addEventListener('click', () => (shown ? shown.close() : open()));
+            element.addEventListener('keydown', (event) => {
                 if (shown || ![' ', 'Enter', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
                 event.preventDefault();
                 open();
             });
-            Object.defineProperty(button, 'value', {
-                get: () => current,
-                set: (next) => {
-                    current = next;
-                    draw();
-                },
-            });
-            draw();
-            return button;
+            set(current);
+            return { element, set };
         }
 
         // The menu of a row of `area`, opened by the context click, or by the ContextMenu key or Shift+F10 on the row
@@ -165,7 +155,7 @@ DeckitModule.define(
         function contextMenu(area, { rowAt, items, keyRow = () => rowAt(document.activeElement) }) {
             let shown = null;
             const show = (row, where) => {
-                if (shown?.open) {
+                if (shown?.isOpen()) {
                     shown.close();
                     return true;
                 }
@@ -175,40 +165,53 @@ DeckitModule.define(
                 shown = popMenu({ items: list, ...where, onClose: () => row?.removeAttribute('data-deckit-target') });
                 return true;
             };
-            area.addEventListener('contextmenu', (event) => {
+            const onContext = (event) => {
                 if (!show(rowAt(event.target), { point: { x: event.clientX, y: event.clientY } })) return;
                 event.preventDefault();
                 event.stopPropagation();
-            });
-            area.addEventListener('keydown', (event) => {
+            };
+            const onKey = (event) => {
                 if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
                 const row = keyRow();
                 const box = area.getBoundingClientRect();
                 if (!show(row, row ? { anchor: row } : { point: { x: box.left + 12, y: box.top + 12 } })) return;
                 event.preventDefault();
                 event.stopPropagation();
-            });
-            return area;
+            };
+            area.addEventListener('contextmenu', onContext);
+            area.addEventListener('keydown', onKey);
+            return () => {
+                area.removeEventListener('contextmenu', onContext);
+                area.removeEventListener('keydown', onKey);
+            };
         }
 
-        // A bar its owner shows, hides and places. A press on it never takes the focus from the text it acts on.
+        // A bar over what its owner acts on: `show(rect)` puts it centred above the rect, or below when only that fits.
+        // A press on it never takes the focus from the text it acts on.
         function floatingBar() {
-            const bar = element('div', 'deckit-menu deckit-toolbar');
-            bar.style.zIndex = String(OVERLAY.Z.float);
-            bar.addEventListener('mousedown', (event) => event.preventDefault());
-            document.body.append(bar);
-            return bar;
+            const element = tag('div', 'deckit-menu deckit-toolbar');
+            element.style.zIndex = String(OVERLAY.Z.float);
+            element.addEventListener('mousedown', (event) => event.preventDefault());
+            document.body.append(element);
+            return {
+                element,
+                show: (rect) => {
+                    element.style.display = 'flex';
+                    OVERLAY.place(element, { rect, gap: 8, align: 'center', prefer: 'top' });
+                },
+                hide: () => (element.style.display = 'none'),
+            };
         }
 
         // Candidates under a text its owner edits: the owner moves through them with its own keys. In the page only
         // while open: left in it, it would keep alive whatever its rows hold.
         function suggestions({ onPick }) {
-            const box = element('div', 'deckit-menu');
+            const box = tag('div', 'deckit-menu');
             Object.assign(box.style, { minWidth: '220px', zIndex: String(OVERLAY.Z.float) });
             box.addEventListener('mousedown', (event) => event.preventDefault());
             let items = [];
             let open = false;
-            const list = LISTBOX.listbox(box, { onPick: (index) => take(index) });
+            const list = LISTBOX.listbox(box, { onPick: (index) => pick(index) });
             const place = (rect) => open && rect && OVERLAY.place(box, { rect, gap: 6 });
             const close = () => {
                 open = false;
@@ -217,7 +220,7 @@ DeckitModule.define(
                 box.replaceChildren();
                 box.remove();
             };
-            const take = (index = list.active()) => {
+            const pick = (index = list.active()) => {
                 const item = items[index];
                 if (!item) return;
                 close();
@@ -235,16 +238,7 @@ DeckitModule.define(
                 if (!box.isConnected) document.body.append(box);
                 place(rect);
             };
-            return {
-                show,
-                place,
-                step: (by) => list.move(by),
-                take,
-                close,
-                get open() {
-                    return open;
-                },
-            };
+            return { show, place, move: (by) => list.move(by), pick: () => pick(), close, isOpen: () => open };
         }
 
         // A menu on the overlay. `beside` is the row a submenu opens from; `done` runs when an item is taken anywhere in
@@ -259,7 +253,7 @@ DeckitModule.define(
             onClose,
             done,
         }) {
-            const box = element('div', 'deckit-menu');
+            const box = tag('div', 'deckit-menu');
             box.setAttribute('role', 'menu');
             box.style.minWidth = Math.max(minWidth, WIDTH_MIN) + 'px';
             if (beside) box.dataset.nested = '';
@@ -268,7 +262,7 @@ DeckitModule.define(
             const options = [];
             for (const item of shown) {
                 if (item === '-') {
-                    box.append(element('div', 'deckit-menu-separator'));
+                    box.append(tag('div', 'deckit-menu-separator'));
                     continue;
                 }
                 const row = rowOf(item, ticks);
@@ -304,7 +298,7 @@ DeckitModule.define(
                 });
                 submenu = { index, menu: child };
                 // Reaching the submenu keeps it: crossing a row on the way there set it to close.
-                child.el.addEventListener('mouseenter', () => clearTimeout(timer));
+                child.element.addEventListener('mouseenter', () => clearTimeout(timer));
             };
             const close = () => {
                 if (!open) return;
@@ -350,41 +344,35 @@ DeckitModule.define(
                 onDismiss: close,
             });
             list.set(options, { active: options[active]?.disabled ? -1 : active });
-            return {
-                close,
-                get open() {
-                    return open;
-                },
-                el: box,
-            };
+            return { element: box, close, isOpen: () => open };
         }
 
         function rowOf(item, ticks) {
-            const row = element('div', 'deckit-menu-row');
+            const row = tag('div', 'deckit-menu-row');
             row.setAttribute('role', ticks ? 'menuitemcheckbox' : 'menuitem');
             if (ticks) {
                 row.dataset.ticks = '';
                 row.setAttribute('aria-checked', String(!!item.checked));
-                const tick = element('span', 'deckit-menu-tick');
-                tick.innerHTML = ICON.icon('check', 13);
+                const tick = tag('span', 'deckit-menu-tick');
+                tick.innerHTML = ICON.icon('check', { size: 13 });
                 row.append(tick);
             }
             if (item.disabled) row.setAttribute('aria-disabled', 'true');
             if (item.icon) {
-                const glyph = element('span', 'deckit-menu-icon');
-                glyph.innerHTML = /^\s*<svg/.test(item.icon) ? item.icon : ICON.icon(item.icon, 14);
+                const glyph = tag('span', 'deckit-menu-icon');
+                glyph.innerHTML = /^\s*<svg/.test(item.icon) ? item.icon : ICON.icon(item.icon, { size: 14 });
                 row.append(glyph);
             }
-            const label = element('span', 'deckit-menu-label');
+            const label = tag('span', 'deckit-menu-label');
             label.textContent = item.label;
             if (item.font) label.style.fontFamily = item.font;
             row.append(label);
             if (item.items) {
-                const more = element('span', 'deckit-menu-more');
-                more.innerHTML = ICON.icon('chevronRight', 13);
+                const more = tag('span', 'deckit-menu-more');
+                more.innerHTML = ICON.icon('chevronRight', { size: 13 });
                 row.append(more);
             } else if (item.hint) {
-                const hint = element('span', 'deckit-menu-hint');
+                const hint = tag('span', 'deckit-menu-hint');
                 hint.textContent = item.hint;
                 row.append(hint);
             }
@@ -402,8 +390,8 @@ DeckitModule.define(
             return kept;
         }
 
-        function element(tag, className) {
-            const made = document.createElement(tag);
+        function tag(name, className) {
+            const made = document.createElement(name);
             made.className = className;
             return made;
         }

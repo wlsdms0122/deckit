@@ -35,7 +35,7 @@ DeckitModule.define(
 
         // MARK: - Private
         // Still while the system asks for reduced motion.
-        function spinner(size = 14) {
+        function spinner({ size = 14 } = {}) {
             const made = document.createElement('span');
             made.className = 'deckit-spinner';
             made.style.width = made.style.height = size + 'px';
@@ -44,20 +44,20 @@ DeckitModule.define(
                     duration: TURN_MS,
                     iterations: Infinity,
                 });
-            return made;
+            return { element: made };
         }
 
-        function loading(text = '') {
+        function loading({ text = '' } = {}) {
             const box = document.createElement('div');
             box.className = 'deckit-loading';
-            box.append(spinner(20));
+            box.append(spinner({ size: 20 }).element);
             if (text) {
                 const words = document.createElement('div');
                 words.className = 'deckit-loading-text';
                 words.textContent = text;
                 box.append(words);
             }
-            return box;
+            return { element: box };
         }
 
         return { STYLE, make };

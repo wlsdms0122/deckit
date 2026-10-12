@@ -28,9 +28,9 @@ DeckitModule.define(
         // MARK: - Private
         // A card about an anchor: `show(anchor)` puts it under the anchor, a press elsewhere or Escape puts it away.
         function popover({ width = '', onClose } = {}) {
-            const card = document.createElement('div');
-            card.className = 'deckit-popover';
-            if (width) card.style.maxWidth = width;
+            const element = document.createElement('div');
+            element.className = 'deckit-popover';
+            if (width) element.style.maxWidth = width;
             let layer = null;
             const close = () => {
                 if (!layer) return;
@@ -38,14 +38,11 @@ DeckitModule.define(
                 layer = null;
                 onClose?.();
             };
-            card.show = (anchor) => {
+            const show = (anchor) => {
                 layer?.close();
-                layer = OVERLAY.open({ element: card, anchor, gap: 6, onDismiss: close });
-                return card;
+                layer = OVERLAY.open({ element, anchor, gap: 6, onDismiss: close });
             };
-            card.close = close;
-            Object.defineProperty(card, 'open', { get: () => !!layer });
-            return card;
+            return { element, show, close, isOpen: () => !!layer };
         }
 
         return { STYLE, make };

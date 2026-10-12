@@ -106,7 +106,8 @@ DeckitModule.define(
                         const paragraph = element('div', 'deckit-dialog-message');
                         paragraph.textContent = text;
                         paragraph.toggleAttribute('data-last', index === paragraphs.length - 1);
-                        card.append(PART.selectable(paragraph));
+                        PART.selectable(paragraph);
+                        card.append(paragraph);
                     });
                     if (content) {
                         content.classList.add('deckit-dialog-content');
@@ -142,9 +143,18 @@ DeckitModule.define(
             const row = element('div', 'deckit-dialog-switch');
             const name = element('span', '');
             name.textContent = field.label;
-            const control = ui.toggle({ on: values[field.key], onChange: (on) => (values[field.key] = on) });
-            row.addEventListener('click', (event) => !control.contains(event.target) && control.click());
-            row.append(name, control);
+            const control = ui.toggle({
+                value: values[field.key],
+                onChange: (on) => {
+                    values[field.key] = on;
+                    control.set(on);
+                },
+            });
+            row.addEventListener(
+                'click',
+                (event) => !control.element.contains(event.target) && control.element.click()
+            );
+            row.append(name, control.element);
             return row;
         }
 
@@ -183,7 +193,7 @@ DeckitModule.define(
             const more = element('button', 'deckit-swatch deckit-swatch-more');
             more.type = 'button';
             more.title = 'Pick a custom colour';
-            more.innerHTML = ICON.icon('plus', 14);
+            more.innerHTML = ICON.icon('plus', { size: 14 });
             PART.pressable(more);
             more.addEventListener('click', () =>
                 ui.colorPicker({

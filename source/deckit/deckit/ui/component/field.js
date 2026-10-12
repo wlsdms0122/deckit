@@ -91,51 +91,51 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
     }
 
     // MARK: - Private
-    // A text field. `inline` goes after the text, `trailing` after the clear button. Enter reports the value and
-    // whether Shift was held; Escape is the field's only when `onEscape` takes it.
+    // A text field. `inline` elements go after the text, `trailing` ones after the clear button. Enter reports the
+    // value and whether Shift was held; Escape is the field's only when `onCancel` takes it.
     function field({
         placeholder = '',
         value = '',
         icon = '',
         inline = [],
         trailing = [],
-        size = 'md',
+        size = 'medium',
         clearable = false,
         onInput,
-        onEnter,
-        onEscape,
+        onSubmit,
+        onCancel,
     } = {}) {
-        const box = document.createElement('label');
-        box.className = 'deckit-field';
-        if (size === 'sm') box.dataset.size = 'small';
+        const element = document.createElement('label');
+        element.className = 'deckit-field';
+        element.dataset.size = size;
         if (icon) {
-            box.dataset.icon = '';
+            element.dataset.icon = '';
             const glyph = document.createElement('span');
             glyph.className = 'deckit-field-icon';
             glyph.innerHTML = icon;
-            box.append(glyph);
+            element.append(glyph);
         }
         const input = document.createElement('input');
         input.className = 'deckit-field-input';
         input.spellcheck = false;
         input.placeholder = placeholder;
         input.value = value;
-        const filled = () => box.toggleAttribute('data-filled', clearable && !!input.value);
+        const filled = () => element.toggleAttribute('data-filled', clearable && !!input.value);
         input.addEventListener('input', () => {
             filled();
             onInput?.(input.value);
         });
         input.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && onEnter) {
+            if (event.key === 'Enter' && onSubmit) {
                 event.preventDefault();
-                onEnter(input.value, event.shiftKey);
-            } else if (event.key === 'Escape' && onEscape) {
+                onSubmit(input.value, { shift: event.shiftKey });
+            } else if (event.key === 'Escape' && onCancel) {
                 event.preventDefault();
                 event.stopPropagation();
-                onEscape();
+                onCancel();
             }
         });
-        box.append(input, ...inline);
+        element.append(input, ...inline);
         if (clearable) {
             const clear = document.createElement('button');
             clear.type = 'button';
@@ -150,22 +150,25 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
                 onInput?.('');
                 input.focus();
             });
-            box.append(clear);
+            element.append(clear);
         }
-        box.append(...trailing);
-        box.input = input;
-        box.setValue = (next) => {
-            input.value = next;
-            filled();
-        };
+        element.append(...trailing);
         filled();
-        return box;
+        return {
+            element,
+            input,
+            set: (next) => {
+                input.value = next;
+                filled();
+            },
+            focus: () => input.focus(),
+        };
     }
 
     // A number typed or stepped. Enter and leaving the field commit what is typed; Escape puts the value back.
     function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = '', onChange } = {}) {
-        const box = document.createElement('div');
-        box.className = 'deckit-stepper';
+        const element = document.createElement('div');
+        element.className = 'deckit-stepper';
         let current = value;
         const clamp = (number) => Math.min(max, Math.max(min, Math.round(number / step) * step));
         const input = document.createElement('input');
@@ -191,7 +194,7 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
             button.type = 'button';
             button.className = 'deckit-button deckit-stepper-button';
             button.title = title;
-            button.innerHTML = ICON.icon(name, 13);
+            button.innerHTML = ICON.icon(name, { size: 13 });
             button.addEventListener('mousedown', (event) => event.preventDefault());
             button.addEventListener('click', () => commit(typed() + delta));
             return button;
@@ -210,16 +213,15 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
             event.preventDefault();
         });
         input.addEventListener('blur', () => commit(parseFloat(input.value)));
-        box.append(buttonOf('minus', 'Less', -step), input, buttonOf('plus', 'More', step));
+        element.append(buttonOf('minus', 'Less', -step), input, buttonOf('plus', 'More', step));
         show();
-        Object.defineProperty(box, 'value', {
-            get: () => current,
+        return {
+            element,
             set: (next) => {
                 current = clamp(next);
                 show();
             },
-        });
-        return box;
+        };
     }
 
     // A find field with its options, and with `nav` a count and previous and next, with `replace` a second line.
@@ -233,74 +235,81 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
             replace = null,
             onChange,
             onNext,
-            onPrev,
-            onEscape,
+            onPrevious,
+            onCancel,
         } = {}
     ) {
-        const root = element('div', 'deckit-find');
+        const element = tag('div', 'deckit-find');
+        const values = {};
         const toggles = options.map((name) => {
             const [key, label, title] = OPTION[name];
-            const toggle = ui.toggleButton(label, title, { onChange: () => changed() });
-            toggle.classList.add('deckit-find-option');
-            toggle.dataset.option = key;
-            return toggle;
+            values[key] = false;
+            const toggle = ui.toggleButton({
+                label,
+                title,
+                onChange: (on) => {
+                    values[key] = on;
+                    toggle.set(on);
+                    changed();
+                },
+            });
+            toggle.element.classList.add('deckit-find-option');
+            toggle.element.dataset.option = key;
+            return { key, toggle };
         });
-        const count = element('span', 'deckit-find-count');
+        const count = tag('span', 'deckit-find-count');
         const find = field({
             placeholder,
-            size: 'sm',
-            icon: ICON.icon('search', 13),
+            size: 'small',
+            icon: ICON.icon('search', { size: 13 }),
             clearable: true,
-            trailing: toggles,
+            trailing: toggles.map(({ toggle }) => toggle.element),
             inline: nav ? [count] : [],
             onInput: () => changed(),
-            onEnter: (_value, back) => (nav ? (back ? onPrev : onNext)?.() : changed()),
-            onEscape: () => onEscape?.(),
+            onSubmit: (_value, { shift }) => (nav ? (shift ? onPrevious : onNext)?.() : changed()),
+            onCancel: () => onCancel?.(),
         });
-        const stateOf = () => ({
-            query: find.input.value,
-            ...Object.fromEntries(['caseSensitive', 'word', 'regex'].map((key) => [key, false])),
-            ...Object.fromEntries(toggles.map((toggle) => [toggle.dataset.option, toggle.value])),
-        });
-        const changed = () => onChange?.(stateOf());
+        const state = () => ({ query: find.input.value, caseSensitive: false, word: false, regex: false, ...values });
+        const changed = () => onChange?.(state());
+        const iconButton = (name, title, onClick) =>
+            ui.iconBtn({ icon: ICON.icon(name, { size: 15 }), title, size: 'small', onClick }).element;
 
-        const first = element('div', 'deckit-find-line');
+        const first = tag('div', 'deckit-find-line');
         let open = !!replace?.open;
         let caret = null;
         if (replace) {
-            caret = ui.iconBtn(ICON.icon('chevronRight', 14), 'Replace', () => setReplaceOpen(!open), { size: 'sm' });
+            caret = ui.iconBtn({
+                icon: ICON.icon('chevronRight', { size: 14 }),
+                title: 'Replace',
+                size: 'small',
+                onClick: () => setReplaceOpen(!open),
+            }).element;
             caret.classList.add('deckit-find-caret');
             first.append(caret);
         }
-        first.append(find);
-        if (nav) {
+        first.append(find.element);
+        if (nav)
             first.append(
-                ui.iconBtn(ICON.icon('chevronUp', 15), 'Previous (⇧↩)', () => onPrev?.(), { size: 'sm' }),
-                ui.iconBtn(ICON.icon('chevronDown', 15), 'Next (↩)', () => onNext?.(), { size: 'sm' })
+                iconButton('chevronUp', 'Previous (⇧↩)', () => onPrevious?.()),
+                iconButton('chevronDown', 'Next (↩)', () => onNext?.())
             );
-        }
-        root.append(first);
+        element.append(first);
 
         let replacement = null;
         let second = null;
         if (replace) {
-            second = element('div', 'deckit-find-line');
+            second = tag('div', 'deckit-find-line');
             replacement = field({
                 placeholder: 'Replace',
-                size: 'sm',
-                icon: ICON.icon('replace', 13),
-                onEnter: () => (replace.onReplace || replace.onReplaceAll)?.(),
-                onEscape: () => onEscape?.(),
+                size: 'small',
+                icon: ICON.icon('replace', { size: 13 }),
+                onSubmit: () => (replace.onReplace || replace.onReplaceAll)?.(),
+                onCancel: () => onCancel?.(),
             });
-            second.append(element('span', 'deckit-find-indent'), replacement);
-            if (replace.onReplace)
-                second.append(
-                    ui.iconBtn(ICON.icon('replace', 15), 'Replace', () => replace.onReplace(), { size: 'sm' })
-                );
-            second.append(
-                ui.iconBtn(ICON.icon('replaceAll', 15), 'Replace all', () => replace.onReplaceAll(), { size: 'sm' })
-            );
-            root.append(second);
+            second.append(tag('span', 'deckit-find-indent'), replacement.element);
+            if (replace.onReplace) second.append(iconButton('replace', 'Replace', () => replace.onReplace()));
+            second.append(iconButton('replaceAll', 'Replace all', () => replace.onReplaceAll()));
+            element.append(second);
         }
         const setReplaceOpen = (on, { focus = true } = {}) => {
             if (!replace) return;
@@ -308,33 +317,37 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
             second.hidden = !open;
             caret.setAttribute('aria-expanded', String(open));
             caret.title = open ? 'Hide replace' : 'Replace';
-            if (open && focus) replacement.input.focus();
+            if (open && focus) replacement.focus();
         };
         setReplaceOpen(open, { focus: false });
-
-        root.setQuery = (text, given = {}) => {
-            find.setValue(text);
-            for (const toggle of toggles) {
-                if (toggle.dataset.option in given) toggle.value = !!given[toggle.dataset.option];
-            }
-        };
-        root.focus = (which = 'find') => {
-            const input = which === 'replace' && replacement ? replacement.input : find.input;
-            input.focus();
-            input.select();
-        };
-        root.setCount = (active, total) => {
+        const setCount = (active, total) => {
             count.textContent = !find.input.value ? '' : total ? `${active || '–'}/${total}` : '0/0';
         };
-        root.setReplaceOpen = setReplaceOpen;
-        root.setCount(0, 0);
-        Object.defineProperty(root, 'state', { get: stateOf });
-        Object.defineProperty(root, 'replacement', { get: () => (replacement ? replacement.input.value : '') });
-        return root;
+        setCount(0, 0);
+        return {
+            element,
+            setQuery: (text, given = {}) => {
+                find.set(text);
+                for (const { key, toggle } of toggles) {
+                    if (!(key in given)) continue;
+                    values[key] = !!given[key];
+                    toggle.set(values[key]);
+                }
+            },
+            focus: (which = 'find') => {
+                const input = which === 'replace' && replacement ? replacement.input : find.input;
+                input.focus();
+                input.select();
+            },
+            setCount,
+            setReplaceOpen,
+            state,
+            replacement: () => (replacement ? replacement.input.value : ''),
+        };
     }
 
-    function element(tag, className) {
-        const made = document.createElement(tag);
+    function tag(name, className) {
+        const made = document.createElement(name);
         made.className = className;
         return made;
     }

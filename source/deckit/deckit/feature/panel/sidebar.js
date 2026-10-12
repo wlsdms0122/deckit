@@ -147,16 +147,17 @@ DeckitModule.define(
             const body = element('div', 'deckit-sidebar-body');
             const nav = element('div', 'deckit-sidebar-nav');
             SCROLL.edgeFade(nav);
-            const section = ui.section('Plugins', {
+            const section = ui.section({
+                label: 'Plugins',
                 title: true,
                 actions: [
-                    { icon: ICON.icon('chevronLeft', 16), title: 'Back', run: () => onStep(-1) },
-                    { icon: ICON.icon('chevronRight', 16), title: 'Forward', run: () => onStep(1) },
+                    { icon: ICON.icon('chevronLeft', { size: 16 }), title: 'Back', run: () => onStep(-1) },
+                    { icon: ICON.icon('chevronRight', { size: 16 }), title: 'Forward', run: () => onStep(1) },
                 ],
             });
-            ui.tip(section.actions[0], 'Back', () => chordOf('back'));
-            ui.tip(section.actions[1], 'Forward', () => chordOf('forward'));
-            nav.append(section);
+            ui.tip(section.actions[0].element, { text: 'Back', chord: () => chordOf('back') });
+            ui.tip(section.actions[1].element, { text: 'Forward', chord: () => chordOf('forward') });
+            nav.append(section.element);
             const rows = LIST.list({
                 element: section.body,
                 key: (plugin) => plugin.id,
@@ -164,12 +165,14 @@ DeckitModule.define(
                 update: (row, plugin) => paintRow(row, plugin),
             });
             // The new order is drawn here at once, and main, hearing it, has every view follow.
-            ui.sortable(section.body, (from, to) => {
-                const moved = plugins[from];
-                const rest = plugins.filter((plugin) => plugin !== moved);
-                plugins = [...rest.slice(0, to), moved, ...rest.slice(to)];
-                rows.set(plugins);
-                onReorder(plugins.map((plugin) => plugin.id));
+            ui.sortable(section.body, {
+                onReorder: (from, to) => {
+                    const moved = plugins[from];
+                    const rest = plugins.filter((plugin) => plugin !== moved);
+                    plugins = [...rest.slice(0, to), moved, ...rest.slice(to)];
+                    rows.set(plugins);
+                    onReorder(plugins.map((plugin) => plugin.id));
+                },
             });
 
             const splitter = element('div', 'deckit-sidebar-splitter');

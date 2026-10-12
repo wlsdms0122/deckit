@@ -97,71 +97,74 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         function make(theme, ui) {
-            return {
-                section: (label, options) => section(ui, label, options),
-                breadcrumb: (options) => breadcrumb(ui, options),
-            };
+            return { section: (options) => section(ui, options), breadcrumb: (options) => breadcrumb(ui, options) };
         }
 
         // MARK: - Private
-        // A heading over a body. With `collapsed` a boolean the heading folds the body; with `onHeading` it is pressed.
-        // `actions` are { icon, title, run(button) } at the heading's end.
-        function section(ui, label, options = {}) {
-            const {
+        // A heading over a body. With `collapsed` a boolean the heading folds the body: a press reports the fold asked
+        // for and the owner sets it. With `onHeading` the heading is pressed. `actions` are { icon, title, run(button) }
+        // at the heading's end; `actions` of the result are their buttons.
+        function section(
+            ui,
+            {
+                label,
                 icon = '',
                 actions = [],
-                onCollapse = null,
+                collapsed,
+                onToggle,
                 title = false,
                 onHeading = null,
                 onHeadingMenu = null,
                 headingTitle = '',
-            } = options;
-            const foldable = typeof options.collapsed === 'boolean';
+            }
+        ) {
+            const foldable = typeof collapsed === 'boolean';
             const pressed = foldable || typeof onHeading === 'function';
-            const root = element('div', 'deckit-section');
-            root.toggleAttribute('data-title', title);
-            root.toggleAttribute('data-foldable', foldable);
-            const head = element('div', 'deckit-section-head');
-            const heading = element(pressed ? 'button' : 'div', 'deckit-section-heading');
+            const element = tag('div', 'deckit-section');
+            element.toggleAttribute('data-title', title);
+            element.toggleAttribute('data-foldable', foldable);
+            const head = tag('div', 'deckit-section-head');
+            const heading = tag(pressed ? 'button' : 'div', 'deckit-section-heading');
             if (pressed) {
                 heading.type = 'button';
                 heading.title = foldable ? 'Collapse or expand' : headingTitle || label;
             }
-            if (!foldable && onHeading) heading.addEventListener('click', () => onHeading());
+            if (foldable) heading.addEventListener('click', () => onToggle?.(!folded));
+            else if (onHeading) heading.addEventListener('click', () => onHeading());
             if (onHeadingMenu)
                 heading.addEventListener('contextmenu', (event) => {
                     event.preventDefault();
                     onHeadingMenu(event);
                 });
-            const caret = element('span', 'deckit-section-caret');
-            caret.innerHTML = ICON.icon('chevronDown', 16);
+            const caret = tag('span', 'deckit-section-caret');
+            caret.innerHTML = ICON.icon('chevronDown', { size: 16 });
             heading.append(caret);
             if (icon) {
-                const glyph = element('span', 'deckit-section-icon');
+                const glyph = tag('span', 'deckit-section-icon');
                 glyph.innerHTML = icon;
                 heading.append(glyph);
             }
-            const text = element('span', 'deckit-section-label');
+            const text = tag('span', 'deckit-section-label');
             text.textContent = label;
             heading.append(text);
             head.append(heading);
             const buttons = actions.map((action) => {
-                const button = ui.iconBtn(
-                    action.icon || ICON.icon('plus', 16),
-                    action.title,
-                    (event) => {
+                const button = ui.iconBtn({
+                    icon: action.icon || ICON.icon('plus', { size: 16 }),
+                    title: action.title,
+                    muted: true,
+                    onClick: (event) => {
                         event.stopPropagation();
                         action.run(button);
                     },
-                    { quiet: true }
-                );
-                head.append(button);
+                });
+                head.append(button.element);
                 return button;
             });
-            const body = element('div', 'deckit-section-body');
-            let folded = !!options.collapsed;
+            const body = tag('div', 'deckit-section-body');
+            let folded = !!collapsed;
             const fold = (animate) => {
-                root.toggleAttribute('data-collapsed', folded);
+                element.toggleAttribute('data-collapsed', folded);
                 if (foldable) heading.setAttribute('aria-expanded', String(!folded));
                 if (!folded) {
                     body.hidden = false;
@@ -174,41 +177,37 @@ DeckitModule.define(
                 if (length) setTimeout(() => folded && (body.hidden = true), length);
                 else body.hidden = true;
             };
-            if (foldable) {
-                heading.addEventListener('click', () => {
-                    folded = !folded;
-                    fold(true);
-                    onCollapse?.(folded);
-                });
-            }
             fold(false);
-            root.append(head, body);
-            root.body = body;
-            root.heading = heading;
-            root.actions = buttons;
-            root.setCurrent = (on) => heading.toggleAttribute('data-current', !!on);
-            root.setCollapsed = (next) => {
-                folded = !!next;
-                fold(true);
+            element.append(head, body);
+            return {
+                element,
+                body,
+                heading,
+                actions: buttons,
+                setCurrent: (on) => heading.toggleAttribute('data-current', !!on),
+                setCollapsed: (next) => {
+                    if (folded === !!next) return;
+                    folded = !!next;
+                    fold(true);
+                },
+                isCollapsed: () => folded,
             };
-            root.isCollapsed = () => folded;
-            return root;
         }
 
         // Where a place is, as its path from the top. The parts that do not fit fold, from the start, into a "…" that
         // lists them; the last part is cut short only once everything before it has folded.
         function breadcrumb(ui, { onGo } = {}) {
-            const bar = element('div', 'deckit-breadcrumb');
+            const bar = tag('div', 'deckit-breadcrumb');
             let parts = [];
             let drawn = '';
             let width = 0;
             const separator = () => {
-                const made = element('span', 'deckit-crumb-separator');
-                made.innerHTML = ICON.icon('chevronRight', 11);
+                const made = tag('span', 'deckit-crumb-separator');
+                made.innerHTML = ICON.icon('chevronRight', { size: 11 });
                 return made;
             };
             const crumbOf = (part) => {
-                const crumb = element('button', 'deckit-crumb');
+                const crumb = tag('button', 'deckit-crumb');
                 crumb.type = 'button';
                 crumb.textContent = part.label;
                 crumb.title = part.title || part.label;
@@ -218,7 +217,7 @@ DeckitModule.define(
                 return crumb;
             };
             const draw = () => {
-                const more = element('button', 'deckit-crumb');
+                const more = tag('button', 'deckit-crumb');
                 more.type = 'button';
                 more.textContent = '…';
                 more.title = 'Hidden places';
@@ -253,21 +252,21 @@ DeckitModule.define(
                         .reverse();
                     more.dataset.crumb = hidden[0].key;
                     more.addEventListener('click', () =>
-                        ui.menu(
-                            hidden.map((part) => ({
+                        ui.menu({
+                            items: hidden.map((part) => ({
                                 label: part.label,
                                 ...(part.icon ? { icon: part.icon } : {}),
                                 run: () => onGo?.(part.key),
                             })),
-                            { anchor: more }
-                        )
+                            anchor: more,
+                        })
                     );
                 }
                 if (!fits() && shown.length) shown.at(-1).crumb.dataset.shrinks = '';
             };
             // The same parts again are left as drawn: a redraw would replace the button under a press, or the "…" a menu
             // hangs from.
-            bar.setParts = (next) => {
+            const set = (next) => {
                 parts = next || [];
                 const key = JSON.stringify(
                     parts.map((part) => [part.key, part.label, part.title || '', !!part.current, part.icon || ''])
@@ -282,11 +281,11 @@ DeckitModule.define(
                 width = bar.clientWidth;
                 if (parts.length) draw();
             }).observe(bar);
-            return bar;
+            return { element: bar, set };
         }
 
-        function element(tag, className) {
-            const made = document.createElement(tag);
+        function tag(name, className) {
+            const made = document.createElement(name);
             made.className = className;
             return made;
         }

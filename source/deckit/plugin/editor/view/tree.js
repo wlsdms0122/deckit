@@ -70,13 +70,13 @@ const fileTree = ({ theme, ui, store, main, onOpen, onFindIn, onMove, marks, men
 
     const row = (entry, depth) => {
         const open = entry.folder && expanded.has(entry.path);
-        const r = ui.treeRow({
+        const { element: r, setActive } = ui.treeRow({
             depth,
             folder: entry.folder,
             open,
             glyph: entry.folder ? '' : fileIcons.file(entry.name, 14),
             name: entry.name,
-            dense: true,
+            size: 'small',
         });
         r.style.paddingRight = '8px';
         r.title = entry.path;
@@ -95,13 +95,15 @@ const fileTree = ({ theme, ui, store, main, onOpen, onFindIn, onMove, marks, men
             );
         if (entry.folder && onFindIn) {
             r.appendChild(
-                ui.miniBtn(ui.icon('search', 13), 'Find in this folder', () =>
-                    onFindIn(entry.path.slice(root.length + 1))
-                )
+                ui.miniBtn({
+                    icon: ui.icon('search', { size: 13 }),
+                    title: 'Find in this folder',
+                    onClick: () => onFindIn(entry.path.slice(root.length + 1)),
+                }).element
             );
         }
         const lit = entry.path === selected;
-        ui.hoverable(r, () => lit);
+        setActive(lit);
         r.addEventListener('click', () => {
             element.focus({ preventScroll: true });
             if (!entry.folder) {
@@ -153,14 +155,14 @@ const fileTree = ({ theme, ui, store, main, onOpen, onFindIn, onMove, marks, men
     if (onMove) {
         ui.dragSource(element, {
             itemAt: (t) => t.closest?.('[data-path]') || null,
-            what: (r) => {
+            describe: (r) => {
                 const entry = entryAt(r.dataset.path);
                 return (
                     entry && {
                         kind: 'editor-entry',
                         payload: entry,
                         text: entry.name,
-                        icon: entry.folder ? ui.folderIcon(false, 14) : fileIcons.file(entry.name, 14),
+                        icon: entry.folder ? ui.folderIcon({ open: false, size: 14 }) : fileIcons.file(entry.name, 14),
                     }
                 );
             },

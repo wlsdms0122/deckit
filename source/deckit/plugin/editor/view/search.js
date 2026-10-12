@@ -32,30 +32,30 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
     };
     const includeField = ui.field({
         placeholder: 'Files to include',
-        size: 'sm',
-        icon: ui.icon('fileText', 13),
+        size: 'small',
+        icon: ui.icon('fileText', { size: 13 }),
         clearable: true,
         onInput: (v) => {
             scope.include = v;
             rescope();
         },
-        onEnter: () => run(),
+        onSubmit: () => run(),
     });
     const excludeField = ui.field({
         placeholder: 'Files to exclude',
-        size: 'sm',
-        icon: ui.icon('x', 13),
+        size: 'small',
+        icon: ui.icon('x', { size: 13 }),
         clearable: true,
         onInput: (v) => {
             scope.exclude = v;
             rescope();
         },
-        onEnter: () => run(),
+        onSubmit: () => run(),
     });
     // Ranked in a worker: a repository has thousands of folders.
     const folderPick = ui.suggestions({
         onPick: (it) => {
-            folderField.setValue('');
+            folderField.set('');
             setFolders([...scope.folders, it.rel]);
         },
     });
@@ -80,22 +80,22 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
                 rel,
                 label: rel.split('/').pop(),
                 hint: rel.split('/').slice(0, -1).join('/'),
-                icon: ui.folderIcon(false, 14),
+                icon: ui.folderIcon({ open: false, size: 14 }),
             })),
-            folderField.getBoundingClientRect()
+            folderField.element.getBoundingClientRect()
         );
     };
     const folderField = ui.field({
         placeholder: 'In folder',
-        size: 'sm',
-        icon: ui.icon('folder', 13),
+        size: 'small',
+        icon: ui.icon('folder', { size: 13 }),
         clearable: true,
         onInput: () => suggest(),
     });
     folderField.input.addEventListener('keydown', (e) => {
-        if (!folderPick.open) return;
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') folderPick.step(e.key === 'ArrowDown' ? 1 : -1);
-        else if (e.key === 'Enter') folderPick.take();
+        if (!folderPick.isOpen()) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') folderPick.move(e.key === 'ArrowDown' ? 1 : -1);
+        else if (e.key === 'Enter') folderPick.pick();
         else if (e.key === 'Escape') folderPick.close();
         else return;
         e.preventDefault();
@@ -110,10 +110,13 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         EDGE = 2;
     const scopeRows = el('div', { display: 'none', flexDirection: 'column', gap: '4px', paddingLeft: INSET + 'px' });
     const patternRows = el('div', { display: 'flex', flexDirection: 'column', gap: '4px' });
-    patternRows.append(includeField, excludeField);
-    scopeRows.append(patternRows, el('div', { height: '6px' }), folderField);
-    const filter = ui.toggleButton(ui.icon('filter', 13), 'Where to search', {
+    patternRows.append(includeField.element, excludeField.element);
+    scopeRows.append(patternRows, el('div', { height: '6px' }), folderField.element);
+    const filter = ui.toggleButton({
+        icon: ui.icon('filter', { size: 13 }),
+        title: 'Where to search',
         onChange: (on) => {
+            filter.set(on);
             scopeRows.style.display = on ? 'flex' : 'none';
             folderLine.style.paddingLeft = (on ? INSET + EDGE : EDGE) + 'px';
             if (on) includeField.input.focus();
@@ -133,7 +136,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         minWidth: '0',
     });
     const folderGlyph = el('span', { display: 'flex', flex: '0 0 auto', opacity: '.6', paddingTop: '3px' });
-    folderGlyph.innerHTML = ui.folderIcon(false, 12);
+    folderGlyph.innerHTML = ui.folderIcon({ open: false, size: 12 });
     const folderChips = el('div', {
         flex: '1 1 auto',
         minWidth: '0',
@@ -142,7 +145,11 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         alignItems: 'center',
         gap: '2px 4px',
     });
-    const folderClear = ui.miniBtn(ui.icon('x', 12), 'Search the whole workspace', () => setFolders([]));
+    const folderClear = ui.miniBtn({
+        icon: ui.icon('x', { size: 12 }),
+        title: 'Search the whole workspace',
+        onClick: () => setFolders([]),
+    }).element;
     folderClear.style.opacity = '.7';
     folderLine.append(folderGlyph, folderChips, folderClear);
     const chip = (rel) => {
@@ -159,9 +166,11 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         const name = el('span', { minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
         name.textContent = rel;
         c.title = rel;
-        const off = ui.miniBtn(ui.icon('x', 10), 'Not in ' + rel, () =>
-            setFolders(scope.folders.filter((f) => f !== rel))
-        );
+        const off = ui.miniBtn({
+            icon: ui.icon('x', { size: 10 }),
+            title: 'Not in ' + rel,
+            onClick: () => setFolders(scope.folders.filter((f) => f !== rel)),
+        }).element;
         off.style.opacity = '.7';
         c.append(name, off);
         return c;
@@ -194,7 +203,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         padding: '0 0 0 2px',
     });
     summaryText.style.opacity = '.5';
-    summary.append(summaryText, filter);
+    summary.append(summaryText, filter.element);
     const warningLine = el('div', {
         display: 'none',
         font: '11.5px ' + theme.font,
@@ -203,7 +212,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         lineHeight: '1.4',
     });
     const results = el('div', { display: 'flex', flexDirection: 'column', minWidth: '0' });
-    head.append(bar, scopeRows, folderLine, summary, warningLine);
+    head.append(bar.element, scopeRows, folderLine, summary, warningLine);
     element.append(results);
 
     let last = null; // the last answer, which Replace all acts on
@@ -216,7 +225,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
     };
 
     const fileRow = (f) => {
-        const head = ui.row({ dense: true });
+        const head = ui.row({ size: 'small' }).element;
         head.style.padding = '0 6px 0 2px';
         const caret = el('span', {
             display: 'flex',
@@ -225,7 +234,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
             transform: collapsed.has(f.path) ? 'none' : 'rotate(90deg)',
             transition: `transform ${theme.motion.fast}ms ${theme.motion.easing}`,
         });
-        caret.innerHTML = ui.icon('chevronRight', 12);
+        caret.innerHTML = ui.icon('chevronRight', { size: 12 });
         const glyph = el('span', { display: 'flex', flex: '0 0 auto' });
         glyph.innerHTML = fileIcons.file(f.path.split('/').pop(), 13);
         const name = el(
@@ -268,7 +277,6 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         );
         head.append(caret, glyph, name, dir, n);
         head.title = f.path;
-        ui.hoverable(head);
         head.addEventListener('click', () => {
             if (collapsed.has(f.path)) collapsed.delete(f.path);
             else collapsed.add(f.path);
@@ -277,7 +285,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         return head;
     };
     const matchRow = (f, m) => {
-        const line = ui.row({ dense: true });
+        const line = ui.row({ size: 'small' }).element;
         Object.assign(line.style, { padding: '0 6px 0 22px', font: '12px ' + MONO, overflow: 'hidden' });
         const no = el(
             'span',
@@ -295,7 +303,6 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         );
         text.append(document.createTextNode(lead), hit, document.createTextNode(m.text.slice(m.col + m.length)));
         line.append(no, text);
-        ui.hoverable(line);
         line.addEventListener('click', () => onOpen(f.path, m));
         return line;
     };
@@ -370,7 +377,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
             );
         }
         const files = last.files.length;
-        const value = bar.replacement;
+        const value = bar.replacement();
         const answer = last;
         ui.dialog({
             title: 'Replace all?',

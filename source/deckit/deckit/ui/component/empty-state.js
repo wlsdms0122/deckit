@@ -30,31 +30,28 @@ DeckitModule.define('deckit/ui/component/empty-state', { uses: [], provides: ['S
     // MARK: - Private
     // What a place shows with nothing in it: an icon, a title, a hint and what to do about it.
     function emptyState({ icon = '', title = '', hint = '', actions = [] } = {}) {
-        const box = element('div', 'deckit-empty');
+        const box = tag('div', 'deckit-empty');
         if (icon) {
-            const mark = element('div', 'deckit-empty-icon');
+            const mark = tag('div', 'deckit-empty-icon');
             mark.innerHTML = icon;
             box.append(mark);
         }
-        const heading = element('div', 'deckit-empty-title');
-        const note = element('div', 'deckit-empty-hint');
-        const row = element('div', 'deckit-empty-actions');
+        const heading = tag('div', 'deckit-empty-title');
+        const note = tag('div', 'deckit-empty-hint');
+        const row = tag('div', 'deckit-empty-actions');
         box.append(heading, note, row);
-        box.setTitle = (text) => {
-            heading.textContent = text;
+        // What is not given stays as it is.
+        const set = (next) => {
+            if ('title' in next) heading.textContent = next.title;
+            if ('hint' in next) note.textContent = next.hint;
+            if ('actions' in next) row.replaceChildren(...next.actions);
         };
-        box.setHint = (text) => {
-            note.textContent = text;
-        };
-        box.setActions = (list) => row.replaceChildren(...list);
-        box.setTitle(title);
-        box.setHint(hint);
-        box.setActions(actions);
-        return box;
+        set({ title, hint, actions });
+        return { element: box, set };
     }
 
-    function element(tag, className) {
-        const made = document.createElement(tag);
+    function tag(name, className) {
+        const made = document.createElement(name);
         made.className = className;
         return made;
     }

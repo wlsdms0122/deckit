@@ -122,73 +122,71 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
     }
 
     // MARK: - Private
-    function iconBtn(svg, title, onClick, { size = 'md', quiet = false } = {}) {
-        const button = buttonOf('deckit-icon-button', title);
-        button.innerHTML = svg;
-        if (size === 'sm') button.dataset.size = 'small';
-        if (quiet) button.dataset.muted = '';
-        button.addEventListener('click', onClick);
-        button.setPressed = (on) => {
-            button.setAttribute('aria-pressed', String(!!on));
-            return button;
+    // A button showing an icon. `muted` rests it a step back until the pointer comes.
+    function iconBtn({ icon, title, size = 'medium', muted = false, onClick }) {
+        const element = buttonOf('deckit-icon-button', title, size);
+        element.innerHTML = icon;
+        element.toggleAttribute('data-muted', muted);
+        element.addEventListener('click', onClick);
+        return {
+            element,
+            setPressed: (on) => element.setAttribute('aria-pressed', String(!!on)),
+            setEnabled: (on) => (element.disabled = !on),
+            setIcon: (next) => (element.innerHTML = next),
         };
-        button.setEnabled = (on) => {
-            button.disabled = !on;
-            return button;
-        };
-        button.setIcon = (next) => {
-            button.innerHTML = next;
-            return button;
-        };
-        return button;
     }
 
-    function textBtn(text, title, onClick, { size = 'md', icon = '', variant = 'plain' } = {}) {
-        const button = buttonOf('deckit-text-button', title);
-        const label = document.createElement('span');
-        label.textContent = text;
-        if (icon) button.insertAdjacentHTML('afterbegin', icon);
-        button.append(label);
-        if (size === 'sm') button.dataset.size = 'small';
-        if (variant !== 'plain') button.dataset.variant = variant;
-        button.addEventListener('click', onClick);
-        button.setText = (next) => {
-            label.textContent = next;
-            return button;
+    function textBtn({ label, title = '', icon = '', size = 'medium', variant = 'plain', onClick }) {
+        const element = buttonOf('deckit-text-button', title, size);
+        const text = document.createElement('span');
+        text.textContent = label;
+        if (icon) element.insertAdjacentHTML('afterbegin', icon);
+        element.append(text);
+        if (variant !== 'plain') element.dataset.variant = variant;
+        element.addEventListener('click', onClick);
+        return {
+            element,
+            setLabel: (next) => (text.textContent = next),
+            setEnabled: (on) => (element.disabled = !on),
         };
-        button.setEnabled = (on) => {
-            button.disabled = !on;
-            return button;
-        };
-        return button;
     }
 
     // An action of a row, shown while the row is hovered or holds the focus. Its click is its own, not the row's.
-    function miniBtn(label, title, onClick) {
-        const button = buttonOf('deckit-row-action', title);
-        if (/^\s*<svg/.test(label)) button.innerHTML = label;
-        else button.textContent = label;
-        button.dataset.deckitReveal = '';
-        button.addEventListener('click', (event) => {
+    function miniBtn({ icon = '', label = '', title, onClick }) {
+        const element = buttonOf('deckit-row-action', title, 'medium');
+        if (icon) element.innerHTML = icon;
+        else element.textContent = label;
+        element.dataset.deckitReveal = '';
+        element.addEventListener('click', (event) => {
             event.stopPropagation();
             onClick();
         });
-        return button;
+        return { element };
     }
 
-    // `items` are { key, label, title, lead }: `lead` an element shown before the label.
-    function segmented(items, { value = null, onChange, size = 'md', accent = null } = {}) {
-        const bar = document.createElement('div');
-        bar.className = 'deckit-segmented';
-        if (size === 'sm') bar.dataset.size = 'small';
+    // One of a few choices, side by side. `items` are { key, label, title, lead }: `lead` an element before the label.
+    // A press reports the choice; the owner sets it.
+    function segmented({ items, value = null, size = 'medium', accent = null, onChange }) {
+        const element = document.createElement('div');
+        element.className = 'deckit-segmented';
+        element.dataset.size = size;
         if (accent) {
-            bar.dataset.accent = '';
-            bar.style.setProperty('--deckit-segment-on', accent);
+            element.dataset.accent = '';
+            element.style.setProperty('--deckit-segment-on', accent);
         }
         const segments = new Map(); // key -> { button, label, lead }
         let current = value;
         const paint = () => {
             for (const [key, { button }] of segments) button.setAttribute('aria-pressed', String(key === current));
+        };
+        const segmentOf = (key) => {
+            const button = buttonOf('deckit-segment', '', size);
+            const label = document.createElement('span');
+            button.append(label);
+            button.addEventListener('click', () => key !== current && onChange?.(key));
+            const segment = { button, label, lead: null };
+            segments.set(key, segment);
+            return segment;
         };
         const setItems = (list) => {
             const keys = new Set(list.map((item) => item.key));
@@ -206,103 +204,74 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
                     if (item.lead) segment.button.prepend(item.lead);
                     segment.lead = item.lead || null;
                 }
-                bar.append(segment.button);
+                element.append(segment.button);
             }
             paint();
         };
-        const segmentOf = (key) => {
-            const button = buttonOf('deckit-segment', '');
-            const label = document.createElement('span');
-            button.append(label);
-            button.addEventListener('click', () => {
-                if (current === key) return;
+        setItems(items);
+        return {
+            element,
+            set: (key) => {
                 current = key;
                 paint();
-                onChange?.(key);
-            });
-            const segment = { button, label, lead: null };
-            segments.set(key, segment);
-            return segment;
-        };
-        setItems(items);
-        bar.setItems = setItems;
-        bar.setValue = (key) => {
-            current = key;
-            paint();
-        };
-        Object.defineProperty(bar, 'value', { get: () => current });
-        return bar;
-    }
-
-    // A button that stays on or off, beside a text field that keeps the keyboard. `setMarked` lights it without
-    // turning it on.
-    function toggleButton(label, title, { on = false, onChange } = {}) {
-        const button = buttonOf('deckit-toggle-button', title);
-        if (/^\s*<svg/.test(label)) button.innerHTML = label;
-        else button.textContent = label;
-        let value = !!on;
-        const paint = () => button.setAttribute('aria-pressed', String(value));
-        button.addEventListener('mousedown', (event) => event.preventDefault());
-        button.addEventListener('click', (event) => {
-            event.preventDefault();
-            value = !value;
-            paint();
-            onChange?.(value);
-        });
-        button.setMarked = (marked) => {
-            button.toggleAttribute('data-marked', !!marked);
-            return button;
-        };
-        Object.defineProperty(button, 'value', {
-            get: () => value,
-            set: (next) => {
-                value = !!next;
-                paint();
             },
-        });
-        paint();
-        return button;
+            setItems,
+        };
     }
 
-    function toggle({ on = false, onChange } = {}) {
-        const button = buttonOf('deckit-toggle', '');
-        button.setAttribute('role', 'switch');
+    // A button that stays on or off, beside a text field that keeps the keyboard. A press reports the new state; the
+    // owner sets it. `setMarked` lights it without turning it on.
+    function toggleButton({ icon = '', label = '', title, value = false, onChange }) {
+        const element = buttonOf('deckit-toggle-button', title, 'medium');
+        if (icon) element.innerHTML = icon;
+        else element.textContent = label;
+        let current = !!value;
+        const set = (next) => {
+            current = !!next;
+            element.setAttribute('aria-pressed', String(current));
+        };
+        element.addEventListener('mousedown', (event) => event.preventDefault());
+        element.addEventListener('click', (event) => {
+            event.preventDefault();
+            onChange?.(!current);
+        });
+        set(current);
+        return { element, set, setMarked: (on) => element.toggleAttribute('data-marked', !!on) };
+    }
+
+    // A switch. A press reports the new state; the owner sets it.
+    function toggle({ value = false, onChange }) {
+        const element = buttonOf('deckit-toggle', '', 'medium');
+        element.setAttribute('role', 'switch');
         const knob = document.createElement('span');
         knob.className = 'deckit-toggle-knob';
-        button.append(knob);
-        let value = !!on;
-        const paint = () => button.setAttribute('aria-checked', String(value));
-        button.addEventListener('click', () => {
-            value = !value;
-            paint();
-            onChange?.(value);
-        });
-        Object.defineProperty(button, 'value', {
-            get: () => value,
-            set: (next) => {
-                value = !!next;
-                paint();
-            },
-        });
-        paint();
-        return button;
+        element.append(knob);
+        let current = !!value;
+        const set = (next) => {
+            current = !!next;
+            element.setAttribute('aria-checked', String(current));
+        };
+        element.addEventListener('click', () => onChange?.(!current));
+        set(current);
+        return { element, set };
     }
 
     // The tooltip of `element`, with the chord that does the same when there is one, read again as the pointer comes.
-    function tip(element, text, chord) {
+    function tip(element, { text, chord = () => '' }) {
         const write = () => {
-            const keys = chord?.() || '';
+            const keys = chord();
             element.title = keys ? `${text} (${keys})` : text;
         };
         write();
         element.addEventListener('pointerenter', write);
-        return element;
+        return () => element.removeEventListener('pointerenter', write);
     }
 
-    function buttonOf(kind, title) {
+    function buttonOf(kind, title, size) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'deckit-button ' + kind;
+        button.dataset.size = size;
         if (title) button.title = title;
         return button;
     }
