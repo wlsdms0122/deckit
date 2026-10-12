@@ -17,7 +17,19 @@ DeckitModule.define(
             'deckit/service/plugin/host/export',
             'deckit/service/plugin/host/protocol',
         ],
-        provides: ['start', 'plugins', 'prepare', 'summaryOf', 'failed', 'ended', 'onChange', 'onStatus', 'order', 'arrange'],
+        provides: [
+            'start',
+            'plugins',
+            'prepare',
+            'rerun',
+            'summaryOf',
+            'failed',
+            'ended',
+            'onChange',
+            'onStatus',
+            'order',
+            'arrange',
+        ],
         runs: 'main',
     },
     (
@@ -42,6 +54,7 @@ DeckitModule.define(
         const started = new Map(); // plugin id -> what it said it contributes
         const failures = new Map(); // plugin id -> the first reason recorded against it
         const stopped = new Set(); // plugin ids that ended without starting
+        const runs = new Map(); // plugin id -> which run of its page this is, counted from 1
         // plugin id -> how many times it was installed while deckit ran: a copy of the same version is new code too
         const installs = new Map();
         const listeners = new Set();
@@ -68,10 +81,17 @@ DeckitModule.define(
         // Before a plugin's page is made: its main half up, and whoever requires it told to wait.
         function prepare(entry) {
             started.delete(entry.id);
-            failures.delete(entry.id);
-            stopped.delete(entry.id);
-            EXPORT.expect(entry.id);
+            rerun(entry.id);
             if (entry.hasMain) HALF.load(entry);
+        }
+
+        // Before the same plugin's page runs again (a new theme): what it contributes stands until the new run says
+        // it again, and its main half keeps running.
+        function rerun(pluginId) {
+            runs.set(pluginId, (runs.get(pluginId) || 0) + 1);
+            failures.delete(pluginId);
+            stopped.delete(pluginId);
+            EXPORT.expect(pluginId);
         }
 
         // What a running plugin said it contributes as it started, or null before.
@@ -120,13 +140,12 @@ DeckitModule.define(
         function listen() {
             PROTOCOL.load.handle((_payload, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
-                // Whoever requires it waits until it has started, so a view that goes first answers them too.
-                // A view being replaced ends after its successor is up, and fails only what is still its own.
+                const run = runs.get(plugin.id);
+                // Whoever requires it waits until it has started, so a page that goes first answers them too. A run
+                // replaced by a newer one (a new page, or the same page run again) fails nothing of the newer one.
                 IDENTITY.whenPageEnds(
                     sender,
-                    () =>
-                        IDENTITY.pageOf(plugin.id) === sender &&
-                        EXPORT.fail(plugin.id, 'its page went away before it started')
+                    () => runs.get(plugin.id) === run && EXPORT.fail(plugin.id, 'its page went away before it started')
                 );
                 return loadOf(plugin);
             });
@@ -310,6 +329,6 @@ DeckitModule.define(
             return [...list].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
         }
 
-        return { start, plugins, prepare, summaryOf, failed, ended, onChange, onStatus, order, arrange };
+        return { start, plugins, prepare, rerun, summaryOf, failed, ended, onChange, onStatus, order, arrange };
     }
 );

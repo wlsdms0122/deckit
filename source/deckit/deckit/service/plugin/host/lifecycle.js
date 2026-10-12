@@ -51,8 +51,8 @@ DeckitModule.define(
 
         // Every plugin starts again in its page, as a new theme asks.
         function reload() {
-            for (const { page, entry } of running.values()) {
-                HOST.prepare(entry);
+            for (const [id, { page }] of running) {
+                HOST.rerun(id);
                 page.webContents.reload();
             }
         }
