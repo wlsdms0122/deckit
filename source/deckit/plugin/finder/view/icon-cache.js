@@ -61,9 +61,7 @@ function iconCache({ ui, main, onArrive }) {
             return image;
         }
         const glyph = ui.element('span', { className: 'finder-icon-placeholder' });
-        glyph.innerHTML = ui.icon(entry.kind === 'folder' ? 'folder' : entry.kind === 'package' ? 'grid' : 'fileText', {
-            size: size - 1,
-        });
+        glyph.innerHTML = ui.icon(kindIconOf(entry), { size: size - 1 });
         return glyph;
     }
 
@@ -94,10 +92,16 @@ function iconCache({ ui, main, onArrive }) {
     // A package has an icon of its own; a folder or a file shares the one of its kind.
     function keyOf(entry) {
         if (entry.kind === 'package') return 'item:' + entry.path;
-        return entry.kind === 'folder' ? 'folder' : 'ext:' + entry.ext;
+        return entry.kind === 'folder' ? 'folder' : 'extension:' + entry.extension;
     }
 
     function thumbnailKeyOf(entry) {
         return entry.path + '|' + entry.mtime;
     }
+}
+
+// The kit icon's name for an entry's kind, where the system's own icon is not at hand.
+function kindIconOf(entry) {
+    if (entry.kind === 'folder') return 'folder';
+    return entry.kind === 'package' ? 'grid' : 'fileText';
 }

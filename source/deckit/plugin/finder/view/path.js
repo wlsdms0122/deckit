@@ -1,5 +1,5 @@
 // The disk's root goes by the name the system gives it.
-function displayNameOf(path) {
+function nameOf(path) {
     return path === '/' ? 'Macintosh HD' : path.split('/').pop() || path;
 }
 

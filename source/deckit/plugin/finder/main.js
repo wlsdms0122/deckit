@@ -24,7 +24,7 @@ module.exports = ({ handle, send, files }) => {
         'qlgenerator',
         'mdimporter',
     ]);
-    const CHANGE_SETTLE_MS = 250;
+    const CHANGE_SETTLE_DELAY = 250; // milliseconds
     const PRIVACY_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders';
     const watched = new Map(); // folder -> { watcher, timer }
 
@@ -165,7 +165,7 @@ module.exports = ({ handle, send, files }) => {
         return {
             name,
             path: file,
-            ext: extension,
+            extension,
             link,
             kind: !directory ? 'file' : PACKAGE_EXTENSIONS.has(extension) ? 'package' : 'folder',
             // A dangling link's lstat size is the length of its target path.
@@ -185,7 +185,7 @@ module.exports = ({ handle, send, files }) => {
         try {
             entry.watcher = watch(folder, () => {
                 clearTimeout(entry.timer);
-                entry.timer = setTimeout(() => send('changed', folder), CHANGE_SETTLE_MS);
+                entry.timer = setTimeout(() => send('changed', folder), CHANGE_SETTLE_DELAY);
             });
             entry.watcher.on('error', () => {
                 entry.watcher?.close();

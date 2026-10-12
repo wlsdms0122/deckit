@@ -1,7 +1,7 @@
-// The sidebar: the tabs above Favorites, the folders the person keeps at hand. Favorites start as the system's
-// locations (Home, Desktop and the rest) and are the person's to add to, remove and order. The row of
-// `currentLocation()` is lit; `onDraw()` hears the favorites drawn.
-function sidebar({ ui, host, data, tildify, folds, tabs, currentLocation, dropZone, onGo, onOpenInNewTab, onDraw }) {
+// Favorites, the folders the person keeps at hand in the sidebar. They start as the system's locations (Home, Desktop
+// and the rest) and are the person's to add to, remove and order. The row of `currentLocation()` is lit; `onDraw()`
+// hears the favorites drawn.
+function favoriteList({ ui, host, records, tildify, folds, currentLocation, onGo, onOpenInNewTab, onDraw }) {
     const LOCATION_ICONS = {
         home: 'home',
         desktop: 'monitor',
@@ -12,9 +12,6 @@ function sidebar({ ui, host, data, tildify, folds, tabs, currentLocation, dropZo
     const rowParts = new WeakMap(); // row element -> sidebar row
     let locations = []; // { id, label, path }
 
-    const element = ui.element('div', {
-        style: { display: 'flex', flexDirection: 'column', minHeight: '0', flex: '1 1 auto' },
-    });
     const section = ui.section({
         label: 'Favorites',
         icon: ui.icon('star', { size: 16 }),
@@ -27,18 +24,16 @@ function sidebar({ ui, host, data, tildify, folds, tabs, currentLocation, dropZo
     const rows = ui.list({ key: (path) => path, create: createRow, update: updateRow, exit: true });
 
     section.body.append(rows.element);
-    element.append(tabs, section.element);
-    ui.sortable(rows.element, {
-        onReorder: (from, to) => {
+    ui.sortable(rows, {
+        onReorder: (path, toPath) => {
             const list = paths();
-            const [path] = list.splice(from, 1);
+            const from = list.indexOf(path);
+            const to = list.indexOf(toPath);
+            if (from < 0 || to < 0) return;
+            list.splice(from, 1);
             list.splice(to, 0, path);
             set(list);
         },
-    });
-    dropZone(rows.element, (under) => {
-        const row = under.closest('[data-path]');
-        return row ? { folder: row.dataset.path, mark: row } : null;
     });
     ui.contextMenu(rows.element, {
         rowAt: (target) => target.closest('[data-path]'),
@@ -65,7 +60,8 @@ function sidebar({ ui, host, data, tildify, folds, tabs, currentLocation, dropZo
     });
 
     return {
-        element,
+        element: section.element,
+        folderAt,
         paths,
         has,
         add,
@@ -80,8 +76,14 @@ function sidebar({ ui, host, data, tildify, folds, tabs, currentLocation, dropZo
         iconNameOf,
     };
 
+    // The folder of the favorite row under `under`, for a drop.
+    function folderAt(under) {
+        const row = under.closest('[data-path]');
+        return row ? { folder: row.dataset.path, mark: row } : null;
+    }
+
     function paths() {
-        return data.get('sidebar', null) ?? locations.map((location) => location.path);
+        return records.get('sidebar', null) ?? locations.map((location) => location.path);
     }
 
     function has(path) {
@@ -97,7 +99,7 @@ function sidebar({ ui, host, data, tildify, folds, tabs, currentLocation, dropZo
     }
 
     function set(list) {
-        data.set('sidebar', [...new Set(list)]);
+        records.set('sidebar', [...new Set(list)]);
         draw();
     }
 
@@ -122,7 +124,7 @@ function sidebar({ ui, host, data, tildify, folds, tabs, currentLocation, dropZo
     }
 
     function labelOf(path) {
-        return locationOf(path)?.label ?? displayNameOf(path);
+        return locationOf(path)?.label ?? nameOf(path);
     }
 
     function iconNameOf(path) {

@@ -5,6 +5,8 @@ function toolbar({
     ui,
     theme,
     chordOf,
+    tildify,
+    homeLocation,
     onBack,
     onForward,
     onUp,
@@ -19,7 +21,7 @@ function toolbar({
         { key: 'columns', label: 'As Columns', icon: 'columns', action: 'columnView' },
         { key: 'list', label: 'As List', icon: 'list', action: 'listView' },
     ];
-    const STAR_PULSE_MS = 220;
+    const STAR_PULSE_DURATION = 220; // milliseconds
     const STYLE = `
         .finder-toolbar {
             display: flex;
@@ -29,8 +31,8 @@ function toolbar({
             min-height: 30px;
             padding: 10px 12px 8px;
         }
-        .finder-toolbar .deckit-breadcrumb { margin: 0 6px; }
-        .finder-toolbar .finder-view-button[data-size] { width: auto; padding: 0 5px; }
+        .finder-breadcrumb { margin: 0 6px; }
+        .finder-toolbar .finder-view-button { width: auto; padding: 0 5px; }
         .finder-view-icon { display: flex; align-items: center; gap: 1px; }
         .finder-toolbar .finder-filter { flex: 0 1 200px; min-width: 120px; }
     `;
@@ -55,7 +57,7 @@ function toolbar({
         onClick: onUp,
         size: 'small',
     });
-    const crumbs = ui.breadcrumb({ onGo: onCrumb });
+    const breadcrumb = ui.breadcrumb({ onGo: onCrumb });
     const star = ui.iconButton({
         icon: starIcon(false),
         title: 'Add to Favorites',
@@ -77,13 +79,14 @@ function toolbar({
     ui.tooltip(back.element, { text: 'Back', chord: () => chordOf('back') });
     ui.tooltip(forward.element, { text: 'Forward', chord: () => chordOf('forward') });
     ui.tooltip(up.element, { text: 'Enclosing folder', chord: () => chordOf('enclosing') });
+    breadcrumb.element.classList.add('finder-breadcrumb');
     viewButton.element.classList.add('finder-view-button');
     filter.element.classList.add('finder-filter');
     element.append(
         back.element,
         forward.element,
         up.element,
-        crumbs.element,
+        breadcrumb.element,
         star.element,
         viewButton.element,
         filter.element
@@ -91,14 +94,38 @@ function toolbar({
 
     return {
         element,
-        crumbs: crumbs.element,
-        setPath: crumbs.set,
+        folderAt,
+        setPath,
         setNavigation,
         setFavorite,
         setView,
         setFilter: filter.set,
         focusFilter: filter.focus,
     };
+
+    // From `shown` up to the home folder when it is inside it, or else up to the disk's root.
+    function setPath(shown) {
+        const folders = [];
+        for (let folder = shown; folder; folder = parentOf(folder)) {
+            folders.unshift(folder);
+            if (folder === homeLocation()) break;
+        }
+        breadcrumb.set(
+            folders.map((folder, index) => ({
+                key: folder,
+                label: nameOf(folder),
+                title: tildify(folder),
+                icon: 'folder',
+                current: index === folders.length - 1,
+            }))
+        );
+    }
+
+    // The folder of the path's part under `under`, for a drop.
+    function folderAt(under) {
+        const part = breadcrumb.partAt(under);
+        return part ? { folder: part.key, mark: part.element } : null;
+    }
 
     function setNavigation({ canGoBack, canGoForward, canGoUp }) {
         back.setEnabled(canGoBack);
@@ -120,7 +147,7 @@ function toolbar({
     function toggleFavorite() {
         if (!onToggleFavorite() || !theme.motion.fast) return;
         star.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
-            duration: STAR_PULSE_MS,
+            duration: STAR_PULSE_DURATION,
             easing: theme.motion.easing,
         });
     }

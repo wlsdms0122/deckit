@@ -1,10 +1,24 @@
-// What is done to files: opening, Quick Look, renaming, the Trash, and moving by a drag onto a folder. `labelOf(path)`
-// finds the name an entry shows, which a rename types over. `onMoved(from, to)` hears a path go elsewhere, `to` null
-// when it went to the Trash; `onChanged(folder)` hears a folder whose contents changed.
-function fileOperations({ ui, host, main, area, entryAt, labelOf, select, onGo, onMoved, onChanged, onStatus }) {
+// What is done to files: opening, Quick Look, making a folder, renaming, the Trash, and moving by a drag onto a folder.
+// `labelOf(path)` finds the name an entry shows, which a rename types over. `onMade(path)` shows a folder just made and
+// answers whether it is in sight, to be named. `onMoved(from, to)` hears a path go elsewhere, `to` null when it went to
+// the Trash; `onChanged(folder)` hears a folder whose contents changed.
+function fileOperations({
+    ui,
+    host,
+    main,
+    areaElement,
+    entryAt,
+    labelOf,
+    select,
+    onGo,
+    onMade,
+    onMoved,
+    onChanged,
+    onStatus,
+}) {
     const MOVE = 'finder-entry';
 
-    ui.dragSource(area, {
+    ui.dragSource(areaElement, {
         itemAt: (target) => target.closest('[data-path]'),
         describe: (row) => {
             const entry = entryAt(row.dataset.path);
@@ -13,18 +27,13 @@ function fileOperations({ ui, host, main, area, entryAt, labelOf, select, onGo, 
                     kind: MOVE,
                     payload: { path: entry.path },
                     text: entry.name,
-                    icon:
-                        entry.kind === 'folder'
-                            ? ui.folderIcon({ open: false, size: 14 })
-                            : entry.kind === 'package'
-                              ? 'grid'
-                              : 'fileText',
+                    icon: entry.kind === 'folder' ? ui.folderIcon({ open: false, size: 14 }) : kindIconOf(entry),
                 }
             );
         },
     });
 
-    return { open, quickLook, rename, trash, dropZone };
+    return { open, quickLook, newFolder, rename, trash, acceptDrops };
 
     async function open(entry, { usesDefaultApp = false } = {}) {
         if (!entry) return;
@@ -37,6 +46,20 @@ function fileOperations({ ui, host, main, area, entryAt, labelOf, select, onGo, 
 
     function quickLook(entry) {
         if (entry) main.call('quickLook', entry.path, entry.name).catch(() => {});
+    }
+
+    async function newFolder(into) {
+        if (!into) return;
+        let made;
+        try {
+            made = await main.call('mkdir', into);
+        } catch (error) {
+            onStatus('Could not make a folder: ' + error.message);
+            return;
+        }
+        if (!(await onMade(made))) return;
+        const entry = entryAt(made);
+        if (entry) rename(entry);
     }
 
     async function rename(entry) {
@@ -60,7 +83,7 @@ function fileOperations({ ui, host, main, area, entryAt, labelOf, select, onGo, 
     }
 
     // Drops into folders under `zone`: `folderAt(element)` answers the folder under the pointer ({ folder, mark }).
-    function dropZone(zone, folderAt) {
+    function acceptDrops(zone, folderAt) {
         return ui.folderDrop(zone, {
             kind: MOVE,
             path: (payload) => payload.path,
@@ -88,7 +111,7 @@ function fileOperations({ ui, host, main, area, entryAt, labelOf, select, onGo, 
         } catch (error) {
             // In a dialog: the footer is drawn again right after a drag ends, which would take a status message away.
             ui.dialog({
-                title: 'Could not move “' + displayNameOf(from) + '”',
+                title: 'Could not move “' + nameOf(from) + '”',
                 message: error.message,
                 confirmLabel: 'OK',
             });

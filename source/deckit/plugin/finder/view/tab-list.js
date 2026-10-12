@@ -1,24 +1,14 @@
 // The tabs, each at a location with its own history, pick, filter and column widths, listed in the sidebar; closed ones
-// are kept to reopen. A tab coming in front or going somewhere is given `whenRead` ({ select, scroll }), what to do
-// once its folder is read, and `onEnter(tab)` hears it; `onLeave(tab)` hears the one in front give its place.
-function tabList({
-    ui,
-    host,
-    data,
-    tildify,
-    folds,
-    homeLocation,
-    isFavorite,
-    onAddFavorite,
-    dropZone,
-    onLeave,
-    onEnter,
-}) {
+// are kept to reopen. This list alone writes a tab; the others read the tab in front through its queries and change it
+// through its setters. A tab coming in front or going somewhere is given what to do once its folder is read ({ select,
+// scroll }, taken with `takeWhenRead()`), and `onEnter()` hears it; `onLeave()` hears the tab in front about to give
+// its place.
+function tabList({ ui, host, records, tildify, folds, homeLocation, isFavorite, onAddFavorite, onLeave, onEnter }) {
     const CLOSED_KEPT = 10;
     const WIDTHS_KEPT = 64;
-    const saved = data.get('tabs', null);
+    const saved = records.get('tabs', null);
     const tabs = [];
-    const closed = (saved?.closed ?? []).map(({ here, at, widths }) => ({ location: here, at, widths }));
+    const closed = (saved?.closed ?? []).map((stored) => ({ ...tabFromStored(stored), at: stored.at }));
     const rowParts = new WeakMap(); // row element -> sidebar row
     let front = null;
     let lastId = 0;
@@ -37,8 +27,11 @@ function tabList({
 
     ui.tooltip(section.actions[0].element, { text: 'New tab', chord: () => host.chordOf('newTab') });
     section.body.append(rows.element);
-    ui.sortable(rows.element, {
-        onReorder: (from, to) => {
+    ui.sortable(rows, {
+        onReorder: (id, toId) => {
+            const from = tabs.findIndex((tab) => tab.id === id);
+            const to = tabs.findIndex((tab) => tab.id === toId);
+            if (from < 0 || to < 0) return;
             const [tab] = tabs.splice(from, 1);
             tabs.splice(to, 0, tab);
             persist();
@@ -63,16 +56,23 @@ function tabList({
             ];
         },
     });
-    dropZone(rows.element, (under) => {
-        const row = under.closest('[data-tab-id]');
-        const tab = row && tabOf(row);
-        return tab?.location ? { folder: tab.location, mark: row } : null;
-    });
 
     return {
         element: section.element,
         front: () => front,
+        location: () => front?.location ?? null,
+        selectedPath: () => front?.selected ?? null,
+        filter: () => ({ text: front?.filter ?? '', folder: front?.filterFolder ?? null }),
+        widths: () => front?.widths ?? {},
+        canGoBack: () => !!front?.back.length,
+        canGoForward: () => !!front?.forward.length,
         locations: () => tabs.map((tab) => tab.location),
+        folderAt,
+        select,
+        setFilter,
+        clearFilter,
+        takeWhenRead,
+        keepScroll,
         open,
         show,
         showAt,
@@ -87,6 +87,36 @@ function tabList({
         restore,
         persist,
     };
+
+    // The folder of the tab row under `under`, for a drop.
+    function folderAt(under) {
+        const row = under.closest('[data-tab-id]');
+        const tab = row && tabOf(row);
+        return tab?.location ? { folder: tab.location, mark: row } : null;
+    }
+
+    function select(path) {
+        front.selected = path;
+    }
+
+    function setFilter(text, folder) {
+        front.filter = text;
+        front.filterFolder = folder;
+    }
+
+    function clearFilter() {
+        setFilter('', null);
+    }
+
+    function takeWhenRead() {
+        const whenRead = front.whenRead;
+        front.whenRead = null;
+        return whenRead;
+    }
+
+    function keepScroll(top) {
+        front.scroll = top;
+    }
 
     function open(location = front?.location || homeLocation(), { background = false, widths = {} } = {}) {
         const tab = {
@@ -107,10 +137,10 @@ function tabList({
         return tab;
     }
 
-    // Showing the tab in front again would read it again, emptying the list and losing the scroll.
+    // Showing the tab in front again would read it again and put back the scroll it had when it last left.
     function show(tab) {
         if (tab === front) return;
-        if (front) onLeave(front);
+        if (front) onLeave();
         front = tab;
         return enter(tab, { select: tab.selected, scroll: tab.scroll });
     }
@@ -214,9 +244,9 @@ function tabList({
     async function restore(exists) {
         const alive = []; // from: its index in the saved list
         for (const [index, stored] of (saved?.list ?? []).entries()) {
-            const kind = await exists(stored.here).catch(() => 'unknown');
-            if (kind === 'folder' || kind === 'unknown')
-                alive.push({ location: stored.here, widths: stored.widths, from: index });
+            const tab = tabFromStored(stored);
+            const kind = await exists(tab.location).catch(() => 'unknown');
+            if (kind === 'folder' || kind === 'unknown') alive.push({ ...tab, from: index });
         }
         if (!alive.length) alive.push({ location: homeLocation(), from: 0 });
         const opened = alive.map((tab) => open(tab.location, { background: true, widths: tab.widths }));
@@ -228,10 +258,10 @@ function tabList({
     }
 
     function persist() {
-        data.set('tabs', {
-            list: tabs.map((tab) => ({ here: tab.location, widths: tab.widths })),
+        records.set('tabs', {
+            list: tabs.map(storedOf),
             active: Math.max(0, tabs.indexOf(front)),
-            closed: closed.map(({ location, at, widths }) => ({ here: location, at, widths })),
+            closed: closed.map((tab) => ({ ...storedOf(tab), at: tab.at })),
         });
         rows.set(tabs);
     }
@@ -239,7 +269,7 @@ function tabList({
     function enter(tab, whenRead) {
         tab.whenRead = whenRead;
         persist();
-        return onEnter(tab);
+        return onEnter();
     }
 
     function rememberClosed(tab, at) {
@@ -274,7 +304,7 @@ function tabList({
         const row = rowParts.get(element);
         row.set({
             icon: 'folder',
-            label: tab.location ? displayNameOf(tab.location) : '…',
+            label: tab.location ? nameOf(tab.location) : '…',
             title: tab.location ? tildify(tab.location) : '',
         });
         row.setActive(tab === front);
@@ -294,5 +324,14 @@ function tabList({
                 return to ? [[to, width]] : [];
             })
         );
+    }
+
+    // A tab as it is saved: its location under `here`.
+    function storedOf({ location, widths }) {
+        return { here: location, widths };
+    }
+
+    function tabFromStored({ here, widths }) {
+        return { location: here, widths };
     }
 }

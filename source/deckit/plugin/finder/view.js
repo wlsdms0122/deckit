@@ -19,7 +19,7 @@ Deckit.register({
     },
 
     make({ theme, ui, storage, host, main, settings, util }) {
-        const { values: store, records: data } = storage;
+        const { values, records } = storage;
         const STYLE = `
             .finder-content {
                 position: relative;
@@ -31,53 +31,79 @@ Deckit.register({
                 color: var(--deckit-text);
                 font: var(--deckit-type-body);
             }
+            .finder-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
         `;
         let home = '';
         let showing = false;
 
         const folds = {
-            has: (key) => !!store.get('folds', {})[key],
-            set: (key, collapsed) => store.set('folds', { ...store.get('folds', {}), [key]: collapsed }),
+            has: (key) => !!values.get('folds', {})[key],
+            set: (key, collapsed) => values.set('folds', { ...values.get('folds', {}), [key]: collapsed }),
         };
         const content = ui.element('div', { className: 'finder-content' });
-        const icons = iconCache({ ui, main, onArrive: () => area.render() });
+        const sidebar = ui.element('div', { className: 'finder-sidebar' });
+        const icons = iconCache({ ui, main, onArrive: () => area.draw() });
         const listings = listingCache({
             host,
             main,
             isShown: (folder) => area.shownFolders().includes(folder),
             onRead: applyListing,
         });
-        const list = listView({
+        const tabs = tabList({
             ui,
-            icons,
+            host,
+            records,
+            tildify: util.tildify,
+            folds,
+            homeLocation: () => home,
+            isFavorite: (path) => favorites.has(path),
+            onAddFavorite: (path) => favorites.add(path),
+            onLeave: keepScroll,
+            onEnter: enterLocation,
+        });
+        const list = listView({ ui, icons, onSort: (key) => area.sortBy(key) });
+        const columns = columnView({ ui, icons, entryAt: listings.entryAt, onResize: tabs.setWidth });
+        const status = folderStatus({
+            ui,
             chordOf: host.chordOf,
-            onSort: (key) => area.sortBy(key),
             onShowHidden: () => settings.set('showHidden', true),
             onReveal: host.reveal,
             onPrivacySettings: () => main.call('privacySettings').catch(() => {}),
         });
-        const columns = columnView({
-            ui,
-            icons,
-            entryAt: listings.entryAt,
-            onResize: (tab, folder, width) => tabs.setWidth(tab, folder, width),
-        });
         const area = fileArea({
             ui,
-            store,
-            settings,
+            values,
+            tabs,
             listings,
             list,
             columns,
-            front: () => tabs.front(),
+            status,
+            showsHidden,
+            foldersFirst: () => !!settings.get('foldersFirst'),
             select,
             setFilterText: (text) => bar.setFilter(text),
             onDraw: drawToolbar,
+        });
+        const operations = fileOperations({
+            ui,
+            host,
+            main,
+            areaElement: area.element,
+            entryAt: listings.entryAt,
+            labelOf: area.labelOf,
+            select,
+            onGo: (path) => tabs.go(path),
+            onMade: showMade,
+            onMoved: relocate,
+            onChanged: listings.load,
+            onStatus: area.showStatus,
         });
         const bar = toolbar({
             ui,
             theme,
             chordOf: host.chordOf,
+            tildify: util.tildify,
+            homeLocation: () => home,
             onBack: () => tabs.back(),
             onForward: () => tabs.forward(),
             onUp: () => tabs.up(),
@@ -88,50 +114,22 @@ Deckit.register({
             onFilterSubmit: area.pickFirstMatch,
             onFilterCancel: area.cancelFilter,
         });
-        const operations = fileOperations({
+        const favorites = favoriteList({
             ui,
             host,
-            main,
-            area: area.element,
-            entryAt: listings.entryAt,
-            labelOf: area.labelOf,
-            select,
-            onGo: (path) => tabs.go(path),
-            onMoved: relocate,
-            onChanged: listings.load,
-            onStatus: area.showStatus,
-        });
-        const tabs = tabList({
-            ui,
-            host,
-            data,
+            records,
             tildify: util.tildify,
             folds,
-            homeLocation: () => home,
-            isFavorite: (path) => favorites.has(path),
-            onAddFavorite: (path) => favorites.add(path),
-            dropZone: operations.dropZone,
-            onLeave: keepScroll,
-            onEnter: enterLocation,
-        });
-        const favorites = sidebar({
-            ui,
-            host,
-            data,
-            tildify: util.tildify,
-            folds,
-            tabs: tabs.element,
-            currentLocation,
-            dropZone: operations.dropZone,
+            currentLocation: tabs.location,
             onGo: (path) => tabs.go(path),
             onOpenInNewTab: (path) => tabs.open(path),
-            onDraw: paintStar,
+            onDraw: drawStar,
         });
         selectionInput({
-            area: area.element,
-            inColumns: () => area.view() === 'columns',
-            currentLocation,
-            selected: selectedPath,
+            areaElement: area.element,
+            isColumnView: () => area.view() === 'columns',
+            location: tabs.location,
+            selectedPath: tabs.selectedPath,
             walkedFolder: area.walkedFolder,
             entriesIn: area.entriesIn,
             entryAt: listings.entryAt,
@@ -145,9 +143,11 @@ Deckit.register({
         fileMenus({
             ui,
             host,
-            area: area.element,
+            areaElement: area.element,
             entryAt: listings.entryAt,
-            selected: selectedPath,
+            rowOf: area.rowOf,
+            folderAt: columns.folderAt,
+            selectedPath: tabs.selectedPath,
             workingFolder: area.workingFolder,
             select,
             isFavorite: favorites.has,
@@ -158,7 +158,7 @@ Deckit.register({
             quickLook: operations.quickLook,
             rename: operations.rename,
             trash: operations.trash,
-            newFolder,
+            newFolder: operations.newFolder,
             showsHidden,
             onToggleHidden: toggleHidden,
         });
@@ -166,16 +166,13 @@ Deckit.register({
         ui.addStyle(STYLE);
         bar.setView(area.view());
         content.append(bar.element, list.header, area.element, area.footer);
+        sidebar.append(tabs.element, favorites.element);
         new ResizeObserver(() => {
-            if (list.fit(content.clientWidth)) area.render();
+            if (list.fit(content.clientWidth)) area.draw();
         }).observe(content);
-        operations.dropZone(bar.crumbs, (under) => {
-            const crumb = under.closest('[data-crumb]');
-            return crumb ? { folder: crumb.dataset.crumb, mark: crumb } : null;
-        });
-        operations.dropZone(area.element, area.folderUnder);
+        for (const part of [area, bar, tabs, favorites]) operations.acceptDrops(part.element, part.folderAt);
         settings.on((key) => {
-            if (key === 'showHidden' || key === 'foldersFirst') area.render();
+            if (key === 'showHidden' || key === 'foldersFirst') area.draw();
         });
         main.call('places')
             .then((answer) => {
@@ -187,7 +184,7 @@ Deckit.register({
 
         return {
             content,
-            sidebar: favorites.element,
+            sidebar,
             didAppear: () => {
                 showing = true;
                 if (tabs.front()) {
@@ -227,7 +224,11 @@ Deckit.register({
                     run: () => goToLocation('applications'),
                 },
                 hidden: { key: 'mod+shift+.', label: 'Show hidden files', run: toggleHidden },
-                newFolder: { key: 'mod+shift+n', label: 'New folder', run: () => newFolder() },
+                newFolder: {
+                    key: 'mod+shift+n',
+                    label: 'New folder',
+                    run: () => operations.newFolder(area.workingFolder()),
+                },
                 // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
                 columnView: { key: 'ctrl+mod+1', label: 'As columns', run: () => setView('columns') },
                 listView: { key: 'ctrl+mod+2', label: 'As list', run: () => setView('list') },
@@ -251,58 +252,63 @@ Deckit.register({
                 })),
         };
 
-        // Drawn at once: until the folder is read, the list shows it loading. The favorites are painted here, as only a
+        // Drawn at once: until the folder is read, the area shows it loading. The favorites are drawn here, as only a
         // new location changes which of them is lit.
-        function enterLocation(tab) {
-            bar.setFilter(tab.filter);
+        function enterLocation() {
+            bar.setFilter(tabs.filter().text);
             watchShown();
             favorites.draw();
-            area.render();
+            area.draw();
             return load();
         }
 
         // A listing kept for `folder`: what the tab in front waited on its folder's read to do is done.
         function applyListing(folder) {
-            const tab = tabs.front();
-            const whenRead = folder === tab.location ? tab.whenRead : null;
-            if (whenRead) {
-                tab.whenRead = null;
-                if (whenRead.select) tab.selected = whenRead.select;
-            }
+            const whenRead = folder === tabs.location() ? tabs.takeWhenRead() : null;
+            if (whenRead?.select) tabs.select(whenRead.select);
             listings.keepOnly(new Set([...tabs.locations(), ...area.shownFolders()]));
-            area.render();
+            area.draw();
             if (typeof whenRead?.scroll === 'number') area.element.scrollTop = whenRead.scroll;
-            else if (whenRead?.scroll === 'reveal' && tab.selected) area.reveal(tab.selected);
-            watchShown({ renew: folder === tab.location });
+            else if (whenRead?.scroll === 'reveal' && tabs.selectedPath()) area.reveal(tabs.selectedPath());
+            watchShown({ renew: folder === tabs.location() });
         }
 
         // Only a loaded list's scroll is the tab's own.
-        function keepScroll(tab) {
-            if (listings.has(tab.location)) tab.scroll = area.element.scrollTop;
+        function keepScroll() {
+            if (listings.has(tabs.location())) tabs.keepScroll(area.element.scrollTop);
         }
 
         function load() {
-            const location = currentLocation();
+            const location = tabs.location();
             return location ? listings.load(location) : undefined;
         }
 
         function watchShown(options) {
-            listings.watch(showing && currentLocation() ? area.shownFolders() : null, options);
+            listings.watch(showing && tabs.location() ? area.shownFolders() : null, options);
         }
 
         // No scroll unless asked: a right click selects its row, and a scroll would close the menu just opened there.
         function select(path, { reveal = false } = {}) {
-            const tab = tabs.front();
-            if (!tab) return;
-            tab.selected = path;
+            if (!tabs.front()) return;
+            tabs.select(path);
             area.showSelection();
             watchShown();
             if (reveal && path) area.reveal(path);
         }
 
+        // A folder made where the person still looks is picked, in sight, to be named.
+        async function showMade(path) {
+            const folder = parentOf(path);
+            if (!area.shownFolders().includes(folder)) return false;
+            area.clearFilter();
+            await listings.load(folder);
+            select(path, { reveal: true });
+            return true;
+        }
+
         // In columns a crumb inside the tab's folder is picked, so the columns stay.
         function openCrumb(path) {
-            const location = currentLocation();
+            const location = tabs.location();
             const inColumns = area.view() === 'columns';
             if (inColumns && location && isInside(path, location)) select(path);
             else if (inColumns && path === location) select(null);
@@ -324,67 +330,28 @@ Deckit.register({
             favorites.relocate(follow);
         }
 
-        async function newFolder(into = area.workingFolder()) {
-            const tab = tabs.front();
-            const location = currentLocation();
-            if (!tab || !into) return;
-            let made;
-            try {
-                made = await main.call('mkdir', into);
-            } catch (error) {
-                area.showStatus('Could not make a folder: ' + error.message);
-                return;
-            }
-            if (tabs.front() !== tab || tab.location !== location) return;
-            area.clearFilter(tab);
-            if (into === location) {
-                tab.whenRead = { select: made, scroll: 'reveal' };
-                await load();
-            } else {
-                await listings.load(into);
-                select(made, { reveal: true });
-            }
-            const entry = listings.entryAt(made);
-            if (entry) operations.rename(entry);
-        }
-
-        // The path runs to the pick in columns, or else to the tab's folder, and starts at the home folder when it is
-        // inside it.
+        // The path runs to the pick in columns, or else to the tab's folder.
         function drawToolbar() {
-            const tab = tabs.front();
-            const selected = area.view() === 'columns' ? selectedPath() : null;
-            const shown = selected && area.columnFolders().includes(parentOf(selected)) ? selected : currentLocation();
-            const parts = [];
-            for (let path = shown; path; path = parentOf(path)) {
-                parts.unshift(path);
-                if (path === home) break;
-            }
-            bar.setPath(
-                parts.map((path, index) => ({
-                    key: path,
-                    label: displayNameOf(path),
-                    title: util.tildify(path),
-                    icon: 'folder',
-                    current: index === parts.length - 1,
-                }))
-            );
+            const selected = area.view() === 'columns' ? tabs.selectedPath() : null;
+            const shown = selected && area.columnFolders().includes(parentOf(selected)) ? selected : tabs.location();
+            bar.setPath(shown);
             bar.setNavigation({
-                canGoBack: !!tab && tab.back.length > 0,
-                canGoForward: !!tab && tab.forward.length > 0,
-                canGoUp: !!currentLocation() && currentLocation() !== '/',
+                canGoBack: tabs.canGoBack(),
+                canGoForward: tabs.canGoForward(),
+                canGoUp: !!tabs.location() && tabs.location() !== '/',
             });
         }
 
         function toggleFavorite() {
-            const location = currentLocation();
+            const location = tabs.location();
             if (!location) return false;
             if (favorites.has(location)) favorites.remove(location);
             else favorites.add(location);
             return true;
         }
 
-        function paintStar() {
-            const location = currentLocation();
+        function drawStar() {
+            const location = tabs.location();
             bar.setFavorite(!!location && favorites.has(location));
         }
 
@@ -400,16 +367,8 @@ Deckit.register({
             return !!settings.get('showHidden');
         }
 
-        function currentLocation() {
-            return tabs.front()?.location ?? null;
-        }
-
-        function selectedPath() {
-            return tabs.front()?.selected ?? null;
-        }
-
         function selectedEntry() {
-            return listings.entryAt(selectedPath());
+            return listings.entryAt(tabs.selectedPath());
         }
     },
 });

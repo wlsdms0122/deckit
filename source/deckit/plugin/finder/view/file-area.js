@@ -1,13 +1,27 @@
 // The files of the tab in front, as columns or as a list, the filter over them and the count under them. The view and
-// the sort order are kept in `store`. `front()` is the tab in front; `onDraw()` hears every draw; `setFilterText(text)`
-// shows the filter's text.
-function fileArea({ ui, store, settings, listings, list, columns, front, select, setFilterText, onDraw }) {
+// the sort order are kept in `values`. `tabs` is the tab list, read and set through its queries and setters;
+// `status` shows the folder loading, failing or empty; `onDraw()` hears every draw; `setFilterText(text)` shows the
+// filter's text.
+function fileArea({
+    ui,
+    values,
+    tabs,
+    listings,
+    list,
+    columns,
+    status,
+    showsHidden,
+    foldersFirst,
+    select,
+    setFilterText,
+    onDraw,
+}) {
     const LAYOUT = {
         list: { display: 'block', overflowX: 'hidden', overflowY: 'auto', padding: '4px 12px 8px' },
         columns: { display: 'flex', overflowX: 'auto', overflowY: 'hidden', padding: '0 0 0 6px' },
     };
     const NEAREST = { block: 'nearest', inline: 'nearest' };
-    const STATUS_MS = 2500;
+    const STATUS_DURATION = 2500; // milliseconds
     const STYLE = `
         .finder-files { position: relative; flex: 1 1 auto; min-height: 0; outline: none; }
         .finder-footer {
@@ -18,8 +32,8 @@ function fileArea({ ui, store, settings, listings, list, columns, front, select,
             font: 11.5px var(--deckit-font);
         }
     `;
-    let view = store.get('view', 'columns');
-    let sortOrder = store.get('sort', { key: 'name', up: true });
+    let view = values.get('view', 'columns');
+    let sortOrder = values.get('sort', { key: 'name', up: true });
     let startFailure = null;
 
     const element = ui.element('div', { className: 'finder-files' });
@@ -35,7 +49,7 @@ function fileArea({ ui, store, settings, listings, list, columns, front, select,
         setView,
         sortBy,
         failToStart,
-        render,
+        draw,
         showSelection,
         reveal,
         showStatus,
@@ -49,194 +63,197 @@ function fileArea({ ui, store, settings, listings, list, columns, front, select,
         shownFolders,
         walkedFolder,
         workingFolder,
+        rowOf,
         labelOf,
-        folderUnder,
+        folderAt,
     };
 
     function setView(next) {
         view = next;
-        store.set('view', view);
-        render();
+        values.set('view', view);
+        draw();
     }
 
     function sortBy(key) {
         sortOrder = nextSortOrder(sortOrder, key);
-        store.set('sort', sortOrder);
-        render();
+        values.set('sort', sortOrder);
+        draw();
     }
 
     function failToStart(error) {
         startFailure = { title: 'Could not start', hint: error.message, permission: false };
-        render();
+        draw();
     }
 
-    function render() {
-        const tab = front();
-        if (tab?.location) holdSelection(tab);
+    // While the tab's folder loads or fails, either view shows the list's place with the status in it.
+    function draw() {
+        if (tabs.location()) holdSelection();
         const loading = isLoading();
-        const failure = loading ? null : listings.of(currentLocation())?.failure || startFailure;
+        const failure = loading ? null : listings.of(tabs.location())?.failure || startFailure;
         const asColumns = view === 'columns' && !loading && !failure;
-        const shown = asColumns ? columns : list;
+        const shown = asColumns ? [columns.element] : [list.element, status.element];
         list.header.hidden = view === 'columns';
         Object.assign(element.style, LAYOUT[asColumns ? 'columns' : 'list']);
-        if (element.firstChild !== shown.element) element.replaceChildren(shown.element);
-        if (asColumns) drawColumns(tab);
-        else drawList(tab, loading, failure);
-        footer.textContent = failure || loading ? '' : countText(tab);
+        if (element.firstChild !== shown[0]) element.replaceChildren(...shown);
+        if (asColumns) drawColumns();
+        else drawList(loading, failure);
+        footer.textContent = failure || loading ? '' : countText();
         onDraw();
     }
 
     // Columns follow the pick; the list only marks it, so the rest stays as drawn.
     function showSelection() {
-        if (view === 'columns') render();
-        else list.select(front()?.selected ?? null);
+        if (view === 'columns') draw();
+        else list.select(tabs.selectedPath());
     }
 
     function reveal(path) {
-        element.querySelector(`[data-path="${CSS.escape(path)}"]`)?.scrollIntoView(NEAREST);
-        if (view === 'columns') columns.revealEnd();
+        rowOf(path)?.scrollIntoView(NEAREST);
+        if (view === 'columns') columns.endElement()?.scrollIntoView(NEAREST);
     }
 
     function showStatus(text) {
         footer.textContent = text;
-        setTimeout(render, STATUS_MS);
+        setTimeout(draw, STATUS_DURATION);
     }
 
-    function filterBy(text) {
-        const tab = front();
-        if (!tab) return;
-        if (!tab.filter) tab.filterFolder = walkedFolder();
-        tab.filter = text.trim().toLowerCase();
-        if (!tab.filter) tab.filterFolder = null;
-        render();
+    function filterBy(typed) {
+        if (!tabs.front()) return;
+        const text = typed.trim().toLowerCase();
+        const filter = tabs.filter();
+        tabs.setFilter(text, !text ? null : filter.text ? filter.folder : walkedFolder());
+        draw();
     }
 
     function pickFirstMatch() {
-        const entries = entriesIn(front()?.filterFolder || walkedFolder());
+        const entries = entriesIn(tabs.filter().folder || walkedFolder());
         if (!entries.length) return;
         select(entries[0].path, { reveal: true });
         element.focus();
     }
 
     function cancelFilter() {
-        const tab = front();
-        if (tab) clearFilter(tab);
+        if (tabs.front()) clearFilter();
         else setFilterText('');
-        render();
+        draw();
         element.focus();
     }
 
-    function clearFilter(tab) {
-        tab.filter = '';
-        tab.filterFolder = null;
+    function clearFilter() {
+        tabs.clearFilter();
         setFilterText('');
     }
 
     function isLoading() {
-        return !!currentLocation() && !listings.has(currentLocation());
+        return !!tabs.location() && !listings.has(tabs.location());
     }
 
     function entriesIn(folder) {
-        const tab = front();
+        const filter = tabs.filter();
         return visibleEntries(listings.of(folder)?.entries ?? [], {
             showHidden: showsHidden(),
-            filter: tab && folder === tab.filterFolder ? tab.filter : '',
+            filter: folder === filter.folder ? filter.text : '',
             order: sortOrder,
-            foldersFirst: !!settings.get('foldersFirst'),
+            foldersFirst: foldersFirst(),
         });
     }
 
     function columnFolders() {
-        return columns.foldersOf(currentLocation(), front()?.selected ?? null);
+        return columns.foldersOf(tabs.location(), tabs.selectedPath());
     }
 
     function shownFolders() {
         if (view === 'columns') return columnFolders();
-        return currentLocation() ? [currentLocation()] : [];
+        return tabs.location() ? [tabs.location()] : [];
     }
 
     // The folder the keyboard walks: in columns the one holding the pick, in the list the tab's.
     function walkedFolder() {
-        if (view !== 'columns') return currentLocation();
-        const selected = front()?.selected;
-        return selected && columnFolders().includes(parentOf(selected)) ? parentOf(selected) : currentLocation();
+        if (view !== 'columns') return tabs.location();
+        const selected = tabs.selectedPath();
+        return selected && columnFolders().includes(parentOf(selected)) ? parentOf(selected) : tabs.location();
     }
 
     // Where a new folder goes: the last column, or the list's folder.
     function workingFolder() {
-        return view === 'columns' ? columnFolders().at(-1) || null : currentLocation();
+        return view === 'columns' ? columnFolders().at(-1) || null : tabs.location();
+    }
+
+    // The row of `path` in either view.
+    function rowOf(path) {
+        return element.querySelector(`[data-path="${CSS.escape(path)}"]`);
     }
 
     function labelOf(path) {
-        return element.querySelector(`[data-path="${CSS.escape(path)}"] [data-name]`);
+        return rowOf(path)?.querySelector('[data-name]');
     }
 
     // A drop on a folder's row goes into it; on a column or the preview, into that column's folder; anywhere else,
     // into the tab's folder once it is read.
-    function folderUnder(under) {
+    function folderAt(under) {
         const row = under.closest('[data-path]');
         const entry = row && listings.entryAt(row.dataset.path);
         if (entry?.kind === 'folder') return { folder: entry.path, mark: row };
         const column = columns.folderAt(under);
         if (column) return column;
-        return currentLocation() && !isLoading() ? { folder: currentLocation(), mark: element } : null;
+        return tabs.location() && !isLoading() ? { folder: tabs.location(), mark: element } : null;
     }
 
-    function drawList(tab, loading, failure) {
-        list.draw({
-            folder: currentLocation(),
+    function drawList(loading, failure) {
+        const location = tabs.location();
+        const entries = loading || failure ? [] : entriesIn(location);
+        list.draw({ entries, selected: tabs.selectedPath(), sortOrder });
+        status.draw({
+            folder: location,
             loading,
             failure,
-            entries: entriesIn(currentLocation()),
-            selected: tab?.selected ?? null,
-            sortOrder,
-            filtering: !!tab?.filter,
-            hasHidden: (listings.of(currentLocation())?.entries.length ?? 0) > 0,
+            isEmpty: !entries.length,
+            filtering: !!tabs.filter().text,
+            hasHidden: (listings.of(location)?.entries.length ?? 0) > 0,
         });
     }
 
     // The drawing asks for the read of a folder with no listing, so no path to a column can forget to.
-    function drawColumns(tab) {
+    function drawColumns() {
         const folders = columnFolders();
         for (const folder of folders) listings.request(folder);
-        const picked = listings.entryAt(tab?.selected);
+        const selected = tabs.selectedPath();
+        const filter = tabs.filter();
+        const picked = listings.entryAt(selected);
         columns.draw({
-            tab,
-            selected: tab?.selected ?? null,
+            tab: tabs.front(),
+            widths: tabs.widths(),
+            selected,
             folders: folders.map((folder) => ({
                 folder,
                 listing: listings.of(folder),
                 entries: entriesIn(folder),
-                filtering: folder === tab.filterFolder && !!tab.filter,
+                filtering: folder === filter.folder && !!filter.text,
             })),
             previewed: picked && picked.kind !== 'folder' && folders.includes(parentOf(picked.path)) ? picked : null,
         });
     }
 
-    function countText(tab) {
-        const counted = tab?.filter ? tab.filterFolder : walkedFolder();
+    function countText() {
+        const filter = tabs.filter();
+        const counted = filter.text ? filter.folder : walkedFolder();
         const total = (listings.of(counted)?.entries ?? []).filter((entry) => isVisible(entry, showsHidden())).length;
-        if (!tab?.filter) return `${total} item${total === 1 ? '' : 's'}`;
+        if (!filter.text) return `${total} item${total === 1 ? '' : 's'}`;
         return `${entriesIn(counted).length} of ${total} item${total === 1 ? '' : 's'}`;
     }
 
-    function holdSelection(tab) {
-        tab.selected = heldSelection({
-            location: tab.location,
-            selected: tab.selected,
-            inColumns: view === 'columns',
-            listingOf: listings.of,
-            showHidden: showsHidden(),
-        });
+    function holdSelection() {
+        tabs.select(
+            heldSelection({
+                location: tabs.location(),
+                selected: tabs.selectedPath(),
+                inColumns: view === 'columns',
+                listingOf: listings.of,
+                showHidden: showsHidden(),
+            })
+        );
         // The filter goes when its folder does.
-        if (tab.filter && !shownFolders().includes(tab.filterFolder)) clearFilter(tab);
-    }
-
-    function currentLocation() {
-        return front()?.location ?? null;
-    }
-
-    function showsHidden() {
-        return !!settings.get('showHidden');
+        const filter = tabs.filter();
+        if (filter.text && !shownFolders().includes(filter.folder)) clearFilter();
     }
 }

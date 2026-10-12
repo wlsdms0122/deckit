@@ -1,11 +1,13 @@
-// The menus of the file area: an entry's, and a folder's in the space around its entries. `workingFolder()` is the
-// folder in front when the press is on no column.
+// The menus of the file area: an entry's, and a folder's in the space around its entries. `folderAt(element)` is the
+// column under a press ({ folder, mark }); `workingFolder()` is the folder in front when the press is on no column.
 function fileMenus({
     ui,
     host,
-    area,
+    areaElement,
     entryAt,
-    selected,
+    rowOf,
+    folderAt,
+    selectedPath,
     workingFolder,
     select,
     isFavorite,
@@ -20,9 +22,9 @@ function fileMenus({
     showsHidden,
     onToggleHidden,
 }) {
-    return ui.contextMenu(area, {
-        rowAt: (target) => target.closest('[data-path]') || target.closest('[data-dir]'),
-        keyRow: () => (selected() ? area.querySelector(`[data-path="${CSS.escape(selected())}"]`) : null),
+    return ui.contextMenu(areaElement, {
+        rowAt: (target) => target.closest('[data-path]') || folderAt(target)?.mark || null,
+        keyRow: () => (selectedPath() ? rowOf(selectedPath()) : null),
         items: (row) => {
             if (row?.dataset.path) {
                 const entry = entryAt(row.dataset.path);
@@ -30,7 +32,7 @@ function fileMenus({
                 select(entry.path);
                 return entryItems(entry);
             }
-            const folder = row?.dataset.dir || workingFolder();
+            const folder = (row && folderAt(row)?.folder) || workingFolder();
             return folder ? folderItems(folder) : null;
         },
     });

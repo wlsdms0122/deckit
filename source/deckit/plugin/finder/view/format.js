@@ -58,16 +58,16 @@ const KIND_NAMES = {
     sqlite: 'SQLite Database',
 };
 const SIZE_UNITS = ['bytes', 'KB', 'MB', 'GB', 'TB'];
-const DAY_MS = 86400000;
+const DAY_DURATION = 86400000; // milliseconds
 const TIME_FORMAT = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 const DAY_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const RELATIVE_DAY_FORMAT = new Intl.RelativeTimeFormat('en-US', { numeric: 'auto' });
 
 function formatKind(entry) {
     if (entry.kind === 'folder') return 'Folder';
-    if (KIND_NAMES[entry.ext]) return KIND_NAMES[entry.ext];
+    if (KIND_NAMES[entry.extension]) return KIND_NAMES[entry.extension];
     if (entry.kind === 'package') return 'Package';
-    return entry.ext ? entry.ext.toUpperCase() + ' File' : 'Document';
+    return entry.extension ? entry.extension.toUpperCase() + ' File' : 'Document';
 }
 
 // Decimal, as the system's Finder counts: 1 KB is 1000 bytes.
@@ -86,7 +86,7 @@ function formatSize(entry) {
 function formatDate(time) {
     const date = new Date(time);
     const clock = TIME_FORMAT.format(date);
-    const daysAgo = Math.round((startOfDay(new Date()) - startOfDay(date)) / DAY_MS);
+    const daysAgo = Math.round((startOfDay(new Date()) - startOfDay(date)) / DAY_DURATION);
     if (daysAgo === 0 || daysAgo === 1) {
         const day = RELATIVE_DAY_FORMAT.format(-daysAgo, 'day');
         return `${day[0].toUpperCase()}${day.slice(1)} at ${clock}`;

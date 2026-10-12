@@ -7,11 +7,11 @@ function columnView({ ui, icons, entryAt, onResize }) {
     const COLUMN_WIDTH = 230;
     // The size of the system's icons: drawn larger, they blur.
     const PREVIEW_ICON_SIZE = 32;
-    const NEAREST = { block: 'nearest', inline: 'nearest' };
     // The view and its list of columns lend their place to what is in them: the columns and the preview lay out as
-    // the file area's own flex items.
+    // the file area's own flex items. A cell's rule sits under the column's body to outweigh the kit row's own size.
     const STYLE = `
-        .finder-columns { display: contents; }
+        .finder-columns,
+        .finder-column-list { display: contents; }
         .finder-column { position: relative; height: 100%; border-right: var(--deckit-border); }
         .finder-column-body { height: 100%; box-sizing: border-box; overflow-y: auto; padding: 4px 6px; }
         .finder-column-edge {
@@ -23,7 +23,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
             width: 8px;
             cursor: col-resize;
         }
-        .finder-column-cell.deckit-row[data-size] {
+        .finder-column-body .finder-column-cell {
             gap: 7px;
             height: 24px;
             padding: 0 6px;
@@ -52,20 +52,21 @@ function columnView({ ui, icons, entryAt, onResize }) {
         .finder-thumbnail { max-width: 100%; max-height: min(240px, 50%); object-fit: contain; border-radius: 4px; }
     `;
     const columnParts = new WeakMap(); // column element -> { rows, message }
-    const cellStates = new WeakMap(); // cell element -> { setActive, look }
-    let drawn = { tab: null, folders: new Map(), selected: null };
+    const cellParts = new WeakMap(); // cell element -> its row
+    let drawn = { tab: null, widths: {}, folders: new Map(), selected: null };
     // The column being resized and its tab: a redraw meanwhile leaves its width alone, and the width is saved to that
     // tab even if another is in front by then.
     let sizing = null;
     let preview = null;
 
+    const element = ui.element('div', { className: 'finder-columns' });
     const columns = ui.list({ key: (folder) => folder, create: createColumn, update: updateColumn });
-    const element = columns.element;
 
     ui.addStyle(STYLE);
-    element.classList.add('finder-columns');
+    columns.element.classList.add('finder-column-list');
+    element.append(columns.element);
 
-    return { element, foldersOf, draw, revealEnd, folderAt };
+    return { element, foldersOf, draw, endElement, folderAt };
 
     // The tab's folder, and each folder on the way down to the pick, the pick too when it is a folder.
     function foldersOf(location, selected) {
@@ -81,9 +82,10 @@ function columnView({ ui, icons, entryAt, onResize }) {
         return folders;
     }
 
-    // `folders` are { folder, listing, entries, filtering }; `previewed` is the picked file, or null.
-    function draw({ tab, folders, selected, previewed }) {
-        drawn = { tab, selected, folders: new Map(folders.map((column) => [column.folder, column])) };
+    // `tab` is the tab drawn, for whom a resize is; `widths` its column widths by folder. `folders` are { folder,
+    // listing, entries, filtering }; `previewed` is the picked file, or null.
+    function draw({ tab, widths, folders, selected, previewed }) {
+        drawn = { tab, widths, selected, folders: new Map(folders.map((column) => [column.folder, column])) };
         for (const { listing, entries } of folders) if (listing && !listing.failure) icons.request(entries);
         columns.set(folders.map((column) => column.folder));
         preview?.remove();
@@ -91,15 +93,16 @@ function columnView({ ui, icons, entryAt, onResize }) {
         if (preview) element.append(preview);
     }
 
-    function revealEnd() {
-        element.lastElementChild?.scrollIntoView(NEAREST);
+    // What is drawn last: the preview, or else the last column.
+    function endElement() {
+        return preview || columns.element.lastElementChild;
     }
 
     // The folder of the column or the preview under `under`: the preview stands for the picked file, in the last
     // column's folder.
     function folderAt(under) {
-        const column = under.closest('[data-dir], [data-preview]');
-        if (column?.dataset.dir) return { folder: column.dataset.dir, mark: column };
+        const column = under.closest('[data-folder], [data-preview]');
+        if (column?.dataset.folder) return { folder: column.dataset.folder, mark: column };
         if (!column) return null;
         const folder = parentOf(column.dataset.preview);
         return { folder, mark: columns.elementOf(folder) || column };
@@ -107,7 +110,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
 
     function createColumn(folder) {
         const column = ui.element('div', { className: 'finder-column' });
-        column.dataset.dir = folder;
+        column.dataset.folder = folder;
         setWidth(column, widthOf(folder));
         // Rows scroll in a body of their own so the resize edge stays put.
         const body = ui.element('div', { className: 'finder-column-body' });
@@ -161,7 +164,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
     }
 
     function widthOf(folder) {
-        return drawn.tab.widths[folder] ?? COLUMN_WIDTH;
+        return drawn.widths[folder] ?? COLUMN_WIDTH;
     }
 
     function setWidth(column, width) {
@@ -173,22 +176,20 @@ function columnView({ ui, icons, entryAt, onResize }) {
         const cell = ui.row({ size: 'small' });
         cell.element.classList.add('finder-column-cell');
         cell.element.dataset.path = entry.path;
-        cellStates.set(cell.element, { setActive: cell.setActive, look: '' });
+        cellParts.set(cell.element, cell);
         updateCell(cell.element, entry);
         return cell.element;
     }
 
-    // Filled again only when what it shows changed, so a row under the pointer or being dragged stays as it is. A
-    // folder on the way to the pick is marked with it.
+    // A folder on the way to the pick is marked with it.
     function updateCell(element, entry) {
-        const state = cellStates.get(element);
-        const look = JSON.stringify([entry.name, entry.kind, entry.hidden, icons.urlOf(entry)]);
-        if (look !== state.look) {
-            state.look = look;
-            fillCell(element, entry);
-        }
+        refillWhenChanged(element, [entry.name, entry.kind, entry.hidden, icons.urlOf(entry)], () =>
+            fillCell(element, entry)
+        );
         const { selected } = drawn;
-        state.setActive(!!selected && (selected === entry.path || selected.startsWith(entry.path + '/')));
+        cellParts
+            .get(element)
+            .setActive(!!selected && (selected === entry.path || selected.startsWith(entry.path + '/')));
     }
 
     function fillCell(element, entry) {
