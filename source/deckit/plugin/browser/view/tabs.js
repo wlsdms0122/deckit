@@ -118,7 +118,8 @@ function tabs({
         const last = closed.pop();
         if (!last) return;
         const tab = add(last.url, { title: last.title, icon: last.icon });
-        move(list.indexOf(tab), Math.min(last.at, list.length - 1));
+        const at = list[Math.min(last.at, list.length - 1)];
+        if (at !== tab) move(tab.id, at.id);
     }
 
     // The tab `id` goes where the tab `toId` is.
