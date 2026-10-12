@@ -149,7 +149,7 @@ DeckitModule.define(
             heading.append(text);
             head.append(heading);
             const buttons = actions.map((action) => {
-                const button = ui.iconBtn({
+                const button = ui.iconButton({
                     icon: action.icon || ICON.icon('plus', { size: 16 }),
                     title: action.title,
                     muted: true,

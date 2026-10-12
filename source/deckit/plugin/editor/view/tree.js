@@ -95,7 +95,7 @@ const fileTree = ({ theme, ui, store, main, onOpen, onFindIn, onMove, marks, men
             );
         if (entry.folder && onFindIn) {
             r.appendChild(
-                ui.miniBtn({
+                ui.rowAction({
                     icon: ui.icon('search', { size: 13 }),
                     title: 'Find in this folder',
                     onClick: () => onFindIn(entry.path.slice(root.length + 1)),
@@ -243,7 +243,7 @@ const fileTree = ({ theme, ui, store, main, onOpen, onFindIn, onMove, marks, men
             if (!root || !path.startsWith(root + '/')) return;
             const mine = ++revealing;
             const shown = rowOf(path);
-            if (selected === path && shown && ui.inSight(shown)) return;
+            if (selected === path && shown && ui.isFullyVisible(shown)) return;
             const parts = path
                 .slice(root.length + 1)
                 .split('/')
@@ -259,7 +259,7 @@ const fileTree = ({ theme, ui, store, main, onOpen, onFindIn, onMove, marks, men
             render();
             const r = rowOf(path);
             if (!r) return;
-            if (!ui.inSight(r)) r.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            if (!ui.isFullyVisible(r)) r.scrollIntoView({ block: 'center', behavior: 'smooth' });
         },
         focus() {
             element.focus({ preventScroll: true });

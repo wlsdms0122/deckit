@@ -13,7 +13,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
     let opts = { caseSensitive: false, word: false, regex: false };
     let query = '';
     let timer = null;
-    const bar = ui.searchBar({
+    const bar = ui.findBar({
         placeholder: 'Find in workspace',
         replace: { onReplaceAll: () => askReplace() },
         onChange: (s) => {
@@ -53,7 +53,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         onSubmit: () => run(),
     });
     // Ranked in a worker: a repository has thousands of folders.
-    const folderPick = ui.suggestions({
+    const folderPick = ui.autocomplete({
         onPick: (it) => {
             folderField.set('');
             setFolders([...scope.folders, it.rel]);
@@ -145,7 +145,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         alignItems: 'center',
         gap: '2px 4px',
     });
-    const folderClear = ui.miniBtn({
+    const folderClear = ui.rowAction({
         icon: ui.icon('x', { size: 12 }),
         title: 'Search the whole workspace',
         onClick: () => setFolders([]),
@@ -166,7 +166,7 @@ const folderSearch = ({ theme, ui, main, root, folders, ranker, onOpen, onReplac
         const name = el('span', { minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });
         name.textContent = rel;
         c.title = rel;
-        const off = ui.miniBtn({
+        const off = ui.rowAction({
             icon: ui.icon('x', { size: 10 }),
             title: 'Not in ' + rel,
             onClick: () => setFolders(scope.folders.filter((f) => f !== rel)),

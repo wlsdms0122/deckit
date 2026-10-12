@@ -76,7 +76,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         function make() {
-            return { menu, select, contextMenu, floatingBar, suggestions };
+            return { menu, select, contextMenu, floatingToolbar, autocomplete };
         }
 
         // MARK: - Private
@@ -188,7 +188,7 @@ DeckitModule.define(
 
         // A bar over what its owner acts on: `show(rect)` puts it centred above the rect, or below when only that fits.
         // A press on it never takes the focus from the text it acts on.
-        function floatingBar() {
+        function floatingToolbar() {
             const element = tag('div', 'deckit-menu deckit-toolbar');
             element.style.zIndex = String(OVERLAY.Z.float);
             element.addEventListener('mousedown', (event) => event.preventDefault());
@@ -205,7 +205,7 @@ DeckitModule.define(
 
         // Candidates under a text its owner edits: the owner moves through them with its own keys. In the page only
         // while open: left in it, it would keep alive whatever its rows hold.
-        function suggestions({ onPick }) {
+        function autocomplete({ onPick }) {
             const box = tag('div', 'deckit-menu');
             Object.assign(box.style, { minWidth: '220px', zIndex: String(OVERLAY.Z.float) });
             box.addEventListener('mousedown', (event) => event.preventDefault());

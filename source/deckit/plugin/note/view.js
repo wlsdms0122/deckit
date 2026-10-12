@@ -170,7 +170,7 @@ Deckit.register({
             font: '13px ' + theme.font,
         });
         const keyed = (el, text, action) => {
-            ui.tip(el, { text, chord: () => host.chordOf(action) });
+            ui.tooltip(el, { text, chord: () => host.chordOf(action) });
             return el;
         };
         const keepFocus = (b) => {
@@ -208,14 +208,14 @@ Deckit.register({
                 padding: '8px 12px 6px',
                 minHeight: '30px',
             });
-            const backBtn = ui.iconBtn({
+            const backBtn = ui.iconButton({
                 icon: ui.icon('chevronLeft', { size: 16 }),
                 title: 'Back',
                 onClick: () => goBack(),
                 size: 'small',
             });
             keyed(keepFocus(backBtn.element), 'Back', 'back');
-            const aheadBtn = ui.iconBtn({
+            const aheadBtn = ui.iconButton({
                 icon: ui.icon('chevronRight', { size: 16 }),
                 title: 'Forward',
                 onClick: () => goAhead(),
@@ -270,7 +270,7 @@ Deckit.register({
             search.element,
             keyed(
                 keepFocus(
-                    ui.iconBtn({
+                    ui.iconButton({
                         icon: glyph('folderPlus', 16),
                         title: 'New folder',
                         onClick: () => newFolder(currentFolder()),
@@ -282,7 +282,7 @@ Deckit.register({
             ),
             keyed(
                 keepFocus(
-                    ui.iconBtn({
+                    ui.iconButton({
                         icon: glyph('compose', 16),
                         title: 'New note',
                         onClick: () => newNote(),
@@ -302,7 +302,7 @@ Deckit.register({
             position: 'relative',
         });
         galleryBody.tabIndex = 0;
-        ui.scrollFade(galleryBody);
+        ui.edgeFade(galleryBody);
         galleryPane.append(galleryNav.bar, galleryBody);
 
         const notePane = el('div', {
@@ -313,7 +313,7 @@ Deckit.register({
             position: 'relative',
         });
         const noteNav = navBar();
-        const moreBtn = ui.iconBtn({
+        const moreBtn = ui.iconButton({
             icon: ui.icon('ellipsis', { size: 16 }),
             title: 'More',
             onClick: () => {
@@ -551,7 +551,7 @@ Deckit.register({
                         hint: here.rel ? '' : 'A note is a Markdown file, and a folder here is a folder on disk.',
                         actions: [
                             keyed(
-                                ui.textBtn({
+                                ui.button({
                                     label: 'New Note',
                                     title: 'New note',
                                     onClick: () => newNote(),
@@ -562,7 +562,7 @@ Deckit.register({
                                 'newNote'
                             ),
                             keyed(
-                                ui.textBtn({
+                                ui.button({
                                     label: 'New Folder',
                                     title: 'New folder',
                                     onClick: () => newFolder(currentFolder()),
@@ -877,7 +877,7 @@ Deckit.register({
                 el('span', { flex: '1 1 auto' }, t.words + (note.trouble.message ? ': ' + note.trouble.message : ''))
             );
             for (const [label, title, run] of typeof t.answers === 'function' ? t.answers() : t.answers)
-                banner.appendChild(ui.textBtn({ label, title, onClick: run, size: 'small' }).element);
+                banner.appendChild(ui.button({ label, title, onClick: run, size: 'small' }).element);
         };
         const nudge = () => {
             if (theme.motion.fast)

@@ -100,11 +100,11 @@ Deckit.register({
         const chordFor = (action) => () => host.chordOf(action);
         // The control, its element given the tooltip.
         const tipped = (control, text, chord) => {
-            ui.tip(control.element, { text, chord });
+            ui.tooltip(control.element, { text, chord });
             return control;
         };
         const backBtn = tipped(
-            ui.iconBtn({
+            ui.iconButton({
                 icon: ui.icon('chevronLeft', { size: 16 }),
                 title: 'Back',
                 onClick: () => goBack(),
@@ -114,7 +114,7 @@ Deckit.register({
             chordFor('back')
         );
         const aheadBtn = tipped(
-            ui.iconBtn({
+            ui.iconButton({
                 icon: ui.icon('chevronRight', { size: 16 }),
                 title: 'Forward',
                 onClick: () => goAhead(),
@@ -124,7 +124,7 @@ Deckit.register({
             chordFor('forward')
         );
         const upBtn = tipped(
-            ui.iconBtn({
+            ui.iconButton({
                 icon: ui.icon('arrowUp', { size: 15 }),
                 title: 'Enclosing folder',
                 onClick: () => goUp(),
@@ -176,7 +176,7 @@ Deckit.register({
         });
         Object.assign(search.element.style, { flex: '0 1 200px', minWidth: '120px' });
         const STAR = (on) => ui.icon('star', { size: 15, fill: on ? 'currentColor' : 'none' });
-        const star = ui.iconBtn({
+        const star = ui.iconButton({
             icon: STAR(false),
             title: 'Add to Favorites',
             onClick: () => {
@@ -204,7 +204,7 @@ Deckit.register({
         ];
         const viewGlyph = () =>
             `<span style="display:flex;align-items:center;gap:1px">${ui.icon(VIEWS.find((v) => v.key === view).icon, { size: 14 })}${ui.icon('chevronDown', { size: 10 })}</span>`;
-        const viewBar = ui.iconBtn({
+        const viewBar = ui.iconButton({
             icon: viewGlyph(),
             title: 'View',
             onClick: () =>
@@ -798,7 +798,7 @@ Deckit.register({
                         hint: failure.hint,
                         actions: failure.permission
                             ? [
-                                  ui.textBtn({
+                                  ui.button({
                                       label: 'Open Privacy Settings',
                                       title: '',
                                       onClick: () => main.call('privacySettings').catch(() => {}),
@@ -824,7 +824,7 @@ Deckit.register({
                                 ...(entries().length
                                     ? [
                                           tipped(
-                                              ui.textBtn({
+                                              ui.button({
                                                   label: 'Show Hidden Files',
                                                   title: '',
                                                   onClick: () => settings.set('showHidden', true),
@@ -835,7 +835,7 @@ Deckit.register({
                                           ).element,
                                       ]
                                     : []),
-                                ui.textBtn({
+                                ui.button({
                                     label: 'Show in Finder',
                                     title: '',
                                     onClick: () => host.reveal(here),
@@ -1505,7 +1505,7 @@ Deckit.register({
                 setFold('tabs', on);
             },
         });
-        ui.tip(tabSection.actions[0].element, { text: 'New tab', chord: chordFor('newTab') });
+        ui.tooltip(tabSection.actions[0].element, { text: 'New tab', chord: chordFor('newTab') });
         const tabList = ui.list().element;
         tabSection.body.appendChild(tabList);
         ui.sortable(tabList, {
@@ -1572,7 +1572,7 @@ Deckit.register({
                 r.dataset.tabId = String(t.id);
                 r.appendChild(
                     tipped(
-                        ui.miniBtn({
+                        ui.rowAction({
                             icon: ui.icon('x', { size: 14 }),
                             title: 'Close tab',
                             onClick: () => dropTab(t.id),
@@ -1630,7 +1630,7 @@ Deckit.register({
                     tilde(p)
                 );
                 r.appendChild(
-                    ui.miniBtn({
+                    ui.rowAction({
                         icon: ui.icon('x', { size: 14 }),
                         title: 'Remove from Favorites',
                         onClick: () => ui.leaveRow(r, () => setFavorites(favorites().filter((x) => x !== p))),

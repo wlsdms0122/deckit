@@ -342,7 +342,7 @@ DeckitModule.define(
             // Escape, and Backspace in an empty field, leave a page before they close anything.
             const onKey = (event) =>
                 (event.key === 'Escape' || (event.key === 'Backspace' && !field.value)) && model.back();
-            const modal = ui.sheet({
+            const modal = ui.modal({
                 chrome: false,
                 align: 'top',
                 width: 'min(520px, calc(100vw - 48px))',

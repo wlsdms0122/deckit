@@ -242,15 +242,15 @@ Deckit.register({
 
         const goBack = () => active()?.page.back();
         const goForward = () => active()?.page.forward();
-        const back = ui.iconBtn({ icon: CHEVRON_L, title: 'Back', onClick: goBack });
-        const fwd = ui.iconBtn({ icon: CHEVRON_R, title: 'Forward', onClick: goForward });
+        const back = ui.iconButton({ icon: CHEVRON_L, title: 'Back', onClick: goBack });
+        const fwd = ui.iconButton({ icon: CHEVRON_R, title: 'Forward', onClick: goForward });
         const reloadActive = () => {
             const t = active();
             if (!t) return;
             certAsked.clear(); // a deliberate retry asks again
             t.page.reload();
         };
-        const reload = ui.iconBtn({ icon: RELOAD, title: 'Reload', onClick: reloadActive });
+        const reload = ui.iconButton({ icon: RELOAD, title: 'Reload', onClick: reloadActive });
         const sitePermissions = () => {
             const t = active();
             const origin = originOf(t?.url);
@@ -284,12 +284,12 @@ Deckit.register({
                 },
             });
         };
-        const site = ui.iconBtn({
+        const site = ui.iconButton({
             icon: ui.icon('gear', { size: 15 }),
             title: 'Site permissions',
             onClick: sitePermissions,
         });
-        const star = ui.iconBtn({
+        const star = ui.iconButton({
             icon: STAR(false),
             title: 'Bookmark',
             onClick: () => {
@@ -505,7 +505,7 @@ Deckit.register({
             // Captured at once: a quick flick leaves the 36px capsule on the first move, which would go to the page.
             island.setPointerCapture(e.pointerId);
             // The veil goes up at once too: the browser process routes the next move before capture takes effect.
-            const release = ui.grabPointer('grabbing');
+            const release = ui.capturePointer('grabbing');
 
             const box = content.getBoundingClientRect();
             const ox = e.clientX,
@@ -998,7 +998,7 @@ Deckit.register({
             }
             if (t.audible || t.muted) {
                 box.appendChild(
-                    ui.iconBtn({
+                    ui.iconButton({
                         icon: ui.icon(t.muted ? 'volumeOff' : 'volume', { size: 13 }),
                         title: t.muted ? 'Unmute tab' : 'Mute tab',
                         onClick: (e) => {
@@ -1033,7 +1033,7 @@ Deckit.register({
                 r.element.append(
                     label,
                     tabMarks(t),
-                    ui.miniBtn({ icon: ui.icon('x'), title: 'Close tab', onClick: () => dropTab(t.id) }).element
+                    ui.rowAction({ icon: ui.icon('x'), title: 'Close tab', onClick: () => dropTab(t.id) }).element
                 );
                 r.element.addEventListener('click', () => setActiveTab(t.id));
                 r.setActive(t.id === activeId);
@@ -1133,12 +1133,12 @@ Deckit.register({
                 r.element.append(
                     favicon(iconOf(mark)),
                     label,
-                    ui.miniBtn({
+                    ui.rowAction({
                         icon: ui.icon('pencil'),
                         title: 'Edit name and address',
                         onClick: () => editDialog(mark),
                     }).element,
-                    ui.miniBtn({
+                    ui.rowAction({
                         icon: ui.icon('x'),
                         title: 'Remove',
                         onClick: () => ui.leaveRow(r.element, () => bookmarks.remove(mark.url)),
@@ -1214,7 +1214,7 @@ Deckit.register({
             t.page.find(asked.query, { back, start: finding !== t, matchCase: asked.caseSensitive });
             finding = t;
         };
-        const search = ui.searchBar({
+        const search = ui.findBar({
             placeholder: 'Find in page',
             options: ['case'],
             nav: true,
@@ -1236,7 +1236,7 @@ Deckit.register({
             onCancel: () => closeFind({ keepSelection: true }),
         });
         Object.assign(search.element.style, { flex: '0 0 auto', width: '330px', margin: '0 2px' });
-        const findClose = ui.iconBtn({
+        const findClose = ui.iconButton({
             icon: ui.icon('x', { size: 14 }),
             title: 'Close',
             onClick: () => closeFind({ keepSelection: true }),

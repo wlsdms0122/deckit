@@ -118,12 +118,12 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
     // MARK: - Initializer
     // MARK: - Public
     function make() {
-        return { iconBtn, textBtn, miniBtn, segmented, toggleButton, toggle, tip };
+        return { iconButton, button, rowAction, segmented, toggleButton, toggle, tooltip };
     }
 
     // MARK: - Private
     // A button showing an icon. `muted` rests it a step back until the pointer comes.
-    function iconBtn({ icon, title, size = 'medium', muted = false, onClick }) {
+    function iconButton({ icon, title, size = 'medium', muted = false, onClick }) {
         const element = buttonOf('deckit-icon-button', title, size);
         element.innerHTML = icon;
         element.toggleAttribute('data-muted', muted);
@@ -136,7 +136,7 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
         };
     }
 
-    function textBtn({ label, title = '', icon = '', size = 'medium', variant = 'plain', onClick }) {
+    function button({ label, title = '', icon = '', size = 'medium', variant = 'plain', onClick }) {
         const element = buttonOf('deckit-text-button', title, size);
         const text = document.createElement('span');
         text.textContent = label;
@@ -152,7 +152,7 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
     }
 
     // An action of a row, shown while the row is hovered or holds the focus. Its click is its own, not the row's.
-    function miniBtn({ icon = '', label = '', title, onClick }) {
+    function rowAction({ icon = '', label = '', title, onClick }) {
         const element = buttonOf('deckit-row-action', title, 'medium');
         if (icon) element.innerHTML = icon;
         else element.textContent = label;
@@ -257,7 +257,7 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
     }
 
     // The tooltip of `element`, with the chord that does the same when there is one, read again as the pointer comes.
-    function tip(element, { text, chord = () => '' }) {
+    function tooltip(element, { text, chord = () => '' }) {
         const write = () => {
             const keys = chord();
             element.title = keys ? `${text} (${keys})` : text;

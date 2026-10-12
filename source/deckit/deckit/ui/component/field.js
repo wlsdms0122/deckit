@@ -87,7 +87,7 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
     // MARK: - Initializer
     // MARK: - Public
     function make(theme, ui) {
-        return { field, stepper, searchBar: (options) => searchBar(ui, options) };
+        return { field, stepper, findBar: (options) => findBar(ui, options) };
     }
 
     // MARK: - Private
@@ -226,7 +226,7 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
 
     // A find field with its options, and with `nav` a count and previous and next, with `replace` a second line.
     // What it reports is read from its controls when asked: the text in the field and the options turned on.
-    function searchBar(
+    function findBar(
         ui,
         {
             placeholder = 'Find',
@@ -272,13 +272,13 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
         const state = () => ({ query: find.input.value, caseSensitive: false, word: false, regex: false, ...values });
         const changed = () => onChange?.(state());
         const iconButton = (name, title, onClick) =>
-            ui.iconBtn({ icon: ICON.icon(name, { size: 15 }), title, size: 'small', onClick }).element;
+            ui.iconButton({ icon: ICON.icon(name, { size: 15 }), title, size: 'small', onClick }).element;
 
         const first = tag('div', 'deckit-find-line');
         let open = !!replace?.open;
         let caret = null;
         if (replace) {
-            caret = ui.iconBtn({
+            caret = ui.iconButton({
                 icon: ICON.icon('chevronRight', { size: 14 }),
                 title: 'Replace',
                 size: 'small',

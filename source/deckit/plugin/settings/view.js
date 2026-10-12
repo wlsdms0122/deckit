@@ -180,7 +180,7 @@ Deckit.register({
             root.append(permissionList(permissions), trust);
             return root;
         };
-        const installBtn = ui.textBtn({
+        const installBtn = ui.button({
             label: 'Install Plugin',
             title: '',
             onClick: async () => {
@@ -578,7 +578,7 @@ Deckit.register({
                 const actions = document.createElement('div');
                 Object.assign(actions.style, { display: 'flex', alignItems: 'center', gap: '2px', flex: '0 0 auto' });
                 actions.appendChild(
-                    ui.miniBtn({
+                    ui.rowAction({
                         icon: ui.icon('externalWindow', { size: 14 }),
                         title: 'Open the plugin folder',
                         onClick: () => host.plugins.reveal(id),
@@ -586,7 +586,7 @@ Deckit.register({
                 );
                 if (installed) {
                     actions.appendChild(
-                        ui.miniBtn({
+                        ui.rowAction({
                             icon: ui.icon('x', { size: 14 }),
                             title: 'Remove this plugin',
                             onClick: () => askRemove({ id, name }),
@@ -680,7 +680,7 @@ Deckit.register({
         });
         const pendingText = document.createElement('div');
         Object.assign(pendingText.style, { flex: '1 1 auto', minWidth: '0', opacity: '.85' });
-        const restartBtn = ui.textBtn({
+        const restartBtn = ui.button({
             label: 'Restart ' + APP,
             title: '',
             onClick: async () => {
@@ -858,7 +858,7 @@ Deckit.register({
                             display: 'none',
                         });
                         words.appendChild(answer);
-                        control = ui.textBtn({
+                        control = ui.button({
                             label: item.button,
                             title: item.label,
                             onClick: async () => {
@@ -1125,7 +1125,7 @@ Deckit.register({
                     });
                     line.appendChild(key);
 
-                    const back = ui.miniBtn({
+                    const back = ui.rowAction({
                         icon: ui.icon('reload', { size: 13 }),
                         title: `Back to ${k.defaultChord || 'none'}`,
                         onClick: () => {

@@ -808,7 +808,7 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
     };
     // The editor keeps the keyboard and steers the suggestions.
     let slash = null; // { from } while the menu is open
-    const suggest = ui.suggestions({ onPick: (it) => takeSlash(it) });
+    const suggest = ui.autocomplete({ onPick: (it) => takeSlash(it) });
     const closeSlash = () => {
         slash = null;
         suggest.close();
@@ -886,7 +886,7 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
         return true;
     };
 
-    const bar = ui.floatingBar();
+    const bar = ui.floatingToolbar();
     for (const [name, title, run] of [
         ['bold', 'Bold (⌘B)', () => wrap('**')(view)],
         ['italic', 'Italic (⌘I)', () => wrap('*')(view)],
@@ -894,7 +894,7 @@ const noteLive = ({ theme, ui, host, match, type: firstType, onChange, onOpenNot
         ['code', 'Code (⌘E)', () => wrap('`')(view)],
         ['link', 'Link (⌘K)', () => editLink()],
     ]) {
-        const b = ui.iconBtn({
+        const b = ui.iconButton({
             icon: shape(name, 15),
             title,
             onClick: () => {

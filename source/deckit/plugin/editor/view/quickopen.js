@@ -28,7 +28,7 @@ const quickOpen = ({ theme, ui, ranker, list: listOf, root, onOpen }) => {
     input.spellcheck = false;
     const list = el('div', { flex: '1 1 auto', minHeight: '0', overflowY: 'auto', padding: '4px' });
     // Rows redraw under a resting mouse as the name is typed, so hover selects only once it moves.
-    ui.aimOnMove(list, (e) => {
+    ui.hoverIntent(list, (e) => {
         const i = [...list.children].findIndex((r) => r.contains(e.target));
         if (i >= 0 && i !== at && shown.files[i] !== undefined) {
             at = i;
@@ -169,7 +169,7 @@ const quickOpen = ({ theme, ui, ranker, list: listOf, root, onOpen }) => {
         shown = { root: null, query: '', files: [] };
         listing = true;
         render();
-        sheet = ui.sheet({
+        sheet = ui.modal({
             chrome: false,
             align: 'top',
             width: 'min(560px, calc(100vw - 40px))',

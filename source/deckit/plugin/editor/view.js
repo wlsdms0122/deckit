@@ -247,17 +247,17 @@ Deckit.register({
             if (trouble?.kind === 'GONE') {
                 noticeText.textContent = `${nameOf(f.path)} was deleted on disk. What is here is all there is of it.`;
                 noticeActions.append(
-                    ui.textBtn({ label: 'Save As\u2026', onClick: () => saveElsewhere(f), size: 'small' }).element,
-                    ui.textBtn({ label: 'Close', onClick: () => close(f), size: 'small' }).element
+                    ui.button({ label: 'Save As\u2026', onClick: () => saveElsewhere(f), size: 'small' }).element,
+                    ui.button({ label: 'Close', onClick: () => close(f), size: 'small' }).element
                 );
             } else if (trouble) {
                 noticeText.textContent = `${nameOf(f.path)} can no longer be opened here: ${trouble.message}`;
-                noticeActions.append(ui.textBtn({ label: 'Close', onClick: () => close(f), size: 'small' }).element);
+                noticeActions.append(ui.button({ label: 'Close', onClick: () => close(f), size: 'small' }).element);
             } else {
                 noticeText.textContent = `${nameOf(f.path)} changed on disk while it had unsaved changes here.`;
                 noticeActions.append(
-                    ui.textBtn({ label: 'Reload from disk', onClick: () => reload(f, true), size: 'small' }).element,
-                    ui.textBtn({ label: 'Keep mine', onClick: () => keepMine(f), size: 'small' }).element
+                    ui.button({ label: 'Reload from disk', onClick: () => reload(f, true), size: 'small' }).element,
+                    ui.button({ label: 'Keep mine', onClick: () => keepMine(f), size: 'small' }).element
                 );
             }
         };
@@ -319,14 +319,14 @@ Deckit.register({
                 name.title = p;
                 row.append(
                     name,
-                    ui.textBtn({
+                    ui.button({
                         label: 'Open',
                         onClick: async () => {
                             if (await open(p)) showStrays();
                         },
                         size: 'small',
                     }).element,
-                    ui.textBtn({
+                    ui.button({
                         label: 'Save As…',
                         onClick: async () => {
                             let to = [];
@@ -353,7 +353,7 @@ Deckit.register({
                         },
                         size: 'small',
                     }).element,
-                    ui.textBtn({
+                    ui.button({
                         label: 'Discard',
                         onClick: () =>
                             ui.dialog({
@@ -380,8 +380,8 @@ Deckit.register({
             const root = space?.root;
             const buttons = [];
             const button = (label, action, run) => {
-                const { element } = ui.textBtn({ label, title: label, onClick: run, size: 'small' });
-                ui.tip(element, { text: label, chord: () => host.chordOf(action) });
+                const { element } = ui.button({ label, title: label, onClick: run, size: 'small' });
+                ui.tooltip(element, { text: label, chord: () => host.chordOf(action) });
                 return element;
             };
             if (root) buttons.push(button('Open Quickly…', 'quickOpen', () => quick.show()));
@@ -653,7 +653,7 @@ Deckit.register({
                 });
             // The replacement is read when it is used, so the query carries it only then.
             const withReplacement = () => apply(bar.state());
-            const bar = ui.searchBar({
+            const bar = ui.findBar({
                 placeholder: 'Find in file',
                 nav: true,
                 replace: {
@@ -1653,8 +1653,11 @@ Deckit.register({
             b.style.flex = '1 1 0';
             b.style.justifyContent = 'center';
         }
-        ui.tip(navBar.element.children[0], { text: 'Files', chord: () => host.chordOf('showFiles') });
-        ui.tip(navBar.element.children[1], { text: 'Find in the workspace', chord: () => host.chordOf('showFind') });
+        ui.tooltip(navBar.element.children[0], { text: 'Files', chord: () => host.chordOf('showFiles') });
+        ui.tooltip(navBar.element.children[1], {
+            text: 'Find in the workspace',
+            chord: () => host.chordOf('showFind'),
+        });
         const navHead = el('div', { display: 'flex', flexDirection: 'column', flex: '0 0 auto', minWidth: '0' });
         const top = el('div', {
             display: 'flex',
@@ -1673,7 +1676,7 @@ Deckit.register({
             overflowY: 'auto',
             padding: '0 12px',
         });
-        ui.scrollFade(navBody);
+        ui.edgeFade(navBody);
         sidebar.append(top, navBody);
 
         // Through whenFree: a workspace being dragged keeps its row until it is let go.
@@ -1706,7 +1709,7 @@ Deckit.register({
                         })
                     );
                 r.appendChild(
-                    ui.miniBtn({
+                    ui.rowAction({
                         icon: ui.icon('x', { size: 14 }),
                         title: 'Close workspace',
                         onClick: () => closeSpace(w),
@@ -1726,7 +1729,7 @@ Deckit.register({
             }
             // Only when the front changes, so a list scrolled by hand stays where it was put.
             const front = spaceList.children[spaces.indexOf(space)];
-            if (front && space !== frontDrawn && !ui.inSight(front)) front.scrollIntoView({ block: 'nearest' });
+            if (front && space !== frontDrawn && !ui.isFullyVisible(front)) front.scrollIntoView({ block: 'nearest' });
             frontDrawn = space;
         };
 

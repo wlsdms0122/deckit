@@ -88,7 +88,7 @@ DeckitModule.define(
             }
         ) {
             const values = {};
-            return ui.sheet({
+            return ui.modal({
                 title,
                 confirmLabel,
                 cancelLabel,

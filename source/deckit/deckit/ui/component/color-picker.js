@@ -57,7 +57,7 @@ DeckitModule.define('deckit/ui/component/color-picker', { uses: [], provides: ['
     function colorPicker(ui, { title = 'Pick a colour', value = '#4b8bf4', onPick }) {
         let { hue, saturation, value: brightness } = hsvOf(value) || START;
         let hex = hexOf(hue, saturation, brightness);
-        return ui.sheet({
+        return ui.modal({
             title,
             confirmLabel: 'Use colour',
             onConfirm: () => onPick?.(hex),

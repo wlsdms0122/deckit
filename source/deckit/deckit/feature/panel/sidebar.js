@@ -155,8 +155,8 @@ DeckitModule.define(
                     { icon: ICON.icon('chevronRight', { size: 16 }), title: 'Forward', run: () => onStep(1) },
                 ],
             });
-            ui.tip(section.actions[0].element, { text: 'Back', chord: () => chordOf('back') });
-            ui.tip(section.actions[1].element, { text: 'Forward', chord: () => chordOf('forward') });
+            ui.tooltip(section.actions[0].element, { text: 'Back', chord: () => chordOf('back') });
+            ui.tooltip(section.actions[1].element, { text: 'Forward', chord: () => chordOf('forward') });
             nav.append(section.element);
             const rows = LIST.list({
                 element: section.body,
