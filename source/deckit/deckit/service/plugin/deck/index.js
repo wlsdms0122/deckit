@@ -115,6 +115,7 @@ DeckitModule.define(
         function ended(pluginId, why) {
             record(pluginId, why);
             EXPORT.fail(pluginId, why);
+            SETTING.forget(pluginId);
             started.delete(pluginId);
             stopped.add(pluginId);
             for (const listener of statusListeners) listener(pluginId);
@@ -152,9 +153,9 @@ DeckitModule.define(
                 );
                 return loadOf(plugin);
             });
-            PROTOCOL.started.on(({ settings, exports, summary }, sender) => {
+            PROTOCOL.declare.on(({ settings }, sender) => SETTING.declare(IDENTITY.pluginFrom(sender), settings));
+            PROTOCOL.started.on(({ exports, summary }, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
-                SETTING.declare(plugin, settings);
                 EXPORT.provide(plugin.id, exports);
                 started.set(plugin.id, summary);
                 for (const listener of statusListeners) listener(plugin.id);

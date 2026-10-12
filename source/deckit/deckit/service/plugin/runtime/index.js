@@ -54,7 +54,7 @@ DeckitModule.define(
                 return await run(options);
             } catch (error) {
                 fail(`deckit could not start it: ${error.message || error}`);
-                return stop(null);
+                return notStarted(null);
             }
         }
 
@@ -62,12 +62,14 @@ DeckitModule.define(
         async function run({ theme, ui, layers, show, dismiss }) {
             const loaded = PROTOCOL.load.invoke();
             plugin = loaded.manifest;
+            let started = null;
+            PROTOCOL.stop.handle(() => started?.stop && stopping(started));
             WEB.listen();
             NOTIFY.listen(deliver);
             const definition = evaluate(loaded.source);
-            if (!definition) return stop(null);
-            const requires = await requirementsOf();
-            if (!requires) return stop(definition);
+            if (!definition) return notStarted(null);
+            // Declared before anything waits, so a setting is there to set from start(), and Settings can ask for
+            // options while the plugin waits for what it requires.
             let deck = null;
             const settings = SETTINGS.of({
                 declared: definition.settings || {},
@@ -76,23 +78,44 @@ DeckitModule.define(
                 deliver,
                 fail,
             });
+            PROTOCOL.declare.send({ settings: SETTINGS.declarationsOf(definition.settings, fail) });
+            const requires = await requirementsOf();
+            if (!requires) return notStarted(definition);
             const registry = registryOf();
             deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
+            // Whatever start() did before it ended, stop() is told when the sandbox ends.
+            started = definition;
             try {
                 await definition.start(deck);
             } catch (error) {
+                registry.close();
                 fail(`start() threw: ${error.message || error}`);
-                return stop(definition);
+                return notStarted(definition);
             }
             const parts = registry.close();
-            contribute(definition, parts, { layers, dismiss });
-            if (typeof definition.stop === 'function')
-                window.addEventListener('pagehide', () => deliver('stop()', () => definition.stop()), { once: true });
+            let exported;
+            try {
+                exported = structuredClone(snapshotOf(parts.exports || {}));
+            } catch (error) {
+                fail(`deck.exports() takes values that can be copied: ${error.message || error}`);
+                return notStarted(definition);
+            }
+            contribute(definition, parts, { exported, layers, dismiss });
             const tell = (name) => typeof parts[name] === 'function' && deliver(`${name}()`, () => parts[name]());
             return { plugin, definition, parts, tell };
         }
 
-        function stop(definition) {
+        // A stop() that throws is recorded like any call into the plugin; the sandbox ends either way.
+        async function stopping(definition) {
+            try {
+                await definition.stop();
+            } catch (error) {
+                fail(`stop() threw: ${error.message || error}`);
+            }
+        }
+
+        // It did not start, and why: what the plugins that require it are told.
+        function notStarted(definition) {
             PROTOCOL.stopped.send({ why: String(failures.at(-1) || 'it did not start') });
             return { plugin, definition, parts: null, tell: () => {} };
         }
@@ -201,8 +224,8 @@ DeckitModule.define(
                 // The parts deck contributes: the view's, its keys, its switcher answers, its URL handler, its exports.
                 close() {
                     open = false;
-                    const { view: shown = {}, handleURL, ...rest } = registered;
-                    return { ...rest, ...shown, open: handleURL };
+                    const { view: shown = {}, ...rest } = registered;
+                    return { ...rest, ...shown };
                 },
             };
         }
@@ -319,13 +342,14 @@ DeckitModule.define(
             });
         }
 
-        function contribute(definition, parts, { layers, dismiss }) {
+        function contribute(definition, parts, { exported, layers, dismiss }) {
             const names = plugin.urlSchemes;
-            const opens = typeof parts.open === 'function';
-            if (names.length && !opens) fail('manifest.toml names url-schemes, but start() registered no deck.handleURL()');
+            const opens = typeof parts.handleURL === 'function';
+            if (names.length && !opens)
+                fail('manifest.toml names url-schemes, but start() registered no deck.handleURL()');
             if (opens && !names.length)
                 fail('start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it');
-            if (names.length && opens) OPEN.answer((url, options) => parts.open(url, options));
+            if (names.length && opens) OPEN.answer((url, options) => parts.handleURL(url, options));
             SWITCHER.source({
                 icon: definition.icon,
                 aliases: definition.keywords,
@@ -347,8 +371,7 @@ DeckitModule.define(
                 return exported(...args);
             });
             PROTOCOL.started.send({
-                settings: SETTINGS.declarationsOf(definition.settings, fail),
-                exports: snapshotOf(parts.exports || {}),
+                exports: exported,
                 summary: {
                     icon: String(definition.icon || ''),
                     view: !!parts.content,
@@ -382,23 +405,24 @@ DeckitModule.define(
             };
         }
 
-        // Values as data, functions as the paths main calls them by.
+        // Values as data, functions as the paths main calls them by. An object inside itself has no path to end.
         function snapshotOf(exported) {
             const functions = [];
-            const walk = (value, path) => {
+            const walk = (value, path, holding) => {
                 if (typeof value === 'function') {
                     functions.push(path);
                     return undefined;
                 }
                 if (!value || typeof value !== 'object') return value;
+                if (holding.includes(value)) throw new Error(`exports.${path.join('.')} holds itself`);
                 const out = Array.isArray(value) ? [] : {};
                 for (const [key, inner] of Object.entries(value)) {
-                    const copied = walk(inner, [...path, key]);
+                    const copied = walk(inner, [...path, key], [...holding, value]);
                     if (copied !== undefined) out[key] = copied;
                 }
                 return out;
             };
-            return { values: walk(exported, []), functions };
+            return { values: walk(exported, [], []), functions };
         }
 
         function deepFreeze(value) {

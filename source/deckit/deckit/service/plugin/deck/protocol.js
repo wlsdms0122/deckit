@@ -5,9 +5,11 @@ DeckitModule.define(
         uses: ['deckit/module/ipc'],
         provides: [
             'load',
+            'declare',
             'started',
             'failed',
             'stopped',
+            'stop',
             'requirements',
             'callExport',
             'exportCalled',
@@ -38,17 +40,16 @@ DeckitModule.define(
     (IPC) => ({
         // What the page runs: the plugin's manifest, its entry's source, its settings.
         load: IPC.rendererToMain('deckit:plugin-load', {}, { reply: true, sync: true }),
-        // Made, with what it contributes. `settings`: its declarations, without functions. `exports`: values copied,
-        // and the paths of its functions.
-        started: IPC.rendererToMain('deckit:plugin-started', {
-            settings: 'object',
-            exports: 'object',
-            summary: 'object',
-        }),
+        // Its settings, as soon as its entry is read: the declarations, without functions.
+        declare: IPC.rendererToMain('deckit:plugin-declare', { settings: 'object' }),
+        // Started, with what it contributes. `exports`: values copied, and the paths of its functions.
+        started: IPC.rendererToMain('deckit:plugin-started', { exports: 'object', summary: 'object' }),
         // A problem recorded against the plugin, which Settings shows.
         failed: IPC.rendererToMain('deckit:plugin-failed', { why: 'string' }),
         // It did not start, and why: what the plugins that require it are told.
         stopped: IPC.rendererToMain('deckit:plugin-stopped', { why: 'string' }),
+        // Its sandbox is about to end: answered once the plugin's stop() has run.
+        stop: IPC.mainToRenderer('deckit:plugin-stop', { reply: true }),
         // Answers once every plugin it requires has started or failed: { [id]: { values, functions } or { error } }.
         requirements: IPC.rendererToMain('deckit:plugin-requirements', {}, { reply: true }),
         callExport: IPC.rendererToMain(

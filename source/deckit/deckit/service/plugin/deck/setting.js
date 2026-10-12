@@ -9,11 +9,11 @@ DeckitModule.define(
         // MARK: - Property
         const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
         const declared = new Map(); // plugin id -> { name, settings: { key: declaration } }
-        let order = () => []; // the running plugins' ids, in the person's order
+        let order = () => []; // the ids of the plugins that load, in the person's order
 
         // MARK: - Initializer
         // MARK: - Public
-        // `ordered()` gives the running plugins' ids in the person's order, which Settings lists them in.
+        // `ordered()` gives the ids of the plugins that load, in the person's order, which Settings lists them in.
         function start({ ordered }) {
             order = ordered;
             PROTOCOL.setSetting.handle(({ key, value }, sender) => set(IDENTITY.pluginFrom(sender).id, key, value));

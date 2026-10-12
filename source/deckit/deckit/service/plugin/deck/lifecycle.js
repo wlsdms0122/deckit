@@ -8,15 +8,20 @@ DeckitModule.define(
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/service/open/main',
+            'deckit/service/plugin/deck/protocol',
         ],
         provides: ['start', 'pages', 'pageFor', 'onChange', 'reload'],
         runs: 'main',
     },
-    (LOG, IDENTITY, DECK, WEB, KEYMAP, OPEN) => {
+    (LOG, IDENTITY, DECK, WEB, KEYMAP, OPEN, PROTOCOL) => {
         // MARK: - Property
         const running = new Map(); // plugin id -> { page, entry }
+        const ending = new Set(); // plugin ids whose page is stopping, to run again once it has
         const listeners = new Set();
+        // How long a plugin's stop() may take before its sandbox ends anyway.
+        const STOP_LIMIT_MS = 2000;
         let makePage = null;
+        let quitting = false;
 
         // MARK: - Initializer
         // Every plugin that loads runs in a page of its own, whether or not it has anything to show. `makePage()` makes
@@ -26,6 +31,15 @@ DeckitModule.define(
             DECK.onChange(reconcile);
             DECK.onStatus(notify);
             reconcile(DECK.plugins());
+            // The app quits once every plugin has stopped.
+            require('electron').app.on('before-quit', (event) => {
+                if (quitting) return;
+                event.preventDefault();
+                quitting = true;
+                Promise.all([...running.values()].map(({ page }) => stopped(page))).then(() =>
+                    require('electron').app.quit()
+                );
+            });
         }
 
         // MARK: - Public
@@ -49,30 +63,52 @@ DeckitModule.define(
             listeners.add(listener);
         }
 
-        // Every plugin starts again in its page, as a new theme asks.
+        // Every plugin stops and starts again in its page, as a new theme asks.
         function reload() {
             for (const [id, { page }] of running) {
-                DECK.rerun(id);
-                page.webContents.reload();
+                stopped(page).then(() => {
+                    if (running.get(id)?.page !== page) return;
+                    DECK.rerun(id);
+                    page.webContents.reload();
+                });
             }
         }
 
         // MARK: - Private
-        // A plugin runs as it arrives and stops as it goes; one whose folder changed runs again.
+        // A plugin runs as it arrives and stops as it goes; one whose folder changed stops and runs again.
         function reconcile(plugins) {
             const ids = new Set(plugins.map(({ id }) => id));
             for (const [id, { page }] of running) {
                 if (ids.has(id)) continue;
-                page.webContents.close();
                 running.delete(id);
+                end(page);
             }
             for (const entry of plugins) {
                 const known = running.get(entry.id);
-                if (known && sameFolder(known.entry, entry)) continue;
-                if (known) known.page.webContents.close();
-                run(entry);
+                if (ending.has(entry.id) || (known && sameFolder(known.entry, entry))) continue;
+                if (!known) {
+                    run(entry);
+                    continue;
+                }
+                // The new one runs once the old one has stopped, as the plugins are by then.
+                running.delete(entry.id);
+                ending.add(entry.id);
+                end(known.page).then(() => {
+                    ending.delete(entry.id);
+                    reconcile(DECK.plugins());
+                });
             }
             notify();
+        }
+
+        // The plugin's stop() answered, or its time ran out, or its page is already gone.
+        function stopped(page) {
+            if (page.webContents.isDestroyed()) return Promise.resolve();
+            return PROTOCOL.stop.invoke(page.webContents, {}, { timeout: STOP_LIMIT_MS }).catch(() => {});
+        }
+
+        function end(page) {
+            return stopped(page).then(() => !page.webContents.isDestroyed() && page.webContents.close());
         }
 
         function sameFolder(before, after) {

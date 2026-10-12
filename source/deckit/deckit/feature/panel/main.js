@@ -66,10 +66,10 @@ DeckitModule.define(
             return showsPanel(webContents) && look.dismissible;
         }
 
-        // A plugin on screen, asked by the plugin itself, the switcher or an address it opened.
+        // A plugin on screen, asked by the plugin itself, the switcher or an address it opened. One with no view in the
+        // panel has nothing to show.
         function reveal(pluginId) {
-            select(pluginId);
-            shell.reveal();
+            if (select(pluginId)) shell.reveal();
         }
 
         // Waits for a view's reply that carries this wait's token; a newer wait on the same reply runs `superseded`.
