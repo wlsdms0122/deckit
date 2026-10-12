@@ -1,17 +1,51 @@
 DeckitModule.define(
     'deckit/ui/component/modal',
-    {
-        uses: ['deckit/ui/token', 'deckit/ui/motion', 'deckit/ui/overlay'],
-        provides: ['make'],
-    },
-    (TOKEN, MOTION_, OVERLAY) => {
-        const { MOTION } = TOKEN;
-        const { play } = MOTION_;
-        const { raise } = OVERLAY;
+    { uses: ['deckit/ui/overlay'], provides: ['STYLE', 'make'] },
+    (OVERLAY) => {
+        // MARK: - Property
+        const STYLE = `
+            .deckit-modal {
+                position: fixed;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-sizing: border-box;
+                background: var(--deckit-scrim);
+                font: var(--deckit-type-medium);
+                transition: opacity var(--deckit-base) var(--deckit-easing);
+            }
+            .deckit-modal[data-align='top'] { align-items: flex-start; padding-top: 12vh; }
+            .deckit-modal-card {
+                box-sizing: border-box;
+                max-height: 80vh;
+                overflow-y: auto;
+                padding: 18px 20px 16px;
+                border-radius: var(--deckit-radius-card);
+                border: var(--deckit-border);
+                background: var(--deckit-background);
+                box-shadow: var(--deckit-shadow-modal);
+                color: var(--deckit-text);
+                transition: transform var(--deckit-base) var(--deckit-easing);
+            }
+            .deckit-modal[data-bare] .deckit-modal-card { padding: 8px; }
+            .deckit-modal[data-state='closed'] .deckit-modal-card { transform: translateY(6px) scale(.99); }
+            .deckit-modal-title { font: 700 var(--deckit-type-heading); margin-bottom: 12px; }
+            .deckit-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+        `;
 
-        const makeModal = (theme, ui) => {
-            const textBtn = (...args) => ui.textBtn(...args);
-            return ({
+        // MARK: - Initializer
+        // MARK: - Public
+        function make(theme, ui) {
+            return { sheet: (options) => sheet(ui, options) };
+        }
+
+        // MARK: - Private
+        // A card over the page that holds every press. `fill(card)` puts the content in and returns what takes the
+        // focus. With `chrome`, a title and Cancel and confirm buttons; Enter in a text field confirms.
+        function sheet(
+            ui,
+            {
                 title,
                 confirmLabel = 'Save',
                 cancelLabel = 'Cancel',
@@ -24,130 +58,70 @@ DeckitModule.define(
                 fill,
                 onConfirm,
                 onClose,
-            }) => {
-                /* Read before the callbacks run, so they see where the keyboard came from, not the button
-       that answered. */
-                const before = document.activeElement;
-                const overlay = document.createElement('div');
-                const handle = {};
-                const layer = raise({ close: () => close() });
-                Object.assign(overlay.style, {
-                    position: 'fixed',
-                    inset: '0',
-                    zIndex: String(layer.z),
-                    display: 'flex',
-                    alignItems: align === 'top' ? 'flex-start' : 'center',
-                    justifyContent: 'center',
-                    paddingTop: align === 'top' ? '12vh' : '0',
-                    boxSizing: 'border-box',
-                    background: 'rgba(0,0,0,.45)',
-                    font: '14px ' + theme.font,
-                    opacity: '0',
-                    transition: `opacity ${MOTION.base}ms ${MOTION.easing}`,
-                });
-                const card = document.createElement('div');
-                Object.assign(card.style, {
-                    width,
-                    maxHeight: '80vh',
-                    overflowY: 'auto',
-                    background: theme.color.background,
-                    color: theme.color.text,
-                    borderRadius: '12px',
-                    border: theme.border,
-                    boxShadow: '0 18px 48px rgba(0,0,0,.4)',
-                    padding: chrome ? '18px 20px 16px' : '8px',
-                    transform: MOTION.entrance,
-                    transition: `transform ${MOTION.base}ms ${MOTION.easing}`,
-                });
-
-                // Once: a second close (a handler calling close() on its way out) must not run onClose again.
-                let closed = false;
-                const close = () => {
-                    if (closed) return;
-                    closed = true;
-                    layer.drop();
-                    document.removeEventListener('keydown', onKey, true);
-                    overlay.style.opacity = '0';
-                    overlay.style.pointerEvents = 'none';
-                    card.style.transform = MOTION.entrance;
-                    const ms = MOTION.base;
-                    if (ms) setTimeout(() => overlay.remove(), ms);
-                    else overlay.remove();
-                    if (before && before !== document.body && before.isConnected)
-                        before.focus?.({ preventScroll: true });
-                    onClose?.();
-                };
-                const submit = () => {
-                    close();
-                    onConfirm?.();
-                };
-                const onKey = (e) => {
-                    if (e.key !== 'Escape' && e.key !== 'Enter') return;
-                    if (!layer.isTop()) return; // only the top one answers
-                    if (e.key === 'Escape') {
-                        e.stopPropagation();
-                        close();
-                        return;
-                    }
-                    /* Captured on the document: without the standard buttons, swallowing Enter would take it from
-         whoever filled the card. */
-                    if (!chrome || confirmLabel === null) return;
-                    e.stopPropagation();
-                    if (e.target.tagName === 'INPUT') submit();
-                };
-                /* Kept from bubbling out of the overlay, so a plugin's own key listeners do not act on what is
-       typed into a modal. */
-                document.addEventListener('keydown', onKey, true);
-                overlay.addEventListener('keydown', (e) => e.stopPropagation());
-                overlay.addEventListener('mousedown', (e) => {
-                    if (e.target === overlay) close();
-                });
-
-                if (chrome && title) {
-                    const head = document.createElement('div');
-                    head.textContent = title;
-                    Object.assign(head.style, { font: '700 16px ' + theme.font, marginBottom: '12px' });
-                    card.appendChild(head);
-                }
-
-                const focusTarget = fill?.(card) || null;
-
-                const actions = document.createElement('div');
-                Object.assign(actions.style, {
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    gap: '8px',
-                    marginTop: '4px',
-                });
-                const cancel = textBtn(cancelLabel, '', close);
-                const confirm =
-                    confirmLabel === null
-                        ? null
-                        : textBtn(confirmLabel, '', submit, { variant: destructive ? 'destructive' : 'primary' });
-                if (extraLabel) {
-                    const extra = textBtn(extraLabel, '', () => {
-                        close();
-                        onExtra?.();
-                    });
-                    if (destructive) extra.style.color = theme.color.alert;
-                    actions.append(cancel, extra, ...(confirm ? [confirm] : []));
-                } else {
-                    actions.append(cancel, ...(confirm ? [confirm] : []));
-                }
-                if (chrome) card.appendChild(actions);
-
-                overlay.appendChild(card);
-                document.body.appendChild(overlay);
-                play(overlay, {}, { opacity: '1' });
-                play(card, {}, { transform: 'none' });
-                (focusTarget || (chrome && confirm ? confirm : card)).focus?.();
-                if (focusTarget?.select) focusTarget.select();
-
-                handle.close = close;
-                return handle;
+            }
+        ) {
+            // Read before the callbacks run, so they see where the keyboard came from, not the button that answered.
+            const before = document.activeElement;
+            const scrim = document.createElement('div');
+            scrim.className = 'deckit-modal';
+            scrim.dataset.align = align;
+            if (!chrome) scrim.dataset.bare = '';
+            const card = document.createElement('div');
+            card.className = 'deckit-modal-card';
+            card.style.width = width;
+            scrim.append(card);
+            let closed = false;
+            const close = () => {
+                if (closed) return;
+                closed = true;
+                layer.close();
+                if (before && before !== document.body && before.isConnected) before.focus({ preventScroll: true });
+                onClose?.();
             };
-        };
+            const submit = () => {
+                close();
+                onConfirm?.();
+            };
+            const confirms = chrome && confirmLabel !== null;
+            const onKey = (event) => {
+                if (event.key !== 'Enter' || !confirms || event.target.tagName !== 'INPUT') return false;
+                submit();
+                return true;
+            };
+            // A plugin's own key listeners do not act on what is typed into a modal.
+            scrim.addEventListener('keydown', (event) => event.stopPropagation());
+            scrim.addEventListener('mousedown', (event) => event.target === scrim && close());
 
-        return { make: (theme, ui) => ({ sheet: makeModal(theme, ui) }) };
+            if (chrome && title) {
+                const heading = document.createElement('div');
+                heading.className = 'deckit-modal-title';
+                heading.textContent = title;
+                card.append(heading);
+            }
+            const focus = fill?.(card) || null;
+            const cancel = ui.textBtn(cancelLabel, '', close);
+            const confirm = confirms
+                ? ui.textBtn(confirmLabel, '', submit, { variant: destructive ? 'destructive' : 'primary' })
+                : null;
+            const extra = extraLabel
+                ? ui.textBtn(extraLabel, '', () => {
+                      close();
+                      onExtra?.();
+                  })
+                : null;
+            if (extra && destructive) extra.style.color = 'var(--deckit-alert)';
+            if (chrome) {
+                const actions = document.createElement('div');
+                actions.className = 'deckit-modal-actions';
+                actions.append(...[cancel, extra, confirm].filter(Boolean));
+                card.append(actions);
+            }
+            const layer = OVERLAY.open({ element: scrim, modal: true, speed: 'base', onKey, onDismiss: close });
+            (focus || confirm || card).focus();
+            focus?.select?.();
+            return { close };
+        }
+
+        return { STYLE, make };
     }
 );

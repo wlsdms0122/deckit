@@ -2,12 +2,13 @@ DeckitModule.define(
     'deckit/ui/component/resizer',
     {
         uses: ['deckit/ui/token', 'deckit/ui/pointer', 'deckit/ui/gesture'],
-        provides: ['make'],
+        provides: ['STYLE', 'make'],
     },
     (T, POINTER, GESTURE) => {
         const { MOTION } = T;
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 return {
                     resizer(

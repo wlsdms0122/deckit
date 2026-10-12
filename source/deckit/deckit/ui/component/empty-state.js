@@ -2,12 +2,13 @@ DeckitModule.define(
     'deckit/ui/component/empty-state',
     {
         uses: ['deckit/ui/icon'],
-        provides: ['make'],
+        provides: ['STYLE', 'make'],
     },
     (ICON) => {
         const { icon } = ICON;
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 return {
                     emptyState({ icon: glyph = '', title = '', hint = '', actions = [] } = {}) {

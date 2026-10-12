@@ -1,5 +1,6 @@
-DeckitModule.define('deckit/ui/component/fonts', { uses: [], provides: ['make'] }, () => {
+DeckitModule.define('deckit/ui/component/fonts', { uses: [], provides: ['STYLE', 'make'] }, () => {
     return {
+        STYLE: '',
         make: (theme, ui, inner) => {
             return {
                 /* A face that is not installed falls back and measures like the fallback, so a width unlike both

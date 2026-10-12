@@ -1,6 +1,6 @@
 DeckitModule.define(
     'deckit/ui/token',
-    { uses: ['deckit/ui/color'], provides: ['FALLBACK_THEME', 'MOTION', 'tokenOf'] },
+    { uses: ['deckit/ui/color'], provides: ['FALLBACK_THEME', 'MOTION', 'tokenOf', 'propertiesOf'] },
     (COLOR) => {
         // MARK: - Property
         // Worn until the embedder gives its theme.
@@ -12,16 +12,17 @@ DeckitModule.define(
             contentColor: '#d1d2d3',
             font: '-apple-system, system-ui, sans-serif',
         });
+        const LENGTH = Object.freeze({ fast: 110, base: 170, slow: 260 });
         // Lengths in ms, read at each use: 0 while the system asks for reduced motion.
         const MOTION = Object.freeze({
             get fast() {
-                return reducedMotion() ? 0 : 110;
+                return reducedMotion() ? 0 : LENGTH.fast;
             },
             get base() {
-                return reducedMotion() ? 0 : 170;
+                return reducedMotion() ? 0 : LENGTH.base;
             },
             get slow() {
-                return reducedMotion() ? 0 : 260;
+                return reducedMotion() ? 0 : LENGTH.slow;
             },
             easing: 'cubic-bezier(.2,.7,.3,1)',
             // Where a panel or a modal arrives from and leaves to.
@@ -63,6 +64,8 @@ DeckitModule.define(
                     warn: '#ecb22e',
                     alert: '#e01e5a',
                     focus: 'rgba(124,160,255,.7)',
+                    // What a drop or a context menu is about.
+                    target: 'rgba(75,139,244,.75)',
                     scrim: 'rgba(0,0,0,.45)',
                     folder: '#5aa9e6',
                 },
@@ -77,7 +80,45 @@ DeckitModule.define(
             });
         }
 
+        // The token as custom properties on the root (`--deckit-muted`, `--deckit-radius-card`, ...), so a stylesheet
+        // reads it by name.
+        function propertiesOf(token) {
+            const properties = {
+                font: token.font,
+                mono: token.mono,
+                border: token.border,
+                ...prefixed('', token.color),
+                ...prefixed('type-', token.type),
+                ...prefixed(
+                    'radius-',
+                    mapped(token.radius, (value) => value + 'px')
+                ),
+                ...prefixed('shadow-', token.shadow),
+                ...mapped(LENGTH, (value) => value + 'ms'),
+                easing: MOTION.easing,
+            };
+            const declarations = Object.entries(properties).map(
+                ([name, value]) => `--deckit-${kebab(name)}: ${value};`
+            );
+            return (
+                `:root { ${declarations.join(' ')} }\n` +
+                `@media (prefers-reduced-motion: reduce) { :root { --deckit-fast: 0ms; --deckit-base: 0ms; --deckit-slow: 0ms; } }\n`
+            );
+        }
+
         // MARK: - Private
+        function prefixed(prefix, values) {
+            return Object.fromEntries(Object.entries(values).map(([name, value]) => [prefix + name, value]));
+        }
+
+        function mapped(values, convert) {
+            return Object.fromEntries(Object.entries(values).map(([name, value]) => [name, convert(value)]));
+        }
+
+        function kebab(name) {
+            return name.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase());
+        }
+
         function reducedMotion() {
             return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         }
@@ -88,6 +129,6 @@ DeckitModule.define(
             return Object.freeze(value);
         }
 
-        return { FALLBACK_THEME, MOTION, tokenOf };
+        return { FALLBACK_THEME, MOTION, tokenOf, propertiesOf };
     }
 );

@@ -1,12 +1,13 @@
 DeckitModule.define(
     'deckit/ui/component/field',
-    { uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/component/part'], provides: ['make'] },
+    { uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/component/part'], provides: ['STYLE', 'make'] },
     (T, ICON, K) => {
         const { MOTION } = T;
         const { icon } = ICON;
         const { pressable } = K;
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 return {
                     field({

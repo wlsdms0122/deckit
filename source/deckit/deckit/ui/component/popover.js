@@ -1,91 +1,53 @@
 DeckitModule.define(
     'deckit/ui/component/popover',
-    { uses: ['deckit/ui/token', 'deckit/ui/motion', 'deckit/ui/overlay'], provides: ['make'] },
-    (T, MOTION_, OVERLAY) => {
-        const { MOTION } = T;
+    { uses: ['deckit/ui/overlay'], provides: ['STYLE', 'make'] },
+    (OVERLAY) => {
+        // MARK: - Property
+        const STYLE = `
+            .deckit-popover {
+                box-sizing: border-box;
+                min-width: 230px;
+                max-width: 340px;
+                padding: 12px 14px;
+                border-radius: var(--deckit-radius-large);
+                border: var(--deckit-border);
+                background: var(--deckit-background);
+                box-shadow: var(--deckit-shadow-raised);
+                color: var(--deckit-text);
+                font: var(--deckit-type-body);
+                line-height: 1.5;
+            }
+        `;
 
-        return {
-            make: (theme, ui, inner) => {
-                return {
-                    popover({ width = '', onClose } = {}) {
-                        const pop = document.createElement('div');
-                        Object.assign(pop.style, {
-                            position: 'fixed',
-                            display: 'none',
-                            maxWidth: width || '340px',
-                            minWidth: '230px',
-                            padding: '12px 14px',
-                            borderRadius: '10px',
-                            border: theme.border,
-                            background: theme.color.background,
-                            color: theme.color.text,
-                            boxShadow: '0 10px 32px rgba(0,0,0,.32)',
-                            boxSizing: 'border-box',
-                            font: '13px ' + theme.font,
-                            lineHeight: '1.5',
-                        });
-                        document.body.appendChild(pop);
-                        let layer = null,
-                            at = null;
-                        const keys = (e) => {
-                            if (e.key !== 'Escape' || !layer?.isTop()) return;
-                            e.preventDefault();
-                            e.stopPropagation();
-                            close();
-                        };
-                        const close = () => {
-                            if (!layer) return;
-                            layer.drop();
-                            layer = null;
-                            window.removeEventListener('keydown', keys, true);
-                            pop.style.transition = `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.fast}ms ${MOTION.easing}`;
-                            Object.assign(pop.style, { opacity: '0', transform: 'translateY(-4px)' });
-                            const ms = MOTION.fast;
-                            setTimeout(() => {
-                                if (!layer) pop.style.display = 'none';
-                            }, ms);
-                            onClose?.();
-                        };
-                        pop.show = (anchor) => {
-                            at = anchor;
-                            if (!layer) {
-                                // A press on the card or on what it is about is the card's; any other puts it away (token.js).
-                                layer = OVERLAY.raise({
-                                    close,
-                                    contains: (t) => pop.contains(t) || !!(at && at.contains(t)),
-                                });
-                                pop.style.zIndex = String(layer.z);
-                                // Next tick: the key that opened it must not be the one that closes it.
-                                setTimeout(() => {
-                                    if (layer) window.addEventListener('keydown', keys, true);
-                                }, 0);
-                            }
-                            Object.assign(pop.style, { display: 'block', left: '0px', top: '0px', transition: 'none' });
-                            const a = anchor.getBoundingClientRect(),
-                                box = pop.getBoundingClientRect();
-                            const below = a.bottom + 6;
-                            pop.style.left = Math.min(Math.max(8, a.left), window.innerWidth - box.width - 8) + 'px';
-                            pop.style.top =
-                                (below + box.height > window.innerHeight - 8
-                                    ? Math.max(8, a.top - box.height - 6)
-                                    : below) + 'px';
-                            MOTION_.play(
-                                pop,
-                                { opacity: '0', transform: 'translateY(-4px)' },
-                                {
-                                    transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.fast}ms ${MOTION.easing}`,
-                                    opacity: '1',
-                                    transform: 'none',
-                                }
-                            );
-                            return pop;
-                        };
-                        pop.close = close;
-                        Object.defineProperty(pop, 'open', { get: () => !!layer });
-                        return pop;
-                    },
-                };
-            },
-        };
+        // MARK: - Initializer
+        // MARK: - Public
+        function make() {
+            return { popover };
+        }
+
+        // MARK: - Private
+        // A card about an anchor: `show(anchor)` puts it under the anchor, a press elsewhere or Escape puts it away.
+        function popover({ width = '', onClose } = {}) {
+            const card = document.createElement('div');
+            card.className = 'deckit-popover';
+            if (width) card.style.maxWidth = width;
+            let layer = null;
+            const close = () => {
+                if (!layer) return;
+                layer.close();
+                layer = null;
+                onClose?.();
+            };
+            card.show = (anchor) => {
+                layer?.close();
+                layer = OVERLAY.open({ element: card, anchor, gap: 6, onDismiss: close });
+                return card;
+            };
+            card.close = close;
+            Object.defineProperty(card, 'open', { get: () => !!layer });
+            return card;
+        }
+
+        return { STYLE, make };
     }
 );

@@ -10,7 +10,7 @@ DeckitModule.define(
             'deckit/ui/gesture',
             'deckit/ui/component/part',
         ],
-        provides: ['make'],
+        provides: ['STYLE', 'make'],
     },
     (T, COLOR, ICON, OVERLAY, SCROLL, GESTURE, K) => {
         const { MOTION } = T;
@@ -50,6 +50,7 @@ DeckitModule.define(
             parentOf(from) !== folder && folder !== from && !folder.startsWith(from + '/');
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 /* The icon and name are one face inside the box, so the box can take the thing's shape with its
        face faded out. */
@@ -59,7 +60,7 @@ DeckitModule.define(
                         position: 'fixed',
                         left: '0',
                         top: '0',
-                        zIndex: String(OVERLAY.Z.modal + 50),
+                        zIndex: String(OVERLAY.Z.drag),
                         pointerEvents: 'none',
                         display: 'flex',
                         alignItems: 'center',

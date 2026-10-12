@@ -8,7 +8,7 @@ DeckitModule.define(
             'deckit/ui/scroll',
             'deckit/ui/component/part',
         ],
-        provides: ['make'],
+        provides: ['STYLE', 'make'],
     },
     (T, MOTION_, POINTER, SCROLL, K) => {
         const { MOTION } = T;
@@ -35,6 +35,7 @@ DeckitModule.define(
         const stepping = new WeakMap();
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 const row = ({ dense = false } = {}) => {
                     const r = document.createElement('div');

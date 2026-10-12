@@ -11,7 +11,7 @@ DeckitModule.define(
             'deckit/service/switcher/model/tone',
             'deckit/feature/switcher/model/protocol',
         ],
-        provides: ['open', 'boot'],
+        provides: ['boot'],
     },
     (TOKEN, ICON, POINTER, UI, MATCH, ENTRIES, TONE, PROTOCOL) => {
         // MARK: - Property
@@ -64,7 +64,7 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        function open(theme, { placeholder = 'Jump to…', items = [], now = [], onQuery, onPick, onClose }) {
+        function open({ theme, ui }, { placeholder = 'Jump to…', items = [], now = [], onQuery, onPick, onClose }) {
             let shown = [];
             let headings = new Map();
             let cursor = 0;
@@ -98,7 +98,7 @@ DeckitModule.define(
 
             // fill() runs before the sheet is returned, but nothing in it fires until the person acts, so `modal` is
             // set by then.
-            const modal = openModal(theme)({
+            const modal = ui.sheet({
                 chrome: false,
                 align: 'top',
                 width: 'min(520px, calc(100vw - 48px))',
@@ -700,6 +700,7 @@ DeckitModule.define(
         }
 
         function boot(theme) {
+            const ui = UI.make(theme);
             let switcher = null;
             // Reported from the close itself: Escape and a click away close here first and main hears afterwards.
             // It carries the token of the hide main waits on, and an exit overtaken by a reopen never reports, or it
@@ -719,19 +720,22 @@ DeckitModule.define(
                     if (switcher) return;
                     clearTimeout(exitTimer);
                     closing = false;
-                    switcher = open(theme, {
-                        placeholder: 'Jump to a plugin, bookmark or view…',
-                        items: hydrate(items),
-                        now: hydrate(now),
-                        // Resolvers and page searches live with the plugins, in the panel's page.
-                        onQuery: (raw, pageId) => entries.query(raw, pageId),
-                        onPick: (item) => item.run(),
-                        onClose: () => {
-                            switcher = null;
-                            PROTOCOL.close.send();
-                            reportAfterExit();
-                        },
-                    });
+                    switcher = open(
+                        { theme, ui },
+                        {
+                            placeholder: 'Jump to a plugin, bookmark or view…',
+                            items: hydrate(items),
+                            now: hydrate(now),
+                            // Resolvers and page searches live with the plugins, in the panel's page.
+                            onQuery: (raw, pageId) => entries.query(raw, pageId),
+                            onPick: (item) => item.run(),
+                            onClose: () => {
+                                switcher = null;
+                                PROTOCOL.close.send();
+                                reportAfterExit();
+                            },
+                        }
+                    );
                 },
                 now: (rows) => switcher?.setNow(hydrate(rows)),
                 resolved: (raw, found, page) => switcher?.setResolved(raw, hydrate(found), page),
@@ -784,10 +788,6 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        function openModal(theme) {
-            return UI.make(theme).sheet;
-        }
-
         // Each alias is its own field, so a short name scores as a whole name and not as the start of a longer
         // label. Whose it is and its group may fill a word but never beat a match found in a name.
         function fieldsOf(item) {
@@ -854,6 +854,6 @@ DeckitModule.define(
             flush();
         }
 
-        return { open, boot };
+        return { boot };
     }
 );

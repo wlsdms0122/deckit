@@ -53,7 +53,7 @@ DeckitModule.define(
             // it keeps the caret; one that does not is left, as a browser would, so the next Escape reaches the page.
             PROTOCOL.escape.on(({ last }) => {
                 const top = layers.top();
-                if (top) return top.close();
+                if (top) return top.dismiss();
                 const field = document.activeElement;
                 if (isField(field)) {
                     const handled = !field.dispatchEvent(

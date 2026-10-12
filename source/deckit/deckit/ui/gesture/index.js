@@ -51,9 +51,8 @@ DeckitModule.define(
             const letGo = () => {
                 release?.();
                 release = null;
-                layer?.drop();
+                layer?.close();
                 layer = null;
-                window.removeEventListener('keydown', onKey, true);
                 window.removeEventListener('wheel', onWheel, { capture: true });
                 cancelAnimationFrame(frame);
             };
@@ -81,8 +80,7 @@ DeckitModule.define(
                     }
                     phase = 'held';
                     release = POINTER.capture('grabbing');
-                    layer = OVERLAY.raise({ close: callOff });
-                    window.addEventListener('keydown', onKey, true);
+                    layer = OVERLAY.open({ modal: true, onDismiss: callOff });
                     window.addEventListener('wheel', onWheel, { capture: true, passive: false });
                     frame = requestAnimationFrame(scrollAtEdge);
                 }
@@ -100,12 +98,6 @@ DeckitModule.define(
                 listen(false);
                 if (phase === 'pressed') return finished();
                 swallowClick();
-                callOff();
-            };
-            const onKey = (event) => {
-                if (event.key !== 'Escape' || !layer?.isTop()) return;
-                event.preventDefault();
-                event.stopPropagation();
                 callOff();
             };
             const onWheel = (event) => {

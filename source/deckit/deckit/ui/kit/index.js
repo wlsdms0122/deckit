@@ -2,6 +2,7 @@ DeckitModule.define(
     'deckit/ui/kit',
     {
         uses: [
+            'deckit/ui/token',
             'deckit/ui/color',
             'deckit/ui/icon',
             'deckit/ui/pointer',
@@ -27,13 +28,15 @@ DeckitModule.define(
         ],
         provides: ['make'],
     },
-    (COLOR, ICON, POINTER, OVERLAY, SCROLL, PART, ...components) => {
+    (TOKEN, COLOR, ICON, POINTER, OVERLAY, SCROLL, PART, ...components) => {
         // MARK: - Property
+        let installed = false;
         // MARK: - Initializer
         // MARK: - Public
         // The `ui` a page draws with, for `token`. Frozen all the way down: a plugin is handed the very objects its page
         // draws with. Components are made in the order of `uses`, as one may lend another something through `inner`.
         function make(token) {
+            install(token);
             const ui = {};
             const inner = {};
             for (const component of components) Object.assign(ui, component.make(token, ui, inner));
@@ -52,6 +55,16 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // The kit's look, once per page: the token's values as custom properties, then every part's rules.
+        function install(token) {
+            if (installed) return;
+            installed = true;
+            const sheet = new CSSStyleSheet();
+            const rules = [OVERLAY, ...components].map((part) => part.STYLE || '');
+            sheet.replaceSync(TOKEN.propertiesOf(token) + rules.join('\n'));
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+        }
+
         function deepFreeze(value) {
             if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
             Object.freeze(value);

@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/ui/component/section',
     {
         uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/motion', 'deckit/ui/component/part'],
-        provides: ['make'],
+        provides: ['STYLE', 'make'],
     },
     (T, ICON, MOTION_, K) => {
         const { MOTION } = T;
@@ -13,6 +13,7 @@ DeckitModule.define(
             HEAD_GAP = 6;
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 return {
                     section(label, opts = {}) {

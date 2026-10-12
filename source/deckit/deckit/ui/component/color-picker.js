@@ -1,4 +1,4 @@
-DeckitModule.define('deckit/ui/component/color-picker', { uses: [], provides: ['make'] }, () => {
+DeckitModule.define('deckit/ui/component/color-picker', { uses: [], provides: ['STYLE', 'make'] }, () => {
     const clamp01 = (n) => Math.min(1, Math.max(0, n));
     const toHex = (n) =>
         Math.round(n * 255)
@@ -33,6 +33,7 @@ DeckitModule.define('deckit/ui/component/color-picker', { uses: [], provides: ['
     };
 
     return {
+        STYLE: '',
         make: (theme, ui) => {
             return {
                 colorPicker({ title = 'Pick a colour', value = '#4b8bf4', onPick }) {

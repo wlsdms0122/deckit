@@ -1,603 +1,413 @@
 DeckitModule.define(
     'deckit/ui/component/menu',
-    {
-        uses: [
-            'deckit/ui/token',
-            'deckit/ui/color',
-            'deckit/ui/icon',
-            'deckit/ui/motion',
-            'deckit/ui/pointer',
-            'deckit/ui/overlay',
-        ],
-        provides: ['make'],
-    },
-    (T, COLOR, ICON, MOTION_, POINTER, OVERLAY) => {
-        const { MOTION } = T;
-        const { Z } = OVERLAY;
-        const { icon } = ICON;
+    { uses: ['deckit/ui/icon', 'deckit/ui/overlay', 'deckit/ui/list/listbox'], provides: ['STYLE', 'make'] },
+    (ICON, OVERLAY, LISTBOX) => {
+        // MARK: - Property
+        const STYLE = `
+            .deckit-menu {
+                position: fixed;
+                box-sizing: border-box;
+                max-height: 320px;
+                overflow-y: auto;
+                padding: 4px;
+                border-radius: var(--deckit-radius-large);
+                border: var(--deckit-border);
+                background: var(--deckit-surface);
+                box-shadow: var(--deckit-shadow-raised);
+                color: var(--deckit-text);
+                font: var(--deckit-type-body);
+            }
+            .deckit-menu[data-nested] { box-shadow: var(--deckit-shadow-nested); }
+            .deckit-menu-separator { height: 1px; margin: 4px 6px; background: var(--deckit-divider); }
+            .deckit-menu-row {
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                height: 26px;
+                padding: 0 12px 0 8px;
+                border-radius: var(--deckit-radius-control);
+                cursor: pointer;
+                white-space: nowrap;
+            }
+            .deckit-menu-row[data-ticks] { padding-left: 6px; }
+            .deckit-menu-row[data-active] { background: var(--deckit-selected); }
+            .deckit-menu-row[aria-disabled='true'] { color: var(--deckit-disabled); cursor: default; }
+            .deckit-menu-tick { display: flex; flex: 0 0 14px; color: var(--deckit-accent); }
+            .deckit-menu-row:not([aria-checked='true']) .deckit-menu-tick { visibility: hidden; }
+            .deckit-menu-icon { display: flex; flex: 0 0 auto; color: var(--deckit-muted); }
+            .deckit-menu-label { flex: 1 1 auto; }
+            .deckit-menu-more { display: flex; flex: 0 0 auto; margin: 0 -6px 0 16px; color: var(--deckit-muted); }
+            .deckit-menu-hint { flex: 0 0 auto; margin-left: 16px; color: var(--deckit-muted); }
+            .deckit-toolbar { display: none; gap: 1px; align-items: center; padding: 3px; max-height: none; overflow: visible; }
+            .deckit-select {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex: 0 0 auto;
+                max-width: 240px;
+                height: 26px;
+                padding: 0 8px 0 12px;
+                border: 0;
+                outline: none;
+                border-radius: var(--deckit-radius-round);
+                background: var(--deckit-fill);
+                color: var(--deckit-text);
+                font: var(--deckit-type-body);
+                cursor: pointer;
+            }
+            .deckit-select:hover { background: var(--deckit-selected); }
+            .deckit-select:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
+            .deckit-select-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .deckit-select-caret {
+                display: flex;
+                flex: 0 0 auto;
+                color: var(--deckit-muted);
+                transition: transform var(--deckit-fast) var(--deckit-easing);
+            }
+            .deckit-select[aria-expanded='true'] .deckit-select-caret { transform: rotate(180deg); }
+            [data-deckit-target] { outline: 2px solid var(--deckit-target); outline-offset: -2px; }
+        `;
+        // How long the pointer rests on a row before its submenu opens, and on another row before it closes.
+        const SUBMENU_OPEN_MS = 120;
+        const SUBMENU_CLOSE_MS = 200;
+        const WIDTH_MIN = 160;
+        const openUnder = new WeakMap(); // anchor -> the menu open under it
 
-        return {
-            make: (theme, ui, inner) => {
-                // The menu open under each anchor, for menu() to close it on a second press.
-                const openUnder = new WeakMap();
-                const menuBox = () => {
-                    const box = document.createElement('div');
-                    Object.assign(box.style, {
-                        position: 'fixed',
-                        maxHeight: '320px',
-                        overflowY: 'auto',
-                        padding: '4px',
-                        borderRadius: '9px',
-                        border: theme.border,
-                        background: COLOR.mix(theme.color.text, theme.color.background, 0.06),
-                        boxShadow: '0 10px 32px rgba(0,0,0,.32)',
-                        color: theme.color.text,
-                        font: '12.5px ' + theme.font,
-                    });
-                    return box;
-                };
-                const menuLine = () => {
-                    const line = document.createElement('div');
-                    Object.assign(line.style, {
-                        height: '1px',
-                        margin: '4px 6px',
-                        background: 'rgba(128,128,128,.22)',
-                    });
-                    return line;
-                };
-                const menuRow = (it, ticks) => {
-                    const r = document.createElement('div');
-                    Object.assign(r.style, {
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '7px',
-                        height: '26px',
-                        padding: ticks ? '0 12px 0 6px' : '0 12px 0 8px',
-                        borderRadius: '6px',
-                        cursor: it.disabled ? 'default' : 'pointer',
-                        whiteSpace: 'nowrap',
-                        color: it.disabled ? theme.color.disabled : 'inherit',
-                    });
-                    if (ticks) {
-                        const tick = document.createElement('span');
-                        Object.assign(tick.style, {
-                            display: 'flex',
-                            flex: '0 0 14px',
-                            color: theme.color.accent,
-                            visibility: it.checked ? 'visible' : 'hidden',
-                        });
-                        tick.innerHTML = icon('check', 13);
-                        r.appendChild(tick);
-                    }
-                    if (it.icon) {
-                        const g = document.createElement('span');
-                        Object.assign(g.style, { display: 'flex', flex: '0 0 auto', color: theme.color.muted });
-                        g.innerHTML = /^\s*<svg/.test(it.icon) ? it.icon : icon(it.icon, 14);
-                        r.appendChild(g);
-                    }
-                    const text = document.createElement('span');
-                    text.textContent = it.label;
-                    Object.assign(text.style, { flex: '1 1 auto' });
-                    if (it.font) text.style.fontFamily = it.font;
-                    r.appendChild(text);
-                    if (it.items) {
-                        const more = document.createElement('span');
-                        Object.assign(more.style, {
-                            display: 'flex',
-                            flex: '0 0 auto',
-                            marginLeft: '16px',
-                            marginRight: '-6px',
-                            color: theme.color.muted,
-                        });
-                        more.innerHTML = icon('chevronRight', 13);
-                        r.appendChild(more);
-                    } else if (it.hint) {
-                        const h = document.createElement('span');
-                        h.textContent = it.hint;
-                        Object.assign(h.style, { flex: '0 0 auto', marginLeft: '16px', color: theme.color.muted });
-                        r.appendChild(h);
-                    }
-                    return r;
-                };
+        // MARK: - Initializer
+        // MARK: - Public
+        function make() {
+            return { menu, select, contextMenu, floatingBar, suggestions };
+        }
 
-                /* `beside`: the row a submenu opens from. `done`: called when an item is taken anywhere in it,
-       to close what this menu hangs from. */
-                const popMenu = ({
-                    items: given,
-                    anchor = null,
-                    at = null,
-                    beside = null,
-                    current = -1,
-                    minWidth = 0,
-                    onClose,
-                    done = null,
-                }) => {
-                    // A line at either end, or two in a row, is not drawn.
-                    const items = given.filter(
-                        (it, i, all) =>
-                            it !== '-' ||
-                            (i > 0 &&
-                                i < all.length - 1 &&
-                                all[i + 1] !== '-' &&
-                                all.slice(0, i).some((x) => x !== '-'))
-                    );
-                    const menu = menuBox();
-                    Object.assign(menu.style, { minWidth: Math.max(minWidth, 160) + 'px', opacity: '0' });
-                    const ticks = items.some((it) => it !== '-' && typeof it.checked === 'boolean');
-                    const rows = [];
-                    for (const it of items) {
-                        if (it === '-') {
-                            menu.appendChild(menuLine());
-                            continue;
-                        }
-                        const r = menuRow(it, ticks);
-                        const i = rows.length;
-                        rows.push({ el: r, it });
-                        // On the press, so whatever had the focus does not take the click away first.
-                        r.addEventListener('mousedown', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            take(i, { keyboard: false });
-                        });
-                        menu.appendChild(r);
-                    }
+        // MARK: - Private
+        // Under an anchor, one at a time: the press on the anchor is the menu's own, so nothing else would close it.
+        // A second press on the anchor closes it and returns null.
+        function menu(items, { at = null, anchor = null, onClose } = {}) {
+            const open = anchor && openUnder.get(anchor);
+            if (open?.open) {
+                open.close();
+                return null;
+            }
+            const shown = popMenu({
+                items,
+                point: at,
+                anchor,
+                onClose: () => {
+                    if (anchor && openUnder.get(anchor) === shown) openUnder.delete(anchor);
+                    onClose?.();
+                },
+            });
+            if (anchor) openUnder.set(anchor, shown);
+            return shown;
+        }
 
-                    // The submenu open beside one row, if any, and the timer that opens or closes one on pointing.
-                    let sub = null,
-                        subTimer = 0;
-                    const closeSub = () => {
-                        clearTimeout(subTimer);
-                        if (sub) {
-                            const s = sub;
-                            sub = null;
-                            s.menu.close();
-                        }
-                    };
-                    const openSub = (i, keyboard) => {
-                        clearTimeout(subTimer);
-                        if (sub?.i === i) return;
-                        closeSub();
-                        const row = rows[i];
-                        if (!row?.it.items || row.it.disabled) return;
-                        const child = popMenu({
-                            items: row.it.items,
-                            beside: row.el,
-                            current: keyboard ? 0 : -1,
-                            done: () => {
-                                close();
-                                done?.();
-                            },
-                            onClose: () => {
-                                if (sub?.menu === child) sub = null;
-                            },
-                        });
-                        sub = { i, menu: child };
-                        // Reaching the submenu keeps it: crossing a row on the way there had set it to close.
-                        child.el.addEventListener('mouseenter', () => clearTimeout(subTimer));
-                    };
+        function select(options, { value = null, onChange } = {}) {
+            let current = value;
+            let shown = null;
+            const button = element('button', 'deckit-select');
+            button.type = 'button';
+            button.setAttribute('aria-haspopup', 'listbox');
+            button.setAttribute('aria-expanded', 'false');
+            const label = element('span', 'deckit-select-label');
+            const caret = element('span', 'deckit-select-caret');
+            caret.innerHTML = ICON.icon('chevronDown', 13);
+            button.append(label, caret);
+            const draw = () => {
+                const option = options.find((candidate) => candidate.value === current);
+                label.textContent = option ? option.label : '';
+                label.style.fontFamily = option?.font || '';
+            };
+            const open = () => {
+                button.setAttribute('aria-expanded', 'true');
+                shown = popMenu({
+                    anchor: button,
+                    minWidth: button.getBoundingClientRect().width,
+                    active: Math.max(
+                        0,
+                        options.findIndex((option) => option.value === current)
+                    ),
+                    items: options.map((option) => ({
+                        label: option.label,
+                        font: option.font,
+                        checked: option.value === current,
+                        run: () => {
+                            if (option.value === current) return;
+                            current = option.value;
+                            draw();
+                            onChange?.(option.value);
+                        },
+                    })),
+                    onClose: () => {
+                        button.setAttribute('aria-expanded', 'false');
+                        shown = null;
+                    },
+                });
+            };
+            button.addEventListener('click', () => (shown ? shown.close() : open()));
+            button.addEventListener('keydown', (event) => {
+                if (shown || ![' ', 'Enter', 'ArrowDown', 'ArrowUp'].includes(event.key)) return;
+                event.preventDefault();
+                open();
+            });
+            Object.defineProperty(button, 'value', {
+                get: () => current,
+                set: (next) => {
+                    current = next;
+                    draw();
+                },
+            });
+            draw();
+            return button;
+        }
 
-                    // Opened at the pointer, its first row is under the mouse before anyone has pointed at it.
-                    POINTER.hoverIntent(menu, (e) => {
-                        const i = rows.findIndex((row) => row.el.contains(e.target));
-                        if (i < 0 || rows[i].it.disabled) return;
-                        if (i !== at_) {
-                            at_ = i;
-                            paint();
-                        }
-                        clearTimeout(subTimer);
-                        if (rows[i].it.items) subTimer = setTimeout(() => openSub(i, false), 120);
-                        else if (sub) subTimer = setTimeout(closeSub, 200);
-                    });
-                    let at_ = rows[current] && !rows[current].it.disabled ? current : -1;
-                    const paint = () => {
-                        rows.forEach((row, i) => {
-                            row.el.style.background = i === at_ ? theme.color.selected : 'transparent';
-                        });
-                        rows[at_]?.el.scrollIntoView({ block: 'nearest' });
-                    };
-                    let open = true;
-                    // A press on this menu, or on what it hangs from, is this menu's; any other closes it (token.js).
-                    const layer = OVERLAY.raise({
-                        close: () => close(),
-                        contains: (t) =>
-                            menu.contains(t) || !!(anchor && anchor.contains(t)) || !!(beside && beside.contains(t)),
-                    });
-                    menu.style.zIndex = String(layer.z);
-                    const close = () => {
-                        if (!open) return;
-                        open = false;
-                        closeSub();
-                        layer.drop();
-                        window.removeEventListener('scroll', scrolled, true);
-                        window.removeEventListener('keydown', keys, true);
-                        window.removeEventListener('resize', close);
-                        window.removeEventListener('blur', close);
-                        Object.assign(menu.style, {
-                            transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.fast}ms ${MOTION.easing}`,
-                            opacity: '0',
-                            transform: menu.dataset.shut,
-                        });
-                        setTimeout(() => menu.remove(), MOTION.fast);
-                        onClose?.();
-                    };
-                    const take = (i, { keyboard }) => {
-                        const row = rows[i];
-                        if (!open || !row || row.it.disabled) return;
-                        if (row.it.items) {
-                            openSub(i, keyboard);
-                            return;
-                        }
+        // The menu of a row of `area`, opened by the context click, or by the ContextMenu key or Shift+F10 on the row
+        // with the focus. The row it is about is marked while it is open.
+        function contextMenu(area, { rowAt, items, keyRow = () => rowAt(document.activeElement) }) {
+            let shown = null;
+            const show = (row, where) => {
+                if (shown?.open) {
+                    shown.close();
+                    return true;
+                }
+                const list = items(row);
+                if (!list?.length) return false;
+                row?.setAttribute('data-deckit-target', '');
+                shown = popMenu({ items: list, ...where, onClose: () => row?.removeAttribute('data-deckit-target') });
+                return true;
+            };
+            area.addEventListener('contextmenu', (event) => {
+                if (!show(rowAt(event.target), { point: { x: event.clientX, y: event.clientY } })) return;
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            area.addEventListener('keydown', (event) => {
+                if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+                const row = keyRow();
+                const box = area.getBoundingClientRect();
+                if (!show(row, row ? { anchor: row } : { point: { x: box.left + 12, y: box.top + 12 } })) return;
+                event.preventDefault();
+                event.stopPropagation();
+            });
+            return area;
+        }
+
+        // A bar its owner shows, hides and places. A press on it never takes the focus from the text it acts on.
+        function floatingBar() {
+            const bar = element('div', 'deckit-menu deckit-toolbar');
+            bar.style.zIndex = String(OVERLAY.Z.float);
+            bar.addEventListener('mousedown', (event) => event.preventDefault());
+            document.body.append(bar);
+            return bar;
+        }
+
+        // Candidates under a text its owner edits: the owner moves through them with its own keys. In the page only
+        // while open: left in it, it would keep alive whatever its rows hold.
+        function suggestions({ onPick }) {
+            const box = element('div', 'deckit-menu');
+            Object.assign(box.style, { minWidth: '220px', zIndex: String(OVERLAY.Z.float) });
+            box.addEventListener('mousedown', (event) => event.preventDefault());
+            let items = [];
+            let open = false;
+            const list = LISTBOX.listbox(box, { onPick: (index) => take(index) });
+            const place = (rect) => open && rect && OVERLAY.place(box, { rect, gap: 6 });
+            const close = () => {
+                open = false;
+                items = [];
+                list.set([]);
+                box.replaceChildren();
+                box.remove();
+            };
+            const take = (index = list.active()) => {
+                const item = items[index];
+                if (!item) return;
+                close();
+                onPick(item);
+            };
+            const show = (next, rect) => {
+                items = next;
+                const rows = items.map((item) => rowOf(item, false));
+                box.replaceChildren(...rows);
+                list.set(
+                    rows.map((row) => ({ element: row, disabled: false })),
+                    { active: Math.max(0, list.active()) }
+                );
+                open = true;
+                if (!box.isConnected) document.body.append(box);
+                place(rect);
+            };
+            return {
+                show,
+                place,
+                step: (by) => list.move(by),
+                take,
+                close,
+                get open() {
+                    return open;
+                },
+            };
+        }
+
+        // A menu on the overlay. `beside` is the row a submenu opens from; `done` runs when an item is taken anywhere in
+        // it, to close the menus it hangs from.
+        function popMenu({
+            items,
+            anchor = null,
+            point = null,
+            beside = null,
+            active = -1,
+            minWidth = 0,
+            onClose,
+            done,
+        }) {
+            const box = element('div', 'deckit-menu');
+            box.setAttribute('role', 'menu');
+            box.style.minWidth = Math.max(minWidth, WIDTH_MIN) + 'px';
+            if (beside) box.dataset.nested = '';
+            const shown = withoutStraySeparators(items);
+            const ticks = shown.some((item) => item !== '-' && typeof item.checked === 'boolean');
+            const options = [];
+            for (const item of shown) {
+                if (item === '-') {
+                    box.append(element('div', 'deckit-menu-separator'));
+                    continue;
+                }
+                const row = rowOf(item, ticks);
+                options.push({ element: row, disabled: !!item.disabled, item });
+                box.append(row);
+            }
+            let open = true;
+            let submenu = null; // { index, menu }
+            let timer = 0;
+            const closeSubmenu = () => {
+                clearTimeout(timer);
+                const closing = submenu;
+                submenu = null;
+                closing?.menu.close();
+            };
+            const openSubmenu = (index, keyboard) => {
+                clearTimeout(timer);
+                if (submenu?.index === index) return;
+                closeSubmenu();
+                const { item, element: row } = options[index];
+                if (!item.items || item.disabled) return;
+                const child = popMenu({
+                    items: item.items,
+                    beside: row,
+                    active: keyboard ? 0 : -1,
+                    done: () => {
                         close();
                         done?.();
-                        row.it.run?.();
-                    };
-                    // Fixed where it was opened; once the page under it moves it points at nothing.
-                    const scrolled = (e) => {
-                        if (!menu.contains(e.target) && !(sub && sub.menu.el.contains(e.target))) close();
-                    };
-                    // The next item that can be taken, or none (-1) when every item is disabled.
-                    const step = (by) => {
-                        let i = at_;
-                        for (let n = 0; n < rows.length; n++) {
-                            i = i < 0 ? (by > 0 ? 0 : rows.length - 1) : (i + by + rows.length) % rows.length;
-                            if (!rows[i].it.disabled) {
-                                at_ = i;
-                                paint();
-                                return;
-                            }
-                        }
-                        at_ = -1;
-                        paint();
-                    };
-                    const keys = (e) => {
-                        // Something opened over the menu (its submenu, a dialog an item asked for) has the keyboard now.
-                        if (!layer.isTop()) return;
-                        if (e.key === 'ArrowDown') step(1);
-                        else if (e.key === 'ArrowUp') step(-1);
-                        else if (e.key === 'ArrowRight' && rows[at_]?.it.items) openSub(at_, true);
-                        else if (e.key === 'ArrowLeft' && beside) close();
-                        else if (e.key === 'Enter' || e.key === ' ') take(at_, { keyboard: true });
-                        else if (e.key === 'Escape' || e.key === 'Tab') close();
-                        else return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                    };
-                    document.body.appendChild(menu);
-
-                    // A submenu overlaps the menu it opens from and casts a deeper shadow, so it reads as laid on top.
-                    if (beside) menu.style.boxShadow = '0 14px 40px rgba(0,0,0,.42), 0 2px 8px rgba(0,0,0,.28)';
-                    const w = menu.offsetWidth,
-                        h = menu.offsetHeight;
-                    let x,
-                        y,
-                        up = false,
-                        left = false;
-                    if (beside) {
-                        const b = beside.getBoundingClientRect(),
-                            from = beside.parentElement.getBoundingClientRect();
-                        const OVER = 6;
-                        x = from.right - OVER;
-                        if (x + w > window.innerWidth - 8) {
-                            x = from.left + OVER - w;
-                            left = true;
-                        }
-                        y = b.top - 4;
-                        if (y + h > window.innerHeight - 8) y = Math.max(8, window.innerHeight - 8 - h);
-                    } else if (anchor) {
-                        const b = anchor.getBoundingClientRect();
-                        x = b.left;
-                        up = b.bottom + 4 + h > window.innerHeight - 8 && b.top - 4 - h >= 8;
-                        // An anchor as tall as the screen (a whole list) leaves no room either side: kept on screen.
-                        y = Math.max(8, Math.min(up ? b.top - 4 - h : b.bottom + 4, window.innerHeight - 8 - h));
-                    } else {
-                        x = at.x;
-                        y = at.y;
-                        if (y + h > window.innerHeight - 8) {
-                            y = Math.max(8, at.y - h);
-                            up = true;
-                        }
-                    }
-                    menu.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
-                    menu.style.top = y + 'px';
-                    // Grows out of the edge, or for a submenu the side, it hangs from.
-                    if (beside) {
-                        menu.style.transformOrigin = 'top ' + (left ? 'right' : 'left');
-                        menu.dataset.shut = (left ? 'translateX(6px)' : 'translateX(-6px)') + ' scale(.96)';
-                    } else {
-                        menu.style.transformOrigin = (up ? 'bottom' : 'top') + ' left';
-                        menu.dataset.shut = up ? 'translateY(6px) scale(.96)' : 'translateY(-6px) scale(.96)';
-                    }
-                    MOTION_.play(
-                        menu,
-                        { transform: menu.dataset.shut },
-                        {
-                            transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`,
-                            opacity: '1',
-                            transform: 'none',
-                        }
-                    );
-                    paint();
-
-                    // Next tick: the press or key that opened it must not be the one that closes it.
-                    setTimeout(() => {
-                        if (!open) return;
-                        window.addEventListener('scroll', scrolled, true);
-                        window.addEventListener('keydown', keys, true);
-                        window.addEventListener('resize', close);
-                        window.addEventListener('blur', close);
-                    }, 0);
-                    return {
-                        close,
-                        get open() {
-                            return open;
-                        },
-                        el: menu,
-                    };
-                };
-
-                // inlineEdit says why a rename was refused, under the field, in the same box.
-                inner.menuBox = menuBox;
-
-                return {
-                    /* Under an anchor, one at a time: the press on the anchor is the menu's own, so nothing else
-         would close the first. */
-                    menu(items, { at = null, anchor = null, onClose } = {}) {
-                        const open = anchor && openUnder.get(anchor);
-                        if (open?.open) {
-                            open.close();
-                            return null;
-                        }
-                        const m = popMenu({
-                            items,
-                            at,
-                            anchor,
-                            onClose: () => {
-                                if (anchor && openUnder.get(anchor) === m) openUnder.delete(anchor);
-                                onClose?.();
-                            },
-                        });
-                        if (anchor) openUnder.set(anchor, m);
-                        return m;
                     },
-                    select(options, { value = null, onChange } = {}) {
-                        let current = value;
-                        const box = document.createElement('button');
-                        box.type = 'button';
-                        Object.assign(box.style, {
-                            position: 'relative',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            flex: '0 0 auto',
-                            height: '26px',
-                            border: '0',
-                            outline: 'none',
-                            borderRadius: '999px',
-                            background: theme.color.hover,
-                            padding: '0 8px 0 12px',
-                            cursor: 'pointer',
-                            maxWidth: '240px',
-                            color: theme.color.text,
-                            font: '12.5px ' + theme.font,
-                        });
-                        const label = document.createElement('span');
-                        Object.assign(label.style, {
-                            flex: '0 1 auto',
-                            minWidth: '0',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                        });
-                        const caret = document.createElement('span');
-                        caret.innerHTML = icon('chevronDown', 13);
-                        Object.assign(caret.style, {
-                            display: 'flex',
-                            flex: '0 0 auto',
-                            color: theme.color.muted,
-                            transition: `transform ${MOTION.fast}ms ${MOTION.easing}`,
-                        });
-                        box.append(label, caret);
-                        const show = () => {
-                            const o = options.find((x) => x.value === current);
-                            label.textContent = o ? o.label : '';
-                            label.style.fontFamily = o?.font || '';
-                        };
-                        show();
+                    onClose: () => {
+                        if (submenu?.menu === child) submenu = null;
+                    },
+                });
+                submenu = { index, menu: child };
+                // Reaching the submenu keeps it: crossing a row on the way there set it to close.
+                child.el.addEventListener('mouseenter', () => clearTimeout(timer));
+            };
+            const close = () => {
+                if (!open) return;
+                open = false;
+                closeSubmenu();
+                layer.close();
+                onClose?.();
+            };
+            const take = (index, keyboard) => {
+                const { item } = options[index];
+                if (item.items) return openSubmenu(index, keyboard);
+                close();
+                done?.();
+                item.run?.();
+            };
+            const list = LISTBOX.listbox(box, {
+                onPick: (index, { keyboard }) => take(index, keyboard),
+                onActivate: (index, { pointer }) => {
+                    if (!pointer) return;
+                    clearTimeout(timer);
+                    if (options[index].item.items) timer = setTimeout(() => openSubmenu(index, false), SUBMENU_OPEN_MS);
+                    else if (submenu) timer = setTimeout(closeSubmenu, SUBMENU_CLOSE_MS);
+                },
+            });
+            const onKey = (event) => {
+                const index = list.active();
+                if (event.key === 'ArrowDown') list.move(1);
+                else if (event.key === 'ArrowUp') list.move(-1);
+                else if (event.key === 'ArrowRight' && options[index]?.item.items) openSubmenu(index, true);
+                else if (event.key === 'ArrowLeft' && beside) close();
+                else if ((event.key === 'Enter' || event.key === ' ') && index >= 0) take(index, true);
+                else if (event.key === 'Tab') close();
+                else return false;
+                return true;
+            };
+            const layer = OVERLAY.open({
+                element: box,
+                anchor,
+                point,
+                beside,
+                transient: true,
+                onKey,
+                onDismiss: close,
+            });
+            list.set(options, { active: options[active]?.disabled ? -1 : active });
+            return {
+                close,
+                get open() {
+                    return open;
+                },
+                el: box,
+            };
+        }
 
-                        let menu = null;
-                        const open = () => {
-                            if (menu?.open) return;
-                            caret.style.transform = 'rotate(180deg)';
-                            menu = popMenu({
-                                anchor: box,
-                                minWidth: box.getBoundingClientRect().width,
-                                current: Math.max(
-                                    0,
-                                    options.findIndex((o) => o.value === current)
-                                ),
-                                items: options.map((o) => ({
-                                    label: o.label,
-                                    font: o.font,
-                                    checked: o.value === current,
-                                    run: () => {
-                                        if (o.value === current) return;
-                                        current = o.value;
-                                        show();
-                                        onChange?.(o.value);
-                                    },
-                                })),
-                                onClose: () => {
-                                    caret.style.transform = 'none';
-                                    menu = null;
-                                },
-                            });
-                        };
-                        // Not pressable(): the pill rests on a grey of its own, a step darker under the pointer.
-                        box.addEventListener('mouseenter', () => {
-                            box.style.background = theme.color.selected;
-                        });
-                        box.addEventListener('mouseleave', () => {
-                            box.style.background = theme.color.hover;
-                        });
-                        box.addEventListener('focus', () => {
-                            if (box.matches(':focus-visible')) box.style.boxShadow = '0 0 0 2px ' + theme.color.focus;
-                        });
-                        box.addEventListener('blur', () => {
-                            box.style.boxShadow = 'none';
-                        });
-                        box.addEventListener('click', () => (menu ? menu.close() : open()));
-                        box.addEventListener('keydown', (e) => {
-                            if (menu) return; // the menu has the keyboard while it is open
-                            if ([' ', 'Enter', 'ArrowDown', 'ArrowUp'].includes(e.key)) {
-                                e.preventDefault();
-                                open();
-                            }
-                        });
-                        Object.defineProperty(box, 'value', {
-                            get: () => current,
-                            set: (v) => {
-                                current = v;
-                                show();
-                            },
-                        });
-                        return box;
-                    },
-                    contextMenu(area, { rowAt, items, keyRow = () => rowAt(document.activeElement) }) {
-                        let showing = null;
-                        const show = (row, where) => {
-                            if (showing?.open) {
-                                showing.close();
-                                return true;
-                            }
-                            const list = items(row);
-                            if (!list || !list.length) return false;
-                            let kept = null;
-                            if (row) {
-                                kept = row.style.boxShadow;
-                                const ring = `inset 0 0 0 2px ${COLOR.alpha(theme.color.accent, 0.75)}`;
-                                row.style.boxShadow = kept && kept !== 'none' ? `${ring}, ${kept}` : ring;
-                            }
-                            showing = popMenu({
-                                items: list,
-                                ...where,
-                                onClose: () => {
-                                    if (row) row.style.boxShadow = kept;
-                                },
-                            });
-                            return true;
-                        };
-                        area.addEventListener('contextmenu', (e) => {
-                            if (show(rowAt(e.target), { at: { x: e.clientX, y: e.clientY } })) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                            }
-                        });
-                        area.addEventListener('keydown', (e) => {
-                            if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) return;
-                            const row = keyRow();
-                            const box = area.getBoundingClientRect();
-                            if (show(row, row ? { anchor: row } : { at: { x: box.left + 12, y: box.top + 12 } })) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                            }
-                        });
-                        return area;
-                    },
-                    floatingBar() {
-                        const bar = menuBox();
-                        Object.assign(bar.style, {
-                            display: 'none',
-                            zIndex: String(Z.popover),
-                            padding: '3px',
-                            gap: '1px',
-                            alignItems: 'center',
-                            maxHeight: 'none',
-                            overflowY: 'visible',
-                        });
-                        bar.addEventListener('mousedown', (e) => e.preventDefault());
-                        document.body.appendChild(bar);
-                        return bar;
-                    },
-                    // In the page only while open: left in it, it would keep alive whatever its rows' handlers hold.
-                    suggestions({ onPick }) {
-                        const box = menuBox();
-                        Object.assign(box.style, { minWidth: '220px', zIndex: String(Z.popover) });
-                        // Pressing it anywhere, a row or the space between, never takes the keyboard from the text.
-                        box.addEventListener('mousedown', (e) => e.preventDefault());
-                        let list = [],
-                            rows = [],
-                            at = 0,
-                            open = false;
-                        const paint = () => {
-                            rows.forEach((r, i) => {
-                                r.style.background = i === at ? theme.color.selected : 'transparent';
-                            });
-                            rows[at]?.scrollIntoView({ block: 'nearest' });
-                        };
-                        POINTER.hoverIntent(box, (e) => {
-                            const i = rows.findIndex((r) => r.contains(e.target));
-                            if (i >= 0 && i !== at) {
-                                at = i;
-                                paint();
-                            }
-                        });
-                        const place = (rect) => {
-                            if (!open || !rect) return;
-                            const h = box.offsetHeight,
-                                w = box.offsetWidth;
-                            const below = rect.bottom + 6 + h < window.innerHeight - 8;
-                            box.style.top = (below ? rect.bottom + 6 : Math.max(8, rect.top - 6 - h)) + 'px';
-                            box.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - w - 8)) + 'px';
-                        };
-                        const close = () => {
-                            open = false;
-                            at = 0;
-                            list = [];
-                            rows = [];
-                            box.textContent = '';
-                            box.remove();
-                        };
-                        const take = (i = at) => {
-                            const it = list[i];
-                            if (!it) return;
-                            close();
-                            onPick(it);
-                        };
-                        const show = (items, rect) => {
-                            list = items;
-                            at = Math.min(at, Math.max(0, items.length - 1));
-                            box.textContent = '';
-                            rows = items.map((it, i) => {
-                                const r = menuRow(it, false);
-                                r.addEventListener('mousedown', () => take(i));
-                                box.appendChild(r);
-                                return r;
-                            });
-                            open = true;
-                            // In the page before it is placed: placing reads its size.
-                            if (!box.isConnected) document.body.appendChild(box);
-                            paint();
-                            place(rect);
-                        };
-                        const step = (by) => {
-                            if (list.length) {
-                                at = (at + by + list.length) % list.length;
-                                paint();
-                            }
-                        };
-                        return {
-                            show,
-                            place,
-                            step,
-                            take,
-                            close,
-                            get open() {
-                                return open;
-                            },
-                        };
-                    },
-                };
-            },
-        };
+        function rowOf(item, ticks) {
+            const row = element('div', 'deckit-menu-row');
+            row.setAttribute('role', ticks ? 'menuitemcheckbox' : 'menuitem');
+            if (ticks) {
+                row.dataset.ticks = '';
+                row.setAttribute('aria-checked', String(!!item.checked));
+                const tick = element('span', 'deckit-menu-tick');
+                tick.innerHTML = ICON.icon('check', 13);
+                row.append(tick);
+            }
+            if (item.disabled) row.setAttribute('aria-disabled', 'true');
+            if (item.icon) {
+                const glyph = element('span', 'deckit-menu-icon');
+                glyph.innerHTML = /^\s*<svg/.test(item.icon) ? item.icon : ICON.icon(item.icon, 14);
+                row.append(glyph);
+            }
+            const label = element('span', 'deckit-menu-label');
+            label.textContent = item.label;
+            if (item.font) label.style.fontFamily = item.font;
+            row.append(label);
+            if (item.items) {
+                const more = element('span', 'deckit-menu-more');
+                more.innerHTML = ICON.icon('chevronRight', 13);
+                row.append(more);
+            } else if (item.hint) {
+                const hint = element('span', 'deckit-menu-hint');
+                hint.textContent = item.hint;
+                row.append(hint);
+            }
+            return row;
+        }
+
+        // A separator at either end, or next to another, is not drawn.
+        function withoutStraySeparators(items) {
+            const kept = [];
+            for (const item of items) {
+                if (item === '-' && (!kept.length || kept.at(-1) === '-')) continue;
+                kept.push(item);
+            }
+            if (kept.at(-1) === '-') kept.pop();
+            return kept;
+        }
+
+        function element(tag, className) {
+            const made = document.createElement(tag);
+            made.className = className;
+            return made;
+        }
+
+        return { STYLE, make };
     }
 );

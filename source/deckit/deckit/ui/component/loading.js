@@ -2,12 +2,13 @@ DeckitModule.define(
     'deckit/ui/component/loading',
     {
         uses: ['deckit/ui/token'],
-        provides: ['make'],
+        provides: ['STYLE', 'make'],
     },
     (TOKEN) => {
         const { MOTION } = TOKEN;
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 return {
                     spinner(size = 14) {

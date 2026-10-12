@@ -1,13 +1,16 @@
 DeckitModule.define(
     'deckit/ui/component/inline-edit',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/overlay', 'deckit/ui/component/part'],
-        provides: ['make'],
+        uses: ['deckit/ui/overlay', 'deckit/ui/component/part'],
+        provides: ['STYLE', 'make'],
     },
-    (T, OVERLAY, K) => {
-        const { Z } = OVERLAY;
+    (OVERLAY, K) => {
+        const STYLE = `
+            .deckit-refusal { max-width: 280px; padding: 6px 9px; white-space: normal; color: var(--deckit-alert); }
+        `;
 
         return {
+            STYLE,
             make: (theme, ui, inner) => {
                 return {
                     inlineEdit(label, { stem = false, commit }) {
@@ -74,19 +77,12 @@ DeckitModule.define(
                         };
                         const say = (why, under, ms = 0) => {
                             unsay();
-                            note = inner.menuBox();
-                            const at = under.getBoundingClientRect();
-                            Object.assign(note.style, {
-                                zIndex: String(Z.popover),
-                                maxWidth: '280px',
-                                padding: '6px 9px',
-                                whiteSpace: 'normal',
-                                left: at.left + 'px',
-                                top: at.bottom + 6 + 'px',
-                                color: theme.color.alert,
-                            });
+                            note = document.createElement('div');
+                            note.className = 'deckit-menu deckit-refusal';
+                            note.style.zIndex = String(OVERLAY.Z.float);
                             note.textContent = why;
-                            document.body.appendChild(note);
+                            document.body.append(note);
+                            OVERLAY.place(note, { anchor: under, gap: 6 });
                             if (ms) {
                                 const mine = note;
                                 setTimeout(() => {

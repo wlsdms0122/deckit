@@ -1,12 +1,16 @@
 DeckitModule.define(
     'deckit/ui/component/button',
-    { uses: ['deckit/ui/token', 'deckit/ui/color', 'deckit/ui/icon', 'deckit/ui/component/part'], provides: ['make'] },
+    {
+        uses: ['deckit/ui/token', 'deckit/ui/color', 'deckit/ui/icon', 'deckit/ui/component/part'],
+        provides: ['STYLE', 'make'],
+    },
     (T, COLOR, ICON, K) => {
         const { MOTION } = T;
         const { icon } = ICON;
         const { pressable } = K;
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 return {
                     iconBtn(svg, title, onClick, { size = 'md', quiet = false } = {}) {

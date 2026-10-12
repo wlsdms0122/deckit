@@ -2,12 +2,13 @@ DeckitModule.define(
     'deckit/ui/component/sortable',
     {
         uses: ['deckit/ui/token', 'deckit/ui/scroll', 'deckit/ui/gesture', 'deckit/ui/component/part'],
-        provides: ['make'],
+        provides: ['STYLE', 'make'],
     },
     (TOKEN, SCROLL, GESTURE, K) => {
         const { MOTION } = TOKEN;
 
         return {
+            STYLE: '',
             make: (theme, ui, inner) => {
                 return {
                     sortable(list, onReorder) {
