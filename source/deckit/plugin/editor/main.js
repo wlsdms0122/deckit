@@ -1,102 +1,22 @@
+// Reads, writes and searches the files the editor opens. Asynchronous throughout: in the main process, a synchronous
+// read stalls every window of the app.
 module.exports = ({ handle, files }) => {
     const fs = require('fs');
     const path = require('path');
+    const { spawn } = require('child_process');
     const { dialog, BrowserWindow } = require('electron');
+    const { stat, readFile, writeFile, readdir, mkdir } = fs.promises;
 
-    // Big enough for any source file, small enough that a log or a dump is not loaded by mistake.
-    const LIMIT = 5 * 1024 * 1024;
-
-    const absolute = (p) => {
-        const s = String(p || '');
-        if (!path.isAbsolute(s)) throw new Error('not an absolute path: ' + s);
-        return s;
-    };
-
-    /* Every write is UTF-8, so a file in another encoding would come back with its bytes replaced.
-     ignoreBOM keeps a byte order mark as a character, so writing the text back writes the mark. */
-    const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
-    const decodeText = (buf) => {
-        if (buf.includes(0)) return null;
-        try {
-            return UTF8.decode(buf);
-        } catch {
-            return null;
-        }
-    };
-
-    // Asynchronous throughout: in the main process, a synchronous read stalls every window of the app.
-    const fsp = fs.promises;
-
-    handle('read', async (p) => {
-        const file = absolute(p);
-        let st;
-        try {
-            st = await fsp.stat(file);
-        } catch {
-            throw files.refuse('GONE', 'no such file');
-        }
-        if (!st.isFile()) throw files.refuse('NOT_TEXT', 'not a file');
-        if (st.size > LIMIT)
-            throw files.refuse('NOT_TEXT', `too big to open here (${Math.round(st.size / 1024 / 1024)} MB)`);
-        const text = decodeText(await fsp.readFile(file));
-        if (text === null) throw files.refuse('NOT_TEXT', 'not a UTF-8 text file');
-        return { text, mtime: st.mtimeMs };
-    });
-
-    handle('stat', async (p) => {
-        try {
-            const st = await fsp.stat(absolute(p));
-            return { exists: true, mtime: st.mtimeMs };
-        } catch {
-            return { exists: false, mtime: 0 };
-        }
-    });
-
-    handle('write', async (p, text, seen) => {
-        const file = absolute(p);
-        if (seen != null) {
-            let now = null;
-            try {
-                now = (await fsp.stat(file)).mtimeMs;
-            } catch {}
-            if (now !== null && Math.abs(now - seen) > 1)
-                throw files.refuse('CHANGED', 'changed on disk since it was opened');
-        }
-        // In place, not a temp file and a rename: a rename breaks hard links and looks like a delete to watchers.
-        await fsp.writeFile(file, String(text), 'utf8');
-        return { mtime: (await fsp.stat(file)).mtimeMs };
-    });
-
-    handle('pick', async (what = 'file', suggested = '') => {
-        const parent = BrowserWindow.getFocusedWindow() || undefined;
-        if (what === 'save') {
-            const r = await dialog.showSaveDialog(parent, {
-                defaultPath: suggested || undefined,
-                properties: ['createDirectory', 'showHiddenFiles'],
-            });
-            return r.canceled || !r.filePath ? [] : [r.filePath];
-        }
-        const properties =
-            what === 'folder'
-                ? ['openDirectory', 'createDirectory', 'showHiddenFiles']
-                : ['openFile', 'multiSelections', 'showHiddenFiles'];
-        const r = await dialog.showOpenDialog(parent, { properties });
-        return r.canceled ? [] : r.filePaths;
-    });
-
-    handle('create', (dir) =>
-        files.fresh(absolute(dir), 'untitled', (full) => fsp.writeFile(full, '', { flag: 'wx' }))
-    );
-    handle('mkdir', (dir) => files.fresh(absolute(dir), 'untitled folder', (full) => fsp.mkdir(full)));
-    handle('rename', (p, name) => files.rename(absolute(p), name));
-    handle('move', (p, dir) => files.move(absolute(p), absolute(dir)));
-    handle('trash', async (p) => {
-        await files.trash(absolute(p));
-        return true;
-    });
-
-    const HIDDEN = new Set(['.git', '.DS_Store']);
-    const HEAVY = new Set([
+    // Big enough for any source file, small enough that a log or a dump is not opened by mistake.
+    const OPEN_LIMIT = 5 * 1024 * 1024;
+    const SEARCHED_LIMIT = 1024 * 1024;
+    const LISTED_LIMIT = 300000;
+    const LISTING_TIME_LIMIT_MS = 30000;
+    const SEARCH_TIME_LIMIT_MS = 20000;
+    const MATCH_LIMIT = 5000;
+    const MATCH_TEXT_LIMIT = 400;
+    const HIDDEN_NAMES = new Set(['.git', '.DS_Store']);
+    const SKIPPED_FOLDERS = new Set([
         '.git',
         'node_modules',
         '.build',
@@ -113,60 +33,197 @@ module.exports = ({ handle, files }) => {
         '.idea',
         '.swiftpm',
     ]);
+    // Every write is UTF-8, so a file in another encoding would come back with its bytes replaced. ignoreBOM keeps a
+    // byte order mark as a character, so writing the text back writes the mark.
+    const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
+    const BYTE_ORDER_MARK = '\uFEFF';
 
-    handle('list', async (dir) => {
-        const at = absolute(dir);
+    const ripgrep = ripgrepPath();
+    // Listing a big repository takes a moment, so a listing is kept until the view asks for it `fresh`.
+    const listings = new Map(); // root -> promise of { files, truncated }
+    const listingsUnderWay = new Map(); // root -> the listing under way
+    // The view only wants the newest answer, so a new search stops the one before it.
+    const searches = new Map(); // root -> { stopped, stop() }
+
+    handle('read', async (given) => {
+        const file = absolute(given);
+        let status;
+        try {
+            status = await stat(file);
+        } catch {
+            throw files.refuse('GONE', 'no such file');
+        }
+        if (!status.isFile()) throw files.refuse('NOT_TEXT', 'not a file');
+        if (status.size > OPEN_LIMIT)
+            throw files.refuse('NOT_TEXT', `too big to open here (${Math.round(status.size / 1024 / 1024)} MB)`);
+        const text = decodeText(await readFile(file));
+        if (text === null) throw files.refuse('NOT_TEXT', 'not a UTF-8 text file');
+        return { text, mtime: status.mtimeMs };
+    });
+
+    handle('stat', async (given) => {
+        try {
+            const status = await stat(absolute(given));
+            return { exists: true, mtime: status.mtimeMs };
+        } catch {
+            return { exists: false, mtime: 0 };
+        }
+    });
+
+    // In place, not a temporary file and a rename: a rename breaks hard links and looks like a delete to watchers.
+    handle('write', async (given, text, seen) => {
+        const file = absolute(given);
+        if (seen != null) {
+            let now = null;
+            try {
+                now = (await stat(file)).mtimeMs;
+            } catch {}
+            if (now !== null && Math.abs(now - seen) > 1)
+                throw files.refuse('CHANGED', 'changed on disk since it was opened');
+        }
+        await writeFile(file, String(text), 'utf8');
+        return { mtime: (await stat(file)).mtimeMs };
+    });
+
+    handle('pick', async (what = 'file', suggested = '') => {
+        const parent = BrowserWindow.getFocusedWindow() || undefined;
+        if (what === 'save') {
+            const picked = await dialog.showSaveDialog(parent, {
+                defaultPath: suggested || undefined,
+                properties: ['createDirectory', 'showHiddenFiles'],
+            });
+            return picked.canceled || !picked.filePath ? [] : [picked.filePath];
+        }
+        const properties =
+            what === 'folder'
+                ? ['openDirectory', 'createDirectory', 'showHiddenFiles']
+                : ['openFile', 'multiSelections', 'showHiddenFiles'];
+        const picked = await dialog.showOpenDialog(parent, { properties });
+        return picked.canceled ? [] : picked.filePaths;
+    });
+
+    handle('create', (folder) =>
+        files.fresh(absolute(folder), 'untitled', (full) => writeFile(full, '', { flag: 'wx' }))
+    );
+    handle('mkdir', (folder) => files.fresh(absolute(folder), 'untitled folder', (full) => mkdir(full)));
+    handle('rename', (given, name) => files.rename(absolute(given), name));
+    handle('move', (given, folder) => files.move(absolute(given), absolute(folder)));
+    handle('trash', async (given) => {
+        await files.trash(absolute(given));
+        return true;
+    });
+
+    handle('list', async (given) => {
+        const folder = absolute(given);
         let listed;
         try {
-            listed = await fsp.readdir(at, { withFileTypes: true });
-        } catch (e) {
-            throw /^(ENOENT|ENOTDIR)$/.test(e.code) ? files.refuse('GONE', 'that folder is no longer there') : e;
+            listed = await readdir(folder, { withFileTypes: true });
+        } catch (error) {
+            throw /^(ENOENT|ENOTDIR)$/.test(error.code)
+                ? files.refuse('GONE', 'that folder is no longer there')
+                : error;
         }
-        const entries = listed.filter((e) => !HIDDEN.has(e.name));
-        const out = await Promise.all(
-            entries.map(async (e) => {
-                let folder = e.isDirectory();
-                if (e.isSymbolicLink()) {
-                    try {
-                        folder = (await fsp.stat(path.join(at, e.name))).isDirectory();
-                    } catch {
-                        folder = false;
-                    }
-                }
-                return { name: e.name, path: path.join(at, e.name), folder };
-            })
+        const entries = await Promise.all(
+            listed.filter((entry) => !HIDDEN_NAMES.has(entry.name)).map((entry) => entryOf(folder, entry))
         );
-        return out.sort(
-            (a, b) =>
-                b.folder - a.folder || a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        return entries.sort(
+            (left, right) =>
+                right.folder - left.folder ||
+                left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: 'base' })
         );
     });
 
-    // An app started from the Dock has a bare PATH, so ripgrep is looked for at its usual paths.
-    const rg = (() => {
-        for (const p of ['/opt/homebrew/bin/rg', '/usr/local/bin/rg', '/usr/bin/rg']) {
+    // A fresh ask joins a listing under way: it started after whatever made the ask fresh.
+    handle('files', (given, { fresh = false } = {}) => {
+        const root = absolute(given);
+        if (listingsUnderWay.has(root)) return listingsUnderWay.get(root);
+        if (!fresh && listings.has(root)) return listings.get(root);
+        const listing = listFiles(root);
+        listings.set(root, listing);
+        listingsUnderWay.set(root, listing);
+        listing.then(
+            () => listingsUnderWay.delete(root),
+            () => {
+                listingsUnderWay.delete(root);
+                if (listings.get(root) === listing) listings.delete(root);
+            }
+        );
+        return listing;
+    });
+
+    // Lines are 1-based, columns 0-based in characters.
+    handle('search', async (given, query, options = {}) => {
+        const root = absolute(given);
+        searches.get(root)?.stop();
+        if (!String(query || '')) return { files: [], total: 0, truncated: false, stoppedBy: '', warning: '' };
+        const search = {
+            stopped: false,
+            ripgrep: null,
+            stop() {
+                this.stopped = true;
+                this.ripgrep?.stop();
+            },
+        };
+        searches.set(root, search);
+        try {
+            return await searchIn(root, query, options, search);
+        } finally {
+            if (searches.get(root) === search) searches.delete(root);
+        }
+    });
+
+    function absolute(given) {
+        const text = String(given || '');
+        if (!path.isAbsolute(text)) throw new Error('not an absolute path: ' + text);
+        return text;
+    }
+
+    function decodeText(buffer) {
+        if (buffer.includes(0)) return null;
+        try {
+            return UTF8.decode(buffer);
+        } catch {
+            return null;
+        }
+    }
+
+    async function entryOf(folder, entry) {
+        let isFolder = entry.isDirectory();
+        if (entry.isSymbolicLink()) {
             try {
-                fs.accessSync(p, fs.constants.X_OK);
-                return p;
+                isFolder = (await stat(path.join(folder, entry.name))).isDirectory();
+            } catch {
+                isFolder = false;
+            }
+        }
+        return { name: entry.name, path: path.join(folder, entry.name), folder: isFolder };
+    }
+
+    // An app started from the Dock has a bare PATH, so ripgrep is looked for at its usual paths.
+    function ripgrepPath() {
+        for (const candidate of ['/opt/homebrew/bin/rg', '/usr/local/bin/rg', '/usr/bin/rg']) {
+            try {
+                fs.accessSync(candidate, fs.constants.X_OK);
+                return candidate;
             } catch {}
         }
         return null;
-    })();
-    const { spawn } = require('child_process');
-    const run = (args, cwd, onLine, limitMs) => {
+    }
+
+    // Runs ripgrep in `folder`, handing each line of its output to `onLine`, which stops it by answering false.
+    function runRipgrep(args, folder, onLine, timeLimit) {
         let stop = () => {};
         const ended = new Promise((resolve, reject) => {
-            const child = spawn(rg, args, { cwd });
+            const child = spawn(ripgrep, args, { cwd: folder });
             let rest = '';
             let stderr = '';
             let stopped = false;
             stop = () => {
-                if (!stopped) {
-                    stopped = true;
-                    child.kill();
-                }
+                if (stopped) return;
+                stopped = true;
+                child.kill();
             };
-            const timer = setTimeout(stop, limitMs);
+            const timer = setTimeout(stop, timeLimit);
             child.stdout.on('data', (chunk) => {
                 if (stopped) return;
                 const lines = (rest + chunk).split('\n');
@@ -180,222 +237,185 @@ module.exports = ({ handle, files }) => {
                 clearTimeout(timer);
                 resolve({ code, stderr: stderr.trim(), stopped });
             });
-            child.on('error', (e) => {
+            child.on('error', (error) => {
                 clearTimeout(timer);
-                reject(new Error('could not run ripgrep: ' + e.message));
+                reject(new Error('could not run ripgrep: ' + error.message));
             });
         });
         ended.stop = () => stop();
         return ended;
-    };
-    // For a refused pattern the first line only says "regex parse error:"; the "error:" line has the detail.
-    const complaint = (text) => {
-        const lines = String(text || '')
-            .split('\n')
-            .map((l) => l.trim())
-            .filter(Boolean);
-        const said = lines.find((l) => /^error:/.test(l)) || lines[0] || '';
-        return said.replace(/^(rg|error): /, '');
-    };
+    }
 
-    const walk = async function* (root) {
-        const stack = [root];
-        while (stack.length) {
-            const dir = stack.pop();
+    // For a refused pattern the first line only says "regex parse error:"; the "error:" line has the detail.
+    function errorOf(stderr) {
+        const lines = String(stderr || '')
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean);
+        const line = lines.find((candidate) => /^error:/.test(candidate)) || lines[0] || '';
+        return line.replace(/^(rg|error): /, '');
+    }
+
+    async function* walk(root) {
+        const folders = [root];
+        while (folders.length) {
+            const folder = folders.pop();
             let entries = [];
             try {
-                entries = await fs.promises.readdir(dir, { withFileTypes: true });
+                entries = await readdir(folder, { withFileTypes: true });
             } catch {
                 continue;
             }
-            for (const e of entries) {
-                if (HEAVY.has(e.name) || e.name === '.DS_Store') continue;
-                const p = path.join(dir, e.name);
-                if (e.isDirectory()) stack.push(p);
-                else if (e.isFile()) yield p;
+            for (const entry of entries) {
+                if (SKIPPED_FOLDERS.has(entry.name) || entry.name === '.DS_Store') continue;
+                const full = path.join(folder, entry.name);
+                if (entry.isDirectory()) folders.push(full);
+                else if (entry.isFile()) yield full;
             }
         }
-    };
-    const readable = async (p) => {
+    }
+
+    async function readText(file) {
         try {
-            const st = await fsp.stat(p);
-            if (st.size > 1024 * 1024) return null;
-            const text = decodeText(await fsp.readFile(p));
-            return text === null ? null : { text, mtime: st.mtimeMs };
+            const status = await stat(file);
+            if (status.size > SEARCHED_LIMIT) return null;
+            const text = decodeText(await readFile(file));
+            return text === null ? null : { text, mtime: status.mtimeMs };
         } catch {
             return null;
         }
-    };
+    }
 
-    // Listing a big repository takes a moment, so the list is kept until the view asks for it `fresh`.
-    const FILES_CAP = 300000;
-    const fileLists = new Map(); // root -> Promise<{ files, truncated }>
-    const listing = new Map(); // root -> the listing under way
-    const listFiles = async (root) => {
-        const files = [];
+    async function listFiles(root) {
+        const listed = [];
         let truncated = false;
-        if (rg) {
-            const globs = [...HEAVY].flatMap((h) => ['--glob', `!**/${h}/**`]);
-            const r = await run(
+        if (ripgrep) {
+            const globs = [...SKIPPED_FOLDERS].flatMap((name) => ['--glob', `!**/${name}/**`]);
+            const run = await runRipgrep(
                 ['--files', '--hidden', ...globs],
                 root,
                 (line) => {
-                    files.push(line);
-                    return files.length < FILES_CAP;
+                    listed.push(line);
+                    return listed.length < LISTED_LIMIT;
                 },
-                30000
+                LISTING_TIME_LIMIT_MS
             );
-            truncated = r.stopped;
+            truncated = run.stopped;
             // 2 with nothing listed: the folder itself was refused (macOS privacy), not empty.
-            if (!r.stopped && r.code === 2 && !files.length)
-                throw new Error(complaint(r.stderr) || 'the folder could not be read');
+            if (!run.stopped && run.code === 2 && !listed.length)
+                throw new Error(errorOf(run.stderr) || 'the folder could not be read');
         } else {
-            for await (const p of walk(root)) {
-                files.push(path.relative(root, p));
-                if (files.length >= FILES_CAP) {
+            for await (const file of walk(root)) {
+                listed.push(path.relative(root, file));
+                if (listed.length >= LISTED_LIMIT) {
                     truncated = true;
                     break;
                 }
             }
         }
-        return { files: files.sort(), truncated };
-    };
-    // A fresh ask joins a listing under way: it started after whatever made the ask fresh.
-    handle('files', (dir, { fresh = false } = {}) => {
-        const root = absolute(dir);
-        if (listing.has(root)) return listing.get(root);
-        if (!fresh && fileLists.has(root)) return fileLists.get(root);
-        const made = listFiles(root);
-        fileLists.set(root, made);
-        listing.set(root, made);
-        made.then(
-            () => listing.delete(root),
-            () => {
-                listing.delete(root);
-                if (fileLists.get(root) === made) fileLists.delete(root);
-            }
-        );
-        return made;
-    });
+        return { files: listed.sort(), truncated };
+    }
 
     // Only for the walk without ripgrep: the two accept different patterns, so with ripgrep it judges.
-    const patternOf = (query, { regex = false, caseSensitive = false, word = false } = {}) => {
-        let src = regex ? String(query) : String(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        if (word) src = `\\b(?:${src})\\b`;
-        return new RegExp(src, caseSensitive ? 'g' : 'gi');
-    };
+    function patternOf(query, { regex = false, caseSensitive = false, word = false } = {}) {
+        let source = regex ? String(query) : String(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (word) source = `\\b(?:${source})\\b`;
+        return new RegExp(source, caseSensitive ? 'g' : 'gi');
+    }
 
     // A plain name matches anywhere, a path with a slash from the top, and anything with * ? [ { is a glob as written.
-    const globsOf = (text) =>
-        String(text || '')
+    function globsOf(text) {
+        return String(text || '')
             .split(',')
-            .map((t) => t.trim().replace(/^\.\//, '').replace(/\/+$/, ''))
+            .map((part) => part.trim().replace(/^\.\//, '').replace(/\/+$/, ''))
             .filter(Boolean)
-            .flatMap((t) =>
-                /[*?[{]/.test(t)
-                    ? [t.includes('/') ? t : `**/${t}`]
-                    : t.includes('/')
-                      ? [t, `${t}/**`]
-                      : [`**/${t}`, `**/${t}/**`]
+            .flatMap((part) =>
+                /[*?[{]/.test(part)
+                    ? [part.includes('/') ? part : `**/${part}`]
+                    : part.includes('/')
+                      ? [part, `${part}/**`]
+                      : [`**/${part}`, `**/${part}/**`]
             );
-    // A character at a time, so an escaped character is itself and no rule's output is read by the next.
-    const literal = (c) => c.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-    const globRe = (g) => {
-        let out = '';
-        for (let i = 0; i < g.length; i++) {
-            const c = g[i];
-            if (c === '\\' && i + 1 < g.length) out += literal(g[++i]);
-            else if (c === '*' && g[i + 1] === '*') {
-                if (g[i + 2] === '/') {
-                    out += '(?:.*/)?';
-                    i += 2;
-                } else {
-                    out += '.*';
-                    i += 1;
-                }
-            } else if (c === '*') out += '[^/]*';
-            else if (c === '?') out += '[^/]';
-            else if (c === '[') {
-                const close = g.indexOf(']', i + 1);
-                if (close < 0) {
-                    out += '\\[';
-                    continue;
-                }
-                const inner = g.slice(i + 1, close).replace(/^!/, '^');
-                out += '[' + inner + ']';
-                i = close;
-            } else if (c === '{') {
-                const close = g.indexOf('}', i + 1);
-                if (close < 0) {
-                    out += '\\{';
-                    continue;
-                }
-                out +=
-                    '(?:' +
-                    g
-                        .slice(i + 1, close)
-                        .split(',')
-                        .map((part) => globRe(part).source.slice(1, -1))
-                        .join('|') +
-                    ')';
-                i = close;
-            } else out += literal(c);
-        }
-        return new RegExp('^' + out + '$');
-    };
+    }
 
-    // Lines are 1-based, columns 0-based in characters.
-    const MATCH_LIMIT = 5000;
-    // The view only wants the newest answer, so a new search stops the one before it.
-    const searches = new Map(); // root -> { stopped, stop() }
-    handle('search', async (dir, query, opts = {}) => {
-        const root = absolute(dir);
-        searches.get(root)?.stop();
-        if (!String(query || '')) return { files: [], total: 0, truncated: false, stoppedBy: '', warning: '' };
-        const turn = {
-            stopped: false,
-            rg: null,
-            stop() {
-                this.stopped = true;
-                this.rg?.stop();
-            },
-        };
-        searches.set(root, turn);
-        try {
-            return await searchIn(root, query, opts, turn);
-        } finally {
-            if (searches.get(root) === turn) searches.delete(root);
+    function escaped(character) {
+        return character.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+    }
+
+    // A character at a time, so an escaped character is itself and no rule's output is read by the next.
+    function globPattern(glob) {
+        let source = '';
+        for (let index = 0; index < glob.length; index++) {
+            const character = glob[index];
+            if (character === '\\' && index + 1 < glob.length) source += escaped(glob[++index]);
+            else if (character === '*' && glob[index + 1] === '*') {
+                if (glob[index + 2] === '/') {
+                    source += '(?:.*/)?';
+                    index += 2;
+                } else {
+                    source += '.*';
+                    index += 1;
+                }
+            } else if (character === '*') source += '[^/]*';
+            else if (character === '?') source += '[^/]';
+            else if (character === '[') {
+                const close = glob.indexOf(']', index + 1);
+                if (close < 0) {
+                    source += '\\[';
+                    continue;
+                }
+                source += '[' + glob.slice(index + 1, close).replace(/^!/, '^') + ']';
+                index = close;
+            } else if (character === '{') {
+                const close = glob.indexOf('}', index + 1);
+                if (close < 0) {
+                    source += '\\{';
+                    continue;
+                }
+                const choices = glob
+                    .slice(index + 1, close)
+                    .split(',')
+                    .map((choice) => globPattern(choice).source.slice(1, -1));
+                source += '(?:' + choices.join('|') + ')';
+                index = close;
+            } else source += escaped(character);
         }
-    });
+        return new RegExp('^' + source + '$');
+    }
+
     // A folder gone since it was picked is reported here only: refused when all are gone, a warning otherwise.
-    const rootsOf = async (root, folders) => {
+    async function searchRootsOf(root, folders) {
         const picked = [
             ...new Set(
                 (Array.isArray(folders) ? folders : [])
-                    .map((f) => String(f || '').replace(/^\/+|\/+$/g, ''))
+                    .map((folder) => String(folder || '').replace(/^\/+|\/+$/g, ''))
                     .filter(Boolean)
             ),
         ].sort();
-        const kept = picked.filter((f, i) => !picked.slice(0, i).some((o) => f.startsWith(o + '/')));
-        const isDir = (p) =>
-            fsp.stat(p).then(
-                (st) => st.isDirectory(),
+        const kept = picked.filter(
+            (folder, index) => !picked.slice(0, index).some((other) => folder.startsWith(other + '/'))
+        );
+        const isFolder = (full) =>
+            stat(full).then(
+                (status) => status.isDirectory(),
                 () => false
             );
-        const tops = [],
-            gone = [];
-        for (const f of kept.length ? kept : ['']) ((await isDir(path.join(root, f))) ? tops : gone).push(f);
+        const tops = [];
+        const gone = [];
+        for (const folder of kept.length ? kept : [''])
+            ((await isFolder(path.join(root, folder))) ? tops : gone).push(folder);
         // A path is never the first word: it is shown as a sentence, which would capitalise it.
-        const said = 'No longer there: ' + gone.join(', ');
-        if (!tops.length) throw files.refuse('GONE', kept.length ? said : "The workspace's folder is no longer there");
-        return { tops: tops.map((f) => path.join(root, f)), warning: gone.length ? said : '' };
-    };
-    const searchIn = async (root, query, opts, turn) => {
+        const goneMessage = 'No longer there: ' + gone.join(', ');
+        if (!tops.length)
+            throw files.refuse('GONE', kept.length ? goneMessage : "The workspace's folder is no longer there");
+        return { tops: tops.map((folder) => path.join(root, folder)), warning: gone.length ? goneMessage : '' };
+    }
+
+    async function searchIn(root, query, options, search) {
         const byFile = new Map();
         let total = 0;
         let stoppedBy = '';
-        let warning = '';
-        const add = (file, line, col, length, text) => {
+        const addMatch = (file, line, col, length, text) => {
             if (total >= MATCH_LIMIT) {
                 stoppedBy = 'limit';
                 return false;
@@ -406,48 +426,47 @@ module.exports = ({ handle, files }) => {
                 col,
                 length,
                 hit: text.slice(col, col + length),
-                text: text.length > 400 ? text.slice(0, 400) : text,
+                text: text.length > MATCH_TEXT_LIMIT ? text.slice(0, MATCH_TEXT_LIMIT) : text,
             });
             total += 1;
             return true;
         };
-        const include = globsOf(opts.include);
-        const exclude = globsOf(opts.exclude);
+        const include = globsOf(options.include);
+        const exclude = globsOf(options.exclude);
         // Each folder is searched from inside, so include and exclude read paths relative to it.
-        const scope = await rootsOf(root, opts.folders);
-        const tops = scope.tops;
-        warning = scope.warning;
+        const { tops, warning: scopeWarning } = await searchRootsOf(root, options.folders);
+        let warning = scopeWarning;
         // Taken when the search first reads a file: one changed during a long search must not pass as unchanged.
-        const seen = new Map(); // file -> Promise of its mtime
-        const stamp = (file) => {
-            if (!seen.has(file))
-                seen.set(
+        const modified = new Map(); // file -> promise of its mtime
+        const noteModified = (file) => {
+            if (!modified.has(file))
+                modified.set(
                     file,
-                    fsp.stat(file).then(
-                        (st) => st.mtimeMs,
+                    stat(file).then(
+                        (status) => status.mtimeMs,
                         () => 0
                     )
                 );
         };
-        const deadline = Date.now() + 20000;
-        if (rg) {
+        const deadline = Date.now() + SEARCH_TIME_LIMIT_MS;
+        if (ripgrep) {
             const args = [
                 '--json',
                 '--hidden',
                 '--max-filesize',
                 '1M',
-                ...[...HEAVY].flatMap((h) => ['--glob', `!**/${h}/**`]),
+                ...[...SKIPPED_FOLDERS].flatMap((name) => ['--glob', `!**/${name}/**`]),
             ];
             // A glob without ! is a whitelist to ripgrep: with any, only what they name is searched.
-            for (const g of include) args.push('--glob', g);
-            for (const g of exclude) args.push('--glob', '!' + g);
-            args.push(opts.caseSensitive ? '-s' : '-i');
-            if (opts.word) args.push('-w');
-            if (!opts.regex) args.push('-F');
+            for (const glob of include) args.push('--glob', glob);
+            for (const glob of exclude) args.push('--glob', '!' + glob);
+            args.push(options.caseSensitive ? '-s' : '-i');
+            if (options.word) args.push('-w');
+            if (!options.regex) args.push('-F');
             args.push('-e', String(query), '--', '.');
             const unreadable = [];
             for (const top of tops) {
-                if (turn.stopped || stoppedBy) break;
+                if (search.stopped || stoppedBy) break;
                 const left = deadline - Date.now();
                 if (left <= 0) {
                     stoppedBy = 'time';
@@ -455,57 +474,59 @@ module.exports = ({ handle, files }) => {
                 }
                 // ripgrep sums up a search it ran, and says nothing on stdout about one it refused to start.
                 let searched = false;
-                turn.rg = run(
+                search.ripgrep = runRipgrep(
                     args,
                     top,
                     (line) => {
-                        let m;
+                        let message;
                         try {
-                            m = JSON.parse(line);
+                            message = JSON.parse(line);
                         } catch {
                             return true;
                         }
-                        if (m.type === 'summary') searched = true;
-                        if (m.type !== 'match') return true;
+                        if (message.type === 'summary') searched = true;
+                        if (message.type !== 'match') return true;
                         // Not UTF-8: a file this editor does not open.
-                        if (m.data.lines.bytes != null || m.data.path.bytes != null) return true;
-                        const file = path.join(top, m.data.path.text || '');
-                        stamp(file);
-                        const text = String(m.data.lines.text || '').replace(/\r?\n$/, '');
+                        if (message.data.lines.bytes != null || message.data.path.bytes != null) return true;
+                        const file = path.join(top, message.data.path.text || '');
+                        noteModified(file);
+                        const text = String(message.data.lines.text || '').replace(/\r?\n$/, '');
                         const bytes = Buffer.from(text);
                         // ripgrep counts bytes; the editor counts characters.
-                        const chars = (n) => bytes.subarray(0, n).toString('utf8').length;
-                        for (const s of m.data.submatches || []) {
-                            if (!add(file, m.data.line_number, chars(s.start), chars(s.end) - chars(s.start), text))
+                        const characters = (count) => bytes.subarray(0, count).toString('utf8').length;
+                        for (const submatch of message.data.submatches || []) {
+                            const col = characters(submatch.start);
+                            if (!addMatch(file, message.data.line_number, col, characters(submatch.end) - col, text))
                                 return false;
                         }
                         return true;
                     },
                     left
                 );
-                const r = await turn.rg;
-                if (r.stopped && !stoppedBy && !turn.stopped) stoppedBy = 'time'; // out of time, not out of room
-                /* 2 before any summary: ripgrep refused the pattern or a glob, as every folder would.
-           2 after running: a file could not be read; what was found stands. */
-                if (!r.stopped && r.code === 2) {
-                    if (!searched) throw new Error(complaint(r.stderr) || 'the search could not run');
-                    unreadable.push(complaint(r.stderr));
+                const run = await search.ripgrep;
+                // Out of time, not out of room.
+                if (run.stopped && !stoppedBy && !search.stopped) stoppedBy = 'time';
+                // 2 before any summary: ripgrep refused the pattern or a glob, as every folder would. 2 after running: a
+                // file could not be read; what was found stands.
+                if (!run.stopped && run.code === 2) {
+                    if (!searched) throw new Error(errorOf(run.stderr) || 'the search could not run');
+                    unreadable.push(errorOf(run.stderr));
                 }
             }
-            /* ripgrep matches ASCII lines of other encodings and converts UTF-16; the editor opens neither.
-         It also counts line 1 from after a byte order mark, which the editor keeps as a character. */
+            // ripgrep matches ASCII lines of other encodings and converts UTF-16; the editor opens neither. It also counts
+            // line 1 from after a byte order mark, which the editor keeps as a character.
             for (const [file, matches] of [...byFile]) {
-                const got = await readable(file);
-                if (got === null) {
+                const read = await readText(file);
+                if (read === null) {
                     byFile.delete(file);
                     total -= matches.length;
                     continue;
                 }
-                if (got.text.charCodeAt(0) === 0xfeff)
-                    for (const m of matches)
-                        if (m.line === 1) {
-                            m.col += 1;
-                            m.text = '\uFEFF' + m.text;
+                if (read.text.startsWith(BYTE_ORDER_MARK))
+                    for (const match of matches)
+                        if (match.line === 1) {
+                            match.col += 1;
+                            match.text = BYTE_ORDER_MARK + match.text;
                         }
             }
             if (unreadable.length)
@@ -513,43 +534,43 @@ module.exports = ({ handle, files }) => {
                     .filter(Boolean)
                     .join('. ');
         } else {
-            const re = patternOf(query, opts);
-            const ins = include.map(globRe),
-                outs = exclude.map(globRe);
-            const files = async function* () {
+            const pattern = patternOf(query, options);
+            const includes = include.map(globPattern);
+            const excludes = exclude.map(globPattern);
+            const candidates = async function* () {
                 for (const top of tops) for await (const file of walk(top)) yield [top, file];
             };
-            scan: for await (const [top, file] of files()) {
-                if (turn.stopped) break;
+            scan: for await (const [top, file] of candidates()) {
+                if (search.stopped) break;
                 if (Date.now() > deadline) {
                     stoppedBy = 'time';
                     break;
                 }
                 const inner = path.relative(top, file);
-                if (ins.length && !ins.some((x) => x.test(inner))) continue;
-                if (outs.some((x) => x.test(inner))) continue;
-                const got = await readable(file);
-                if (got == null) continue;
-                const lines = got.text.split('\n');
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].replace(/\r$/, '');
-                    re.lastIndex = 0;
-                    let m;
-                    while ((m = re.exec(line))) {
-                        if (!m[0].length) {
-                            re.lastIndex += 1;
+                if (includes.length && !includes.some((glob) => glob.test(inner))) continue;
+                if (excludes.some((glob) => glob.test(inner))) continue;
+                const read = await readText(file);
+                if (read == null) continue;
+                const lines = read.text.split('\n');
+                for (let index = 0; index < lines.length; index++) {
+                    const line = lines[index].replace(/\r$/, '');
+                    pattern.lastIndex = 0;
+                    let match;
+                    while ((match = pattern.exec(line))) {
+                        if (!match[0].length) {
+                            pattern.lastIndex += 1;
                             continue;
                         }
-                        if (!seen.has(file)) seen.set(file, Promise.resolve(got.mtime));
-                        if (!add(file, i + 1, m.index, m[0].length, line)) break scan;
+                        if (!modified.has(file)) modified.set(file, Promise.resolve(read.mtime));
+                        if (!addMatch(file, index + 1, match.index, match[0].length, line)) break scan;
                     }
                 }
             }
         }
-        const files = await Promise.all(
-            [...byFile].map(async ([p, matches]) => ({ path: p, matches, mtime: await seen.get(p) }))
+        const found = await Promise.all(
+            [...byFile].map(async ([file, matches]) => ({ path: file, matches, mtime: await modified.get(file) }))
         );
-        files.sort((a, b) => a.path.localeCompare(b.path));
-        return { files, total, truncated: !!stoppedBy, stoppedBy, warning };
-    };
+        found.sort((left, right) => left.path.localeCompare(right.path));
+        return { files: found, total, truncated: !!stoppedBy, stoppedBy, warning };
+    }
 };

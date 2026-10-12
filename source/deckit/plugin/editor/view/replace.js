@@ -1,86 +1,143 @@
-/* Only the matches ripgrep reported are replaced, at their line and column, and only if the text
- * there is unchanged. Re-matching in JavaScript would disagree with ripgrep (^, \s, word bounds). */
-const patternOf = (query, { regex = false, caseSensitive = false, word = false } = {}) => {
-    let src = regex ? String(query) : String(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (word) src = `\\b(?:${src})\\b`;
-    return new RegExp(src, caseSensitive ? 'g' : 'gi');
-};
+// Only the matches ripgrep reported are replaced, at their line and column, and only if the text there is unchanged.
+// Matching again in JavaScript would disagree with ripgrep (^, \s, word bounds).
+function patternOf(query, { regex = false, caseSensitive = false, word = false } = {}) {
+    let source = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (word) source = `\\b(?:${source})\\b`;
+    return new RegExp(source, caseSensitive ? 'g' : 'gi');
+}
 
-const expandReplacement = (replacement, m) =>
-    replacement.replace(/\$(\$|&|<([^>]*)>|(\d{1,2}))/g, (all, what, name, digits) => {
-        if (what === '$') return '$';
-        if (what === '&') return m[0];
-        if (name !== undefined) return m.groups?.[name] ?? '';
-        const n = Number(digits);
-        return n > 0 && n < m.length ? (m[n] ?? '') : all;
+function expandReplacement(replacement, match) {
+    return replacement.replace(/\$(\$|&|<([^>]*)>|(\d{1,2}))/g, (whole, token, name, digits) => {
+        if (token === '$') return '$';
+        if (token === '&') return match[0];
+        if (name !== undefined) return match.groups?.[name] ?? '';
+        const group = Number(digits);
+        return group > 0 && group < match.length ? (match[group] ?? '') : whole;
     });
+}
 
-const planReplace = (lineOf, matches, { query, replacement, opts = {} }) => {
-    const groups = opts.regex && replacement.includes('$');
-    let sticky = null;
-    if (groups) {
-        // Word bounds were already checked by ripgrep.
-        try {
-            sticky = new RegExp(
-                patternOf(query, { ...opts, word: false }).source,
-                (opts.caseSensitive ? '' : 'i') + 'uy'
-            );
-        } catch {
-            try {
-                sticky = new RegExp(
-                    patternOf(query, { ...opts, word: false }).source,
-                    (opts.caseSensitive ? '' : 'i') + 'y'
-                );
-            } catch {
-                sticky = null;
-            }
-        }
-    }
+// The edits that replace `matches`, with `lineOf(number)` giving a line's { from, text }.
+function planReplace(lineOf, matches, { query, replacement, options = {} }) {
+    const usesGroups = options.regex && replacement.includes('$');
+    const stickyPattern = usesGroups ? stickyPatternOf(query, options) : null;
     const edits = [];
-    let skipped = 0,
-        why = '';
-    const skip = (reason) => {
+    let skipped = 0;
+    let reason = '';
+    const skip = (why) => {
         skipped += 1;
-        why = why || reason;
+        reason = reason || why;
     };
-    for (const m of matches) {
-        const line = lineOf(m.line);
-        const hit = m.hit ?? (m.text || '').slice(m.col, m.col + m.length);
-        if (!line || line.text.slice(m.col, m.col + m.length) !== hit) {
+    for (const match of matches) {
+        const line = lineOf(match.line);
+        if (!line || line.text.slice(match.col, match.col + match.length) !== match.hit) {
             skip('the text there changed after the search');
             continue;
         }
         let insert = replacement;
-        if (groups) {
-            if (!sticky) {
+        if (usesGroups) {
+            if (!stickyPattern) {
                 skip('the pattern is not one this replace can read groups from');
                 continue;
             }
-            sticky.lastIndex = m.col;
-            const found = sticky.exec(line.text);
-            if (!found || found[0] !== hit) {
+            stickyPattern.lastIndex = match.col;
+            const found = stickyPattern.exec(line.text);
+            if (!found || found[0] !== match.hit) {
                 skip('the pattern did not match there the same way');
                 continue;
             }
             insert = expandReplacement(replacement, found);
         }
-        edits.push({ from: line.from + m.col, to: line.from + m.col + m.length, insert });
+        edits.push({ from: line.from + match.col, to: line.from + match.col + match.length, insert });
     }
-    return { edits, skipped, why };
-};
+    return { edits, skipped, reason };
+}
 
-const linesOfText = (text) => {
+// Word bounds were already checked by ripgrep. Unicode when the pattern allows it; null when JavaScript cannot read it.
+function stickyPatternOf(query, options) {
+    const flags = options.caseSensitive ? '' : 'i';
+    const sticky = (more) => new RegExp(patternOf(query, { ...options, word: false }).source, flags + more);
+    try {
+        return sticky('uy');
+    } catch {
+        try {
+            return sticky('y');
+        } catch {
+            return null;
+        }
+    }
+}
+
+function linesOfText(text) {
     const starts = [0];
-    for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === 10) starts.push(i + 1);
-    return (n) => {
-        if (n < 1 || n > starts.length) return null;
-        const end = n < starts.length ? starts[n] - 1 : text.length;
-        return { from: starts[n - 1], text: text.slice(starts[n - 1], end).replace(/\r$/, '') };
+    for (let index = 0; index < text.length; index++) if (text.charCodeAt(index) === 10) starts.push(index + 1);
+    return (number) => {
+        if (number < 1 || number > starts.length) return null;
+        const end = number < starts.length ? starts[number] - 1 : text.length;
+        return { from: starts[number - 1], text: text.slice(starts[number - 1], end).replace(/\r$/, '') };
     };
-};
+}
 
 // From the end, so earlier offsets stay valid.
-const applyEdits = (text, edits) =>
-    [...edits]
-        .sort((a, b) => b.from - a.from)
-        .reduce((out, e) => out.slice(0, e.from) + e.insert + out.slice(e.to), text);
+function applyEdits(text, edits) {
+    return [...edits]
+        .sort((left, right) => right.from - left.from)
+        .reduce((result, edit) => result.slice(0, edit.from) + edit.insert + result.slice(edit.to), text);
+}
+
+// Replaces the search's `results`. An open file is changed in its editor and saved, and left out while it has unsaved
+// changes: its lines may not be the ones the search read. A replacement counts once it is on disk, which is what the
+// count tells the person.
+async function replaceMatches({ results, query, replacement, options, fileAt, isDirty, save, writeUnopened }) {
+    let replaced = 0;
+    let skipped = 0;
+    let reason = '';
+    const count = (plan) => {
+        replaced += plan.edits.length;
+        skipped += plan.skipped;
+        reason = reason || plan.reason;
+    };
+    const skip = (number, why) => {
+        skipped += number;
+        reason = reason || why;
+    };
+    for (const { path, matches, mtime } of results) {
+        const file = fileAt(path);
+        if (file) {
+            if (isDirty(file)) {
+                skip(matches.length, `${nameOf(path)} has unsaved changes`);
+                continue;
+            }
+            if (mtime && Math.abs(file.mtime - mtime) > 1) {
+                skip(matches.length, `${nameOf(path)} changed after the search`);
+                continue;
+            }
+            const content = file.view.state.doc;
+            const lineOf = (number) => (number >= 1 && number <= content.lines ? content.line(number) : null);
+            const plan = planReplace(lineOf, matches, { query, replacement, options });
+            if (!plan.edits.length) {
+                count(plan);
+                continue;
+            }
+            file.view.dispatch({ changes: plan.edits });
+            if (await save(file)) count(plan);
+            else skip(matches.length, `${nameOf(path)} could not be saved`);
+            continue;
+        }
+        try {
+            let plan = null;
+            await writeUnopened(path, mtime, (text) => {
+                plan = planReplace(linesOfText(text), matches, { query, replacement, options });
+                return plan.edits.length ? applyEdits(text, plan.edits) : null;
+            });
+            count(plan);
+        } catch (error) {
+            skip(
+                matches.length,
+                error.kind === 'CHANGED'
+                    ? `${nameOf(path)} changed after the search`
+                    : `${nameOf(path)} could not be changed (${error.message})`
+            );
+        }
+    }
+    return { replaced, skipped, reason };
+}
