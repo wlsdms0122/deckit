@@ -17,17 +17,26 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // The rows of `list`, its children, put in a new order by a drag. The list itself is not reordered: `onReorder(from,
-        // to)` hears the move and the owner draws the new order. Returns the dispose.
+        // The rows of a keyed list put in a new order by a drag. The list itself is not reordered: `onReorder(key, toKey)`
+        // hears that the item `key` goes where `toKey` is, and the owner draws the new order. Keys, so a change to the
+        // items while the drag holds the list does not move another one. Returns the dispose.
         function sortable(theme, list, { onReorder }) {
-            return GESTURE.drag(list, {
+            const { element } = list;
+            return GESTURE.drag(element, {
                 pick: (target) => {
-                    for (let node = target; node && node !== list; node = node.parentElement)
-                        if (node.parentElement === list) return node;
+                    for (let node = target; node && node !== element; node = node.parentElement)
+                        if (node.parentElement === element) return node;
                     return null;
                 },
-                begin: LIST.heldWhile(list, (row, down, finished) =>
-                    lift(theme, list, row, down.clientY, (from, to) => to !== from && onReorder(from, to), finished)
+                begin: LIST.heldWhile(element, (row, down, finished) =>
+                    lift(
+                        theme,
+                        element,
+                        row,
+                        down.clientY,
+                        (from, to) => from !== to && onReorder(list.keyOf(from), list.keyOf(to)),
+                        finished
+                    )
                 ),
             });
         }
@@ -121,7 +130,7 @@ DeckitModule.define(
                     settle(target, () => {
                         restore();
                         try {
-                            reorder(from, to);
+                            reorder(rows[from], rows[to]);
                         } finally {
                             finished();
                         }

@@ -281,7 +281,13 @@ DeckitModule.define(
                 width = bar.clientWidth;
                 if (parts.length) draw();
             }).observe(bar);
-            return { element: bar, set };
+            // The part `element` is in, `{ key, element }`, the "…" answering for the nearest hidden one; null off the
+            // parts.
+            const partAt = (element) => {
+                const crumb = element.closest('[data-crumb]');
+                return crumb && bar.contains(crumb) ? { key: crumb.dataset.crumb, element: crumb } : null;
+            };
+            return { element: bar, set, partAt };
         }
 
         function tag(name, className) {

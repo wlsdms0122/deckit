@@ -35,7 +35,7 @@ For CSS, the token is also custom properties on the page's root: each colour by 
 - `iconButton({ icon, title, size, muted, onClick })` returns `{ element, setPressed(on), setEnabled(on), setIcon(svg) }`. `muted` rests it a step back until the pointer comes.
 - `button({ label, title, icon, size, variant, onClick })` returns `{ element, setLabel(text), setEnabled(on) }`. `variant` is `plain`, `primary` or `destructive`.
 - `rowAction({ icon | label, title, onClick })` returns `{ element }`: an action of a row, shown while the row is hovered or holds the focus. Its click is its own.
-- `segmented({ items, value, size, accent, onChange })` returns `{ element, set(key), setItems(items) }`. `items` are `{ key, label, title, lead }`.
+- `segmented({ items, value, size, accent, fill, onChange })` returns `{ element, set(key), setItems(items), elementOf(key) }`. `items` are `{ key, label, title, lead }`; with `fill` the choices share the width it is given.
 - `toggleButton({ icon | label, title, value, onChange })` returns `{ element, set(on), setMarked(on) }`: on or off beside a field that keeps the keyboard.
 - `toggle({ value, onChange })` returns `{ element, set(on) }`: a switch.
 - `tooltip(element, { text, chord })` is a decorator: `chord()` is read as the pointer comes, so a key changed in Settings shows.
@@ -66,14 +66,14 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 
 ## Lists
 
-- `list({ key, create, update, exit, maxRows, size })` returns `{ element, set(items), elementOf(key) }`. Rows are drawn by key: the same key keeps the same element, so what the pointer rests on and what has the focus stay put. `create(item)` makes a row; `update(element, item)` refreshes a kept one. A key names one item: a key given twice throws. With `exit`, a removed row folds away along the list's axis. While something in or around the list is held (dragged, renamed), a new set waits and the last one is drawn when it is let go. With `maxRows`, the list is at most that many rows tall and scrolls.
+- `list({ key, create, update, exit, maxRows, size })` returns `{ element, set(items), elementOf(key), keyOf(element) }`. Rows are drawn by key: the same key keeps the same element, so what the pointer rests on and what has the focus stay put. `create(item)` makes a row; `update(element, item)` refreshes a kept one. A key names one item: a key given twice throws. With `exit`, a removed row folds away along the list's axis. While something in or around the list is held (dragged, renamed), a new set waits and the last one is drawn when it is let go. With `maxRows`, the list is at most that many rows tall and scrolls.
 - `row({ size })` returns `{ element, setActive(on), setRevealed(on) }`: washed under the pointer; `setActive` marks it chosen, `setRevealed` keeps its actions shown.
 - `listbox(element, { onPick, onActivate })` returns `{ set(options, { active }), move(by), activate(index), active(), dispose() }`: one active option among `options` (`{ element, disabled }`), moved by the keys and by a pointer that travels, picked by a press. `onActivate(index, { pointer })` hears the active option change and `onPick(index, { keyboard })` a pick; the active option is marked `data-active`.
 
 ## Sections and paths
 
 - `section({ label, icon, actions, collapsed, onToggle, title, onHeading, onHeadingMenu, headingTitle })` returns `{ element, body, heading, actions, setCurrent(on), setCollapsed(on), isCollapsed() }`. With `collapsed` a boolean the heading folds the body: a press calls `onToggle(next)`, and the owner folds it. `actions` are `{ icon, title, run(button) }`.
-- `breadcrumb({ onGo })` returns `{ element, set(parts) }`. `parts` are `{ key, label, title, current, icon }`; what does not fit folds into a menu.
+- `breadcrumb({ onGo })` returns `{ element, set(parts), partAt(element) }`; `partAt` answers the part an element is in, `{ key, element }`, or null. `parts` are `{ key, label, title, current, icon }`; what does not fit folds into a menu.
 
 ## Files and folders
 
@@ -85,7 +85,7 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 
 ## Dragging and sizing
 
-- `sortable(list, { onReorder })` is a decorator: the list's rows put in a new order by a drag; `onReorder(from, to)` hears it and the owner draws the new order.
+- `sortable(list, { onReorder })` decorates a keyed list and returns its dispose: the rows put in a new order by a drag. `onReorder(key, toKey)` hears that the item `key` goes where `toKey` is, and the owner draws the new order.
 - `dragSource(area, { itemAt, describe })` is a decorator: `describe(item)` is `{ kind, payload, text, icon }`.
 - `dropTarget(zone, { kind, placeAt, onDrop })` is a decorator.
 - `resizer(handle, { axis, grow, size, min, max, onResize, onCommit, onClick, onDrag, resizable })` is a decorator: `size()` reads the size, `onResize(px)` draws one, `onCommit(px)` keeps the one let go of. Past a limit the edge gives and springs back; a press that does not travel is a click.

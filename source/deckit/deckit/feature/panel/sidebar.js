@@ -165,9 +165,11 @@ DeckitModule.define(
                 update: (row, plugin) => paintRow(row, plugin),
             });
             // The new order is drawn here at once, and main, hearing it, has every view follow.
-            ui.sortable(section.body, {
-                onReorder: (from, to) => {
-                    const moved = plugins[from];
+            ui.sortable(rows, {
+                onReorder: (id, toId) => {
+                    const moved = plugins.find((plugin) => plugin.id === id);
+                    const to = plugins.findIndex((plugin) => plugin.id === toId);
+                    if (!moved || to < 0) return;
                     const rest = plugins.filter((plugin) => plugin !== moved);
                     plugins = [...rest.slice(0, to), moved, ...rest.slice(to)];
                     rows.set(plugins);

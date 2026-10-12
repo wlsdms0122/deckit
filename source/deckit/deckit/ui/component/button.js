@@ -71,6 +71,8 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
             color: var(--deckit-muted);
             font: 600 var(--deckit-type-body);
         }
+        .deckit-segmented[data-fill] { width: 100%; box-sizing: border-box; }
+        .deckit-segmented[data-fill] .deckit-segment { flex: 1 1 0; justify-content: center; }
         .deckit-segmented[data-size='small'] .deckit-segment { padding: 3px 10px; font: 600 var(--deckit-type-small); }
         .deckit-segment[aria-pressed='true'] { background: var(--deckit-selected); color: var(--deckit-text); }
         .deckit-segmented[data-accent] .deckit-segment[aria-pressed='true'] {
@@ -165,11 +167,12 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
     }
 
     // One of a few choices, side by side. `items` are { key, label, title, lead }: `lead` an element before the label.
-    // A press reports the choice; the owner sets it.
-    function segmented({ items, value = null, size = 'medium', accent = null, onChange }) {
+    // With `fill`, the choices share the width it is given. A press reports the choice; the owner sets it.
+    function segmented({ items, value = null, size = 'medium', accent = null, fill = false, onChange }) {
         const element = document.createElement('div');
         element.className = 'deckit-segmented';
         element.dataset.size = size;
+        element.toggleAttribute('data-fill', fill);
         if (accent) {
             element.dataset.accent = '';
             element.style.setProperty('--deckit-segment-on', accent);
@@ -216,6 +219,7 @@ DeckitModule.define('deckit/ui/component/button', { uses: [], provides: ['STYLE'
                 paint();
             },
             setItems,
+            elementOf: (key) => segments.get(key)?.button || null,
         };
     }
 

@@ -59,6 +59,10 @@ DeckitModule.define(
                     else draw(items);
                 },
                 elementOf: (name) => entries.get(name)?.element || null,
+                keyOf: (node) => {
+                    for (const [name, entry] of entries) if (entry.element === node) return name;
+                    return null;
+                },
             };
         }
 
