@@ -24,7 +24,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 | `border` | the border shorthand |
 | `color` | `text`, `muted`, `disabled`, `background`, `surface`, `lifted`, `divider`, `fill`, `hover`, `selected`, `pressed`, `accent`, `onAccent`, `ok`, `warn`, `alert`, `focus`, `target`, `scrim`, `folder` |
 | `radius` | `small` 4, `control` 6, `medium` 8, `large` 10, `card` 12, `round` 999 |
-| `shadow` | `raised`, `nested`, `modal`, `lifted` |
+| `shadow` | `raised`, `nested`, `modal`, `lifted`, `drawer` |
 | `motion` | `fast`, `base`, `slow` in ms (0 while the system asks for reduced motion), `easing`, and `entrance`, the transform a panel or a modal arrives from |
 | `syntax` | the code palette: `keyword`, `string`, `number`, `comment`, `function`, `type`, `property`, `operator`, `meta`, `invalid` |
 
