@@ -56,7 +56,8 @@ DeckitModule.define(
         }
 
         // With `maxRows`, as tall as that many rows, scrolling past them.
-        function list({ maxRows = 0, size = 'medium' } = {}) {
+        // Rows drawn by key: `key(item)`, `create(item)`, `update(element, item)` and `exit` as the kit's keyed list.
+        function list({ maxRows = 0, size = 'medium', key = null, create, update = null, exit = false } = {}) {
             const element = document.createElement('div');
             element.className = 'deckit-list';
             if (maxRows) {
@@ -64,7 +65,8 @@ DeckitModule.define(
                 element.style.maxHeight = maxRows * ROW_HEIGHT[size] + 'px';
                 SCROLL.edgeFade(element);
             }
-            return { element };
+            if (!key) return { element };
+            return LIST.list({ element, key, create, update, exit });
         }
 
         // The pointer's wash is the stylesheet's; `setActive` marks the element chosen, `setRevealed` keeps its actions

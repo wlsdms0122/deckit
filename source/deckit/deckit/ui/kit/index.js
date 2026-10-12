@@ -8,6 +8,7 @@ DeckitModule.define(
             'deckit/ui/pointer',
             'deckit/ui/overlay',
             'deckit/ui/scroll',
+            'deckit/ui/list/listbox',
             'deckit/ui/component/part',
             'deckit/ui/component/button',
             'deckit/ui/component/field',
@@ -29,7 +30,7 @@ DeckitModule.define(
         ],
         provides: ['make', 'addStyle'],
     },
-    (TOKEN, COLOR, ICON, POINTER, OVERLAY, SCROLL, PART, ...components) => {
+    (TOKEN, COLOR, ICON, POINTER, OVERLAY, SCROLL, LISTBOX, PART, ...components) => {
         // MARK: - Property
         let installed = false;
         // MARK: - Initializer
@@ -43,6 +44,10 @@ DeckitModule.define(
             for (const component of components) Object.assign(ui, component.make(token, ui, inner));
             Object.assign(ui, {
                 icon: ICON.icon,
+                iconOf: ICON.iconOf,
+                element: PART.element,
+                addStyle,
+                listbox: LISTBOX.listbox,
                 alpha: COLOR.alpha,
                 mix: COLOR.mix,
                 capturePointer: POINTER.capture,

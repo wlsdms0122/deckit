@@ -1,6 +1,6 @@
 DeckitModule.define(
     'deckit/ui/icon',
-    { uses: ['deckit/ui/icon/model/lucide'], provides: ['icon', 'sanitize'] },
+    { uses: ['deckit/ui/icon/model/lucide'], provides: ['icon', 'iconOf', 'sanitize'] },
     ({ LUCIDE }) => {
         // MARK: - Property
         const SVG = 'http://www.w3.org/2000/svg';
@@ -65,12 +65,18 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        function icon(name, { size = 15, fill = 'none', color = 'currentColor' } = {}) {
+        // One of the kit's icons, by name, as SVG markup.
+        function icon(name, options = {}) {
             if (!Object.hasOwn(LUCIDE, name)) throw new Error(`no icon named ${name}`);
+            return iconOf(LUCIDE[name], options);
+        }
+
+        // An icon drawn from shapes in the kit's frame: a 24 by 24 box, stroked.
+        function iconOf(shapes, { size = 15, fill = 'none', color = 'currentColor', stroke = 2 } = {}) {
             return (
                 `<svg viewBox="0 0 24 24" aria-hidden="true" width="${size}" height="${size}" style="display:block"` +
-                ` fill="${fill}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
-                LUCIDE[name] +
+                ` fill="${fill}" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round">` +
+                shapes +
                 `</svg>`
             );
         }
@@ -104,6 +110,6 @@ DeckitModule.define(
             return !/url\(\s*(?!['"]?#)/i.test(value);
         }
 
-        return { icon, sanitize };
+        return { icon, iconOf, sanitize };
     }
 );

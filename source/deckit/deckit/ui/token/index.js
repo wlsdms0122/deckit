@@ -29,6 +29,33 @@ DeckitModule.define(
             entrance: 'translateY(6px) scale(.99)',
         });
         const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+        // Code drawn in a page: what each kind of token is written in, on a dark ground and on a light one.
+        const SYNTAX = Object.freeze({
+            dark: {
+                keyword: '#c678dd',
+                string: '#98c379',
+                number: '#d19a66',
+                comment: '#7f848e',
+                function: '#61afef',
+                type: '#e5c07b',
+                property: '#e06c75',
+                operator: '#56b6c2',
+                meta: '#abb2bf',
+                invalid: '#ff6b6b',
+            },
+            light: {
+                keyword: '#cf222e',
+                string: '#0a3069',
+                number: '#0550ae',
+                comment: '#6e7781',
+                function: '#8250df',
+                type: '#953800',
+                property: '#116329',
+                operator: '#0550ae',
+                meta: '#57606a',
+                invalid: '#cf222e',
+            },
+        });
         const TYPE = { caption: 11, small: 12, body: 13, medium: 14, large: 15, heading: 16, title: 18 };
         // A neutral grey over any background, light or dark.
         const WASH = (amount) => `rgba(128,128,128,${amount})`;
@@ -40,8 +67,9 @@ DeckitModule.define(
             const text = theme.contentColor;
             const background = theme.contentBg;
             const toward = (amount) => COLOR.mix(text, background, amount);
+            const dark = COLOR.isDark(background);
             return deepFreeze({
-                dark: COLOR.isDark(background),
+                dark,
                 font: theme.font,
                 mono: MONO,
                 type: Object.fromEntries(Object.entries(TYPE).map(([name, size]) => [name, `${size}px ${theme.font}`])),
@@ -76,6 +104,7 @@ DeckitModule.define(
                     modal: '0 18px 48px rgba(0,0,0,.4)',
                     lifted: '0 8px 22px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.2)',
                 },
+                syntax: { ...SYNTAX[dark ? 'dark' : 'light'] },
                 motion: MOTION,
             });
         }

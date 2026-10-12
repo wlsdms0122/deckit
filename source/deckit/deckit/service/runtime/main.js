@@ -26,6 +26,7 @@ DeckitModule.define(
                 return {
                     ...build,
                     name: CONFIG.name,
+                    home: require('os').homedir(),
                     app: `${app.getName()} ${app.getVersion()}`,
                     electron: process.versions.electron,
                     chrome: process.versions.chrome,

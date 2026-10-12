@@ -210,7 +210,7 @@ DeckitModule.define(
                 }),
                 host: Object.freeze(host),
                 requires,
-                util: Object.freeze({ match: MATCH.match, ranker: RANKER.ranker, movePath }),
+                util: Object.freeze({ match: MATCH.match, ranker: RANKER.ranker, movePath, tildify: tildifyOf() }),
                 ...(has('system.main-process') ? { main: mainOf(main) } : {}),
                 ...(plugin.id === CONFIG.id && APP ? { app: deepFreeze({ ...APP }) } : {}),
             });
@@ -364,6 +364,12 @@ DeckitModule.define(
                 for (const inner of Object.values(value)) deepFreeze(inner);
             }
             return value;
+        }
+
+        // A path as it is shown: under the home folder, from `~`.
+        function tildifyOf() {
+            const { home } = RUNTIME.about();
+            return (path) => (path === home || path.startsWith(home + '/') ? '~' + path.slice(home.length) : path);
         }
 
         // `to` null means gone: a path at or inside `from` becomes null. Paths are "/" separated.

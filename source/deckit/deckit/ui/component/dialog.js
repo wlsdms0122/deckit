@@ -65,7 +65,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         function make(theme, ui) {
-            return { dialog: (options) => dialog(ui, options) };
+            return { dialog: (options) => dialog(ui, options), confirmTrash: (options) => confirmTrash(ui, options) };
         }
 
         // MARK: - Private
@@ -135,6 +135,17 @@ DeckitModule.define(
                     }
                     return focus;
                 },
+            });
+        }
+
+        // Asks before a folder and what is in it go to the Trash.
+        function confirmTrash(ui, { name, onConfirm }) {
+            return dialog(ui, {
+                title: `Move \u201c${name}\u201d to the Trash?`,
+                message: 'The folder and everything in it go to the macOS Trash, from where Finder can put them back.',
+                confirmLabel: 'Move to Trash',
+                destructive: true,
+                onConfirm: () => onConfirm(),
             });
         }
 
