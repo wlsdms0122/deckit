@@ -41,7 +41,7 @@ DeckitModule.define(
                         state.window = WINDOW.open({
                             view,
                             title: state.title,
-                            glass: true,
+                            glass: deck.panel.glass,
                             key: 'panel',
                             place: (window, { bounds }) => deck.window.place(view, window, { bounds, onClose }),
                             focus: focusPanel,

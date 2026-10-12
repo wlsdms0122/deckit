@@ -29,6 +29,8 @@ DeckitModule.define(
         let shell = null;
         let current = null;
         let returning = null; // the plugin that was on screen while its page runs again
+        // The panel is glass: its colour laid at this strength over what is behind it, blurred through.
+        const GLASS = 0.68;
         let shown = false;
         let titled = null; // the title the shell was last told
         let look = { floating: false, dismissible: false };
@@ -102,6 +104,7 @@ DeckitModule.define(
         // MARK: - Private
         function listen() {
             PROTOCOL.setup.handle((_payload, sender) => ({
+                glass: GLASS,
                 look,
                 shown: shown && IDENTITY.pluginOf(sender)?.id === current,
                 frame,
@@ -338,6 +341,7 @@ DeckitModule.define(
         return {
             start,
             deck: {
+                glass: GLASS,
                 view: () => container,
                 contains,
                 show,

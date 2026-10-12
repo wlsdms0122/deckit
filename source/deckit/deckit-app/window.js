@@ -10,7 +10,9 @@ DeckitModule.define(
         const BAR_HEIGHT = 38;
         const BUTTONS_AT = { x: 14, y: Math.round((BAR_HEIGHT - 14) / 2) };
         const DEFAULT_VIEW_SIZE = { width: 1100, height: 722 };
-        const SOLID = { background: '#1a1d21', color: '#d1d2d3' };
+        // The colour of Deckit.app's views, which a window's bar is drawn in too.
+        const BACKGROUND = [26, 29, 33];
+        const SOLID = { background: `rgb(${BACKGROUND})`, color: '#d1d2d3' };
         const FONT = '-apple-system, system-ui, sans-serif';
         const SAVE_DELAY = 400;
         const titles = new WeakMap(); // window -> the title it shows
@@ -18,12 +20,13 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // A window of Deckit.app: its own page is the bar, across the top and under everything else, and `view` fills
-        // the rest through `place(window, { bounds })`. The bar is the window's title bar to macOS, so it drags, snaps and
-        // answers a double click as the person set. `size` is the view's. `glass` blurs what is behind the window, for
-        // a view drawn as glass; the bar is then clear, so the two read as one surface. A window with a `key` opens
-        // where it was last left; another opens over the window in front. `focus` hands the keyboard to the view, which
-        // macOS otherwise gives the bar each time the window comes forward.
-        function open({ view, title = '', size = null, glass = false, key = null, place, focus = null }) {
+        // the rest through `place(window, { bounds })`. The bar is the window's title bar to macOS, so it drags, snaps
+        // and answers a double click as the person set. `size` is the view's. `glass`, for a view drawn as glass, is
+        // the strength it lays its colour over the blur at: the window blurs what is behind it, and the bar lays the
+        // same colour at the same strength, so the two read as one surface. A window with a `key` opens where it was
+        // last left; another opens over the window in front. `focus` hands the keyboard to the view, which macOS
+        // otherwise gives the bar each time the window comes forward.
+        function open({ view, title = '', size = null, glass = null, key = null, place, focus = null }) {
             const { BrowserWindow } = require('electron');
             const viewSize = size || DEFAULT_VIEW_SIZE;
             const windowSize = { width: viewSize.width, height: viewSize.height + BAR_HEIGHT };
@@ -34,7 +37,9 @@ DeckitModule.define(
                 show: false,
                 // No colour with vibrancy: any colour, a clear one too, is laid over the blur. `hud` because macOS
                 // offers only materials, and the others tint so much that the glass page over them reads as solid.
-                ...(glass ? { vibrancy: 'hud', visualEffectState: 'active' } : { backgroundColor: SOLID.background }),
+                ...(glass !== null
+                    ? { vibrancy: 'hud', visualEffectState: 'active' }
+                    : { backgroundColor: SOLID.background }),
                 titleBarStyle: 'hidden',
                 trafficLightPosition: BUTTONS_AT,
             });
@@ -143,7 +148,7 @@ DeckitModule.define(
 
         // The bar's room on the left is the window buttons'; the title stays centred on the window.
         function barPage({ glass }) {
-            const background = glass ? 'transparent' : SOLID.background;
+            const background = glass !== null ? `rgba(${BACKGROUND}, ${glass})` : SOLID.background;
             return (
                 'data:text/html,' +
                 encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>

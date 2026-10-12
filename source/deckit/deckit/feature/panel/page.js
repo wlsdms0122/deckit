@@ -11,8 +11,6 @@ DeckitModule.define(
     },
     (COLOR, KEYMAP, SIDEBAR, PROTOCOL) => {
         // MARK: - Property
-        // The panel is glass: its colour at this strength, with what is behind it blurred through.
-        const GLASS_OPACITY = 0.68;
         const OWNER = '@deckit';
 
         // MARK: - Initializer
@@ -100,7 +98,7 @@ DeckitModule.define(
             function dress() {
                 Object.assign(
                     root.style,
-                    { background: COLOR.alpha(theme.color.background, GLASS_OPACITY), boxShadow: 'none' },
+                    { background: COLOR.alpha(theme.color.background, setup.glass), boxShadow: 'none' },
                     look.floating
                         ? {
                               border: '1px solid rgba(255,255,255,.14)',
