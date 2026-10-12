@@ -1,7 +1,8 @@
 id = "editor"
 name = "Editor"
 version = "1.0.0"
-api = "2.0.0"
+api = "3.0.0"
+main = "main.js"
 url-schemes = ["file"]
 
 [permissions]
