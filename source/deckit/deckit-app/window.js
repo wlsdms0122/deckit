@@ -71,20 +71,11 @@ DeckitModule.define(
             window.webContents.executeJavaScript(`setTitle(${JSON.stringify(title)})`, true).catch(() => {});
         }
 
-        // A page in the window names it, and moves and sizes it when it asks to. The page can outlive the window, so
-        // it stops being heard then.
+        // A page in the window names it. The page can outlive the window, so it stops being heard then.
         function followPage(window, page) {
             const titled = (_event, text) => setTitle(window, text);
-            const moved = (_event, bounds) => {
-                if (!window.isDestroyed()) window.setContentBounds({ ...bounds, height: bounds.height + BAR_HEIGHT });
-            };
             page.on('page-title-updated', titled);
-            page.on('content-bounds-updated', moved);
-            window.once('closed', () => {
-                if (page.isDestroyed()) return;
-                page.removeListener('page-title-updated', titled);
-                page.removeListener('content-bounds-updated', moved);
-            });
+            window.once('closed', () => page.isDestroyed() || page.removeListener('page-title-updated', titled));
         }
 
         // Kept as it moves, and as it closes in case that came first.

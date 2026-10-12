@@ -72,7 +72,7 @@ What a shell answers:
 
 `connect` is called once, with `preload` and a shell that answers every one of these; otherwise it throws and names what is missing. `openWindow` and `panelTitled` can be asked as plugins load, before `start`.
 
-The keyboard in a window is the shell's to give. macOS hands it to a window's own page each time the window comes forward, so a shell whose views are not that page gives it to the view: `deck.panel.focus()` for the panel, the view's page for a window it opened.
+The keyboard in a window is the shell's to give. macOS hands it to a window's own page each time the window comes forward, so a shell whose views are not that page gives it to the view: the switcher's page while it is open, else `deck.panel.focus()` for the panel, and the view's page for a window it opened.
 
 What `deck` holds:
 
