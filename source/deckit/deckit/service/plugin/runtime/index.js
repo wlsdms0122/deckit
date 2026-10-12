@@ -60,29 +60,38 @@ DeckitModule.define(
 
         // MARK: - Private
         async function run({ theme, ui, layers, show, dismiss }) {
+            // Answered from the first, so a page whose plugin never started does not keep main waiting; stop() runs
+            // once.
+            let started = null;
+            let stopping = null;
+            PROTOCOL.stop.handle(() => (stopping ??= typeof started?.stop === 'function' ? stopOf(started) : null));
             const loaded = PROTOCOL.load.invoke();
             plugin = loaded.manifest;
-            let started = null;
-            PROTOCOL.stop.handle(() => started?.stop && stopping(started));
             WEB.listen();
             NOTIFY.listen(deliver);
             const definition = evaluate(loaded.source);
             if (!definition) return notStarted(null);
-            // Declared before anything waits, so a setting is there to set from start(), and Settings can ask for
-            // options while the plugin waits for what it requires.
-            let deck = null;
+            // Declared before anything waits, so a setting is there to set from start(); what Settings asks of the
+            // plugin waits for its deck.
+            let made = null;
+            const deckMade = new Promise((resolve, reject) => (made = { resolve, reject }));
+            deckMade.catch(() => {});
             const settings = SETTINGS.of({
                 declared: definition.settings || {},
                 saved: loaded.settings,
-                deck: () => deck,
+                deck: deckMade,
                 deliver,
                 fail,
             });
             PROTOCOL.declare.send({ settings: SETTINGS.declarationsOf(definition.settings, fail) });
             const requires = await requirementsOf();
-            if (!requires) return notStarted(definition);
+            if (!requires) {
+                made.reject(new Error(`${plugin.id} did not start`));
+                return notStarted(definition);
+            }
             const registry = registryOf();
-            deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
+            const deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
+            made.resolve(deck);
             // Whatever start() did before it ended, stop() is told when the sandbox ends.
             started = definition;
             try {
@@ -106,7 +115,7 @@ DeckitModule.define(
         }
 
         // A stop() that throws is recorded like any call into the plugin; the sandbox ends either way.
-        async function stopping(definition) {
+        async function stopOf(definition) {
             try {
                 await definition.stop();
             } catch (error) {

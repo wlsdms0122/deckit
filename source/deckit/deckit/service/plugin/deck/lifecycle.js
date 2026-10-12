@@ -63,42 +63,42 @@ DeckitModule.define(
             listeners.add(listener);
         }
 
-        // Every plugin stops and starts again in its page, as a new theme asks.
+        // Every plugin stops and starts again in its page, as a new theme asks. Whoever requires one waits for its new
+        // run from the first.
         function reload() {
             for (const [id, { page }] of running) {
-                stopped(page).then(() => {
-                    if (running.get(id)?.page !== page) return;
-                    DECK.rerun(id);
-                    page.webContents.reload();
-                });
+                DECK.rerun(id);
+                stopped(page).then(() => running.get(id)?.page === page && page.webContents.reload());
             }
         }
 
         // MARK: - Private
-        // A plugin runs as it arrives and stops as it goes; one whose folder changed stops and runs again.
+        // A plugin runs as it arrives and stops as it goes; one whose folder changed stops and runs again, once its
+        // old page has ended. Resolves once the pages that went have ended.
         function reconcile(plugins) {
             const ids = new Set(plugins.map(({ id }) => id));
-            for (const [id, { page }] of running) {
-                if (ids.has(id)) continue;
-                running.delete(id);
-                end(page);
-            }
-            for (const entry of plugins) {
-                const known = running.get(entry.id);
-                if (ending.has(entry.id) || (known && sameFolder(known.entry, entry))) continue;
-                if (!known) {
-                    run(entry);
+            const ends = [];
+            for (const [id, { page, entry }] of running) {
+                if (
+                    ids.has(id) &&
+                    sameFolder(
+                        entry,
+                        plugins.find((plugin) => plugin.id === id)
+                    )
+                )
                     continue;
-                }
-                // The new one runs once the old one has stopped, as the plugins are by then.
-                running.delete(entry.id);
-                ending.add(entry.id);
-                end(known.page).then(() => {
-                    ending.delete(entry.id);
-                    reconcile(DECK.plugins());
-                });
+                running.delete(id);
+                ending.add(id);
+                ends.push(
+                    end(page).then(() => {
+                        ending.delete(id);
+                        return reconcile(DECK.plugins());
+                    })
+                );
             }
+            for (const entry of plugins) if (!running.has(entry.id) && !ending.has(entry.id)) run(entry);
             notify();
+            return Promise.all(ends);
         }
 
         // The plugin's stop() answered, or its time ran out, or its page is already gone.

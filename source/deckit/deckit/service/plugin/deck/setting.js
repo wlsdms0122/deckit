@@ -8,6 +8,8 @@ DeckitModule.define(
     (STORAGE, IDENTITY, PROTOCOL) => {
         // MARK: - Property
         const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
+        // How long a plugin has to work out a setting's options: a plugin still starting answers once it has.
+        const OPTIONS_LIMIT_MS = 5000;
         const declared = new Map(); // plugin id -> { name, settings: { key: declaration } }
         let order = () => []; // the ids of the plugins that load, in the person's order
 
@@ -31,7 +33,7 @@ DeckitModule.define(
             });
         }
 
-        // What a plugin declared as it started. A declaration of an unknown type is left out.
+        // What a plugin declares as its entry is read. A declaration of an unknown type is left out.
         function declare(plugin, settings) {
             const kept = {};
             for (const [key, declaration] of Object.entries(settings)) {
@@ -92,10 +94,10 @@ DeckitModule.define(
         }
 
         // Options worked out when Settings draws them (the fonts on this Mac) are the plugin's to answer.
-        function optionsOf(pluginId, key, declaration) {
+        async function optionsOf(pluginId, key, declaration) {
             if (!declaration.computed) return declaration.options || [];
             const view = IDENTITY.pageOf(pluginId);
-            return view ? PROTOCOL.settingOptions.invoke(view, { key }) : [];
+            return view ? PROTOCOL.settingOptions.invoke(view, { key }, { timeout: OPTIONS_LIMIT_MS }) : [];
         }
 
         async function run(pluginId, key) {
@@ -117,7 +119,9 @@ DeckitModule.define(
                 const items = [];
                 for (const [key, declaration] of Object.entries(settings)) {
                     const value = values[key];
-                    const options = declaration.type === 'choice' ? await optionsOf(id, key, declaration) : [];
+                    // A plugin that cannot say its options now is listed with none, and the value kept marked absent.
+                    const options =
+                        declaration.type === 'choice' ? await optionsOf(id, key, declaration).catch(() => []) : [];
                     const offered = options.some((option) => option.value === value)
                         ? options
                         : declaration.type === 'choice'

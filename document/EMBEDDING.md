@@ -70,7 +70,7 @@ What a shell answers:
 | `noticeClicked()` | a notice deckit raised was clicked |
 | `restart()` | the host app restarts: the process is the host app's |
 
-`connect` is called once, with `preload` and a shell that answers every one of these; otherwise it throws and names what is missing. `openWindow` and `panelTitled` can be asked as plugins load, before `start`.
+`connect` is called once, with `preload` and a shell that answers every one of these; otherwise it throws and names what is missing. When the host app quits, deck holds the quit until every plugin's `stop()` has answered, two seconds at most each. `openWindow` and `panelTitled` can be asked as plugins load, before `start`.
 
 The keyboard in a window is the shell's to give. macOS hands it to a window's own page each time the window comes forward, so a shell whose views are not that page gives it to the view: the switcher's page while it is open, else `deck.panel.focus()` for the panel, and the view's page for a window it opened.
 

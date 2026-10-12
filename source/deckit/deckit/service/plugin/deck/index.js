@@ -102,6 +102,8 @@ DeckitModule.define(
             return started.get(pluginId) || null;
         }
 
+        // Told when the plugins change; what a listener returns is waited for where the change is waited on (a
+        // removal).
         function onChange(listener) {
             listeners.add(listener);
         }
@@ -259,7 +261,8 @@ DeckitModule.define(
             };
         }
 
-        // Any folder, since a plugin may already run code in this process: restricting where it comes from guards nothing.
+        // Any folder, since a plugin may already run code in this process: restricting where it comes from guards
+        // nothing.
         function install(from) {
             const manifest = INSTALL.install(from, shadowed);
             installs.set(manifest.id, (installs.get(manifest.id) || 0) + 1);
@@ -277,15 +280,16 @@ DeckitModule.define(
             return source ? `${manifest.id} is read from ${source.folder}, which would hide the installed copy` : '';
         }
 
-        // Its view closes before its pages' storage is cleared, so the page cannot write it back.
+        // Its sandbox has ended, stop() and all, before what it stored is taken, so nothing writes it back.
         async function remove(id, data) {
             const entry = entries.find((candidate) => candidate.id === id);
             if (entry && !entry.installed)
                 throw new Error(`${id} is read from ${entry.folder}, not installed, so it is removed there`);
-            const removed = REMOVE.remove(id, { data });
+            REMOVE.remove(id);
             MAIN_PROCESS.unload(id);
             SETTING.forget(id);
-            refresh();
+            await refresh();
+            const removed = { data: data && REMOVE.forgetData(id) };
             if (removed.data) await forget(id);
             return removed;
         }
@@ -303,9 +307,10 @@ DeckitModule.define(
             REMOVE.clearForgotten(id);
         }
 
+        // Resolves once whoever listens has done with the change: a plugin taken away has ended.
         function refresh() {
             entries = catalog();
-            notify();
+            return notify();
         }
 
         function catalog() {
@@ -313,7 +318,7 @@ DeckitModule.define(
         }
 
         function notify() {
-            for (const listener of listeners) listener(plugins());
+            return Promise.all([...listeners].map((listener) => listener(plugins())));
         }
 
         // A plugin's place is the person's, kept in deckit's state. One never placed goes where the app ships it,

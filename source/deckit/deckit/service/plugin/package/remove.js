@@ -8,7 +8,7 @@ DeckitModule.define(
             'deckit/service/plugin/package/install',
             'deckit/service/plugin/package/folder',
         ],
-        provides: ['remove', 'forgotten', 'clearForgotten'],
+        provides: ['remove', 'forgetData', 'forgotten', 'clearForgotten'],
         runs: 'node',
     },
     (HOME, STORAGE, MANIFEST, INSTALL, FOLDER) => {
@@ -19,17 +19,22 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // The installed plugin with this id, wherever deckit keeps it. With `data`, what it stored goes too. An id
-        // that is no plugin id never loaded, so it stored nothing.
+        // The installed plugin with this id, wherever deckit keeps it. With `data`, what it stored goes too.
         function remove(id, { data = false } = {}) {
             const name = INSTALL.folders().find((name) => FOLDER.idOf(path.join(HOME.plugins, name)) === id);
             if (!name) throw new Error('no installed plugin ' + id);
             fs.rmSync(path.join(HOME.plugins, name), { recursive: true, force: true });
-            if (!data || MANIFEST.idProblem(id)) return { data: false };
+            return { data: data && forgetData(id) };
+        }
+
+        // What a plugin stored, taken away: whether there was any to take. An id that is no plugin id never loaded, so
+        // it stored nothing.
+        function forgetData(id) {
+            if (MANIFEST.idProblem(id)) return false;
             STORAGE.forget(id);
             // Its pages' storage and its web sessions are the app's sessions', which main clears at its next start.
             STORAGE.state.write(FORGOTTEN, [...new Set([...forgotten(), id])]);
-            return { data: true };
+            return true;
         }
 
         function forgotten() {
@@ -45,6 +50,6 @@ DeckitModule.define(
 
         // MARK: - Private
 
-        return { remove, forgotten, clearForgotten };
+        return { remove, forgetData, forgotten, clearForgotten };
     }
 );

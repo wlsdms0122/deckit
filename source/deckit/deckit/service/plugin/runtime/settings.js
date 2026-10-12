@@ -12,7 +12,8 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // A plugin's settings as it reads them: what was saved, over what it declared by default. Changed by main,
-        // which checks and keeps them, and tells this view, so a change made in Settings arrives here as on().
+        // which checks and keeps them, and tells this sandbox, so a change made in Settings arrives here as on().
+        // `deck` is a promise of the plugin's deck, rejected when it does not start.
         function of({ declared, saved, deck, deliver, fail }) {
             const values = { ...saved };
             const listeners = new Set();
@@ -21,12 +22,13 @@ DeckitModule.define(
                 for (const listener of listeners) deliver('settings.on', listener, key, value);
             });
             // Options worked out when Settings draws them, and actions Settings runs, are asked of this view.
-            PROTOCOL.settingOptions.handle(({ key }) => {
+            // Worked-out options and actions are the plugin's to answer once it has its deck.
+            PROTOCOL.settingOptions.handle(async ({ key }) => {
                 const options = declared[key]?.options;
-                return typeof options === 'function' ? options(deck()) : options || [];
+                return typeof options === 'function' ? options(await deck) : options || [];
             });
             PROTOCOL.runSetting.handle(async ({ key }) => {
-                const said = await declared[key]?.run?.(deck());
+                const said = await declared[key]?.run?.(await deck);
                 return said == null ? '' : String(said);
             });
             return {

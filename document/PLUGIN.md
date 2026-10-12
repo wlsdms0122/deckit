@@ -163,7 +163,7 @@ An entry of `commands` has a `run` or a `page`; one with neither is left out. In
 
 ### deck.exports(object)
 
-What a plugin that requires this one receives as `deck.requires[id]`. Values are copied and frozen when the plugin starts; functions are called through the main process and so return promises. Keep them working while the view is not on screen: the plugin using them is not looking at it.
+What a plugin that requires this one receives as `deck.requires[id]`. Values are copied and frozen when the plugin starts, and a value that cannot be copied (a Symbol, an object that holds itself) leaves the plugin unstarted; functions are called through the main process and so return promises. Keep them working while the view is not on screen: the plugin using them is not looking at it.
 
 ## deck
 
@@ -216,7 +216,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 | Member | What it does |
 |---|---|
-| `show()` | puts the calling plugin on screen |
+| `show()` | puts the calling plugin's view on screen; a plugin with no view in the panel, or one still starting, has nothing to show |
 | `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deck's own answer; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | shows a file in the system's Finder, during a person's click or key; otherwise resolves `false` |
@@ -252,9 +252,9 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 ```
 deck starts
  └ for each plugin
-    1. its sandbox is made and the entry evaluated
+    1. its sandbox is made, the entry evaluated and its settings declared
     2. once what it requires has started: start(deck), which registers, and starts main process modules if it needs them
-    3. start ends: deck contributes what it registered (keys, switcher, URL handler, exports, settings)
+    3. start ends: deck contributes what it registered (keys, switcher, URL handler, exports)
     4. a view, if it registered one, is put in the panel: didAppear and didDisappear
  ends: removed, updated, the app quitting, a new theme: stop()
 ```
