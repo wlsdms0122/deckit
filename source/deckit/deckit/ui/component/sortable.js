@@ -32,11 +32,13 @@ DeckitModule.define(
             });
         }
 
-        // The row lifted, the others sliding aside as it passes them. The rows on screen are those laid out: one that is
-        // not has no place to move to or from.
+        // The row lifted, the others sliding aside as it passes them. The rows are the owner's items as laid out: one that
+        // is not laid out has no place to move to or from, and one folding away is no longer an item.
         function lift(theme, list, row, startY, reorder, finished) {
             const MOTION = TOKEN.MOTION;
-            const rows = [...list.children].filter((child) => child.getClientRects().length);
+            const rows = [...list.children].filter(
+                (child) => child.getClientRects().length && !child.hasAttribute(LIST.LEAVING)
+            );
             const from = rows.indexOf(row);
             if (from < 0 || rows.length < 2) return null;
             // Places are read once, as they stood at the lift; a scroll since is added to the pointer instead.

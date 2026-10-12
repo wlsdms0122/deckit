@@ -2,26 +2,29 @@ DeckitModule.define(
     'deckit/ui/list',
     {
         uses: ['deckit/ui/token', 'deckit/ui/motion'],
-        provides: ['list', 'hold', 'heldWhile', 'freed'],
+        provides: ['list', 'hold', 'heldWhile', 'LEAVING'],
     },
     (TOKEN, MOTION) => {
         // MARK: - Property
-        const waiting = new WeakMap(); // list element -> the change it waits to apply
+        // The mark of a row folding away: it is still drawn, but no longer one of the list's items.
+        const LEAVING = 'data-deckit-leaving';
+        const waiting = new Map(); // list element -> the change it waits to apply
 
         // MARK: - Initializer
         // MARK: - Public
         // A list drawn from items by key: the same key keeps the same element, so what the pointer rests on, what has
         // the focus and what plays stay put. `create(item)` makes an element; a kept one is given to `update(element,
-        // item)` when there is one, or made again when its item changed. With `exit`, a removed row folds away first.
-        // While a row is held (dragged, renamed) a new set of items waits, and the last one is drawn when it is let go.
+        // item)` when there is one, or made again when its item changed. A key names one item. With `exit`, a removed
+        // row folds away along the list's axis. While something in or around the list is held (dragged, renamed) a new
+        // set of items waits, and the last one is drawn when it is let go.
         function list({ element = document.createElement('div'), key, create, update = null, exit = false }) {
             const entries = new Map(); // key -> { element, item }
-            const leaving = new Set();
             const draw = (items) => {
                 const kept = new Map();
                 const order = [];
                 for (const item of items) {
                     const name = key(item);
+                    if (kept.has(name)) throw new Error(`a keyed list was given the key ${name} twice`);
                     let entry = entries.get(name);
                     if (!entry) entry = { element: create(item), item };
                     else if (update) update(entry.element, item);
@@ -39,18 +42,15 @@ DeckitModule.define(
                 for (const [name, entry] of kept) entries.set(name, entry);
                 let cursor = element.firstChild;
                 for (const node of order) {
-                    while (cursor && leaving.has(cursor)) cursor = cursor.nextSibling;
+                    while (cursor && cursor.hasAttribute?.(LEAVING)) cursor = cursor.nextSibling;
                     if (cursor === node) cursor = cursor.nextSibling;
                     else element.insertBefore(node, cursor);
                 }
             };
             const remove = (node) => {
                 if (!exit || !TOKEN.MOTION.fast || !node.getBoundingClientRect().height) return node.remove();
-                leaving.add(node);
-                collapse(node, () => {
-                    leaving.delete(node);
-                    node.remove();
-                });
+                node.setAttribute(LEAVING, '');
+                collapse(element, node, () => node.remove());
             };
             return {
                 element,
@@ -62,12 +62,12 @@ DeckitModule.define(
             };
         }
 
-        // Holds `element`, and the lists it is in, until the returned release runs.
+        // Holds `element` until the returned release runs. Every list it is in or around waits meanwhile.
         function hold(element) {
             element.dataset.deckitHeld = '';
             return () => {
                 delete element.dataset.deckitHeld;
-                freed(element);
+                drawWaiting();
             };
         }
 
@@ -84,42 +84,49 @@ DeckitModule.define(
             };
         }
 
-        // Draws what each list around `element` waited with, once it is no longer busy.
-        function freed(element) {
-            for (let node = element; node; node = node.parentElement) {
-                const draw = waiting.get(node);
-                if (!draw || busy(node)) continue;
-                waiting.delete(node);
-                draw();
+        // MARK: - Private
+        // A list is busy while it, something around it or something in it is held.
+        function busy(element) {
+            return !!(element.closest('[data-deckit-held]') || element.querySelector('[data-deckit-held]'));
+        }
+
+        // Draws what each list waited with, once it is no longer busy. A list taken off the page waits no longer.
+        function drawWaiting() {
+            for (const [element, draw] of waiting) {
+                if (!element.isConnected) waiting.delete(element);
+                else if (!busy(element)) {
+                    waiting.delete(element);
+                    draw();
+                }
             }
         }
 
-        // MARK: - Private
-        // A list is busy while a row of it is held.
-        function busy(element) {
-            return !!(element.matches?.('[data-deckit-held]') || element.querySelector?.('[data-deckit-held]'));
-        }
-
-        function collapse(node, then) {
+        // Folds `node` away along the axis `list` lays its rows on.
+        function collapse(list, node, then) {
             const length = TOKEN.MOTION.fast;
-            const height = node.getBoundingClientRect().height;
+            const layout = getComputedStyle(list);
+            const across = layout.display.includes('flex') && layout.flexDirection.startsWith('row');
+            const box = node.getBoundingClientRect();
+            const [size, minSize, start, end] = across
+                ? ['width', 'minWidth', 'marginLeft', 'marginRight']
+                : ['height', 'minHeight', 'marginTop', 'marginBottom'];
             MOTION.play(
                 node,
                 {
                     transition: 'none',
-                    height: height + 'px',
-                    minHeight: '0',
+                    [size]: (across ? box.width : box.height) + 'px',
+                    [minSize]: '0',
                     overflow: 'hidden',
                     pointerEvents: 'none',
                 },
                 {
-                    transition: ['height', 'opacity', 'margin']
+                    transition: [size, 'opacity', 'margin']
                         .map((property) => `${property} ${length}ms ${TOKEN.MOTION.easing}`)
                         .join(', '),
-                    height: '0px',
+                    [size]: '0px',
                     opacity: '0',
-                    marginTop: '0',
-                    marginBottom: '0',
+                    [start]: '0',
+                    [end]: '0',
                 }
             );
             setTimeout(then, length);
@@ -135,6 +142,6 @@ DeckitModule.define(
             );
         }
 
-        return { list, hold, heldWhile, freed };
+        return { list, hold, heldWhile, LEAVING };
     }
 );

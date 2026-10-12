@@ -49,8 +49,6 @@ DeckitModule.define(
             input.spellcheck = false;
             input.toggleAttribute('data-grows', parseFloat(look.flexGrow) > 0);
             Object.assign(input.style, { font: look.font, letterSpacing: look.letterSpacing });
-            // Held, so the list waits to change instead of taking the field away mid-word.
-            input.dataset.deckitHeld = '';
             for (const type of KEPT_IN) input.addEventListener(type, (event) => event.stopPropagation());
             // Given back only by Enter or Escape: a field left by a click lets the click decide where the focus goes.
             const before = document.activeElement;
@@ -62,6 +60,8 @@ DeckitModule.define(
             const display = label.style.display;
             label.style.display = 'none';
             label.after(input);
+            // Held, so the list waits to change instead of taking the field away mid-word.
+            const release = LIST.hold(input);
             input.focus();
             const dot = was.lastIndexOf('.');
             input.setSelectionRange(0, selectStem && dot > 0 ? dot : was.length);
@@ -97,7 +97,7 @@ DeckitModule.define(
                     input.remove();
                     label.style.display = display;
                     if (focused) giveBack();
-                    if (row) LIST.freed(row);
+                    release();
                     resolve(renamed);
                 };
                 const commit = async (stay) => {
