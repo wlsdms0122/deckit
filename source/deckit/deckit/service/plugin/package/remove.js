@@ -6,11 +6,12 @@ DeckitModule.define(
             'deckit/service/storage',
             'deckit/service/plugin/package/manifest',
             'deckit/service/plugin/package/install',
+            'deckit/service/plugin/package/folder',
         ],
         provides: ['remove', 'forgotten', 'clearForgotten'],
         runs: 'node',
     },
-    (HOME, STORAGE, MANIFEST, INSTALL) => {
+    (HOME, STORAGE, MANIFEST, INSTALL, FOLDER) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -18,16 +19,16 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // An installed folder, by its exact name on disk, so neither .shipped nor a name in another case is
-        // reached. With `data`, what the plugin stored goes too. A folder whose name is no plugin id never
-        // loaded, so it stored nothing.
-        function remove(name, { data = false } = {}) {
-            if (!INSTALL.folders().includes(name)) throw new Error('no installed plugin named ' + name);
+        // The installed plugin with this id, wherever deckit keeps it. With `data`, what it stored goes too. An id
+        // that is no plugin id never loaded, so it stored nothing.
+        function remove(id, { data = false } = {}) {
+            const name = INSTALL.folders().find((name) => FOLDER.idOf(path.join(HOME.plugins, name)) === id);
+            if (!name) throw new Error('no installed plugin ' + id);
             fs.rmSync(path.join(HOME.plugins, name), { recursive: true, force: true });
-            if (!data || MANIFEST.idProblem(name)) return { data: false };
-            STORAGE.forget(name);
+            if (!data || MANIFEST.idProblem(id)) return { data: false };
+            STORAGE.forget(id);
             // Its pages' storage and its web sessions are the app's sessions', which main clears at its next start.
-            STORAGE.state.write(FORGOTTEN, [...new Set([...forgotten(), name])]);
+            STORAGE.state.write(FORGOTTEN, [...new Set([...forgotten(), id])]);
             return { data: true };
         }
 

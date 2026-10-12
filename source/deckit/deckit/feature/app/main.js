@@ -117,7 +117,7 @@ DeckitModule.define(
 
         // Every page of deckit's is the same page.html, whichever origin it is loaded under: what it becomes is asked of
         // main as it starts. Under a plugin's origin the rest of its folder is served too, for its page to use: images,
-        // styles, data, scripts. The main half is not the page's.
+        // styles, data, scripts.
         function serve() {
             const { net } = require('electron');
             const path = require('path');
@@ -139,8 +139,8 @@ DeckitModule.define(
             own.setPermissionCheckHandler(() => false);
         }
 
-        // The file of the plugin's folder a path names, where it really is: a link out of the folder, the main half
-        // (in any case, as the disk reads names) and a path that is not one are not served.
+        // The file of the plugin's folder a path names, where it really is: a link out of the folder and a path that
+        // is not one are not served.
         function servedFile(folder, pathname) {
             const fs = require('fs');
             const path = require('path');
@@ -149,9 +149,7 @@ DeckitModule.define(
                 const root = fs.realpathSync(folder);
                 real = fs.realpathSync(path.resolve(root, '.' + decodeURIComponent(pathname)));
                 const inside = path.relative(root, real);
-                const first = inside.split(path.sep)[0].toLowerCase();
-                if (!inside || first === '..' || path.isAbsolute(inside)) return null;
-                if (first === 'main.js' || first === 'main') return null;
+                if (!inside || inside.split(path.sep)[0] === '..' || path.isAbsolute(inside)) return null;
             } catch {
                 return null;
             }

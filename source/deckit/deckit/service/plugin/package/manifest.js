@@ -14,25 +14,26 @@ DeckitModule.define(
         // MARK: - Property
         const FILE = 'manifest.toml';
         // The version of the plugin contract, which a manifest's `api` is written against.
-        const API = '2.0.0';
-        const FIELDS = new Set(['id', 'name', 'version', 'api', 'url-schemes', 'requires', 'permissions']);
+        const API = '3.0.0';
+        const FIELDS = new Set(['id', 'name', 'version', 'api', 'main', 'url-schemes', 'requires', 'permissions']);
 
         // MARK: - Initializer
         // MARK: - Public
         // Returns { manifest, problem }. The manifest comes back with a problem too, so the row that says what is
-        // wrong can still carry the plugin's name.
-        function read(text, folder) {
+        // wrong can still carry the plugin's name; `fallback` stands for its id where the manifest gives none.
+        function read(text, fallback) {
             let raw;
             try {
                 raw = TOML.parse(text);
             } catch (error) {
-                return { manifest: manifestOf({}, folder), problem: `${FILE}: ${error.message}` };
+                return { manifest: manifestOf({}, fallback), problem: `${FILE}: ${error.message}` };
             }
-            const manifest = manifestOf(raw, folder);
-            return { manifest, problem: problemOf(raw, folder, manifest) };
+            const manifest = manifestOf(raw, fallback);
+            return { manifest, problem: problemOf(raw, manifest) };
         }
 
-        // macOS disks ignore case, so "Host" and "host" would be one folder while comparing as two ids.
+        // Each plugin keeps its data in a folder named by its id, and macOS disks ignore case: "Note" and "note"
+        // would be one folder while comparing as two ids.
         function idProblem(raw) {
             const id = String(raw ?? '');
             if (id !== id.toLowerCase()) return `plugin ids are lower case: "${id.toLowerCase()}", not "${id}"`;
@@ -43,13 +44,15 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        function manifestOf(raw, folder) {
+        function manifestOf(raw, fallback) {
             const permissions = isTable(raw.permissions) ? raw.permissions : {};
+            const id = typeof raw.id === 'string' && raw.id ? raw.id : String(fallback);
             return {
-                id: String(folder),
-                name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : String(folder),
+                id,
+                name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : id,
                 version: typeof raw.version === 'string' ? raw.version : null,
                 api: typeof raw.api === 'string' ? raw.api : null,
+                main: typeof raw.main === 'string' ? raw.main : null,
                 requires: isTable(raw.requires) ? { ...raw.requires } : {},
                 permissions: PERMISSION.PERMISSIONS.filter(({ id }) => Object.hasOwn(permissions, id)).map(
                     (permission) => ({
@@ -61,15 +64,13 @@ DeckitModule.define(
             };
         }
 
-        function problemOf(raw, folder, manifest) {
-            const id = String(folder);
-            const idWrong = idProblem(id);
-            if (idWrong) return idWrong;
+        function problemOf(raw, manifest) {
             const unknown = Object.keys(raw).filter((key) => !FIELDS.has(key));
             if (unknown.length)
                 return `${FILE} has ${unknown.map((key) => `"${key}"`).join(', ')}, which is not a manifest field`;
-            if (typeof raw.id !== 'string' || !raw.id) return `${FILE} needs id = "${id}"`;
-            if (raw.id !== id) return `${FILE} says id = "${raw.id}" but the folder is "${id}"; they must agree`;
+            if (typeof raw.id !== 'string' || !raw.id) return `${FILE} needs an id, as id = "my-plugin"`;
+            const idWrong = idProblem(raw.id);
+            if (idWrong) return idWrong;
             if (Object.hasOwn(raw, 'name') && (typeof raw.name !== 'string' || !raw.name.trim()))
                 return 'name must be text';
             if (!VERSION.parse(raw.version))
@@ -77,7 +78,18 @@ DeckitModule.define(
             if (!VERSION.parse(raw.api))
                 return `api must be written as "MAJOR.MINOR.PATCH" (this deck speaks ${API}), not ${JSON.stringify(raw.api)}`;
             if (!VERSION.satisfies(API, raw.api)) return `needs api ${raw.api}, this deck speaks ${API}`;
-            return requiresProblem(raw) || permissionsProblem(raw) || schemesProblem(raw, manifest);
+            return mainProblem(raw) || requiresProblem(raw) || permissionsProblem(raw) || schemesProblem(raw, manifest);
+        }
+
+        // A path inside the plugin's folder, "/" separated; whether a file is there is the folder's to say.
+        function mainProblem(raw) {
+            const example = 'main = "dist/main.js"';
+            if (typeof raw.main !== 'string' || !raw.main.trim())
+                return `${FILE} needs main, the file deckit runs, as ${example}`;
+            const parts = raw.main.split('/');
+            if (raw.main.startsWith('/') || raw.main.includes('\\') || parts.includes('..'))
+                return `main must be a path inside the plugin's folder, as ${example}, not ${JSON.stringify(raw.main)}`;
+            return '';
         }
 
         function requiresProblem(raw) {

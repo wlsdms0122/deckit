@@ -8,13 +8,12 @@ DeckitModule.define(
             'deckit/service/plugin/package/manifest',
             'deckit/service/plugin/package/folder',
             'deckit/service/plugin/package/install',
-            'deckit/service/plugin/package/model/permission',
             'deckit/service/log/main',
         ],
         provides: ['list', 'sourceOf'],
         runs: 'main',
     },
-    (CONFIG, HOME, VERSION, MANIFEST, FOLDER, INSTALL, PERMISSION, LOG) => {
+    (CONFIG, HOME, VERSION, MANIFEST, FOLDER, INSTALL, LOG) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -27,43 +26,31 @@ DeckitModule.define(
             const shipped = INSTALL.shipped() || new Set();
             const entries = [];
             for (const [id, { folder, installed }] of found()) {
-                // A folder with no manifest is not a broken plugin but no plugin.
-                if (!fs.existsSync(path.join(folder, MANIFEST.FILE))) continue;
                 const { manifest, problem } = FOLDER.loadable(folder);
-                entries.push({
-                    ...manifest,
-                    folder,
-                    installed,
-                    shipped: installed && shipped.has(id),
-                    hasMain: manifest.permissions.some(({ id: permission }) => permission === PERMISSION.MAIN_PROCESS),
-                    problem,
-                });
+                entries.push({ ...manifest, folder, installed, shipped: installed && shipped.has(id), problem });
             }
             return withRequirements(entries);
         }
 
-        // page/ first, in path order, then page.js, as one body: the same text on every machine.
+        // The text of the plugin's entry, the one file deckit runs in its sandbox.
         function sourceOf(entry) {
-            const parts = path.join(entry.folder, 'page');
-            return [
-                ...scripts(parts).map(
-                    (file) => `/* page/${file} */\n` + fs.readFileSync(path.join(parts, file), 'utf8')
-                ),
-                '/* page.js */\n' + fs.readFileSync(path.join(entry.folder, 'page.js'), 'utf8'),
-            ].join('\n;\n');
+            return fs.readFileSync(FOLDER.entryOf(entry.folder, entry), 'utf8');
         }
 
         // MARK: - Private
+        // By the id each manifest gives. A folder with no manifest is not a broken plugin but no plugin.
         function found() {
             const out = new Map();
             for (const root of [...CONFIG.sources, HOME.plugins]) {
                 for (const name of INSTALL.folders(root)) {
                     const folder = path.join(root, name);
-                    if (out.has(name)) {
-                        LOG.warn(`${folder} is hidden by ${out.get(name).folder}`);
+                    if (!fs.existsSync(path.join(folder, MANIFEST.FILE))) continue;
+                    const id = FOLDER.idOf(folder) || name;
+                    if (out.has(id)) {
+                        LOG.warn(`${folder} is hidden by ${out.get(id).folder}`);
                         continue;
                     }
-                    out.set(name, { folder, installed: root === HOME.plugins });
+                    out.set(id, { folder, installed: root === HOME.plugins });
                 }
             }
             return new Map([...out].sort(([a], [b]) => a.localeCompare(b)));
@@ -126,19 +113,6 @@ DeckitModule.define(
             };
             for (const id of byId.keys()) visit(id, []);
             return loops;
-        }
-
-        function scripts(folder, relative = '') {
-            const here = path.join(folder, relative);
-            if (!fs.existsSync(here)) return [];
-            return fs
-                .readdirSync(here, { withFileTypes: true })
-                .flatMap((entry) => {
-                    const next = relative ? path.join(relative, entry.name) : entry.name;
-                    if (entry.isDirectory()) return scripts(folder, next);
-                    return entry.name.endsWith('.js') ? [next] : [];
-                })
-                .sort();
         }
 
         return { list, sourceOf };
