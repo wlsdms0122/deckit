@@ -27,7 +27,7 @@ function urlSchemesSection({ ui, host, appName }) {
     function createCard(handlerList) {
         const handlers = handlerList.handlers;
         const card = ui.element('div', { className: 'settings-card' });
-        const list = ui.list();
+        const list = ui.list({ key: ({ handler }) => handler.id, create: handlerEntry });
         const defaultAnswer = DEFAULT_HANDLER[handlerList.system];
 
         card.append(
@@ -42,31 +42,7 @@ function urlSchemesSection({ ui, host, appName }) {
                 draw();
             },
         });
-        handlers.forEach((handler, index) => {
-            const toggle = ui.toggle({
-                value: handler.on,
-                onChange: (on) => {
-                    toggle.set(on);
-                    save(
-                        handlerList.id,
-                        handlers.map((candidate) => (candidate === handler ? { ...handler, on } : candidate))
-                    );
-                    draw();
-                },
-            });
-            toggle.element.title = handler.on
-                ? `${handler.name} is asked ${index === 0 ? 'first' : 'in this place'}`
-                : `${handler.name} is skipped`;
-            list.element.append(
-                handlerRow({
-                    place: String(index + 1),
-                    label: handler.name,
-                    trailing: toggle.element,
-                    muted: !handler.on,
-                    draggable: true,
-                })
-            );
-        });
+        list.set(handlers.map((handler, index) => ({ handler, index })));
         if (!handlers.length)
             card.append(ui.element('div', { className: 'settings-scheme-none', text: 'No plugin takes this over.' }));
         const defaultRow = defaultAnswer
@@ -82,6 +58,30 @@ function urlSchemesSection({ ui, host, appName }) {
             : `${appName} has no answer of its own here: when every plugin passes, the address is not opened.`;
         card.append(list.element, defaultRow);
         return card;
+
+        function handlerEntry({ handler, index }) {
+            const toggle = ui.toggle({
+                value: handler.on,
+                onChange: (on) => {
+                    toggle.set(on);
+                    save(
+                        handlerList.id,
+                        handlers.map((candidate) => (candidate === handler ? { ...handler, on } : candidate))
+                    );
+                    draw();
+                },
+            });
+            toggle.element.title = handler.on
+                ? `${handler.name} is asked ${index === 0 ? 'first' : 'in this place'}`
+                : `${handler.name} is skipped`;
+            return handlerRow({
+                place: String(index + 1),
+                label: handler.name,
+                trailing: toggle.element,
+                muted: !handler.on,
+                draggable: true,
+            });
+        }
     }
 
     function save(scheme, handlers) {

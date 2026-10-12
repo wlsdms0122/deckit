@@ -10,10 +10,10 @@ function tableOfContents({ ui, scroller, sections }) {
 
     const element = ui.element('div', { className: 'settings-sidebar' });
     const contents = ui.section({ label: 'Table of Contents', icon: ui.icon('tableOfContents', { size: 16 }) });
-    const list = ui.list();
-    const rows = new Map(sections.map((section) => [section, contentsRow(section)]));
+    const rows = new Map(); // section -> its row
+    const list = ui.list({ key: (section) => section.title, create: contentsRow });
 
-    for (const row of rows.values()) list.element.append(row.element);
+    list.set(sections);
     contents.body.append(list.element);
     element.append(contents.element);
     scroller.addEventListener('scrollend', () => {
@@ -73,7 +73,8 @@ function tableOfContents({ ui, scroller, sections }) {
         const row = ui.row();
         row.element.append(ui.element('span', { className: 'settings-contents-label', text: section.title }));
         row.element.addEventListener('click', () => go(section));
-        return row;
+        rows.set(section, row);
+        return row.element;
     }
 
     function topOf(target) {
