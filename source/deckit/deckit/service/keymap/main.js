@@ -8,7 +8,7 @@ DeckitModule.define(
             'deckit/module/chord',
             'deckit/service/plugin/identity',
             'deckit/service/plugin/host',
-            'deckit/service/keymap/model/protocol',
+            'deckit/service/keymap/protocol',
         ],
         provides: ['start', 'connect', 'listen', 'register', 'chordOf'],
     },

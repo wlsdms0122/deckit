@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/switcher/view',
     {
-        uses: ['deckit/service/switcher/model/tone', 'deckit/service/switcher/model/protocol'],
+        uses: ['deckit/service/switcher/model/tone', 'deckit/service/switcher/protocol'],
         provides: ['source', 'list'],
     },
     (TONE, PROTOCOL) => {

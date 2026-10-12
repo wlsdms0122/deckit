@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/notify/model/protocol',
+    'deckit/service/notify/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: ['notify', 'clicked'],

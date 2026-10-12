@@ -34,7 +34,7 @@ A new plugin needs no change to the host. A new shell to show the panel in needs
 
 A plugin is a renderer and main is the host. Each plugin's page has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is handed to Open With.
 
-The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `model/protocol.js` (`module/ipc`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
+The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`module/ipc`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
 ## 4. One owner for each fact
 
@@ -90,7 +90,7 @@ The library is in four layers, and names go one way:
 
 `config/` is the app's configuration (EMBEDDING.md), which `feature/` and `service/` read.
 
-A concept's sides are `main.js` and `view.js` (the shape a plugin has); a one-sided concept is `index.js`; what its sides share is `model/`, and `model/protocol.js` is how its own sides reach each other and nobody else's. A folder is a module (its files and `model/`) or a group (folders only).
+A concept's sides are `main.js` and `view.js` (the shape a plugin has); a one-sided concept is `index.js`; `protocol.js` is how its own sides reach each other and nobody else's, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only).
 
 Bundles are worked out from their entries: the main bundle from `feature/app/main`, the page bundle from `feature/app/view`, the chord bundle, the command line's. A bundle carries what its entry names and what those name, each after what it names. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept, where each file runs, every folder a module or a group.
 

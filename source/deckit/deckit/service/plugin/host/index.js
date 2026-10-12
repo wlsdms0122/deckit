@@ -15,7 +15,7 @@ DeckitModule.define(
             'deckit/service/plugin/host/record',
             'deckit/service/plugin/host/setting',
             'deckit/service/plugin/host/export',
-            'deckit/service/plugin/host/model/protocol',
+            'deckit/service/plugin/host/protocol',
         ],
         provides: ['start', 'plugins', 'prepare', 'onChange', 'order', 'arrange'],
         runs: 'main',

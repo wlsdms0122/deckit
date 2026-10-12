@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/clipboard/view',
     {
-        uses: ['deckit/service/clipboard/model/protocol'],
+        uses: ['deckit/service/clipboard/protocol'],
         provides: ['readText', 'writeText'],
     },
     (PROTOCOL) => {

@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/switcher/model/protocol',
+    'deckit/service/switcher/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: [

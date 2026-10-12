@@ -1,6 +1,6 @@
 // Between a plugin's view and main. Main knows which plugin a message is from by the view it came from.
 DeckitModule.define(
-    'deckit/service/plugin/host/model/protocol',
+    'deckit/service/plugin/host/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: [

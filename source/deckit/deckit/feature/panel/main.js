@@ -11,7 +11,7 @@ DeckitModule.define(
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/service/open/main',
-            'deckit/feature/panel/model/protocol',
+            'deckit/feature/panel/protocol',
         ],
         provides: ['start', 'deck', 'viewFor', 'reveal', 'awaitReply'],
     },

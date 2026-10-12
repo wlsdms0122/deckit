@@ -6,7 +6,7 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
             'deckit/service/plugin/host',
-            'deckit/service/switcher/model/protocol',
+            'deckit/service/switcher/protocol',
         ],
         provides: ['start'],
     },

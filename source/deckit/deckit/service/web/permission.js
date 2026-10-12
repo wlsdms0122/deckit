@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/web/permission',
     {
-        uses: ['deckit/service/web/session', 'deckit/service/web/registry', 'deckit/service/web/model/protocol'],
+        uses: ['deckit/service/web/session', 'deckit/service/web/registry', 'deckit/service/web/protocol'],
         provides: ['start', 'granted', 'ask', 'mayOpenApp', 'originOf', 'onChange', 'notices', 'allow', 'revoke'],
         runs: 'main',
     },

@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/plugin/host/setting',
     {
-        uses: ['deckit/service/storage', 'deckit/service/plugin/identity', 'deckit/service/plugin/host/model/protocol'],
+        uses: ['deckit/service/storage', 'deckit/service/plugin/identity', 'deckit/service/plugin/host/protocol'],
         provides: ['start', 'declare', 'forget', 'valuesOf'],
         runs: 'main',
     },

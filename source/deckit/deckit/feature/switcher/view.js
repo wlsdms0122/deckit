@@ -10,7 +10,7 @@ DeckitModule.define(
             'deckit/service/switcher/view',
             'deckit/service/switcher/model/tone',
             'deckit/feature/switcher/view-model',
-            'deckit/feature/switcher/model/protocol',
+            'deckit/feature/switcher/protocol',
         ],
         provides: ['boot'],
     },

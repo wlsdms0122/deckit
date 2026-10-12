@@ -15,7 +15,7 @@ DeckitModule.define(
             'deckit/service/switcher/view',
             'deckit/service/plugin/runtime/storage',
             'deckit/service/plugin/runtime/settings',
-            'deckit/service/plugin/host/model/protocol',
+            'deckit/service/plugin/host/protocol',
             'app/exports?',
         ],
         provides: ['start'],

@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/plugin/host/export',
     {
-        uses: ['deckit/service/plugin/identity', 'deckit/service/plugin/host/model/protocol'],
+        uses: ['deckit/service/plugin/identity', 'deckit/service/plugin/host/protocol'],
         provides: ['start', 'expect', 'provide', 'fail'],
         runs: 'main',
     },

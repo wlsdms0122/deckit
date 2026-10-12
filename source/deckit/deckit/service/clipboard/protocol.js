@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/clipboard/model/protocol',
+    'deckit/service/clipboard/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: ['readText', 'writeText'],

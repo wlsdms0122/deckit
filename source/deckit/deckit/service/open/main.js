@@ -9,7 +9,7 @@ DeckitModule.define(
             'deckit/service/plugin/host',
             'deckit/service/plugin/package/model/permission',
             'deckit/service/open/model/scheme',
-            'deckit/service/open/model/protocol',
+            'deckit/service/open/protocol',
         ],
         provides: ['start', 'open'],
     },

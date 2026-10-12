@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/open/model/protocol',
+    'deckit/service/open/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: ['open', 'handles', 'reveal', 'lines', 'setLine', 'offer'],

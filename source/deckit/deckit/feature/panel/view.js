@@ -5,7 +5,7 @@ DeckitModule.define(
             'deckit/ui/color',
             'deckit/service/keymap/view',
             'deckit/feature/panel/sidebar',
-            'deckit/feature/panel/model/protocol',
+            'deckit/feature/panel/protocol',
         ],
         provides: ['mount'],
     },

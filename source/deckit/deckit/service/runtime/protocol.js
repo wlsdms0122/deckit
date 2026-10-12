@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/runtime/model/protocol',
+    'deckit/service/runtime/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: ['about', 'restart'],

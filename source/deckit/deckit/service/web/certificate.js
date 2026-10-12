@@ -5,7 +5,7 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/web/session',
             'deckit/service/web/registry',
-            'deckit/service/web/model/protocol',
+            'deckit/service/web/protocol',
         ],
         provides: ['start', 'trust'],
         runs: 'main',

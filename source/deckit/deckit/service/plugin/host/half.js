@@ -7,7 +7,7 @@ DeckitModule.define(
             'deckit/service/window',
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
-            'deckit/service/plugin/host/model/protocol',
+            'deckit/service/plugin/host/protocol',
         ],
         provides: ['start', 'load', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',

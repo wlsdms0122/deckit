@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/keymap/model/protocol',
+    'deckit/service/keymap/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: [

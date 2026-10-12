@@ -7,7 +7,7 @@ DeckitModule.define(
             'deckit/service/keymap/main',
             'deckit/service/switcher/main',
             'deckit/feature/panel/main',
-            'deckit/feature/switcher/model/protocol',
+            'deckit/feature/switcher/protocol',
         ],
         provides: ['start', 'deck'],
     },

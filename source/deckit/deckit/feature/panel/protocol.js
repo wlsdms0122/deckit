@@ -1,6 +1,6 @@
 // Between main and the views that make up the panel (a plugin's each, and the switcher's), about the panel itself.
 DeckitModule.define(
-    'deckit/feature/panel/model/protocol',
+    'deckit/feature/panel/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: [

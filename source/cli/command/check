@@ -76,10 +76,10 @@ function checkFile(file, { name, provides, plain, uses }) {
         if (global !== 'DeckitModule') say(file, `reaches the global ${global}; name what it uses in its define()`);
     }
     if (name !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
-        say(file, `reaches Electron's IPC; say what crosses in a model/protocol.js`);
-    const protocol = file.endsWith('/model/protocol.js');
+        say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
+    const protocol = file.endsWith('/protocol.js');
     if (!protocol && /["'`]deckit:(?!\/\/)/.test(plain))
-        say(file, 'writes a channel; channels are declared in a model/protocol.js');
+        say(file, 'writes a channel; channels are declared in a protocol.js');
     if (!protocol && uses.some((use) => use.name === IPC)) say(file, `names ${IPC}, which only a protocol names`);
 }
 
@@ -106,7 +106,7 @@ function checkUses(name, { file, uses }) {
         if (!MAY_NAME[mine.layer].has(other.layer))
             say(file, `names ${use.name}, in ${other.layer}/, which ${mine.layer}/ does not name`);
         // A concept's channels are how its own sides reach each other.
-        if (theirs.file.endsWith('/model/protocol.js') && other.concept !== mine.concept && !ENTRIES.has(name)) {
+        if (theirs.file.endsWith('/protocol.js') && other.concept !== mine.concept && !ENTRIES.has(name)) {
             say(file, `names ${use.name}, how ${other.concept} is reached, which is ${other.concept}'s own`);
         }
     }

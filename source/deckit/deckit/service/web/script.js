@@ -6,7 +6,7 @@ DeckitModule.define(
             'deckit/service/web/debugger',
             'deckit/service/web/session',
             'deckit/service/web/permission',
-            'deckit/service/web/model/protocol',
+            'deckit/service/web/protocol',
         ],
         provides: ['start', 'attach', 'clickNotification', 'captureOf', 'forget'],
         runs: 'main',

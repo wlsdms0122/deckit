@@ -8,7 +8,7 @@ DeckitModule.define(
             'deckit/ui/kit',
             'deckit/service/plugin/runtime',
             'deckit/feature/panel/view',
-            'deckit/feature/panel/model/protocol',
+            'deckit/feature/panel/protocol',
             'deckit/feature/switcher/view',
         ],
         provides: ['boot'],

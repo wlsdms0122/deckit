@@ -6,7 +6,7 @@ DeckitModule.define(
             'deckit/service/home',
             'deckit/module/log',
             'deckit/module/listener',
-            'deckit/service/log/model/protocol',
+            'deckit/service/log/protocol',
         ],
         provides: ['info', 'warn', 'error', 'file', 'guard', 'start'],
     },

@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/notify/view',
     {
-        uses: ['deckit/service/notify/model/protocol'],
+        uses: ['deckit/service/notify/protocol'],
         provides: ['listen', 'notify'],
     },
     (PROTOCOL) => {

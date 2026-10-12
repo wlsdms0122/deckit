@@ -13,7 +13,7 @@ DeckitModule.define(
             'deckit/service/web/permission',
             'deckit/service/web/certificate',
             'deckit/service/web/script',
-            'deckit/service/web/model/protocol',
+            'deckit/service/web/protocol',
         ],
         provides: ['start', 'host', 'hostOf', 'holdsKeyboard', 'windowOptions'],
     },

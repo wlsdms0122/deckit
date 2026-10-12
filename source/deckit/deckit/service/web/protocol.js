@@ -1,7 +1,7 @@
 // Between a plugin's view and main, about the web pages it shows. `name` is a session's name within the plugin;
 // `id` is a page's webContents id, which main hands out and holds.
 DeckitModule.define(
-    'deckit/service/web/model/protocol',
+    'deckit/service/web/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: [

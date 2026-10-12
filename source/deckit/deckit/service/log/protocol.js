@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/log/model/protocol',
+    'deckit/service/log/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: ['line'],

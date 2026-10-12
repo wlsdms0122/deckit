@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/web/view',
     {
-        uses: ['deckit/service/web/model/partition', 'deckit/service/web/model/protocol'],
+        uses: ['deckit/service/web/model/partition', 'deckit/service/web/protocol'],
         provides: ['listen', 'forPlugin'],
     },
     (PARTITION, PROTOCOL) => {

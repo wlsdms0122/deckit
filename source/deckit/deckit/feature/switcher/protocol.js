@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/feature/switcher/model/protocol',
+    'deckit/feature/switcher/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: ['ready', 'open', 'close', 'dismiss', 'hidden', 'number'],
