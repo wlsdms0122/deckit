@@ -114,7 +114,7 @@ Every member is optional: leaving one out is how a plugin opts out of it. `make`
 
 ### content and sidebar
 
-`content` is the element shown in the panel. Returning one makes the plugin a view: it gets a row in the plugin list and can be on screen. `sidebar` is an element shown in the sidebar under the plugin list while the view is on screen.
+`content` is the element shown in the panel. Returning one makes the plugin a view: it gets a row in the plugin list and can be on screen. Leave it out and the plugin is headless: it exists only through whatever else it returns (keys, commands, opening addresses, exports, its main half), from when it starts until it is reloaded. `make()` returning `{}` is a headless plugin that does nothing yet; returning nothing, or a promise, is refused. `sidebar` is an element shown in the sidebar under the plugin list while the view is on screen.
 
 ### didAppear() and didDisappear()
 
@@ -126,11 +126,11 @@ The view came on screen, and went. They come in turn, never twice running.
 keys: { newTab: { key: 'mod+t', label: 'New tab', run() { … } } }
 ```
 
-`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. A key is live only while its plugin is on screen, in its page and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses.
+`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. A key is live only while its plugin is on screen, in its page and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app, its plugin off screen and the panel closed included; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses. A headless plugin is never on screen, so its keys are global ones; what it offers to be reached from anywhere without one is a command.
 
 ### commands()
 
-Returns `[{ label, hint, icon, group, run, keywords, address }]`: entries for the quick switcher, under the plugin's heading. `group` is a caption inside it; `address` is a URL or a path a query matches last. Running one does not show the plugin: a command that wants to be seen calls `host.show()`.
+Returns `[{ label, hint, icon, group, run, keywords, address }]`: entries for the quick switcher, under the plugin's heading. `group` is a caption inside it; `address` is a URL or a path a query matches last. Running one does not show the plugin: a command that wants to be seen calls `host.show()`. A headless plugin is often nothing but this.
 
 Instead of `run`, an entry may have a `page`, a list the switcher opens to search inside it; Escape or Backspace leaves it:
 
