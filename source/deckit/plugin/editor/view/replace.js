@@ -8,9 +8,8 @@ function expandReplacement(replacement, match) {
     });
 }
 
-// The edits that replace `matches`, with `lineOf(number)` giving a line's { from, text }. Only the matches ripgrep
-// reported are replaced, at their line and column, and only if the text there is unchanged. Matching again in
-// JavaScript would disagree with ripgrep (^, \s, word bounds).
+// The edits that replace `matches`, with `lineOf(number)` giving a line's { from, text }. Only the matches the search
+// reported are replaced, at their line and column, and only if the text there is unchanged.
 function planReplace(lineOf, matches, { query, replacement, options = {} }) {
     const usesGroups = options.regex && replacement.includes('$');
     const stickyPattern = usesGroups ? stickyPatternOf(query, options) : null;
@@ -29,10 +28,6 @@ function planReplace(lineOf, matches, { query, replacement, options = {} }) {
         }
         let insert = replacement;
         if (usesGroups) {
-            if (!stickyPattern) {
-                skip('the pattern is not one this replace can read groups from');
-                continue;
-            }
             stickyPattern.lastIndex = match.column;
             const found = stickyPattern.exec(line.text);
             if (!found || found[0] !== match.hit) {
@@ -46,20 +41,10 @@ function planReplace(lineOf, matches, { query, replacement, options = {} }) {
     return { edits, skipped, reason };
 }
 
-// Word bounds were already checked by ripgrep. Unicode when the pattern allows it; null when JavaScript cannot read it.
+// The search's own pattern, held at a column. Word bounds were checked by the search.
 function stickyPatternOf(query, { regex = false, caseSensitive = false }) {
     const source = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const flags = caseSensitive ? '' : 'i';
-    const sticky = (more) => new RegExp(source, flags + more);
-    try {
-        return sticky('uy');
-    } catch {
-        try {
-            return sticky('y');
-        } catch {
-            return null;
-        }
-    }
+    return new RegExp(source, caseSensitive ? 'uy' : 'iuy');
 }
 
 function linesOfText(text) {

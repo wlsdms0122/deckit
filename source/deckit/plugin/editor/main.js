@@ -3,7 +3,6 @@
 module.exports = ({ handle, files }) => {
     const fs = require('fs');
     const path = require('path');
-    const { spawn } = require('child_process');
     const { dialog, BrowserWindow } = require('electron');
     const { stat, readFile, writeFile, readdir, mkdir } = fs.promises;
 
@@ -11,7 +10,6 @@ module.exports = ({ handle, files }) => {
     const OPEN_LIMIT = 5 * 1024 * 1024;
     const SEARCHED_LIMIT = 1024 * 1024;
     const LISTED_LIMIT = 300000;
-    const LISTING_TIME_LIMIT_MS = 30000;
     const SEARCH_TIME_LIMIT_MS = 20000;
     const MATCH_LIMIT = 5000;
     const MATCH_TEXT_LIMIT = 400;
@@ -36,9 +34,7 @@ module.exports = ({ handle, files }) => {
     // Every write is UTF-8, so a file in another encoding would come back with its bytes replaced. ignoreBOM keeps a
     // byte order mark as a character, so writing the text back writes the mark.
     const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
-    const BYTE_ORDER_MARK = '\uFEFF';
 
-    const ripgrep = ripgrepPath();
     // Listing a big repository takes a moment, so a listing is kept until the view asks for it `fresh`.
     const listings = new Map(); // root -> promise of { files, truncated }
     const listingsUnderWay = new Map(); // root -> the listing under way
@@ -158,10 +154,8 @@ module.exports = ({ handle, files }) => {
         if (!String(query || '')) return { files: [], total: 0, truncated: false, stoppedBy: '', warning: '' };
         const search = {
             stopped: false,
-            ripgrep: null,
             stop() {
                 this.stopped = true;
-                this.ripgrep?.stop();
             },
         };
         searches.set(root, search);
@@ -199,63 +193,8 @@ module.exports = ({ handle, files }) => {
         return { name: entry.name, path: path.join(folder, entry.name), folder: isFolder };
     }
 
-    // An app started from the Dock has a bare PATH, so ripgrep is looked for at its usual paths.
-    function ripgrepPath() {
-        for (const candidate of ['/opt/homebrew/bin/rg', '/usr/local/bin/rg', '/usr/bin/rg']) {
-            try {
-                fs.accessSync(candidate, fs.constants.X_OK);
-                return candidate;
-            } catch {}
-        }
-        return null;
-    }
-
-    // Runs ripgrep in `folder`, handing each line of its output to `onLine`, which stops it by answering false.
-    function runRipgrep(ripgrepArguments, folder, onLine, timeLimit) {
-        let stop = () => {};
-        const ended = new Promise((resolve, reject) => {
-            const child = spawn(ripgrep, ripgrepArguments, { cwd: folder });
-            let rest = '';
-            let stderr = '';
-            let stopped = false;
-            stop = () => {
-                if (stopped) return;
-                stopped = true;
-                child.kill();
-            };
-            const timer = setTimeout(stop, timeLimit);
-            child.stdout.on('data', (chunk) => {
-                if (stopped) return;
-                const lines = (rest + chunk).split('\n');
-                rest = lines.pop();
-                for (const line of lines) if (line && onLine(line) === false) return stop();
-            });
-            child.stderr.on('data', (chunk) => {
-                if (stderr.length < 4096) stderr += chunk;
-            });
-            child.on('close', (code) => {
-                clearTimeout(timer);
-                resolve({ code, stderr: stderr.trim(), stopped });
-            });
-            child.on('error', (error) => {
-                clearTimeout(timer);
-                reject(new Error('could not run ripgrep: ' + error.message));
-            });
-        });
-        ended.stop = () => stop();
-        return ended;
-    }
-
-    // For a refused pattern the first line only says "regex parse error:"; the "error:" line has the detail.
-    function errorOf(stderr) {
-        const lines = String(stderr || '')
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean);
-        const line = lines.find((candidate) => /^error:/.test(candidate)) || lines[0] || '';
-        return line.replace(/^(rg|error): /, '');
-    }
-
+    // A folder inside that cannot be read is passed over; the root itself refused (macOS privacy) is an error, not
+    // an empty folder.
     async function* walk(root) {
         const folders = [root];
         while (folders.length) {
@@ -263,7 +202,8 @@ module.exports = ({ handle, files }) => {
             let entries = [];
             try {
                 entries = await readdir(folder, { withFileTypes: true });
-            } catch {
+            } catch (error) {
+                if (folder === root) throw new Error('the folder could not be read: ' + error.message);
                 continue;
             }
             for (const entry of entries) {
@@ -289,38 +229,21 @@ module.exports = ({ handle, files }) => {
     async function listFiles(root) {
         const listed = [];
         let truncated = false;
-        if (ripgrep) {
-            const globs = [...SKIPPED_FOLDERS].flatMap((name) => ['--glob', `!**/${name}/**`]);
-            const run = await runRipgrep(
-                ['--files', '--hidden', ...globs],
-                root,
-                (line) => {
-                    listed.push(line);
-                    return listed.length < LISTED_LIMIT;
-                },
-                LISTING_TIME_LIMIT_MS
-            );
-            truncated = run.stopped;
-            // 2 with nothing listed: the folder itself was refused (macOS privacy), not empty.
-            if (!run.stopped && run.code === 2 && !listed.length)
-                throw new Error(errorOf(run.stderr) || 'the folder could not be read');
-        } else {
-            for await (const file of walk(root)) {
-                listed.push(path.relative(root, file));
-                if (listed.length >= LISTED_LIMIT) {
-                    truncated = true;
-                    break;
-                }
+        for await (const file of walk(root)) {
+            listed.push(path.relative(root, file));
+            if (listed.length >= LISTED_LIMIT) {
+                truncated = true;
+                break;
             }
         }
         return { files: listed.sort(), truncated };
     }
 
-    // Only for the walk without ripgrep: the two accept different patterns, so with ripgrep it judges.
+    // Unicode, as the editor's find in a file reads a pattern.
     function patternOf(query, { regex = false, caseSensitive = false, word = false } = {}) {
         let source = regex ? String(query) : String(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         if (word) source = `\\b(?:${source})\\b`;
-        return new RegExp(source, caseSensitive ? 'g' : 'gi');
+        return new RegExp(source, caseSensitive ? 'gu' : 'giu');
     }
 
     // A plain name matches anywhere, a path with a slash from the top, and anything with * ? [ { is a glob as written.
@@ -434,142 +357,43 @@ module.exports = ({ handle, files }) => {
         const include = globsOf(options.include);
         const exclude = globsOf(options.exclude);
         // Each folder is searched from inside, so include and exclude read paths relative to it.
-        const { tops, warning: scopeWarning } = await searchRootsOf(root, options.folders);
-        let warning = scopeWarning;
-        // Taken when the search first reads a file: one changed during a long search must not pass as unchanged.
-        const modified = new Map(); // file -> promise of its mtime
-        const noteModified = (file) => {
-            if (!modified.has(file))
-                modified.set(
-                    file,
-                    stat(file).then(
-                        (status) => status.mtimeMs,
-                        () => 0
-                    )
-                );
-        };
+        const { tops, warning } = await searchRootsOf(root, options.folders);
+        // Taken as the search reads a file: one changed during a long search must not pass as unchanged.
+        const modified = new Map(); // file -> its mtime as read
         const deadline = Date.now() + SEARCH_TIME_LIMIT_MS;
-        if (ripgrep) {
-            const ripgrepArguments = [
-                '--json',
-                '--hidden',
-                '--max-filesize',
-                '1M',
-                ...[...SKIPPED_FOLDERS].flatMap((name) => ['--glob', `!**/${name}/**`]),
-            ];
-            // A glob without ! is a whitelist to ripgrep: with any, only what they name is searched.
-            for (const glob of include) ripgrepArguments.push('--glob', glob);
-            for (const glob of exclude) ripgrepArguments.push('--glob', '!' + glob);
-            ripgrepArguments.push(options.caseSensitive ? '-s' : '-i');
-            if (options.word) ripgrepArguments.push('-w');
-            if (!options.regex) ripgrepArguments.push('-F');
-            ripgrepArguments.push('-e', String(query), '--', '.');
-            const unreadable = [];
-            for (const top of tops) {
-                if (search.stopped || stoppedBy) break;
-                const left = deadline - Date.now();
-                if (left <= 0) {
-                    stoppedBy = 'time';
-                    break;
-                }
-                // ripgrep sums up a search it ran, and says nothing on stdout about one it refused to start.
-                let searched = false;
-                search.ripgrep = runRipgrep(
-                    ripgrepArguments,
-                    top,
-                    (line) => {
-                        let message;
-                        try {
-                            message = JSON.parse(line);
-                        } catch {
-                            return true;
-                        }
-                        if (message.type === 'summary') searched = true;
-                        if (message.type !== 'match') return true;
-                        // Not UTF-8: a file this editor does not open.
-                        if (message.data.lines.bytes != null || message.data.path.bytes != null) return true;
-                        const file = path.join(top, message.data.path.text || '');
-                        noteModified(file);
-                        const text = String(message.data.lines.text || '').replace(/\r?\n$/, '');
-                        const bytes = Buffer.from(text);
-                        // ripgrep counts bytes; the editor counts characters.
-                        const characters = (count) => bytes.subarray(0, count).toString('utf8').length;
-                        for (const submatch of message.data.submatches || []) {
-                            const column = characters(submatch.start);
-                            const length = characters(submatch.end) - column;
-                            if (!addMatch(file, message.data.line_number, column, length, text)) return false;
-                        }
-                        return true;
-                    },
-                    left
-                );
-                const run = await search.ripgrep;
-                // Out of time, not out of room.
-                if (run.stopped && !stoppedBy && !search.stopped) stoppedBy = 'time';
-                // 2 before any summary: ripgrep refused the pattern or a glob, as every folder would. 2 after running: a
-                // file could not be read; what was found stands.
-                if (!run.stopped && run.code === 2) {
-                    if (!searched) throw new Error(errorOf(run.stderr) || 'the search could not run');
-                    unreadable.push(errorOf(run.stderr));
-                }
+        const pattern = patternOf(query, options);
+        const includes = include.map(globPattern);
+        const excludes = exclude.map(globPattern);
+        const candidates = async function* () {
+            for (const top of tops) for await (const file of walk(top)) yield [top, file];
+        };
+        scan: for await (const [top, file] of candidates()) {
+            if (search.stopped) break;
+            if (Date.now() > deadline) {
+                stoppedBy = 'time';
+                break;
             }
-            // ripgrep matches ASCII lines of other encodings and converts UTF-16; the editor opens neither. It also counts
-            // line 1 from after a byte order mark, which the editor keeps as a character.
-            for (const [file, matches] of [...byFile]) {
-                const read = await readText(file);
-                if (read === null) {
-                    byFile.delete(file);
-                    total -= matches.length;
-                    continue;
-                }
-                if (read.text.startsWith(BYTE_ORDER_MARK))
-                    for (const match of matches)
-                        if (match.line === 1) {
-                            match.column += 1;
-                            match.text = BYTE_ORDER_MARK + match.text;
-                        }
-            }
-            if (unreadable.length)
-                warning = [warning, 'Some files could not be read: ' + unreadable.join('; ')]
-                    .filter(Boolean)
-                    .join('. ');
-        } else {
-            const pattern = patternOf(query, options);
-            const includes = include.map(globPattern);
-            const excludes = exclude.map(globPattern);
-            const candidates = async function* () {
-                for (const top of tops) for await (const file of walk(top)) yield [top, file];
-            };
-            scan: for await (const [top, file] of candidates()) {
-                if (search.stopped) break;
-                if (Date.now() > deadline) {
-                    stoppedBy = 'time';
-                    break;
-                }
-                const inner = path.relative(top, file);
-                if (includes.length && !includes.some((glob) => glob.test(inner))) continue;
-                if (excludes.some((glob) => glob.test(inner))) continue;
-                const read = await readText(file);
-                if (read == null) continue;
-                const lines = read.text.split('\n');
-                for (let index = 0; index < lines.length; index++) {
-                    const line = lines[index].replace(/\r$/, '');
-                    pattern.lastIndex = 0;
-                    let match;
-                    while ((match = pattern.exec(line))) {
-                        if (!match[0].length) {
-                            pattern.lastIndex += 1;
-                            continue;
-                        }
-                        if (!modified.has(file)) modified.set(file, Promise.resolve(read.mtime));
-                        if (!addMatch(file, index + 1, match.index, match[0].length, line)) break scan;
+            const inner = path.relative(top, file);
+            if (includes.length && !includes.some((glob) => glob.test(inner))) continue;
+            if (excludes.some((glob) => glob.test(inner))) continue;
+            const read = await readText(file);
+            if (read == null) continue;
+            const lines = read.text.split('\n');
+            for (let index = 0; index < lines.length; index++) {
+                const line = lines[index].replace(/\r$/, '');
+                pattern.lastIndex = 0;
+                let match;
+                while ((match = pattern.exec(line))) {
+                    if (!match[0].length) {
+                        pattern.lastIndex += 1;
+                        continue;
                     }
+                    modified.set(file, read.mtime);
+                    if (!addMatch(file, index + 1, match.index, match[0].length, line)) break scan;
                 }
             }
         }
-        const found = await Promise.all(
-            [...byFile].map(async ([file, matches]) => ({ path: file, matches, mtime: await modified.get(file) }))
-        );
+        const found = [...byFile].map(([file, matches]) => ({ path: file, matches, mtime: modified.get(file) }));
         found.sort((left, right) => left.path.localeCompare(right.path));
         return { files: found, total, truncated: !!stoppedBy, stoppedBy, warning };
     }
