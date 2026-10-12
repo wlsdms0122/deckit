@@ -25,7 +25,7 @@ function dragAndDrop({ ui, relocations, onMove }) {
                     payload.path,
                     target.folder,
                     payload.since,
-                    target.since ?? (target.row ? Number(target.row.el.dataset.seq) : relocations.count())
+                    target.since ?? (target.row ? Number(target.row.element.dataset.seq) : relocations.count())
                 ),
         });
     }

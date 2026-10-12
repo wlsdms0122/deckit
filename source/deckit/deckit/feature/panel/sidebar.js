@@ -187,8 +187,8 @@ DeckitModule.define(
                     const below = splitter.offsetHeight + parseFloat(getComputedStyle(splitter).marginTop) + SLOT_MIN;
                     return Math.max(NAV_MIN, usable - below);
                 },
-                resize: (px) => (nav.style.height = px + 'px'),
-                commit: (px) => onLayout({ navHeight: Math.round(px) }),
+                onResize: (px) => (nav.style.height = px + 'px'),
+                onCommit: (px) => onLayout({ navHeight: Math.round(px) }),
             });
 
             // The plugin's own sidebar: the slot scrolls when it is taller.
@@ -208,12 +208,12 @@ DeckitModule.define(
                 min: WIDTH_MIN,
                 max: ceiling,
                 resizable: () => !layout.collapsed,
-                resize: (px) => {
+                onResize: (px) => {
                     card.style.transition = 'none';
                     card.style.width = px + 'px';
                     body.style.width = Math.max(WIDTH_MIN, px) + 'px';
                 },
-                commit: (px) => onLayout({ width: Math.round(clamp(px)) }),
+                onCommit: (px) => onLayout({ width: Math.round(clamp(px)) }),
                 onClick: () => onLayout({ collapsed: !layout.collapsed }),
                 onDrag: (on) => handle.toggleAttribute('data-dragging', on),
             });

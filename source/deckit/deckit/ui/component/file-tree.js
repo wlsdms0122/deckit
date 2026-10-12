@@ -78,7 +78,7 @@ DeckitModule.define(
         }
 
         // The folder under an element of a tree: the folder row itself, or the folder of a file row, or the top when it is
-        // on no row. `row(element)` finds the row ({ path, folder, el }); `markOf(folder)` the element that lights for it.
+        // on no row. `row(element)` finds the row ({ path, folder, element }); `markOf(folder)` the element that lights for it.
         function treeFolderAt({ row, markOf, top, topMark }) {
             return (under) => {
                 const found = row(under);
@@ -86,7 +86,7 @@ DeckitModule.define(
                 const folder = found.folder ? found.path : parentOf(found.path);
                 return {
                     folder,
-                    mark: folder === top ? topMark : found.folder ? found.el : markOf(folder) || found.el,
+                    mark: folder === top ? topMark : found.folder ? found.element : markOf(folder) || found.element,
                     row: found,
                 };
             };

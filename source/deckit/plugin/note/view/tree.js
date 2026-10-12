@@ -71,7 +71,7 @@ function tree({
             row: (under) => {
                 const row = rowAt(under);
                 return row
-                    ? { path: row.dataset.note || row.dataset.folder, folder: !row.dataset.note, el: row }
+                    ? { path: row.dataset.note || row.dataset.folder, folder: !row.dataset.note, element: row }
                     : null;
             },
             markOf: (folder) => rows.element.querySelector(`[data-folder="${CSS.escape(folder)}"]`),

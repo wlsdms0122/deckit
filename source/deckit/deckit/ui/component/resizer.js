@@ -15,8 +15,8 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // A handle that sizes something by its drag along `axis`. `size()` reads the size, `resize(px)` draws one,
-        // `commit(px)` keeps the one let go of. Past `min` or `max` (numbers or functions read at the press) the edge
+        // A handle that sizes something by its drag along `axis`. `size()` reads the size, `onResize(px)` draws one,
+        // `onCommit(px)` keeps the one let go of. Past `min` or `max` (numbers or functions read at the press) the edge
         // gives and springs back. A press that does not travel is a click (`onClick`); `onDrag(on)` hears a drag start
         // and end; `resizable()` says whether a drag sizes at all. Returns the dispose.
         function resizer(
@@ -27,8 +27,8 @@ DeckitModule.define(
                 size,
                 min = 0,
                 max = Infinity,
-                resize,
-                commit,
+                onResize,
+                onCommit = null,
                 onClick = null,
                 onDrag = null,
                 resizable = () => true,
@@ -68,7 +68,7 @@ DeckitModule.define(
                     const high = valueOf(max);
                     shown =
                         wanted > high ? high + give(wanted - high) : wanted >= low ? wanted : low - give(low - wanted);
-                    resize(shown);
+                    onResize(shown);
                 };
                 const up = () => {
                     window.removeEventListener('pointermove', move, true);
@@ -78,9 +78,9 @@ DeckitModule.define(
                     release();
                     onDrag?.(false);
                     const end = Math.min(valueOf(max), Math.max(low, shown));
-                    gesture = springTo(resize, shown, end, () => {
+                    gesture = springTo(onResize, shown, end, () => {
                         gesture = null;
-                        commit?.(end);
+                        onCommit?.(end);
                     });
                 };
                 window.addEventListener('pointermove', move, true);

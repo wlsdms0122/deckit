@@ -25,7 +25,7 @@ DeckitModule.define('deckit/ui/scroll', { uses: [], provides: ['scrollerOf', 'is
 
     // The scrolling box's own edges fade where there is more to scroll to. A mask, so it fades into whatever is behind
     // the box, the panel's glass included. Returns the dispose.
-    function edgeFade(element, size = 18) {
+    function edgeFade(element, { size = 18 } = {}) {
         let frame = 0;
         const paint = () => {
             frame = 0;

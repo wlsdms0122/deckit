@@ -205,7 +205,7 @@ function fileTree({ ui, store, main, isUnsaved, onOpen, onFindIn, onMove, menu }
             row: (target) => {
                 const row = target.closest?.('[data-path]');
                 const entry = row && entryAt(row.dataset.path);
-                return entry ? { path: entry.path, folder: entry.folder, el: row } : null;
+                return entry ? { path: entry.path, folder: entry.folder, element: row } : null;
             },
             markOf: (folder) => rows.elementOf(folder),
             top: root,

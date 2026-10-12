@@ -148,10 +148,10 @@ function columnView({ ui, icons, entryAt, onResize }) {
             onDrag: (on) => {
                 if (on) sizing = { column, tab: drawn.tab };
             },
-            resize: (width) => {
+            onResize: (width) => {
                 if (sizing?.tab === drawn.tab) setWidth(column, width);
             },
-            commit: (width) => {
+            onCommit: (width) => {
                 const tab = sizing?.tab;
                 sizing = null;
                 if (tab) onResize(tab, folder, Math.round(width));

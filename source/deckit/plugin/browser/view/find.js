@@ -38,7 +38,7 @@ function findInPage({ theme, ui, activeTab }) {
     const element = ui.element('div', { className: 'browser-find' });
     const field = ui.findBar({
         placeholder: 'Find in page',
-        options: ['case'],
+        options: ['caseSensitive'],
         nav: true,
         onChange: change,
         onNext: () => step(false),

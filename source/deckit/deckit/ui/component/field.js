@@ -77,11 +77,11 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
     const CLEAR =
         '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style="display:block">' +
         '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6" stroke-width="2.2" stroke-linecap="round"/></svg>';
-    // The search options a find bar offers: the key it reports, its face and its tooltip.
+    // The search options a find bar offers, by the key it reports: its face and its tooltip.
     const OPTION = {
-        case: ['caseSensitive', 'Aa', 'Match case'],
-        word: ['word', 'ab', 'Whole word'],
-        regex: ['regex', '.*', 'Regular expression'],
+        caseSensitive: ['Aa', 'Match case'],
+        word: ['ab', 'Whole word'],
+        regex: ['.*', 'Regular expression'],
     };
 
     // MARK: - Initializer
@@ -165,7 +165,8 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
         };
     }
 
-    // A number typed or stepped. Enter and leaving the field commit what is typed; Escape puts the value back.
+    // A number typed or stepped, drawn as the owner sets it. Enter and leaving the field commit what is typed; Escape
+    // puts the value back.
     function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = '', onChange } = {}) {
         const element = document.createElement('div');
         element.className = 'deckit-stepper';
@@ -177,12 +178,11 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
         const show = () => {
             input.value = String(+current.toFixed(4)) + unit;
         };
+        // Reports what was asked, then shows the value the owner set, or kept.
         const commit = (number) => {
             const next = clamp(Number.isFinite(number) ? number : current);
-            const changed = next !== current;
-            current = next;
+            if (next !== current) onChange?.(next);
             show();
-            if (changed) onChange?.(current);
         };
         // From what is typed, if anything is: a step button keeps the focus, so nothing has committed it yet.
         const typed = () => {
@@ -230,7 +230,7 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
         ui,
         {
             placeholder = 'Find',
-            options = ['case', 'word', 'regex'],
+            options = ['caseSensitive', 'word', 'regex'],
             nav = false,
             replace = null,
             onChange,
@@ -241,8 +241,8 @@ DeckitModule.define('deckit/ui/component/field', { uses: ['deckit/ui/icon'], pro
     ) {
         const element = tag('div', 'deckit-find');
         const values = {};
-        const toggles = options.map((name) => {
-            const [key, label, title] = OPTION[name];
+        const toggles = options.map((key) => {
+            const [label, title] = OPTION[key];
             values[key] = false;
             const toggle = ui.toggleButton({
                 label,
