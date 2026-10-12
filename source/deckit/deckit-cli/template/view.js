@@ -1,6 +1,6 @@
 // @@NAME@@: the page half. Everything it gets arrives in context; see deckit's document/PLUGIN.md.
 Deckit.register({
-    // Around 18px; currentColor follows the theme.
+    // Drawn about 18px; currentColor follows the theme.
     icon: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"
               stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
            <circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/>
@@ -9,20 +9,21 @@ Deckit.register({
     keywords: ['@@ID@@'],
 
     make({ theme, ui }) {
-        const content = document.createElement('div');
-        Object.assign(content.style, {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: theme.contentColor,
-            font: '14px ' + theme.font,
+        const content = ui.element('div', {
+            style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: theme.color.text,
+                font: theme.type.medium,
+            },
+            text: '@@NAME@@',
         });
-        content.textContent = '@@NAME@@';
 
-        // Return only what this plugin contributes: no sidebar means no second column.
+        // Only what this plugin contributes: no sidebar means no second column.
         return {
             content,
-            // Called each time the switcher opens. ui.dialog owns the scrim and Escape.
+            // Asked each time the switcher opens.
             commands: () => [
                 {
                     label: '@@NAME@@: hello',
