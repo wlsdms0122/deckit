@@ -86,8 +86,8 @@ DeckitModule.define(
                 operands: '<id>',
                 least: 1,
                 most: 1,
-                options: { in: ['<folder>', 'where it is started (required)'], main: 'with a main half' },
-                about: 'a plugin started in <folder>/<id>: its manifest and a view that runs',
+                options: { in: ['<folder>', 'where it is started (required)'], 'main-process': 'with a main process module' },
+                about: 'a plugin started in <folder>/<id>: its manifest and an entry that runs',
                 run: ({ operands: [id], options }) => start(id, options),
             },
             manifest: {
@@ -153,7 +153,7 @@ DeckitModule.define(
             if (outcomes.some(({ outcome }) => outcome === 'installed')) restart();
         }
 
-        // The folder's name is the id, so it is held to the manifest's rule for one.
+        // A folder named for the id, which is held to the manifest's rule for one; the folder may be renamed after.
         function start(id, options) {
             if (!options.in) throw new Error('new: --in <folder>, where it is started');
             const wrong = MANIFEST.idProblem(id);
@@ -167,20 +167,24 @@ DeckitModule.define(
                 .filter(Boolean)
                 .map((word) => word[0].toUpperCase() + word.slice(1))
                 .join(' ');
-            // Placeholders rather than template strings: a view is full of ${…} of its own.
-            const fill = (file) =>
-                fs
-                    .readFileSync(path.join(__dirname, 'template', file), 'utf8')
-                    .replace(/@@NAME@@/g, name)
-                    .replace(/@@ID@@/g, id);
-            const manifest = [`id = "${id}"`, `name = "${name}"`, 'version = "1.0.0"', `api = "${MANIFEST.API}"`];
+            const template = path.join(__dirname, 'template', options['main-process'] ? 'main-process' : 'plain');
+            const manifest = [
+                `id = "${id}"`,
+                `name = "${name}"`,
+                'version = "1.0.0"',
+                `api = "${MANIFEST.API}"`,
+                'main = "main.js"',
+            ];
             // The value is the reason Settings shows whoever installs the plugin.
-            if (options.main)
-                manifest.push('', '[permissions]', `"${PERMISSION.MAIN_PROCESS}" = "Answers ping from the page."`);
+            if (options['main-process'])
+                manifest.push('', '[permissions]', `"${PERMISSION.MAIN_PROCESS}" = "Answers ping from the plugin."`);
             fs.mkdirSync(folder, { recursive: true });
             fs.writeFileSync(path.join(folder, 'manifest.toml'), manifest.join('\n') + '\n');
-            fs.writeFileSync(path.join(folder, 'page.js'), fill('page.js'));
-            if (options.main) fs.writeFileSync(path.join(folder, 'main.js'), fill('main.js'));
+            // Placeholders rather than template strings: an entry is full of ${…} of its own.
+            for (const file of fs.readdirSync(template)) {
+                const text = fs.readFileSync(path.join(template, file), 'utf8');
+                fs.writeFileSync(path.join(folder, file), text.replace(/@@NAME@@/g, name).replace(/@@ID@@/g, id));
+            }
             say('wrote ' + folder);
             for (const file of fs.readdirSync(folder).sort()) say('  ' + file);
         }
