@@ -17,14 +17,14 @@ const MINIMAP_STYLE = `
         position: absolute;
         left: 0;
         right: 0;
-        background: rgba(128, 128, 128, 0.18);
+        background: var(--deckit-selected);
         pointer-events: none;
     }
 `;
 
 // The file in miniature at the editor's right edge. `mode` is the setting: always beside the code, while scrolling
 // over the code, or never.
-function minimap({ engine, theme, ui, colorHighlighter }) {
+function codeMinimap({ engine, theme, ui, colorHighlighter }) {
     const WIDTH = 96;
     // In pixels: a line is a 2px block and a 1px gap; a character is 1px across.
     const LINE_HEIGHT = 3;

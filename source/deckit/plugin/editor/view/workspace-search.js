@@ -7,7 +7,7 @@ const WORKSPACE_SEARCH_STYLE = `
     .editor-search-gap { height: 6px; }
     .editor-search-folders { display: none; align-items: flex-start; gap: 6px; font: 12px var(--deckit-font); min-width: 0; }
     .editor-search-folders[data-shown] { display: flex; }
-    .editor-search-folders .deckit-row-action { opacity: 0.7; }
+    .editor-search-folders-action { opacity: 0.7; }
     .editor-search-folders-icon { display: flex; flex: 0 0 auto; opacity: 0.6; padding-top: 3px; }
     .editor-search-chips { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 2px 4px; min-width: 0; }
     .editor-search-chips-lead { opacity: 0.6; white-space: nowrap; }
@@ -26,7 +26,7 @@ const WORKSPACE_SEARCH_STYLE = `
     .editor-search-summary-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.5; }
     .editor-search-warning { font: 11.5px var(--deckit-font); opacity: 0.55; padding: 0 0 0 2px; line-height: 1.4; }
     .editor-search-results { display: flex; flex-direction: column; min-width: 0; }
-    .deckit-row.editor-search-file { padding: 0 6px 0 2px; }
+    .editor-search-file { padding: 0 6px 0 2px; }
     .editor-search-caret {
         display: flex;
         flex: 0 0 12px;
@@ -43,14 +43,14 @@ const WORKSPACE_SEARCH_STYLE = `
         min-width: 18px;
         padding: 0 5px;
         border-radius: 999px;
-        background: rgba(128, 128, 128, 0.18);
+        background: var(--deckit-fill);
         font: 600 11px var(--deckit-font);
         text-align: center;
         font-variant-numeric: tabular-nums;
     }
-    .deckit-row.editor-search-match { padding: 0 6px 0 22px; font: 12px var(--deckit-mono); overflow: hidden; }
-    .editor-search-line { flex: 0 0 auto; opacity: 0.4; min-width: 22px; text-align: right; }
-    .editor-search-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .editor-search-match { padding: 0 6px 0 22px; overflow: hidden; }
+    .editor-search-line { flex: 0 0 auto; opacity: 0.4; min-width: 22px; text-align: right; font: 12px var(--deckit-mono); }
+    .editor-search-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 12px var(--deckit-mono); }
     .editor-search-hit { background: color-mix(in srgb, var(--deckit-warn) 35%, transparent); border-radius: 2px; }
 `;
 
@@ -138,7 +138,7 @@ function workspaceSearch({ ui, main, root, folders, ranker, onOpen, onReplaceAll
         },
     });
     const folderLine = ui.element('div', { className: 'editor-search-folders', style: { paddingLeft: EDGE + 'px' } });
-    const folderIcon = ui.element('span', { className: 'editor-search-folders-icon' });
+    const folderIcon = iconElement(ui, 'editor-search-folders-icon', ui.folderIcon({ open: false, size: 12 }));
     const chips = ui.list({ key: (item) => item.relative, create: chipOf });
     const folderClear = ui.rowAction({
         icon: ui.icon('x', { size: 12 }),
@@ -166,7 +166,7 @@ function workspaceSearch({ ui, main, root, folders, ranker, onOpen, onReplaceAll
     });
     patternRows.append(includeField.element, excludeField.element);
     scopeRows.append(patternRows, ui.element('div', { className: 'editor-search-gap' }), folderField.element);
-    folderIcon.innerHTML = ui.folderIcon({ open: false, size: 12 });
+    folderClear.classList.add('editor-search-folders-action');
     chips.element.classList.add('editor-search-chips');
     folderLine.append(folderIcon, chips.element, folderClear);
     summary.append(summaryText, filter.element);
@@ -232,8 +232,8 @@ function workspaceSearch({ ui, main, root, folders, ranker, onOpen, onReplaceAll
         folderSuggestions.show(
             found.map((relative) => ({
                 relative,
-                label: relative.split('/').pop(),
-                hint: relative.split('/').slice(0, -1).join('/'),
+                label: nameOf(relative),
+                hint: folderOf(relative),
                 icon: ui.folderIcon({ open: false, size: 14 }),
             })),
             folderField.element.getBoundingClientRect()
@@ -253,14 +253,13 @@ function workspaceSearch({ ui, main, root, folders, ranker, onOpen, onReplaceAll
         if (item.lead) return ui.element('span', { className: 'editor-search-chips-lead', text: 'Only in' });
         const chip = ui.element('span', { className: 'editor-search-chip' });
         chip.title = item.relative;
-        chip.append(
-            ui.element('span', { className: 'editor-search-chip-name', text: item.relative }),
-            ui.rowAction({
-                icon: ui.icon('x', { size: 10 }),
-                title: 'Not in ' + item.relative,
-                onClick: () => setFolders(scope.folders.filter((folder) => folder !== item.relative)),
-            }).element
-        );
+        const remove = ui.rowAction({
+            icon: ui.icon('x', { size: 10 }),
+            title: 'Not in ' + item.relative,
+            onClick: () => setFolders(scope.folders.filter((folder) => folder !== item.relative)),
+        }).element;
+        remove.classList.add('editor-search-folders-action');
+        chip.append(ui.element('span', { className: 'editor-search-chip-name', text: item.relative }), remove);
         return chip;
     }
 
@@ -276,17 +275,17 @@ function workspaceSearch({ ui, main, root, folders, ranker, onOpen, onReplaceAll
             items.push({
                 key: 'file\n' + file.path,
                 path: file.path,
-                folder: relativeToRoot(file.path).split('/').slice(0, -1).join('/'),
+                folder: folderOf(relativeToRoot(file.path)),
                 count: file.matches.length,
                 collapsed: isCollapsed,
             });
             if (isCollapsed) continue;
             for (const match of file.matches)
                 items.push({
-                    key: `match\n${file.path}\n${match.line}\n${match.col}`,
+                    key: `match\n${file.path}\n${match.line}\n${match.column}`,
                     path: file.path,
                     line: match.line,
-                    col: match.col,
+                    column: match.column,
                     length: match.length,
                     text: match.text,
                 });
@@ -303,13 +302,9 @@ function workspaceSearch({ ui, main, root, folders, ranker, onOpen, onReplaceAll
         row.classList.add('editor-search-file');
         row.toggleAttribute('data-collapsed', item.collapsed);
         row.title = item.path;
-        const caret = ui.element('span', { className: 'editor-search-caret' });
-        caret.innerHTML = ui.icon('chevronRight', { size: 12 });
-        const icon = ui.element('span', { className: 'editor-search-icon' });
-        icon.innerHTML = fileIconOf(ui, item.path, 13);
         row.append(
-            caret,
-            icon,
+            iconElement(ui, 'editor-search-caret', ui.icon('chevronRight', { size: 12 })),
+            iconElement(ui, 'editor-search-icon', fileIconOf(ui, item.path, 13)),
             ui.element('span', { className: 'editor-search-name', text: nameOf(item.path) }),
             ui.element('span', { className: 'editor-search-folder', text: item.folder }),
             ui.element('span', { className: 'editor-search-count', text: String(item.count) })
@@ -325,19 +320,21 @@ function workspaceSearch({ ui, main, root, folders, ranker, onOpen, onReplaceAll
     function matchRowOf(item) {
         const row = ui.row({ size: 'small' }).element;
         row.classList.add('editor-search-match');
-        const from = Math.max(0, item.col - CONTEXT);
-        const before = (from ? '…' : '') + item.text.slice(from, item.col).replace(/^\s+/, '');
+        const from = Math.max(0, item.column - CONTEXT);
+        const before = (from ? '…' : '') + item.text.slice(from, item.column).replace(/^\s+/, '');
         const text = ui.element('span', { className: 'editor-search-text' });
         text.append(
             before,
             ui.element('span', {
                 className: 'editor-search-hit',
-                text: item.text.slice(item.col, item.col + item.length),
+                text: item.text.slice(item.column, item.column + item.length),
             }),
-            item.text.slice(item.col + item.length)
+            item.text.slice(item.column + item.length)
         );
         row.append(ui.element('span', { className: 'editor-search-line', text: String(item.line) }), text);
-        row.addEventListener('click', () => onOpen(item.path, { line: item.line, col: item.col, length: item.length }));
+        row.addEventListener('click', () =>
+            onOpen(item.path, { line: item.line, column: item.column, length: item.length })
+        );
         return row;
     }
 

@@ -13,18 +13,8 @@ const QUICK_OPEN_STYLE = `
     }
     .editor-quick-open-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px; }
     .editor-quick-open-message { padding: 12px; opacity: 0.45; }
-    .editor-quick-open-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 30px;
-        padding: 0 10px;
-        border-radius: 7px;
-        cursor: pointer;
-    }
-    .editor-quick-open-row[data-active] { background: var(--deckit-selected); }
     .editor-quick-open-icon { display: flex; }
-    .editor-quick-open-name { flex: 0 0 auto; font-weight: 600; }
+    .editor-quick-open-name { flex: 0 0 auto; font: 600 var(--deckit-type-body); }
     .editor-quick-open-folder {
         flex: 1 1 auto;
         min-width: 0;
@@ -55,7 +45,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
     // An Enter pressed before the field's text was ranked. Kept as state, so closing the box or typing more cancels it.
     let pickWhenRanked = false;
     let isOpen = false;
-    let sheet = null;
+    let modal = null;
     let typing = null;
 
     const box = ui.element('div', { className: 'editor-quick-open' });
@@ -64,7 +54,6 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
     const body = ui.element('div', { className: 'editor-quick-open-body' });
     const message = ui.element('div', { className: 'editor-quick-open-message' });
     const rows = ui.list({ key: (relative) => relative, create: rowOf });
-    // Rows redraw under a resting pointer as the name is typed, so the pointer selects only once it moves.
     const cursor = ui.listbox(rows.element, { onPick: (index) => choose(index) });
     const note = ui.element('div', { className: 'editor-quick-open-note' });
 
@@ -108,7 +97,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
         shown = { root: null, query: '', files: [] };
         listing = true;
         draw();
-        sheet = ui.modal({
+        modal = ui.modal({
             chrome: false,
             align: 'top',
             width: 'min(560px, calc(100vw - 40px))',
@@ -125,7 +114,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
             onClose: () => {
                 isOpen = false;
                 pickWhenRanked = false;
-                sheet = null;
+                modal = null;
             },
         });
         filter();
@@ -133,7 +122,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
 
     function hide() {
         pickWhenRanked = false;
-        sheet?.close();
+        modal?.close();
     }
 
     function choose(index) {
@@ -198,17 +187,13 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
         );
     }
 
+    // The listbox marks the active row with `data-active`, which the row paints as chosen.
     function rowOf(relative) {
-        const row = ui.element('div', { className: 'editor-quick-open-row' });
-        const icon = ui.element('span', { className: 'editor-quick-open-icon' });
-        icon.innerHTML = fileIconOf(ui, relative, 15);
+        const row = ui.row({ size: 'medium' }).element;
         row.append(
-            icon,
+            iconElement(ui, 'editor-quick-open-icon', fileIconOf(ui, relative, 15)),
             ui.element('span', { className: 'editor-quick-open-name', text: nameOf(relative) }),
-            ui.element('span', {
-                className: 'editor-quick-open-folder',
-                text: relative.split('/').slice(0, -1).join('/'),
-            })
+            ui.element('span', { className: 'editor-quick-open-folder', text: folderOf(relative) })
         );
         return row;
     }

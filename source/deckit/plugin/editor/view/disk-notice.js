@@ -1,5 +1,5 @@
-const NOTICE_STYLE = `
-    .editor-notice {
+const DISK_NOTICE_STYLE = `
+    .editor-disk-notice {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -10,19 +10,19 @@ const NOTICE_STYLE = `
         font: 12.5px var(--deckit-font);
         background: color-mix(in srgb, var(--deckit-warn) 10%, transparent);
     }
-    .editor-notice[hidden] { display: none; }
-    .editor-notice-text { flex: 1 1 auto; }
-    .editor-notice-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+    .editor-disk-notice[hidden] { display: none; }
+    .editor-disk-notice-text { flex: 1 1 auto; }
+    .editor-disk-notice-actions { display: flex; gap: 6px; flex: 0 0 auto; }
 `;
 
 // What the open file's disk state asks of the person: it was deleted on disk, it can no longer be opened, or it changed
 // on disk while it had unsaved changes here.
-function notice({ ui, onSaveAs, onClose, onReload, onKeepMine }) {
+function diskNotice({ ui, onSaveAs, onClose, onReload, onKeepMine }) {
     let file = null;
 
-    const element = ui.element('div', { className: 'editor-notice' });
-    const text = ui.element('div', { className: 'editor-notice-text' });
-    const actions = ui.element('div', { className: 'editor-notice-actions' });
+    const element = ui.element('div', { className: 'editor-disk-notice' });
+    const text = ui.element('div', { className: 'editor-disk-notice-text' });
+    const actions = ui.element('div', { className: 'editor-disk-notice-actions' });
     const saveAs = buttonOf('Save As…', onSaveAs);
     const close = buttonOf('Close', onClose);
     const reload = buttonOf('Reload from disk', onReload);

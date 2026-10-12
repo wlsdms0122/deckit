@@ -71,7 +71,7 @@ function fileIconOf(ui, path, size = 15) {
 
 // A dotfile with no other dot (".env") is named by what follows the dot.
 function extensionOf(path) {
-    const name = path.split('/').pop();
+    const name = nameOf(path);
     const dot = name.lastIndexOf('.');
     return dot > 0 || (dot === 0 && name.length > 1) ? name.slice(dot + 1).toLowerCase() : '';
 }

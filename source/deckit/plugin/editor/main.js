@@ -211,10 +211,10 @@ module.exports = ({ handle, files }) => {
     }
 
     // Runs ripgrep in `folder`, handing each line of its output to `onLine`, which stops it by answering false.
-    function runRipgrep(args, folder, onLine, timeLimit) {
+    function runRipgrep(ripgrepArguments, folder, onLine, timeLimit) {
         let stop = () => {};
         const ended = new Promise((resolve, reject) => {
-            const child = spawn(ripgrep, args, { cwd: folder });
+            const child = spawn(ripgrep, ripgrepArguments, { cwd: folder });
             let rest = '';
             let stderr = '';
             let stopped = false;
@@ -415,7 +415,7 @@ module.exports = ({ handle, files }) => {
         const byFile = new Map();
         let total = 0;
         let stoppedBy = '';
-        const addMatch = (file, line, col, length, text) => {
+        const addMatch = (file, line, column, length, text) => {
             if (total >= MATCH_LIMIT) {
                 stoppedBy = 'limit';
                 return false;
@@ -423,9 +423,9 @@ module.exports = ({ handle, files }) => {
             if (!byFile.has(file)) byFile.set(file, []);
             byFile.get(file).push({
                 line,
-                col,
+                column,
                 length,
-                hit: text.slice(col, col + length),
+                hit: text.slice(column, column + length),
                 text: text.length > MATCH_TEXT_LIMIT ? text.slice(0, MATCH_TEXT_LIMIT) : text,
             });
             total += 1;
@@ -450,7 +450,7 @@ module.exports = ({ handle, files }) => {
         };
         const deadline = Date.now() + SEARCH_TIME_LIMIT_MS;
         if (ripgrep) {
-            const args = [
+            const ripgrepArguments = [
                 '--json',
                 '--hidden',
                 '--max-filesize',
@@ -458,12 +458,12 @@ module.exports = ({ handle, files }) => {
                 ...[...SKIPPED_FOLDERS].flatMap((name) => ['--glob', `!**/${name}/**`]),
             ];
             // A glob without ! is a whitelist to ripgrep: with any, only what they name is searched.
-            for (const glob of include) args.push('--glob', glob);
-            for (const glob of exclude) args.push('--glob', '!' + glob);
-            args.push(options.caseSensitive ? '-s' : '-i');
-            if (options.word) args.push('-w');
-            if (!options.regex) args.push('-F');
-            args.push('-e', String(query), '--', '.');
+            for (const glob of include) ripgrepArguments.push('--glob', glob);
+            for (const glob of exclude) ripgrepArguments.push('--glob', '!' + glob);
+            ripgrepArguments.push(options.caseSensitive ? '-s' : '-i');
+            if (options.word) ripgrepArguments.push('-w');
+            if (!options.regex) ripgrepArguments.push('-F');
+            ripgrepArguments.push('-e', String(query), '--', '.');
             const unreadable = [];
             for (const top of tops) {
                 if (search.stopped || stoppedBy) break;
@@ -475,7 +475,7 @@ module.exports = ({ handle, files }) => {
                 // ripgrep sums up a search it ran, and says nothing on stdout about one it refused to start.
                 let searched = false;
                 search.ripgrep = runRipgrep(
-                    args,
+                    ripgrepArguments,
                     top,
                     (line) => {
                         let message;
@@ -495,9 +495,9 @@ module.exports = ({ handle, files }) => {
                         // ripgrep counts bytes; the editor counts characters.
                         const characters = (count) => bytes.subarray(0, count).toString('utf8').length;
                         for (const submatch of message.data.submatches || []) {
-                            const col = characters(submatch.start);
-                            if (!addMatch(file, message.data.line_number, col, characters(submatch.end) - col, text))
-                                return false;
+                            const column = characters(submatch.start);
+                            const length = characters(submatch.end) - column;
+                            if (!addMatch(file, message.data.line_number, column, length, text)) return false;
                         }
                         return true;
                     },
@@ -525,7 +525,7 @@ module.exports = ({ handle, files }) => {
                 if (read.text.startsWith(BYTE_ORDER_MARK))
                     for (const match of matches)
                         if (match.line === 1) {
-                            match.col += 1;
+                            match.column += 1;
                             match.text = BYTE_ORDER_MARK + match.text;
                         }
             }

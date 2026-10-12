@@ -8,7 +8,7 @@ const PATH_BAR_STYLE = `
         padding: 0 12px;
         border-top: var(--deckit-border);
         border-bottom: var(--deckit-border);
-        background: rgba(128, 128, 128, 0.06);
+        background: var(--deckit-surface);
         font: 12px var(--deckit-font);
         white-space: nowrap;
         overflow: hidden;
@@ -26,7 +26,7 @@ const PATH_BAR_STYLE = `
 
 // Above the open file: where it is, from its workspace's folder, and where the cursor is. A folder of the path reveals
 // the file in the workspace's tree.
-function pathBar({ ui, util, onReveal }) {
+function filePathBar({ ui, util, onReveal }) {
     const element = ui.element('div', { className: 'editor-path-bar' });
     const crumbs = ui.list({ key: (item) => item.key, create: crumbOf });
     const cursorPosition = ui.element('div', { className: 'editor-cursor-position' });
@@ -66,9 +66,14 @@ function pathBar({ ui, util, onReveal }) {
         const crumb = ui.element('span', { className: 'editor-crumb' });
         crumb.toggleAttribute('data-last', item.last);
         crumb.toggleAttribute('data-revealable', item.revealable);
-        const icon = ui.element('span', { className: 'editor-crumb-icon' });
-        icon.innerHTML = item.last ? fileIconOf(ui, item.label, 12) : ui.folderIcon({ open: false, size: 12 });
-        crumb.append(icon, ui.element('span', { className: 'editor-crumb-label', text: item.label }));
+        crumb.append(
+            iconElement(
+                ui,
+                'editor-crumb-icon',
+                item.last ? fileIconOf(ui, item.label, 12) : ui.folderIcon({ open: false, size: 12 })
+            ),
+            ui.element('span', { className: 'editor-crumb-label', text: item.label })
+        );
         if (item.revealable) crumb.addEventListener('click', () => onReveal(item.path));
         return crumb;
     }

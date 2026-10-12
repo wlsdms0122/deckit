@@ -3,7 +3,6 @@
 function codeTheme({ engine, theme, ui }) {
     const { tags } = engine;
     const { syntax } = theme;
-    const quiet = ui.mix(theme.color.text, theme.color.background, 0.4);
     const fast = (property) => `${property} ${theme.motion.fast}ms ${theme.motion.easing}`;
     const highlights = [
         {
@@ -41,7 +40,7 @@ function codeTheme({ engine, theme, ui }) {
     const colorHighlighter = engine.tagHighlighter(
         highlights.filter((highlight) => highlight.color).map(({ tag, color }) => ({ tag, class: color }))
     );
-    const look = engine.EditorView.theme(
+    const editorTheme = engine.EditorView.theme(
         {
             '&': { height: '100%', color: theme.color.text, backgroundColor: 'transparent' },
             '&.cm-focused': { outline: 'none' },
@@ -50,16 +49,16 @@ function codeTheme({ engine, theme, ui }) {
             '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
                 { backgroundColor: ui.alpha(theme.color.accent, 0.28) },
             // Transparent: lines scrolled sideways are clipped at its edge (clipGutter in view/code-view.js).
-            '.cm-gutters': { backgroundColor: 'transparent', color: quiet, border: '0' },
+            '.cm-gutters': { backgroundColor: 'transparent', color: theme.color.muted, border: '0' },
             '.cm-activeLineGutter': { backgroundColor: 'transparent', color: theme.color.text },
-            '.cm-activeLine': { backgroundColor: 'rgba(128,128,128,.07)' },
+            '.cm-activeLine': { backgroundColor: theme.color.surface },
             // The engine draws a partial-line selection at letter height and this band at line height, so the two never
             // meet; the band steps aside while text is selected.
             '&.editor-selecting .cm-activeLine, &.editor-selecting .cm-activeLineGutter': {
                 backgroundColor: 'transparent',
             },
             '.cm-matchingBracket': { backgroundColor: ui.alpha(theme.color.accent, 0.22), outline: 'none' },
-            '.cm-selectionMatch': { backgroundColor: 'rgba(128,128,128,.18)' },
+            '.cm-selectionMatch': { backgroundColor: theme.color.selected },
             '.cm-searchMatch': { backgroundColor: ui.alpha(theme.color.warn, 0.35), outline: 'none' },
             '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: ui.alpha(theme.color.warn, 0.7) },
             '.cm-foldGutter .cm-gutterElement': {
@@ -68,19 +67,19 @@ function codeTheme({ engine, theme, ui }) {
                 justifyContent: 'center',
                 padding: '0 3px 0 2px',
             },
-            // Quieted by colour: an opacity would fade the hover square with the glyph.
+            // Muted by colour: an opacity would fade the hover square with the glyph.
             '.cm-foldGutter .editor-fold-open, .cm-foldGutter .editor-fold-closed': {
                 cursor: 'pointer',
-                color: quiet,
+                color: theme.color.muted,
                 transition: `${fast('background-color')}, ${fast('color')}`,
             },
             '.cm-foldGutter .editor-fold-closed': { color: theme.color.text },
             '.cm-foldGutter .editor-fold-open:hover, .cm-foldGutter .editor-fold-closed:hover': {
                 color: theme.color.text,
-                backgroundColor: 'rgba(128,128,128,.18)',
+                backgroundColor: theme.color.hover,
             },
             '.cm-foldPlaceholder': {
-                backgroundColor: 'rgba(128,128,128,.2)',
+                backgroundColor: theme.color.selected,
                 border: '0',
                 borderRadius: '5px',
                 color: 'inherit',
@@ -89,8 +88,8 @@ function codeTheme({ engine, theme, ui }) {
                 cursor: 'pointer',
                 transition: fast('background-color'),
             },
-            '.cm-foldPlaceholder:hover': { backgroundColor: 'rgba(128,128,128,.34)' },
-            '.cm-panels': { backgroundColor: 'rgba(128,128,128,.06)', color: theme.color.text },
+            '.cm-foldPlaceholder:hover': { backgroundColor: theme.color.pressed },
+            '.cm-panels': { backgroundColor: theme.color.surface, color: theme.color.text },
             '.cm-panels.cm-panels-top': { borderBottom: theme.border },
             '.cm-tooltip': { backgroundColor: theme.color.background, border: theme.border, color: theme.color.text },
         },
@@ -98,7 +97,7 @@ function codeTheme({ engine, theme, ui }) {
     );
 
     return {
-        extensions: [look, engine.syntaxHighlighting(engine.HighlightStyle.define(highlights))],
+        extensions: [editorTheme, engine.syntaxHighlighting(engine.HighlightStyle.define(highlights))],
         colorHighlighter,
     };
 }

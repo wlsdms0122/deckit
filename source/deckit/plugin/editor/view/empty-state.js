@@ -58,10 +58,8 @@ function emptyState({ ui, util, host, onQuickOpen, onPickFolder, onPickFiles, on
     function recentRowOf(item) {
         if (item.heading) return ui.element('div', { className: 'editor-recent-heading', text: 'Recent folders' });
         const row = ui.row({ size: 'small' }).element;
-        const icon = ui.element('span', { className: 'editor-recent-icon' });
-        icon.innerHTML = ui.folderIcon({ open: false, size: 14 });
         row.append(
-            icon,
+            iconElement(ui, 'editor-recent-icon', ui.folderIcon({ open: false, size: 14 })),
             ui.element('span', { className: 'editor-recent-name', text: nameOf(item.path) }),
             ui.element('span', { className: 'editor-recent-path', text: util.tildify(item.path) })
         );

@@ -15,3 +15,8 @@ function isInside(path, folder) {
 function relativePath(path, folder) {
     return path.slice(folder.length + 1);
 }
+
+// Of a relative path: '' for one at the top.
+function folderOf(relative) {
+    return relative.split('/').slice(0, -1).join('/');
+}

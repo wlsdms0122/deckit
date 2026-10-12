@@ -1,8 +1,8 @@
 // The workspaces and the files open in them. A path is open once or not at all; a workspace only lists which of the open
 // files are its tabs, and the workspace with no folder holds the files opened on their own. Each request to bring
 // something to the front takes the next number, and the workspace it brought forward keeps it (`requestedAt`), so an
-// open that took long gives way to anything requested after it.
-function workspaceModel({ main }) {
+// open that took long gives way to anything requested after it. A released file is handed to `onRelease` to take down.
+function workspaceModel({ main, onRelease }) {
     const list = [];
     const openFiles = new Map(); // path -> open file
     const foldersByListing = new WeakMap();
@@ -72,17 +72,19 @@ function workspaceModel({ main }) {
         const index = list.indexOf(workspace);
         if (index < 0) return;
         list.splice(index, 1);
-        workspace.search?.close();
         if (front === workspace) fillIdleFront(list[Math.min(index, list.length - 1)] || null);
     }
 
-    function reorder(from, to) {
-        const [moved] = list.splice(from, 1);
-        list.splice(to, 0, moved);
+    // `workspace` goes where `toWorkspace` is.
+    function reorder(workspace, toWorkspace) {
+        const from = list.indexOf(workspace);
+        const to = list.indexOf(toWorkspace);
+        if (from < 0 || to < 0) return;
+        list.splice(to, 0, list.splice(from, 1)[0]);
     }
 
     // Every open, close and replaced preview goes through place and release, so the open files and the workspaces'
-    // tabs never disagree, not even while a tab shrinks away.
+    // tabs never disagree.
     function place(file, index) {
         const workspace = holderOf(file.path) || add(null);
         const at = index == null ? workspace.files.length : Math.min(index, workspace.files.length);
@@ -94,10 +96,9 @@ function workspaceModel({ main }) {
     function release(file) {
         const workspace = ownerOf(file);
         if (!workspace) return null;
-        file.view.destroy();
-        file.box.remove();
         unlist(workspace, file);
         openFiles.delete(file.path);
+        onRelease(file);
         if (!workspace.root && !workspace.files.length) remove(workspace);
         return workspace;
     }

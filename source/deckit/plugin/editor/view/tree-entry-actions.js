@@ -1,7 +1,7 @@
 // What can be done to the files and folders in a workspace's tree: make one, rename, move, put in the Trash, and the
 // tree's menu. The open files under an entry are held while it moves (disk.holding), so no save of theirs lands on the
 // old path; `relocate` then has everything that knew the old path follow it.
-function entryActions({ ui, host, main, disk, filesUnder, isDirty, relocate, relist, open, drop, showFiles, findIn }) {
+function treeEntryActions({ ui, host, main, disk, filesUnder, relocate, relist, open, drop, showFiles, findIn }) {
     return { menuOf, create, createHere, move, trash, pathItems };
 
     // `entry` null is the space around the rows: the top folder.
@@ -147,7 +147,7 @@ function entryActions({ ui, host, main, disk, filesUnder, isDirty, relocate, rel
             return;
         }
         for (const file of under) {
-            if (isDirty(file)) disk.check(file).catch(() => false);
+            if (disk.isDirty(file)) disk.check(file).catch(() => false);
             else drop(file);
         }
         relocate(entry.path, null);

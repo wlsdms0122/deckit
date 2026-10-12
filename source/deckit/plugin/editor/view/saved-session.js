@@ -1,7 +1,7 @@
 // The workspaces and tabs open, kept in the records so the next start comes back to them. Not written while restoring:
 // a reload mid-restore would come back to only part of the session. A saved workspace or tab that could not come back
-// for a reason other than being gone is unrestored, and kept in every later write until it is opened or closed again,
-// so a reload that went wrong never shortens the session.
+// for a reason other than being gone or not being text is unrestored, and kept in every later write until it is opened
+// or closed again, so a reload that went wrong never shortens the session.
 function savedSession({ records, main, workspaces }) {
     let restoring = true;
     let unrestoredWorkspaces = [];

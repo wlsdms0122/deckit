@@ -1,5 +1,17 @@
 const DRAFTS_STYLE = `
-    .editor-notice.editor-drafts { flex-direction: column; align-items: stretch; gap: 4px; }
+    .editor-drafts {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        margin: 8px 14px 0;
+        padding: 7px 8px 7px 10px;
+        border-radius: 7px;
+        border: var(--deckit-border);
+        font: 12.5px var(--deckit-font);
+        background: color-mix(in srgb, var(--deckit-warn) 10%, transparent);
+    }
+    .editor-drafts[hidden] { display: none; }
     .editor-drafts-heading { opacity: 0.8; }
     .editor-draft { display: flex; align-items: center; gap: 8px; }
     .editor-draft-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
@@ -7,14 +19,14 @@ const DRAFTS_STYLE = `
 
 // Unsaved changes kept in the records as drafts, by path: the panel reloads on every install and plugin change. The
 // drafts of files not open are listed, as a notice, with what can be done with them.
-function unsavedDrafts({ ui, records, main, isOpen, openDrafts, onOpen, onSavedAs }) {
+function unsavedDrafts({ ui, records, isOpen, openDrafts, pick, saveCopy, onOpen, onSavedAs }) {
     const KEEP_DELAY_MS = 600;
 
     let keepTimer = null;
 
     const list = ui.list({ key: (item) => item.path, create: rowOf });
 
-    list.element.classList.add('editor-notice', 'editor-drafts');
+    list.element.classList.add('editor-drafts');
     list.element.hidden = true;
 
     return { element: list.element, get, keepSoon, forget, follow, show };
@@ -92,21 +104,10 @@ function unsavedDrafts({ ui, records, main, isOpen, openDrafts, onOpen, onSavedA
     }
 
     async function saveAs(item) {
-        let picked = [];
-        try {
-            picked = await main.call('pick', 'save', item.path);
-        } catch {
-            return;
-        }
-        if (!picked[0]) return;
-        try {
-            await main.call('write', picked[0], item.text, null);
-        } catch (error) {
-            ui.dialog({ title: 'Could not save', message: error.message, confirmLabel: 'OK' });
-            return;
-        }
+        const [path] = await pick('save', item.path);
+        if (!path || !(await saveCopy(path, item.text))) return;
         forget(item.path);
-        await onSavedAs(picked[0]);
+        await onSavedAs(path);
         show();
     }
 

@@ -1,8 +1,6 @@
 const SIDEBAR_STYLE = `
     .editor-sidebar { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; margin: 0 -12px; }
     .editor-sidebar-top { display: flex; flex-direction: column; flex: 0 0 auto; gap: 10px; padding: 0 12px 6px; }
-    .editor-modes { align-self: stretch; }
-    .editor-modes > .deckit-segment { flex: 1 1 0; justify-content: center; }
     .editor-mode-icon { display: flex; }
     .editor-navigator-head { display: flex; flex-direction: column; flex: 0 0 auto; min-width: 0; }
     .editor-navigator {
@@ -16,7 +14,7 @@ const SIDEBAR_STYLE = `
     }
     .editor-workspace-icon { display: flex; flex: 0 0 auto; }
     .editor-row-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .editor-workspace-unsaved {
+    .editor-unsaved-dot {
         flex: 0 0 auto;
         width: 7px;
         height: 7px;
@@ -65,27 +63,32 @@ function sidebar({
     const workspaceRows = ui.list({ maxRows: 4, key: (item) => item.key, create: workspaceRowOf });
     const modes = ui.segmented({
         items: [
-            { key: 'files', label: 'Files', title: 'Files', lead: iconOf(ui.icon('fileText', { size: 13 })) },
+            {
+                key: 'files',
+                label: 'Files',
+                title: 'Files',
+                lead: iconElement(ui, 'editor-mode-icon', ui.icon('fileText', { size: 13 })),
+            },
             {
                 key: 'search',
                 label: 'Find',
                 title: 'Find in the workspace',
-                lead: iconOf(ui.icon('search', { size: 13 })),
+                lead: iconElement(ui, 'editor-mode-icon', ui.icon('search', { size: 13 })),
             },
         ],
         value: 'files',
         size: 'small',
+        fill: true,
         onChange: (mode) => onMode(mode),
     });
     const navigatorHead = ui.element('div', { className: 'editor-navigator-head' });
     const navigatorBody = ui.element('div', { className: 'editor-navigator' });
-    const looseFiles = ui.list({ key: (item) => item.path, create: looseRowOf });
+    const looseFiles = ui.list({ key: (item) => item.file, create: looseRowOf });
 
     section.body.append(workspaceRows.element);
-    ui.sortable(workspaceRows.element, { onReorder });
-    modes.element.classList.add('editor-modes');
-    ui.tooltip(modes.element.children[0], { text: 'Files', chord: () => host.chordOf('showFiles') });
-    ui.tooltip(modes.element.children[1], { text: 'Find in the workspace', chord: () => host.chordOf('showFind') });
+    ui.sortable(workspaceRows, { onReorder });
+    ui.tooltip(modes.elementOf('files'), { text: 'Files', chord: () => host.chordOf('showFiles') });
+    ui.tooltip(modes.elementOf('search'), { text: 'Find in the workspace', chord: () => host.chordOf('showFind') });
     top.append(section.element, modes.element, navigatorHead);
     ui.edgeFade(navigatorBody);
     element.append(top, navigatorBody);
@@ -111,7 +114,7 @@ function sidebar({
         workspaceRows.set(
             all.length
                 ? all.map((workspace) => ({
-                      key: workspace.root || '',
+                      key: workspace,
                       workspace,
                       root: workspace.root,
                       front: workspace === front,
@@ -119,7 +122,7 @@ function sidebar({
                   }))
                 : [{ key: OPEN_FOLDER }]
         );
-        const frontRow = front && workspaceRows.elementOf(front.root || '');
+        const frontRow = front && workspaceRows.elementOf(front);
         if (frontRow && front !== frontDrawn && !ui.isFullyVisible(frontRow))
             frontRow.scrollIntoView({ block: 'nearest' });
         frontDrawn = front;
@@ -149,21 +152,24 @@ function sidebar({
     function workspaceRowOf(item) {
         if (!item.workspace) {
             const row = ui.row().element;
-            const icon = ui.element('span', { className: 'editor-open-folder-icon' });
-            icon.innerHTML = ui.icon('plus', { size: 15 });
-            row.append(icon, ui.element('span', { className: 'editor-open-folder-label', text: 'Open Folder…' }));
+            row.append(
+                iconElement(ui, 'editor-open-folder-icon', ui.icon('plus', { size: 15 })),
+                ui.element('span', { className: 'editor-open-folder-label', text: 'Open Folder…' })
+            );
             row.addEventListener('click', () => onPickFolder());
             return row;
         }
         const { element: row, setActive } = ui.row();
-        const icon = ui.element('span', { className: 'editor-workspace-icon' });
-        icon.innerHTML = item.root ? ui.folderIcon({ open: item.front, size: 16 }) : ui.icon('fileText', { size: 16 });
         row.title = item.root || 'Files opened on their own';
         row.append(
-            icon,
+            iconElement(
+                ui,
+                'editor-workspace-icon',
+                item.root ? ui.folderIcon({ open: item.front, size: 16 }) : ui.icon('fileText', { size: 16 })
+            ),
             ui.element('span', { className: 'editor-row-label', text: item.root ? nameOf(item.root) : 'Files' })
         );
-        if (item.unsaved) row.append(ui.element('span', { className: 'editor-workspace-unsaved' }));
+        if (item.unsaved) row.append(ui.element('span', { className: 'editor-unsaved-dot' }));
         row.append(
             ui.rowAction({
                 icon: ui.icon('x', { size: 14 }),
@@ -178,9 +184,10 @@ function sidebar({
 
     function looseRowOf(item) {
         const { element: row, setActive } = ui.row({ size: 'small' });
-        const icon = ui.element('span', { className: 'editor-loose-icon' });
-        icon.innerHTML = fileIconOf(ui, item.path, 14);
-        row.append(icon, ui.element('span', { className: 'editor-row-label', text: nameOf(item.path) }));
+        row.append(
+            iconElement(ui, 'editor-loose-icon', fileIconOf(ui, item.path, 14)),
+            ui.element('span', { className: 'editor-row-label', text: nameOf(item.path) })
+        );
         row.title = item.path;
         row.addEventListener('click', () => onShowFile(item.file));
         setActive(item.current);
@@ -210,11 +217,5 @@ function sidebar({
             ],
             anchor: button.element,
         });
-    }
-
-    function iconOf(svg) {
-        const icon = ui.element('span', { className: 'editor-mode-icon' });
-        icon.innerHTML = svg;
-        return icon;
     }
 }

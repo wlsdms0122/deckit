@@ -1,13 +1,5 @@
 const TREE_STYLE = `
-    .deckit-list.editor-tree { display: flex; flex-direction: column; flex: 1 0 auto; padding: 2px 0 8px; outline: none; }
-    .editor-tree-unsaved {
-        flex: 0 0 auto;
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: currentColor;
-        opacity: 0.7;
-    }
+    .editor-tree { display: flex; flex-direction: column; flex: 1 0 auto; padding: 2px 0 8px; outline: none; }
     .editor-tree-empty { padding: 4px 8px; opacity: 0.4; font: 12.5px var(--deckit-font); }
 `;
 
@@ -180,7 +172,7 @@ function fileTree({ ui, store, main, isUnsaved, onOpen, onFindIn, onMove, menu }
         });
         row.title = item.path;
         row.dataset.path = item.path;
-        if (item.unsaved) row.append(ui.element('span', { className: 'editor-tree-unsaved' }));
+        if (item.unsaved) row.append(ui.element('span', { className: 'editor-unsaved-dot' }));
         if (item.folder)
             row.append(
                 ui.rowAction({

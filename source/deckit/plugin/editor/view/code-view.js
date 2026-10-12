@@ -1,6 +1,6 @@
 // The engine's view of an open file, with the editor's extensions, in a box laid over the others. The settings it reads
 // are the font, its size and line wrapping.
-function codeView({ engine, theme, ui, settings, look, separatorExtension, createFindPanel, onUpdate }) {
+function codeView({ engine, theme, ui, settings, themeExtensions, separatorExtension, createFindPanel, onUpdate }) {
     // The engine's special characters, less "\r" (kept by CRLF lines in a mixed file, see separatorFor in view/disk.js)
     // and the byte order mark.
     const QUIET_SPECIAL_CHARACTERS =
@@ -13,7 +13,7 @@ function codeView({ engine, theme, ui, settings, look, separatorExtension, creat
     // A compartment, so a file renamed to another type is coloured as that type.
     const language = new engine.Compartment();
 
-    return { create, applySetting, setLanguage, scrollEffect };
+    return { create, destroy, applySetting, setLanguage, scrollEffect };
 
     // A box of its own: the engine insists its element is position: relative, so it cannot be laid over the others.
     function create(text, path, { inset }) {
@@ -35,6 +35,11 @@ function codeView({ engine, theme, ui, settings, look, separatorExtension, creat
         );
         view.scrollDOM.addEventListener('scroll', () => clipGutter(view), { passive: true });
         return { box, view };
+    }
+
+    function destroy({ box, view }) {
+        view.destroy();
+        box.remove();
     }
 
     function applySetting(view, key, value) {
@@ -92,7 +97,7 @@ function codeView({ engine, theme, ui, settings, look, separatorExtension, creat
                 ]),
                 separatorExtension(text),
                 language.of(languageOf(path)),
-                look,
+                themeExtensions,
                 wrapping.of(settings.get('wrap') ? engine.EditorView.lineWrapping : []),
                 typeface.of(typefaceNow()),
                 engine.EditorView.updateListener.of((update) => {

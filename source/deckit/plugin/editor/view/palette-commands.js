@@ -94,7 +94,7 @@ function paletteCommands({
         }
         return (await quickOpener.rank(listing.files, query)).map((relative) => ({
             label: nameOf(relative),
-            hint: relative.split('/').slice(0, -1).join('/') || nameOf(workspace.root),
+            hint: folderOf(relative) || nameOf(workspace.root),
             icon: fileIconOf(ui, relative, 16),
             run: shown(() => {
                 onSwitch(workspace);

@@ -1,11 +1,3 @@
-// Only the matches ripgrep reported are replaced, at their line and column, and only if the text there is unchanged.
-// Matching again in JavaScript would disagree with ripgrep (^, \s, word bounds).
-function patternOf(query, { regex = false, caseSensitive = false, word = false } = {}) {
-    let source = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (word) source = `\\b(?:${source})\\b`;
-    return new RegExp(source, caseSensitive ? 'g' : 'gi');
-}
-
 function expandReplacement(replacement, match) {
     return replacement.replace(/\$(\$|&|<([^>]*)>|(\d{1,2}))/g, (whole, token, name, digits) => {
         if (token === '$') return '$';
@@ -16,7 +8,9 @@ function expandReplacement(replacement, match) {
     });
 }
 
-// The edits that replace `matches`, with `lineOf(number)` giving a line's { from, text }.
+// The edits that replace `matches`, with `lineOf(number)` giving a line's { from, text }. Only the matches ripgrep
+// reported are replaced, at their line and column, and only if the text there is unchanged. Matching again in
+// JavaScript would disagree with ripgrep (^, \s, word bounds).
 function planReplace(lineOf, matches, { query, replacement, options = {} }) {
     const usesGroups = options.regex && replacement.includes('$');
     const stickyPattern = usesGroups ? stickyPatternOf(query, options) : null;
@@ -29,7 +23,7 @@ function planReplace(lineOf, matches, { query, replacement, options = {} }) {
     };
     for (const match of matches) {
         const line = lineOf(match.line);
-        if (!line || line.text.slice(match.col, match.col + match.length) !== match.hit) {
+        if (!line || line.text.slice(match.column, match.column + match.length) !== match.hit) {
             skip('the text there changed after the search');
             continue;
         }
@@ -39,7 +33,7 @@ function planReplace(lineOf, matches, { query, replacement, options = {} }) {
                 skip('the pattern is not one this replace can read groups from');
                 continue;
             }
-            stickyPattern.lastIndex = match.col;
+            stickyPattern.lastIndex = match.column;
             const found = stickyPattern.exec(line.text);
             if (!found || found[0] !== match.hit) {
                 skip('the pattern did not match there the same way');
@@ -47,15 +41,16 @@ function planReplace(lineOf, matches, { query, replacement, options = {} }) {
             }
             insert = expandReplacement(replacement, found);
         }
-        edits.push({ from: line.from + match.col, to: line.from + match.col + match.length, insert });
+        edits.push({ from: line.from + match.column, to: line.from + match.column + match.length, insert });
     }
     return { edits, skipped, reason };
 }
 
 // Word bounds were already checked by ripgrep. Unicode when the pattern allows it; null when JavaScript cannot read it.
-function stickyPatternOf(query, options) {
-    const flags = options.caseSensitive ? '' : 'i';
-    const sticky = (more) => new RegExp(patternOf(query, { ...options, word: false }).source, flags + more);
+function stickyPatternOf(query, { regex = false, caseSensitive = false }) {
+    const source = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const flags = caseSensitive ? '' : 'i';
+    const sticky = (more) => new RegExp(source, flags + more);
     try {
         return sticky('uy');
     } catch {

@@ -48,37 +48,21 @@ Deckit.register({
     make({ theme, ui, storage, host, main, settings, util }) {
         const { values: store, records } = storage;
         const engine = EditorEngine;
-        const RECENT_FOLDERS_KEPT = 10;
 
-        const workspaces = workspaceModel({ main });
-        // A path already being opened, with the open under way.
-        const opening = new Map();
-
-        ui.addStyle(
-            [
-                TABS_STYLE,
-                PATH_BAR_STYLE,
-                NOTICE_STYLE,
-                DRAFTS_STYLE,
-                EMPTY_STATE_STYLE,
-                MINIMAP_STYLE,
-                SIDEBAR_STYLE,
-                TREE_STYLE,
-                WORKSPACE_SEARCH_STYLE,
-                QUICK_OPEN_STYLE,
-            ].join('\n')
-        );
+        const workspaces = workspaceModel({ main, onRelease: (file) => code.destroy(file) });
         const disk = fileDisk({ engine, main, onDiskStateChange: heardDiskState });
+        const recent = recentFolders({ records, isOpen: (path) => !!workspaces.withRoot(path) });
         const drafts = unsavedDrafts({
             ui,
             records,
-            main,
             isOpen: workspaces.isOpen,
             openDrafts: () =>
                 workspaces
                     .files()
                     .filter(disk.isDirty)
                     .map((file) => [file.path, disk.draftOf(file)]),
+            pick: (what, suggested) => pick(what, suggested),
+            saveCopy: (path, text) => saveCopy(path, text),
             onOpen: (path) => open(path),
             onSavedAs: async (path) => {
                 await checkOpenFile(path);
@@ -86,89 +70,19 @@ Deckit.register({
             },
         });
         const session = savedSession({ records, main, workspaces });
-        const { extensions: look, colorHighlighter } = codeTheme({ engine, theme, ui });
+        const { extensions: themeExtensions, colorHighlighter } = codeTheme({ engine, theme, ui });
         const find = findInFile({ engine, ui });
         const code = codeView({
             engine,
             theme,
             ui,
             settings,
-            look,
+            themeExtensions,
             separatorExtension: disk.separatorExtension,
             createFindPanel: find.createPanel,
             onUpdate: heardUpdate,
         });
-        const map = minimap({ engine, theme, ui, colorHighlighter });
-        const tabBar = tabs({
-            theme,
-            ui,
-            isDirty: disk.isDirty,
-            onSelect: (file) => show(file),
-            onKeep: keep,
-            onClose: close,
-            menuOf: tabMenu,
-        });
-        const breadcrumbs = pathBar({ ui, util, onReveal: revealInTree });
-        const diskNotice = notice({
-            ui,
-            onSaveAs: saveElsewhere,
-            onClose: close,
-            onReload: (file) => reload(file, true),
-            onKeepMine: keepMine,
-        });
-        const emptyEditor = emptyState({
-            ui,
-            util,
-            host,
-            onQuickOpen: () => quickOpener.show(),
-            onPickFolder: pickFolder,
-            onPickFiles: pickFiles,
-            onOpenFolder: (path) => openFolder(path),
-        });
-        const entries = entryActions({
-            ui,
-            host,
-            main,
-            disk,
-            filesUnder: workspaces.filesUnder,
-            isDirty: disk.isDirty,
-            relocate,
-            relist: (workspace) => workspaces.listFiles(workspace, true),
-            open,
-            drop,
-            showFiles: (workspace) => {
-                switchTo(workspace);
-                setMode('files');
-            },
-            findIn,
-        });
-        const sidePanel = sidebar({
-            ui,
-            host,
-            util,
-            workspaces,
-            isUnsaved: (workspace) => workspace.files.some(disk.isDirty),
-            recentFolders: unopenedRecentFolders,
-            onPickFolder: pickFolder,
-            onPickFiles: pickFiles,
-            onOpenFolder: (path) => openFolder(path),
-            onSwitch: switchTo,
-            onCloseWorkspace: closeWorkspace,
-            onReorder: (from, to) => {
-                workspaces.reorder(from, to);
-                session.save();
-                sidePanel.draw();
-            },
-            onMode: setMode,
-            onShowFile: (file) => show(file),
-        });
-        const quickOpener = quickOpen({
-            ui,
-            ranker: util.ranker,
-            root: () => workspaces.front()?.root || null,
-            list: () => workspaces.listFiles(workspaces.front()),
-            onOpen: (path) => open(path),
-        });
+        const minimap = codeMinimap({ engine, theme, ui, colorHighlighter });
         // Its own stacking context: the engine lifts its panels (the find bar) to z-index 300, which would otherwise put
         // them over anything laid over the editor (the minimap).
         const stage = ui.element('div', {
@@ -186,12 +100,125 @@ Deckit.register({
                 overflow: 'hidden',
             },
         });
+        const { open, tryOpen, openAt, keep } = fileOpener({
+            ui,
+            host,
+            main,
+            workspaces,
+            disk,
+            drafts,
+            session,
+            createView: (text, path) => {
+                const made = code.create(text, path, { inset: minimap.inset() });
+                stage.append(made.box);
+                return made;
+            },
+            scrollEffect: code.scrollEffect,
+            onShow: show,
+            onChange: paint,
+        });
+        const { save, saveAll, saveElsewhere, saveCopy, pick, reload, keepMine, close, drop, checkOpenFile } =
+            fileActions({
+                ui,
+                main,
+                disk,
+                workspaces,
+                drafts,
+                onOpen: (path) => open(path),
+                onDrop: () => {
+                    paint();
+                    session.save();
+                },
+            });
+        const tabBar = tabs({
+            theme,
+            ui,
+            isDirty: disk.isDirty,
+            onSelect: (file) => show(file),
+            onKeep: keep,
+            onClose: close,
+            menuOf: tabMenu,
+        });
+        const pathBar = filePathBar({ ui, util, onReveal: revealInTree });
+        const notice = diskNotice({
+            ui,
+            onSaveAs: saveElsewhere,
+            onClose: close,
+            onReload: (file) => reload(file, true),
+            onKeepMine: keepMine,
+        });
+        const emptyEditor = emptyState({
+            ui,
+            util,
+            host,
+            onQuickOpen: () => quickOpener.show(),
+            onPickFolder: pickFolder,
+            onPickFiles: pickFiles,
+            onOpenFolder: (path) => openFolder(path),
+        });
+        const entryActions = treeEntryActions({
+            ui,
+            host,
+            main,
+            disk,
+            filesUnder: workspaces.filesUnder,
+            relocate,
+            relist: (workspace) => workspaces.listFiles(workspace, true),
+            open,
+            drop,
+            showFiles: (workspace) => {
+                switchTo(workspace);
+                setMode('files');
+            },
+            findIn,
+        });
+        const sidePanel = sidebar({
+            ui,
+            host,
+            util,
+            workspaces,
+            isUnsaved: (workspace) => workspace.files.some(disk.isDirty),
+            recentFolders: recent.unopened,
+            onPickFolder: pickFolder,
+            onPickFiles: pickFiles,
+            onOpenFolder: (path) => openFolder(path),
+            onSwitch: switchTo,
+            onCloseWorkspace: closeWorkspace,
+            onReorder: (workspace, toWorkspace) => {
+                workspaces.reorder(workspace, toWorkspace);
+                session.save();
+                sidePanel.draw();
+            },
+            onMode: setMode,
+            onShowFile: (file) => show(file),
+        });
+        const quickOpener = quickOpen({
+            ui,
+            ranker: util.ranker,
+            root: () => workspaces.front()?.root || null,
+            list: () => workspaces.listFiles(workspaces.front()),
+            onOpen: (path) => open(path),
+        });
 
-        map.setMode(settings.get('minimap'));
+        ui.addStyle(
+            [
+                TABS_STYLE,
+                PATH_BAR_STYLE,
+                DISK_NOTICE_STYLE,
+                DRAFTS_STYLE,
+                EMPTY_STATE_STYLE,
+                MINIMAP_STYLE,
+                SIDEBAR_STYLE,
+                TREE_STYLE,
+                WORKSPACE_SEARCH_STYLE,
+                QUICK_OPEN_STYLE,
+            ].join('\n')
+        );
+        minimap.setMode(settings.get('minimap'));
         emptyEditor.element.hidden = true;
-        stage.append(emptyEditor.element, map.element);
-        stage.addEventListener('mousemove', (event) => map.showNear(event));
-        content.append(tabBar.element, breadcrumbs.element, diskNotice.element, drafts.element, stage);
+        stage.append(emptyEditor.element, minimap.element);
+        stage.addEventListener('mousemove', (event) => minimap.showNear(event));
+        content.append(tabBar.element, pathBar.element, notice.element, drafts.element, stage);
         settings.on((key, value) => {
             for (const file of workspaces.files()) code.applySetting(file.view, key, value);
             if (key === 'minimap') placeMinimap();
@@ -234,7 +261,7 @@ Deckit.register({
                     label: 'Move to Trash',
                     run: () => {
                         const entry = workspaces.front()?.tree?.picked();
-                        if (entry) entries.trash(workspaces.front(), entry);
+                        if (entry) entryActions.trash(workspaces.front(), entry);
                     },
                 },
                 previousTab: { key: 'mod+shift+[', label: 'Previous tab', run: () => stepTab(-1) },
@@ -265,7 +292,7 @@ Deckit.register({
                     host,
                     util,
                     workspaces,
-                    recentFolders: unopenedRecentFolders,
+                    recentFolders: recent.unopened,
                     quickOpener,
                     onPickFolder: pickFolder,
                     onPickFiles: pickFiles,
@@ -282,44 +309,40 @@ Deckit.register({
             paint();
         }
 
+        // Typing in a preview keeps it: it is being worked on now, not glanced at.
         function heardUpdate(update) {
             const file = workspaces.files().find((candidate) => candidate.view === update.view);
             const inFront = !!file && file === workspaces.current();
-            if (update.selectionSet && inFront) breadcrumbs.showCursor(file);
+            if (update.selectionSet && inFront) pathBar.showCursor(file);
             const reparsed = () => engine.syntaxTree(update.startState) !== engine.syntaxTree(update.state);
-            if (inFront && (update.docChanged || update.geometryChanged || reparsed())) map.update();
+            if (inFront && (update.docChanged || update.geometryChanged || reparsed())) minimap.update();
             if (!update.docChanged || !file) return;
             drafts.keepSoon();
-            // Typing in a preview keeps it: it is being worked on now, not glanced at.
-            if (file.preview) {
-                file.preview = false;
-                paint();
-            }
-            if (disk.isDirty(file) !== file.drawnDirty) paint();
+            keep(file);
+            if (disk.isDirty(file) !== file.drawnUnsaved) paint();
         }
 
-        // `drawnDirty` is what each file was drawn as, so typing redraws only when a file crosses saved and unsaved.
         function paint() {
             const front = workspaces.front();
             const files = front?.files || [];
             const current = workspaces.current();
             tabBar.set(files, { current, workspace: front });
             emptyEditor.element.hidden = files.length > 0;
-            if (!files.length) emptyEditor.show(front, unopenedRecentFolders());
+            if (!files.length) emptyEditor.show(front, recent.unopened());
             for (const file of workspaces.files()) {
                 file.box.style.visibility = file === current ? 'visible' : 'hidden';
-                file.drawnDirty = disk.isDirty(file);
+                file.drawnUnsaved = disk.isDirty(file);
             }
-            map.attach(current ? current.view : null);
-            diskNotice.show(current);
-            breadcrumbs.show(current, front?.root);
+            minimap.attach(current ? current.view : null);
+            notice.show(current);
+            pathBar.show(current, front?.root);
             sidePanel.draw();
             drafts.show();
         }
 
         function placeMinimap() {
-            map.setMode(settings.get('minimap'));
-            for (const file of workspaces.files()) file.box.style.right = map.inset();
+            minimap.setMode(settings.get('minimap'));
+            for (const file of workspaces.files()) file.box.style.right = minimap.inset();
         }
 
         // A file only previewed from the tree, with `preserveFocus`, leaves the keyboard there, for the next row or ⌘⌫.
@@ -330,221 +353,6 @@ Deckit.register({
             session.save();
             workspaces.front().tree?.reveal(file.path);
             if (!preserveFocus) requestAnimationFrame(() => file.view.focus());
-        }
-
-        // A file that is not text goes to the system's app only when opened, not when a click in the tree previews it.
-        async function open(path, { background = false, preview = false, preserveFocus = false } = {}) {
-            const result = await tryOpen(path, { background, preview, preserveFocus });
-            if (result.file) return result.file;
-            if (result.passedBy) return null;
-            if (result.error.kind === 'NOT_TEXT') {
-                if (!background && !preserveFocus) host.open(host.fileURL(path), { userInitiated: true });
-            } else
-                ui.dialog({
-                    title: `Could not open ${nameOf(path)}`,
-                    message: result.error.message,
-                    confirmLabel: 'OK',
-                });
-            return null;
-        }
-
-        // A path already being opened is waited for, not read again, so two requests at once are one tab. Its request
-        // number is taken before any waiting.
-        async function tryOpen(path, options = {}) {
-            const request = options.background ? 0 : workspaces.request();
-            while (opening.has(path)) await opening.get(path).catch(() => {});
-            const underWay = openNow(path, { ...options, request });
-            opening.set(path, underWay);
-            try {
-                return await underWay;
-            } finally {
-                if (opening.get(path) === underWay) opening.delete(path);
-            }
-        }
-
-        // Opens end out of order, since a file not open yet is read first. One that something was requested after does
-        // not come forward: a preview is passed by, and a kept file opens behind as its tab.
-        async function openNow(path, { background = false, preview = false, preserveFocus = false, request = 0 } = {}) {
-            const isBehind = () => !background && request !== workspaces.latestRequest();
-            const opened = workspaces.fileAt(path);
-            if (opened) {
-                if (!preview) opened.preview = false;
-                if (!background && !isBehind()) show(opened, { preserveFocus });
-                else paint();
-                return { file: opened };
-            }
-            let onDisk;
-            try {
-                onDisk = await main.call('read', path);
-            } catch (error) {
-                if (preview && isBehind()) return { passedBy: true };
-                return { error };
-            }
-            if (preview && isBehind()) return { passedBy: true };
-            const { box, view } = code.create(onDisk.text, path, { inset: map.inset() });
-            stage.append(box);
-            const file = disk.admit({ path, box, view, preview }, onDisk, drafts.get(path));
-            if (disk.isDirty(file)) file.preview = false;
-            // The workspace is chosen only now, so a folder opened during the read is the one it goes to.
-            const holder = workspaces.holderOf(path);
-            const stale =
-                file.preview && holder ? holder.files.find((other) => other.preview && !disk.isDirty(other)) : null;
-            const index = stale
-                ? holder.files.indexOf(stale)
-                : holder?.current
-                  ? holder.files.indexOf(holder.current) + 1
-                  : null;
-            const workspace = workspaces.place(file, index);
-            session.reopened(workspace, path);
-            if (stale) {
-                if (workspace.current === stale) workspace.current = file;
-                workspaces.release(stale);
-            }
-            if (background || isBehind()) {
-                workspaces.fillIdleFront(workspace, file);
-                paint();
-                session.save();
-            } else show(file, { preserveFocus });
-            return { file };
-        }
-
-        function keep(file) {
-            if (!file.preview) return;
-            file.preview = false;
-            paint();
-        }
-
-        async function openAt(path, { line, col = 0, length = 0 }) {
-            const file = await open(path, { preview: true });
-            if (!file || !line) return;
-            const { doc } = file.view.state;
-            const target = doc.line(Math.min(Math.max(1, line), doc.lines));
-            const from = Math.min(target.from + col, target.to);
-            file.view.dispatch({ selection: { anchor: from, head: Math.min(from + length, target.to) } });
-            file.view.dispatch({ effects: code.scrollEffect(file.view, file.view.state.selection.main) });
-            file.view.focus();
-        }
-
-        async function checkOpenFile(path) {
-            const file = workspaces.fileAt(path);
-            if (file) await disk.check(file).catch(() => false);
-        }
-
-        async function keepMine(file) {
-            if (!file) return;
-            try {
-                await disk.keepMine(file);
-            } catch (error) {
-                ui.dialog({ title: `Could not read ${nameOf(file.path)}`, message: error.message, confirmLabel: 'OK' });
-            }
-        }
-
-        // What was here is in the new file then, so this one closes without asking.
-        async function saveElsewhere(file) {
-            let picked = [];
-            try {
-                picked = await main.call('pick', 'save', file.path);
-            } catch {
-                return;
-            }
-            if (!picked[0]) return;
-            if (picked[0] === file.path) {
-                await save(file, true);
-                return;
-            }
-            try {
-                await main.call('write', picked[0], disk.textOf(file.view.state), null);
-            } catch (error) {
-                ui.dialog({ title: 'Could not save', message: error.message, confirmLabel: 'OK' });
-                return;
-            }
-            await checkOpenFile(picked[0]);
-            drop(file);
-            await open(picked[0]);
-        }
-
-        async function save(file, force = false) {
-            if (!file || (!disk.isDirty(file) && !force)) return true;
-            try {
-                await disk.save(file, { force });
-                return true;
-            } catch (error) {
-                if (error.kind === 'CHANGED')
-                    ui.dialog({
-                        title: `${nameOf(file.path)} changed on disk`,
-                        message:
-                            'Another program wrote to it after it was opened here. Saving now replaces that with what is here.',
-                        confirmLabel: 'Save anyway',
-                        cancelLabel: 'Cancel',
-                        extraLabel: 'Reload from disk',
-                        onExtra: () => reload(file, true),
-                        destructive: true,
-                        onConfirm: () => save(file, true),
-                    });
-                else
-                    ui.dialog({
-                        title: `Could not save ${nameOf(file.path)}`,
-                        message: error.message,
-                        confirmLabel: 'OK',
-                    });
-                return false;
-            }
-        }
-
-        async function saveAll(files) {
-            for (const file of files) if (disk.isDirty(file)) await save(file);
-        }
-
-        // A file gone is marked so by disk.check, and the notice then offers what is left.
-        async function reload(file, force = false) {
-            if (!file) return false;
-            try {
-                return await disk.reload(file, { force });
-            } catch (error) {
-                if (error.kind === 'GONE') {
-                    await disk.check(file).catch(() => false);
-                    return false;
-                }
-                ui.dialog({
-                    title: `Could not reload ${nameOf(file.path)}`,
-                    message: error.message,
-                    confirmLabel: 'OK',
-                });
-                return false;
-            }
-        }
-
-        function close(file) {
-            if (!file) return;
-            if (!disk.isDirty(file)) return drop(file);
-            ui.dialog({
-                title: `Save changes to ${nameOf(file.path)}?`,
-                message: 'Closing without saving loses them.',
-                confirmLabel: 'Save',
-                cancelLabel: 'Cancel',
-                extraLabel: "Don't save",
-                onExtra: () => drop(file),
-                onConfirm: async () => {
-                    if (await save(file)) drop(file);
-                },
-            });
-        }
-
-        // Closes without asking. Closing is the answer to "save changes?", so whatever was not saved is let go, and it
-        // counts as a request for what is left. The keyboard moves on only if it was in the file or nowhere: a file
-        // trashed from the tree leaves it in the tree, for the next ⌘⌫.
-        function drop(file) {
-            const index = (workspaces.front()?.files || []).indexOf(file);
-            const focused = document.activeElement;
-            const follow = file.view.hasFocus || !focused || focused === document.body;
-            const inFront = workspaces.current() === file;
-            if (!workspaces.release(file)) return;
-            if (inFront) workspaces.bringToFront(workspaces.front(), workspaces.front()?.current ?? null);
-            drafts.forget(file.path);
-            tabBar.letGo(file.path, index);
-            paint();
-            session.save();
-            if (follow) workspaces.current()?.view.focus();
         }
 
         function stepTab(by) {
@@ -566,7 +374,7 @@ Deckit.register({
                 { label: 'Close', icon: 'x', hint: host.chordOf('closeFile'), run: () => close(file) },
                 '-',
                 ...(relative ? [reveal] : []),
-                ...entries.pathItems(file.path, relative),
+                ...entryActions.pathItems(file.path, relative),
             ];
         }
 
@@ -589,7 +397,7 @@ Deckit.register({
         }
 
         function createHere(type) {
-            entries.createHere(workspaces.front(), workspaces.current(), type);
+            entryActions.createHere(workspaces.front(), workspaces.current(), type);
         }
 
         function findIn(workspace, relative) {
@@ -617,7 +425,6 @@ Deckit.register({
             if (to != null) {
                 for (const file of workspaces.filesUnder(from)) {
                     const next = move(file.path);
-                    tabBar.rename(file.path, next);
                     workspaces.move(file, next);
                     code.setLanguage(file.view, next);
                 }
@@ -632,21 +439,11 @@ Deckit.register({
                 if (root) {
                     workspace.root = root;
                     workspaces.listFiles(workspace, true);
-                } else if (!workspace.files.length) workspaces.remove(workspace);
+                } else if (!workspace.files.length) removeWorkspace(workspace);
             }
-            const recent = recentFolders();
-            if (recent.some((path) => move(path) !== path))
-                records.set('recent-folders', recent.map(move).filter(Boolean));
+            recent.follow(move);
             paint();
             session.save();
-        }
-
-        function recentFolders() {
-            return records.get('recent-folders', []);
-        }
-
-        function unopenedRecentFolders() {
-            return recentFolders().filter((path) => !workspaces.withRoot(path));
         }
 
         // `fromSession` comes from the caller: a person opening a folder mid-restore asked for it.
@@ -657,13 +454,12 @@ Deckit.register({
                 session.forgetUnrestored(path);
                 workspaces.gather(workspace);
                 const loose = workspaces.loose();
-                if (loose && !loose.files.length) workspaces.remove(loose);
+                if (loose && !loose.files.length) removeWorkspace(loose);
                 await workspace.tree.setRoot(path);
                 workspaces.listFiles(workspace, true);
             }
             if (!fromSession) {
-                const recent = [path, ...recentFolders().filter((other) => other !== path)];
-                records.set('recent-folders', recent.slice(0, RECENT_FOLDERS_KEPT));
+                recent.add(path);
                 workspaces.bringToFront(workspace);
                 paint();
                 session.save();
@@ -685,8 +481,8 @@ Deckit.register({
                     ),
                 onOpen: (path, options) => open(path, options),
                 onFindIn: (relative) => findIn(workspace, relative),
-                onMove: (entry, folder) => entries.move(workspace, entry, folder),
-                menu: entries.menuOf(workspace),
+                onMove: (entry, folder) => entryActions.move(workspace, entry, folder),
+                menu: entryActions.menuOf(workspace),
             });
             workspace.search = workspaceSearch({
                 ui,
@@ -698,6 +494,12 @@ Deckit.register({
                 onReplaceAll: replaceAll,
             });
             return workspace;
+        }
+
+        // A workspace's search ranks folders in a worker, which lives until the search is closed.
+        function removeWorkspace(workspace) {
+            workspaces.remove(workspace);
+            workspace.search?.close();
         }
 
         function switchTo(workspace) {
@@ -718,7 +520,7 @@ Deckit.register({
                     workspaces.release(file);
                     drafts.forget(file.path);
                 }
-                workspaces.remove(workspace);
+                removeWorkspace(workspace);
                 if (inFront) workspaces.bringToFront(workspaces.front(), workspaces.current() ?? null);
                 session.forgetUnrestored(workspace.root);
                 paint();
@@ -741,23 +543,12 @@ Deckit.register({
         }
 
         async function pickFolder() {
-            let paths = [];
-            try {
-                paths = await main.call('pick', 'folder');
-            } catch {
-                return;
-            }
-            if (paths[0]) openFolder(paths[0]);
+            const [path] = await pick('folder');
+            if (path) openFolder(path);
         }
 
         async function pickFiles() {
-            let paths = [];
-            try {
-                paths = await main.call('pick', 'file');
-            } catch {
-                return;
-            }
-            for (const path of paths) await open(path);
+            for (const path of await pick('file')) await open(path);
         }
 
         async function checkDisk() {
