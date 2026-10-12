@@ -1,4 +1,18 @@
-Deckit.register({
+const { columnView } = require('./column-view.js');
+const { favoriteList } = require('./favorite-list.js');
+const { fileArea } = require('./file-area.js');
+const { fileMenus } = require('./file-menus.js');
+const { fileOperations } = require('./file-operations.js');
+const { folderStatus } = require('./folder-status.js');
+const { iconCache } = require('./icon-cache.js');
+const { listView } = require('./list-view.js');
+const { listingCache } = require('./listing-cache.js');
+const { parentOf, isInside } = require('./path.js');
+const { selectionInput } = require('./selection-input.js');
+const { tabList } = require('./tab-list.js');
+const { toolbar } = require('./toolbar.js');
+
+module.exports = {
     keywords: ['finder', 'files', 'file', 'folder', 'explorer', 'browse', '파인더', '파일', '폴더', '탐색기'],
     // Lucide "folder" (ISC).
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`,
@@ -18,8 +32,12 @@ Deckit.register({
         },
     },
 
-    make({ theme, ui, storage, host, main, settings, util }) {
+    async start(deck) {
+        const { theme, ui, storage, settings, util } = deck;
         const { values, records } = storage;
+        // Every folder, icon and file change goes through this module, so a finder whose module cannot start does not
+        // start either.
+        const disk = await deck.mainProcess('main-process/disk.js');
         const STYLE = `
             .finder-content {
                 position: relative;
@@ -42,16 +60,17 @@ Deckit.register({
         };
         const content = ui.element('div', { className: 'finder-content' });
         const sidebar = ui.element('div', { className: 'finder-sidebar' });
-        const icons = iconCache({ ui, main, onArrive: () => area.draw() });
+        const icons = iconCache({ ui, disk, onArrive: () => area.draw() });
         const listings = listingCache({
-            host,
-            main,
+            about: deck.about,
+            disk,
             isShown: (folder) => area.shownFolders().includes(folder),
             onRead: applyListing,
         });
         const tabs = tabList({
             ui,
-            host,
+            chordOf: deck.chordOf,
+            reveal: deck.reveal,
             records,
             tildify: util.tildify,
             folds,
@@ -65,10 +84,10 @@ Deckit.register({
         const columns = columnView({ ui, icons, entryAt: listings.entryAt, onResize: tabs.setWidth });
         const status = folderStatus({
             ui,
-            chordOf: host.chordOf,
+            chordOf: deck.chordOf,
             onShowHidden: () => settings.set('showHidden', true),
-            onReveal: host.reveal,
-            onPrivacySettings: () => main.call('privacySettings').catch(() => {}),
+            onReveal: deck.reveal,
+            onPrivacySettings: () => disk.privacySettings().catch(() => {}),
         });
         const area = fileArea({
             ui,
@@ -86,8 +105,9 @@ Deckit.register({
         });
         const operations = fileOperations({
             ui,
-            host,
-            main,
+            openURL: deck.open,
+            fileURL: deck.fileURL,
+            disk,
             areaElement: area.element,
             entryAt: listings.entryAt,
             labelOf: area.labelOf,
@@ -101,7 +121,7 @@ Deckit.register({
         const bar = toolbar({
             ui,
             theme,
-            chordOf: host.chordOf,
+            chordOf: deck.chordOf,
             tildify: util.tildify,
             homeLocation: () => home,
             onBack: () => tabs.back(),
@@ -116,7 +136,8 @@ Deckit.register({
         });
         const favorites = favoriteList({
             ui,
-            host,
+            reveal: deck.reveal,
+            show: deck.show,
             records,
             tildify: util.tildify,
             folds,
@@ -142,7 +163,9 @@ Deckit.register({
         });
         fileMenus({
             ui,
-            host,
+            chordOf: deck.chordOf,
+            reveal: deck.reveal,
+            writeText: deck.clipboard.writeText,
             areaElement: area.element,
             entryAt: listings.entryAt,
             rowOf: area.rowOf,
@@ -174,15 +197,15 @@ Deckit.register({
         settings.on((key) => {
             if (key === 'showHidden' || key === 'foldersFirst') area.draw();
         });
-        main.call('places')
+        disk.places()
             .then((answer) => {
                 home = answer.home;
                 favorites.setLocations(answer.places);
-                return tabs.restore((path) => main.call('exists', path));
+                return tabs.restore((path) => disk.exists(path));
             })
             .catch(area.failToStart);
 
-        return {
+        deck.view({
             content,
             sidebar,
             didAppear: () => {
@@ -195,62 +218,61 @@ Deckit.register({
             },
             didDisappear: () => {
                 showing = false;
-                main.call('closeQuickLook').catch(() => {});
+                disk.closeQuickLook().catch(() => {});
                 watchShown();
             },
-
-            keys: {
-                newTab: { key: 'mod+t', label: 'New tab', run: () => tabs.open() },
-                closeTab: { key: 'mod+w', label: 'Close tab', run: () => tabs.close(tabs.front()) },
-                reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => tabs.reopen() },
-                ...Object.fromEntries(
-                    [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
-                        `tab${number}`,
-                        { key: `mod+${number}`, label: `Tab ${number}`, run: () => tabs.showAt(number - 1) },
-                    ])
-                ),
-                lastTab: { key: 'mod+9', label: 'Last tab', run: () => tabs.showAt(-1) },
-                back: { key: 'mod+[', label: 'Back', run: () => tabs.back() },
-                forward: { key: 'mod+]', label: 'Forward', run: () => tabs.forward() },
-                enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
-                open: { key: 'mod+down', label: 'Open', run: () => operations.open(selectedEntry()) },
-                filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
-                home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
-                desktop: { key: 'mod+shift+d', label: 'Go to Desktop', run: () => goToLocation('desktop') },
-                downloads: { key: 'mod+alt+l', label: 'Go to Downloads', run: () => goToLocation('downloads') },
-                applications: {
-                    key: 'mod+shift+a',
-                    label: 'Go to Applications',
-                    run: () => goToLocation('applications'),
-                },
-                hidden: { key: 'mod+shift+.', label: 'Show hidden files', run: toggleHidden },
-                newFolder: {
-                    key: 'mod+shift+n',
-                    label: 'New folder',
-                    run: () => operations.newFolder(area.workingFolder()),
-                },
-                // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
-                columnView: { key: 'ctrl+mod+1', label: 'As columns', run: () => setView('columns') },
-                listView: { key: 'ctrl+mod+2', label: 'As list', run: () => setView('list') },
-                trash: { key: 'mod+backspace', label: 'Move to Trash', run: () => operations.trash(selectedEntry()) },
+        });
+        deck.keys({
+            newTab: { key: 'mod+t', label: 'New tab', run: () => tabs.open() },
+            closeTab: { key: 'mod+w', label: 'Close tab', run: () => tabs.close(tabs.front()) },
+            reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => tabs.reopen() },
+            ...Object.fromEntries(
+                [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
+                    `tab${number}`,
+                    { key: `mod+${number}`, label: `Tab ${number}`, run: () => tabs.showAt(number - 1) },
+                ])
+            ),
+            lastTab: { key: 'mod+9', label: 'Last tab', run: () => tabs.showAt(-1) },
+            back: { key: 'mod+[', label: 'Back', run: () => tabs.back() },
+            forward: { key: 'mod+]', label: 'Forward', run: () => tabs.forward() },
+            enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
+            open: { key: 'mod+down', label: 'Open', run: () => operations.open(selectedEntry()) },
+            filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
+            home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
+            desktop: { key: 'mod+shift+d', label: 'Go to Desktop', run: () => goToLocation('desktop') },
+            downloads: { key: 'mod+alt+l', label: 'Go to Downloads', run: () => goToLocation('downloads') },
+            applications: {
+                key: 'mod+shift+a',
+                label: 'Go to Applications',
+                run: () => goToLocation('applications'),
             },
-
-            commands: () =>
-                [
-                    ...favorites.locations().map((location) => location.path),
-                    ...favorites.paths().filter((path) => !favorites.locationOf(path)),
-                ].map((path) => ({
-                    label: favorites.labelOf(path),
-                    hint: util.tildify(path),
-                    icon: ui.icon(favorites.iconNameOf(path), { size: 16 }),
-                    keywords: ['폴더', 'folder'],
-                    address: path,
-                    run: () => {
-                        host.show();
-                        tabs.go(path);
-                    },
-                })),
-        };
+            hidden: { key: 'mod+shift+.', label: 'Show hidden files', run: toggleHidden },
+            newFolder: {
+                key: 'mod+shift+n',
+                label: 'New folder',
+                run: () => operations.newFolder(area.workingFolder()),
+            },
+            // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
+            columnView: { key: 'ctrl+mod+1', label: 'As columns', run: () => setView('columns') },
+            listView: { key: 'ctrl+mod+2', label: 'As list', run: () => setView('list') },
+            trash: { key: 'mod+backspace', label: 'Move to Trash', run: () => operations.trash(selectedEntry()) },
+        });
+        deck.commands(() =>
+            [
+                ...favorites.locations().map((location) => location.path),
+                ...favorites.paths().filter((path) => !favorites.locationOf(path)),
+            ].map((path) => ({
+                label: favorites.labelOf(path),
+                hint: util.tildify(path),
+                icon: ui.icon(favorites.iconNameOf(path), { size: 16 }),
+                keywords: ['폴더', 'folder'],
+                address: path,
+                run: () => {
+                    deck.show();
+                    tabs.go(path);
+                },
+            }))
+        );
 
         // Drawn at once: until the folder is read, the area shows it loading. The favorites are drawn here, as only a
         // new location changes which of them is lit.
@@ -371,4 +393,4 @@ Deckit.register({
             return listings.entryAt(tabs.selectedPath());
         }
     },
-});
+};

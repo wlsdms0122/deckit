@@ -63,3 +63,5 @@ function folderStatus({ ui, chordOf, onShowHidden, onReveal, onPrivacySettings }
         return screen;
     }
 }
+
+module.exports = { folderStatus };

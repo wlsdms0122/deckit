@@ -19,3 +19,5 @@ function isInside(path, folder) {
 function stepsFrom(folder, path) {
     return path.slice(folder === '/' ? 1 : folder.length + 1).split('/');
 }
+
+module.exports = { nameOf, parentOf, childOf, isInside, stepsFrom };

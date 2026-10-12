@@ -1,7 +1,10 @@
+const { nameOf } = require('./path.js');
+const { sidebarRow } = require('./sidebar-row.js');
+
 // Favorites, the folders the person keeps at hand in the sidebar. They start as the system's locations (Home, Desktop
 // and the rest) and are the person's to add to, remove and order. The row of `currentLocation()` is lit; `onDraw()`
 // hears the favorites drawn.
-function favoriteList({ ui, host, records, tildify, folds, currentLocation, onGo, onOpenInNewTab, onDraw }) {
+function favoriteList({ ui, reveal, show, records, tildify, folds, currentLocation, onGo, onOpenInNewTab, onDraw }) {
     const LOCATION_ICONS = {
         home: 'home',
         desktop: 'monitor',
@@ -43,7 +46,7 @@ function favoriteList({ ui, host, records, tildify, folds, currentLocation, onGo
             const missing = missingLocations();
             return [
                 { label: 'Open in New Tab', icon: 'window', hint: '⌘', run: () => onOpenInNewTab(path) },
-                { label: 'Show in Finder', icon: 'folder', run: () => host.reveal(path) },
+                { label: 'Show in Finder', icon: 'folder', run: () => reveal(path) },
                 '-',
                 { label: 'Remove from Favorites', icon: 'x', run: () => remove(path) },
                 ...(missing.length
@@ -147,7 +150,7 @@ function favoriteList({ ui, host, records, tildify, folds, currentLocation, onGo
             }).element
         );
         row.element.addEventListener('click', (event) => {
-            host.show();
+            show();
             if (event.metaKey) onOpenInNewTab(path);
             else onGo(path);
         });
@@ -162,3 +165,5 @@ function favoriteList({ ui, host, records, tildify, folds, currentLocation, onGo
         row.setActive(path === currentLocation());
     }
 }
+
+module.exports = { favoriteList };

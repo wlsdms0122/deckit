@@ -1,6 +1,6 @@
-// The system's icons for entries, asked of main once per kind of entry, and Quick Look thumbnails for the preview.
+// The system's icons for entries, asked of `disk` once per kind of entry, and Quick Look thumbnails for the preview.
 // `onArrive()` hears icons arrive that were not there.
-function iconCache({ ui, main, onArrive }) {
+function iconCache({ ui, disk, onArrive }) {
     // Pixels: twice the preview's room, for a Retina screen.
     const THUMBNAIL_SIZE = 480;
     const THUMBNAILS_KEPT = 24;
@@ -27,7 +27,7 @@ function iconCache({ ui, main, onArrive }) {
             wanted[key] = entry.path;
         }
         if (!Object.keys(wanted).length) return;
-        main.call('icons', wanted)
+        disk.icons(wanted)
             .then((answered) => {
                 let arrived = false;
                 for (const key of Object.keys(wanted)) {
@@ -70,8 +70,8 @@ function iconCache({ ui, main, onArrive }) {
         if (!thumbnailRequests.has(key)) {
             thumbnailRequests.set(
                 key,
-                main
-                    .call('thumbnail', entry.path, THUMBNAIL_SIZE)
+                disk
+                    .thumbnail(entry.path, THUMBNAIL_SIZE)
                     .catch(() => null)
                     .then((url) => {
                         thumbnailRequests.delete(key);
@@ -105,3 +105,5 @@ function kindIconOf(entry) {
     if (entry.kind === 'folder') return 'folder';
     return entry.kind === 'package' ? 'grid' : 'fileText';
 }
+
+module.exports = { iconCache, kindIconOf };

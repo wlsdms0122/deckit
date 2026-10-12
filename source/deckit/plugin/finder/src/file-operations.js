@@ -1,11 +1,15 @@
+const { kindIconOf } = require('./icon-cache.js');
+const { nameOf, parentOf } = require('./path.js');
+
 // What is done to files: opening, Quick Look, making a folder, renaming, the Trash, and moving by a drag onto a folder.
 // `labelOf(path)` finds the name an entry shows, which a rename types over. `onMade(path)` shows a folder just made and
 // answers whether it is in sight, to be named. `onMoved(from, to)` hears a path go elsewhere, `to` null when it went to
 // the Trash; `onChanged(folder)` hears a folder whose contents changed.
 function fileOperations({
     ui,
-    host,
-    main,
+    openURL,
+    fileURL,
+    disk,
     areaElement,
     entryAt,
     labelOf,
@@ -38,21 +42,19 @@ function fileOperations({
     async function open(entry, { usesDefaultApp = false } = {}) {
         if (!entry) return;
         if (entry.kind === 'folder') return onGo(entry.path);
-        const opened = await host
-            .open(host.fileURL(entry.path), { usesDefaultApp, userInitiated: true })
-            .catch(() => false);
+        const opened = await openURL(fileURL(entry.path), { usesDefaultApp, userInitiated: true }).catch(() => false);
         if (!opened) onStatus('Could not open “' + entry.name + '”');
     }
 
     function quickLook(entry) {
-        if (entry) main.call('quickLook', entry.path, entry.name).catch(() => {});
+        if (entry) disk.quickLook(entry.path, entry.name).catch(() => {});
     }
 
     async function newFolder(into) {
         if (!into) return;
         let made;
         try {
-            made = await main.call('mkdir', into);
+            made = await disk.mkdir(into);
         } catch (error) {
             onStatus('Could not make a folder: ' + error.message);
             return;
@@ -70,7 +72,7 @@ function fileOperations({
             selectStem: entry.kind !== 'folder',
             // A refusal thrown here is shown under the name.
             onCommit: async (name) => {
-                onMoved(entry.path, await main.call('rename', entry.path, name));
+                onMoved(entry.path, await disk.rename(entry.path, name));
             },
         });
         if (renamed) onChanged(parentOf(entry.path));
@@ -94,7 +96,7 @@ function fileOperations({
 
     async function moveToTrash(entry) {
         try {
-            await main.call('trash', entry.path);
+            await disk.trash(entry.path);
         } catch (error) {
             onStatus('Could not move “' + entry.name + '” to the Trash: ' + error.message);
             return;
@@ -107,7 +109,7 @@ function fileOperations({
         if (!ui.movesInto(from, into)) return;
         let to;
         try {
-            to = await main.call('move', from, into);
+            to = await disk.move(from, into);
         } catch (error) {
             // In a dialog: the footer is drawn again right after a drag ends, which would take a status message away.
             ui.dialog({
@@ -122,3 +124,5 @@ function fileOperations({
         onChanged(into);
     }
 }
+
+module.exports = { fileOperations };

@@ -94,3 +94,5 @@ function selectionInput({
         }
     }
 }
+
+module.exports = { selectionInput };

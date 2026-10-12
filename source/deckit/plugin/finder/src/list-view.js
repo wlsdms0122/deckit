@@ -1,3 +1,6 @@
+const { formatKind, formatSize, formatDate } = require('./format.js');
+const { refillWhenChanged } = require('./refill-when-changed.js');
+
 // A folder as rows under a header that sorts them. Narrow, it drops the Kind column and then the Size column.
 function listView({ ui, icons, onSort }) {
     const COLUMNS = [
@@ -169,3 +172,5 @@ function listView({ ui, icons, onSort }) {
         return shown.map((column) => (column.width ? column.width + 'px' : 'minmax(0, 1fr)')).join(' ');
     }
 }
+
+module.exports = { listView };

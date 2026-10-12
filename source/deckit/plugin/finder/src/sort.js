@@ -1,3 +1,5 @@
+const { formatKind } = require('./format.js');
+
 function isVisible(entry, showHidden) {
     return showHidden || !entry.hidden;
 }
@@ -37,3 +39,5 @@ function sortValueOf(entry, key) {
     if (key === 'size') return entry.size ?? -1;
     return formatKind(entry);
 }
+
+module.exports = { isVisible, visibleEntries, nextSortOrder };

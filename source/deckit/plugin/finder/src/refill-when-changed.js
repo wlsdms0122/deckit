@@ -8,3 +8,5 @@ function refillWhenChanged(element, signature, fill) {
     filledSignatures.set(element, key);
     fill();
 }
+
+module.exports = { refillWhenChanged };

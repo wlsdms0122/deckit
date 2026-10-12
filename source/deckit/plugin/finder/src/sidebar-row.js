@@ -21,3 +21,5 @@ function sidebarRow(ui) {
         row.element.title = title;
     }
 }
+
+module.exports = { sidebarRow };

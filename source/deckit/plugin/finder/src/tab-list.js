@@ -1,9 +1,24 @@
+const { nameOf, parentOf } = require('./path.js');
+const { sidebarRow } = require('./sidebar-row.js');
+
 // The tabs, each at a location with its own history, pick, filter and column widths, listed in the sidebar; closed ones
 // are kept to reopen. This list alone writes a tab; the others read the tab in front through its queries and change it
 // through its setters. A tab coming in front or going somewhere is given what to do once its folder is read ({ select,
 // scroll }, taken with `takeWhenRead()`), and `onEnter()` hears it; `onLeave()` hears the tab in front about to give
 // its place.
-function tabList({ ui, host, records, tildify, folds, homeLocation, isFavorite, onAddFavorite, onLeave, onEnter }) {
+function tabList({
+    ui,
+    chordOf,
+    reveal,
+    records,
+    tildify,
+    folds,
+    homeLocation,
+    isFavorite,
+    onAddFavorite,
+    onLeave,
+    onEnter,
+}) {
     const CLOSED_KEPT = 10;
     const WIDTHS_KEPT = 64;
     const saved = records.get('tabs', null);
@@ -25,7 +40,7 @@ function tabList({ ui, host, records, tildify, folds, homeLocation, isFavorite, 
     });
     const rows = ui.list({ key: (tab) => tab.id, create: createRow, update: updateRow, exit: true });
 
-    ui.tooltip(section.actions[0].element, { text: 'New tab', chord: () => host.chordOf('newTab') });
+    ui.tooltip(section.actions[0].element, { text: 'New tab', chord: () => chordOf('newTab') });
     section.body.append(rows.element);
     ui.sortable(rows, {
         onReorder: (id, toId) => {
@@ -52,7 +67,7 @@ function tabList({ ui, host, records, tildify, folds, homeLocation, isFavorite, 
                     disabled: isFavorite(tab.location),
                     run: () => onAddFavorite(tab.location),
                 },
-                { label: 'Show in Finder', icon: 'folder', run: () => host.reveal(tab.location) },
+                { label: 'Show in Finder', icon: 'folder', run: () => reveal(tab.location) },
             ];
         },
     });
@@ -292,7 +307,7 @@ function tabList({ ui, host, records, tildify, folds, homeLocation, isFavorite, 
             title: 'Close tab',
             onClick: () => close(tab),
         });
-        ui.tooltip(closeButton.element, { text: 'Close tab', chord: () => host.chordOf('closeTab') });
+        ui.tooltip(closeButton.element, { text: 'Close tab', chord: () => chordOf('closeTab') });
         row.element.append(closeButton.element);
         row.element.addEventListener('click', () => show(tab));
         rowParts.set(row.element, row);
@@ -335,3 +350,5 @@ function tabList({ ui, host, records, tildify, folds, homeLocation, isFavorite, 
         return { location: here, widths };
     }
 }
+
+module.exports = { tabList };

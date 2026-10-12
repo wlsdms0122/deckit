@@ -1,3 +1,7 @@
+const { formatKind, formatSize, formatDate } = require('./format.js');
+const { parentOf, childOf, isInside, stepsFrom } = require('./path.js');
+const { refillWhenChanged } = require('./refill-when-changed.js');
+
 // The folders from the tab's down to the pick, side by side, and a preview of a picked file after them. A column
 // keeps its scroll while it stays, and a width the person drags, kept per tab. `onResize(tab, folder, width)` hears
 // one let go.
@@ -225,3 +229,5 @@ function columnView({ ui, icons, entryAt, onResize }) {
         return image;
     }
 }
+
+module.exports = { columnView };

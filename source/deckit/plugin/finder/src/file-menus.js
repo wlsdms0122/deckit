@@ -2,7 +2,9 @@
 // column under a press ({ folder, mark }); `workingFolder()` is the folder in front when the press is on no column.
 function fileMenus({
     ui,
-    host,
+    chordOf,
+    reveal,
+    writeText,
     areaElement,
     entryAt,
     rowOf,
@@ -47,9 +49,9 @@ function fileMenus({
             { label: 'Quick Look', icon: 'eye', hint: 'Space', run: () => quickLook(entry) },
             '-',
             { label: 'Rename…', icon: 'pencil', run: () => rename(entry) },
-            { label: 'Move to Trash', icon: 'trash', hint: host.chordOf('trash'), run: () => trash(entry) },
+            { label: 'Move to Trash', icon: 'trash', hint: chordOf('trash'), run: () => trash(entry) },
             '-',
-            { label: 'Show in Finder', icon: 'folder', run: () => host.reveal(entry.path) },
+            { label: 'Show in Finder', icon: 'folder', run: () => reveal(entry.path) },
             { label: 'Copy Path', icon: 'copy', run: () => copyPath(entry.path) },
             ...(folder ? ['-', favoriteItem(entry.path)] : []),
         ];
@@ -63,9 +65,9 @@ function fileMenus({
 
     function folderItems(folder) {
         return [
-            { label: 'New Folder', icon: 'folderPlus', hint: host.chordOf('newFolder'), run: () => newFolder(folder) },
+            { label: 'New Folder', icon: 'folderPlus', hint: chordOf('newFolder'), run: () => newFolder(folder) },
             '-',
-            { label: 'Show in Finder', icon: 'folder', run: () => host.reveal(folder) },
+            { label: 'Show in Finder', icon: 'folder', run: () => reveal(folder) },
             { label: 'Copy Path', icon: 'copy', run: () => copyPath(folder) },
             {
                 label: 'Add to Favorites',
@@ -77,13 +79,15 @@ function fileMenus({
             {
                 label: 'Show Hidden Files',
                 checked: showsHidden(),
-                hint: host.chordOf('hidden'),
+                hint: chordOf('hidden'),
                 run: onToggleHidden,
             },
         ];
     }
 
     function copyPath(path) {
-        host.clipboard.writeText(path).catch(() => {});
+        writeText(path).catch(() => {});
     }
 }
+
+module.exports = { fileMenus };

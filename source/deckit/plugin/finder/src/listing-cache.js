@@ -1,15 +1,17 @@
-// What main listed of each folder on screen, read again when main says a folder changed. No listing means the folder
+const { parentOf } = require('./path.js');
+
+// What `disk` listed of each folder on screen, read again when it says a folder changed. No listing means the folder
 // is loading; an earlier one stays while it is read again. `isShown(folder)` says whether a listing is still wanted;
 // `onRead(folder)` hears one kept.
-function listingCache({ host, main, isShown, onRead }) {
+function listingCache({ about, disk, isShown, onRead }) {
     const listings = new Map(); // folder -> { entries, failure }
     const reads = new Map(); // folder -> { again, done }
-    let watched; // the folders last sent to main, as JSON; undefined lets the next set through
+    let watched; // the folders last sent to `disk`, as JSON; undefined lets the next set through
 
-    main.on('changed', (folder) => {
+    disk.on('changed', (folder) => {
         if (isShown(folder)) load(folder);
     });
-    main.on('unwatched', (folder) => {
+    disk.on('unwatched', (folder) => {
         watched = undefined;
         if (isShown(folder)) load(folder);
     });
@@ -91,8 +93,8 @@ function listingCache({ host, main, isShown, onRead }) {
         }
     }
 
-    // Main replaces its whole set with `folders`, or stops with null. `renew` asks again for the same set, renewing a
-    // watch that died. A set main could not fully watch is forgotten, so the next call asks again.
+    // `disk` replaces its whole set with `folders`, or stops with null. `renew` asks again for the same set, renewing a
+    // watch that died. A set it could not fully watch is forgotten, so the next call asks again.
     function watch(folders, { renew = false } = {}) {
         const key = JSON.stringify(folders || []);
         if (renew) watched = undefined;
@@ -101,14 +103,14 @@ function listingCache({ host, main, isShown, onRead }) {
         const forget = () => {
             if (watched === key) watched = undefined;
         };
-        main.call('watch', folders).then((watching) => {
+        disk.watch(folders).then((watching) => {
             if (watching.length !== (folders || []).length) forget();
         }, forget);
     }
 
     async function readFolder(folder) {
         try {
-            return { entries: await main.call('list', folder), failure: null };
+            return { entries: await disk.list(folder), failure: null };
         } catch (error) {
             return { entries: [], failure: readFailureOf(error) };
         }
@@ -117,10 +119,12 @@ function listingCache({ host, main, isShown, onRead }) {
     function readFailureOf(error) {
         if (error.kind === 'NOT_PERMITTED')
             return {
-                title: host.about().name + ' cannot read this folder',
+                title: about().name + ' cannot read this folder',
                 hint: 'macOS gives an app a folder in System Settings › Privacy & Security › Files and Folders.',
                 permission: true,
             };
         return { title: 'Could not read this folder', hint: error.message, permission: false };
     }
 }
+
+module.exports = { listingCache };

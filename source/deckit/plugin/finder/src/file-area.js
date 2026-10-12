@@ -1,3 +1,7 @@
+const { heldSelection } = require('./held-selection.js');
+const { parentOf } = require('./path.js');
+const { isVisible, visibleEntries, nextSortOrder } = require('./sort.js');
+
 // The files of the tab in front, as columns or as a list, the filter over them and the count under them. The view and
 // the sort order are kept in `values`. `tabs` is the tab list, read and set through its queries and setters;
 // `status` shows the folder loading, failing or empty; `onDraw()` hears every draw; `setFilterText(text)` shows the
@@ -257,3 +261,5 @@ function fileArea({
         if (filter.text && !shownFolders().includes(filter.folder)) clearFilter();
     }
 }
+
+module.exports = { fileArea };
