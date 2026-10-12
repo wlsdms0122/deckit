@@ -1,12 +1,14 @@
+const { section } = require('./section.js');
+
 // The Plugin Settings section: a card per plugin that declares settings, a control per setting. `onFailure` hears a
 // change that did not apply.
-function pluginSettingsSection({ ui, host, onFailure }) {
+function pluginSettingsSection({ ui, pluginSettings, onFailure }) {
     const TITLE = 'Plugin Settings';
     const KEYWORDS = ['설정', '플러그인 설정', 'settings', 'preferences'];
     const DESCRIPTION =
         'Choices each plugin offers. A plugin declares them; they are kept with its data, so an update keeps them.';
     const HIGHLIGHT_LENGTH = 1200;
-    // A setting of a type this page does not know draws nothing.
+    // A setting of a type this section does not know draws nothing.
     const TYPES = ['toggle', 'choice', 'number', 'text', 'action'];
 
     // As last drawn, for the commands, which cannot wait for a drawing.
@@ -45,7 +47,7 @@ function pluginSettingsSection({ ui, host, onFailure }) {
         let read = null;
         let failure = '';
         try {
-            read = (await host.pluginSettings.list()).map((group) => ({
+            read = (await pluginSettings.list()).map((group) => ({
                 ...group,
                 items: group.items.map(withDefaults),
             }));
@@ -138,7 +140,7 @@ function pluginSettingsSection({ ui, host, onFailure }) {
         async function change(value) {
             control.set(value);
             try {
-                await host.pluginSettings.set(pluginId, current.key, value);
+                await pluginSettings.set(pluginId, current.key, value);
             } catch (error) {
                 onFailure('Could not change the setting: ' + error.message);
             }
@@ -191,7 +193,7 @@ function pluginSettingsSection({ ui, host, onFailure }) {
                 answer.hidden = true;
                 let text = '';
                 try {
-                    text = await host.pluginSettings.run(pluginId, item.key);
+                    text = await pluginSettings.run(pluginId, item.key);
                 } catch (error) {
                     text = 'Did not work: ' + error.message;
                 }
@@ -224,3 +226,5 @@ function pluginSettingsSection({ ui, host, onFailure }) {
         };
     }
 }
+
+module.exports = { pluginSettingsSection };

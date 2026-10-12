@@ -1,6 +1,10 @@
+const { chip } = require('./chip.js');
+const { NO_VALUE, schemeName } = require('./format.js');
+const { section } = require('./section.js');
+
 // The URL Schemes section: a card per scheme with its handler list, the plugins asked in turn to open an address,
-// reordered by dragging and switched off one by one, and the app's own answer after them.
-function urlSchemesSection({ ui, host, appName }) {
+// reordered by dragging and switched off one by one, and the host app's own answer after them.
+function urlSchemesSection({ ui, urlSchemes, appName }) {
     const TITLE = 'URL Schemes';
     const KEYWORDS = [
         '열기',
@@ -21,7 +25,7 @@ function urlSchemesSection({ ui, host, appName }) {
         browser: 'Opens in the system browser',
         file: "Opens in the system's app when you asked for it, otherwise shows it in Finder",
     };
-    const everyScheme = host.urlSchemes.everyScheme;
+    const everyScheme = urlSchemes.everyScheme;
 
     const cardFills = new WeakMap(); // card -> its fill(handlerList)
     const rowFills = new WeakMap(); // handler row -> its fill(entry)
@@ -72,7 +76,7 @@ function urlSchemesSection({ ui, host, appName }) {
     return { element, title: TITLE, keywords: KEYWORDS, draw };
 
     function draw() {
-        cards.set(host.urlSchemes.list());
+        cards.set(urlSchemes.list());
     }
 
     function schemeCard(handlerList) {
@@ -161,7 +165,7 @@ function urlSchemesSection({ ui, host, appName }) {
     }
 
     function save(scheme, handlers) {
-        host.urlSchemes.set(scheme, {
+        urlSchemes.set(scheme, {
             order: handlers.map((handler) => handler.id),
             off: handlers.filter((handler) => !handler.on).map((handler) => handler.id),
         });
@@ -194,3 +198,5 @@ function urlSchemesSection({ ui, host, appName }) {
         return `An address that starts with ${scheme}:, which a plugin named.`;
     }
 }
+
+module.exports = { urlSchemesSection };

@@ -96,3 +96,5 @@ function tableOfContents({ ui, scroller, sections }) {
         return Math.min(Math.max(0, topOf(target) - margin), scroller.scrollHeight - scroller.clientHeight);
     }
 }
+
+module.exports = { tableOfContents };

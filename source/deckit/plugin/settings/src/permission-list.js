@@ -68,3 +68,5 @@ function permissionList({ ui, permissions }) {
         return row;
     }
 }
+
+module.exports = { PERMISSION_LIST_STYLE, permissionList };

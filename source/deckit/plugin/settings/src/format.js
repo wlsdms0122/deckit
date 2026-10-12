@@ -1,7 +1,7 @@
 // What an empty cell shows.
 const NO_VALUE = '–';
 
-// What `host.plugins.count` found in a plugin's data folder, in words.
+// What `deck.plugins.count` found in a plugin's data folder, in words.
 function storedFilesText({ count, capped, hidden }) {
     if (count === 0 && hidden) return 'hidden files';
     const files = count === 1 && !capped ? 'file' : 'files';
@@ -36,3 +36,5 @@ function contributionsOf(live, keyCount, everyScheme) {
 function nameAndVersion(plugin) {
     return `${plugin.name} ${plugin.version || ''}`.trim();
 }
+
+module.exports = { NO_VALUE, storedFilesText, schemeName, ordinal, contributionsOf, nameAndVersion };

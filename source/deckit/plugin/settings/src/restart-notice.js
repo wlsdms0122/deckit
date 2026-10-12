@@ -1,6 +1,7 @@
-// A main half runs in the app's main process, which reloading a view does not reach: when its code changed underneath
-// it, only a restart finishes the change.
-function restartNotice({ ui, host, appName, onFailure }) {
+// A main process module runs in the host app's main process. It is started the first time the plugin asks for it and
+// kept until the host app quits, so one whose code changed underneath it keeps running the old code: only a restart
+// finishes the change.
+function restartNotice({ ui, plugins, appName, onFailure }) {
     ui.addStyle(`
         .settings-restart {
             display: flex;
@@ -25,7 +26,7 @@ function restartNotice({ ui, host, appName, onFailure }) {
     return { element, draw };
 
     function draw(onDisk) {
-        const pending = host.plugins.restartPending();
+        const pending = plugins.restartPending();
         element.hidden = !pending.length;
         if (!pending.length) return;
         const nameOf = (id) => onDisk.find((plugin) => plugin.id === id)?.name || id;
@@ -36,7 +37,7 @@ function restartNotice({ ui, host, appName, onFailure }) {
         const sentences = [];
         if (updated.length)
             sentences.push(
-                `${updated.join(', ')} updated, but the part that runs in the background is still the old one`
+                `${updated.join(', ')} updated, but what it started in the main process still runs the old code`
             );
         if (removed.length) sentences.push(`${removed.join(', ')} removed, but what it started is still running`);
         if (reinstalled.length)
@@ -48,7 +49,7 @@ function restartNotice({ ui, host, appName, onFailure }) {
         restart.setEnabled(false);
         restart.setLabel('Restarting…');
         try {
-            await host.plugins.restart();
+            await plugins.restart();
         } catch (error) {
             restart.setEnabled(true);
             restart.setLabel('Restart ' + appName);
@@ -56,3 +57,5 @@ function restartNotice({ ui, host, appName, onFailure }) {
         }
     }
 }
+
+module.exports = { restartNotice };

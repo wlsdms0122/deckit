@@ -1,9 +1,18 @@
-Deckit.register({
+const { CHIP_STYLE } = require('./chip.js');
+const { keyboardSection } = require('./keyboard-section.js');
+const { pluginSettingsSection } = require('./plugin-settings-section.js');
+const { pluginsSection } = require('./plugins-section.js');
+const { SECTION_STYLE } = require('./section.js');
+const { tableOfContents } = require('./table-of-contents.js');
+const { urlSchemesSection } = require('./url-schemes-section.js');
+
+module.exports = {
     keywords: ['설정', '플러그인', 'settings', 'plugins'],
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
 
-    make({ ui, host, util }) {
-        const APP_NAME = host.about().name;
+    start(deck) {
+        const { ui, util } = deck;
+        const APP_NAME = deck.about().name;
 
         const pluginIcons = new Map(); // plugin id -> its icon, as the list was last drawn
 
@@ -24,10 +33,22 @@ Deckit.register({
         ui.addStyle(SECTION_STYLE + CHIP_STYLE);
         const page = ui.element('div', { className: 'settings-page' });
         const body = ui.element('div', { className: 'settings-body' });
-        const plugins = pluginsSection({ ui, host, util, appName: APP_NAME, onChange: redraw });
-        const pluginSettings = pluginSettingsSection({ ui, host, onFailure: plugins.showNotice });
-        const urlSchemes = urlSchemesSection({ ui, host, appName: APP_NAME });
-        const keyboard = keyboardSection({ ui, host });
+        const plugins = pluginsSection({
+            ui,
+            plugins: deck.plugins,
+            keymap: deck.keymap,
+            urlSchemes: deck.urlSchemes,
+            util,
+            appName: APP_NAME,
+            onChange: redraw,
+        });
+        const pluginSettings = pluginSettingsSection({
+            ui,
+            pluginSettings: deck.pluginSettings,
+            onFailure: plugins.showNotice,
+        });
+        const urlSchemes = urlSchemesSection({ ui, urlSchemes: deck.urlSchemes, appName: APP_NAME });
+        const keyboard = keyboardSection({ ui, keymap: deck.keymap });
         const sections = [plugins, pluginSettings, urlSchemes, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
@@ -36,7 +57,7 @@ Deckit.register({
         // commands() can be asked before the first visit draws anything.
         pluginSettings.draw();
 
-        return {
+        deck.view({
             content: page,
             sidebar: contents.element,
             didAppear: () => {
@@ -44,11 +65,11 @@ Deckit.register({
                 contents.follow();
             },
             didDisappear: () => keyboard.stopRecording(),
-            commands,
-        };
+        });
+        deck.commands(commands);
 
         function redraw() {
-            const { installed: onDisk, running } = host.plugins.list();
+            const { installed: onDisk, running } = deck.plugins.list();
             for (const plugin of running) pluginIcons.set(plugin.id, plugin.icon);
             plugins.draw({ onDisk, running });
             pluginSettings.draw();
@@ -70,7 +91,7 @@ Deckit.register({
                     icon: pluginIcons.get(group.id) || ui.icon('sliders', { size: 16 }),
                     keywords: ['설정', 'settings', group.id, ...group.items.map((item) => item.label)],
                     run: () => {
-                        host.show();
+                        deck.show();
                         showSettingsOf(group.id);
                     },
                 })),
@@ -78,7 +99,7 @@ Deckit.register({
         }
 
         function showSection(section) {
-            host.show();
+            deck.show();
             requestAnimationFrame(() => contents.go(section));
         }
 
@@ -92,4 +113,4 @@ Deckit.register({
             });
         }
     },
-});
+};

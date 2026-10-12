@@ -1,6 +1,13 @@
+const { chip } = require('./chip.js');
+const { NO_VALUE, contributionsOf, nameAndVersion, storedFilesText } = require('./format.js');
+const { PERMISSION_LIST_STYLE, permissionList } = require('./permission-list.js');
+const { PLUGIN_DETAILS_STYLE, pluginDetails } = require('./plugin-details.js');
+const { restartNotice } = require('./restart-notice.js');
+const { section } = require('./section.js');
+
 // The Plugins section: every plugin found, what each contributes, and installing and removing them. `onChange` hears
 // that a plugin was installed or removed. Failures and what was done are told in the notice under the list.
-function pluginsSection({ ui, host, util, appName, onChange }) {
+function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChange }) {
     const TITLE = 'Plugins';
     const KEYWORDS = ['플러그인', '설치', '삭제', 'plugins', 'install', 'remove'];
     const DESCRIPTION =
@@ -85,7 +92,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
         create: pluginRow,
         update: (row, plugin) => rowFills.get(row)(plugin),
     });
-    const restart = restartNotice({ ui, host, appName, onFailure: showNotice });
+    const restart = restartNotice({ ui, plugins, appName, onFailure: showNotice });
     const notice = ui.element('div', { className: 'settings-notice' });
     const headings = COLUMNS.map((text) => ui.element('div', { text }));
 
@@ -98,8 +105,8 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
     return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
 
     function draw({ onDisk, running }) {
-        const shortcuts = host.keymap.list();
-        handlerLists = host.urlSchemes.list();
+        const shortcuts = keymap.list();
+        handlerLists = urlSchemes.list();
         restart.draw(onDisk);
         rows.set(pluginRowsOf({ onDisk, running, shortcuts }));
     }
@@ -125,7 +132,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
         const revealAction = ui.rowAction({
             icon: ui.icon('externalWindow', { size: 14 }),
             title: 'Open the plugin folder',
-            onClick: () => host.plugins.reveal(current.id),
+            onClick: () => plugins.reveal(current.id),
         });
         const removeAction = ui.rowAction({
             icon: ui.icon('x', { size: 14 }),
@@ -134,7 +141,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
         });
         const source = chip({ ui, text: 'source', muted: true });
         const failure = ui.element('div', { className: 'settings-plugin-failure' });
-        const details = pluginDetails({ ui, host, util });
+        const details = pluginDetails({ ui, plugins, urlSchemes, util });
 
         row.element.classList.add('settings-plugin-columns', 'settings-plugin-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
@@ -155,7 +162,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
 
         function fill(plugin) {
             current = plugin;
-            const labels = contributionsOf(plugin.live, plugin.keys.length, host.urlSchemes.everyScheme);
+            const labels = contributionsOf(plugin.live, plugin.keys.length, urlSchemes.everyScheme);
             name.textContent = name.title = plugin.name;
             name.toggleAttribute('data-not-loaded', !!plugin.notLoaded);
             version.textContent = plugin.version || NO_VALUE;
@@ -184,7 +191,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
     async function pickAndInstall() {
         let picked;
         try {
-            picked = await host.plugins.pick();
+            picked = await plugins.pick();
         } catch (error) {
             return showNotice('Could not install: ' + error.message);
         }
@@ -208,7 +215,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
     async function installPicked(picked) {
         let installed;
         try {
-            installed = await host.plugins.install(picked.from);
+            installed = await plugins.install(picked.from);
         } catch (error) {
             return showNotice('Could not install: ' + error.message);
         }
@@ -233,12 +240,12 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
     async function askRemove(plugin) {
         let stored;
         try {
-            stored = await host.plugins.count(plugin.id);
+            stored = await plugins.count(plugin.id);
         } catch (error) {
             return showNotice('Could not tell what it stores: ' + error.message);
         }
         const hasData = stored.count > 0 || stored.hidden;
-        const requiring = host.plugins
+        const requiring = plugins
             .list()
             .installed.filter((other) => other.requires && other.requires[plugin.id])
             .map((other) => other.name);
@@ -267,7 +274,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
 
     async function remove(plugin, { withData }) {
         try {
-            await host.plugins.remove(plugin.id, withData);
+            await plugins.remove(plugin.id, withData);
         } catch (error) {
             return showNotice('Could not remove: ' + error.message);
         }
@@ -277,8 +284,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
 
     // One row per plugin: the running ones first, in the order the panel loaded them so the list matches the nav, then
     // the ones found on disk that did not load. `notLoaded` is why one is not running, `problem` what went wrong with
-    // one that is. Permissions are read from the folder, so a plugin whose view failed still shows what its main half
-    // was given.
+    // one that is. Permissions are read from the folder, so one that did not load still shows the permissions it asks for.
     function pluginRowsOf({ onDisk, running, shortcuts }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (plugin) => ({
@@ -286,7 +292,7 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
             installed: plugin?.installed,
             folder: plugin?.folder,
             permissions: plugin?.permissions,
-            mainRunning: plugin?.main.running,
+            mainProcessFailure: plugin?.mainProcess.failure,
             requirements: plugin?.requirements,
         });
         const loaded = running.map((live) => {
@@ -297,7 +303,9 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
                 ...fromDisk(found),
                 live,
                 keys: keysOf(live.id),
-                problem: found?.main.failure ? 'main.js did not load: ' + found.main.failure : live.problem,
+                problem: found?.mainProcess.failure
+                    ? 'a main process module did not start: ' + found.mainProcess.failure
+                    : live.problem,
             };
         });
         const loadedIds = new Set(running.map((live) => live.id));
@@ -313,3 +321,5 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
         return [...loaded, ...notLoaded];
     }
 }
+
+module.exports = { pluginsSection };

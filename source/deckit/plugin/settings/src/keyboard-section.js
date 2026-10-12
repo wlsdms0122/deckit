@@ -1,5 +1,8 @@
+const { chip } = require('./chip.js');
+const { section } = require('./section.js');
+
 // The Keyboard section: every plugin's shortcuts, recorded anew by a click, with what keeps one from working.
-function keyboardSection({ ui, host }) {
+function keyboardSection({ ui, keymap }) {
     const TITLE = 'Keyboard';
     const KEYWORDS = ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys'];
     const DESCRIPTION =
@@ -73,7 +76,7 @@ function keyboardSection({ ui, host }) {
 
     function draw() {
         stopRecording();
-        const shortcuts = host.keymap.list();
+        const shortcuts = keymap.list();
         const errors = shortcuts.filter((shortcut) => shortcut.issues.some(isError)).length;
         conflicts.element.textContent = `${errors} conflict${errors === 1 ? '' : 's'}`;
         conflicts.element.hidden = !errors;
@@ -125,7 +128,7 @@ function keyboardSection({ ui, host }) {
             icon: ui.icon('reload', { size: 13 }),
             title: '',
             onClick: () => {
-                host.keymap.reset(current.id);
+                keymap.reset(current.id);
                 draw();
             },
         });
@@ -136,14 +139,14 @@ function keyboardSection({ ui, host }) {
             stopRecording();
             chord.textContent = 'Press a shortcut…';
             chord.toggleAttribute('data-recording', true);
-            endRecording = host.keymap.record((recorded) => {
+            endRecording = keymap.record((recorded) => {
                 if (recorded.error) {
                     chord.textContent = recorded.error;
                     return;
                 }
                 endRecording = null;
-                if (recorded.spec) host.keymap.set(current.id, recorded.spec);
-                else if (recorded.clear) host.keymap.set(current.id, '');
+                if (recorded.spec) keymap.set(current.id, recorded.spec);
+                else if (recorded.clear) keymap.set(current.id, '');
                 draw();
             });
         });
@@ -190,3 +193,5 @@ function issueText(shortcut, { kind, other }) {
     if (kind === 'hides') return `Hides ${other.label} while ${shortcut.ownerName} is on screen`;
     return `Not on ${other.ownerName}, where ${other.chord} is ${other.label}`;
 }
+
+module.exports = { keyboardSection };

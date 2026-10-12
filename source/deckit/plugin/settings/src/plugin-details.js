@@ -1,3 +1,7 @@
+const { statusChip } = require('./chip.js');
+const { ordinal, schemeName, storedFilesText } = require('./format.js');
+const { permissionList } = require('./permission-list.js');
+
 // The rules of an opened row. The Plugins section adopts them once.
 const PLUGIN_DETAILS_STYLE = `
     .settings-details {
@@ -61,8 +65,8 @@ const PLUGIN_DETAILS_STYLE = `
 // What an opened plugin row shows: what it requires, its permissions, the addresses it opens, its keys and where it
 // lives. It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over
 // the base duration: over the fast one a tall row reads as a jump.
-function pluginDetails({ ui, host, util }) {
-    const everyScheme = host.urlSchemes.everyScheme;
+function pluginDetails({ ui, plugins, urlSchemes, util }) {
+    const everyScheme = urlSchemes.everyScheme;
 
     let plugin = null;
     let open = false;
@@ -83,8 +87,9 @@ function pluginDetails({ ui, host, util }) {
     function set(next, handlerLists) {
         plugin = next;
         counted = false;
-        const asksMain = plugin.permissions?.some((permission) => permission.id === 'system.main-process');
-        mainFailure = asksMain && !plugin.mainRunning ? 'main.js did not load' : '';
+        // A main process module starts when the plugin asks for it, so none running is no fault: only a start that
+        // failed is told.
+        mainFailure = plugin.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
         if (plugin.requirements?.length)
@@ -124,7 +129,7 @@ function pluginDetails({ ui, host, util }) {
         const { id } = plugin;
         const line = statusLine;
         const failure = mainFailure;
-        host.plugins.count(id).then(
+        plugins.count(id).then(
             (stored) => {
                 const found =
                     stored.count || stored.hidden ? `${storedFilesText(stored)} in data/${id}/` : 'Nothing stored';
@@ -188,3 +193,5 @@ function pluginDetails({ ui, host, util }) {
         return line;
     }
 }
+
+module.exports = { PLUGIN_DETAILS_STYLE, pluginDetails };

@@ -1,4 +1,4 @@
-// The rules of both chips. The page adopts them once.
+// The rules of both chips. main.js adopts them once.
 const CHIP_STYLE = `
     .settings-chip {
         flex: 0 0 auto;
@@ -35,3 +35,5 @@ function statusChip({ ui, text, ok }) {
     element.append(ui.element('span', { className: 'settings-status-dot' }), ui.element('span', { text }));
     return { element };
 }
+
+module.exports = { CHIP_STYLE, chip, statusChip };

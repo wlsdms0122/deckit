@@ -1,7 +1,8 @@
 id = "settings"
 name = "Settings"
 version = "1.0.0"
-api = "2.0.0"
+api = "3.0.0"
+main = "main.js"
 
 [permissions]
 "deckit.plugins" = "Its Plugins section installs a plugin from a folder you pick and removes installed ones."
