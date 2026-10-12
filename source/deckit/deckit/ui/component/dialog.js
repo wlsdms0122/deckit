@@ -1,225 +1,216 @@
 DeckitModule.define(
     'deckit/ui/component/dialog',
-    {
-        uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/component/part'],
-        provides: ['STYLE', 'make'],
-    },
-    (TOKEN, ICON, K) => {
-        const { MOTION } = TOKEN;
-        const { icon } = ICON;
-        const { pressable, selectable } = K;
-        // Read from `ui` when a dialog opens, not when the kit is assembled, so load order does not matter.
-        return {
-            STYLE: '',
-            make: (theme, ui) => {
-                return {
-                    dialog({
-                        title,
-                        message,
-                        content = null,
-                        fields = [],
-                        confirmLabel = 'Save',
-                        cancelLabel = 'Cancel',
-                        extraLabel = null,
-                        onExtra = null,
-                        destructive = false,
-                        onConfirm,
-                        onClose,
-                    }) {
-                        const values = {};
+    { uses: ['deckit/ui/icon', 'deckit/ui/component/part'], provides: ['STYLE', 'make'] },
+    (ICON, PART) => {
+        // MARK: - Property
+        const STYLE = `
+            .deckit-dialog-message { opacity: 0.7; line-height: 1.6; overflow-wrap: anywhere; margin-bottom: 8px; }
+            .deckit-dialog-message[data-last],
+            .deckit-dialog-content { margin-bottom: 18px; }
+            .deckit-dialog[data-fields] .deckit-dialog-message[data-last],
+            .deckit-dialog[data-fields] .deckit-dialog-content { margin-bottom: 14px; }
+            .deckit-dialog[data-content] .deckit-dialog-message[data-last] { margin-bottom: 12px; }
+            .deckit-dialog-switch {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                min-height: 30px;
+                margin-bottom: 6px;
+                cursor: pointer;
+            }
+            .deckit-dialog-field { display: block; margin-bottom: 14px; }
+            .deckit-dialog-label { margin-bottom: 6px; opacity: 0.55; font: 700 var(--deckit-type-small); letter-spacing: 0.02em; }
+            .deckit-input {
+                width: 100%;
+                box-sizing: border-box;
+                height: 32px;
+                padding: 0 10px;
+                border: var(--deckit-border);
+                border-radius: var(--deckit-radius-medium);
+                outline: none;
+                background: var(--deckit-fill);
+                color: inherit;
+                font: var(--deckit-type-medium);
+            }
+            .deckit-input:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
+            .deckit-swatches { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+            .deckit-swatch {
+                flex: 0 0 auto;
+                width: 22px;
+                height: 22px;
+                padding: 0;
+                border: 0;
+                border-radius: var(--deckit-radius-control);
+                cursor: pointer;
+                transition:
+                    box-shadow var(--deckit-fast) var(--deckit-easing),
+                    transform var(--deckit-fast) var(--deckit-easing);
+            }
+            .deckit-swatch[aria-pressed='true'] {
+                box-shadow: 0 0 0 2px var(--deckit-background), 0 0 0 4px var(--deckit-swatch);
+                transform: scale(1.08);
+            }
+            .deckit-swatch[hidden] { display: none; }
+            .deckit-swatch-more {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: transparent;
+                border: var(--deckit-border);
+                color: inherit;
+            }
+        `;
 
-                        const { toggle, colorPicker } = ui;
-                        return ui.sheet({
-                            title,
-                            confirmLabel,
-                            cancelLabel,
-                            destructive,
-                            extraLabel,
-                            onExtra,
-                            onClose,
-                            onConfirm: () => onConfirm?.(values),
-                            fill(card) {
-                                const paragraphs = (Array.isArray(message) ? message : [message]).filter(Boolean);
-                                const after = fields.length ? '14px' : '18px';
-                                paragraphs.forEach((text, i) => {
-                                    const m = document.createElement('div');
-                                    m.textContent = text;
-                                    // Broken inside a word only when it is wider than the card (a path, an address).
-                                    Object.assign(m.style, {
-                                        opacity: '.7',
-                                        lineHeight: '1.6',
-                                        overflowWrap: 'anywhere',
-                                        marginBottom: i < paragraphs.length - 1 ? '8px' : content ? '12px' : after,
-                                    });
-                                    selectable(m);
-                                    card.appendChild(m);
-                                });
-                                if (content) {
-                                    content.style.marginBottom = after;
-                                    card.appendChild(content);
-                                }
+        // MARK: - Initializer
+        // MARK: - Public
+        function make(theme, ui) {
+            return { dialog: (options) => dialog(ui, options) };
+        }
 
-                                let firstInput = null;
-                                for (const field of fields) {
-                                    if (field.type === 'switch') {
-                                        values[field.key] = !!field.value;
-                                        // Not a <label>: that would pass its click to the switch too, and toggle it twice.
-                                        const row = document.createElement('div');
-                                        Object.assign(row.style, {
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between',
-                                            gap: '12px',
-                                            minHeight: '30px',
-                                            marginBottom: '6px',
-                                            cursor: 'pointer',
-                                        });
-                                        const name = document.createElement('span');
-                                        name.textContent = field.label;
-                                        Object.assign(name.style, { font: '14px ' + theme.font });
-                                        const sw = toggle({
-                                            on: values[field.key],
-                                            onChange: (v) => {
-                                                values[field.key] = v;
-                                            },
-                                        });
-                                        row.addEventListener('click', (e) => {
-                                            if (e.target !== sw && !sw.contains(e.target)) sw.click();
-                                        });
-                                        row.append(name, sw);
-                                        card.appendChild(row);
-                                        continue;
-                                    }
-                                    values[field.key] = field.value ?? '';
-                                    const wrap = document.createElement('label');
-                                    Object.assign(wrap.style, { display: 'block', marginBottom: '14px' });
-                                    const name = document.createElement('div');
-                                    name.textContent = field.label;
-                                    Object.assign(name.style, {
-                                        font: '700 12px ' + theme.font,
-                                        opacity: '.55',
-                                        marginBottom: '6px',
-                                        letterSpacing: '.02em',
-                                    });
-                                    wrap.appendChild(name);
+        // MARK: - Private
+        // A modal that says something and asks for values: `fields` are { key, label, type, value, placeholder,
+        // options }, a text field unless `type` is `switch` or `color`. `onConfirm` hears the values by key.
+        function dialog(
+            ui,
+            {
+                title,
+                message,
+                content = null,
+                fields = [],
+                confirmLabel = 'Save',
+                cancelLabel = 'Cancel',
+                extraLabel = null,
+                onExtra = null,
+                destructive = false,
+                onConfirm,
+                onClose,
+            }
+        ) {
+            const values = {};
+            return ui.sheet({
+                title,
+                confirmLabel,
+                cancelLabel,
+                destructive,
+                extraLabel,
+                onExtra,
+                onClose,
+                onConfirm: () => onConfirm?.(values),
+                fill(card) {
+                    card.classList.add('deckit-dialog');
+                    card.toggleAttribute('data-fields', fields.length > 0);
+                    card.toggleAttribute('data-content', !!content);
+                    const paragraphs = (Array.isArray(message) ? message : [message]).filter(Boolean);
+                    paragraphs.forEach((text, index) => {
+                        const paragraph = element('div', 'deckit-dialog-message');
+                        paragraph.textContent = text;
+                        paragraph.toggleAttribute('data-last', index === paragraphs.length - 1);
+                        card.append(PART.selectable(paragraph));
+                    });
+                    if (content) {
+                        content.classList.add('deckit-dialog-content');
+                        card.append(content);
+                    }
+                    let focus = null;
+                    for (const field of fields) {
+                        if (field.type === 'switch') {
+                            values[field.key] = !!field.value;
+                            card.append(switchOf(ui, field, values));
+                            continue;
+                        }
+                        values[field.key] = field.value ?? '';
+                        const wrap = element('label', 'deckit-dialog-field');
+                        const name = element('div', 'deckit-dialog-label');
+                        name.textContent = field.label;
+                        wrap.append(name);
+                        if (field.type === 'color') wrap.append(swatchesOf(ui, field, values));
+                        else {
+                            const input = inputOf(field, values);
+                            wrap.append(input);
+                            focus ??= input;
+                        }
+                        card.append(wrap);
+                    }
+                    return focus;
+                },
+            });
+        }
 
-                                    if (field.type === 'color') {
-                                        const swatches = document.createElement('div');
-                                        Object.assign(swatches.style, {
-                                            display: 'flex',
-                                            flexWrap: 'wrap',
-                                            gap: '8px',
-                                            alignItems: 'center',
-                                        });
-                                        const swatch = (color) => {
-                                            const b = document.createElement('button');
-                                            b.type = 'button';
-                                            b.dataset.color = color;
-                                            b.title = color;
-                                            Object.assign(b.style, {
-                                                width: '22px',
-                                                height: '22px',
-                                                borderRadius: '6px',
-                                                border: '0',
-                                                background: color,
-                                                cursor: 'pointer',
-                                                padding: '0',
-                                                flex: '0 0 auto',
-                                                transition: `box-shadow ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.fast}ms ${MOTION.easing}`,
-                                            });
-                                            b.addEventListener('click', () => {
-                                                values[field.key] = color;
-                                                paint();
-                                            });
-                                            return b;
-                                        };
-                                        // The presets, then one reused slot for a custom colour, so the row does not grow with each one tried.
-                                        const custom = swatch(values[field.key]);
-                                        custom.title = 'Custom colour';
-                                        const more = document.createElement('button');
-                                        more.type = 'button';
-                                        more.innerHTML = icon('plus', 14);
-                                        more.title = 'Pick a custom colour';
-                                        Object.assign(more.style, {
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            width: '22px',
-                                            height: '22px',
-                                            borderRadius: '6px',
-                                            border: theme.border,
-                                            background: 'transparent',
-                                            color: 'inherit',
-                                            cursor: 'pointer',
-                                            padding: '0',
-                                            flex: '0 0 auto',
-                                            transition: `background-color ${MOTION.fast}ms ${MOTION.easing}`,
-                                        });
-                                        pressable(more, theme);
-                                        more.addEventListener('click', () =>
-                                            colorPicker({
-                                                value: values[field.key],
-                                                onPick: (picked) => {
-                                                    values[field.key] = picked;
-                                                    paint();
-                                                },
-                                            })
-                                        );
+        // Not a <label>: that would pass its click to the switch too, and turn it twice.
+        function switchOf(ui, field, values) {
+            const row = element('div', 'deckit-dialog-switch');
+            const name = element('span', '');
+            name.textContent = field.label;
+            const control = ui.toggle({ on: values[field.key], onChange: (on) => (values[field.key] = on) });
+            row.addEventListener('click', (event) => !control.contains(event.target) && control.click());
+            row.append(name, control);
+            return row;
+        }
 
-                                        const paint = () => {
-                                            const chosen = values[field.key];
-                                            const preset = (field.options || []).includes(chosen);
-                                            custom.style.display = preset ? 'none' : 'block';
-                                            custom.dataset.color = chosen;
-                                            custom.style.background = chosen;
-                                            for (const b of swatches.children) {
-                                                if (b === more) continue;
-                                                const on = b.dataset.color === chosen;
-                                                b.style.boxShadow = on
-                                                    ? '0 0 0 2px ' +
-                                                      theme.color.background +
-                                                      ', 0 0 0 4px ' +
-                                                      b.dataset.color
-                                                    : 'none';
-                                                b.style.transform = on ? 'scale(1.08)' : 'none';
-                                            }
-                                        };
-                                        for (const color of field.options || []) swatches.appendChild(swatch(color));
-                                        swatches.append(custom, more);
-                                        paint();
-                                        wrap.appendChild(swatches);
-                                    } else {
-                                        const input = document.createElement('input');
-                                        input.value = values[field.key];
-                                        input.placeholder = field.placeholder || '';
-                                        input.spellcheck = false;
-                                        Object.assign(input.style, {
-                                            width: '100%',
-                                            boxSizing: 'border-box',
-                                            height: '32px',
-                                            padding: '0 10px',
-                                            borderRadius: '8px',
-                                            border: theme.border,
-                                            background: 'rgba(128,128,128,.12)',
-                                            color: 'inherit',
-                                            font: '14px ' + theme.font,
-                                            outline: 'none',
-                                        });
-                                        // What was typed, as typed: a field that cares about spaces at the ends trims where it uses the value.
-                                        input.addEventListener('input', () => {
-                                            values[field.key] = input.value;
-                                        });
-                                        wrap.appendChild(input);
-                                        if (!firstInput) firstInput = input;
-                                    }
-                                    card.appendChild(wrap);
-                                }
-                                return firstInput;
-                            },
-                        });
+        // What was typed, as typed: a field that cares about spaces at the ends trims where it uses the value.
+        function inputOf(field, values) {
+            const input = element('input', 'deckit-input');
+            input.value = values[field.key];
+            input.placeholder = field.placeholder || '';
+            input.spellcheck = false;
+            input.addEventListener('input', () => (values[field.key] = input.value));
+            return input;
+        }
+
+        // The presets, then one slot for a colour of one's own, so the row does not grow with each one tried.
+        function swatchesOf(ui, field, values) {
+            const presets = field.options || [];
+            const swatches = element('div', 'deckit-swatches');
+            const swatchOf = (color) => {
+                const swatch = element('button', 'deckit-swatch');
+                swatch.type = 'button';
+                swatch.addEventListener('click', () => {
+                    values[field.key] = swatch.dataset.color;
+                    paint();
+                });
+                return swatch;
+            };
+            const paintSwatch = (swatch, color) => {
+                swatch.dataset.color = color;
+                swatch.title = color;
+                swatch.style.background = color;
+                swatch.style.setProperty('--deckit-swatch', color);
+                swatch.setAttribute('aria-pressed', String(color === values[field.key]));
+            };
+            const preset = presets.map((color) => swatchOf(color));
+            const custom = swatchOf(values[field.key]);
+            const more = element('button', 'deckit-swatch deckit-swatch-more');
+            more.type = 'button';
+            more.title = 'Pick a custom colour';
+            more.innerHTML = ICON.icon('plus', 14);
+            PART.pressable(more);
+            more.addEventListener('click', () =>
+                ui.colorPicker({
+                    value: values[field.key],
+                    onPick: (picked) => {
+                        values[field.key] = picked;
+                        paint();
                     },
-                };
-            },
-        };
+                })
+            );
+            const paint = () => {
+                presets.forEach((color, index) => paintSwatch(preset[index], color));
+                paintSwatch(custom, values[field.key]);
+                custom.title = 'Custom colour';
+                custom.hidden = presets.includes(values[field.key]);
+            };
+            swatches.append(...preset, custom, more);
+            paint();
+            return swatches;
+        }
+
+        function element(tag, className) {
+            const made = document.createElement(tag);
+            if (className) made.className = className;
+            return made;
+        }
+
+        return { STYLE, make };
     }
 );

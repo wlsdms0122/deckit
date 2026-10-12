@@ -1,60 +1,65 @@
 DeckitModule.define(
     'deckit/ui/component/loading',
-    {
-        uses: ['deckit/ui/token'],
-        provides: ['STYLE', 'make'],
-    },
+    { uses: ['deckit/ui/token'], provides: ['STYLE', 'make'] },
     (TOKEN) => {
-        const { MOTION } = TOKEN;
+        // MARK: - Property
+        const STYLE = `
+        .deckit-spinner {
+            display: inline-block;
+            flex: 0 0 auto;
+            box-sizing: border-box;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: var(--deckit-radius-round);
+            opacity: 0.55;
+        }
+        .deckit-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 24px 12px;
+            font: var(--deckit-type-body);
+            text-align: center;
+        }
+        .deckit-loading-text { opacity: 0.6; }
+    `;
+        const TURN_MS = 750;
 
-        return {
-            STYLE: '',
-            make: (theme, ui, inner) => {
-                return {
-                    spinner(size = 14) {
-                        const el = document.createElement('span');
-                        Object.assign(el.style, {
-                            flex: '0 0 auto',
-                            width: size + 'px',
-                            height: size + 'px',
-                            borderRadius: '999px',
-                            border: '2px solid currentColor',
-                            borderTopColor: 'transparent',
-                            opacity: '.55',
-                            boxSizing: 'border-box',
-                            display: 'inline-block',
-                        });
-                        if (MOTION.base) {
-                            el.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], {
-                                duration: 750,
-                                iterations: Infinity,
-                            });
-                        }
-                        return el;
-                    },
-                    loading(text = '') {
-                        const box = document.createElement('div');
-                        Object.assign(box.style, {
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '10px',
-                            padding: '24px 12px',
-                            font: '13px ' + theme.font,
-                            textAlign: 'center',
-                        });
-                        box.appendChild(ui.spinner(20));
-                        if (text) {
-                            const t = document.createElement('div');
-                            t.textContent = text;
-                            t.style.opacity = '.6';
-                            box.appendChild(t);
-                        }
-                        return box;
-                    },
-                };
-            },
-        };
+        // MARK: - Initializer
+        // MARK: - Public
+        function make() {
+            return { spinner, loading };
+        }
+
+        // MARK: - Private
+        // Still while the system asks for reduced motion.
+        function spinner(size = 14) {
+            const made = document.createElement('span');
+            made.className = 'deckit-spinner';
+            made.style.width = made.style.height = size + 'px';
+            if (TOKEN.MOTION.base)
+                made.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], {
+                    duration: TURN_MS,
+                    iterations: Infinity,
+                });
+            return made;
+        }
+
+        function loading(text = '') {
+            const box = document.createElement('div');
+            box.className = 'deckit-loading';
+            box.append(spinner(20));
+            if (text) {
+                const words = document.createElement('div');
+                words.className = 'deckit-loading-text';
+                words.textContent = text;
+                box.append(words);
+            }
+            return box;
+        }
+
+        return { STYLE, make };
     }
 );

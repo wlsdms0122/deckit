@@ -1,243 +1,195 @@
 DeckitModule.define(
     'deckit/ui/component/row',
     {
-        uses: [
-            'deckit/ui/token',
-            'deckit/ui/motion',
-            'deckit/ui/pointer',
-            'deckit/ui/scroll',
-            'deckit/ui/component/part',
-        ],
+        uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/motion', 'deckit/ui/scroll', 'deckit/ui/component/part'],
         provides: ['STYLE', 'make'],
     },
-    (T, MOTION_, POINTER, SCROLL, K) => {
-        const { MOTION } = T;
-
-        const FOLDER_TINT = '#5aa9e6';
-
-        /* The browser tells a row drawn under a resting pointer that it is hovered only a frame later, so a
-     list redrawn on each key blinked its wash. Rows are lit at once from where the pointer is, once
-     the redraw is over; on the pointer's next move the browser's own hover decides again. */
-        let fresh = null; // rows made since the last look: row -> light it
-        const litUnder = () => {
-            const made = fresh;
-            fresh = null;
-            const at = POINTER.position();
-            if (!at) return;
-            const hit = document.elementFromPoint(at.x, at.y);
-            if (!hit) return;
-            for (const [row, under] of made) if (row.isConnected && row.contains(hit)) under();
-        };
-
+    (TOKEN, ICON, MOTION, SCROLL, PART) => {
+        // MARK: - Property
+        const STYLE = `
+            .deckit-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                width: 100%;
+                min-height: 28px;
+                box-sizing: border-box;
+                padding: 0 8px;
+                border-radius: var(--deckit-radius-control);
+                font: var(--deckit-type-large);
+                white-space: nowrap;
+                cursor: pointer;
+                transition: background-color var(--deckit-fast) var(--deckit-easing);
+            }
+            .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; font: var(--deckit-type-body); }
+            .deckit-hover:hover { background: var(--deckit-hover); }
+            .deckit-hover[data-active] { background: var(--deckit-selected); }
+            .deckit-hover:hover [data-deckit-reveal],
+            .deckit-hover:focus-within [data-deckit-reveal],
+            .deckit-hover[data-revealed] [data-deckit-reveal] { opacity: 1; }
+            .deckit-tree-caret {
+                display: flex;
+                flex: 0 0 12px;
+                justify-content: center;
+                opacity: 0;
+                transition: transform var(--deckit-fast) var(--deckit-easing);
+            }
+            .deckit-tree-row[data-folds] .deckit-tree-caret { opacity: 0.55; }
+            .deckit-tree-row[aria-expanded='true'] .deckit-tree-caret { transform: rotate(90deg); }
+            .deckit-tree-mark { display: flex; flex: 0 0 auto; }
+            .deckit-tree-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+            .deckit-list { flex: 0 0 auto; }
+            .deckit-list[data-scrolls] { overflow-y: auto; overscroll-behavior: contain; }
+        `;
         const ROW_HEIGHT = Object.freeze({ plain: 28, dense: 24 });
+        const DEPTH_INDENT = 14;
+        const stepping = new WeakMap(); // list -> the turn of its newest drawInSteps, so an older one stops
 
-        // list -> the turn of its newest drawInSteps, so an older one stops.
-        const stepping = new WeakMap();
+        // MARK: - Initializer
+        // MARK: - Public
+        function make(theme) {
+            const folderIcon = (open = false, size = 15) =>
+                ICON.icon(open ? 'folderOpen' : 'folder', size, { color: theme.color.folder });
+            return {
+                row,
+                folderIcon,
+                treeRow: (options) => treeRow(folderIcon, options),
+                list,
+                hoverable,
+                leaveRow,
+                drawInSteps,
+                whenFree,
+            };
+        }
 
-        return {
-            STYLE: '',
-            make: (theme, ui, inner) => {
-                const row = ({ dense = false } = {}) => {
-                    const r = document.createElement('div');
-                    Object.assign(r.style, {
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: dense ? '6px' : '8px',
-                        width: '100%',
-                        minHeight: ROW_HEIGHT[dense ? 'dense' : 'plain'] + 'px',
-                        padding: `0 ${K.ROW_SIDE}px`,
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        boxSizing: 'border-box',
-                        font: (dense ? '13px ' : '15px ') + theme.font,
-                        whiteSpace: 'nowrap',
-                        transition: `background-color ${MOTION.fast}ms ${MOTION.easing}`,
-                    });
-                    return r;
-                };
-                const folderIcon = (open = false, size = 15) =>
-                    ui.icon(open ? 'folderOpen' : 'folder', size, { color: FOLDER_TINT });
-                return {
-                    row,
-                    folderIcon,
-                    treeRow({
-                        depth = 0,
-                        folder = false,
-                        folds = folder,
-                        open = false,
-                        glyph = '',
-                        name = '',
-                        dense = false,
-                    } = {}) {
-                        const r = row({ dense });
-                        const size = dense ? 14 : 16;
-                        r.style.paddingLeft = 4 + depth * 14 + 'px';
-                        const caret = document.createElement('span');
-                        Object.assign(caret.style, {
-                            display: 'flex',
-                            flex: '0 0 12px',
-                            justifyContent: 'center',
-                            opacity: folds ? '.55' : '0',
-                            transform: open ? 'rotate(90deg)' : 'none',
-                            transition: `transform ${MOTION.fast}ms ${MOTION.easing}`,
-                        });
-                        caret.dataset.caret = '';
-                        caret.innerHTML = ui.icon('chevronRight', 12);
-                        const mark = document.createElement('span');
-                        Object.assign(mark.style, { display: 'flex', flex: '0 0 auto' });
-                        mark.innerHTML = folder ? folderIcon(open, size) : glyph;
-                        const label = document.createElement('span');
-                        Object.assign(label.style, {
-                            flex: '1 1 auto',
-                            minWidth: '0',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                        });
-                        label.textContent = name;
-                        label.dataset.name = '';
-                        r.append(caret, mark, label);
-                        return r;
-                    },
-                    list({ most = 0, dense = false } = {}) {
-                        const l = document.createElement('div');
-                        Object.assign(l.style, { flex: '0 0 auto' });
-                        if (most) {
-                            Object.assign(l.style, {
-                                maxHeight: most * ROW_HEIGHT[dense ? 'dense' : 'plain'] + 'px',
-                                overflowY: 'auto',
-                                overscrollBehavior: 'contain',
-                            });
-                            SCROLL.edgeFade(l);
-                        }
-                        return l;
-                    },
-                    hoverable(row, isActive = () => false, { shows = () => false } = {}) {
-                        /* `over` is the browser's hover, `lit` the guess from litUnder until the browser answers; losing
-           the pointer lets go of the guess only. */
-                        let over = false,
-                            lit = false;
-                        const paint = () => {
-                            const hovered = over || lit;
-                            row.style.background = isActive()
-                                ? theme.color.selected
-                                : hovered
-                                  ? theme.color.hover
-                                  : 'transparent';
-                            const shown = hovered || row.matches(':focus-within') || shows();
-                            row.querySelectorAll('[data-deckit-reveal]').forEach((b) => {
-                                b.style.opacity = shown ? '1' : '0';
-                            });
-                        };
-                        row.addEventListener('mouseenter', () => {
-                            over = true;
-                            paint();
-                        });
-                        row.addEventListener('mouseleave', () => {
-                            over = false;
-                            paint();
-                        });
-                        row.addEventListener('focusin', paint);
-                        row.addEventListener('focusout', () => setTimeout(paint, 0));
-                        paint();
-                        if (!fresh) {
-                            fresh = new Map();
-                            queueMicrotask(litUnder);
-                        }
-                        fresh.set(row, () => {
-                            if (over || lit) return;
-                            lit = true;
-                            // The way back first: a guess made is a guess let go of, whatever happens after it.
-                            POINTER.afterMove((lost) => {
-                                if (lost || !row.matches(':hover')) {
-                                    lit = false;
-                                    paint();
-                                }
-                            });
-                            paint();
-                            /* Lit as it stands, not faded in, or the wash would travel in from nothing on every redraw. Only
-             transitions are finished: a spinner in the row animates for ever and cannot be. */
-                            [row, ...row.querySelectorAll('[data-deckit-reveal]')]
-                                .flatMap((el) => el.getAnimations())
-                                .filter((a) => a instanceof CSSTransition)
-                                .forEach((a) => a.finish());
-                        });
-                        row.repaint = paint;
-                        return row;
-                    },
-                    leaveRow(row, then) {
-                        const ms = MOTION.fast;
-                        const list = row?.parentElement;
-                        if (row && row.dataset.deckitLeaving) return; // already going; the first press owns it
-                        // A folded section or a collapsed sidebar keeps its rows at no height: no exit to wait for.
-                        const hidden = row && (!row.offsetParent || !row.getBoundingClientRect().height);
-                        if (!row || !ms || hidden) {
-                            then?.();
-                            return;
-                        }
-                        row.dataset.deckitLeaving = '1';
-                        const height = row.getBoundingClientRect().height;
-                        /* T.play forces the style flush: a close from the keyboard touches nothing that would flush it,
-           and the row would blink out. */
-                        MOTION_.play(
-                            row,
-                            {
-                                transition: 'none',
-                                height: height + 'px',
-                                minHeight: '0',
-                                overflow: 'hidden',
-                                pointerEvents: 'none',
-                            },
-                            {
-                                transition: `height ${MOTION.fast}ms ${MOTION.easing}, opacity ${MOTION.fast}ms ${MOTION.easing}, margin ${MOTION.fast}ms ${MOTION.easing}`,
-                                height: '0px',
-                                opacity: '0',
-                                marginTop: '0',
-                                marginBottom: '0',
-                            }
-                        );
-                        setTimeout(() => {
-                            /* Cleared before the callback, which is usually the redraw: a list waiting on leaving rows must
-             not see this one still leaving. */
-                            delete row.dataset.deckitLeaving;
-                            then?.();
-                            if (list) K.freed(list);
-                        }, ms);
-                    },
-                    /* Posted tasks rather than timers: the keys waiting are taken between steps, and a page out of
-         sight, whose timers are held back, still fills the list. */
-                    drawInSteps(list, items, draw, { first = 80, slice = 80 } = {}) {
-                        const turn = (stepping.get(list) || 0) + 1;
-                        stepping.set(list, turn);
-                        const scroller = SCROLL.scrollerOf(list);
-                        const kept = scroller ? scroller.scrollTop : 0;
-                        list.textContent = '';
-                        let at = 0;
-                        const add = (count) => {
-                            const part = document.createDocumentFragment();
-                            for (const end = Math.min(items.length, at + count); at < end; at++)
-                                part.appendChild(draw(items[at]));
-                            list.appendChild(part);
-                        };
-                        const next = () => scheduler.postTask(step, { priority: 'user-visible' });
-                        const step = () => {
-                            if (stepping.get(list) !== turn) return;
-                            add(slice);
-                            if (at < items.length) next();
-                        };
-                        add(first);
-                        if (kept) {
-                            while (at < items.length && scroller.scrollHeight < kept + scroller.clientHeight)
-                                add(first);
-                            scroller.scrollTop = kept;
-                        }
-                        if (at < items.length) next();
-                    },
-                    whenFree(list, draw) {
-                        if (K.busy(list)) K.waiting.set(list, draw);
-                        else draw();
-                    },
-                };
-            },
-        };
+        // MARK: - Private
+        function row({ dense = false } = {}) {
+            const made = document.createElement('div');
+            made.className = 'deckit-row';
+            if (dense) made.dataset.size = 'small';
+            return made;
+        }
+
+        // A row of a tree: a caret when it folds, its mark, its name (marked `data-name`, what a rename types over).
+        function treeRow(
+            folderIcon,
+            { depth = 0, folder = false, folds = folder, open = false, glyph = '', name = '', dense = false } = {}
+        ) {
+            const made = row({ dense });
+            made.classList.add('deckit-tree-row');
+            made.style.paddingLeft = 4 + depth * DEPTH_INDENT + 'px';
+            made.toggleAttribute('data-folds', folds);
+            if (folds) made.setAttribute('aria-expanded', String(open));
+            const caret = document.createElement('span');
+            caret.className = 'deckit-tree-caret';
+            caret.dataset.caret = '';
+            caret.innerHTML = ICON.icon('chevronRight', 12);
+            const mark = document.createElement('span');
+            mark.className = 'deckit-tree-mark';
+            mark.innerHTML = folder ? folderIcon(open, dense ? 14 : 16) : glyph;
+            const label = document.createElement('span');
+            label.className = 'deckit-tree-name';
+            label.dataset.name = '';
+            label.textContent = name;
+            made.append(caret, mark, label);
+            return made;
+        }
+
+        // With `most`, as tall as that many rows, scrolling past them.
+        function list({ most = 0, dense = false } = {}) {
+            const made = document.createElement('div');
+            made.className = 'deckit-list';
+            if (most) {
+                made.dataset.scrolls = '';
+                made.style.maxHeight = most * ROW_HEIGHT[dense ? 'dense' : 'plain'] + 'px';
+                SCROLL.edgeFade(made);
+            }
+            return made;
+        }
+
+        // The pointer's wash is the stylesheet's. `isActive()` marks the row chosen, `shows()` keeps its actions out;
+        // both are read again by `repaint()`.
+        function hoverable(made, isActive = () => false, { shows = () => false } = {}) {
+            made.classList.add('deckit-hover');
+            made.repaint = () => {
+                made.toggleAttribute('data-active', !!isActive());
+                made.toggleAttribute('data-revealed', !!shows());
+            };
+            made.repaint();
+            return made;
+        }
+
+        // The row folds away before `then`, usually the redraw that drops it. A row with no height has nothing to fold.
+        function leaveRow(made, then) {
+            const length = TOKEN.MOTION.fast;
+            const list = made?.parentElement;
+            if (made?.dataset.deckitLeaving) return;
+            if (!made || !length || !made.offsetParent || !made.getBoundingClientRect().height) {
+                then?.();
+                return;
+            }
+            made.dataset.deckitLeaving = '1';
+            const height = made.getBoundingClientRect().height;
+            MOTION.play(
+                made,
+                {
+                    transition: 'none',
+                    height: height + 'px',
+                    minHeight: '0',
+                    overflow: 'hidden',
+                    pointerEvents: 'none',
+                },
+                {
+                    transition: ['height', 'opacity', 'margin']
+                        .map((property) => `${property} ${length}ms ${TOKEN.MOTION.easing}`)
+                        .join(', '),
+                    height: '0px',
+                    opacity: '0',
+                    marginTop: '0',
+                    marginBottom: '0',
+                }
+            );
+            setTimeout(() => {
+                // Cleared before `then`, which redraws: a list waiting on leaving rows must not see this one still leaving.
+                delete made.dataset.deckitLeaving;
+                then?.();
+                if (list) PART.freed(list);
+            }, length);
+        }
+
+        // Fills `list` with what `draw` makes of each item, a slice at a time. Posted tasks, not timers: the keys
+        // waiting are taken between slices, and a page out of sight, whose timers are held back, still fills.
+        function drawInSteps(list, items, draw, { first = 80, slice = 80 } = {}) {
+            const turn = (stepping.get(list) || 0) + 1;
+            stepping.set(list, turn);
+            const scroller = SCROLL.scrollerOf(list);
+            const kept = scroller ? scroller.scrollTop : 0;
+            list.replaceChildren();
+            let at = 0;
+            const add = (count) => {
+                const part = document.createDocumentFragment();
+                for (const end = Math.min(items.length, at + count); at < end; at++) part.append(draw(items[at]));
+                list.append(part);
+            };
+            const step = () => {
+                if (stepping.get(list) !== turn) return;
+                add(slice);
+                if (at < items.length) next();
+            };
+            const next = () => scheduler.postTask(step, { priority: 'user-visible' });
+            add(first);
+            if (kept) {
+                while (at < items.length && scroller.scrollHeight < kept + scroller.clientHeight) add(first);
+                scroller.scrollTop = kept;
+            }
+            if (at < items.length) next();
+        }
+
+        function whenFree(list, draw) {
+            if (PART.busy(list)) PART.waiting.set(list, draw);
+            else draw();
+        }
+
+        return { STYLE, make };
     }
 );

@@ -48,7 +48,7 @@ DeckitModule.define(
                 aimOnMove: POINTER.hoverIntent,
                 scrollFade: SCROLL.edgeFade,
                 inSight: SCROLL.isFullyVisible,
-                pressable: (element) => PART.pressable(element, token),
+                pressable: PART.pressable,
                 selectable: PART.selectable,
             });
             return deepFreeze(ui);
@@ -60,7 +60,7 @@ DeckitModule.define(
             if (installed) return;
             installed = true;
             const sheet = new CSSStyleSheet();
-            const rules = [OVERLAY, ...components].map((part) => part.STYLE || '');
+            const rules = [OVERLAY, PART, ...components].map((part) => part.STYLE);
             sheet.replaceSync(TOKEN.propertiesOf(token) + rules.join('\n'));
             document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
         }

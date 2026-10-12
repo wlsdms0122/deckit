@@ -1,74 +1,63 @@
-DeckitModule.define(
-    'deckit/ui/component/empty-state',
-    {
-        uses: ['deckit/ui/icon'],
-        provides: ['STYLE', 'make'],
-    },
-    (ICON) => {
-        const { icon } = ICON;
+DeckitModule.define('deckit/ui/component/empty-state', { uses: [], provides: ['STYLE', 'make'] }, () => {
+    // MARK: - Property
+    const STYLE = `
+        .deckit-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex: 1 1 auto;
+            min-height: 0;
+            box-sizing: border-box;
+            padding: 24px 30px;
+            text-align: center;
+            color: var(--deckit-text);
+        }
+        .deckit-empty-icon { display: flex; opacity: 0.25; }
+        .deckit-empty-title { font: 700 var(--deckit-type-heading); }
+        .deckit-empty-hint { max-width: 460px; margin-top: -4px; opacity: 0.5; font: var(--deckit-type-body); line-height: 1.6; }
+        .deckit-empty-actions { display: flex; gap: 8px; margin-top: 4px; }
+        .deckit-empty-hint:empty, .deckit-empty-actions:empty { display: none; }
+    `;
 
-        return {
-            STYLE: '',
-            make: (theme, ui, inner) => {
-                return {
-                    emptyState({ icon: glyph = '', title = '', hint = '', actions = [] } = {}) {
-                        const box = document.createElement('div');
-                        Object.assign(box.style, {
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '10px',
-                            flex: '1 1 auto',
-                            minHeight: '0',
-                            boxSizing: 'border-box',
-                            padding: '24px 30px',
-                            textAlign: 'center',
-                            color: theme.color.text,
-                        });
-                        if (glyph) {
-                            const mark = document.createElement('div');
-                            mark.innerHTML = glyph;
-                            Object.assign(mark.style, { display: 'flex', opacity: '.25' });
-                            box.appendChild(mark);
-                        }
-                        const head = document.createElement('div');
-                        head.textContent = title;
-                        Object.assign(head.style, { font: '700 16px ' + theme.font });
-                        const sub = document.createElement('div');
-                        sub.textContent = hint;
-                        Object.assign(sub.style, {
-                            display: hint ? 'block' : 'none',
-                            opacity: '.5',
-                            font: '12.5px ' + theme.font,
-                            lineHeight: '1.6',
-                            marginTop: '-4px',
-                            maxWidth: '460px',
-                        });
-                        const row = document.createElement('div');
-                        Object.assign(row.style, {
-                            display: actions.length ? 'flex' : 'none',
-                            gap: '8px',
-                            marginTop: '4px',
-                        });
-                        row.append(...actions);
-                        box.append(head, sub, row);
-                        box.setTitle = (text) => {
-                            head.textContent = text;
-                        };
-                        box.setHint = (text) => {
-                            sub.textContent = text;
-                            sub.style.display = text ? 'block' : 'none';
-                        };
-                        box.setActions = (list) => {
-                            row.textContent = '';
-                            row.append(...list);
-                            row.style.display = list.length ? 'flex' : 'none';
-                        };
-                        return box;
-                    },
-                };
-            },
-        };
+    // MARK: - Initializer
+    // MARK: - Public
+    function make() {
+        return { emptyState };
     }
-);
+
+    // MARK: - Private
+    // What a place shows with nothing in it: an icon, a title, a hint and what to do about it.
+    function emptyState({ icon = '', title = '', hint = '', actions = [] } = {}) {
+        const box = element('div', 'deckit-empty');
+        if (icon) {
+            const mark = element('div', 'deckit-empty-icon');
+            mark.innerHTML = icon;
+            box.append(mark);
+        }
+        const heading = element('div', 'deckit-empty-title');
+        const note = element('div', 'deckit-empty-hint');
+        const row = element('div', 'deckit-empty-actions');
+        box.append(heading, note, row);
+        box.setTitle = (text) => {
+            heading.textContent = text;
+        };
+        box.setHint = (text) => {
+            note.textContent = text;
+        };
+        box.setActions = (list) => row.replaceChildren(...list);
+        box.setTitle(title);
+        box.setHint(hint);
+        box.setActions(actions);
+        return box;
+    }
+
+    function element(tag, className) {
+        const made = document.createElement(tag);
+        made.className = className;
+        return made;
+    }
+
+    return { STYLE, make };
+});

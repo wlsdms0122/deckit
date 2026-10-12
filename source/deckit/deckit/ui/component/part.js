@@ -1,13 +1,15 @@
 DeckitModule.define(
     'deckit/ui/component/part',
-    {
-        uses: [],
-        provides: ['ROW_SIDE', 'waiting', 'busy', 'freed', 'hold', 'heldWhile', 'pressable', 'selectable'],
-    },
+    { uses: [], provides: ['STYLE', 'waiting', 'busy', 'freed', 'hold', 'heldWhile', 'pressable', 'selectable'] },
     () => {
         // MARK: - Property
-        // A section heading lines its icon up with the rows' icons by this.
-        const ROW_SIDE = 8;
+        const STYLE = `
+            .deckit-pressable { transition: background-color var(--deckit-fast) var(--deckit-easing); }
+            .deckit-pressable:hover { background: var(--deckit-hover); }
+            .deckit-pressable:active { background: var(--deckit-pressed); }
+            .deckit-pressable:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--deckit-focus); }
+            .deckit-pressable:disabled { background: transparent; }
+        `;
         const waiting = new WeakMap(); // list -> the redraw it is waiting to run
 
         // MARK: - Initializer
@@ -53,42 +55,10 @@ DeckitModule.define(
             };
         }
 
-        function pressable(button, theme) {
-            const { hover, pressed: press, focus } = theme.color;
-            let over = false;
-            let down = false;
-            let rest = 'transparent'; // the background with no pointer on it
-            const paint = () => {
-                button.style.background = button.disabled ? 'transparent' : down ? press : over ? hover : rest;
-            };
-            button.addEventListener('mouseenter', () => {
-                over = true;
-                paint();
-            });
-            button.addEventListener('mouseleave', () => {
-                over = down = false;
-                paint();
-            });
-            button.addEventListener('mousedown', () => {
-                down = true;
-                paint();
-            });
-            button.addEventListener('mouseup', () => {
-                down = false;
-                paint();
-            });
-            button.addEventListener('focus', () => {
-                if (button.matches(':focus-visible')) button.style.boxShadow = '0 0 0 2px ' + focus;
-            });
-            button.addEventListener('blur', () => {
-                button.style.boxShadow = 'none';
-            });
-            button.repaint = paint;
-            button.setRest = (color) => {
-                rest = color || 'transparent';
-                paint();
-            };
-            return button;
+        // Something pressed, washed under the pointer and ringed when the keyboard reaches it.
+        function pressable(element) {
+            element.classList.add('deckit-pressable');
+            return element;
         }
 
         function selectable(element) {
@@ -97,6 +67,6 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        return { ROW_SIDE, waiting, busy, freed, hold, heldWhile, pressable, selectable };
+        return { STYLE, waiting, busy, freed, hold, heldWhile, pressable, selectable };
     }
 );
