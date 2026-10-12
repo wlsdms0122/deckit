@@ -1,6 +1,6 @@
 # deckit
 
-A panel of plugins, as a library an app embeds, UI included: the panel and the quick switcher, the plugin system, the kit plugins draw with, and deckit's own plugins (Editor, Finder, Notes, Browser, Settings). Where the panel is shown is the app's. Deckit.app is deckit embedded by itself.
+A plugin host an app embeds: plugins add screens, commands, keys, address handlers and libraries to the app, the way mods add to a game, and deckit composes them. On that core it gives basic views (the panel, the quick switcher, the kit plugins draw with) and its own plugins (Editor, Finder, Notes, Browser, Settings). Where the panel is shown is the app's. Deckit.app is deckit embedded by itself.
 
 ## Building
 

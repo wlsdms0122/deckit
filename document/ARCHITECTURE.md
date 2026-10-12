@@ -1,16 +1,17 @@
 # How deckit is built
 
-Deckit is a library an app embeds, UI included: a host and the plugins it holds. The host finds plugin folders, gives each one its own page and what it may use, and owns the few things there can only be one of: the panel, the keyboard, the switcher. Everything a person uses is a plugin. Where the panel is shown is the app's, and every app brings a shell to say so.
+Deckit is a library an app embeds: a host that composes plugins. A plugin is what a person adds to the app, the way a mod is added to a game: a screen, a command, a few keys, a way to open an address, a library for other plugins, or work done in the app's process, in any mix. The host's core runs each plugin and joins what it contributes: its keys to the keymap, its commands to the switcher, its handlers to opening addresses, its exports to the plugins that require it. On that core deckit gives basic views, the panel that shows the plugins with a screen, the switcher, and the kit they draw with, which use the core as any plugin does. Where the panel is shown is the app's, and every app brings a shell to say so.
 
 This document is why deckit is split the way it is, and the rules that keep it so. The contract a plugin is written against is [PLUGIN.md](PLUGIN.md); how an app embeds deckit is [EMBEDDING.md](EMBEDDING.md); the kit plugins draw with is [UI.md](UI.md).
 
 ## 1. Principles
 
 1. Deckit runs by itself. The package builds, checks and runs from its own sources; nothing outside it is named.
-2. Deckit owns only what it makes. The process, its menus and its windows are the app's; deckit is handed what it needs through `app/config`, `app/folders`, `connect()` and `app/exports`.
-3. A check happens once, where trust changes: main receiving from a page, the host receiving from a plugin's code, input from the disk or the network. Inside, each step trusts what the step before it made.
-4. A fact has one owner. Everyone else asks it.
-5. A folder is a module or a group. A name is the standard term of its field.
+2. A plugin can do what the app can. Permissions say what a plugin reaches, and the person agrees to them; none is a dead end, and the main process half has the app's full power. A plugin draws its screen as it likes; the kit is the quick way, not the only one.
+3. Deckit owns only what it makes. The process, its menus and its windows are the app's; deckit is handed what it needs through `app/config`, `app/folders`, `connect()` and `app/exports`.
+4. A check happens once, where trust changes: main receiving from a page, the host receiving from a plugin's code, input from the disk or the network. Inside, each step trusts what the step before it made.
+5. A fact has one owner. Everyone else asks it.
+6. A folder is a module or a group. A name is the standard term of its field.
 
 ## 2. The library, the plugins, the app
 
@@ -32,7 +33,7 @@ A new plugin needs no change to the host. A new shell to show the panel in needs
 | a plugin's page | where one plugin's page half runs, headless or not, in a `WebContentsView` of its own at `deckit://<id>.plugin/`; a plugin with something to show has the panel's frame around it there |
 | the switcher's page | the quick switcher's list, at `deckit://switcher` |
 
-A plugin is a renderer and main is the host. Each plugin's page has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is offered to its scheme's handlers.
+A plugin's page half is a renderer and main is the host. Each plugin's page has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
 The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`module/ipc`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
