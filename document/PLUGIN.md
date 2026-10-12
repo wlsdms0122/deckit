@@ -13,6 +13,8 @@ A plugin is a folder under `plugins/` in deckit's folder, and the folder's name 
 
 Each plugin runs in a page of its own, at the origin `deckit://<id>.plugin/`, with its own storage and its own web sessions. Files in `page/` are read before `page.js`, in path order, and run with it as one script: a declaration at the top level of one is in scope for the rest when it is called. The host loads `main.js` and nothing else of the main half; `main.js` requires what it keeps in `main/`.
 
+The rest of the folder is served at the plugin's origin, `deckit://<id>.plugin/<path>`, for its page to use: images, styles, fonts, data, and scripts or modules its document loads (its own origin's scripts run there, no other's). `main.js` and `main/` are not served. A plugin built with a bundler ships its output in the folder and loads it the same way, or bundles it into `page/`.
+
 ## manifest.toml
 
 ```toml

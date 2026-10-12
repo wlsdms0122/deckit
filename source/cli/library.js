@@ -8,7 +8,7 @@ const PLUGINS = path.join(DECKIT, 'plugin');
 const APP = path.join(DECKIT, 'deckit-app');
 const CLI = path.join(DECKIT, 'deckit-cli');
 const REGISTRY = 'module/registry/index.js';
-const PAGE = 'feature/panel/page.html';
+const PAGE = 'feature/app/page.html';
 // deckit-cli is not in the library: its bundle starts from the library modules its commands name.
 const ENTRIES = {
     chord: () => ['deckit/module/chord'],

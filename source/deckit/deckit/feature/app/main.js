@@ -116,16 +116,26 @@ DeckitModule.define(
         }
 
         // Every page of deckit's is the same page.html, whichever origin it is loaded under: what it becomes is asked of
-        // main as it starts.
+        // main as it starts. Under a plugin's origin the rest of its folder is served too, for its page to use: images,
+        // styles, data, scripts. The main half is not the page's.
         function serve() {
             const { net } = require('electron');
             const path = require('path');
             const { pathToFileURL } = require('url');
             const page = pathToFileURL(path.join(__dirname, 'page.html')).toString();
+            const missing = () => new Response('', { status: 404 });
             const own = SESSION.own();
             own.protocol.handle(SCHEME.scheme, (request) => {
-                const { pathname } = new URL(request.url);
-                return pathname === '/' ? net.fetch(page) : new Response('', { status: 404 });
+                const { host, pathname } = new URL(request.url);
+                if (pathname === '/') return net.fetch(page);
+                const id = host.endsWith('.plugin') ? host.slice(0, -'.plugin'.length) : null;
+                const folder = HOST.plugins().find((entry) => entry.id === id)?.folder;
+                if (!folder) return missing();
+                const file = path.resolve(folder, '.' + decodeURIComponent(pathname));
+                const inside = path.relative(folder, file);
+                if (!inside || inside.startsWith('..') || path.isAbsolute(inside)) return missing();
+                if (inside === 'main.js' || inside.split(path.sep)[0] === 'main') return missing();
+                return net.fetch(pathToFileURL(file).toString()).catch(missing);
             });
             // Electron grants every permission a session has no handler for. A plugin reaches the camera, the
             // clipboard or a notice through deckit's API, which holds it to its permissions, and never through the web's.
