@@ -5,12 +5,11 @@ const MINIMAP_STYLE = `
         z-index: 4;
         opacity: 0;
         pointer-events: none;
-        background: color-mix(in srgb, var(--deckit-text) 4%, var(--deckit-background));
+        background: transparent;
         border-left: var(--deckit-border);
-        box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
         transition: opacity var(--deckit-fast) var(--deckit-easing);
     }
-    .editor-minimap[data-mode='always'] { box-shadow: none; }
+    .editor-minimap:not([data-mode='always']) { backdrop-filter: blur(12px); box-shadow: var(--deckit-shadow-drawer); }
     .editor-minimap[data-shown] { opacity: 1; pointer-events: auto; }
     .editor-minimap-canvas { display: block; width: 100%; height: 100%; }
     .editor-minimap-frame {
