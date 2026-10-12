@@ -92,8 +92,9 @@ DeckitModule.define(
                 const methods = methodsOf(made, relative);
                 remember(plugin);
                 failures.delete(plugin.id);
-                LOG.info(`${plugin.id} ${relative}: ${[...methods.keys()].join(', ') || 'no methods'}`);
-                return { methods, paths: [...methods.keys()].map((key) => JSON.parse(key)) };
+                const paths = [...methods.keys()].map((key) => JSON.parse(key));
+                LOG.info(`${plugin.id} ${relative}: ${paths.map((path) => path.join('.')).join(', ') || 'no methods'}`);
+                return { methods, paths };
             } catch (error) {
                 // A module that threw stays cached, so a fixed version installed later would load the broken one.
                 LOG.error(`${plugin.id} ${relative} failed to start`, error);
