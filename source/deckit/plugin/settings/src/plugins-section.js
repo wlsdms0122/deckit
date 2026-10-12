@@ -284,7 +284,8 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
 
     // One row per plugin: the running ones first, in the order the panel loaded them so the list matches the nav, then
     // the ones found on disk that did not load. `notLoaded` is why one is not running, `problem` what went wrong with
-    // one that is. Permissions are read from the folder, so one that did not load still shows the permissions it asks for.
+    // one that is. Permissions are read from the folder, so one that did not load still shows the permissions it asks
+    // for.
     function pluginRowsOf({ onDisk, running, shortcuts }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (plugin) => ({

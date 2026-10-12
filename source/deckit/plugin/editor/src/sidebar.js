@@ -55,7 +55,7 @@ function sidebar({
     // What the navigator shows, so it is redrawn only when that changes: the tree and the search keep their own state.
     let navigatorShows = { workspace: null, mode: null };
 
-    // A basis of 0: deck never lets a plugin's sidebar shrink, and one sized by its content would scroll the whole
+    // A basis of 0: the panel never lets a plugin's sidebar shrink, and one sized by its content would scroll the whole
     // column. The negative margin puts the scrollbar on the sidebar's edge.
     const element = ui.element('div', { className: 'editor-sidebar' });
     const top = ui.element('div', { className: 'editor-sidebar-top' });

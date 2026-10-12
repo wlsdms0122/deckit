@@ -120,7 +120,8 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
             message: 'Allowed, it is remembered for this site. Blocked, it stays blocked until this tab is closed.',
             confirmLabel: 'Allow',
             cancelLabel: 'Block',
-            // Kept, here and in the main process, before the page hears yes: what it does next asks it again.
+            // Kept, here and in the main process, before the page hears yes: what the page does next asks the main process
+            // again.
             onConfirm: () => {
                 allowed = true;
                 const kept = wanted.map((permission) => ({ origin: request.origin, permission }));
