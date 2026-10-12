@@ -83,12 +83,12 @@ The library is in four layers, and names go one way:
 
 | Layer | What it is | May name |
 |---|---|---|
-| `feature/` | what the outside meets: the app's entries, the panel, the switcher | feature, service, module, ui |
-| `service/` | what deckit does | service, module |
+| `feature/` | what the outside meets: the app's entries, the panel, the switcher | feature, service, module, ui, config |
+| `service/` | what deckit does | service, module, config |
 | `module/` | what it is built from, with no deckit in it | module |
 | `ui/` | how it draws | ui |
 
-`config/` is the vocabulary every layer reads.
+`config/` is the app's configuration (EMBEDDING.md), which `feature/` and `service/` read.
 
 A concept's sides are `main.js` and `view.js` (the shape a plugin has); a one-sided concept is `index.js`; what its sides share is `model/`, and `model/protocol.js` is how its own sides reach each other and nobody else's. A folder is a module (its files and `model/`) or a group (folders only).
 
@@ -102,12 +102,9 @@ The kit is the one way things look and behave in every page (UI.md):
 - One stylesheet: hover, press, focus and selection are the platform's states, drawn by rules.
 - One overlay: what floats (a menu, a popover, a modal, a drag) is one stack that owns its order, the press outside, Escape and placement.
 - One list: rows drawn by key, so what the pointer rests on and what has the focus stay put; one listbox for a list with a cursor.
-- One shape: a part is made from one options object and returns `{ element, ...its controls }`; a control draws the value it is set to and reports what was asked.
+- One shape for each kind of part: a maker takes one options object and returns `{ element, ...its controls }`, a decorator takes an element and returns its dispose, and a control draws the value it is set to and reports what was asked.
 
-## 8. What is not here
+## 8. Data
 
-- No compatibility shims. A rename renames everything, stored keys and channels included; data written in an old shape is written again, not read in two shapes.
-- No built-in plugin. Every plugin is a folder, Settings included, and any one can be removed.
-- No app in deckit: not its name, its keys or its files. What is an app's reaches deckit through the surfaces in principle 2.
-- No shared page. Each plugin draws in its own.
-- No watcher on plugin data. A file edited by hand is read at the next start.
+- A rename renames everything, stored keys and channels included. Data written in an old shape is written again in the new one.
+- A file of a plugin's data edited by hand is read at the next start.

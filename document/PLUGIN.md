@@ -1,6 +1,6 @@
 # Writing a plugin
 
-A plugin is a folder under `plugins/` in deckit's folder, and the folder's name is its id. Installing one is putting that folder in place: nothing is compiled and the app is not built again. None is built in, so any one can be removed, Settings included.
+A plugin is a folder under `plugins/` in deckit's folder, and the folder's name is its id. Installing one is putting that folder in place. Every plugin can be removed, Settings included.
 
 ```
 <id>/
@@ -43,7 +43,7 @@ Any other field stops the plugin loading. The manifest is read before a line of 
 
 Only the part of TOML a manifest uses is read: top-level keys, one level of tables, and strings, booleans, integers and arrays of those as values. A key with a dot is quoted (`"system.main-process" = …`).
 
-An id is lower case letters, digits, `.`, `_` and `-`, starts with a letter or digit, is at most 64 characters and has no `..`. Lower case only, because macOS disks ignore case. `host` is taken. An `id` that differs from the folder stops the plugin, with the reason in Settings.
+An id is lower case letters, digits, `.`, `_` and `-`, starts with a letter or digit, is at most 64 characters and has no `..`. Lower case only, because macOS disks ignore case. An `id` that differs from the folder stops the plugin, with the reason in Settings.
 
 `url-schemes` is a list of lower case schemes without `:` (`"https"`, `"my-app"`), or `["*"]` alone for every scheme. `javascript`, `data`, `blob` and `about` are refused.
 
@@ -70,7 +70,7 @@ What a plugin may reach beyond its own page is asked for by name, with a reason.
 | `deckit.key-map` | every plugin's shortcuts | `host.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `host.urlSchemes` |
 
-A `main.js` without `system.main-process`, or the permission without the file, stops the plugin, so what the person is asked about is what is in the folder. An unknown permission, or one without a reason, stops it too. What a plugin may do without asking reaches nothing past it: its own page, records, values, settings, keys and web sessions; copying text; asking for an address to be opened; putting itself on screen.
+A `main.js` without `system.main-process`, or the permission without the file, stops the plugin, so what the person is asked about is what is in the folder. An unknown permission, or one without a reason, stops it too. Without asking, a plugin has its own page, records, values, settings, keys and web sessions, and of the host: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another plugin.
 
 ## view.js
 
@@ -92,11 +92,11 @@ Deckit.register({
 | `settings` | optional; what the person can choose about the plugin (below) |
 | `make(context)` | makes the plugin; what it returns is what it contributes |
 
-A view has no `require`. Everything it reaches is in `context`.
+Everything a view reaches is in `context`.
 
 ### settings
 
-What the person can choose about the plugin is declared, not drawn. Settings lists every plugin's, main checks each value against its declaration and keeps it, and the plugin reads them through `context.settings`.
+What the person can choose about the plugin is declared. Settings draws and lists every plugin's, main checks each value against its declaration and keeps it, and the plugin reads them through `context.settings`.
 
 `settings` is `{ <key>: { label, type, default, hint } }`, and `type` is one of:
 
@@ -110,7 +110,7 @@ What the person can choose about the plugin is declared, not drawn. Settings lis
 
 ## What make() returns
 
-Every member is optional: leaving one out is how a plugin opts out of it. Returning nothing is refused.
+Every member is optional: leaving one out is how a plugin opts out of it. `make` is synchronous: returning nothing or a promise is refused, and a member the contract does not name is shown on the plugin's row in Settings while the plugin runs.
 
 ### content and sidebar
 
@@ -126,22 +126,22 @@ The view came on screen, and went. They come in turn, never twice running.
 keys: { newTab: { key: 'mod+t', label: 'New tab', run() { … } } }
 ```
 
-`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one). A key is live only while its plugin is on screen, in its page and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses.
+`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. A key is live only while its plugin is on screen, in its page and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses.
 
 ### commands()
 
-Returns `[{ id, label, hint, icon, group, run, keywords, address }]`: entries for the quick switcher, under the plugin's heading. `group` is a caption inside it; `address` is a URL or a path a query matches last. Running one does not show the plugin: a command that wants to be seen calls `host.show()`.
+Returns `[{ label, hint, icon, group, run, keywords, address }]`: entries for the quick switcher, under the plugin's heading. `group` is a caption inside it; `address` is a URL or a path a query matches last. Running one does not show the plugin: a command that wants to be seen calls `host.show()`.
 
 Instead of `run`, an entry may have a `page`, a list the switcher opens to search inside it; Escape or Backspace leaves it:
 
-- `page: { placeholder, search(query) }`: the plugin answers each query.
+- `page: { placeholder, search(query, { signal }) }`: the plugin answers each query. A new query aborts `signal`; pass it on to what fetches.
 - `page: { placeholder, entries() }`: one list the switcher ranks itself.
 
-An entry without `run` is a readout: shown, never chosen.
+An entry of `commands()` has a `run` or a `page`; one with neither is left out. In `now()`, `resolve()` and a page, an entry without `run` is a readout: shown, never chosen.
 
 ### now()
 
-Returns `[{ id, label, hint, icon, tone, run, attention }]`, or a promise of it: what is true this minute. The rows sit above everything in the switcher until something is typed. `tone` is `info`, `ok`, `warn` or `alert`: a name, which the switcher draws. `attention` asks for the eye once. The strip is shared: rows are taken a round at a time across plugins, three in all.
+Returns `[{ label, hint, icon, tone, run, attention }]`, or a promise of it: what is true this minute. The rows sit above everything in the switcher until something is typed. `tone` is `info`, `ok`, `warn` or `alert`: a name, which the switcher draws. `attention` asks for the eye once. The strip is shared: rows are taken a round at a time across plugins, three in all.
 
 ### resolve(query)
 
@@ -169,12 +169,12 @@ A plugin that draws at its top edge steps out from under a window's bar by the C
 
 - `get(key)`: the saved value, or the declared default.
 - `set(key, value)`: checked against the declaration, and resolves once kept.
-- `on(listener)`: `listener(key, value)` on every change, from Settings or from the plugin.
+- `on(listener)`: `listener(key, value)` on every change, from Settings or from the plugin. Returns the unsubscribe.
 
 ### storage
 
 - `storage.values`: `get(key, fallback)`, `set(key, value)`, `remove(key)`. Small state that costs a click to lose (a fold, a width), in the page's own storage.
-- `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by main. `get` is synchronous; `set` and `remove` resolve once written, and a write that fails is shown on the plugin's row in Settings.
+- `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by main. `get` and `keys` are synchronous; `set` and `remove` resolve once written, and a write that fails is shown on the plugin's row in Settings.
 
 ### web
 
@@ -183,7 +183,7 @@ A plugin that draws at its top edge steps out from under a window's bar by the C
 - `web.page({ session, url })` shows a web page the way a browser tab does, in the plugin's screen.
 - `web.window({ session, url, title })` shows one in a window of its own, for a step taken and finished, such as signing in.
 
-Both return `{ state, load(url), back(), forward(), reload(), stop(), mute(on), find(text, { start, back, matchCase }), stopFind({ keepSelection }), close(), delegate }`, and a page also its `element`. `state` is `{ url, title, icon, loading, canGoBack, canGoForward, audible, muted, capture: { microphone, camera, screen } }`.
+Both return `{ session, state, load(url), back(), forward(), reload(), stop(), mute(on), find(text, { start, back, matchCase }), stopFind({ keepSelection }), close(), delegate }`, and a page also its `element` and `focus()`. `state` is `{ url, title, icon, loading, canGoBack, canGoForward, audible, muted, capture: { microphone, camera, screen } }`.
 
 A page reaches its plugin through its delegate:
 
@@ -191,12 +191,12 @@ A page reaches its plugin through its delegate:
 page.delegate = {
     didChange(state) {},
     didFocus() {},
-    didFind(result) {},              // { matches, active }
+    didFind(result) {},              // { matches, active, final }
     didReceiveNotification(notice) {}, // { title, body, silent, click() }
     didRefuseCertificate(info) {},
     didRequestClose() {},
     didClose() {},
-    decidePermission(request) {},    // { origin, permissions, url }: true allows it
+    decidePermission(request) {},    // { origin, permissions, app, url }: true allows it
     shouldLeave(url) {},             // a file page's link to the web
     shouldOpenWindow(url, options) {}, // { activates, target }
 };
@@ -211,16 +211,16 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 | `show()` | puts the calling plugin on screen |
 | `open(url, { activates, userInitiated, usesDefaultApp, target })` | opens an address through Open With; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
-| `reveal(path)` | shows a file in the system's Finder |
+| `reveal(path)` | shows a file in the system's Finder, during a person's click or key; otherwise resolves `false` |
 | `chordOf(action)` | the chord one of the plugin's keys is bound to now, or `''` |
-| `about()` | `{ name, home, app, electron, chrome, plugins, data, log, version, builtAt, source }` |
+| `about()` | `{ name, app, version, source, electron, chrome, home, plugins, data, log }`: the app's name and version, deckit's version and the hash of its sources, the engines, the person's home folder, and the folders of deckit's plugins, data and log |
 | `clipboard.writeText(text)` | copies text |
 | `clipboard.readText()` | with `system.clipboard` |
 | `notify({ title, body, silent, onClick })` | with `system.notifications` |
-| `plugins` | with `deckit.plugins`: `list`, `pick`, `install`, `remove`, `reveal`, `count`, `restartPending`, `restart` |
+| `plugins` | with `deckit.plugins`: `list`, `pick`, `install`, `remove`, `reveal`, `count`, `restartPending`, `restart`; `list` and `restartPending` answer at once, the rest resolve |
 | `pluginSettings` | with `deckit.plugin-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
-| `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange` |
-| `urlSchemes` | with `deckit.url-schemes`: `list`, `set`, `everyScheme` |
+| `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
+| `urlSchemes` | with `deckit.url-schemes`: `list`, `set`, `everyScheme`; `list` answers at once |
 
 ### util
 
@@ -233,7 +233,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 ### main, requires, app
 
-`main` is the plugin's main half: `{ available, call(op, ...args), on(name, listener) }`. `available` is false when that half failed to load: something to draw, not something to throw on.
+`main` is the plugin's main half: `{ available, call(op, ...args), on(name, listener) }`; `on` returns the unsubscribe. `available` is false when that half failed to load: something to draw, not something to throw on.
 
 `requires` is what each plugin named in `[requires]` exports. A plugin is made only when everything it requires started, so these are there.
 
@@ -241,17 +241,17 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 ## Lifecycle
 
-The main half starts once, when the app does, and lives until it quits. The view half is the plugin's page: `make(context)` once when the page comes up, then `didAppear` and `didDisappear`. The page is made again when the plugin is installed again, and its main half is taken up only at the app's next start; Settings asks for the restart.
+The main half starts once, when the app does, and lives until it quits. The view half is the plugin's page: `make(context)` once when the page comes up, then `didAppear` and `didDisappear`. The page is made again when the plugin is installed again and when the app's theme changes. A main half installed again is taken up at the app's next start; Settings asks for the restart.
 
-Whatever the host calls after `make`, a call that throws or rejects costs that call alone: it is shown on the plugin's row in Settings, and the plugin goes on. A `make` that throws or returns nothing leaves the plugin unmade, with the reason on its row.
+`register()` is called once, with `make` and no member but `icon`, `keywords` and `settings`; anything else stops the plugin. Whatever the host calls after `make`, a call that throws or rejects costs that call alone: it is shown on the plugin's row in Settings, and the plugin goes on. A `make` that throws or returns nothing leaves the plugin unmade, with the reason on its row.
 
-There is no end call. What must outlive the page is written when it changes.
+What must outlive the page is written when it changes: the page can be made again at any of these times.
 
 ## Using what another plugin does
 
 Two ways, and one question picks: could the app do this if the other plugin were not there?
 
-**Open With**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a plugin makes up. A plugin calls `host.open(url)` and never names who answers. Each scheme is a line: the plugins whose manifest names it, in the order the person set in Settings, then the host's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only when `userInitiated` says a person asked; otherwise it is shown in Finder. A scheme no plugin takes and the host has no answer for ends unopened.
+**Open With**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a plugin makes up. A plugin calls `host.open(url)` and never names who answers. Each scheme is a line: the plugins whose manifest names it, in the order the person set in Settings, then the host's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only when `userInitiated` says a person asked, during their click or key; otherwise it is shown in Finder. A scheme no plugin takes and the host has no answer for ends unopened.
 
 **requires**, when it could not. The other plugin returns `exports`, and this one names it in `[requires]` and receives it as `context.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the plugin does not load, and Settings says why.
 
@@ -270,10 +270,10 @@ module.exports = ({ id, folder, handle, send, window, files }) => {
 
 `window` is a window of the app's: `open({ key, title, view, … })`, `get(key)`, `close(key)`. Keys are the plugin's own: two plugins asking for `log` get two windows.
 
-`main.js` runs in the app's main process and can do what the app can do: it is not sandboxed, which is why it is asked for. What the host does hold is that the view cannot widen its own reach: only the ops `main.js` handles answer, and main knows which plugin calls by its page.
+`main.js` runs in the app's main process and can do what the app can do, which is why it is asked for. The view cannot widen its own reach: only the ops `main.js` handles answer, and main knows which plugin calls by its page.
 
 ## Installing
 
 Settings has an Install button: pick the folder, and the plugin's page is made again with it. An install replaces `plugins/<id>/` whole and never touches its data. Removing asks about the code and the data as two answers.
 
-A removal lasts: the app's next install of the plugins it ships leaves out one the person removed. An id the app ships is the app's; a changed copy under that id is replaced at the next update, so keep one under an id of its own.
+A removal lasts: the app's next install of the plugins it ships leaves out one the person removed. An id the app ships is the app's; a changed copy under that id is replaced at the next start, so keep one under an id of its own.

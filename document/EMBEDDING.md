@@ -39,11 +39,11 @@ The app's own files are modules too: `DeckitModule.define(name, { uses, provides
 |---|---|---|
 | `home` | deckit's folder | `~/.config/<id>` |
 | `ship` | the plugin folders the app ships; installed at every start, and a removed one stays removed | none |
-| `sources` | plugin folders read in place, ahead of installed ones (for a development build) | none |
+| `sources` | folders that hold plugin folders, read in place ahead of installed ones (for a development build) | none |
 
 ## 3. The shell
 
-Deckit makes its views. Where they are shown is the app's shell's, the way a browser decides whether a page goes in a tab or a window while the page stays the same. There is no shell of deckit's own: every app brings one.
+Deckit makes its views. Where they are shown is the app's shell's, the way a browser decides whether a page goes in a tab or a window while the page stays the same. Every app brings its own shell, and there is one panel, wherever the shell puts it. Plugins live in it: the shell is there before the panel.
 
 In main, before the app is ready:
 
@@ -52,7 +52,7 @@ protocol.registerSchemesAsPrivileged([DECKIT.SCHEME, ...theAppsOwn]);
 DECKIT.connect({ preload, shell });
 ```
 
-`SCHEME` is the scheme deckit's pages load from; Electron takes privileged schemes in one call, which the app makes. `preload` is the file the app put together for deckit's pages (section 1).
+`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges; Electron takes privileged schemes in one call, which the app makes. `preload` is the file the app put together for deckit's pages (section 1).
 
 What a shell answers:
 
@@ -66,18 +66,20 @@ What a shell answers:
 | `noticeClicked()` | a notice deckit raised was clicked |
 | `restart()` | the app restarts: the process is the app's |
 
+`connect` is called once, with `preload` and a shell that answers every one of these; otherwise it throws and names what is missing.
+
 What `deck` holds:
 
 | | |
 |---|---|
-| `deck.panel` | `view()`, the panel's container, which the shell places in a window; `contains(webContents)`; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`; `setTheme(theme)`; `presentInWindow({ key, title, boundsKey, onClose })`, a deckit window with the panel in it |
+| `deck.panel` | `view()`, the panel's container, which the shell places in a window; `contains(webContents)`; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`; `setTheme(theme)`; `presentInWindow({ key, title, boundsKey, onClose })`, a deckit window with the panel in it, resolving the window or null. `hide()` resolves whether the panel had the keyboard |
 | `deck.switcher` | `view()`, which the shell puts in front where it was summoned; `open()`, resolving true when it was put away; `close()`, `shown()` |
 | `deck.window` | `open`, `get`, `close`, `raise`, and `place(view, window, { bounds, front, onClose })`, which puts a view in one window at a time and takes it out alive before the window closes |
 | `deck.keymap` | `listen(webContents)`: a page of the app's own that should hear deckit's global keys |
 
-Moving the panel is a re-parent, never a rebuild: plugins keep their pages and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, and whether Escape with nothing else to close puts it away.
+Moving the panel is a re-parent: plugins keep their pages and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, and whether Escape with nothing else to close puts it away.
 
-`setTheme` gives deckit the app's colours: `{ sidebarBg, sidebarColor, border, contentBg, contentColor, font }`. Every deckit page derives its look from it (UI.md) and is drawn again when it changes.
+`setTheme` gives deckit the app's colours: `{ sidebarBg, sidebarColor, border, contentBg, contentColor, font }`. Every deckit page derives its look from it (UI.md) and is made again when it changes.
 
 ## 4. The app's own plugin, and what the app offers
 
@@ -88,9 +90,3 @@ It may stand first in an Open With line (`openWith`, and the scheme in its manif
 ## 5. Deckit.app
 
 `source/deckit/deckit-app` is deckit embedded by itself, the way any app embeds it: its own `app/config` and `app/folders`, a shell that keeps the panel in one window of its own with the switcher in front of it, and an Electron entry that calls `connect`. `deckit app` builds it from the archive the last build made.
-
-## 6. What this does not do
-
-- Deckit does not run without Electron.
-- A plugin is never the shell: the shell is there before the panel, and plugins live in it.
-- There is one panel, wherever the shell puts it.

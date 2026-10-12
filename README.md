@@ -8,7 +8,7 @@ A panel of plugins, as a library an app embeds, UI included: the panel and the q
 source/cli/deckit build
 ```
 
-writes `.build/deckit-lib-<version>.tgz`, with its sha256 beside it: the library's bundles, its page, `deckit.json`, the documents an embedding app reads, and deckit's own plugins beside them. It is what an app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
+writes `.build/deckit-lib-<version>.tgz`, with its sha256 beside it: the library's bundles, its page, `deckit.json`, the command line for plugins (`deckit-cli/`), the documents an embedding app reads, and deckit's own plugins beside them. It is what an app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
 
 ```
 source/cli/deckit app
