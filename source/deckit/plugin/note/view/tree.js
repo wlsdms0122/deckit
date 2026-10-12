@@ -15,7 +15,6 @@ function tree({
     onNewFolder,
     onToggle,
 }) {
-    const ROW = '[data-note], [data-folder]';
     const STYLE = `
         .note-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
         .note-tree-glyph { display: flex; color: var(--deckit-muted); }
@@ -47,32 +46,31 @@ function tree({
     ui.tooltip(section.actions[1].element, { text: 'New folder', chord: () => host.chordOf('newFolder') });
     // Delegated, so a row drawn again never loses a press.
     rows.element.addEventListener('click', (event) => {
-        const row = rowAt(event.target);
+        const row = entryAt(event.target);
         if (!row) return;
         host.show();
-        if (row.dataset.note) return onOpenNote(row.dataset.note);
-        const path = row.dataset.folder;
+        const { kind, path } = entryOf(row);
+        if (kind === 'note') return onOpenNote(path);
         if (row.hasAttribute('data-folds')) toggle(path);
         if (!event.target.closest('[data-caret]')) onOpenFolder(path);
     });
     ui.contextMenu(rows.element, {
-        rowAt,
-        items: (row) =>
-            !row
-                ? null
-                : row.dataset.note
-                  ? noteMenu(row.dataset.note, Number(row.dataset.seq), row)
-                  : folderMenu(row.dataset.folder, Number(row.dataset.seq), row),
+        rowAt: entryAt,
+        items: (row) => {
+            if (!row) return null;
+            const { kind, path, since } = entryOf(row);
+            return kind === 'note' ? noteMenu(path, since, row) : folderMenu(path, since, row);
+        },
     });
-    ui.dragSource(rows.element, { itemAt: rowAt, describe: describeDrag });
+    ui.dragSource(rows.element, { itemAt: entryAt, describe: describeDrag });
     acceptDrops(
         element,
         ui.treeFolderAt({
             row: (under) => {
-                const row = rowAt(under);
-                return row
-                    ? { path: row.dataset.note || row.dataset.folder, folder: !row.dataset.note, element: row }
-                    : null;
+                const row = entryAt(under);
+                if (!row) return null;
+                const { kind, path } = entryOf(row);
+                return { path, folder: kind === 'folder', element: row };
             },
             markOf: (folder) => rows.element.querySelector(`[data-folder="${CSS.escape(folder)}"]`),
             top: '',
@@ -88,16 +86,12 @@ function tree({
             expanded = new Set([...expanded].map((path) => movePath(path, from, to)).filter((path) => path != null));
             save();
         },
-        labelOf: (path) =>
-            rows.element.querySelector(
-                `[data-note="${CSS.escape(path)}"] [data-name], [data-folder="${CSS.escape(path)}"] [data-name]`
-            ),
+        labelOf: (path) => labelIn(rows.element, path),
     };
 
-    // `openNote` is the path of the note open, if any.
-    function draw({ allNotes, place, openNote }) {
-        section.setCurrent(place.kind === 'folder' && place.rel === '');
-        rows.set(itemsOf(allNotes, 0, { since: allNotes.since, place, openNote }));
+    function draw({ allNotes, place, openPath }) {
+        section.setCurrent(place.kind === 'folder' && place.path === '');
+        rows.set(itemsOf(allNotes, 0, { since: allNotes.since, place, openPath }));
     }
 
     // Opens the folders above `path`.
@@ -122,30 +116,30 @@ function tree({
         store.set('expanded', [...expanded]);
     }
 
-    function itemsOf(folder, depth, { since, place, openNote }) {
+    function itemsOf(folder, depth, { since, place, openPath }) {
         return [
             ...folder.folders.flatMap((child) => {
-                const open = expanded.has(child.rel);
+                const open = expanded.has(child.path);
                 const item = {
-                    path: child.rel,
+                    path: child.path,
                     kind: 'folder',
                     name: child.name,
                     depth,
                     open,
                     folds: child.folders.length + child.notes.length > 0,
-                    active: place.kind === 'folder' && place.rel === child.rel,
+                    active: place.kind === 'folder' && place.path === child.path,
                     since,
                 };
-                return [item, ...(open ? itemsOf(child, depth + 1, { since, place, openNote }) : [])];
+                return [item, ...(open ? itemsOf(child, depth + 1, { since, place, openPath }) : [])];
             }),
             ...folder.notes.map((note) => ({
-                path: note.rel,
+                path: note.path,
                 kind: 'note',
                 name: note.name,
                 depth,
                 open: false,
                 folds: false,
-                active: place.kind === 'note' && openNote === note.rel,
+                active: place.kind === 'note' && openPath === note.path,
                 since,
             })),
         ];
@@ -161,15 +155,9 @@ function tree({
             glyph: noteGlyph,
             name: item.name || 'Untitled',
         });
-        row.element.dataset[isFolder ? 'folder' : 'note'] = item.path;
-        row.element.dataset.seq = String(item.since);
+        markEntry(row.element, item);
         row.element.title = item.path;
         row.setActive(item.active);
         return row.element;
-    }
-
-    // A drag can start on a text node, which has no closest().
-    function rowAt(target) {
-        return target.closest?.(ROW) ?? null;
     }
 }

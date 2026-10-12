@@ -1,80 +1,81 @@
 // What is done to a note or a folder on disk. A path is held as it was read with the relocation count it was read at
-// (`since`), and each step settles the open note first, so what moves is what was on screen.
+// (`since`). A step that moves, renames or removes what may be the open note settles the open note first, so what
+// changes is what was on screen. `onChanged()` hears that the notes folder changed.
 function operations({
     ui,
     host,
     main,
-    noteSession,
     relocations,
+    settle,
+    enqueue,
+    openPath,
+    isBlank,
+    text,
     onRelocate,
     onTrash,
-    refresh,
-    paintPlace,
-    loadTree,
+    onNoteMade,
+    onFocusTitle,
+    onChanged,
     labelFor,
-    openNote,
 }) {
     let rootAsked = null;
 
     return { rename, move, trashNote, trashFolder, newNote, newFolder, copyText, showInFinder };
 
     // Over `label`, in place.
-    function rename(label, held, since = relocations.count()) {
+    function rename(label, held, since = relocations.since()) {
         return ui.inlineEdit(label, {
             onCommit: async (name) => {
                 const path = await relocations.currentPath(held, since);
                 if (path == null) return 'It is no longer there';
-                if (!(await noteSession.settle(path))) return 'The open note has a question to answer first';
+                if (!(await settle(path))) return 'The open note has a question to answer first';
                 let refusal = '';
-                await noteSession.enqueue(async () => {
+                await enqueue(async () => {
                     try {
-                        onRelocate(path, (await main.call('rename', path, name)).rel);
+                        onRelocate(path, (await main.call('rename', path, name)).path);
                     } catch (error) {
                         refusal = error.message;
                     }
                 });
-                await refresh();
-                noteSession.paint();
+                await onChanged();
                 return refusal;
             },
         });
     }
 
-    async function move(held, heldInto, since = relocations.count(), intoSince = since) {
+    async function move(held, heldInto, since = relocations.since(), intoSince = since) {
         const path = await relocations.currentPath(held, since);
         const into = await relocations.currentPath(heldInto, intoSince);
         if (path == null || into == null) return;
         // Checked again: something may have moved since it was picked up.
         if (!ui.movesInto(path, into)) return;
-        if (!(await noteSession.settle(path))) return;
-        await noteSession.enqueue(async () => {
+        if (!(await settle(path))) return;
+        await enqueue(async () => {
             try {
-                onRelocate(path, (await main.call('move', path, into)).rel);
+                onRelocate(path, (await main.call('move', path, into)).path);
             } catch (error) {
-                ui.dialog({ title: 'Could not move ' + baseName(path), message: error.message, confirmLabel: 'OK' });
+                ui.dialog({ title: 'Could not move ' + nameOf(path), message: error.message, confirmLabel: 'OK' });
             }
         });
-        await refresh();
-        noteSession.paint();
-        paintPlace();
+        await onChanged();
     }
 
-    function trashNote(held, since = relocations.count()) {
-        return trash(held, since, (path) => `Could not move ${noteName(path)} to the Trash`);
+    function trashNote(held, since = relocations.since()) {
+        return trash(held, since, (path) => `Could not move ${noteNameOf(path)} to the Trash`);
     }
 
-    function trashFolder(held, since = relocations.count()) {
+    function trashFolder(held, since = relocations.since()) {
         ui.confirmTrash({
-            name: baseName(held),
+            name: nameOf(held),
             onConfirm: () => trash(held, since, () => 'Could not move the folder to the Trash'),
         });
     }
 
     async function newNote(into) {
         host.show();
-        if (!(await noteSession.settle())) return;
+        if (!(await settle())) return;
         // Another would discard this blank one and take the next free name on every press.
-        if (noteSession.isBlank() && parentOf(noteSession.path()) === into) return noteSession.focusTitle();
+        if (isBlank() && parentOf(openPath()) === into) return onFocusTitle();
         let made;
         try {
             made = await main.call('create', into);
@@ -82,10 +83,7 @@ function operations({
             ui.dialog({ title: 'Could not make a note', message: error.message, confirmLabel: 'OK' });
             return;
         }
-        if (!(await openNote(made.rel))) return;
-        noteSession.markPristine();
-        await refresh();
-        noteSession.focusTitle();
+        await onNoteMade(made.path);
     }
 
     async function newFolder(parent) {
@@ -96,15 +94,14 @@ function operations({
             ui.dialog({ title: 'Could not make the folder', message: error.message, confirmLabel: 'OK' });
             return;
         }
-        await loadTree();
-        const label = await labelFor(made.rel);
-        if (label) rename(label, made.rel);
+        await onChanged();
+        const label = await labelFor(made.path);
+        if (label) rename(label, made.path);
     }
 
     async function copyText(path) {
-        const text =
-            path === noteSession.path() ? noteSession.text() : (await main.call('read', path).catch(() => null))?.text;
-        if (text != null) host.clipboard.writeText(text).catch(() => {});
+        const copied = path === openPath() ? text() : (await main.call('read', path).catch(() => null))?.text;
+        if (copied != null) host.clipboard.writeText(copied).catch(() => {});
     }
 
     async function showInFinder(path) {
@@ -120,16 +117,18 @@ function operations({
     async function trash(held, since, failureTitle) {
         const path = await relocations.currentPath(held, since);
         if (path == null) return;
-        const wasOpen = !!noteSession.path() && isWithin(noteSession.path(), path);
-        if (!(await noteSession.settle(path))) return;
+        const wasOpen = !!openPath() && isWithin(openPath(), path);
+        if (!(await settle(path))) return;
         try {
-            await noteSession.enqueue(() => main.call('trash', path));
+            await enqueue(async () => {
+                await main.call('trash', path);
+                onRelocate(path, null);
+            });
         } catch (error) {
             ui.dialog({ title: failureTitle(path), message: error.message, confirmLabel: 'OK' });
             return;
         }
-        onRelocate(path, null);
         await onTrash(path, wasOpen);
-        await refresh();
+        await onChanged();
     }
 }

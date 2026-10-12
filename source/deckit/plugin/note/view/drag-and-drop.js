@@ -6,11 +6,12 @@ function dragAndDrop({ ui, relocations, onMove }) {
     return { describe, acceptDrops };
 
     function describe(item) {
+        const { kind, path, since } = entryOf(item);
         return {
             kind: KIND,
-            payload: { path: item.dataset.note || item.dataset.folder, since: Number(item.dataset.seq) },
+            payload: { path, since },
             text: item.querySelector('[data-name]').textContent,
-            icon: item.dataset.note ? 'fileText' : ui.folderIcon({ open: false, size: 14 }),
+            icon: kind === 'note' ? 'fileText' : ui.folderIcon({ open: false, size: 14 }),
         };
     }
 
@@ -25,7 +26,7 @@ function dragAndDrop({ ui, relocations, onMove }) {
                     payload.path,
                     target.folder,
                     payload.since,
-                    target.since ?? (target.row ? Number(target.row.element.dataset.seq) : relocations.count())
+                    target.since ?? (target.row ? entryOf(target.row.element).since : relocations.since())
                 ),
         });
     }

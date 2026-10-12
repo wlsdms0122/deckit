@@ -1,22 +1,20 @@
-// The context menus: of a note, of a folder, and of the text in the editor. `row` is the row or card a menu is about,
-// whose name a rename types over while it is still in sight.
+// The context menus of a note and of a folder. `row` is the row or card a menu is about, whose name a rename types over
+// while it is still in sight.
 function menus({
     ui,
     host,
-    editor,
     relocations,
     fileOperations,
     allNotes,
-    notePath,
+    openPath,
     onOpenNote,
     onFocusTitle,
     onNewNote,
     labelFor,
-    followLink,
 }) {
-    return { noteItems, folderItems, editorItems };
+    return { noteItems, folderItems };
 
-    function noteItems(path, since = relocations.count(), row = null) {
+    function noteItems(path, since = relocations.since(), row = null) {
         return [
             { label: 'Rename…', icon: 'pencil', run: () => renameNote(path, since, row) },
             { label: 'Move to', icon: 'folder', items: moveItems(path, since) },
@@ -33,7 +31,7 @@ function menus({
         ];
     }
 
-    function folderItems(path, since = relocations.count(), row = null) {
+    function folderItems(path, since = relocations.since(), row = null) {
         return [
             {
                 label: 'New Note',
@@ -69,40 +67,6 @@ function menus({
         ];
     }
 
-    // `href` is the link the menu was opened on, if any.
-    function editorItems(href) {
-        const items = [];
-        if (href) {
-            items.push(
-                {
-                    label: 'Open Link',
-                    icon: 'externalWindow',
-                    disabled: !linkTargetOf(href),
-                    run: () => followLink(href),
-                },
-                { label: 'Copy Link', icon: 'link', run: () => copy(href) },
-                { label: 'Edit Link…', hint: '⌘K', run: () => editor.editLink() },
-                '-'
-            );
-        }
-        if (editor.selectionText())
-            items.push({ label: 'Copy', hint: '⌘C', run: () => copy(editor.selectionText()) }, '-');
-        const current = editor.paragraphStyle();
-        items.push(
-            ...PARAGRAPH_STYLES.map((style) =>
-                style === '-'
-                    ? '-'
-                    : {
-                          label: style.label,
-                          hint: host.chordOf(style.key),
-                          checked: current === style.key,
-                          run: () => editor.setParagraphStyle(style.key),
-                      }
-            )
-        );
-        return items;
-    }
-
     function moveItems(path, since) {
         const top = allNotes();
         return [
@@ -112,11 +76,11 @@ function menus({
                 run: () => fileOperations.move(path, '', since, top.since),
             },
             ...foldersIn(top)
-                .filter((folder) => !isWithin(folder.rel, path))
+                .filter((folder) => !isWithin(folder.path, path))
                 .map((folder) => ({
                     label: ' '.repeat(folder.depth + 1) + folder.name,
-                    checked: parentOf(path) === folder.rel,
-                    run: () => fileOperations.move(path, folder.rel, since, top.since),
+                    checked: parentOf(path) === folder.path,
+                    run: () => fileOperations.move(path, folder.path, since, top.since),
                 })),
         ];
     }
@@ -126,7 +90,7 @@ function menus({
         const label = row?.isConnected && row.querySelector('[data-name]');
         if (label) return fileOperations.rename(label, path, since);
         const current = await relocations.currentPath(path, since);
-        if (current == null || (current !== notePath() && !(await onOpenNote(current)))) return;
+        if (current == null || (current !== openPath() && !(await onOpenNote(current)))) return;
         onFocusTitle();
     }
 
@@ -142,9 +106,5 @@ function menus({
             const current = await relocations.currentPath(path, since);
             if (current != null) act(current);
         };
-    }
-
-    function copy(text) {
-        host.clipboard.writeText(text).catch(() => {});
     }
 }

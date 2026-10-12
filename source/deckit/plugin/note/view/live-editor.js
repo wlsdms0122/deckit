@@ -1,20 +1,8 @@
 // The document is the file's text exactly; formatting is only decorations drawn over it.
-function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu }) {
+function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, onFollowLink }) {
     // Only for replacing the mark at a line start. What style a line is in comes from the syntax tree (lineStyleAt).
     const LEADING_MARK = /^(\s*)(#{1,6}\s+|(?:[-*+]|\d+[.)])\s+\[[ xX]\]\s+|[-*+]\s+|\d+[.)]\s+)?/;
     const QUOTE_MARKS = /^(\s*>\s?)+/;
-    // Lucide (ISC), for the shapes the kit does not carry.
-    const SHAPES = {
-        heading: `<path d="M6 12h12"/><path d="M6 20V4"/><path d="M18 20V4"/>`,
-        checklist: `<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>`,
-        numbered: `<path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/><path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>`,
-        quote: `<path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>`,
-        code: `<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>`,
-        divider: `<path d="M5 12h14"/>`,
-        bold: `<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>`,
-        italic: `<line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/>`,
-        strikethrough: `<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/>`,
-    };
     const ICON_SIZE = 15;
     const engine = NoteEngine;
     const tags = engine.tags;
@@ -23,8 +11,9 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
     const linkColor = ui.mix(theme.color.accent, theme.color.text, 0.85);
     // Translucent, so the panel's glass shows through.
     const codeBackground = ui.alpha(theme.color.text, 0.07);
+    // Drawn as a background image, which needs the svg namespace that ui.iconOf markup leaves out.
     const tick = encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${theme.color.onAccent}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${CHECK_SHAPES}</svg>`
     );
     const highlight = engine.HighlightStyle.define([
         { tag: tags.heading1, fontSize: '1.6em', fontWeight: '800', letterSpacing: '-.01em' },
@@ -48,7 +37,7 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
         { tag: [tags.typeName, tags.className], color: syntax.type },
         { tag: tags.propertyName, color: syntax.property },
     ]);
-    const look = engine.EditorView.theme(
+    const editorTheme = engine.EditorView.theme(
         {
             '&': { height: '100%', color: theme.color.text, backgroundColor: 'transparent' },
             '&.cm-focused': { outline: 'none' },
@@ -69,7 +58,7 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
             '.note-h1': { paddingTop: '.35em !important' },
             '.note-h2': { paddingTop: '.5em !important' },
             '.note-h3': { paddingTop: '.35em !important' },
-            '.note-quote': { borderLeft: '3px solid rgba(128,128,128,.45)', paddingLeft: '.85em !important' },
+            '.note-quote': { borderLeft: `3px solid ${theme.color.divider}`, paddingLeft: '.85em !important' },
             '.note-code': {
                 fontFamily: theme.mono,
                 fontSize: '.9em',
@@ -102,7 +91,7 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
             },
             '.note-done': { color: muted },
             '.note-rule': {
-                borderBottom: '1px solid rgba(128,128,128,.35)',
+                borderBottom: `1px solid ${theme.color.divider}`,
                 lineHeight: '.8 !important',
                 marginBottom: '.6em',
             },
@@ -209,12 +198,13 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
         },
         contextmenu(event) {
             event.preventDefault();
-            onMenu(event, event.target.closest('.note-link')?.getAttribute('data-href') ?? null);
+            const href = event.target.closest('.note-link')?.getAttribute('data-href') ?? null;
+            ui.menu({ items: contextMenuItems(href), point: { x: event.clientX, y: event.clientY } });
             return true;
         },
     });
-    // The editor keeps the keyboard and steers the suggestions.
-    const suggestions = ui.autocomplete({ onPick: (item) => takeSlashCommand(item) });
+    // The editor keeps the keyboard and steers the slash menu.
+    const slashMenu = ui.autocomplete({ onPick: (item) => takeSlashCommand(item) });
     const toolbar = ui.floatingToolbar();
     // Highest, to beat the Markdown keymap, which the engine puts at high precedence itself.
     const keys = engine.Prec.highest(
@@ -246,10 +236,10 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
     });
 
     for (const [icon, title, run] of [
-        [ui.iconOf(SHAPES.bold, { size: ICON_SIZE }), 'Bold (⌘B)', () => wrap('**')(view)],
-        [ui.iconOf(SHAPES.italic, { size: ICON_SIZE }), 'Italic (⌘I)', () => wrap('*')(view)],
-        [ui.iconOf(SHAPES.strikethrough, { size: ICON_SIZE }), 'Strikethrough (⇧⌘X)', () => wrap('~~')(view)],
-        [ui.iconOf(SHAPES.code, { size: ICON_SIZE }), 'Code (⌘E)', () => wrap('`')(view)],
+        [ui.iconOf(BOLD_SHAPES, { size: ICON_SIZE }), 'Bold (⌘B)', () => wrap('**')(view)],
+        [ui.iconOf(ITALIC_SHAPES, { size: ICON_SIZE }), 'Italic (⌘I)', () => wrap('*')(view)],
+        [ui.iconOf(STRIKETHROUGH_SHAPES, { size: ICON_SIZE }), 'Strikethrough (⇧⌘X)', () => wrap('~~')(view)],
+        [ui.iconOf(CODE_SHAPES, { size: ICON_SIZE }), 'Code (⌘E)', () => wrap('`')(view)],
         [ui.icon('link', { size: ICON_SIZE }), 'Link (⌘K)', () => editLink()],
     ]) {
         const button = ui.iconButton({
@@ -287,8 +277,7 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
         text: () => (view ? view.state.doc.toString() : ''),
         isOpen: () => !!view,
         hasFocus: () => !!view && view.hasFocus,
-        selectionText: () =>
-            view ? view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to) : '',
+        selectionText,
         setTypeface: (next) => {
             currentTypeface = next;
             view?.dispatch({ effects: typefaceCompartment.reconfigure(typefaceTheme(next)) });
@@ -310,7 +299,7 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
                 keys,
                 engine.keymap.of([...engine.defaultKeymap, ...engine.historyKeymap]),
                 engine.syntaxHighlighting(highlight),
-                look,
+                editorTheme,
                 typefaceCompartment.of(typefaceTheme(currentTypeface)),
                 preview,
                 press,
@@ -374,6 +363,10 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
         if (!view) return;
         view.focus();
         if (end) view.dispatch({ selection: { anchor: view.state.doc.length }, scrollIntoView: true });
+    }
+
+    function selectionText() {
+        return view ? view.state.sliceDoc(view.state.selection.main.from, view.state.selection.main.to) : '';
     }
 
     function setReadOnly(locked) {
@@ -545,33 +538,70 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
         return found;
     }
 
+    // `href` is the link the menu was opened on, if any.
+    function contextMenuItems(href) {
+        const items = [];
+        if (href) {
+            items.push(
+                {
+                    label: 'Open Link',
+                    icon: 'externalWindow',
+                    disabled: !linkTargetOf(href),
+                    run: () => onFollowLink(href),
+                },
+                { label: 'Copy Link', icon: 'link', run: () => copy(href) },
+                { label: 'Edit Link…', hint: '⌘K', run: () => editLink() },
+                '-'
+            );
+        }
+        if (selectionText()) items.push({ label: 'Copy', hint: '⌘C', run: () => copy(selectionText()) }, '-');
+        const current = paragraphStyle();
+        items.push(
+            ...PARAGRAPH_STYLES.map((style) =>
+                style === '-'
+                    ? '-'
+                    : {
+                          label: style.label,
+                          hint: chordOf(style.key),
+                          checked: current === style.key,
+                          run: () => setParagraphStyle(style.key),
+                      }
+            )
+        );
+        return items;
+    }
+
+    function copy(text) {
+        clipboard.writeText(text).catch(() => {});
+    }
+
     function slashCommands() {
         return [
             {
                 label: 'Title',
                 aliases: ['heading 1', 'h1', '제목'],
-                icon: ui.iconOf(SHAPES.heading, { size: ICON_SIZE }),
+                icon: ui.iconOf(HEADING_SHAPES, { size: ICON_SIZE }),
                 hint: '#',
                 run: () => setParagraphStyle('title'),
             },
             {
                 label: 'Heading',
                 aliases: ['heading 2', 'h2', '소제목'],
-                icon: ui.iconOf(SHAPES.heading, { size: ICON_SIZE }),
+                icon: ui.iconOf(HEADING_SHAPES, { size: ICON_SIZE }),
                 hint: '##',
                 run: () => setParagraphStyle('heading'),
             },
             {
                 label: 'Subheading',
                 aliases: ['heading 3', 'h3'],
-                icon: ui.iconOf(SHAPES.heading, { size: ICON_SIZE }),
+                icon: ui.iconOf(HEADING_SHAPES, { size: ICON_SIZE }),
                 hint: '###',
                 run: () => setParagraphStyle('subheading'),
             },
             {
                 label: 'Checklist',
                 aliases: ['todo', 'task', 'checkbox', '체크', '할일'],
-                icon: ui.iconOf(SHAPES.checklist, { size: ICON_SIZE }),
+                icon: ui.iconOf(CHECKLIST_SHAPES, { size: ICON_SIZE }),
                 hint: '[ ]',
                 run: () => setParagraphStyle('checklist'),
             },
@@ -585,28 +615,28 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
             {
                 label: 'Numbered List',
                 aliases: ['number', 'ordered', '번호'],
-                icon: ui.iconOf(SHAPES.numbered, { size: ICON_SIZE }),
+                icon: ui.iconOf(NUMBERED_LIST_SHAPES, { size: ICON_SIZE }),
                 hint: '1.',
                 run: () => setParagraphStyle('numberedList'),
             },
             {
                 label: 'Quote',
                 aliases: ['blockquote', '인용'],
-                icon: ui.iconOf(SHAPES.quote, { size: ICON_SIZE }),
+                icon: ui.iconOf(QUOTE_SHAPES, { size: ICON_SIZE }),
                 hint: '>',
                 run: () => setParagraphStyle('blockQuote'),
             },
             {
                 label: 'Code Block',
                 aliases: ['code', 'monospaced', 'fence', '코드'],
-                icon: ui.iconOf(SHAPES.code, { size: ICON_SIZE }),
+                icon: ui.iconOf(CODE_SHAPES, { size: ICON_SIZE }),
                 hint: '```',
                 run: () => setParagraphStyle('monospaced'),
             },
             {
                 label: 'Divider',
                 aliases: ['rule', 'line', 'hr', '구분선'],
-                icon: ui.iconOf(SHAPES.divider, { size: ICON_SIZE }),
+                icon: ui.iconOf(DIVIDER_SHAPES, { size: ICON_SIZE }),
                 hint: '---',
                 run: () => insertDivider(),
             },
@@ -670,13 +700,13 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
 
     function closeSlashMenu() {
         slash = null;
-        suggestions.close();
+        slashMenu.close();
     }
 
     function placeSlashMenu() {
         const at = view.coordsAtPos(slash.from);
         if (!at) closeSlashMenu();
-        else suggestions.place(at);
+        else slashMenu.place(at);
     }
 
     function takeSlashCommand(command) {
@@ -722,15 +752,15 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
         if (!commands.length) return closeSlashMenu();
         const at = view.coordsAtPos(slash.from);
         if (!at) return closeSlashMenu();
-        suggestions.show(commands, at);
+        slashMenu.show(commands, at);
     }
 
     function slashKey(step) {
         return () => {
             if (!slash) return false;
-            if (step === 'take') suggestions.pick();
+            if (step === 'take') slashMenu.pick();
             else if (step === 'close') closeSlashMenu();
-            else suggestions.move(step);
+            else slashMenu.move(step);
             return true;
         };
     }
@@ -854,15 +884,10 @@ function liveEditor({ theme, ui, match, typeface, onChange, onFollowLink, onMenu
         return found;
     }
 
+    // The numbers of the selected lines while the editor has focus, where the marks are shown as typed.
     function activeLines(editorView) {
-        const lines = new Set();
-        if (!editorView.hasFocus) return lines;
-        for (const range of editorView.state.selection.ranges) {
-            const last = editorView.state.doc.lineAt(range.to).number;
-            for (let number = editorView.state.doc.lineAt(range.from).number; number <= last; number++)
-                lines.add(number);
-        }
-        return lines;
+        if (!editorView.hasFocus) return new Set();
+        return new Set(selectedLines(editorView.state).map((line) => line.number));
     }
 
     function decorationsOf(editorView) {

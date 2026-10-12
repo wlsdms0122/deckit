@@ -1,6 +1,6 @@
 // The open note: on screen is the disk version, plus typing not yet saved, unless a question about the disk is up;
-// then nothing is written or typed until it is answered. Every disk step on the note goes through `enqueue`, so a
-// rename or a move never lands between a save's write and its answer.
+// then nothing is written or typed until it is answered. Every write, rename and move of the open note goes through
+// `enqueue`, so a rename or a move never lands between a save's write and its answer.
 function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRenamed, onMenu }) {
     const SAVE_DELAY_MS = 500;
     const CLOSE = {
@@ -124,7 +124,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
             flex: 0 0 auto;
             margin: 4px 16px 6px;
             padding: 7px 8px 7px 12px;
-            border-radius: 8px;
+            border-radius: var(--deckit-radius-medium);
             background: ${ui.alpha(theme.color.warn, 0.16)};
             font: 12.5px var(--deckit-font);
         }
@@ -183,7 +183,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         } else if (event.key === 'Escape') {
             event.preventDefault();
             note.titleUnapplied = false;
-            titleInput.value = noteName(note.path || '');
+            titleInput.value = noteNameOf(note.path || '');
             titleError.textContent = '';
             editor.focus();
         }
@@ -191,7 +191,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
     titleInput.addEventListener('blur', () => {
         applyTitle();
     });
-    paint();
+    draw();
 
     return {
         element,
@@ -211,7 +211,9 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         },
         reconcile,
         relocate: (from, to) => {
-            if (note.path) note.path = movePath(note.path, from, to);
+            if (!note.path) return;
+            note.path = movePath(note.path, from, to);
+            draw();
         },
         isBlank,
         markPristine: () => {
@@ -224,7 +226,6 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         setFont: (font) => {
             titleInput.style.fontFamily = font;
         },
-        paint,
     };
 
     // Answers "ok", "blocked" (the open note holds, or another opening overtook this one) or "gone".
@@ -242,7 +243,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
             read = await main.call('read', path);
         } catch (error) {
             if (!quiet)
-                ui.dialog({ title: 'Could not open ' + noteName(path), message: error.message, confirmLabel: 'OK' });
+                ui.dialog({ title: 'Could not open ' + noteNameOf(path), message: error.message, confirmLabel: 'OK' });
             return 'gone';
         }
         if (attempt !== opening) return 'blocked';
@@ -259,7 +260,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         });
         titleError.textContent = '';
         editor.open({ text: read.text });
-        paint();
+        draw();
         discard(blank);
         if (read.torn) setTrouble(troubleOf('TORN'));
         if (focus) editor.focus({ end: true });
@@ -290,7 +291,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
             generation: note.generation + 1,
         });
         editor.close();
-        paint();
+        draw();
     }
 
     // The gate before anything leaves, moves, renames or removes the open note, or with `path` a folder holding it.
@@ -350,7 +351,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
                 // Typed while the write was in flight: still unsaved.
                 note.unsaved = editor.text() !== text;
                 if (note.trouble) setTrouble(null);
-                else paint();
+                else draw();
                 if (note.unsaved) scheduleSave();
                 return !note.unsaved;
             } catch (error) {
@@ -390,7 +391,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
                 return;
             }
             if (generation !== note.generation) return;
-            const trouble = note.trouble && TROUBLE[note.trouble.type];
+            const trouble = note.trouble && TROUBLE[note.trouble.kind];
             // Torn by a save here or in an earlier session.
             if (read.torn) {
                 if (!trouble?.aboutBackup) setTrouble(troubleOf('TORN'));
@@ -400,7 +401,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
             if (read.text === editor.text()) {
                 Object.assign(note, { diskTime: read.mtime, bom: read.bom, eol: read.eol, unsaved: false });
                 if (trouble?.clearsWhenInSync) setTrouble(null);
-                else paint();
+                else draw();
                 return;
             }
             if (!trouble && Math.abs(read.mtime - note.diskTime) <= 1) return;
@@ -408,7 +409,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
             if (!note.unsaved && (!trouble || trouble.aboutBackup)) {
                 showDiskVersion(read);
                 if (trouble) setTrouble(null);
-                return paint();
+                return draw();
             }
             // Another version is there: a change, whatever the question was (gone and back again is no longer gone).
             if (!trouble || trouble.yieldsToChange) setTrouble(troubleOf('CHANGED'));
@@ -420,7 +421,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         try {
             await enqueue(() => main.call('restore', path));
         } catch (error) {
-            ui.dialog({ title: 'Could not restore ' + noteName(path), message: error.message, confirmLabel: 'OK' });
+            ui.dialog({ title: 'Could not restore ' + noteNameOf(path), message: error.message, confirmLabel: 'OK' });
             return;
         }
         note.unsaved = false;
@@ -436,7 +437,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         const tracked = renamed.finally(() => {
             if (renaming !== tracked) return;
             renaming = null;
-            paint();
+            draw();
         });
         renaming = tracked;
         return renamed;
@@ -445,25 +446,25 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
     async function renameToTitle() {
         const from = note.path;
         const wanted = titleInput.value.trim();
-        if (!wanted || wanted === noteName(from)) {
-            titleInput.value = noteName(from);
+        if (!wanted || wanted === noteNameOf(from)) {
+            titleInput.value = noteNameOf(from);
             titleError.textContent = '';
             return true;
         }
         if (!(await settle(from))) {
-            titleInput.value = noteName(note.path || from);
+            titleInput.value = noteNameOf(note.path || from);
             return false;
         }
         let renamed = false;
         await enqueue(async () => {
             try {
-                onRelocate(from, (await main.call('rename', from, wanted)).rel);
+                onRelocate(from, (await main.call('rename', from, wanted)).path);
                 titleError.textContent = '';
                 renamed = true;
             } catch (error) {
                 if (note.path !== from) return;
                 titleError.textContent = error.message;
-                titleInput.value = noteName(from);
+                titleInput.value = noteNameOf(from);
             }
         });
         await onRenamed();
@@ -487,8 +488,8 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
 
     // A refusal of a kind with no question of its own is FAILED.
     function troubleOf(kind, error = null) {
-        const type = TROUBLE[kind] ? kind : 'FAILED';
-        return { type, message: TROUBLE[type].showsMessage && error ? error.message : '' };
+        const known = TROUBLE[kind] ? kind : 'FAILED';
+        return { kind: known, message: TROUBLE[known].showsMessage && error ? error.message : '' };
     }
 
     function readTroubleOf(error) {
@@ -498,17 +499,17 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
     function setTrouble(trouble) {
         note.trouble = trouble;
         editor.setReadOnly(!!trouble);
-        paint();
+        draw();
     }
 
-    function paint() {
+    function draw() {
         const isOpen = !!note.path;
         menuButton.setEnabled(isOpen);
-        if (isOpen && !note.titleUnapplied && !renaming && titleInput.value !== noteName(note.path))
-            titleInput.value = noteName(note.path);
+        if (isOpen && !note.titleUnapplied && !renaming && titleInput.value !== noteNameOf(note.path))
+            titleInput.value = noteNameOf(note.path);
         titleInput.disabled = !isOpen || !!note.trouble;
         stamp.textContent = isOpen && note.diskTime ? 'Edited ' + longDate(note.diskTime) : '';
-        const trouble = note.trouble && TROUBLE[note.trouble.type];
+        const trouble = note.trouble && TROUBLE[note.trouble.kind];
         banner.hidden = !trouble;
         if (!trouble) return banner.replaceChildren();
         const text = trouble.summary + (note.trouble.message ? ': ' + note.trouble.message : '');

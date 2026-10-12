@@ -18,12 +18,12 @@ function paletteCommands({ ui, host, main, allNotes, onNewNote, onOpenNote, onSh
         ...foldersIn(allNotes).map((folder) => ({
             group: 'Folders',
             label: folder.name,
-            hint: folder.rel === folder.name ? '' : parentOf(folder.rel),
+            hint: folder.path === folder.name ? '' : parentOf(folder.path),
             icon: ui.icon('folder', { size: 16 }),
             keywords: ['노트', '폴더', 'note', 'folder'],
             run: () => {
                 host.show();
-                onShowFolder(folder.rel);
+                onShowFolder(folder.path);
             },
         })),
     ];
@@ -48,13 +48,13 @@ function paletteCommands({ ui, host, main, allNotes, onNewNote, onOpenNote, onSh
         return [
             ...shown.map((note) => ({
                 label: note.name || 'Untitled',
-                hint: [shortDate(note.mtime), parentOf(note.rel), (note.snippet || '').slice(0, 70)]
+                hint: [shortDate(note.mtime), parentOf(note.path), (note.snippet || '').slice(0, 70)]
                     .filter(Boolean)
                     .join(' · '),
                 icon: ui.icon('fileText', { size: 16 }),
                 run: () => {
                     host.show();
-                    onOpenNote(note.rel);
+                    onOpenNote(note.path);
                 },
             })),
             ...notice,

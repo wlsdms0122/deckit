@@ -1,15 +1,15 @@
 // A path read off the screen (a row, a card, a menu, a drag) is marked with the count of relocations recorded when it
-// was read, its `data-seq`; the relocations recorded since bring it up to date.
+// was read, its `since`; the relocations recorded after that bring it up to date.
 function relocationLog({ movePath, idle }) {
     const LIMIT = 100;
     const relocations = [];
     let recorded = 0;
 
-    return { record, count: () => recorded, currentPath };
+    return { record, since: () => recorded, currentPath };
 
-    // `to` null: the path went to the Trash.
+    // `to` null: the path went to the Trash. Each relocation keeps the count recorded before it.
     function record(from, to) {
-        relocations.push({ from, to, seq: ++recorded });
+        relocations.push({ from, to, since: recorded++ });
         if (relocations.length > LIMIT) relocations.shift();
     }
 
@@ -18,7 +18,7 @@ function relocationLog({ movePath, idle }) {
         await idle();
         return relocations.reduce(
             (current, relocation) =>
-                relocation.seq > since ? movePath(current, relocation.from, relocation.to) : current,
+                relocation.since >= since ? movePath(current, relocation.from, relocation.to) : current,
             path
         );
     }

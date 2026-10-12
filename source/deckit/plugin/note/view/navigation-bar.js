@@ -37,14 +37,13 @@ function navigationBar({ ui, host, onBack, onForward, onGo, acceptDrops }) {
         button.element.addEventListener('mousedown', (event) => event.preventDefault());
     }
     acceptDrops(breadcrumb.element, (under) => {
-        const crumb = under.closest('[data-crumb]');
-        return crumb ? { folder: crumb.dataset.crumb, mark: crumb } : null;
+        const part = breadcrumb.partAt(under);
+        return part ? { folder: part.key, mark: part.element } : null;
     });
 
-    return { element, trailing, paint };
+    return { element, trailing, draw };
 
-    // `isCurrent` false: the place is a note in `folder`.
-    function paint(folder, { isCurrent, canGoBack, canGoForward }) {
+    function draw(folder, { isFolderShown, canGoBack, canGoForward }) {
         backButton.setEnabled(canGoBack);
         forwardButton.setEnabled(canGoForward);
         const names = folder ? folder.split('/') : [];
@@ -52,9 +51,9 @@ function navigationBar({ ui, host, onBack, onForward, onGo, acceptDrops }) {
         breadcrumb.set(
             folders.map((path, index) => ({
                 key: path,
-                label: path ? baseName(path) : 'All Notes',
+                label: path ? nameOf(path) : 'All Notes',
                 icon: 'folder',
-                current: isCurrent && index === folders.length - 1,
+                current: isFolderShown && index === folders.length - 1,
             }))
         );
     }

@@ -1,6 +1,5 @@
 module.exports = ({ folder, handle, send, files }) => {
     const fs = require('fs');
-    const fsp = fs.promises;
     const path = require('path');
 
     const ROOT = path.resolve(folder);
@@ -24,24 +23,24 @@ module.exports = ({ folder, handle, send, files }) => {
 
     handle('tree', async () => {
         const root = await notesRoot();
-        const allNotes = { name: '', rel: '', folders: [], notes: [], count: 0 };
+        const allNotes = { name: '', path: '', folders: [], notes: [], count: 0 };
         const byPath = new Map([[root, allNotes]]);
         await walk(root, 0, async (full, entry, kind) => {
             const parent = byPath.get(path.dirname(full));
             if (kind === 'note') {
                 let mtime = 0;
                 try {
-                    mtime = (await fsp.stat(full)).mtimeMs;
+                    mtime = (await fs.promises.stat(full)).mtimeMs;
                 } catch {}
                 parent.notes.push({
                     name: entry.name.slice(0, -EXTENSION.length),
-                    rel: relativePath(root, full),
+                    path: relativePath(root, full),
                     mtime,
                 });
                 parent.count++;
                 return;
             }
-            const child = { name: entry.name, rel: relativePath(root, full), folders: [], notes: [], count: 0 };
+            const child = { name: entry.name, path: relativePath(root, full), folders: [], notes: [], count: 0 };
             parent.folders.push(child);
             byPath.set(full, child);
         });
@@ -51,18 +50,18 @@ module.exports = ({ folder, handle, send, files }) => {
 
     handle('list', async (folderPath) => {
         const { root, full: directory } = await resolveFolder(folderPath);
-        const entries = await fsp.readdir(directory, { withFileTypes: true });
+        const entries = await fs.promises.readdir(directory, { withFileTypes: true });
         const notes = [];
         for (const entry of entries) {
             if (!entry.isFile() || !isNote(entry.name)) continue;
             const full = path.join(directory, entry.name);
             const name = entry.name.slice(0, -EXTENSION.length);
             try {
-                const stats = await fsp.stat(full);
+                const stats = await fs.promises.stat(full);
                 const head = await headOf(full);
                 notes.push({
                     name,
-                    rel: relativePath(root, full),
+                    path: relativePath(root, full),
                     mtime: stats.mtimeMs,
                     birth: stats.birthtimeMs,
                     preview: previewOf(head.startsWith(BOM) ? head.slice(1) : head, name),
@@ -81,7 +80,7 @@ module.exports = ({ folder, handle, send, files }) => {
     // down. A backup already there is the last whole version from a failed save and is never overwritten.
     handle('write', async (notePath, text, base, { bom = false, eol = '\n' } = {}) => {
         const { full, root } = await resolveNote(notePath);
-        const stats = await fsp.stat(full).catch(() => null);
+        const stats = await fs.promises.stat(full).catch(() => null);
         if (base != null) {
             if (!stats) throw files.refuse('GONE', 'the note is no longer there');
             if (Math.abs(stats.mtimeMs - base) > 1)
@@ -91,7 +90,7 @@ module.exports = ({ folder, handle, send, files }) => {
         if (eol === '\r\n') out = out.replace(/\r?\n/g, '\r\n');
         if (bom) out = BOM + out;
         // Opened first, so a locked or read-only note fails with nothing touched.
-        const file = await fsp.open(full, stats ? 'r+' : 'wx');
+        const file = await fs.promises.open(full, stats ? 'r+' : 'wx');
         try {
             const backup = stats && backupOf(full, stats.ino);
             if (backup && !(await exists(backup))) await keepBackup(full, backup);
@@ -100,10 +99,10 @@ module.exports = ({ folder, handle, send, files }) => {
             } catch (error) {
                 // TORN only when a backup exists to go back to. A file this write made (wx) is removed.
                 if (backup) throw files.refuse('TORN', `saving stopped partway (${error.code || error.message})`);
-                if (!stats) await fsp.unlink(full).catch(() => {});
+                if (!stats) await fs.promises.unlink(full).catch(() => {});
                 throw error;
             }
-            if (backup) await fsp.unlink(backup).catch(() => {});
+            if (backup) await fs.promises.unlink(backup).catch(() => {});
         } finally {
             await file.close().catch(() => {});
         }
@@ -112,19 +111,19 @@ module.exports = ({ folder, handle, send, files }) => {
 
     handle('restore', async (notePath) => {
         const { full, root } = await resolveNote(notePath);
-        const stats = await fsp.stat(full).catch(() => null);
+        const stats = await fs.promises.stat(full).catch(() => null);
         const backup = stats && backupOf(full, stats.ino);
         if (!backup || !(await exists(backup)))
             throw files.refuse('GONE', 'there is no earlier version kept for this note');
-        const file = await fsp.open(full, 'r+');
+        const file = await fs.promises.open(full, 'r+');
         try {
-            await putInPlace(file, await fsp.readFile(backup));
+            await putInPlace(file, await fs.promises.readFile(backup));
         } catch (error) {
             throw files.refuse('TORN', `restoring stopped partway (${error.code || error.message})`);
         } finally {
             await file.close().catch(() => {});
         }
-        await fsp.unlink(backup).catch(() => {});
+        await fs.promises.unlink(backup).catch(() => {});
         return { mtime: await noteWritten(root, full) };
     });
 
@@ -133,26 +132,26 @@ module.exports = ({ folder, handle, send, files }) => {
         const full = await files.fresh(
             directory,
             'Untitled',
-            (candidate) => fsp.writeFile(candidate, '', { encoding: 'utf8', flag: 'wx' }),
+            (candidate) => fs.promises.writeFile(candidate, '', { encoding: 'utf8', flag: 'wx' }),
             EXTENSION
         );
         const mtime = await noteWritten(root, full);
-        return { rel: relativePath(root, full), name: path.basename(full, EXTENSION), mtime };
+        return { path: relativePath(root, full), name: path.basename(full, EXTENSION), mtime };
     });
 
     handle('mkdir', async (parentPath, name) => {
         const { root, full: directory } = await resolveFolder(parentPath);
         const full = await files.fresh(directory, name ? cleanName(name) : 'New Folder', (candidate) =>
-            fsp.mkdir(candidate)
+            fs.promises.mkdir(candidate)
         );
-        return { rel: relativePath(root, full), name: path.basename(full) };
+        return { path: relativePath(root, full), name: path.basename(full) };
     });
 
     handle('rename', async (entryPath, name) => {
         const { root, full: from, isFolder } = await resolveEntry(entryPath);
         const to = await files.rename(from, cleanName(name) + (isFolder ? '' : EXTENSION));
         if (!isFolder && to !== from) await carryBackup(from, to);
-        return { rel: relativePath(root, to) };
+        return { path: relativePath(root, to) };
     });
 
     handle('move', async (entryPath, folderPath) => {
@@ -160,21 +159,21 @@ module.exports = ({ folder, handle, send, files }) => {
         const { full: directory } = await resolveFolder(folderPath);
         const to = await files.move(from, directory);
         if (!isFolder && to !== from) await carryBackup(from, to);
-        return { rel: relativePath(root, to) };
+        return { path: relativePath(root, to) };
     });
 
     // Only an empty note: one made and left without a word.
     handle('discard', async (notePath) => {
         const { full } = await resolveNote(notePath);
-        const stats = await fsp.stat(full).catch(() => null);
+        const stats = await fs.promises.stat(full).catch(() => null);
         if (!stats || !stats.isFile() || stats.size > 0) return false;
-        await fsp.unlink(full);
+        await fs.promises.unlink(full);
         return true;
     });
 
     handle('trash', async (entryPath) => {
         const { full, isFolder } = await resolveEntry(entryPath);
-        const stats = isFolder ? null : await fsp.stat(full).catch(() => null);
+        const stats = isFolder ? null : await fs.promises.stat(full).catch(() => null);
         await files.trash(full);
         if (stats && (await exists(backupOf(full, stats.ino))))
             await files.trash(backupOf(full, stats.ino)).catch(() => {});
@@ -215,7 +214,7 @@ module.exports = ({ folder, handle, send, files }) => {
             const snippet =
                 !Number.isFinite(at) || at < 40 ? previewOf(read.text, name) : '…' + flat.slice(at - 30, at + 130);
             hits.push({
-                rel: relativePath(root, full),
+                path: relativePath(root, full),
                 name,
                 mtime: read.mtime,
                 inName: words.every((word) => lowerName.includes(word)),
@@ -258,8 +257,8 @@ module.exports = ({ folder, handle, send, files }) => {
 
     // Made again on every call: the folder may be deleted in Finder while the app runs.
     async function notesRoot() {
-        await fsp.mkdir(ROOT, { recursive: true });
-        if (!realRoot) realRoot = await fsp.realpath(ROOT);
+        await fs.promises.mkdir(ROOT, { recursive: true });
+        if (!realRoot) realRoot = await fs.promises.realpath(ROOT);
         return realRoot;
     }
 
@@ -290,7 +289,7 @@ module.exports = ({ folder, handle, send, files }) => {
         }
         const full = path.join(root, ...parts);
         for (let probe = full; ; ) {
-            const real = await fsp.realpath(probe).catch(() => null);
+            const real = await fs.promises.realpath(probe).catch(() => null);
             if (real) {
                 if (real !== root && !real.startsWith(root + path.sep))
                     throw files.refuse('OUTSIDE', 'a link out of the notes folder: ' + text);
@@ -307,14 +306,14 @@ module.exports = ({ folder, handle, send, files }) => {
         const place = await locate(notePath);
         if (place.full === place.root || !isNote(path.basename(place.full)))
             throw files.refuse('NOT_NOTE', 'not a note: ' + notePath);
-        const stats = await fsp.stat(place.full).catch(() => null);
+        const stats = await fs.promises.stat(place.full).catch(() => null);
         if (stats && !stats.isFile()) throw files.refuse('NOT_NOTE', 'not a note: ' + notePath);
         return place;
     }
 
     async function resolveFolder(folderPath) {
         const place = await locate(folderPath);
-        const stats = await fsp.stat(place.full).catch(() => null);
+        const stats = await fs.promises.stat(place.full).catch(() => null);
         if (!stats) throw files.refuse('GONE', 'no such folder: ' + folderPath);
         if (!stats.isDirectory()) throw files.refuse('NOT_FOLDER', 'not a folder: ' + folderPath);
         return place;
@@ -324,7 +323,7 @@ module.exports = ({ folder, handle, send, files }) => {
         const place = await locate(entryPath);
         if (place.full === place.root)
             throw files.refuse('OUTSIDE', 'the notes folder itself is not changed from here');
-        const stats = await fsp.lstat(place.full).catch(() => null);
+        const stats = await fs.promises.lstat(place.full).catch(() => null);
         if (!stats) throw files.refuse('GONE', 'no longer there: ' + entryPath);
         if (!stats.isDirectory() && !isNote(path.basename(place.full)))
             throw files.refuse('NOT_NOTE', 'not a note: ' + entryPath);
@@ -339,7 +338,7 @@ module.exports = ({ folder, handle, send, files }) => {
 
     async function exists(full) {
         try {
-            await fsp.lstat(full);
+            await fs.promises.lstat(full);
             return true;
         } catch {
             return false;
@@ -350,7 +349,7 @@ module.exports = ({ folder, handle, send, files }) => {
     async function walk(directory, depth, visit) {
         let entries = [];
         try {
-            entries = await fsp.readdir(directory, { withFileTypes: true });
+            entries = await fs.promises.readdir(directory, { withFileTypes: true });
         } catch {
             return;
         }
@@ -380,7 +379,7 @@ module.exports = ({ folder, handle, send, files }) => {
     }
 
     async function headOf(full) {
-        const file = await fsp.open(full, 'r');
+        const file = await fs.promises.open(full, 'r');
         try {
             const { buffer, bytesRead } = await file.read(Buffer.alloc(4096), 0, 4096, 0);
             return buffer.subarray(0, bytesRead).toString('utf8');
@@ -414,15 +413,15 @@ module.exports = ({ folder, handle, send, files }) => {
 
     async function keepBackup(full, backup) {
         try {
-            const copy = await fsp.open(backup, 'w');
+            const copy = await fs.promises.open(backup, 'w');
             try {
-                await copy.writeFile(await fsp.readFile(full));
+                await copy.writeFile(await fs.promises.readFile(full));
                 await copy.sync();
             } finally {
                 await copy.close();
             }
         } catch (error) {
-            await fsp.unlink(backup).catch(() => {});
+            await fs.promises.unlink(backup).catch(() => {});
             throw files.refuse(
                 'NO_ROOM',
                 `the note was not changed: there is no room to keep its last version while saving (${error.code || error.message})`
@@ -432,9 +431,9 @@ module.exports = ({ folder, handle, send, files }) => {
 
     // The backup is named after the note, so it moves with it or the note stops being torn.
     async function carryBackup(from, to) {
-        const stats = await fsp.stat(to).catch(() => null);
+        const stats = await fs.promises.stat(to).catch(() => null);
         if (stats && (await exists(backupOf(from, stats.ino))))
-            await fsp.rename(backupOf(from, stats.ino), backupOf(to, stats.ino));
+            await fs.promises.rename(backupOf(from, stats.ino), backupOf(to, stats.ino));
     }
 
     // writeFile: on a full disk, write can return a short count without failing.
@@ -445,7 +444,7 @@ module.exports = ({ folder, handle, send, files }) => {
     }
 
     async function noteWritten(root, full) {
-        const { mtimeMs } = await fsp.stat(full);
+        const { mtimeMs } = await fs.promises.stat(full);
         written.set(relativePath(root, full), mtimeMs);
         return mtimeMs;
     }
@@ -456,14 +455,14 @@ module.exports = ({ folder, handle, send, files }) => {
     async function readText(full) {
         let stats;
         try {
-            stats = await fsp.stat(full);
+            stats = await fs.promises.stat(full);
         } catch (error) {
             if (error.code === 'ENOENT') throw files.refuse('GONE', 'the note is no longer there');
             throw error;
         }
         if (stats.size > READ_LIMIT) throw files.refuse('TOO_BIG', 'this note is larger than 5 MB');
         const torn = await exists(backupOf(full, stats.ino));
-        const bytes = await fsp.readFile(full);
+        const bytes = await fs.promises.readFile(full);
         let text;
         try {
             text = new TextDecoder('utf-8', { fatal: !torn, ignoreBOM: true }).decode(bytes);
@@ -488,7 +487,7 @@ module.exports = ({ folder, handle, send, files }) => {
         const root = await notesRoot();
         const changed = [];
         for (const changedPath of pending) {
-            const stats = await fsp.stat(path.join(root, ...changedPath.split('/'))).catch(() => null);
+            const stats = await fs.promises.stat(path.join(root, ...changedPath.split('/'))).catch(() => null);
             if (stats && !stats.isDirectory() && !isNote(path.basename(changedPath))) continue;
             const own = written.get(changedPath);
             if (stats && own != null && Math.abs(stats.mtimeMs - own) <= 1) continue;

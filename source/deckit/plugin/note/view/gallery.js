@@ -19,7 +19,6 @@ function gallery({
     onNewFolder,
 }) {
     const SEARCH_DELAY_MS = 150;
-    const CARD = '[data-note], [data-folder]';
     const STYLE = `
         .note-search { flex: 0 1 220px; min-width: 140px; }
         .note-gallery {
@@ -40,12 +39,12 @@ function gallery({
             box-sizing: border-box;
             min-width: 0;
             padding: 12px 14px;
-            border-radius: 10px;
-            background: rgba(128, 128, 128, 0.08);
+            border-radius: var(--deckit-radius-large);
+            background: var(--deckit-fill);
             cursor: default;
             transition: background-color var(--deckit-fast) var(--deckit-easing);
         }
-        .note-card:hover { background: rgba(128, 128, 128, 0.15); }
+        .note-card:hover { background: var(--deckit-hover); }
         .note-card-note { display: flex; flex-direction: column; gap: 6px; height: 156px; }
         .note-card-folder { display: flex; align-items: center; gap: 10px; height: 62px; }
         .note-card-title, .note-card-text { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
@@ -78,7 +77,7 @@ function gallery({
     // The notes of a folder as main listed them, with the relocation count they were asked at.
     let listing = { folder: null, notes: [], since: 0 };
     let query = '';
-    let hits = null; // null while a search runs
+    let queryHits = null;
     let partial = false;
     let searches = 0;
     let loads = 0;
@@ -92,7 +91,7 @@ function gallery({
         clearable: true,
         onInput: (value) => search(value),
         onSubmit: () => {
-            if (hits?.length) onOpenNote(hits[0].rel);
+            if (queryHits?.length) onOpenNote(queryHits[0].path);
         },
         onCancel: () => {
             field.set('');
@@ -170,27 +169,28 @@ function gallery({
     ui.edgeFade(body);
     // Delegated, so a card drawn again never loses a press.
     body.addEventListener('click', (event) => {
-        const card = cardAt(event.target);
+        const card = entryAt(event.target);
         if (!card) return;
-        if (card.dataset.note) onOpenNote(card.dataset.note);
-        else onOpenFolder(card.dataset.folder);
+        const { kind, path } = entryOf(card);
+        if (kind === 'note') onOpenNote(path);
+        else onOpenFolder(path);
     });
     ui.contextMenu(body, {
-        rowAt: cardAt,
-        items: (card) =>
-            card?.dataset.note
-                ? noteMenu(card.dataset.note, Number(card.dataset.seq))
-                : card
-                  ? folderMenu(card.dataset.folder, Number(card.dataset.seq), card)
-                  : folderMenu(shownFolder()),
+        rowAt: entryAt,
+        items: (card) => {
+            if (!card) return folderMenu(shownFolder());
+            const { kind, path, since } = entryOf(card);
+            return kind === 'note' ? noteMenu(path, since) : folderMenu(path, since, card);
+        },
     });
     // From each list, which holds its cards while one is dragged.
     for (const cards of [folderCards, noteCards])
-        ui.dragSource(cards.element, { itemAt: cardAt, describe: describeDrag });
+        ui.dragSource(cards.element, { itemAt: entryAt, describe: describeDrag });
     acceptDrops(body, (under) => {
-        const card = under.closest('[data-folder]');
-        return card
-            ? { folder: card.dataset.folder, mark: card, since: Number(card.dataset.seq) }
+        const card = entryAt(under);
+        const entry = card && entryOf(card);
+        return entry?.kind === 'folder'
+            ? { folder: entry.path, mark: card, since: entry.since }
             : { folder: shownFolder(), mark: body };
     });
 
@@ -205,10 +205,7 @@ function gallery({
             field.input.focus();
             field.input.select();
         },
-        labelOf: (path) =>
-            body.querySelector(
-                `[data-note="${CSS.escape(path)}"] [data-name], [data-folder="${CSS.escape(path)}"] [data-name]`
-            ),
+        labelOf: (path) => labelIn(body, path),
     };
 
     function draw() {
@@ -236,14 +233,14 @@ function gallery({
     }
 
     function drawResults() {
-        resultHeading.textContent = hits ? `${hits.length}${partial ? '+' : ''} found` : 'Searching…';
+        resultHeading.textContent = queryHits ? `${queryHits.length}${partial ? '+' : ''} found` : 'Searching…';
         resultHeading.hidden = false;
         folderHeading.hidden = true;
         folderCards.set([]);
         noteHeading.hidden = true;
-        noteCards.set((hits || []).map((hit) => noteItemOf(hit, { since: hit.since, showsFolder: true })));
+        noteCards.set((queryHits || []).map((hit) => noteItemOf(hit, { since: hit.since, isHit: true })));
         status.textContent = 'No notes match';
-        status.hidden = !hits || hits.length > 0;
+        status.hidden = !queryHits || queryHits.length > 0;
         partialNotice.hidden = !partial;
         empty.element.hidden = true;
     }
@@ -252,7 +249,7 @@ function gallery({
         const folder = shownFolder();
         if (folder == null) return;
         const attempt = ++loads;
-        const since = relocations.count();
+        const since = relocations.since();
         let notes = [];
         try {
             notes = await main.call('list', folder);
@@ -262,22 +259,23 @@ function gallery({
         draw();
     }
 
+    // An answer to a search that was overtaken, by another search or by a folder reached, is dropped.
     function search(value) {
         query = value.trim();
         const attempt = ++searches;
-        hits = null;
+        queryHits = null;
         if (!query) partial = false;
         draw();
         if (!query) return;
         setTimeout(async () => {
             if (attempt !== searches) return;
             let found = { hits: [], partial: false };
-            const since = relocations.count();
+            const since = relocations.since();
             try {
                 found = await main.call('search', query);
             } catch {}
             if (attempt !== searches) return;
-            hits = found.hits.map((hit) => ({ ...hit, since }));
+            queryHits = found.hits.map((hit) => ({ ...hit, since }));
             partial = found.partial;
             draw();
         }, SEARCH_DELAY_MS);
@@ -294,7 +292,9 @@ function gallery({
         if (query) {
             field.set('');
             query = '';
-            hits = null;
+            queryHits = null;
+            partial = false;
+            searches++;
         }
         if (isNewFolder) body.scrollTop = 0;
     }
@@ -314,7 +314,8 @@ function gallery({
         const notes = folder.count;
         const folders = folder.folders.length;
         return {
-            path: folder.rel,
+            kind: 'folder',
+            path: folder.path,
             since: allNotes().since,
             name: folder.name,
             contents:
@@ -327,14 +328,16 @@ function gallery({
         };
     }
 
-    function noteItemOf(note, { since, showsFolder = false }) {
+    // A hit shows the words it was found by and the folder it is in.
+    function noteItemOf(note, { since, isHit = false }) {
         const time = settings.get('sort') === 'created' ? note.birth || note.mtime : note.mtime;
         return {
-            path: note.rel,
+            kind: 'note',
+            path: note.path,
             since,
             title: note.name || 'Untitled',
-            text: (hits ? note.snippet : note.preview) || 'No additional text',
-            footer: [shortDate(time), showsFolder ? parentOf(note.rel) : ''].filter(Boolean).join(' · '),
+            text: (isHit ? note.snippet : note.preview) || 'No additional text',
+            footer: [shortDate(time), isHit ? parentOf(note.path) : ''].filter(Boolean).join(' · '),
         };
     }
 
@@ -343,8 +346,7 @@ function gallery({
         const icon = ui.element('span', { className: 'note-card-icon' });
         const words = ui.element('div', { className: 'note-card-words' });
         const name = ui.element('div', { className: 'note-card-name', text: item.name });
-        card.dataset.folder = item.path;
-        card.dataset.seq = String(item.since);
+        markEntry(card, item);
         icon.innerHTML = ui.folderIcon({ open: false, size: 26 });
         // What a drag carries and an inline rename types over.
         name.dataset.name = '';
@@ -356,8 +358,7 @@ function gallery({
     function noteCardOf(item) {
         const card = ui.element('div', { className: 'note-card note-card-note' });
         const title = ui.element('div', { className: 'note-card-title', text: item.title });
-        card.dataset.note = item.path;
-        card.dataset.seq = String(item.since);
+        markEntry(card, item);
         title.dataset.name = '';
         card.append(
             title,
@@ -365,10 +366,5 @@ function gallery({
             ui.element('div', { className: 'note-card-footer', text: item.footer })
         );
         return card;
-    }
-
-    // A drag can start on a text node, which has no closest().
-    function cardAt(target) {
-        return target.closest?.(CARD) ?? null;
     }
 }

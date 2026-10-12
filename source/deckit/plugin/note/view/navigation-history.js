@@ -1,7 +1,7 @@
-// Where the person has been, as places ({ kind: 'folder' | 'note', rel }). `enter(place)` answers "ok", "blocked" (a
+// Where the person has been, as places ({ kind: 'folder' | 'note', path }). `enter(place)` answers "ok", "blocked" (a
 // question or unsaved typing holds the open note: nothing moves and the history stays) or "gone"; `land(place)` makes
-// it the current one.
-function navigationHistory({ movePath, current, enter, land }) {
+// it the current one. `onChange()` hears that what is left to go back or forward to changed with no place landed on.
+function navigationHistory({ movePath, current, enter, land, onChange }) {
     const LIMIT = 50;
     const back = [];
     const forward = [];
@@ -44,6 +44,7 @@ function navigationHistory({ movePath, current, enter, land }) {
                 land(there);
                 return result;
             }
+            onChange();
             return 'gone';
         });
     }
@@ -58,14 +59,14 @@ function navigationHistory({ movePath, current, enter, land }) {
     function relocate(from, to) {
         for (const places of [back, forward]) {
             for (let index = places.length - 1; index >= 0; index--) {
-                const moved = movePath(places[index].rel, from, to);
+                const moved = movePath(places[index].path, from, to);
                 if (moved === null) places.splice(index, 1);
-                else places[index].rel = moved;
+                else places[index].path = moved;
             }
         }
     }
 
     function isSamePlace(one, other) {
-        return one.kind === other.kind && one.rel === other.rel;
+        return one.kind === other.kind && one.path === other.path;
     }
 }

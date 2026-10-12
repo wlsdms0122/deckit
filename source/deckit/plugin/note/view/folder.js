@@ -1,4 +1,4 @@
-// The notes folder as main lists it: each folder is { name, rel, folders, notes, count }.
+// The notes folder as main lists it: each folder is { name, path, folders, notes, count }.
 function folderAt(top, path) {
     if (!path) return top;
     let folder = top;
@@ -12,7 +12,7 @@ function folderAt(top, path) {
 // Every folder under `top`, each before what it holds, with its depth.
 function foldersIn(top, depth = 0) {
     return top.folders.flatMap((folder) => [
-        { rel: folder.rel, name: folder.name, depth },
+        { path: folder.path, name: folder.name, depth },
         ...foldersIn(folder, depth + 1),
     ]);
 }

@@ -1,23 +1,3 @@
-// "system" is the face the rest of the panel is in.
-const FONTS = [
-    { value: 'system', label: 'System' },
-    ...[
-        'Apple SD Gothic Neo',
-        'Pretendard',
-        'Noto Sans KR',
-        'Spoqa Han Sans Neo',
-        'Nanum Gothic',
-        'Nanum Myeongjo',
-        'Helvetica Neue',
-        'Avenir Next',
-        'Inter',
-        'IBM Plex Sans',
-        'Georgia',
-        'Charter',
-        'Palatino',
-    ].map((name) => ({ value: name, label: name, font: `"${name}"` })),
-];
-
 Deckit.register({
     keywords: [
         'notes',
@@ -77,9 +57,9 @@ Deckit.register({
         const { values: store } = storage;
 
         // Everything in the notes folder, with the relocation count it was asked at (`since`).
-        let allNotes = { name: '', rel: '', folders: [], notes: [], count: 0, since: 0 };
-        // A folder or a note, { kind, rel }.
-        let place = store.get('at', { kind: 'folder', rel: '' });
+        let allNotes = { name: '', path: '', folders: [], notes: [], count: 0, since: 0 };
+        // A folder or a note, { kind, path }.
+        let place = store.get('at', { kind: 'folder', path: '' });
         let hadFocus = false;
         let changeTimer = 0;
 
@@ -90,11 +70,11 @@ Deckit.register({
             theme,
             ui,
             match: util.match,
-            typeface: typefaceNow(),
+            typeface: currentTypeface(),
+            chordOf: host.chordOf,
+            clipboard: host.clipboard,
             onChange: () => noteSession.edited(),
             onFollowLink: followLink,
-            onMenu: (event, href) =>
-                ui.menu({ items: noteMenus.editorItems(href), point: { x: event.clientX, y: event.clientY } }),
         });
         const noteSession = session({
             theme,
@@ -104,44 +84,48 @@ Deckit.register({
             movePath: util.movePath,
             onLeave: leaveNote,
             onRelocate: relocate,
-            onRenamed: async () => {
-                await refresh();
-                paintPlace();
-            },
+            onRenamed: changed,
             onMenu: (path, anchor) => ui.menu({ items: noteMenus.noteItems(path), anchor }),
         });
-        const placeHistory = navigationHistory({ movePath: util.movePath, current: () => place, enter, land });
+        const placeHistory = navigationHistory({
+            movePath: util.movePath,
+            current: () => place,
+            enter,
+            land,
+            onChange: drawPlace,
+        });
         const fileOperations = operations({
             ui,
             host,
             main,
-            noteSession,
             relocations,
+            settle: noteSession.settle,
+            enqueue: noteSession.enqueue,
+            openPath: noteSession.path,
+            isBlank: noteSession.isBlank,
+            text: noteSession.text,
             onRelocate: relocate,
             onTrash: async (path, wasOpen) => {
                 if (wasOpen) await leaveNote();
-                else if (place.kind === 'folder' && isWithin(place.rel, path))
+                else if (place.kind === 'folder' && isWithin(place.path, path))
                     await showFolder(parentOf(path), { record: false });
             },
-            refresh,
-            paintPlace,
-            loadTree,
+            onNoteMade: noteMade,
+            onFocusTitle: noteSession.focusTitle,
+            onChanged: changed,
             labelFor,
-            openNote,
         });
         const noteMenus = menus({
             ui,
             host,
-            editor,
             relocations,
             fileOperations,
             allNotes: () => allNotes,
-            notePath: () => noteSession.path(),
+            openPath: noteSession.path,
             onOpenNote: openNote,
-            onFocusTitle: () => noteSession.focusTitle(),
+            onFocusTitle: noteSession.focusTitle,
             onNewNote: (into) => fileOperations.newNote(into),
             labelFor,
-            followLink,
         });
         const dragging = dragAndDrop({ ui, relocations, onMove: (...move) => fileOperations.move(...move) });
         // What the gallery and the sidebar both do with a note or a folder.
@@ -164,7 +148,7 @@ Deckit.register({
             settings,
             relocations,
             navigation: galleryNavigation,
-            shownFolder: () => (place.kind === 'folder' ? place.rel : null),
+            shownFolder: () => (place.kind === 'folder' ? place.path : null),
             allNotes: () => allNotes,
             ...browsing,
         });
@@ -174,7 +158,7 @@ Deckit.register({
             store,
             movePath: util.movePath,
             onShowAll: () => showFolder(''),
-            onToggle: paintTree,
+            onToggle: drawTree,
             ...browsing,
         });
         const notePane = ui.element('div', { className: 'note-pane' });
@@ -222,8 +206,8 @@ Deckit.register({
                 onNewNote: browsing.onNewNote,
                 onNewFolder: browsing.onNewFolder,
                 onTrash: () => {
-                    if (place.kind === 'note') fileOperations.trashNote(place.rel);
-                    else if (place.rel) fileOperations.trashFolder(place.rel);
+                    if (place.kind === 'note') fileOperations.trashNote(place.path);
+                    else if (place.path) fileOperations.trashFolder(place.path);
                 },
                 onSearch: async () => {
                     if (place.kind === 'note' && !(await showFolder(currentFolder()))) return;
@@ -249,44 +233,44 @@ Deckit.register({
             await main.call('root').catch(() => {});
             await loadTree();
             const was = place;
-            if (was.kind === 'note' && (await openNote(was.rel, { record: false }))) return;
-            await showFolder(nearestFolder(was.kind === 'folder' ? was.rel : parentOf(was.rel)), { record: false });
+            if (was.kind === 'note' && (await openNote(was.path, { record: false }))) return;
+            await showFolder(nearestFolder(was.kind === 'folder' ? was.path : parentOf(was.path)), { record: false });
         }
 
         // Resolves whether the folder was reached.
         async function showFolder(path, options) {
-            return (await placeHistory.go({ kind: 'folder', rel: path }, options)) === 'ok';
+            return (await placeHistory.go({ kind: 'folder', path }, options)) === 'ok';
         }
 
         // Resolves whether the note was reached.
         async function openNote(path, options) {
-            return (await placeHistory.go({ kind: 'note', rel: path }, options)) === 'ok';
+            return (await placeHistory.go({ kind: 'note', path }, options)) === 'ok';
         }
 
         function enter(to, { focus = false, quiet = false } = {}) {
-            if (to.kind === 'note') return noteSession.open(to.rel, { focus, quiet });
-            if (!folderAt(allNotes, to.rel)) return 'gone';
+            if (to.kind === 'note') return noteSession.open(to.path, { focus, quiet });
+            if (!folderAt(allNotes, to.path)) return 'gone';
             return noteSession.close();
         }
 
         function land(to) {
-            const isNewFolder = to.kind === 'folder' && (place.kind !== 'folder' || place.rel !== to.rel);
+            const isNewFolder = to.kind === 'folder' && (place.kind !== 'folder' || place.path !== to.path);
             place = to;
             store.set('at', place);
-            sidebarTree.reveal(to.rel);
+            sidebarTree.reveal(to.path);
             if (to.kind === 'folder') notesGallery.arrive({ isNewFolder });
-            paintPlace();
+            drawPlace();
             if (to.kind === 'folder') notesGallery.load();
         }
 
         async function leaveNote() {
-            const path = noteSession.path() || (place.kind === 'note' ? place.rel : '');
+            const path = noteSession.path() || (place.kind === 'note' ? place.path : '');
             noteSession.closeWithoutSaving();
             await showFolder(nearestFolder(parentOf(path)), { record: false });
         }
 
         function currentFolder() {
-            return place.kind === 'folder' ? place.rel : parentOf(place.rel);
+            return place.kind === 'folder' ? place.path : parentOf(place.path);
         }
 
         function nearestFolder(path) {
@@ -295,50 +279,64 @@ Deckit.register({
             return folder;
         }
 
-        function paintPlace() {
+        function drawPlace() {
             const steps = { canGoBack: placeHistory.canGoBack(), canGoForward: placeHistory.canGoForward() };
             const isOnNote = place.kind === 'note';
             notesGallery.element.hidden = isOnNote;
             notePane.hidden = !isOnNote;
-            if (isOnNote) noteNavigation.paint(parentOf(place.rel), { isCurrent: false, ...steps });
+            if (isOnNote) noteNavigation.draw(parentOf(place.path), { isFolderShown: false, ...steps });
             else {
-                galleryNavigation.paint(place.rel, { isCurrent: true, ...steps });
+                galleryNavigation.draw(place.path, { isFolderShown: true, ...steps });
                 notesGallery.draw();
             }
-            paintTree();
+            drawTree();
         }
 
-        function paintTree() {
-            sidebarTree.draw({ allNotes, place, openNote: noteSession.path() });
+        function drawTree() {
+            sidebarTree.draw({ allNotes, place, openPath: noteSession.path() });
         }
 
         async function loadTree() {
-            const since = relocations.count();
+            const since = relocations.since();
             try {
                 allNotes = { ...(await main.call('tree')), since };
             } catch {
                 return;
             }
-            if (place.kind === 'folder' && !folderAt(allNotes, place.rel)) {
+            if (place.kind === 'folder' && !folderAt(allNotes, place.path)) {
                 // Left to run in its turn: a refresh can come from inside a move under way, which awaiting would hold.
-                placeHistory.go({ kind: 'folder', rel: nearestFolder(parentOf(place.rel)) }, { record: false });
+                placeHistory.go({ kind: 'folder', path: nearestFolder(parentOf(place.path)) }, { record: false });
                 return;
             }
-            paintPlace();
+            drawPlace();
         }
 
         function refresh() {
             return Promise.all([loadTree(), notesGallery.refresh()]);
         }
 
-        // Run in the open note's queue right after a move, so no save is in flight to the old place. `to` null: the
-        // path went to the Trash, and whoever trashed it moves the open note and the place away.
+        // The notes folder changed from here.
+        async function changed() {
+            await refresh();
+            drawPlace();
+        }
+
+        // A note made here opens with its name selected, to be typed over.
+        async function noteMade(path) {
+            if (!(await openNote(path))) return;
+            noteSession.markPristine();
+            await refresh();
+            noteSession.focusTitle();
+        }
+
+        // Run in the open note's queue right after a rename, a move or a trash, so no save is in flight to the old
+        // place. `to` null: the path went to the Trash, and whoever trashed it moves the open note and the place away.
         function relocate(from, to) {
             relocations.record(from, to);
             placeHistory.relocate(from, to);
             if (to != null) {
                 noteSession.relocate(from, to);
-                place.rel = util.movePath(place.rel, from, to);
+                place.path = util.movePath(place.path, from, to);
             }
             store.set('at', place);
             sidebarTree.relocate(from, to);
@@ -361,7 +359,7 @@ Deckit.register({
         async function labelFor(path) {
             const isShown = (label) => !!label?.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
             sidebarTree.reveal(path);
-            paintTree();
+            drawTree();
             const shown = [sidebarTree.labelOf(path), notesGallery.labelOf(path)].find(isShown);
             if (shown) return shown;
             if (!(await showFolder(parentOf(path)))) return null;
@@ -381,14 +379,12 @@ Deckit.register({
             });
         }
 
-        // A face not in the list (chosen on another Mac) falls back to the theme's.
-        function typefaceNow() {
-            const face = FONTS.find((font) => font.value === settings.get('font'))?.font;
-            return { size: settings.get('textSize'), font: face ? `${face}, ${theme.font}` : theme.font };
+        function currentTypeface() {
+            return typefaceOf({ font: settings.get('font'), size: settings.get('textSize') }, theme.font);
         }
 
         function applyTypeface() {
-            const typeface = typefaceNow();
+            const typeface = currentTypeface();
             editor.setTypeface(typeface);
             noteSession.setFont(typeface.font);
         }
