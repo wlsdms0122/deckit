@@ -11,3 +11,18 @@ const BOLD_SHAPES = `<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 
 const ITALIC_SHAPES = `<line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/>`;
 const STRIKETHROUGH_SHAPES = `<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/>`;
 const CHECK_SHAPES = `<path d="M20 6 9 17l-5-5"/>`;
+
+module.exports = {
+    COMPOSE_SHAPES,
+    NOTEBOOK_SHAPES,
+    HEADING_SHAPES,
+    CHECKLIST_SHAPES,
+    NUMBERED_LIST_SHAPES,
+    QUOTE_SHAPES,
+    CODE_SHAPES,
+    DIVIDER_SHAPES,
+    BOLD_SHAPES,
+    ITALIC_SHAPES,
+    STRIKETHROUGH_SHAPES,
+    CHECK_SHAPES,
+};

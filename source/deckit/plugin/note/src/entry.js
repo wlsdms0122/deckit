@@ -24,3 +24,5 @@ function entryOf(element) {
     const kind = element.dataset.note != null ? 'note' : 'folder';
     return { kind, path: element.dataset[kind], since: Number(element.dataset.since) };
 }
+
+module.exports = { entryAt, labelIn, markEntry, entryOf };

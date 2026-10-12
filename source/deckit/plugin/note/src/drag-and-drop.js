@@ -1,3 +1,5 @@
+const { entryOf } = require('./entry.js');
+
 // Notes and folders are dragged from the sidebar and the gallery into folders: rows, cards and crumbs. What is dragged
 // carries its path as read, with the relocation count it was read at.
 function dragAndDrop({ ui, relocations, onMove }) {
@@ -31,3 +33,5 @@ function dragAndDrop({ ui, relocations, onMove }) {
         });
     }
 }
+
+module.exports = { dragAndDrop };

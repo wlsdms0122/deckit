@@ -70,3 +70,5 @@ function navigationHistory({ movePath, current, enter, land, onChange }) {
         return one.kind === other.kind && one.path === other.path;
     }
 }
+
+module.exports = { navigationHistory };

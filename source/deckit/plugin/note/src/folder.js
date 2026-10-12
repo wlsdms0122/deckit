@@ -1,4 +1,4 @@
-// The notes folder as main lists it: each folder is { name, path, folders, notes, count }.
+// The notes folder as the main process module lists it: each folder is { name, path, folders, notes, count }.
 function folderAt(top, path) {
     if (!path) return top;
     let folder = top;
@@ -20,3 +20,5 @@ function foldersIn(top, depth = 0) {
 function notesIn(top) {
     return [...top.notes, ...top.folders.flatMap((folder) => notesIn(folder))];
 }
+
+module.exports = { folderAt, foldersIn, notesIn };

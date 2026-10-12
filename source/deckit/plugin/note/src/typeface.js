@@ -23,3 +23,5 @@ function typefaceOf({ font, size }, fallback) {
     const face = FONTS.find((candidate) => candidate.value === font)?.font;
     return { size, font: face ? `${face}, ${fallback}` : fallback };
 }
+
+module.exports = { FONTS, typefaceOf };

@@ -1,8 +1,12 @@
+const { foldersIn } = require('./folder.js');
+const { COMPOSE_SHAPES } = require('./icons.js');
+const { parentOf, isWithin } = require('./path.js');
+
 // The context menus of a note and of a folder. `row` is the row or card a menu is about, whose name a rename types over
 // while it is still in sight.
 function menus({
     ui,
-    host,
+    chordOf,
     relocations,
     fileOperations,
     allNotes,
@@ -25,7 +29,7 @@ function menus({
             {
                 label: 'Move to Trash',
                 icon: 'trash',
-                hint: host.chordOf('trash'),
+                hint: chordOf('trash'),
                 run: () => fileOperations.trashNote(path, since),
             },
         ];
@@ -36,13 +40,13 @@ function menus({
             {
                 label: 'New Note',
                 icon: ui.iconOf(COMPOSE_SHAPES, { size: 14 }),
-                hint: host.chordOf('newNote'),
+                hint: chordOf('newNote'),
                 run: whenThere(path, since, onNewNote),
             },
             {
                 label: 'New Folder',
                 icon: 'folderPlus',
-                hint: host.chordOf('newFolder'),
+                hint: chordOf('newFolder'),
                 run: whenThere(path, since, fileOperations.newFolder),
             },
             ...(path
@@ -59,7 +63,7 @@ function menus({
                       {
                           label: 'Move to Trash',
                           icon: 'trash',
-                          hint: host.chordOf('trash'),
+                          hint: chordOf('trash'),
                           run: () => fileOperations.trashFolder(path, since),
                       },
                   ]
@@ -108,3 +112,5 @@ function menus({
         };
     }
 }
+
+module.exports = { menus };

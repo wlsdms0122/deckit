@@ -14,3 +14,5 @@ function noteNameOf(path) {
 function isWithin(path, folder) {
     return path === folder || path.startsWith(folder + '/');
 }
+
+module.exports = { nameOf, parentOf, noteNameOf, isWithin };

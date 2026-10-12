@@ -1,9 +1,15 @@
+const { entryAt, labelIn, markEntry, entryOf } = require('./entry.js');
+const { folderAt } = require('./folder.js');
+const { shortDate } = require('./format.js');
+const { COMPOSE_SHAPES, NOTEBOOK_SHAPES } = require('./icons.js');
+const { parentOf } = require('./path.js');
+
 // A folder's folders and notes as cards, or the notes a search found. `shownFolder()` is the folder on screen, or null
 // while a note is.
 function gallery({
     ui,
-    host,
-    main,
+    chordOf,
+    notesFolder,
     settings,
     relocations,
     navigation,
@@ -74,7 +80,7 @@ function gallery({
         .note-card-contents { margin-top: 2px; white-space: nowrap; color: var(--deckit-muted); font: var(--deckit-type-small); }
     `;
 
-    // The notes of a folder as main listed them, with the relocation count they were asked at.
+    // The notes of a folder as the main process module listed them, with the relocation count they were asked at.
     let listing = { folder: null, notes: [], since: 0 };
     let query = '';
     let queryHits = null;
@@ -163,7 +169,7 @@ function gallery({
         [newNoteAction.element, 'New note', 'newNote'],
         [newFolderAction.element, 'New folder', 'newFolder'],
     ])
-        ui.tooltip(button, { text, chord: () => host.chordOf(action) });
+        ui.tooltip(button, { text, chord: () => chordOf(action) });
     for (const button of [newFolderButton.element, newNoteButton.element])
         button.addEventListener('mousedown', (event) => event.preventDefault());
     ui.edgeFade(body);
@@ -252,7 +258,7 @@ function gallery({
         const since = relocations.since();
         let notes = [];
         try {
-            notes = await main.call('list', folder);
+            notes = await notesFolder.list(folder);
         } catch {}
         if (attempt !== loads || shownFolder() !== folder) return;
         listing = { folder, notes, since };
@@ -272,7 +278,7 @@ function gallery({
             let found = { hits: [], partial: false };
             const since = relocations.since();
             try {
-                found = await main.call('search', query);
+                found = await notesFolder.search(query);
             } catch {}
             if (attempt !== searches) return;
             queryHits = found.hits.map((hit) => ({ ...hit, since }));
@@ -368,3 +374,5 @@ function gallery({
         return card;
     }
 }
+
+module.exports = { gallery };

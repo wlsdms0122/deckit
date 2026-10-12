@@ -1,3 +1,5 @@
+const { parentOf } = require('./path.js');
+
 // A link in a note goes to a web address, or to another note by its path from the note it is in.
 function isAddress(text) {
     return /^[a-z][a-z0-9+.-]*:/i.test(text);
@@ -32,3 +34,5 @@ function linkDestinationOf(href) {
         .replace(/[()]/g, (parenthesis) => (parenthesis === '(' ? '%28' : '%29'))
         .replace(/\s/g, encodeURIComponent);
 }
+
+module.exports = { isAddress, linkTargetOf, linkedNotePath, linkDestinationOf };

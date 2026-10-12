@@ -23,3 +23,5 @@ function relocationLog({ movePath, idle }) {
         );
     }
 }
+
+module.exports = { relocationLog };

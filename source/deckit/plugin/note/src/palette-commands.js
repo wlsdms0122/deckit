@@ -1,5 +1,10 @@
+const { foldersIn, notesIn } = require('./folder.js');
+const { shortDate } = require('./format.js');
+const { COMPOSE_SHAPES } = require('./icons.js');
+const { parentOf } = require('./path.js');
+
 // What the command palette offers: a new note, a search of every note, and each folder.
-function paletteCommands({ ui, host, main, allNotes, onNewNote, onOpenNote, onShowFolder }) {
+function paletteCommands({ ui, show, notesFolder, allNotes, onNewNote, onOpenNote, onShowFolder }) {
     const SHOWN_LIMIT = 50;
 
     return [
@@ -22,7 +27,7 @@ function paletteCommands({ ui, host, main, allNotes, onNewNote, onOpenNote, onSh
             icon: ui.icon('folder', { size: 16 }),
             keywords: ['노트', '폴더', 'note', 'folder'],
             run: () => {
-                host.show();
+                show();
                 onShowFolder(folder.path);
             },
         })),
@@ -32,7 +37,7 @@ function paletteCommands({ ui, host, main, allNotes, onNewNote, onOpenNote, onSh
     async function searchEntries(query) {
         const words = String(query || '').trim();
         const found = words
-            ? await main.call('search', words).catch(() => ({ hits: [], partial: false }))
+            ? await notesFolder.search(words).catch(() => ({ hits: [], partial: false }))
             : { hits: notesIn(allNotes).sort((one, other) => other.mtime - one.mtime), partial: false };
         const shown = found.hits.slice(0, SHOWN_LIMIT);
         const notice =
@@ -53,7 +58,7 @@ function paletteCommands({ ui, host, main, allNotes, onNewNote, onOpenNote, onSh
                     .join(' · '),
                 icon: ui.icon('fileText', { size: 16 }),
                 run: () => {
-                    host.show();
+                    show();
                     onOpenNote(note.path);
                 },
             })),
@@ -61,3 +66,5 @@ function paletteCommands({ ui, host, main, allNotes, onNewNote, onOpenNote, onSh
         ];
     }
 }
+
+module.exports = { paletteCommands };

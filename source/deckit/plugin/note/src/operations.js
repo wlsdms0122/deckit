@@ -1,10 +1,12 @@
+const { nameOf, parentOf, noteNameOf, isWithin } = require('./path.js');
+
 // What is done to a note or a folder on disk. A path is held as it was read with the relocation count it was read at
 // (`since`). A step that moves, renames or removes what may be the open note settles the open note first, so what
 // changes is what was on screen. `onChanged()` hears that the notes folder changed.
 function operations({
     ui,
-    host,
-    main,
+    deck,
+    notesFolder,
     relocations,
     settle,
     enqueue,
@@ -32,7 +34,7 @@ function operations({
                 let refusal = '';
                 await enqueue(async () => {
                     try {
-                        onRelocate(path, (await main.call('rename', path, name)).path);
+                        onRelocate(path, (await notesFolder.rename(path, name)).path);
                     } catch (error) {
                         refusal = error.message;
                     }
@@ -52,7 +54,7 @@ function operations({
         if (!(await settle(path))) return;
         await enqueue(async () => {
             try {
-                onRelocate(path, (await main.call('move', path, into)).path);
+                onRelocate(path, (await notesFolder.move(path, into)).path);
             } catch (error) {
                 ui.dialog({ title: 'Could not move ' + nameOf(path), message: error.message, confirmLabel: 'OK' });
             }
@@ -72,13 +74,13 @@ function operations({
     }
 
     async function newNote(into) {
-        host.show();
+        deck.show();
         if (!(await settle())) return;
         // Another would discard this blank one and take the next free name on every press.
         if (isBlank() && parentOf(openPath()) === into) return onFocusTitle();
         let made;
         try {
-            made = await main.call('create', into);
+            made = await notesFolder.create(into);
         } catch (error) {
             ui.dialog({ title: 'Could not make a note', message: error.message, confirmLabel: 'OK' });
             return;
@@ -89,7 +91,7 @@ function operations({
     async function newFolder(parent) {
         let made;
         try {
-            made = await main.call('mkdir', parent, '');
+            made = await notesFolder.mkdir(parent, '');
         } catch (error) {
             ui.dialog({ title: 'Could not make the folder', message: error.message, confirmLabel: 'OK' });
             return;
@@ -100,17 +102,17 @@ function operations({
     }
 
     async function copyText(path) {
-        const copied = path === openPath() ? text() : (await main.call('read', path).catch(() => null))?.text;
-        if (copied != null) host.clipboard.writeText(copied).catch(() => {});
+        const copied = path === openPath() ? text() : (await notesFolder.read(path).catch(() => null))?.text;
+        if (copied != null) deck.clipboard.writeText(copied).catch(() => {});
     }
 
     async function showInFinder(path) {
-        rootAsked ||= main
-            .call('root')
+        rootAsked ||= notesFolder
+            .root()
             .then((answer) => answer.root)
             .catch(() => null);
         const root = await rootAsked;
-        if (root) host.reveal(path ? root + '/' + path : root);
+        if (root) deck.reveal(path ? root + '/' + path : root);
     }
 
     // Saved first, so what goes to the Trash is what was on screen.
@@ -121,7 +123,7 @@ function operations({
         if (!(await settle(path))) return;
         try {
             await enqueue(async () => {
-                await main.call('trash', path);
+                await notesFolder.trash(path);
                 onRelocate(path, null);
             });
         } catch (error) {
@@ -132,3 +134,5 @@ function operations({
         await onChanged();
     }
 }
+
+module.exports = { operations };

@@ -1,5 +1,7 @@
+const { nameOf } = require('./path.js');
+
 // Back, Forward and the path of the folder, whose crumbs take a dragged note or folder.
-function navigationBar({ ui, host, onBack, onForward, onGo, acceptDrops }) {
+function navigationBar({ ui, chordOf, onBack, onForward, onGo, acceptDrops }) {
     const element = ui.element('div', {
         style: {
             display: 'flex',
@@ -33,7 +35,7 @@ function navigationBar({ ui, host, onBack, onForward, onGo, acceptDrops }) {
         [backButton, 'Back', 'back'],
         [forwardButton, 'Forward', 'forward'],
     ]) {
-        ui.tooltip(button.element, { text, chord: () => host.chordOf(action) });
+        ui.tooltip(button.element, { text, chord: () => chordOf(action) });
         button.element.addEventListener('mousedown', (event) => event.preventDefault());
     }
     acceptDrops(breadcrumb.element, (under) => {
@@ -58,3 +60,5 @@ function navigationBar({ ui, host, onBack, onForward, onGo, acceptDrops }) {
         );
     }
 }
+
+module.exports = { navigationBar };

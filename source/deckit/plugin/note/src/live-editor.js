@@ -1,3 +1,20 @@
+const NoteEngine = require('./engine.js');
+const { localDate } = require('./format.js');
+const {
+    HEADING_SHAPES,
+    CHECKLIST_SHAPES,
+    NUMBERED_LIST_SHAPES,
+    QUOTE_SHAPES,
+    CODE_SHAPES,
+    DIVIDER_SHAPES,
+    BOLD_SHAPES,
+    ITALIC_SHAPES,
+    STRIKETHROUGH_SHAPES,
+    CHECK_SHAPES,
+} = require('./icons.js');
+const { isAddress, linkTargetOf, linkDestinationOf } = require('./link.js');
+const { PARAGRAPH_STYLES } = require('./paragraph-style.js');
+
 // The document is the file's text exactly; formatting is only decorations drawn over it.
 function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, onFollowLink }) {
     // Only for replacing the mark at a line start. What style a line is in comes from the syntax tree (lineStyleAt).
@@ -1041,3 +1058,5 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         return engine.Decoration.set(decorations, true);
     }
 }
+
+module.exports = { liveEditor };

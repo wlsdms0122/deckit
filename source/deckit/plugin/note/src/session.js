@@ -1,14 +1,17 @@
+const { longDate } = require('./format.js');
+const { noteNameOf, isWithin } = require('./path.js');
+
 // The open note: on screen is the disk version, plus typing not yet saved, unless a question about the disk is up;
 // then nothing is written or typed until it is answered. Every write, rename and move of the open note goes through
 // `enqueue`, so a rename or a move never lands between a save's write and its answer.
-function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRenamed, onMenu }) {
+function session({ theme, ui, notesFolder, editor, movePath, onLeave, onRelocate, onRenamed, onMenu }) {
     const SAVE_DELAY_MS = 500;
     const CLOSE = {
         label: 'Close',
         title: 'Close the note; anything typed since the last save is dropped',
         run: () => onLeave(),
     };
-    // What each question says and the answers it offers, by the kind of refusal main answered with.
+    // What each question says and the answers it offers, by the kind of refusal the main process module answered with.
     const TROUBLE = {
         CHANGED: {
             clearsWhenInSync: true,
@@ -240,7 +243,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         const blank = isBlank() ? note.path : null;
         let read;
         try {
-            read = await main.call('read', path);
+            read = await notesFolder.read(path);
         } catch (error) {
             if (!quiet)
                 ui.dialog({ title: 'Could not open ' + noteNameOf(path), message: error.message, confirmLabel: 'OK' });
@@ -342,7 +345,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
             const { path, generation } = note;
             const text = editor.text();
             try {
-                const written = await main.call('write', path, text, force ? null : note.diskTime, {
+                const written = await notesFolder.write(path, text, force ? null : note.diskTime, {
                     bom: note.bom,
                     eol: note.eol,
                 });
@@ -367,7 +370,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
             const { path, generation } = note;
             if (!path) return;
             try {
-                const read = await main.call('read', path);
+                const read = await notesFolder.read(path);
                 if (generation !== note.generation) return;
                 showDiskVersion(read);
                 note.unsaved = false;
@@ -385,7 +388,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
             if (!path) return;
             let read;
             try {
-                read = await main.call('read', path);
+                read = await notesFolder.read(path);
             } catch (error) {
                 if (generation === note.generation) setTrouble(readTroubleOf(error));
                 return;
@@ -419,7 +422,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
     async function restoreBackup() {
         const { path } = note;
         try {
-            await enqueue(() => main.call('restore', path));
+            await enqueue(() => notesFolder.restore(path));
         } catch (error) {
             ui.dialog({ title: 'Could not restore ' + noteNameOf(path), message: error.message, confirmLabel: 'OK' });
             return;
@@ -458,7 +461,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         let renamed = false;
         await enqueue(async () => {
             try {
-                onRelocate(from, (await main.call('rename', from, wanted)).path);
+                onRelocate(from, (await notesFolder.rename(from, wanted)).path);
                 titleError.textContent = '';
                 renamed = true;
             } catch (error) {
@@ -478,7 +481,7 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
 
     // Called once the switch is certain, so a failed switch keeps the note.
     function discard(blank) {
-        if (blank) main.call('discard', blank).catch(() => {});
+        if (blank) notesFolder.discard(blank).catch(() => {});
     }
 
     function showDiskVersion(read) {
@@ -536,3 +539,5 @@ function session({ theme, ui, main, editor, movePath, onLeave, onRelocate, onRen
         );
     }
 }
+
+module.exports = { session };

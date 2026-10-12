@@ -12,3 +12,5 @@ const PARAGRAPH_STYLES = [
     '-',
     { key: 'blockQuote', label: 'Block Quote', mark: '> ' },
 ];
+
+module.exports = { PARAGRAPH_STYLES };

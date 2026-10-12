@@ -33,3 +33,5 @@ function keyboardShortcuts({ editor, onNewNote, onNewFolder, onTrash, onSearch, 
         };
     }
 }
+
+module.exports = { keyboardShortcuts };

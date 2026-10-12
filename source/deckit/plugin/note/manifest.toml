@@ -1,7 +1,8 @@
 id = "note"
 name = "Notes"
 version = "1.0.0"
-api = "2.0.0"
+api = "3.0.0"
+main = "main.js"
 
 [permissions]
 "system.main-process" = "Keeps your notes as Markdown files in its own data folder, and puts the ones you delete in the Trash."

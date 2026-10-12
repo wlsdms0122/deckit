@@ -1,4 +1,22 @@
-Deckit.register({
+const { dragAndDrop } = require('./drag-and-drop.js');
+const { folderAt } = require('./folder.js');
+const { gallery } = require('./gallery.js');
+const { NOTEBOOK_SHAPES } = require('./icons.js');
+const { keyboardShortcuts } = require('./keyboard-shortcuts.js');
+const { linkTargetOf, linkedNotePath } = require('./link.js');
+const { liveEditor } = require('./live-editor.js');
+const { menus } = require('./menus.js');
+const { navigationBar } = require('./navigation-bar.js');
+const { navigationHistory } = require('./navigation-history.js');
+const { operations } = require('./operations.js');
+const { paletteCommands } = require('./palette-commands.js');
+const { parentOf, isWithin } = require('./path.js');
+const { relocationLog } = require('./relocation-log.js');
+const { session } = require('./session.js');
+const { tree } = require('./tree.js');
+const { FONTS, typefaceOf } = require('./typeface.js');
+
+module.exports = {
     keywords: [
         'notes',
         'note',
@@ -39,7 +57,8 @@ Deckit.register({
         },
     },
 
-    make({ theme, ui, storage, host, main, settings, util }) {
+    async start(deck) {
+        const { theme, ui, storage, settings, util } = deck;
         const STYLE = `
             .note {
                 position: relative;
@@ -55,6 +74,7 @@ Deckit.register({
             .note-pane[hidden] { display: none; }
         `;
         const { values: store } = storage;
+        const notesFolder = await deck.mainProcess('main-process/notes-folder.js');
 
         // Everything in the notes folder, with the relocation count it was asked at (`since`).
         let allNotes = { name: '', path: '', folders: [], notes: [], count: 0, since: 0 };
@@ -71,15 +91,15 @@ Deckit.register({
             ui,
             match: util.match,
             typeface: currentTypeface(),
-            chordOf: host.chordOf,
-            clipboard: host.clipboard,
+            chordOf: deck.chordOf,
+            clipboard: deck.clipboard,
             onChange: () => noteSession.edited(),
             onFollowLink: followLink,
         });
         const noteSession = session({
             theme,
             ui,
-            main,
+            notesFolder,
             editor,
             movePath: util.movePath,
             onLeave: leaveNote,
@@ -96,8 +116,8 @@ Deckit.register({
         });
         const fileOperations = operations({
             ui,
-            host,
-            main,
+            deck,
+            notesFolder,
             relocations,
             settle: noteSession.settle,
             enqueue: noteSession.enqueue,
@@ -117,7 +137,7 @@ Deckit.register({
         });
         const noteMenus = menus({
             ui,
-            host,
+            chordOf: deck.chordOf,
             relocations,
             fileOperations,
             allNotes: () => allNotes,
@@ -143,8 +163,8 @@ Deckit.register({
         const noteNavigation = navigationBarFor();
         const notesGallery = gallery({
             ui,
-            host,
-            main,
+            chordOf: deck.chordOf,
+            notesFolder,
             settings,
             relocations,
             navigation: galleryNavigation,
@@ -154,7 +174,8 @@ Deckit.register({
         });
         const sidebarTree = tree({
             ui,
-            host,
+            show: deck.show,
+            chordOf: deck.chordOf,
             store,
             movePath: util.movePath,
             onShowAll: () => showFolder(''),
@@ -170,7 +191,7 @@ Deckit.register({
         notePane.append(noteNavigation.element, noteSession.element, editor.element);
         content.append(notesGallery.element, notePane);
         applyTypeface();
-        main.on('changed', (paths) => {
+        notesFolder.on('changed', (paths) => {
             clearTimeout(changeTimer);
             changeTimer = setTimeout(async () => {
                 await refresh();
@@ -183,13 +204,13 @@ Deckit.register({
             if (key === 'textSize' || key === 'font') applyTypeface();
         });
         window.addEventListener('pagehide', () => noteSession.saveIfUnsaved());
-        start();
+        reachSavedPlace();
 
-        return {
+        deck.view({
             content,
             sidebar: sidebarTree.element,
             didAppear: () => {
-                main.call('watch', true).catch(() => {});
+                notesFolder.watch(true).catch(() => {});
                 refresh();
                 noteSession.reconcile();
                 if (hadFocus && editor.isOpen() && place.kind === 'note') editor.focus();
@@ -198,10 +219,11 @@ Deckit.register({
             didDisappear: () => {
                 hadFocus = editor.hasFocus();
                 noteSession.saveIfUnsaved();
-                main.call('watch', false).catch(() => {});
+                notesFolder.watch(false).catch(() => {});
             },
-
-            keys: keyboardShortcuts({
+        });
+        deck.keys(
+            keyboardShortcuts({
                 editor,
                 onNewNote: browsing.onNewNote,
                 onNewFolder: browsing.onNewFolder,
@@ -215,22 +237,22 @@ Deckit.register({
                 },
                 onBack: () => placeHistory.goBack(),
                 onForward: () => placeHistory.goForward(),
-            }),
+            })
+        );
+        deck.commands(() =>
+            paletteCommands({
+                ui,
+                show: deck.show,
+                notesFolder,
+                allNotes,
+                onNewNote: browsing.onNewNote,
+                onOpenNote: openNote,
+                onShowFolder: showFolder,
+            })
+        );
 
-            commands: () =>
-                paletteCommands({
-                    ui,
-                    host,
-                    main,
-                    allNotes,
-                    onNewNote: browsing.onNewNote,
-                    onOpenNote: openNote,
-                    onShowFolder: showFolder,
-                }),
-        };
-
-        async function start() {
-            await main.call('root').catch(() => {});
+        async function reachSavedPlace() {
+            await notesFolder.root().catch(() => {});
             await loadTree();
             const was = place;
             if (was.kind === 'note' && (await openNote(was.path, { record: false }))) return;
@@ -299,7 +321,7 @@ Deckit.register({
         async function loadTree() {
             const since = relocations.since();
             try {
-                allNotes = { ...(await main.call('tree')), since };
+                allNotes = { ...(await notesFolder.tree()), since };
             } catch {
                 return;
             }
@@ -348,9 +370,9 @@ Deckit.register({
             else if (target?.note) openNote(linkedNotePath(noteSession.path() || '', target.note), { focus: true });
         }
 
-        // host.open answers only whether anything opened the address, with no reason when nothing did.
+        // deck.open answers only whether anything opened the address, with no reason when nothing did.
         async function openAddress(address) {
-            if (await host.open(address, { userInitiated: true }).catch(() => false)) return;
+            if (await deck.open(address, { userInitiated: true }).catch(() => false)) return;
             ui.dialog({ title: 'Could not open the link', message: address, confirmLabel: 'OK' });
         }
 
@@ -371,7 +393,7 @@ Deckit.register({
         function navigationBarFor() {
             return navigationBar({
                 ui,
-                host,
+                chordOf: deck.chordOf,
                 onBack: () => placeHistory.goBack(),
                 onForward: () => placeHistory.goForward(),
                 onGo: (path) => showFolder(path),
@@ -389,4 +411,4 @@ Deckit.register({
             noteSession.setFont(typeface.font);
         }
     },
-});
+};

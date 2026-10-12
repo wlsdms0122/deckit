@@ -1,7 +1,12 @@
+const { entryAt, labelIn, markEntry, entryOf } = require('./entry.js');
+const { COMPOSE_SHAPES, NOTEBOOK_SHAPES } = require('./icons.js');
+const { parentOf } = require('./path.js');
+
 // The sidebar: every folder and note under All Notes, folded as the person left them.
 function tree({
     ui,
-    host,
+    show,
+    chordOf,
     store,
     movePath,
     noteMenu,
@@ -33,7 +38,7 @@ function tree({
             { icon: ui.icon('folderPlus', { size: 16 }), title: 'New folder', run: () => onNewFolder() },
         ],
         onHeading: () => {
-            host.show();
+            show();
             onShowAll();
         },
         onHeadingMenu: (event) => ui.menu({ items: folderMenu(''), point: { x: event.clientX, y: event.clientY } }),
@@ -42,13 +47,13 @@ function tree({
 
     section.body.append(rows.element);
     element.append(section.element);
-    ui.tooltip(section.actions[0].element, { text: 'New note', chord: () => host.chordOf('newNote') });
-    ui.tooltip(section.actions[1].element, { text: 'New folder', chord: () => host.chordOf('newFolder') });
+    ui.tooltip(section.actions[0].element, { text: 'New note', chord: () => chordOf('newNote') });
+    ui.tooltip(section.actions[1].element, { text: 'New folder', chord: () => chordOf('newFolder') });
     // Delegated, so a row drawn again never loses a press.
     rows.element.addEventListener('click', (event) => {
         const row = entryAt(event.target);
         if (!row) return;
-        host.show();
+        show();
         const { kind, path } = entryOf(row);
         if (kind === 'note') return onOpenNote(path);
         if (row.hasAttribute('data-folds')) toggle(path);
@@ -161,3 +166,5 @@ function tree({
         return row.element;
     }
 }
+
+module.exports = { tree };
