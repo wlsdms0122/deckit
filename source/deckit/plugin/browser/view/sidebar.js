@@ -58,8 +58,8 @@ function sidebar({
     bookmarkSection.body.append(bookmarkList.element);
     element.append(tabSection.element, bookmarkSection.element);
 
-    ui.sortable(tabList.element, { onReorder: onMoveTab });
-    ui.sortable(bookmarkList.element, { onReorder: (from, to) => bookmarks.move(from, to) });
+    ui.sortable(tabList, { onReorder: onMoveTab });
+    ui.sortable(bookmarkList, { onReorder: (url, toUrl) => bookmarks.move(url, toUrl) });
     ui.contextMenu(tabList.element, {
         rowAt: (target) => target.closest('.browser-tab'),
         items: (row) => row && tabMenu(tabRows.get(row).tab),
@@ -113,7 +113,7 @@ function sidebar({
     function updateTabRow(rowElement, tab) {
         const { row, icon, label, captures, mute } = tabRows.get(rowElement);
         icon.replaceChildren(favicon({ ui, page: tab }).element);
-        label.textContent = tab.title || placeOf(tab.url) || 'New tab';
+        label.textContent = tabLabel(tab);
         label.title = tab.url;
         for (const { kind, indicator } of captures) indicator.hidden = !tab.capture[kind];
         mute.element.hidden = !tab.audible && !tab.muted;

@@ -3,6 +3,8 @@
 function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
     const CORNER_KEY = 'island-corner';
     const DRAG_THRESHOLD = 4;
+    // How long after a drag settles the click it ends with may still arrive, in ms.
+    const SETTLED_CLICK_LENGTH = 400;
 
     let corner = values.get(CORNER_KEY, 'tl');
     let shownTab = null;
@@ -11,29 +13,18 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
     // When the last drag settled: the click the browser sends after it is already answered.
     let settledAt = 0;
 
-    // The fill is translucent over a blur of the page: the element's opacity would let the page's text show through.
     // The bar is as wide as its contents, so its parts animate their own widths and the bar follows. The title is
     // spaced by padding, which goes to 0 with its width; a flex gap is drawn even beside an item with no width.
     // Padding of 2px a side puts every 30px control 3px from the edge of the 36px bar with its 1px border.
     // --deckit-top-inset steps the top corners out from under the window's bar while it is down.
     ui.addStyle(`
         .browser-address-bar {
-            position: absolute;
             z-index: 2;
             display: flex;
             align-items: center;
-            box-sizing: border-box;
-            height: 36px;
             padding: 0 2px;
             width: max-content;
             max-width: calc(100% - 20px);
-            color: var(--deckit-text);
-            font: var(--deckit-type-body);
-            border-radius: var(--deckit-radius-round);
-            border: var(--deckit-border);
-            background: color-mix(in srgb, var(--deckit-background) 72%, transparent);
-            backdrop-filter: blur(12px) saturate(1.4);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.26);
             overflow: hidden;
             white-space: nowrap;
             cursor: grab;
@@ -44,15 +35,15 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
                 box-shadow var(--deckit-base) var(--deckit-easing),
                 background-color var(--deckit-base) var(--deckit-easing);
         }
-        .browser-address-bar[data-open] {
-            background: color-mix(in srgb, var(--deckit-background) 94%, transparent);
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.34);
+        .browser-address-bar:not([data-open]) {
+            background: color-mix(in srgb, var(--deckit-background) 72%, transparent);
         }
+        .browser-address-bar[data-open] { box-shadow: var(--deckit-shadow-raised); }
         .browser-address-bar[data-corner^='t'] { top: calc(8px + var(--deckit-top-inset, 0px)); }
         .browser-address-bar[data-corner^='b'] { bottom: 10px; }
         .browser-address-bar[data-corner$='l'] { left: 10px; }
         .browser-address-bar[data-corner$='r'] { right: 10px; }
-        .browser-address-bar .deckit-button { border-radius: var(--deckit-radius-round); }
+        .browser-address-bar .browser-address-button { border-radius: var(--deckit-radius-round); }
         .browser-address-controls {
             display: flex;
             align-items: center;
@@ -132,7 +123,7 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
         .browser-address-bar[data-editing] .browser-address { display: none; }
         .browser-address-bar[data-editing] .browser-address-input { display: block; }
     `);
-    const element = ui.element('div', { className: 'browser-address-bar' });
+    const element = ui.element('div', { className: 'browser-floating browser-address-bar' });
     const back = ui.iconButton({ icon: ui.icon('chevronLeft', { size: 17 }), title: 'Back', onClick: onBack });
     const forward = ui.iconButton({
         icon: ui.icon('chevronRight', { size: 17 }),
@@ -159,12 +150,13 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
     site.element.classList.add('browser-address-wing', 'browser-address-site');
     const star = ui.iconButton({ icon: starIcon(false), title: 'Bookmark', onClick: bookmark });
     star.element.classList.add('browser-address-wing', 'browser-address-star');
+    for (const button of [back, forward, reload, site, star]) button.element.classList.add('browser-address-button');
     element.append(controls, address, input, site.element, star.element);
     element.dataset.corner = corner;
 
     element.addEventListener('dragstart', (event) => event.preventDefault());
-    // A press anywhere else in the content closes it.
-    area.addEventListener(
+    // A press anywhere else in the page closes it.
+    document.addEventListener(
         'pointerdown',
         (event) => {
             if (!element.contains(event.target)) setOpen(false);
@@ -193,7 +185,7 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
         true
     );
 
-    return { element, show, close: () => setOpen(false), edit, corner: () => corner };
+    return { element, show, close: () => setOpen(false), edit, isInTopRight: () => corner === 'tr' };
 
     function show(tab, { bookmarked }) {
         shownTab = tab;
@@ -245,7 +237,7 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
     }
 
     function answered() {
-        return Date.now() - settledAt < 400;
+        return Date.now() - settledAt < SETTLED_CLICK_LENGTH;
     }
 
     // Past DRAG_THRESHOLD a press is a drag and its click is swallowed. Letting go sets the new corner first and then

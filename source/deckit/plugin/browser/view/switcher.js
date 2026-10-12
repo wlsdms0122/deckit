@@ -70,7 +70,7 @@ function switcher({ ui, host, bookmarks, notAnAddress, listTabs, lastClosedTab, 
                     placeholder: 'Search open tabs',
                     entries: () =>
                         listTabs().map((tab) => ({
-                            label: tab.title || placeOf(tab.url) || 'New tab',
+                            label: tabLabel(tab),
                             hint: placeOf(tab.url),
                             icon: ui.icon('window'),
                             address: tab.url,

@@ -1,6 +1,6 @@
 // The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open. And
-// the site permissions the person reviews. Asked only while the Browser is on screen: a background tab holds its
-// question until it is shown in front.
+// the site permissions the person reviews. While the Browser is hidden a request waits until its tab is next in front;
+// a background tab that asks while the Browser is on screen is brought to the front.
 function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAsk }) {
     const PERMISSION_WORDS = {
         microphone: 'your microphone',
@@ -12,7 +12,7 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
     // A refused load reports on every retry, so each certificate is asked once per attempt.
     const askedCertificates = new Set();
     const pending = new WeakMap(); // tab -> permission requests waiting for the Browser to be on screen
-    const refused = new WeakMap(); // tab -> "origin|permission" refused, for as long as the tab lasts
+    const refused = new WeakMap(); // tab -> the grant keys refused, for as long as the tab lasts
 
     return {
         askCertificate,
@@ -82,8 +82,7 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
                     .map((permission) => ({ origin, permission }));
                 if (added.length) {
                     grants.add(added);
-                    for (const tab of listTabs())
-                        for (const grant of added) refused.get(tab)?.delete(grant.origin + '|' + grant.permission);
+                    for (const tab of listTabs()) for (const grant of added) refused.get(tab)?.delete(grantKey(grant));
                     await webSession.allow(added);
                 }
                 if (removed.length) {
@@ -101,7 +100,10 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
     function decide(tab, request) {
         const wanted = request.permissions.filter((permission) => PERMISSION_WORDS[permission] || opensApp(permission));
         const refusals = refusalsOf(tab);
-        if (!wanted.length || wanted.some((permission) => refusals.has(request.origin + '|' + permission)))
+        if (
+            !wanted.length ||
+            wanted.some((permission) => refusals.has(grantKey({ origin: request.origin, permission })))
+        )
             return request.answer(false);
         if (!isShown()) {
             pending.set(tab, [...(pending.get(tab) || []), request]);
@@ -129,7 +131,7 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
             onClose: () =>
                 queueMicrotask(() => {
                     if (allowed) return;
-                    for (const permission of wanted) refusals.add(request.origin + '|' + permission);
+                    for (const permission of wanted) refusals.add(grantKey({ origin: request.origin, permission }));
                     request.answer(false);
                 }),
         });
@@ -156,7 +158,8 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
             onClose: () =>
                 queueMicrotask(() => {
                     if (opened) return;
-                    for (const permission of wanted) refusalsOf(tab).add(request.origin + '|' + permission);
+                    for (const permission of wanted)
+                        refusalsOf(tab).add(grantKey({ origin: request.origin, permission }));
                     request.answer(false);
                 }),
         });

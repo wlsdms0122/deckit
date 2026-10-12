@@ -21,8 +21,12 @@ function store({ records, onBookmarksChange }) {
         remove(url) {
             saveBookmarks(bookmarks.all().filter((bookmark) => bookmark.url !== url));
         },
-        move(from, to) {
+        // `url` goes where `toUrl` is.
+        move(url, toUrl) {
             const list = [...bookmarks.all()];
+            const from = list.findIndex((bookmark) => bookmark.url === url);
+            const to = list.findIndex((bookmark) => bookmark.url === toUrl);
+            if (from < 0 || to < 0) return;
             list.splice(to, 0, ...list.splice(from, 1));
             saveBookmarks(list);
         },
@@ -57,14 +61,14 @@ function store({ records, onBookmarksChange }) {
         all: () => records.get('permissions', []),
         of: (origin) => grants.all().filter((grant) => grant.origin === origin),
         add(entries) {
-            const had = new Set(grants.all().map(keyOf));
-            records.set('permissions', [...grants.all(), ...entries.filter((grant) => !had.has(keyOf(grant)))]);
+            const had = new Set(grants.all().map(grantKey));
+            records.set('permissions', [...grants.all(), ...entries.filter((grant) => !had.has(grantKey(grant)))]);
         },
         remove(entries) {
-            const gone = new Set(entries.map(keyOf));
+            const gone = new Set(entries.map(grantKey));
             records.set(
                 'permissions',
-                grants.all().filter((grant) => !gone.has(keyOf(grant)))
+                grants.all().filter((grant) => !gone.has(grantKey(grant)))
             );
         },
     };
@@ -75,8 +79,9 @@ function store({ records, onBookmarksChange }) {
         records.set('bookmarks', list);
         onBookmarksChange();
     }
+}
 
-    function keyOf(grant) {
-        return grant.origin + '|' + grant.permission;
-    }
+// One permission of one site, as one string.
+function grantKey({ origin, permission }) {
+    return origin + '|' + permission;
 }

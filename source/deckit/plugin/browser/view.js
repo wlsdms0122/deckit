@@ -26,6 +26,23 @@ Deckit.register({
 
         let shown = false;
 
+        // What floats over the page. The fill is translucent over a blur of the page: the element's opacity would let
+        // the page's text show through.
+        ui.addStyle(`
+            .browser-floating {
+                position: absolute;
+                box-sizing: border-box;
+                height: 36px;
+                border: var(--deckit-border);
+                border-radius: var(--deckit-radius-round);
+                background: color-mix(in srgb, var(--deckit-background) 94%, transparent);
+                backdrop-filter: blur(12px) saturate(1.4);
+                box-shadow: var(--deckit-shadow-lifted);
+                color: var(--deckit-text);
+                font: var(--deckit-type-body);
+            }
+        `);
+
         // Files get a session of their own (system.files), so a file page never holds the web's cookies.
         const webSession = web.session('web');
         const filesSession = web.session('files');
@@ -33,7 +50,7 @@ Deckit.register({
         const content = ui.element('div', {
             style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' },
         });
-        const prompt = prompts({
+        const sitePrompts = prompts({
             ui,
             webSession,
             certificates,
@@ -52,7 +69,7 @@ Deckit.register({
             onBack: goBack,
             onForward: goForward,
             onReload: reload,
-            onSitePermissions: () => prompt.editSitePermissions(openTabs.active().url),
+            onSitePermissions: () => sitePrompts.editSitePermissions(openTabs.active().url),
             onBookmark: () => bookmarks.toggle(openTabs.active()),
             onSubmit: (text) =>
                 openTabs.navigate(
@@ -71,21 +88,21 @@ Deckit.register({
             onChange: showTabs,
             onSelect: (tab, previous) => {
                 if (tab !== previous) find.hide();
-                prompt.askPending(tab);
+                sitePrompts.askPending(tab);
             },
-            onNavigate: () => prompt.clearAskedCertificates(),
+            onNavigate: () => sitePrompts.clearAskedCertificates(),
             onRelease: (tab) => {
-                prompt.release(tab);
+                sitePrompts.release(tab);
                 find.release(tab);
             },
             // A press in a page reaches this document only as the page taking the focus.
             onFocus: () => bar.close(),
-            onCertificateRefused: (info) => prompt.askCertificate(info),
-            decidePermission: (tab, request) => prompt.askPermission(tab, request),
+            onCertificateRefused: (info) => sitePrompts.askCertificate(info),
+            decidePermission: (tab, request) => sitePrompts.askPermission(tab, request),
             onNotification: notify,
             onFound: (tab, result) => find.showCount(tab, result),
         });
-        const lists = sidebar({
+        const sidePanel = sidebar({
             ui,
             host,
             values,
@@ -94,7 +111,7 @@ Deckit.register({
             onNewTab: (url, options) => openTabs.add(url, options),
             onSelectTab: (tab) => openTabs.select(tab),
             onCloseTab: (tab) => openTabs.close(tab),
-            onMoveTab: (from, to) => openTabs.move(from, to),
+            onMoveTab: (id, toId) => openTabs.move(id, toId),
             onCloseOtherTabs: (tab) => openTabs.closeOthers(tab),
             onOpenBookmark: (bookmark) => openTabs.navigate(openTabs.active(), bookmark.url),
         });
@@ -118,11 +135,11 @@ Deckit.register({
 
         return {
             content,
-            sidebar: lists.element,
+            sidebar: sidePanel.element,
 
             didAppear() {
                 shown = true;
-                prompt.askPending(openTabs.active());
+                sitePrompts.askPending(openTabs.active());
             },
             didDisappear() {
                 shown = false;
@@ -171,12 +188,12 @@ Deckit.register({
         }
 
         function showTabs() {
-            lists.showTabs(openTabs.list(), openTabs.active());
+            sidePanel.showTabs(openTabs.list(), openTabs.active());
             showBar();
         }
 
         function showBookmarks() {
-            lists.showBookmarks(bookmarks.all());
+            sidePanel.showBookmarks(bookmarks.all());
             showBar();
         }
 
@@ -195,13 +212,13 @@ Deckit.register({
 
         // A deliberate retry asks about a certificate again.
         function reload() {
-            prompt.clearAskedCertificates();
+            sitePrompts.clearAskedCertificates();
             openTabs.active().page.reload();
         }
 
         // The find bar takes the top right corner, or the top left when the address bar is there.
         function openFind() {
-            find.show({ left: bar.corner() === 'tr' });
+            find.show({ left: bar.isInTopRight() });
         }
 
         function selectTab(index) {

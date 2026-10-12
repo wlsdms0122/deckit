@@ -121,7 +121,11 @@ function tabs({
         move(list.indexOf(tab), Math.min(last.at, list.length - 1));
     }
 
-    function move(from, to) {
+    // The tab `id` goes where the tab `toId` is.
+    function move(id, toId) {
+        const from = list.findIndex((tab) => tab.id === id);
+        const to = list.findIndex((tab) => tab.id === toId);
+        if (from < 0 || to < 0) return;
         list.splice(to, 0, list.splice(from, 1)[0]);
         changed();
     }
@@ -198,4 +202,9 @@ function tabs({
             closed,
         });
     }
+}
+
+// What names a tab in a line: its title, else its file or site.
+function tabLabel(tab) {
+    return tab.title || placeOf(tab.url) || 'New tab';
 }

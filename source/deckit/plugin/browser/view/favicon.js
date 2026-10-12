@@ -24,3 +24,10 @@ function favicon({ ui, page }) {
     element.append(image);
     return { element };
 }
+
+// The icon of a tab or a bookmark. A page that names no icon usually has /favicon.ico; a file has none.
+function faviconOf({ url, icon }) {
+    if (icon) return icon;
+    if (!/^https?:/i.test(url)) return '';
+    return hrefOf('/favicon.ico', url) ?? '';
+}

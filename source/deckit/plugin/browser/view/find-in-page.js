@@ -1,6 +1,6 @@
 // Find in the page of the active tab, in a bar floating over the top of the page.
 function findInPage({ theme, ui, activeTab }) {
-    let finding = null; // the tab a find runs on
+    let searchedTab = null;
     let state = { query: '', caseSensitive: false };
     // Apart from the style, which mid-fade still says open while the bar is already invisible.
     let open = false;
@@ -8,23 +8,13 @@ function findInPage({ theme, ui, activeTab }) {
 
     ui.addStyle(`
         .browser-find {
-            position: absolute;
             z-index: 3;
             top: calc(8px + var(--deckit-top-inset, 0px));
             right: 10px;
             display: none;
             align-items: center;
             gap: 2px;
-            box-sizing: border-box;
-            height: 36px;
             padding: 0 4px 0 2px;
-            border: var(--deckit-border);
-            border-radius: var(--deckit-radius-round);
-            background: color-mix(in srgb, var(--deckit-background) 94%, transparent);
-            backdrop-filter: blur(12px) saturate(1.4);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.26);
-            color: var(--deckit-text);
-            font: var(--deckit-type-body);
             opacity: 0;
             transform: translateY(-6px) scale(0.98);
             transition:
@@ -33,9 +23,9 @@ function findInPage({ theme, ui, activeTab }) {
         }
         .browser-find[data-left] { right: auto; left: 10px; }
         .browser-find[data-open] { opacity: 1; transform: none; }
-        .browser-find .deckit-find { flex: 0 0 auto; width: 330px; margin: 0 2px; }
+        .browser-find-field { flex: 0 0 auto; width: 330px; margin: 0 2px; }
     `);
-    const element = ui.element('div', { className: 'browser-find' });
+    const element = ui.element('div', { className: 'browser-floating browser-find' });
     const field = ui.findBar({
         placeholder: 'Find in page',
         options: ['caseSensitive'],
@@ -51,6 +41,7 @@ function findInPage({ theme, ui, activeTab }) {
         onClick: () => hide({ keepSelection: true }),
         size: 'small',
     });
+    field.element.classList.add('browser-find-field');
     element.append(field.element, close.element);
 
     return { element, show, hide, showCount, release };
@@ -76,18 +67,18 @@ function findInPage({ theme, ui, activeTab }) {
         element.removeAttribute('data-open');
         clearTimeout(hiding);
         hiding = setTimeout(() => (element.style.display = ''), theme.motion.fast);
-        finding?.page.stopFind({ keepSelection });
-        finding = null;
+        searchedTab?.page.stopFind({ keepSelection });
+        searchedTab = null;
         field.setCount(0, 0);
     }
 
     function showCount(tab, result) {
-        if (finding === tab) field.setCount(result.active, result.matches);
+        if (searchedTab === tab) field.setCount(result.active, result.matches);
     }
 
     // The page of `tab` is gone.
     function release(tab) {
-        if (finding === tab) hide();
+        if (searchedTab === tab) hide();
     }
 
     function change(next) {
@@ -95,18 +86,18 @@ function findInPage({ theme, ui, activeTab }) {
         const tab = activeTab();
         if (!state.query) {
             tab.page.stopFind();
-            finding = null;
+            searchedTab = null;
             field.setCount(0, 0);
             return;
         }
         tab.page.find(state.query, { start: true, matchCase: state.caseSensitive });
-        finding = tab;
+        searchedTab = tab;
     }
 
     function step(back) {
         if (!state.query) return;
         const tab = activeTab();
-        tab.page.find(state.query, { back, start: finding !== tab, matchCase: state.caseSensitive });
-        finding = tab;
+        tab.page.find(state.query, { back, start: searchedTab !== tab, matchCase: state.caseSensitive });
+        searchedTab = tab;
     }
 }

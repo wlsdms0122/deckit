@@ -50,13 +50,6 @@ function placeOf(url) {
     }
 }
 
-// The icon of a tab or a bookmark. A page that names no icon usually has /favicon.ico; a file has none.
-function faviconOf({ url, icon }) {
-    if (icon) return icon;
-    if (!/^https?:/i.test(url)) return '';
-    return hrefOf('/favicon.ico', url) ?? '';
-}
-
 function hrefOf(url, base) {
     try {
         return new URL(url, base).href;
