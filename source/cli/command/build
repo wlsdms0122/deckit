@@ -39,7 +39,7 @@ cp document/EMBEDDING.md document/PLUGIN.md document/UI.md "$LIB/document/"
 for dir in source/deckit/plugin/*/; do
   dir="${dir%/}"
   [ -f "$dir/manifest.toml" ] || continue
-  rsync -a --exclude .DS_Store --exclude /src "$dir" "$LIB/plugin/"
+  rsync -a --exclude .DS_Store --exclude "/$(basename "$dir")/src" "$dir" "$LIB/plugin/"
   MAIN="$(node -p "require('fs').readFileSync('$dir/manifest.toml','utf8').match(/^main\\s*=\\s*\"([^\"]+)\"/m)[1]")"
   node source/cli/bundle.js "$dir/src/main.js" "$LIB/plugin/$(basename "$dir")/$MAIN" \
     || { echo "$dir could not be bundled: stopping" >&2; exit 1; }
