@@ -4,28 +4,24 @@ Deckit.register({
 
     make({ ui, host, util }) {
         const APP_NAME = host.about().name;
-        const SECTION_KEYWORDS = new Map([
-            ['Plugins', ['플러그인', '설치', '삭제', 'plugins', 'install', 'remove']],
-            ['Plugin Settings', ['설정', '플러그인 설정', 'settings', 'preferences']],
-            [
-                'URL Schemes',
-                [
-                    '열기',
-                    '링크',
-                    '파일 열기',
-                    '다음으로 열기',
-                    '스킴',
-                    'url scheme',
-                    'open with',
-                    'open link',
-                    'open file',
-                ],
-            ],
-            ['Keyboard', ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys']],
-        ]);
 
         const pluginIcons = new Map(); // plugin id -> its icon, as the list was last drawn
 
+        // In every rule of this plugin, `line-height` comes after `font`: the shorthand resets it.
+        ui.addStyle(`
+            .settings-page {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                color: var(--deckit-text);
+                font: var(--deckit-type-medium);
+            }
+            .settings-title { flex: 0 0 auto; padding: 12px 14px 8px; font: 700 var(--deckit-type-large); }
+            .settings-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
+        `);
+        ui.addStyle(SECTION_STYLE + CHIP_STYLE);
         const page = ui.element('div', { className: 'settings-page' });
         const body = ui.element('div', { className: 'settings-body' });
         const plugins = pluginsSection({ ui, host, util, appName: APP_NAME, onChange: redraw });
@@ -35,7 +31,6 @@ Deckit.register({
         const sections = [plugins, pluginSettings, urlSchemes, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
-        ui.addStyle(STYLE);
         body.append(...sections.map((section) => section.element));
         page.append(ui.element('div', { className: 'settings-title', text: 'Settings' }), body);
         // commands() can be asked before the first visit draws anything.
@@ -66,11 +61,11 @@ Deckit.register({
                 ...sections.map((section) => ({
                     label: section.title,
                     icon: ui.icon('gear', { size: 16 }),
-                    keywords: SECTION_KEYWORDS.get(section.title),
+                    keywords: section.keywords,
                     run: () => showSection(section),
                 })),
                 ...pluginSettings.groups().map((group) => ({
-                    group: 'Plugin Settings',
+                    group: pluginSettings.title,
                     label: group.name + ' Settings',
                     icon: pluginIcons.get(group.id) || ui.icon('sliders', { size: 16 }),
                     keywords: ['설정', 'settings', group.id, ...group.items.map((item) => item.label)],

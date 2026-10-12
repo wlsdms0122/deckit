@@ -1,5 +1,5 @@
-// What an empty cell or place shows.
-const NO_VALUE = '\u2014';
+// What an empty cell shows.
+const NO_VALUE = '–';
 
 // What `host.plugins.count` found in a plugin's data folder, in words.
 function storedFilesText({ count, capped, hidden }) {
@@ -12,7 +12,7 @@ function schemeName(id, everyScheme) {
     return id === everyScheme ? 'Every other scheme' : id + ':';
 }
 
-// From a place counted from 0.
+// `index` counts from 0.
 function ordinal(index) {
     return ['1st', '2nd', '3rd'][index] || `${index + 1}th`;
 }

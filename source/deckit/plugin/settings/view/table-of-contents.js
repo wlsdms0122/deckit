@@ -8,6 +8,16 @@ function tableOfContents({ ui, scroller, sections }) {
     let gliding = false;
     let glideTimer = null;
 
+    ui.addStyle(`
+        .settings-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+        .settings-contents-label {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    `);
     const element = ui.element('div', { className: 'settings-sidebar' });
     const contents = ui.section({ label: 'Table of Contents', icon: ui.icon('tableOfContents', { size: 16 }) });
     const rows = new Map(); // section -> its row

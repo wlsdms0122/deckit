@@ -1,3 +1,46 @@
+// The rules of a permission list. The Plugins section adopts them once.
+const PERMISSION_LIST_STYLE = `
+    .settings-permissions { overflow: hidden; border: var(--deckit-border); border-radius: var(--deckit-radius-large); }
+    .settings-permission {
+        display: grid;
+        grid-template-columns: 28px minmax(0, 1fr);
+        column-gap: 11px;
+        padding: 10px 12px;
+    }
+    .settings-permission + .settings-permission { border-top: var(--deckit-border); }
+    .settings-permission-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        background: color-mix(in srgb, var(--deckit-accent) 16%, transparent);
+        color: var(--deckit-accent);
+    }
+    .settings-permission-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 8px;
+        line-height: 1.45;
+    }
+    .settings-permission-name { font: 600 13.5px var(--deckit-font); }
+    .settings-permission-id { overflow-wrap: anywhere; font: 11.5px var(--deckit-mono); opacity: 0.5; }
+    .settings-permission-reason {
+        margin-top: 2px;
+        overflow-wrap: anywhere;
+        font: var(--deckit-type-body);
+        opacity: 0.85;
+    }
+    .settings-permission-means {
+        margin-top: 4px;
+        overflow-wrap: anywhere;
+        font: var(--deckit-type-small);
+        opacity: 0.5;
+    }
+`;
+
 // The permissions a plugin asks for: each one's name, id, the plugin's reason and what it lets the plugin do.
 function permissionList({ ui, permissions }) {
     const element = ui.element('div', { className: 'settings-permissions' });

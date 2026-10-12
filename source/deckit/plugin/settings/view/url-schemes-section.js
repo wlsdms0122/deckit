@@ -1,86 +1,159 @@
 // The URL Schemes section: a card per scheme with its handler list, the plugins asked in turn to open an address,
 // reordered by dragging and switched off one by one, and the app's own answer after them.
 function urlSchemesSection({ ui, host, appName }) {
-    const DEFAULT_HANDLER = {
+    const TITLE = 'URL Schemes';
+    const KEYWORDS = [
+        '열기',
+        '링크',
+        '파일 열기',
+        '다음으로 열기',
+        '스킴',
+        'url scheme',
+        'open with',
+        'open link',
+        'open file',
+    ];
+    const DESCRIPTION =
+        'Addresses by their scheme, and the plugins that open them. Plugins are asked in order, ' +
+        'and one may pass; drag to change the order, switch one off to skip it. When every plugin ' +
+        `passes, ${appName} opens it the default way, for a scheme it has one for.`;
+    const DEFAULT_ANSWERS = {
         browser: 'Opens in the system browser',
         file: "Opens in the system's app when you asked for it, otherwise shows it in Finder",
     };
     const everyScheme = host.urlSchemes.everyScheme;
 
-    const view = section({
-        ui,
-        title: 'URL Schemes',
-        description:
-            'Addresses by their scheme, and the plugins that open them. Plugins are asked in order, ' +
-            'and one may pass; drag to change the order, switch one off to skip it. When every plugin ' +
-            `passes, ${appName} opens it the default way, for a scheme it has one for.`,
-    });
-    const cards = ui.list({ key: (handlerList) => handlerList.id, create: createCard });
+    const cardFills = new WeakMap(); // card -> its fill(handlerList)
+    const rowFills = new WeakMap(); // handler row -> its fill(entry)
 
-    view.body.append(cards.element);
-    return { element: view.element, title: view.title, draw };
+    ui.addStyle(`
+        .settings-scheme-name { padding: 0 12px; font: 600 var(--deckit-type-body); }
+        .settings-scheme-description { padding: 1px 12px 6px; font: var(--deckit-type-small); opacity: 0.5; }
+        .settings-scheme-none { padding: 4px 12px 6px 44px; font: 12.5px var(--deckit-font); opacity: 0.4; }
+        .settings-handler {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 32px;
+            margin: 0 4px;
+            padding: 0 8px 0 6px;
+            border-radius: var(--deckit-radius-control);
+            cursor: default;
+            transition: background-color var(--deckit-fast) var(--deckit-easing);
+        }
+        .settings-handler[data-draggable] { cursor: grab; }
+        .settings-handler[data-draggable]:hover { background: var(--deckit-hover); }
+        .settings-handler-grip { display: flex; flex: 0 0 14px; opacity: 0.35; }
+        .settings-handler-position {
+            flex: 0 0 16px;
+            font: var(--deckit-type-small);
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+            opacity: 0.4;
+        }
+        .settings-handler-name {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font: var(--deckit-type-body);
+        }
+        .settings-handler[data-muted] .settings-handler-name { opacity: 0.55; }
+    `);
+    const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
+    const cards = ui.list({
+        key: (handlerList) => handlerList.id,
+        create: schemeCard,
+        update: (card, handlerList) => cardFills.get(card)(handlerList),
+    });
+
+    body.append(cards.element);
+    return { element, title: TITLE, keywords: KEYWORDS, draw };
 
     function draw() {
         cards.set(host.urlSchemes.list());
     }
 
-    function createCard(handlerList) {
-        const handlers = handlerList.handlers;
+    function schemeCard(handlerList) {
+        let current = handlerList;
+
         const card = ui.element('div', { className: 'settings-card' });
-        const list = ui.list({ key: ({ handler }) => handler.id, create: handlerEntry });
-        const defaultAnswer = DEFAULT_HANDLER[handlerList.system];
+        const none = ui.element('div', { className: 'settings-scheme-none', text: 'No plugin takes this over.' });
+        const list = ui.list({
+            key: ({ handler }) => handler.id,
+            create: handlerEntry,
+            update: (row, entry) => rowFills.get(row)(entry),
+        });
+        const defaultChip = chip({ ui, text: 'Default', muted: true });
+        const defaultRow = handlerRow({ trailing: defaultChip.element });
 
         card.append(
             ui.element('div', { className: 'settings-scheme-name', text: schemeName(handlerList.id, everyScheme) }),
-            ui.element('div', { className: 'settings-scheme-when', text: schemeWhen(handlerList.id) })
+            ui.element('div', { className: 'settings-scheme-description', text: schemeDescription(handlerList.id) }),
+            none,
+            list.element,
+            defaultRow.element
         );
-        ui.sortable(list.element, {
-            onReorder: (from, to) => {
-                const next = [...handlers];
+        ui.sortable(list, {
+            onReorder: (id, toId) => {
+                const next = [...current.handlers];
+                const from = next.findIndex((handler) => handler.id === id);
+                const to = next.findIndex((handler) => handler.id === toId);
+                if (from < 0 || to < 0) return;
                 next.splice(to, 0, next.splice(from, 1)[0]);
-                save(handlerList.id, next);
+                save(current.id, next);
                 draw();
             },
         });
-        list.set(handlers.map((handler, index) => ({ handler, index })));
-        if (!handlers.length)
-            card.append(ui.element('div', { className: 'settings-scheme-none', text: 'No plugin takes this over.' }));
-        const defaultRow = defaultAnswer
-            ? handlerRow({
-                  place: NO_VALUE,
-                  label: defaultAnswer,
-                  trailing: chip({ ui, text: 'Default', muted: true }),
-                  muted: true,
-              })
-            : handlerRow({ place: NO_VALUE, label: 'Nothing opens it', trailing: ui.element('span'), muted: true });
-        defaultRow.title = defaultAnswer
-            ? `${appName}'s own answer. It is always last and cannot be switched off.`
-            : `${appName} has no answer of its own here: when every plugin passes, the address is not opened.`;
-        card.append(list.element, defaultRow);
+        cardFills.set(card, fill);
+        fill(handlerList);
         return card;
 
-        function handlerEntry({ handler, index }) {
+        function fill(handlerList) {
+            current = handlerList;
+            const defaultAnswer = DEFAULT_ANSWERS[handlerList.system];
+            list.set(handlerList.handlers.map((handler, index) => ({ handler, index })));
+            none.hidden = handlerList.handlers.length > 0;
+            defaultChip.element.hidden = !defaultAnswer;
+            defaultRow.set({ position: NO_VALUE, label: defaultAnswer || 'Nothing opens it', muted: true });
+            defaultRow.element.title = defaultAnswer
+                ? `${appName}'s own answer. It is always last and cannot be switched off.`
+                : `${appName} has no answer of its own here: when every plugin passes, the address is not opened.`;
+        }
+
+        function handlerEntry(entry) {
+            let currentEntry = entry;
+
             const toggle = ui.toggle({
-                value: handler.on,
+                value: entry.handler.on,
                 onChange: (on) => {
+                    const { handler } = currentEntry;
                     toggle.set(on);
                     save(
-                        handlerList.id,
-                        handlers.map((candidate) => (candidate === handler ? { ...handler, on } : candidate))
+                        current.id,
+                        current.handlers.map((candidate) =>
+                            candidate.id === handler.id ? { ...handler, on } : candidate
+                        )
                     );
                     draw();
                 },
             });
-            toggle.element.title = handler.on
-                ? `${handler.name} is asked ${index === 0 ? 'first' : 'in this place'}`
-                : `${handler.name} is skipped`;
-            return handlerRow({
-                place: String(index + 1),
-                label: handler.name,
-                trailing: toggle.element,
-                muted: !handler.on,
-                draggable: true,
-            });
+            const row = handlerRow({ trailing: toggle.element, draggable: true });
+
+            rowFills.set(row.element, fill);
+            fill(entry);
+            return row.element;
+
+            function fill(entry) {
+                currentEntry = entry;
+                const { handler, index } = entry;
+                toggle.set(handler.on);
+                toggle.element.title = handler.on
+                    ? `${handler.name} is asked ${index === 0 ? 'first' : 'in this place'}`
+                    : `${handler.name} is skipped`;
+                row.set({ position: String(index + 1), label: handler.name, muted: !handler.on });
+            }
         }
     }
 
@@ -91,20 +164,26 @@ function urlSchemesSection({ ui, host, appName }) {
         });
     }
 
-    function handlerRow({ place, label, trailing, muted, draggable = false }) {
-        const row = ui.element('div', { className: 'settings-handler' });
+    // A line of a handler list: a grip when it can be dragged, its position, its name, then `trailing`.
+    function handlerRow({ trailing, draggable = false }) {
+        const element = ui.element('div', { className: 'settings-handler' });
         const grip = ui.element('span', { className: 'settings-handler-grip' });
-        const name = ui.element('span', { className: 'settings-handler-name', text: label });
+        const position = ui.element('span', { className: 'settings-handler-position' });
+        const name = ui.element('span', { className: 'settings-handler-name' });
 
-        row.toggleAttribute('data-draggable', draggable);
-        row.toggleAttribute('data-muted', muted);
+        element.toggleAttribute('data-draggable', draggable);
         if (draggable) grip.innerHTML = ui.icon('grip', { size: 14 });
-        name.title = label;
-        row.append(grip, ui.element('span', { className: 'settings-handler-place', text: place }), name, trailing);
-        return row;
+        element.append(grip, position, name, trailing);
+        return { element, set };
+
+        function set({ position: text, label, muted }) {
+            position.textContent = text;
+            name.textContent = name.title = label;
+            element.toggleAttribute('data-muted', muted);
+        }
     }
 
-    function schemeWhen(id) {
+    function schemeDescription(id) {
         if (id === everyScheme) return 'An address no line above names, for the plugins that take every scheme.';
         if (id === 'http' || id === 'https')
             return 'A web address: a link clicked in a plugin, or a page asking for a new window.';

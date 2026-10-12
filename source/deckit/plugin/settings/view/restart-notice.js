@@ -1,6 +1,21 @@
 // A main half runs in the app's main process, which reloading a view does not reach: when its code changed underneath
 // it, only a restart finishes the change.
 function restartNotice({ ui, host, appName, onFailure }) {
+    ui.addStyle(`
+        .settings-restart {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0 0;
+            padding: 8px 8px 8px 10px;
+            border: var(--deckit-border);
+            border-radius: 7px;
+            font: 12.5px var(--deckit-font);
+            line-height: 1.5;
+        }
+        .settings-restart[hidden] { display: none; }
+        .settings-restart-text { flex: 1 1 auto; min-width: 0; opacity: 0.85; }
+    `);
     const element = ui.element('div', { className: 'settings-restart' });
     const text = ui.element('div', { className: 'settings-restart-text' });
     const restart = ui.button({ label: 'Restart ' + appName, size: 'small', onClick: restartApp });

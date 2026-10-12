@@ -1,36 +1,101 @@
 // The Plugins section: every plugin found, what each contributes, and installing and removing them. `onChange` hears
 // that a plugin was installed or removed. Failures and what was done are told in the notice under the list.
 function pluginsSection({ ui, host, util, appName, onChange }) {
+    const TITLE = 'Plugins';
+    const KEYWORDS = ['플러그인', '설치', '삭제', 'plugins', 'install', 'remove'];
     const DESCRIPTION =
-        'Install a plugin from its folder, or remove one you no longer need. Contributes is what each plugin adds: ' +
-        'view is a page in the list on the left, and a plugin without one is opened from the quick switcher. ' +
-        'Open a row to see what it needs, the keys it adds and where its files are.';
+        'Install a plugin from its folder, or remove one you no longer need. Open a row to see what it adds, what it ' +
+        'needs and where its files are.';
     const COLUMNS = ['NAME', 'VERSION', 'CONTRIBUTES', ''];
 
-    // Survives a redraw: every visit redraws the list.
-    const expanded = new Set();
     let handlerLists = [];
+    const rowFills = new WeakMap(); // row element -> its fill(plugin)
 
-    const view = section({ ui, title: 'Plugins', description: DESCRIPTION });
+    ui.addStyle(`
+        .settings-plugin-columns {
+            display: grid;
+            grid-template-columns: minmax(96px, 180px) 56px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 10px;
+        }
+        .settings-plugin-head {
+            padding: 0 8px 5px;
+            border-bottom: var(--deckit-border);
+            font: 700 11px var(--deckit-font);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            opacity: 0.35;
+        }
+        .settings-plugin { cursor: pointer; }
+        .settings-plugin-row { min-height: 34px; font: inherit; white-space: normal; }
+        .settings-plugin-name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
+        .settings-caret {
+            display: flex;
+            flex: 0 0 auto;
+            margin-left: -4px;
+            opacity: 0.45;
+            transition: transform var(--deckit-fast) var(--deckit-easing);
+        }
+        .settings-plugin[data-open] .settings-caret { transform: rotate(90deg); }
+        .settings-plugin-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .settings-plugin-name[data-not-loaded] { opacity: 0.45; }
+        .settings-plugin-version {
+            flex: 0 0 auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font: 11.5px var(--deckit-font);
+            font-variant-numeric: tabular-nums;
+            opacity: 0.5;
+        }
+        .settings-plugin-version[data-missing] { opacity: 0.25; }
+        .settings-plugin-contributions { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+        .settings-plugin-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; }
+        .settings-plugin-actions > [hidden] { display: none; }
+        .settings-plugin-failure {
+            margin-top: -6px;
+            padding: 0 8px 8px 21px;
+            color: var(--deckit-alert);
+            font: var(--deckit-type-small);
+            line-height: 1.5;
+            word-break: break-word;
+        }
+        .settings-notice {
+            margin: 8px 0 0;
+            padding: 8px 10px;
+            border: var(--deckit-border);
+            border-radius: 7px;
+            font: 12.5px var(--deckit-font);
+            line-height: 1.6;
+            opacity: 0.8;
+        }
+        .settings-install-note { margin-top: 10px; font: var(--deckit-type-small); line-height: 1.5; opacity: 0.5; }
+    `);
+    ui.addStyle(PLUGIN_DETAILS_STYLE + PERMISSION_LIST_STYLE);
+    const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const installButton = ui.button({
         label: 'Install Plugin',
         size: 'small',
         icon: ui.icon('plus', { size: 14 }),
         onClick: pickAndInstall,
     });
-    const head = ui.element('div', { className: 'settings-plugin-columns settings-plugin-head' });
-    const rows = ui.list({ key: (plugin) => plugin.id, create: pluginRow });
+    const columns = ui.element('div', { className: 'settings-plugin-columns settings-plugin-head' });
+    const rows = ui.list({
+        key: (plugin) => plugin.id,
+        create: pluginRow,
+        update: (row, plugin) => rowFills.get(row)(plugin),
+    });
     const restart = restartNotice({ ui, host, appName, onFailure: showNotice });
     const notice = ui.element('div', { className: 'settings-notice' });
     const headings = COLUMNS.map((text) => ui.element('div', { text }));
 
     // Over the name, past the caret in front of it.
     headings[0].style.paddingLeft = '13px';
-    head.append(...headings);
+    columns.append(...headings);
     notice.hidden = true;
-    view.head.append(installButton.element);
-    view.body.append(head, rows.element, restart.element, notice);
-    return { element: view.element, title: view.title, draw, showNotice };
+    head.append(installButton.element);
+    body.append(columns, rows.element, restart.element, notice);
+    return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
 
     function draw({ onDisk, running }) {
         const shortcuts = host.keymap.list();
@@ -44,69 +109,72 @@ function pluginsSection({ ui, host, util, appName, onChange }) {
         notice.hidden = false;
     }
 
+    // A row opens and closes by a press, and stays as it is when the list is drawn again.
     function pluginRow(plugin) {
+        let current = plugin;
+        let open = false;
+
         const element = ui.element('div', { className: 'settings-plugin' });
         const row = ui.row();
         const caret = ui.element('span', { className: 'settings-caret' });
-        const name = ui.element('span', { className: 'settings-plugin-name', text: plugin.name });
+        const name = ui.element('span', { className: 'settings-plugin-name' });
         const nameCell = ui.element('span', { className: 'settings-plugin-name-cell' });
-        const version = ui.element('span', { className: 'settings-plugin-version', text: plugin.version || NO_VALUE });
+        const version = ui.element('span', { className: 'settings-plugin-version' });
         const contributions = ui.element('div', { className: 'settings-plugin-contributions' });
         const actions = ui.element('div', { className: 'settings-plugin-actions' });
-        const details = pluginDetails({ ui, host, util, plugin, handlerLists });
+        const revealAction = ui.rowAction({
+            icon: ui.icon('externalWindow', { size: 14 }),
+            title: 'Open the plugin folder',
+            onClick: () => host.plugins.reveal(current.id),
+        });
+        const removeAction = ui.rowAction({
+            icon: ui.icon('x', { size: 14 }),
+            title: 'Remove this plugin',
+            onClick: () => askRemove(current),
+        });
+        const source = chip({ ui, text: 'source', muted: true });
+        const failure = ui.element('div', { className: 'settings-plugin-failure' });
+        const details = pluginDetails({ ui, host, util });
 
         row.element.classList.add('settings-plugin-columns', 'settings-plugin-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
-        name.title = plugin.name;
-        name.toggleAttribute('data-not-loaded', !!plugin.notLoaded);
         nameCell.append(caret, name);
-        version.toggleAttribute('data-missing', !plugin.version);
-        const labels = contributionsOf(plugin.live, plugin.keys.length, host.urlSchemes.everyScheme);
-        if (labels.length) contributions.append(...labels.map((text) => chip({ ui, text })));
-        else contributions.append(chip({ ui, text: NO_VALUE, muted: true }));
-        actions.append(
-            ui.rowAction({
-                icon: ui.icon('externalWindow', { size: 14 }),
-                title: 'Open the plugin folder',
-                onClick: () => host.plugins.reveal(plugin.id),
-            }).element
-        );
-        if (plugin.installed)
-            actions.append(
-                ui.rowAction({
-                    icon: ui.icon('x', { size: 14 }),
-                    title: 'Remove this plugin',
-                    onClick: () => askRemove(plugin),
-                }).element
-            );
-        else {
-            const source = chip({ ui, text: 'source', muted: true });
-            source.title =
-                `Read from ${plugin.folder || 'a source folder'}, ` + 'not installed: it is removed there, not here.';
-            actions.append(source);
-        }
+        actions.append(revealAction.element, removeAction.element, source.element);
         row.element.append(nameCell, version, contributions, actions);
-        element.append(row.element);
-        if (plugin.notLoaded || plugin.problem) {
-            const failure = ui.element('div', {
-                className: 'settings-plugin-failure',
-                text: plugin.notLoaded || plugin.problem,
-            });
-            // Selectable: this is what gets pasted into a bug report.
-            ui.selectable(failure);
-            element.append(failure);
-        }
-        element.append(details.element);
+        // Selectable: this is what gets pasted into a bug report.
+        ui.selectable(failure);
+        element.append(row.element, failure, details.element);
         row.element.addEventListener('click', () => {
-            if (expanded.has(plugin.id)) expanded.delete(plugin.id);
-            else expanded.add(plugin.id);
-            paint(true);
+            open = !open;
+            showOpen(true);
         });
-        paint(false);
+        rowFills.set(element, fill);
+        fill(plugin);
+        showOpen(false);
         return element;
 
-        function paint(animate) {
-            const open = expanded.has(plugin.id);
+        function fill(plugin) {
+            current = plugin;
+            const labels = contributionsOf(plugin.live, plugin.keys.length, host.urlSchemes.everyScheme);
+            name.textContent = name.title = plugin.name;
+            name.toggleAttribute('data-not-loaded', !!plugin.notLoaded);
+            version.textContent = plugin.version || NO_VALUE;
+            version.toggleAttribute('data-missing', !plugin.version);
+            contributions.replaceChildren(
+                ...(labels.length ? labels : [NO_VALUE]).map(
+                    (text) => chip({ ui, text, muted: !labels.length }).element
+                )
+            );
+            removeAction.element.hidden = !plugin.installed;
+            source.element.hidden = !!plugin.installed;
+            source.element.title =
+                `Read from ${plugin.folder || 'a source folder'}, ` + 'not installed: it is removed there, not here.';
+            failure.textContent = plugin.notLoaded || plugin.problem || '';
+            failure.hidden = !failure.textContent;
+            details.set(plugin, handlerLists);
+        }
+
+        function showOpen(animate) {
             element.toggleAttribute('data-open', open);
             details.setOpen(open, animate);
             row.setRevealed(open);
