@@ -18,7 +18,6 @@ DeckitModule.define(
             'visible',
             'play',
             'look',
-            'bar',
         ],
         runs: 'electron',
     },
@@ -52,7 +51,5 @@ DeckitModule.define(
         play: IPC.mainToRenderer('deckit:panel-play'),
         // { floating, dismissible }: drawn over something, and whether Escape puts it away.
         look: IPC.mainToRenderer('deckit:panel-look'),
-        // { inset }: how far the window's bar comes down over the panel.
-        bar: IPC.mainToRenderer('deckit:panel-bar'),
     })
 );

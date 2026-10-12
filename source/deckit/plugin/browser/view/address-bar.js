@@ -16,7 +16,6 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
     // The bar is as wide as its contents, so its parts animate their own widths and the bar follows. The title is
     // spaced by padding, which goes to 0 with its width; a flex gap is drawn even beside an item with no width.
     // Padding of 2px a side puts every 30px control 3px from the edge of the 36px bar with its 1px border.
-    // --deckit-top-inset steps the top corners out from under the window's bar while it is down.
     ui.addStyle(`
         .browser-address-bar {
             z-index: 2;
@@ -39,7 +38,7 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
             background: color-mix(in srgb, var(--deckit-background) 72%, transparent);
         }
         .browser-address-bar[data-open] { box-shadow: var(--deckit-shadow-raised); }
-        .browser-address-bar[data-corner^='t'] { top: calc(8px + var(--deckit-top-inset, 0px)); }
+        .browser-address-bar[data-corner^='t'] { top: 8px; }
         .browser-address-bar[data-corner^='b'] { bottom: 10px; }
         .browser-address-bar[data-corner$='l'] { left: 10px; }
         .browser-address-bar[data-corner$='r'] { right: 10px; }

@@ -29,8 +29,6 @@ DeckitModule.define(
 
             // So what the browser draws itself (scrollbars, native controls) follows the theme.
             document.documentElement.style.colorScheme = theme.dark ? 'dark' : 'light';
-            // How far the window's bar comes down, so a plugin drawing at its top edge can step out from under it.
-            setInset(0);
             const root = element('div', {
                 position: 'fixed',
                 inset: '0',
@@ -69,7 +67,6 @@ DeckitModule.define(
             appear();
 
             PROTOCOL.state.on((state) => sidebar.show(state, true));
-            PROTOCOL.bar.on(({ inset }) => setInset(inset));
             PROTOCOL.look.on((next) => {
                 look = next;
                 dress();
@@ -153,10 +150,6 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        function setInset(px) {
-            document.documentElement.style.setProperty('--deckit-top-inset', px + 'px');
-        }
-
         function element(tag, style) {
             const made = document.createElement(tag);
             Object.assign(made.style, style);

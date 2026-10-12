@@ -5,7 +5,6 @@ DeckitModule.define(
             'deckit/config',
             'deckit/service/storage',
             'deckit/service/log/main',
-            'deckit/service/window',
             'deckit/service/plugin/identity',
             'deckit/service/plugin/host',
             'deckit/service/web/main',
@@ -15,7 +14,7 @@ DeckitModule.define(
         ],
         provides: ['start', 'deck', 'viewFor', 'reveal', 'awaitReply'],
     },
-    (CONFIG, STORAGE, LOG, WINDOW, IDENTITY, HOST, WEB, KEYMAP, OPEN, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, HOST, WEB, KEYMAP, OPEN, PROTOCOL) => {
         // MARK: - Property
         const FRAME = 'panel-frame';
         const HISTORY_LIMIT = 50;
@@ -32,6 +31,7 @@ DeckitModule.define(
         let current = null;
         let shown = false;
         let theme = null;
+        let titled = null; // the title the shell was last told
         let look = { floating: false, dismissible: false };
         let frame = { width: 240, collapsed: false, navHeight: null };
         let replies = 0;
@@ -205,7 +205,7 @@ DeckitModule.define(
             const view = makeView(IDENTITY.originOf(entry.id), { webview: true });
             const contents = view.webContents;
             IDENTITY.add(contents, { plugin: entry });
-            WEB.host(contents, windowStyle);
+            WEB.host(contents);
             KEYMAP.listen(contents);
             // Every scheme: which ones open, and how, is Open With's to say.
             contents.setWindowOpenHandler((details) => {
@@ -250,8 +250,8 @@ DeckitModule.define(
             const state = stateOf();
             for (const { view } of views.values()) PROTOCOL.state.send(view.webContents, state);
             const name = HOST.plugins().find(({ id }) => id === current);
-            const window = container && WINDOW.windowOf(container);
-            if (window) WINDOW.titlebarOf(window)?.name(name?.name || CONFIG.name);
+            const title = name?.name || CONFIG.name;
+            if (title !== titled) shell.panelTitled((titled = title));
         }
 
         function setFrame(change) {
@@ -390,44 +390,6 @@ DeckitModule.define(
             for (const { view } of views.values()) view.webContents.reload();
         }
 
-        // One answer, so the panel's window bar and the windows its pages open cannot drift apart.
-        function windowStyle() {
-            if (!theme) return {};
-            return {
-                background: theme.sidebarBg || theme.contentBg,
-                color: theme.sidebarColor,
-                font: theme.font,
-            };
-        }
-
-        // The panel in a deckit window of its own. Three facts hold between the two and both are deckit's: the bar's
-        // reach over the panel is told to its views, the window is glass because the panel is, and the panel is out
-        // of the window before the window goes. `onClose` runs once it is out.
-        async function presentInWindow({ key, title, boundsKey, onClose } = {}) {
-            const there = WINDOW.get(key);
-            if (there) {
-                WINDOW.raise(there);
-                return there;
-            }
-            if (!(await leave())) return null;
-            const window = WINDOW.open({
-                key,
-                title,
-                boundsKey,
-                view: container,
-                glass: true,
-                style: windowStyle(),
-                onShown: (inset) => {
-                    for (const { view } of views.values()) PROTOCOL.bar.send(view.webContents, { inset });
-                },
-                onClose,
-            });
-            present({ floating: false, dismissible: false });
-            arrive();
-            broadcast();
-            return window;
-        }
-
         return {
             start,
             deck: {
@@ -441,7 +403,6 @@ DeckitModule.define(
                 present,
                 setTheme,
                 shown: () => shown,
-                presentInWindow,
             },
             viewFor,
             reveal,

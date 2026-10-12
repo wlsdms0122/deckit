@@ -25,7 +25,17 @@ DeckitModule.define(
         // and the app makes that call, so it adds this one to its own.
         const SCHEME = { scheme: 'deckit', privileges: { standard: true, secure: true, supportFetchAPI: true } };
         // What a shell answers: where deckit is shown is the app's.
-        const ANSWERS = ['start', 'showsPanel', 'reveal', 'dismiss', 'summonSwitcher', 'noticeClicked', 'restart'];
+        const ANSWERS = [
+            'start',
+            'showsPanel',
+            'reveal',
+            'dismiss',
+            'summonSwitcher',
+            'openWindow',
+            'panelTitled',
+            'noticeClicked',
+            'restart',
+        ];
         let connected = false;
 
         // MARK: - Initializer
@@ -50,6 +60,7 @@ DeckitModule.define(
             if (CONFIG.ship.length) {
                 for (const { id, outcome } of INSTALL.installShipped()) LOG.info(`${outcome} ${id}`);
             }
+            WINDOW.start({ openWindow: (options) => shell.openWindow(options) });
             HOST.start();
             WEB.start();
             KEYMAP.start();
@@ -63,13 +74,7 @@ DeckitModule.define(
             shell.start({
                 panel: PANEL.deck,
                 switcher: SWITCHER.deck,
-                window: {
-                    open: WINDOW.open,
-                    get: WINDOW.get,
-                    close: WINDOW.close,
-                    raise: WINDOW.raise,
-                    place: WINDOW.place,
-                },
+                window: { place: WINDOW.place },
                 keymap: { listen: KEYMAP.listen },
             });
         }

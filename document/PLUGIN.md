@@ -163,8 +163,6 @@ What a plugin that requires this one receives as `context.requires[id]`. Values 
 
 `theme` is the look, derived from the app's: `dark`, `font`, `mono`, `type`, `border`, `color`, `radius`, `shadow`, `motion` and `syntax`. `ui` is the kit, drawn in it. Both are in [UI.md](UI.md).
 
-A plugin that draws at its top edge steps out from under a window's bar by the CSS variable `--deckit-top-inset`.
-
 ### settings
 
 - `get(key)`: the saved value, or the declared default.
@@ -268,7 +266,7 @@ module.exports = ({ id, folder, handle, send, window, files }) => {
 
 `files` changes a person's files without losing one: `fresh(folder, base, make, extension)` makes something new under the first free name, `rename(path, name)` and `move(path, folder)` never put anything over another entry, `name(text)` checks a typed name, `trash(path)` is the macOS Trash. A refusal is `files.refuse(kind, message)`, an error whose `kind` (`NAME`, `EXISTS`, `GONE`, `INTO_ITSELF`, `OTHER_DISK`, or one of the plugin's own) reaches the view as `error.kind`.
 
-`window` is a window of the app's: `open({ key, title, view, … })`, `get(key)`, `close(key)`. Keys are the plugin's own: two plugins asking for `log` get two windows.
+`window` is a window of the app's, holding a view the main half made: `open({ key, title, view, size, onClose })`, `get(key)`, `close(key)`. The app frames it. `onClose` runs once the view is out of the window, alive. Keys are the plugin's own: two plugins asking for `log` get two windows.
 
 `main.js` runs in the app's main process and can do what the app can do, which is why it is asked for. The view cannot widen its own reach: only the ops `main.js` handles answer, and main knows which plugin calls by its page.
 

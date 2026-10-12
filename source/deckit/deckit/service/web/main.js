@@ -21,8 +21,8 @@ DeckitModule.define(
         // MARK: - Property
         const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
         const icons = new Map(); // page id -> the icon it last announced
+        const WINDOW_SIZE = { width: 520, height: 700 };
         const windows = new Map(); // window page id -> { window, host }
-        const styles = new Map(); // a plugin's view -> how its windows look now: the panel changes theme
 
         // MARK: - Initializer
         // MARK: - Public
@@ -35,10 +35,8 @@ DeckitModule.define(
 
         // A plugin's view that shows web pages. Only that plugin's sessions attach there, and only the web, or a
         // file for a plugin with system.files, loads in them.
-        function host(view, style) {
+        function host(view) {
             const plugin = IDENTITY.pluginOf(view);
-            styles.set(view, style);
-            view.once('destroyed', () => styles.delete(view));
             LOG.guard(view, 'will-attach-webview', (event, preferences, params) => {
                 // A page keeps only what an element may choose; the rules between sites and the sandbox are deckit's.
                 for (const key of Object.keys(preferences)) if (!KEPT_PREFERENCES.has(key)) delete preferences[key];
@@ -59,7 +57,7 @@ DeckitModule.define(
                 const source = String(params.src || '');
                 if (source !== 'about:blank' && !mayShow(view, source, { inPanel: true })) params.src = 'about:blank';
             });
-            LOG.guard(view, 'did-attach-webview', (_event, page) => adopt(view, style, page, { inPanel: true }));
+            LOG.guard(view, 'did-attach-webview', (_event, page) => adopt(view, page, { inPanel: true }));
             // A window page answers to the document that asked for it; a new document has no delegate for it.
             const closeWindows = () => {
                 for (const entry of windows.values()) if (entry.host === view) entry.window.close();
@@ -189,7 +187,7 @@ DeckitModule.define(
             if (!page.isDestroyed()) PROTOCOL.changed.send(view, { id: page.id, state: stateOf(page) });
         }
 
-        function adopt(view, style, page, { inPanel }) {
+        function adopt(view, page, { inPanel }) {
             const id = page.id;
             REGISTRY.add(page, { host: view, plugin: IDENTITY.pluginOf(view).id, tab: id, inPanel });
             // A page is a webContents of its own: its keystrokes reach the key map only when it is listened to.
@@ -242,26 +240,14 @@ DeckitModule.define(
                 })
             );
             SCRIPT.attach(view, page, changed);
-            holdWindowOpen(view, style, page, { inPanel });
-            watchWindows(view, style, page, id);
-        }
-
-        // A window a page opened answers to that page's tab, as do the windows it opens in turn.
-        function watchWindows(view, style, page, tab) {
-            LOG.guard(page, 'did-create-window', (child) => {
-                REGISTRY.add(child.webContents, { host: view, plugin: IDENTITY.pluginOf(view).id, tab });
-                KEYMAP.listen(child.webContents);
-                WINDOW.dress(child, style());
-                holdWindowOpen(view, style, child.webContents, { inPanel: false });
-                watchWindows(view, style, child.webContents, tab);
-            });
+            holdWindowOpen(view, page, { inPanel });
         }
 
         // In a window, every page opened is a window: a consent step's popup posts its answer back to its opener,
-        // which a tab could not do. A popup keeps Chromium's own window, where the opener link is made, and it is
+        // which a tab could not do. A popup keeps the page Chromium made for it, where the opener link is, and it is
         // not a child window, which macOS fastens to its parent. A file page's window would share its session, so
         // it is asked of the delegate instead.
-        function holdWindowOpen(view, style, page, { inPanel }) {
+        function holdWindowOpen(view, page, { inPanel }) {
             page.setWindowOpenHandler(({ url, disposition, frameName }) => {
                 // An app's address opened as a window is the same question as one navigated to.
                 if (!/^https?:\/\//i.test(url)) {
@@ -276,7 +262,6 @@ DeckitModule.define(
                     return {
                         action: 'allow',
                         overrideBrowserWindowOptions: {
-                            ...WINDOW.optionsFor(style()),
                             webPreferences: {
                                 session: page.session,
                                 sandbox: true,
@@ -284,6 +269,7 @@ DeckitModule.define(
                                 nodeIntegration: false,
                             },
                         },
+                        createWindow: (options) => openPopup(view, page, options),
                     };
                 }
                 PROTOCOL.opening.send(view, {
@@ -295,23 +281,24 @@ DeckitModule.define(
             });
         }
 
-        // Over the focused window, since asking was a click there.
+        // A window a page opened answers to that page's tab, as do the windows it opens in turn.
+        function openPopup(view, opener, options) {
+            const { WebContentsView } = require('electron');
+            const shown = new WebContentsView({ webContents: options.webContents, webPreferences: options.webPreferences });
+            const page = shown.webContents;
+            const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
+            REGISTRY.add(page, { host: view, plugin: IDENTITY.pluginOf(view).id, tab });
+            KEYMAP.listen(page);
+            holdWindowOpen(view, page, { inPanel: false });
+            const size = options.width && options.height ? { width: options.width, height: options.height } : null;
+            showInWindow(shown, { size: size || WINDOW_SIZE });
+            return page;
+        }
+
         function openWindow(view, plugin, name, url, title) {
             if (!mayShow(view, url, { inPanel: false })) return 0;
-            const { BrowserWindow } = require('electron');
-            const opener = BrowserWindow.getFocusedWindow();
-            const size = { width: 520, height: 700 };
-            const at = opener?.getBounds();
-            const window = new BrowserWindow({
-                ...size,
-                title,
-                ...(at
-                    ? {
-                          x: Math.round(at.x + (at.width - size.width) / 2),
-                          y: Math.round(at.y + Math.max(0, (at.height - size.height) / 2)),
-                      }
-                    : {}),
-                ...WINDOW.optionsFor(styles.get(view)()),
+            const { WebContentsView } = require('electron');
+            const shown = new WebContentsView({
                 webPreferences: {
                     session: SESSION.of(plugin.id, name),
                     sandbox: true,
@@ -319,17 +306,35 @@ DeckitModule.define(
                     nodeIntegration: false,
                 },
             });
-            const page = window.webContents;
+            const page = shown.webContents;
             const id = page.id;
+            const window = showInWindow(shown, { title, size: WINDOW_SIZE });
             windows.set(id, { window, host: view });
-            window.on('closed', () => {
+            LOG.guard(window, 'closed', () => {
                 windows.delete(id);
                 PROTOCOL.closed.send(view, { id });
             });
-            adopt(view, styles.get(view), page, { inPanel: false });
-            WINDOW.dress(window, styles.get(view)());
+            adopt(view, page, { inPanel: false });
             page.loadURL(url).catch(() => {});
             return id;
+        }
+
+        // A page in a window of the app's, the two going together: the page closes with the window, and a page that
+        // closes itself takes its window.
+        function showInWindow(shown, { title = '', size }) {
+            const page = shown.webContents;
+            let closing = false;
+            const window = WINDOW.open({
+                view: shown,
+                title,
+                size,
+                onClose: () => {
+                    closing = true;
+                    if (!page.isDestroyed()) page.close();
+                },
+            });
+            page.once('destroyed', () => !closing && !window.isDestroyed() && window.close());
+            return window;
         }
 
         return { start, host, hostOf, holdsKeyboard, windowOptions };

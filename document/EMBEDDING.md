@@ -45,6 +45,8 @@ The app's own files are modules too: `DeckitModule.define(name, { uses, provides
 
 Deckit makes its views. Where they are shown is the app's shell's, the way a browser decides whether a page goes in a tab or a window while the page stays the same. Every app brings its own shell, and there is one panel, wherever the shell puts it. Plugins live in it: the shell is there before the panel.
 
+Every window is the app's: its frame, its bar, where it opens. Deckit makes none; a window it needs for a view of its own is asked of the shell. The panel is drawn as glass, clear where nothing is drawn, so the shell puts it over something that blurs: a window with vibrancy, or a surface of the app's.
+
 In main, before the app is ready:
 
 ```js
@@ -63,6 +65,8 @@ What a shell answers:
 | `reveal()` | "show me": a plugin's `host.show()`, a switcher choice |
 | `dismiss()` | "put it away": Escape with nothing else to close |
 | `summonSwitcher(webContents)` | the switcher's chord, pressed in that page |
+| `openWindow({ view, title, size, onClose })` | a window deckit needs for a view of its own: a plugin's window, a web page in a window, a page's popup. The shell makes it, frames it, puts `view` in it with `deck.window.place` and `onClose`, and returns it at once |
+| `panelTitled(title)` | the panel's title changed: the name of the plugin in front |
 | `noticeClicked()` | a notice deckit raised was clicked |
 | `restart()` | the app restarts: the process is the app's |
 
@@ -72,9 +76,9 @@ What `deck` holds:
 
 | | |
 |---|---|
-| `deck.panel` | `view()`, the panel's container, which the shell places in a window; `contains(webContents)`; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`; `setTheme(theme)`; `presentInWindow({ key, title, boundsKey, onClose })`, a deckit window with the panel in it, resolving the window or null. `hide()` resolves whether the panel had the keyboard |
+| `deck.panel` | `view()`, the panel's container, which the shell places in a window; `contains(webContents)`; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`; `setTheme(theme)`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
 | `deck.switcher` | `view()`, which the shell puts in front where it was summoned; `open()`, resolving true when it was put away; `close()`, `shown()` |
-| `deck.window` | `open`, `get`, `close`, `raise`, and `place(view, window, { bounds, front, onClose })`, which puts a view in one window at a time and takes it out alive before the window closes |
+| `deck.window` | `place(view, window, { bounds, front, onClose })`, which puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
 | `deck.keymap` | `listen(webContents)`: a page of the app's own that should hear deckit's global keys |
 
 Moving the panel is a re-parent: plugins keep their pages and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, and whether Escape with nothing else to close puts it away.
@@ -89,4 +93,4 @@ It may stand first in an Open With line (`openWith`, and the scheme in its manif
 
 ## 5. Deckit.app
 
-`source/deckit/deckit-app` is deckit embedded by itself, the way any app embeds it: its own `app/config` and `app/folders`, a shell that keeps the panel in one window of its own with the switcher in front of it, and an Electron entry that calls `connect`. `deckit app` builds it from the archive the last build made.
+`source/deckit/deckit-app` is deckit embedded by itself, the way any app embeds it: its own `app/config` and `app/folders`, a shell that keeps the panel in one window of its own with the switcher in front of it, and an Electron entry that calls `connect`. Its windows carry a bar that is always there: the window's own page, across the top and under the views, clear over the panel's glass so the two read as one surface. To macOS it is the title bar, so it drags, snaps and answers a double click as the person set. `deckit app` builds it from the archive the last build made.

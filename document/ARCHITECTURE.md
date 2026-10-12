@@ -1,6 +1,6 @@
 # How deckit is built
 
-Deckit is a library an app embeds, UI included: a host and the plugins it holds. The host finds plugin folders, gives each one its own page and what it may use, and owns the few things there can only be one of: the panel, the keyboard, the switcher, the windows. Everything a person uses is a plugin. Where the panel is shown is the app's, and every app brings a shell to say so.
+Deckit is a library an app embeds, UI included: a host and the plugins it holds. The host finds plugin folders, gives each one its own page and what it may use, and owns the few things there can only be one of: the panel, the keyboard, the switcher. Everything a person uses is a plugin. Where the panel is shown is the app's, and every app brings a shell to say so.
 
 This document is why deckit is split the way it is, and the rules that keep it so. The contract a plugin is written against is [PLUGIN.md](PLUGIN.md); how an app embeds deckit is [EMBEDDING.md](EMBEDDING.md); the kit plugins draw with is [UI.md](UI.md).
 
@@ -28,7 +28,7 @@ A new plugin needs no change to the host. A new shell to show the panel in needs
 
 | Where | What runs there |
 |---|---|
-| main | the host: plugin folders and their main halves, storage, the keymap, open, the switcher's relay, windows, every check of what a page asks |
+| main | the host: plugin folders and their main halves, storage, the keymap, open, the switcher's relay, the views it puts in the app's windows, every check of what a page asks |
 | a plugin's page | one plugin's view, in a `WebContentsView` of its own at `deckit://<id>.plugin/`, with the panel's frame around it |
 | the switcher's page | the quick switcher's list, at `deckit://switcher` |
 

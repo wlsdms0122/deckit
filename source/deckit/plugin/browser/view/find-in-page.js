@@ -9,7 +9,7 @@ function findInPage({ theme, ui, activeTab }) {
     ui.addStyle(`
         .browser-find {
             z-index: 3;
-            top: calc(8px + var(--deckit-top-inset, 0px));
+            top: 8px;
             right: 10px;
             display: none;
             align-items: center;
