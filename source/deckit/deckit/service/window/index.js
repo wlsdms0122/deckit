@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/window',
     {
         uses: ['deckit/service/log/main'],
-        provides: ['start', 'open', 'get', 'close', 'place', 'windowOf'],
+        provides: ['start', 'open', 'get', 'close', 'place', 'windowOf', 'windowShowing'],
         runs: 'main',
     },
     (LOG) => {
@@ -10,6 +10,7 @@ DeckitModule.define(
         const windows = new Map(); // key -> window
         const placed = new WeakMap(); // view -> { window, bounds, onClose }
         const inWindow = new WeakMap(); // window -> Set of the views placed in it
+        const roots = new Set(); // every view placed in a window
         let shell = null;
 
         // MARK: - Initializer
@@ -63,6 +64,7 @@ DeckitModule.define(
             if (was && was !== window) unplace(view);
             if (front || !window.contentView.children.includes(view)) window.contentView.addChildView(view);
             placed.set(view, { window, bounds, onClose });
+            roots.add(view);
             follow(window);
             inWindow.get(window).add(view);
             size(view);
@@ -70,6 +72,12 @@ DeckitModule.define(
 
         function windowOf(view) {
             return placed.get(view)?.window || null;
+        }
+
+        // The window a page is in, through whichever placed view holds it: the panel's pages are in its container.
+        function windowShowing(webContents) {
+            for (const view of roots) if (holds(view, webContents)) return placed.get(view).window;
+            return null;
         }
 
         // MARK: - Private
@@ -81,10 +89,15 @@ DeckitModule.define(
             view.setBounds(bounds || { x: 0, y: 0, width, height });
         }
 
+        function holds(view, webContents) {
+            return view.webContents === webContents || (view.children || []).some((child) => holds(child, webContents));
+        }
+
         function unplace(view) {
             const at = placed.get(view);
             if (!at) return;
             placed.delete(view);
+            roots.delete(view);
             inWindow.get(at.window)?.delete(view);
             if (!at.window.isDestroyed()) at.window.contentView.removeChildView(view);
         }
@@ -106,6 +119,6 @@ DeckitModule.define(
             });
         }
 
-        return { start, open, get, close, place, windowOf };
+        return { start, open, get, close, place, windowOf, windowShowing };
     }
 );

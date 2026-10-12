@@ -1,9 +1,9 @@
 // Reads, writes and searches the files the editor opens. Asynchronous throughout: in the main process, a synchronous
 // read stalls every window of the app.
-module.exports = ({ handle, files }) => {
+module.exports = ({ handle, window, files }) => {
     const fs = require('fs');
     const path = require('path');
-    const { dialog, BrowserWindow } = require('electron');
+    const { dialog } = require('electron');
     const { stat, readFile, writeFile, readdir, mkdir } = fs.promises;
 
     // Big enough for any source file, small enough that a log or a dump is not opened by mistake.
@@ -82,7 +82,7 @@ module.exports = ({ handle, files }) => {
     });
 
     handle('pick', async (what = 'file', suggested = '') => {
-        const parent = BrowserWindow.getFocusedWindow() || undefined;
+        const parent = window.ofPage() || undefined;
         if (what === 'save') {
             const picked = await dialog.showSaveDialog(parent, {
                 defaultPath: suggested || undefined,

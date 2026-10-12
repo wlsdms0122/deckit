@@ -1,11 +1,11 @@
 // Every read is asynchronous: in the main process a synchronous walk of a huge folder or a slow network volume would
 // freeze every window.
-module.exports = ({ handle, send, files }) => {
+module.exports = ({ handle, send, window, files }) => {
     const fs = require('fs').promises;
     const { watch } = require('fs');
     const os = require('os');
     const path = require('path');
-    const { app, shell, nativeImage, BrowserWindow } = require('electron');
+    const { app, shell, nativeImage } = require('electron');
     // macOS shows a folder with one of these extensions as one item, opened and not walked into.
     const PACKAGE_EXTENSIONS = new Set([
         'app',
@@ -118,13 +118,13 @@ module.exports = ({ handle, send, files }) => {
     });
 
     handle('quickLook', (file, name) => {
-        const window = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
-        if (!window) return false;
-        window.previewFile(absolute(file), name || path.basename(file));
+        const showing = window.ofPage();
+        if (!showing) return false;
+        showing.previewFile(absolute(file), name || path.basename(file));
         return true;
     });
     handle('closeQuickLook', () => {
-        for (const window of BrowserWindow.getAllWindows()) window.closeFilePreview();
+        window.ofPage()?.closeFilePreview();
         return true;
     });
 

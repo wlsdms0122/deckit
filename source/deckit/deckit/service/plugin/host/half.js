@@ -48,6 +48,10 @@ DeckitModule.define(
                 open: (options = {}) => WINDOW.open({ ...options, key: `${entry.id}:${options.key || 'main'}` }),
                 get: (key) => WINDOW.get(`${entry.id}:${key || 'main'}`),
                 close: (key) => WINDOW.close(`${entry.id}:${key || 'main'}`),
+                ofPage: () => {
+                    const page = IDENTITY.pageOf(entry.id);
+                    return page ? WINDOW.windowShowing(page) : null;
+                },
             };
             try {
                 require(path.join(entry.folder, 'main.js'))({
