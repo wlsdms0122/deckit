@@ -63,7 +63,7 @@ function urlSchemesSection({ ui, host, appName }) {
     `);
     const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const cards = ui.list({
-        key: (handlerList) => handlerList.id,
+        key: (handlerList) => handlerList.scheme,
         create: schemeCard,
         update: (card, handlerList) => cardFills.get(card)(handlerList),
     });
@@ -89,8 +89,11 @@ function urlSchemesSection({ ui, host, appName }) {
         const defaultRow = handlerRow({ trailing: defaultChip.element });
 
         card.append(
-            ui.element('div', { className: 'settings-scheme-name', text: schemeName(handlerList.id, everyScheme) }),
-            ui.element('div', { className: 'settings-scheme-description', text: schemeDescription(handlerList.id) }),
+            ui.element('div', { className: 'settings-scheme-name', text: schemeName(handlerList.scheme, everyScheme) }),
+            ui.element('div', {
+                className: 'settings-scheme-description',
+                text: schemeDescription(handlerList.scheme),
+            }),
             none,
             list.element,
             defaultRow.element
@@ -102,7 +105,7 @@ function urlSchemesSection({ ui, host, appName }) {
                 const to = next.findIndex((handler) => handler.id === toId);
                 if (from < 0 || to < 0) return;
                 next.splice(to, 0, next.splice(from, 1)[0]);
-                save(current.id, next);
+                save(current.scheme, next);
                 draw();
             },
         });
@@ -131,7 +134,7 @@ function urlSchemesSection({ ui, host, appName }) {
                     const { handler } = currentEntry;
                     toggle.set(on);
                     save(
-                        current.id,
+                        current.scheme,
                         current.handlers.map((candidate) =>
                             candidate.id === handler.id ? { ...handler, on } : candidate
                         )
@@ -183,11 +186,11 @@ function urlSchemesSection({ ui, host, appName }) {
         }
     }
 
-    function schemeDescription(id) {
-        if (id === everyScheme) return 'An address no line above names, for the plugins that take every scheme.';
-        if (id === 'http' || id === 'https')
+    function schemeDescription(scheme) {
+        if (scheme === everyScheme) return 'An address no scheme above names, for the plugins that take every scheme.';
+        if (scheme === 'http' || scheme === 'https')
             return 'A web address: a link clicked in a plugin, or a page asking for a new window.';
-        if (id === 'file') return 'A file on this Mac, such as a row in a file list.';
-        return `An address that starts with ${id}:, which a plugin named.`;
+        if (scheme === 'file') return 'A file on this Mac, such as a row in a file list.';
+        return `An address that starts with ${scheme}:, which a plugin named.`;
     }
 }

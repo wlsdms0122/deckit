@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/open/page',
     {
         uses: ['deckit/service/open/model/scheme', 'deckit/service/open/protocol'],
-        provides: ['open', 'answer', 'reveal', 'fileURL', 'filePath', 'lines', 'setLine', 'EVERY'],
+        provides: ['open', 'answer', 'reveal', 'fileURL', 'filePath', 'handlerLists', 'setHandlers', 'EVERY'],
     },
     (SCHEME, PROTOCOL) => {
         // MARK: - Property
@@ -47,16 +47,16 @@ DeckitModule.define(
             }
         }
 
-        function lines() {
-            return PROTOCOL.lines.invoke();
+        function handlerLists() {
+            return PROTOCOL.handlerLists.invoke();
         }
 
-        function setLine(line, { order = [], off = [] } = {}) {
-            return PROTOCOL.setLine.invoke({ line, order, off });
+        function setHandlers(scheme, { order = [], off = [] } = {}) {
+            return PROTOCOL.setHandlers.invoke({ scheme, order, off });
         }
 
         // MARK: - Private
 
-        return { open, answer, reveal, fileURL, filePath, lines, setLine, EVERY };
+        return { open, answer, reveal, fileURL, filePath, handlerLists, setHandlers, EVERY };
     }
 );

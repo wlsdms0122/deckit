@@ -26,7 +26,7 @@ DeckitModule.define(
             write: (pluginId, values) => STORE.write(path.join(HOME.settings, pluginId + '.json'), values),
         };
 
-        // deckit's own state: the key map, the Open With order, the plugin order, window places.
+        // deckit's own state: the key map, each scheme's handlers, the plugin order, the panel's frame.
         const state = {
             read: (key, fallback) => STORE.read(path.join(HOME.state, key + '.json'), fallback),
             write: (key, value) => STORE.write(path.join(HOME.state, key + '.json'), value),

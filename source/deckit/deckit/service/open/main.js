@@ -17,7 +17,7 @@ DeckitModule.define(
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
-        const CHOSEN = 'open-with';
+        const CHOSEN = 'scheme-handlers';
         // A handler that has not answered by then passes, so one stuck page does not hold every link.
         const OFFER_MS = 3000;
         // What deckit opens by itself, after every plugin that takes the scheme: the answer that is always last.
@@ -26,7 +26,7 @@ DeckitModule.define(
             ['https', 'browser'],
             ['file', 'file'],
         ]);
-        const handlers = new Set(); // plugin ids whose view answers offers
+        const answering = new Set(); // plugin ids whose page answers offers
 
         // MARK: - Initializer
         // MARK: - Public
@@ -40,11 +40,11 @@ DeckitModule.define(
             });
             PROTOCOL.handles.on((_payload, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
-                handlers.add(plugin.id);
-                // A view being replaced ends after its successor is up: only the view on duty drops the handler.
+                answering.add(plugin.id);
+                // A page being replaced ends after its successor is up: only the page on duty stops answering.
                 IDENTITY.whenPageEnds(
                     sender,
-                    () => IDENTITY.pageOf(plugin.id) === sender && handlers.delete(plugin.id)
+                    () => IDENTITY.pageOf(plugin.id) === sender && answering.delete(plugin.id)
                 );
             });
             // Only on a person's click or key: otherwise any plugin could open Finder at will, or learn which paths exist.
@@ -52,21 +52,21 @@ DeckitModule.define(
                 IDENTITY.pluginFrom(sender);
                 return spendsUserActivation(sender) && reveal(file);
             });
-            PROTOCOL.lines.handle((_payload, sender) => {
+            PROTOCOL.handlerLists.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.url-schemes');
-                return lines().map((line) => ({
-                    id: line,
-                    system: line === SCHEME.EVERY ? null : SYSTEM.get(line) || null,
-                    handlers: handlersOf(line),
+                return schemes().map((scheme) => ({
+                    scheme,
+                    system: scheme === SCHEME.EVERY ? null : SYSTEM.get(scheme) || null,
+                    handlers: handlersOf(scheme),
                 }));
             });
-            PROTOCOL.setLine.handle(({ line, order, off }, sender) => {
+            PROTOCOL.setHandlers.handle(({ scheme, order, off }, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.url-schemes');
-                return setLine(line, order, off);
+                return setHandlers(scheme, order, off);
             });
         }
 
-        // Each plugin in the scheme's line is asked in turn and the first to take it ends it; then deckit's own answer.
+        // Each of the scheme's handlers is asked in turn and the first to take it ends it; then deckit's own answer.
         async function open(
             url,
             { activates = true, userInitiated = false, usesDefaultApp = false, target = '' } = {}
@@ -75,7 +75,7 @@ DeckitModule.define(
             const scheme = schemeOf(address);
             if (!scheme || SCHEME.NOT_PLACES.has(scheme)) return false;
             const options = { activates, userInitiated, target };
-            if (!usesDefaultApp && (await offer(lineFor(scheme), address, options))) return true;
+            if (!usesDefaultApp && (await offer(handledAs(scheme), address, options))) return true;
             return system(scheme, address, options);
         }
 
@@ -98,68 +98,69 @@ DeckitModule.define(
             return STORAGE.state.read(CHOSEN, {});
         }
 
-        // Every scheme a line can be for: deckit's own, then each one a running plugin names, then every other.
-        function lines() {
+        // Every scheme with a handler list: deckit's own, then each one a running plugin names, then every other.
+        function schemes() {
             const named = HOST.plugins()
-                .filter(({ id }) => handlers.has(id))
+                .filter(({ id }) => answering.has(id))
                 .flatMap(({ urlSchemes }) => urlSchemes);
             const own = named.filter((scheme) => scheme !== SCHEME.EVERY);
             return [...new Set([...SYSTEM.keys(), ...own, ...(named.includes(SCHEME.EVERY) ? [SCHEME.EVERY] : [])])];
         }
 
-        function lineFor(scheme) {
-            return scheme !== SCHEME.EVERY && lines().includes(scheme) ? scheme : SCHEME.EVERY;
+        // The scheme whose handlers an address is offered to: its own, or every scheme's when it has no list.
+        function handledAs(scheme) {
+            return scheme !== SCHEME.EVERY && schemes().includes(scheme) ? scheme : SCHEME.EVERY;
         }
 
         // What the app names first and the person has not placed, then what the person placed.
-        function orderOf(line) {
-            const saved = savedOf(line);
-            const appFirst = Object.hasOwn(CONFIG.openWith, line) ? CONFIG.openWith[line] : [];
+        function orderOf(scheme) {
+            const saved = savedOf(scheme);
+            const appFirst = Object.hasOwn(CONFIG.schemeHandlers, scheme) ? CONFIG.schemeHandlers[scheme] : [];
             return [...appFirst.filter((id) => !saved.order.includes(id)), ...saved.order];
         }
 
-        function savedOf(line) {
-            return Object.hasOwn(chosen(), line) ? chosen()[line] : { order: [], off: [] };
+        function savedOf(scheme) {
+            return Object.hasOwn(chosen(), scheme) ? chosen()[scheme] : { order: [], off: [] };
         }
 
-        // In the line's order; a plugin no one placed keeps the place the plugins' order gives it.
-        function handlersOf(line) {
-            const order = orderOf(line);
-            const off = savedOf(line).off;
+        // In the scheme's order; a plugin no one placed keeps the place the plugins' order gives it.
+        function handlersOf(scheme) {
+            const order = orderOf(scheme);
+            const off = savedOf(scheme).off;
             const rank = (id) => (order.includes(id) ? order.indexOf(id) : order.length);
             return HOST.plugins()
                 .filter(
                     (plugin) =>
-                        handlers.has(plugin.id) &&
-                        plugin.urlSchemes.some((scheme) => scheme === SCHEME.EVERY || scheme === line)
+                        answering.has(plugin.id) &&
+                        plugin.urlSchemes.some((named) => named === SCHEME.EVERY || named === scheme)
                 )
                 .map((plugin, at) => ({ id: plugin.id, name: plugin.name, on: !off.includes(plugin.id), at }))
                 .sort((a, b) => rank(a.id) - rank(b.id) || a.at - b.at)
                 .map(({ at, ...handler }) => handler);
         }
 
-        // The ids given take the places they held among themselves. A plugin missing from the line now (failed to
-        // load, or waiting on what it requires) keeps its place and switch: otherwise editing the line while it was
+        // The ids given take the places they held among themselves. A plugin missing from the list now (failed to
+        // load, or waiting on what it requires) keeps its place and switch: otherwise editing the list while it was
         // gone would give its place to the app's default.
-        function setLine(line, order, off) {
-            if (!lines().includes(line)) throw new Error('there is no Open With line ' + line);
+        function setHandlers(scheme, order, off) {
+            if (!schemes().includes(scheme)) throw new Error('no plugin handles ' + scheme);
             const given = new Set(order);
             const next = [...order];
-            const merged = orderOf(line).map((id) => (given.has(id) ? next.shift() : id));
+            const merged = orderOf(scheme).map((id) => (given.has(id) ? next.shift() : id));
             merged.push(...next);
-            const offKept = savedOf(line).off.filter((id) => !given.has(id));
-            STORAGE.state.write(CHOSEN, { ...chosen(), [line]: { order: merged, off: [...offKept, ...off] } });
+            const offKept = savedOf(scheme).off.filter((id) => !given.has(id));
+            STORAGE.state.write(CHOSEN, { ...chosen(), [scheme]: { order: merged, off: [...offKept, ...off] } });
             return true;
         }
 
         // Only a plain true takes it, so a forgotten return passes it on rather than losing it.
-        async function offer(line, url, options) {
-            for (const handler of handlersOf(line)) {
+        async function offer(scheme, url, options) {
+            for (const handler of handlersOf(scheme)) {
                 if (!handler.on) continue;
-                const view = IDENTITY.pageOf(handler.id);
-                if (!view) continue;
+                const page = IDENTITY.pageOf(handler.id);
+                if (!page) continue;
                 const taken = await PROTOCOL.offer
-                    .invoke(view, { url, options }, { timeout: OFFER_MS })
+                    .invoke(page, { url, options }, { timeout: OFFER_MS })
                     .catch((error) => {
                         LOG.warn(`${handler.id} could not open ${url}`, error);
                         return false;

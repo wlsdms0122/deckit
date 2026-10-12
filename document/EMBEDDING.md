@@ -31,7 +31,7 @@ The app's own files are modules too: `DeckitModule.define(name, { uses, provides
 | `id` | what everything deckit keeps is named from: its folder, its sessions, its state, and the id of the app's own plugin | `deckit` |
 | `name` | what a person reads | `Deckit` |
 | `agent` | names the app adds to its user agent, taken out of the agent of a page a plugin shows | none |
-| `openWith` | by scheme, the plugins asked first to open an address, until the person orders them | none |
+| `schemeHandlers` | by scheme, the plugins asked first to open an address, until the person orders them | none |
 
 `app/folders`, read where there is a disk:
 
@@ -92,7 +92,7 @@ Moving the panel is a re-parent: plugins keep their pages and what they hold, an
 
 What a person does with the app from the panel is the app's own plugin: the one whose id is the app's. It ships with the app and can be removed like any other. That is all that sets it apart: it alone is handed what the app offers, the page module `app/exports`, as `context.app`, and it may export that on. A plugin that wants the app requires that plugin like any other. In another app a folder with that id is handed nothing.
 
-It may stand first in an Open With line (`openWith`, and the scheme in its manifest's `url-schemes`): it opens the addresses it knows and passes the rest on. Deckit never asks whose an address is.
+It may stand first among a scheme's handlers (`schemeHandlers`, and the scheme in its manifest's `url-schemes`): it opens the addresses it knows and passes the rest on. Deckit never asks whose an address is.
 
 ## 5. Deckit.app
 

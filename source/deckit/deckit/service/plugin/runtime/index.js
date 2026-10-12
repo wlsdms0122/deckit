@@ -192,7 +192,7 @@ DeckitModule.define(
                       }
                     : {}),
                 ...(has('deckit.url-schemes')
-                    ? { urlSchemes: { list: OPEN.lines, set: OPEN.setLine, everyScheme: OPEN.EVERY } }
+                    ? { urlSchemes: { list: OPEN.handlerLists, set: OPEN.setHandlers, everyScheme: OPEN.EVERY } }
                     : {}),
             };
             return Object.freeze({

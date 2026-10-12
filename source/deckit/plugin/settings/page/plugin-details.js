@@ -157,7 +157,7 @@ function pluginDetails({ ui, host, util }) {
                 const standing = handler.on ? 'asked ' + ordinal(index) : 'off';
                 return statusChip({
                     ui,
-                    text: `${schemeName(handlerList.id, everyScheme)} · ${standing}`,
+                    text: `${schemeName(handlerList.scheme, everyScheme)} · ${standing}`,
                     ok: handler.on,
                 }).element;
             });

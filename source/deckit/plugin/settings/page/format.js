@@ -8,8 +8,8 @@ function storedFilesText({ count, capped, hidden }) {
     return `${count}${capped ? '+' : ''} ${files}${hidden ? ' and hidden ones' : ''}`;
 }
 
-function schemeName(id, everyScheme) {
-    return id === everyScheme ? 'Every other scheme' : id + ':';
+function schemeName(scheme, everyScheme) {
+    return scheme === everyScheme ? 'Every other scheme' : scheme + ':';
 }
 
 // `index` counts from 0.

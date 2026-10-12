@@ -32,7 +32,7 @@ A new plugin needs no change to the host. A new shell to show the panel in needs
 | a plugin's page | where one plugin's page half runs, headless or not, in a `WebContentsView` of its own at `deckit://<id>.plugin/`; a plugin with something to show has the panel's frame around it there |
 | the switcher's page | the quick switcher's list, at `deckit://switcher` |
 
-A plugin is a renderer and main is the host. Each plugin's page has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is handed to Open With.
+A plugin is a renderer and main is the host. Each plugin's page has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
 The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`module/ipc`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
@@ -50,7 +50,7 @@ The pages never speak to each other. Main carries everything between them, and e
 | what the switcher lists | `service/switcher/main.js`, from what each plugin's page supplies |
 | a plugin's data, records and settings | main, under deckit's folder (below) |
 | a plugin's web sign-ins | its own sessions, `persist:<id>:<plugin>:<name>` |
-| what the person arranged (plugin order, key overrides, Open With) | `state/` |
+| what the person arranged (plugin order, key overrides, each scheme's handlers) | `state/` |
 
 Deckit's folder is `app/folders`' `home`, or `~/.config/<id>`:
 
@@ -72,7 +72,7 @@ A plugin reaches the host only through `context` (PLUGIN.md). Before a plugin ru
 Between plugins there are two ways, and one question picks: could the app do this if the other plugin were not there?
 
 - If it could not, it is a dependency. A plugin names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. What the app offers (`app/exports`) is handed to the app's own plugin, whose id is the app's, and another plugin reaches it by requiring that one.
-- If it could, it is Open With. A plugin asks for an address to be opened (`host.open(url)`) without knowing who answers. The plugins whose manifest names the scheme answer in the order the person set, ahead of the host's own answer, which is always last.
+- If it could, it is a URL scheme handler. A plugin asks for an address to be opened (`host.open(url)`) without knowing who answers. The plugins whose manifest names the scheme are its handlers and are asked in the order the person set, ahead of the host's own answer, which is always last.
 
 What reaches past a plugin's own page (the clipboard, notices, any web address, another plugin's settings, the keymap, a main half) is asked for by name in `permissions`, with a reason the person reads when installing. Main checks each one where the plugin asks, by the page it asks from.
 

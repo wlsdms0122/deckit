@@ -35,7 +35,7 @@ bot = "1.0.0"
 | `name` | no | what a person reads; the id when left out |
 | `version` | yes | the plugin's own version, `MAJOR.MINOR.PATCH`, compared with what other plugins require |
 | `api` | yes | the version of the host contract it is written against |
-| `url-schemes` | no | the schemes of the addresses it opens (Open With, below) |
+| `url-schemes` | no | the schemes of the addresses it opens: it is one of their handlers (below) |
 | `requires` | no | plugin id = the lowest version it needs |
 | `permissions` | no | permission = why it is needed, in words the person reads |
 
@@ -200,14 +200,14 @@ page.delegate = {
 };
 ```
 
-A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to Open With. Answer `false` when the plugin opened it itself.
+A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers. Answer `false` when the plugin opened it itself.
 
 ### host
 
 | Member | What it does |
 |---|---|
 | `show()` | puts the calling plugin on screen |
-| `open(url, { activates, userInitiated, usesDefaultApp, target })` | opens an address through Open With; resolves to whether anything opened it |
+| `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then the app's own answer; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | shows a file in the system's Finder, during a person's click or key; otherwise resolves `false` |
 | `chordOf(action)` | the chord one of the plugin's keys is bound to now, or `''` |
@@ -218,7 +218,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 | `plugins` | with `deckit.plugins`: `list`, `pick`, `install`, `remove`, `reveal`, `count`, `restartPending`, `restart`; `list` and `restartPending` answer at once, the rest resolve |
 | `pluginSettings` | with `deckit.plugin-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
 | `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
-| `urlSchemes` | with `deckit.url-schemes`: `list`, `set`, `everyScheme`; `list` answers at once |
+| `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
 
 ### util
 
@@ -249,7 +249,7 @@ What must outlive the page is written when it changes: the page can be made agai
 
 Two ways, and one question picks: could the app do this if the other plugin were not there?
 
-**Open With**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a plugin makes up. A plugin calls `host.open(url)` and never names who answers. Each scheme is a line: the plugins whose manifest names it, in the order the person set in Settings, then the host's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only when `userInitiated` says a person asked, during their click or key; otherwise it is shown in Finder. A scheme no plugin takes and the host has no answer for ends unopened.
+**URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a plugin makes up. A plugin calls `host.open(url)` and never names who answers. Each scheme has its handlers: the plugins whose manifest names it, in the order the person set in Settings, then the host's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only when `userInitiated` says a person asked, during their click or key; otherwise it is shown in Finder. A scheme no plugin takes and the host has no answer for ends unopened.
 
 **requires**, when it could not. The other plugin returns `exports`, and this one names it in `[requires]` and receives it as `context.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the plugin does not load, and Settings says why.
 

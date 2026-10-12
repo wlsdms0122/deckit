@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/open/protocol',
     {
         uses: ['deckit/module/ipc'],
-        provides: ['open', 'handles', 'reveal', 'lines', 'setLine', 'offer'],
+        provides: ['open', 'handles', 'reveal', 'handlerLists', 'setHandlers', 'offer'],
         runs: 'electron',
     },
     (IPC) => ({
@@ -21,11 +21,11 @@ DeckitModule.define(
         // The sending plugin answers the url-schemes its manifest names.
         handles: IPC.rendererToMain('deckit:open-handles', {}),
         reveal: IPC.rendererToMain('deckit:open-reveal', { file: 'string' }, { reply: true }),
-        // deckit.url-schemes
-        lines: IPC.rendererToMain('deckit:open-lines', {}, { reply: true, sync: true }),
-        setLine: IPC.rendererToMain(
-            'deckit:open-line-set',
-            { line: 'string', order: 'array', off: 'array' },
+        // deckit.url-schemes: each scheme's handlers in order, and setting that order.
+        handlerLists: IPC.rendererToMain('deckit:open-handler-lists', {}, { reply: true, sync: true }),
+        setHandlers: IPC.rendererToMain(
+            'deckit:open-handlers-set',
+            { scheme: 'string', order: 'array', off: 'array' },
             { reply: true }
         ),
         // Asks a plugin to open an address; it answers true when it took it.
