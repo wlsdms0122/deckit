@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/component/row',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/motion', 'deckit/ui/scroll', 'deckit/ui/component/part'],
+        uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/motion', 'deckit/ui/scroll', 'deckit/ui/list'],
         provides: ['STYLE', 'make'],
     },
-    (TOKEN, ICON, MOTION, SCROLL, PART) => {
+    (TOKEN, ICON, MOTION, SCROLL, LIST) => {
         // MARK: - Property
         const STYLE = `
             .deckit-row {
@@ -153,7 +153,7 @@ DeckitModule.define(
                 // Cleared before `then`, which redraws: a list waiting on leaving rows must not see this one still leaving.
                 delete made.dataset.deckitLeaving;
                 then?.();
-                if (list) PART.freed(list);
+                if (list) LIST.freed(list);
             }, length);
         }
 
@@ -186,7 +186,7 @@ DeckitModule.define(
         }
 
         function whenFree(list, draw) {
-            if (PART.busy(list)) PART.waiting.set(list, draw);
+            if (LIST.busy(list)) LIST.waiting.set(list, draw);
             else draw();
         }
 

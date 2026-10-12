@@ -8,11 +8,11 @@ DeckitModule.define(
             'deckit/ui/overlay',
             'deckit/ui/scroll',
             'deckit/ui/gesture',
-            'deckit/ui/component/part',
+            'deckit/ui/list',
         ],
         provides: ['STYLE', 'make'],
     },
-    (T, COLOR, ICON, OVERLAY, SCROLL, GESTURE, K) => {
+    (T, COLOR, ICON, OVERLAY, SCROLL, GESTURE, LIST) => {
         const { MOTION } = T;
 
         const zones = new Map(); // zone element -> Set of { kind, placeAt, onDrop }
@@ -98,7 +98,7 @@ DeckitModule.define(
                     dragSource(area, { itemAt, what }) {
                         GESTURE.drag(area, {
                             pick: itemAt,
-                            begin: K.heldWhile(area, (item, down, finished) => {
+                            begin: LIST.heldWhile(area, (item, down, finished) => {
                                 const it = what(item);
                                 if (!it) return null;
                                 const tag = label(it);

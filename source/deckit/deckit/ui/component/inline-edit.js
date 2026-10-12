@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/component/inline-edit',
     {
-        uses: ['deckit/ui/overlay', 'deckit/ui/component/part'],
+        uses: ['deckit/ui/overlay', 'deckit/ui/list'],
         provides: ['STYLE', 'make'],
     },
-    (OVERLAY, K) => {
+    (OVERLAY, LIST) => {
         const STYLE = `
             .deckit-refusal { max-width: 280px; padding: 6px 9px; white-space: normal; color: var(--deckit-alert); }
         `;
@@ -103,7 +103,7 @@ DeckitModule.define(
                                 input.remove();
                                 label.style.display = shown;
                                 if (held) giveBack();
-                                if (row) K.freed(row);
+                                if (row) LIST.freed(row);
                                 resolve(renamed);
                             };
                             const take = async (stay) => {

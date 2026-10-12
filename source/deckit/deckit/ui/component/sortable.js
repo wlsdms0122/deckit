@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/component/sortable',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/scroll', 'deckit/ui/gesture', 'deckit/ui/component/part'],
+        uses: ['deckit/ui/token', 'deckit/ui/scroll', 'deckit/ui/gesture', 'deckit/ui/list'],
         provides: ['STYLE', 'make'],
     },
-    (TOKEN, SCROLL, GESTURE, K) => {
+    (TOKEN, SCROLL, GESTURE, LIST) => {
         const { MOTION } = TOKEN;
 
         return {
@@ -20,7 +20,7 @@ DeckitModule.define(
                                     if (n.parentElement === list) return n;
                                 return null;
                             },
-                            begin: K.heldWhile(list, (row, down, finished) => lift(row, down.clientY, finished)),
+                            begin: LIST.heldWhile(list, (row, down, finished) => lift(row, down.clientY, finished)),
                         });
 
                         const lift = (row, startY, finished) => {

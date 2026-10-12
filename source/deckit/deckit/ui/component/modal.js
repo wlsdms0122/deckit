@@ -42,7 +42,8 @@ DeckitModule.define(
 
         // MARK: - Private
         // A card over the page that holds every press. `fill(card)` puts the content in and returns what takes the
-        // focus. With `chrome`, a title and Cancel and confirm buttons; Enter in a text field confirms.
+        // focus. With `chrome`, a title and Cancel and confirm buttons; Enter in a text field confirms. `onKey` has a
+        // key first and returns whether it took it.
         function sheet(
             ui,
             {
@@ -56,6 +57,7 @@ DeckitModule.define(
                 align = 'center',
                 width = 'min(420px, calc(100vw - 48px))',
                 fill,
+                onKey: given = () => false,
                 onConfirm,
                 onClose,
             }
@@ -84,6 +86,7 @@ DeckitModule.define(
             };
             const confirms = chrome && confirmLabel !== null;
             const onKey = (event) => {
+                if (given(event)) return true;
                 if (event.key !== 'Enter' || !confirms || event.target.tagName !== 'INPUT') return false;
                 submit();
                 return true;

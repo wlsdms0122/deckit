@@ -26,7 +26,7 @@ DeckitModule.define(
             'deckit/ui/component/color-picker',
             'deckit/ui/component/dialog',
         ],
-        provides: ['make'],
+        provides: ['make', 'addStyle'],
     },
     (TOKEN, COLOR, ICON, POINTER, OVERLAY, SCROLL, PART, ...components) => {
         // MARK: - Property
@@ -54,15 +54,20 @@ DeckitModule.define(
             return deepFreeze(ui);
         }
 
+        // Rules of a view of deckit's own, drawn with the kit's custom properties.
+        function addStyle(rules) {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(rules);
+            document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+        }
+
         // MARK: - Private
         // The kit's look, once per page: the token's values as custom properties, then every part's rules.
         function install(token) {
             if (installed) return;
             installed = true;
-            const sheet = new CSSStyleSheet();
             const rules = [OVERLAY, PART, ...components].map((part) => part.STYLE);
-            sheet.replaceSync(TOKEN.propertiesOf(token) + rules.join('\n'));
-            document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+            addStyle(TOKEN.propertiesOf(token) + rules.join('\n'));
         }
 
         function deepFreeze(value) {
@@ -75,6 +80,6 @@ DeckitModule.define(
             return value;
         }
 
-        return { make };
+        return { make, addStyle };
     }
 );
