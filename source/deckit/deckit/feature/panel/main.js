@@ -224,10 +224,10 @@ DeckitModule.define(
         // Which plugin is on screen. No fade: here it is a swap of views, on the most repeated action in the panel.
         // Answers whether it is on screen now.
         function select(id, { fromHistory = false } = {}) {
-            // Another plugin put on screen meanwhile is where the panel stays.
-            if (id !== returning) returning = null;
             const next = views.get(id);
             if (!next) return false;
+            // Another plugin put on screen meanwhile is where the panel stays.
+            if (id !== returning) returning = null;
             if (current === id) return true;
             if (!fromHistory) {
                 history.list.splice(history.at + 1, Infinity, id);
