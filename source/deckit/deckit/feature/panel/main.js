@@ -395,7 +395,7 @@ DeckitModule.define(
             if (!theme) return {};
             return {
                 background: theme.sidebarBg || theme.contentBg,
-                color: theme.sidebarStrong || theme.sidebarColor,
+                color: theme.sidebarColor,
                 font: theme.font,
             };
         }
