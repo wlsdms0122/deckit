@@ -130,17 +130,32 @@ DeckitModule.define(
                 if (pathname === '/') return net.fetch(page);
                 const id = host.endsWith('.plugin') ? host.slice(0, -'.plugin'.length) : null;
                 const folder = HOST.plugins().find((entry) => entry.id === id)?.folder;
-                if (!folder) return missing();
-                const file = path.resolve(folder, '.' + decodeURIComponent(pathname));
-                const inside = path.relative(folder, file);
-                if (!inside || inside.startsWith('..') || path.isAbsolute(inside)) return missing();
-                if (inside === 'main.js' || inside.split(path.sep)[0] === 'main') return missing();
-                return net.fetch(pathToFileURL(file).toString()).catch(missing);
+                const file = folder && servedFile(folder, pathname);
+                return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
             });
             // Electron grants every permission a session has no handler for. A plugin reaches the camera, the
             // clipboard or a notice through deckit's API, which holds it to its permissions, and never through the web's.
             own.setPermissionRequestHandler((_webContents, _permission, answer) => answer(false));
             own.setPermissionCheckHandler(() => false);
+        }
+
+        // The file of the plugin's folder a path names, where it really is: a link out of the folder, the main half
+        // (in any case, as the disk reads names) and a path that is not one are not served.
+        function servedFile(folder, pathname) {
+            const fs = require('fs');
+            const path = require('path');
+            let real;
+            try {
+                const root = fs.realpathSync(folder);
+                real = fs.realpathSync(path.resolve(root, '.' + decodeURIComponent(pathname)));
+                const inside = path.relative(root, real);
+                const first = inside.split(path.sep)[0].toLowerCase();
+                if (!inside || first === '..' || path.isAbsolute(inside)) return null;
+                if (first === 'main.js' || first === 'main') return null;
+            } catch {
+                return null;
+            }
+            return real;
         }
 
         // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so the glass under it shows.
