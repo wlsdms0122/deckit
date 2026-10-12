@@ -1,11 +1,11 @@
 DeckitModule.define(
     'deckit/feature/panel/sidebar',
     {
-        uses: ['deckit/ui/icon', 'deckit/ui/scroll'],
+        uses: ['deckit/ui/icon', 'deckit/ui/scroll', 'deckit/ui/kit', 'deckit/ui/list'],
         provides: ['make'],
         runs: 'page',
     },
-    (ICON, SCROLL) => {
+    (ICON, SCROLL, KIT, LIST) => {
         // MARK: - Property
         // A generous ceiling: in a window of its own the panel has room, and sidebar lists want width.
         const WIDTH_MIN = 240;
@@ -14,106 +14,165 @@ DeckitModule.define(
         const SLOT_MIN = 120;
         // Leaves the plugin room to draw beside the sidebar.
         const CONTENT_MIN = 360;
-        // The handle stands a little past the gap, over the content's edge: centred in the gap it reads as the card's.
+        // The card's inset from the panel's edges, and how far the handle stands past it, over the content's edge.
         const INSET = 8;
-        const RADIUS = 12;
         const HANDLE_OUT = 6;
-        const GUTTER = '12px';
+        const STYLE = `
+            .deckit-sidebar {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                flex: 0 0 auto;
+                min-height: 0;
+                box-sizing: border-box;
+                margin: ${INSET}px;
+                overflow: hidden;
+                border: 1px solid var(--deckit-sidebar-rim);
+                border-radius: var(--deckit-radius-card);
+                background: linear-gradient(180deg, var(--deckit-sidebar-top), var(--deckit-sidebar-bottom));
+                box-shadow: var(--deckit-sidebar-shadow);
+                color: var(--deckit-text);
+            }
+            .deckit-sidebar-body {
+                display: flex;
+                flex-direction: column;
+                flex: 0 0 auto;
+                height: 100%;
+                min-height: 0;
+                box-sizing: border-box;
+                padding: 5px 0 10px;
+            }
+            .deckit-sidebar-nav,
+            .deckit-sidebar-slot {
+                display: flex;
+                flex-direction: column;
+                overflow-y: auto;
+                box-sizing: border-box;
+                padding: 0 12px;
+            }
+            .deckit-sidebar-nav { flex: 0 0 auto; min-height: ${NAV_MIN}px; }
+            .deckit-sidebar-nav .deckit-section { margin-top: 0; }
+            .deckit-sidebar-slot { flex: 1 1 auto; min-height: 0; }
+            .deckit-sidebar-slot[hidden] { display: none; }
+            .deckit-sidebar-slot > * { flex-shrink: 0; }
+            .deckit-sidebar-splitter {
+                position: relative;
+                display: flex;
+                align-items: center;
+                flex: 0 0 auto;
+                height: 9px;
+                margin: 4px 12px 0;
+                cursor: row-resize;
+            }
+            .deckit-sidebar-splitter::before {
+                content: '';
+                width: 100%;
+                border-top: var(--deckit-border);
+                opacity: 0.7;
+                transition: opacity var(--deckit-base) var(--deckit-easing);
+            }
+            .deckit-sidebar-splitter:hover::before { opacity: 1; }
+            .deckit-sidebar-handle {
+                position: absolute;
+                top: 50%;
+                left: ${HANDLE_OUT}px;
+                z-index: 5;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 16px;
+                height: 64px;
+                padding: 0;
+                border: 0;
+                background: transparent;
+                cursor: col-resize;
+                transform: translate(-50%, -50%);
+                transition:
+                    transform var(--deckit-base) var(--deckit-easing),
+                    left var(--deckit-base) var(--deckit-easing);
+            }
+            .deckit-sidebar-handle[aria-expanded='false'] { left: 0; cursor: pointer; transform: translate(3px, -50%); }
+            .deckit-sidebar-handle::before {
+                content: '';
+                width: 4px;
+                height: 36px;
+                border-radius: var(--deckit-radius-round);
+                background: var(--deckit-disabled);
+                transition:
+                    background-color var(--deckit-fast) var(--deckit-easing),
+                    height var(--deckit-fast) var(--deckit-easing),
+                    width var(--deckit-fast) var(--deckit-easing);
+            }
+            .deckit-sidebar-handle:hover::before,
+            .deckit-sidebar-handle[data-dragging]::before { width: 5px; height: 48px; background: var(--deckit-muted); }
+            .deckit-plugin-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                width: 100%;
+                min-height: 28px;
+                box-sizing: border-box;
+                padding: 0 8px;
+                border: 0;
+                outline: none;
+                border-radius: var(--deckit-radius-control);
+                background: transparent;
+                color: var(--deckit-muted);
+                font: var(--deckit-type-large);
+                text-align: left;
+                cursor: pointer;
+                transition:
+                    background-color var(--deckit-fast) var(--deckit-easing),
+                    color var(--deckit-fast) var(--deckit-easing);
+            }
+            .deckit-plugin-row:hover { background: var(--deckit-hover); }
+            .deckit-plugin-row[aria-selected='true'] { background: var(--deckit-selected); color: var(--deckit-text); }
+            .deckit-plugin-row:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
+            .deckit-plugin-icon { display: flex; flex: 0 0 auto; }
+        `;
 
         // MARK: - Initializer
         // MARK: - Public
-        // The panel's sidebar card: the plugins' list over the plugin's own sidebar. What it shows is main's
-        // (`state`), and what the person changes is told back: `onPick`, `onStep`, `onReorder`, `onLayout`.
+        // The panel's sidebar card: the plugins' list over the plugin's own sidebar. What it shows is main's (`state`),
+        // and what the person changes is told back: `onPick`, `onStep`, `onReorder`, `onLayout`.
         function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, onLayout, chordOf }) {
-            const { motion: MOTION } = theme;
-            const scrollFade = SCROLL.edgeFade;
-            const dark = theme.dark;
-            // Its ink is the content's, not the sidebar colour, which is chosen against a sidebar fill.
-            const wash = (alpha) => (dark ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`);
-            const quietRow = theme.color.muted;
+            KIT.addStyle(surfaceOf(theme) + STYLE);
             let layout = { width: WIDTH_MIN, collapsed: false, navHeight: null };
+            let plugins = [];
             let current = null;
-            let dragging = false;
 
             // Two boxes: the card animates its width while the body keeps its own, so what is inside does not reflow
             // against its minimum widths every frame.
-            const card = element('div', {
-                flex: '0 0 auto',
-                background: `linear-gradient(180deg, ${wash(dark ? 0.045 : 0.03)}, ${wash(dark ? 0.025 : 0.015)})`,
-                color: theme.color.text,
-                margin: INSET + 'px',
-                borderRadius: RADIUS + 'px',
-                border: `1px solid ${wash(dark ? 0.1 : 0.08)}`,
-                boxShadow: dark
-                    ? 'inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.32)'
-                    : 'inset 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.08), 0 10px 28px rgba(0,0,0,.10)',
-                boxSizing: 'border-box',
-                overflow: 'hidden',
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: '0',
-            });
-            // 5 at the top lines the heading up with a plugin's header in the content column. The side gutter is in
-            // each part that scrolls, so a scrollbar runs down the card's edge.
-            const body = element('div', {
-                flex: '0 0 auto',
-                boxSizing: 'border-box',
-                padding: '5px 0 10px',
-                display: 'flex',
-                flexDirection: 'column',
-                height: '100%',
-                minHeight: '0',
-            });
-            const nav = element('div', {
-                flex: '0 0 auto',
-                display: 'flex',
-                flexDirection: 'column',
-                overflowY: 'auto',
-                minHeight: NAV_MIN + 'px',
-                padding: `0 ${GUTTER}`,
-                boxSizing: 'border-box',
-            });
-            scrollFade(nav);
+            const card = element('div', 'deckit-sidebar');
+            const body = element('div', 'deckit-sidebar-body');
+            const nav = element('div', 'deckit-sidebar-nav');
+            SCROLL.edgeFade(nav);
             const section = ui.section('Plugins', {
                 title: true,
                 actions: [
-                    { icon: ui.icon('chevronLeft', 16), title: 'Back', run: () => onStep(-1) },
-                    { icon: ui.icon('chevronRight', 16), title: 'Forward', run: () => onStep(1) },
+                    { icon: ICON.icon('chevronLeft', 16), title: 'Back', run: () => onStep(-1) },
+                    { icon: ICON.icon('chevronRight', 16), title: 'Forward', run: () => onStep(1) },
                 ],
             });
             ui.tip(section.actions[0], 'Back', () => chordOf('back'));
             ui.tip(section.actions[1], 'Forward', () => chordOf('forward'));
-            section.style.marginTop = '0';
-            nav.appendChild(section);
-            // Nothing is drawn again after a drag: main hears the order and every view follows.
+            nav.append(section);
+            const rows = LIST.list({
+                element: section.body,
+                key: (plugin) => plugin.id,
+                create: rowOf,
+                update: (row, plugin) => paintRow(row, plugin),
+            });
+            // The new order is drawn here at once, and main, hearing it, has every view follow.
             ui.sortable(section.body, (from, to) => {
-                const rows = [...section.body.children];
-                const moved = rows[from];
-                const rest = rows.filter((row) => row !== moved);
-                if (to < rest.length) section.body.insertBefore(moved, rest[to]);
-                else rest.at(-1).after(moved);
-                onReorder([...section.body.children].map((row) => row.dataset.pluginId));
+                const moved = plugins[from];
+                const rest = plugins.filter((plugin) => plugin !== moved);
+                plugins = [...rest.slice(0, to), moved, ...rest.slice(to)];
+                rows.set(plugins);
+                onReorder(plugins.map((plugin) => plugin.id));
             });
 
-            const splitter = element('div', {
-                flex: '0 0 auto',
-                height: '9px',
-                margin: `4px ${GUTTER} 0`,
-                cursor: 'row-resize',
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-            });
-            const line = element('div', {
-                width: '100%',
-                borderTop: theme.border,
-                opacity: '.7',
-                transition: `opacity ${MOTION.base}ms ${MOTION.easing}`,
-            });
-            splitter.addEventListener('mouseenter', () => (line.style.opacity = '1'));
-            splitter.addEventListener('mouseleave', () => (line.style.opacity = '.7'));
-            splitter.appendChild(line);
+            const splitter = element('div', 'deckit-sidebar-splitter');
             splitter.title = 'Drag to resize';
             ui.resizer(splitter, {
                 axis: 'y',
@@ -122,65 +181,24 @@ DeckitModule.define(
                 max: () => {
                     const style = getComputedStyle(body);
                     const usable = body.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-                    return Math.max(
-                        NAV_MIN,
-                        usable - splitter.offsetHeight - parseFloat(getComputedStyle(splitter).marginTop) - SLOT_MIN
-                    );
+                    const below = splitter.offsetHeight + parseFloat(getComputedStyle(splitter).marginTop) + SLOT_MIN;
+                    return Math.max(NAV_MIN, usable - below);
                 },
                 resize: (px) => (nav.style.height = px + 'px'),
                 commit: (px) => onLayout({ navHeight: Math.round(px) }),
             });
 
-            // The plugin's own sidebar. Not shrunk, whatever the plugin set: the slot scrolls when it is taller.
-            const slot = element('div', {
-                flex: '1 1 auto',
-                minHeight: '0',
-                display: sidebar ? 'flex' : 'none',
-                flexDirection: 'column',
-                overflowY: 'auto',
-                padding: `0 ${GUTTER}`,
-                boxSizing: 'border-box',
-            });
-            scrollFade(slot);
-            if (sidebar) {
-                sidebar.style.flexShrink = '0';
-                slot.appendChild(sidebar);
-            }
+            // The plugin's own sidebar: the slot scrolls when it is taller.
+            const slot = element('div', 'deckit-sidebar-slot');
+            slot.hidden = !sidebar;
+            SCROLL.edgeFade(slot);
+            if (sidebar) slot.append(sidebar);
 
-            // On the content, not the card: at left 0 it stands on the boundary whatever the width, and it outlives
-            // the card being folded away.
-            const handleIdle = theme.color.disabled;
-            const handleHover = theme.color.muted;
-            const handle = element('button', {
-                position: 'absolute',
-                top: '50%',
-                left: '0',
-                zIndex: '5',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '16px',
-                height: '64px',
-                padding: '0',
-                border: '0',
-                background: 'transparent',
-                color: theme.color.text,
-                transition: `transform ${MOTION.base}ms ${MOTION.easing}, left ${MOTION.base}ms ${MOTION.easing}`,
-            });
+            // On the content, not the card: at its left edge it stands on the boundary whatever the width, and it
+            // outlives the card being folded away. Folded, a press is only a click: a drag that folded or opened the
+            // card would animate its width under the pointer.
+            const handle = element('button', 'deckit-sidebar-handle');
             handle.type = 'button';
-            // The button around the capsule is what is aimed at: a 4px pill alone is not.
-            const capsule = element('span', {
-                width: '4px',
-                height: '36px',
-                borderRadius: '999px',
-                background: handleIdle,
-                transition: `background-color ${MOTION.fast}ms ${MOTION.easing}, height ${MOTION.fast}ms ${MOTION.easing}, width ${MOTION.fast}ms ${MOTION.easing}`,
-            });
-            handle.appendChild(capsule);
-            handle.addEventListener('mouseenter', () => paintHandle(true));
-            handle.addEventListener('mouseleave', () => !dragging && paintHandle(false));
-            // Folded, a press is only a click: a drag that folded or opened the card would animate its width under the
-            // pointer.
             ui.resizer(handle, {
                 axis: 'x',
                 size: () => card.getBoundingClientRect().width,
@@ -194,23 +212,14 @@ DeckitModule.define(
                 },
                 commit: (px) => onLayout({ width: Math.round(clamp(px)) }),
                 onClick: () => onLayout({ collapsed: !layout.collapsed }),
-                onDrag: (on) => {
-                    dragging = on;
-                    paintHandle(on || handle.matches(':hover'));
-                },
+                onDrag: (on) => handle.toggleAttribute('data-dragging', on),
             });
-            content.appendChild(handle);
+            content.append(handle);
             // A window that shrank must not leave the card wider than what is left of it.
             window.addEventListener('resize', () => !layout.collapsed && apply(layout, false));
 
             body.append(nav, splitter, slot);
-            card.appendChild(body);
-
-            function paintHandle(on) {
-                capsule.style.background = on ? handleHover : handleIdle;
-                capsule.style.width = on ? '5px' : '4px';
-                capsule.style.height = on ? '48px' : '36px';
-            }
+            card.append(body);
 
             // The smaller of the one allowed anywhere and what leaves the plugin room. Read, not kept: the window resizes.
             function ceiling() {
@@ -221,13 +230,16 @@ DeckitModule.define(
                 return Math.min(ceiling(), Math.max(WIDTH_MIN, width));
             }
 
-            // Folding animates width, a layout property, so the content is laid out again each frame and the fold
-            // can stutter; a transform would make the page jump to its final width instead, which is worse.
+            // Folding animates width, a layout property, so the content is laid out again each frame and can stutter; a
+            // transform would make the page jump to its final width instead.
             function apply(next, animate) {
                 layout = next;
                 const width = clamp(next.width);
+                const { base } = theme.motion;
                 card.style.transition = animate
-                    ? `width ${MOTION.base}ms ${MOTION.easing}, margin ${MOTION.base}ms ${MOTION.easing}, opacity ${MOTION.base}ms ${MOTION.easing}`
+                    ? ['width', 'margin', 'opacity']
+                          .map((property) => `${property} ${base}ms ${theme.motion.easing}`)
+                          .join(', ')
                     : 'none';
                 body.style.width = width + 'px';
                 card.style.width = next.collapsed ? '0px' : width + 'px';
@@ -236,63 +248,64 @@ DeckitModule.define(
                 card.style.borderWidth = next.collapsed ? '0px' : '1px';
                 card.style.opacity = next.collapsed ? '0' : '1';
                 if (next.navHeight) nav.style.height = next.navHeight + 'px';
-                // Folded, there is nothing to resize until it opens, and half the handle would be clipped past the panel.
                 handle.title = next.collapsed ? 'Show sidebar' : 'Hide sidebar · drag to resize';
-                handle.style.cursor = next.collapsed ? 'pointer' : 'col-resize';
                 handle.setAttribute('aria-label', handle.title);
                 handle.setAttribute('aria-expanded', String(!next.collapsed));
-                handle.style.transform = next.collapsed ? 'translate(3px, -50%)' : 'translate(-50%, -50%)';
-                handle.style.left = next.collapsed ? '0' : HANDLE_OUT + 'px';
             }
 
-            // Rows are stepped back by mixing toward the ground, not by fading: a faded control lets the glass through.
-            function show({ plugins, current: on, canBack, canForward, frame }, animate) {
-                current = on;
-                section.body.replaceChildren(...plugins.map((plugin) => rowOf(plugin)));
-                section.actions[0].setEnabled(canBack);
-                section.actions[1].setEnabled(canForward);
-                apply(frame, animate);
+            function show(state, animate) {
+                plugins = state.plugins;
+                current = state.current;
+                rows.set(plugins);
+                section.actions[0].setEnabled(state.canBack);
+                section.actions[1].setEnabled(state.canForward);
+                apply(state.frame, animate);
             }
 
             function rowOf(plugin) {
-                const row = element('button', {
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    width: '100%',
-                    minHeight: '28px',
-                    padding: '0 8px',
-                    border: '0',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    background: 'transparent',
-                    color: plugin.id === current ? theme.color.text : quietRow,
-                    font: '15px ' + theme.font,
-                    textAlign: 'left',
-                    boxSizing: 'border-box',
-                    transition: `background-color ${MOTION.fast}ms ${MOTION.easing}, color ${MOTION.fast}ms ${MOTION.easing}`,
-                });
+                const row = element('button', 'deckit-plugin-row');
                 row.type = 'button';
                 row.dataset.pluginId = plugin.id;
                 row.setAttribute('role', 'tab');
-                row.setAttribute('aria-selected', String(plugin.id === current));
-                const glyph = element('span', { display: 'flex', flex: '0 0 auto' });
-                glyph.append(ICON.sanitize(plugin.icon));
-                const name = element('span', {});
-                name.textContent = plugin.name;
-                row.append(glyph, name);
                 row.addEventListener('click', () => onPick(plugin.id));
-                ui.hoverable(row, () => plugin.id === current);
+                paintRow(row, plugin);
                 return row;
+            }
+
+            function paintRow(row, plugin) {
+                row.setAttribute('aria-selected', String(plugin.id === current));
+                const drawn = JSON.stringify([plugin.icon, plugin.name]);
+                if (row.dataset.drawn === drawn) return;
+                row.dataset.drawn = drawn;
+                const glyph = element('span', 'deckit-plugin-icon');
+                glyph.append(ICON.sanitize(plugin.icon));
+                const name = element('span', '');
+                name.textContent = plugin.name;
+                row.replaceChildren(glyph, name);
             }
 
             return { element: card, show };
         }
 
         // MARK: - Private
-        function element(tag, style) {
+        // The card's surface, drawn in the content's ink rather than the sidebar colour, which is chosen against a
+        // sidebar fill.
+        function surfaceOf(theme) {
+            const ink = (alpha) => (theme.dark ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`);
+            const shadow = theme.dark
+                ? 'inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.32)'
+                : 'inset 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.08), 0 10px 28px rgba(0,0,0,.10)';
+            return `:root {
+                --deckit-sidebar-top: ${ink(theme.dark ? 0.045 : 0.03)};
+                --deckit-sidebar-bottom: ${ink(theme.dark ? 0.025 : 0.015)};
+                --deckit-sidebar-rim: ${ink(theme.dark ? 0.1 : 0.08)};
+                --deckit-sidebar-shadow: ${shadow};
+            }`;
+        }
+
+        function element(tag, className) {
             const made = document.createElement(tag);
-            Object.assign(made.style, style);
+            if (className) made.className = className;
             return made;
         }
 
