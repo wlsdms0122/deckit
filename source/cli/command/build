@@ -34,16 +34,24 @@ done
 cp "$LIBRARY/$(node -p "require('./source/cli/library.js').PAGE")" "$LIB/page.html"
 cp document/EMBEDDING.md document/PLUGIN.md document/UI.md "$LIB/document/"
 
+# deckit's own plugins keep their sandbox code as CommonJS files under src/, with src/main.js the entry; what the
+# manifest's main names is that, bundled. The rest of the folder ships as it is.
 for dir in source/deckit/plugin/*/; do
+  dir="${dir%/}"
   [ -f "$dir/manifest.toml" ] || continue
-  rsync -a --exclude .DS_Store "${dir%/}" "$LIB/plugin/"
+  rsync -a --exclude .DS_Store --exclude /src "$dir" "$LIB/plugin/"
+  MAIN="$(node -p "require('fs').readFileSync('$dir/manifest.toml','utf8').match(/^main\\s*=\\s*\"([^\"]+)\"/m)[1]")"
+  node source/cli/bundle.js "$dir/src/main.js" "$LIB/plugin/$(basename "$dir")/$MAIN" \
+    || { echo "$dir could not be bundled: stopping" >&2; exit 1; }
+  node -e "new Function('module','exports',require('fs').readFileSync('$LIB/plugin/$(basename "$dir")/$MAIN','utf8'))" \
+    || { echo "$dir bundles to a syntax error: stopping" >&2; exit 1; }
 done
 
 rsync -a --exclude .DS_Store source/deckit/deckit-cli/ "$LIB/deckit-cli/"
 node --check "$LIB/deckit-cli/deckit-cli" && node --check "$LIB/deckit-cli/commands.js" \
   || { echo "deckit-cli has a syntax error: stopping" >&2; exit 1; }
 
-SOURCE_HASH="$({ find source/deckit/deckit source/deckit/plugin source/deckit/deckit-cli source/cli/library.js source/cli/concept.js source/cli/describe.js -type f -not -name .DS_Store -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+SOURCE_HASH="$({ find source/deckit/deckit source/deckit/plugin source/deckit/deckit-cli source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/bundle.js -type f -not -name .DS_Store -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 node source/cli/describe.js "$LIB" "$VERSION" "$SOURCE_HASH"
 

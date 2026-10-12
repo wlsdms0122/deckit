@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# The output is checked in: the panel has no network or module loader, so the engine ships as one
-# script with the plugin.
+# The output is checked in: a plugin's sandbox has no network or package manager, so the engine ships as one
+# CommonJS file of the plugin's, which deckit's build bundles with the rest of it.
 set -euo pipefail
 plugin="${1:?usage: build.sh <plugin> (a folder beside this script: editor, note)}"
 here="$(cd "$(dirname "$0")/$plugin" && pwd)"
 root="$(cd "$here/../../../.." && pwd)"
 work="$root/.build/engine/$plugin"
-out="$root/source/deckit/plugin/$plugin/page/engine.js"
-# EditorEngine, NoteEngine: the name the plugin's page files call it by.
+out="$root/source/deckit/plugin/$plugin/src/engine.js"
+# EditorEngine, NoteEngine: the name esbuild gives it inside the file.
 global="$(printf '%s' "$plugin" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')Engine"
 
 mkdir -p "$work"
@@ -21,8 +21,7 @@ else
   cp "$work/package-lock.json" "$here/package-lock.json"
 fi
 
-# An IIFE assigned to a name: the plugin's files run as one function body, so the name stays inside
-# the plugin rather than on the panel's window. The metafile names the packages whose licences it carries.
+# An IIFE assigned to a name, then exported. The metafile names the packages whose licences it carries.
 (cd "$work" && npx --no-install esbuild entry.mjs --bundle --format=iife --global-name="$global" \
   --minify --legal-comments=none --target=chrome120 --log-level=warning \
   --metafile=meta.json --outfile=bundle.js)
@@ -58,5 +57,6 @@ licences="$(cd "$work" && node -e '
   printf '%s\n' "$licences"
   echo "*/"
   cat "$work/bundle.js"
+  echo "module.exports = $global;"
 } > "$out"
 echo "wrote $out ($(wc -c < "$out" | tr -d ' ') bytes)"
