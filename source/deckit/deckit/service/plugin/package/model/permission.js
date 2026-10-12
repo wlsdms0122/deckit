@@ -14,7 +14,7 @@ DeckitModule.define(
                 id: 'system.main-process',
                 name: 'Main Process',
                 icon: 'server',
-                means: "Its main.js runs in the app's main process, outside the panel, where code can read and write your files, reach the network and start programs.",
+                means: "It starts code in the app's main process, outside the panel, where code can read and write your files, reach the network and start programs.",
             },
             {
                 id: 'system.files',

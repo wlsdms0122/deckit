@@ -12,7 +12,7 @@ dashboard/
   src/ …              the author's sources, if the entry is bundled from them
 ```
 
-The entry is one file, run as a CommonJS module with nothing else in reach: the sandbox has no `require`. A plugin written as many files is bundled into one, by any bundler that writes CommonJS (esbuild, Rollup, webpack). A main process module is a plain Node module and may require what it likes.
+The entry is one file, run as a CommonJS module with nothing else in reach: the sandbox has no `require`. A plugin written as many files is bundled into one, by any bundler that writes CommonJS (esbuild, Rollup, webpack). What deck reads is `module.exports` itself, so the entry sets it, or exports `start` and the rest by name; a bundled `export default` arrives as `module.exports.default` and is refused. A main process module is a plain Node module and may require what it likes.
 
 Each plugin runs at the origin `deckit://<id>.plugin/`, with its own storage and its own web sessions. Its folder is served at that origin, `deckit://<id>.plugin/<path>`, for its view to use: images, styles, fonts, data, and scripts or modules its document loads. Only what is in the folder is served, and a link out of it is not. A script the document loads runs in the page's own world, apart from the entry, so it has no `deck`; it is for what the view shows (a framework's runtime, a worker) and reaches the entry through the document.
 
@@ -58,7 +58,7 @@ The version of the contract: what the entry exports, what `deck` holds and what 
 
 ### permissions
 
-What a plugin may reach beyond its own sandbox is asked for by name, with a reason. Main checks each where the plugin asks, by the sandbox it asks from.
+What a plugin may reach beyond its own sandbox is asked for by name, with a reason. The main process checks each where the plugin asks, by the sandbox it asks from.
 
 | Permission | What it reaches | Where it lands |
 |---|---|---|
@@ -100,13 +100,13 @@ module.exports = {
 | `keywords` | optional; the switcher's aliases for the plugin |
 | `settings` | optional; what the person can choose about the plugin (below) |
 | `start(deck)` | starts the plugin and registers what it contributes; may be async, and deck waits for it |
-| `stop()` | optional; the plugin's sandbox is ending (removed, updated, the app quitting, a new theme) |
+| `stop()` | optional; the plugin's sandbox is ending (removed, updated, the app quitting, a new theme), whether or not `start` succeeded. It may be async, and deck waits for it a short while |
 
 Any other member stops the plugin. Everything the plugin reaches is in `deck`.
 
 ### settings
 
-What the person can choose about the plugin is declared. Settings draws and lists every plugin's, main checks each value against its declaration and keeps it, and the plugin reads them through `deck.settings`.
+What the person can choose about the plugin is declared. Settings draws and lists every plugin's, the main process checks each value against its declaration and keeps it, and the plugin reads them through `deck.settings`.
 
 `settings` is `{ <key>: { label, type, default, hint } }`, and `type` is one of:
 
@@ -163,7 +163,7 @@ An entry of `commands` has a `run` or a `page`; one with neither is left out. In
 
 ### deck.exports(object)
 
-What a plugin that requires this one receives as `deck.requires[id]`. Values are copied and frozen when the plugin starts; functions are called through main and so return promises. Keep them working while the view is not on screen: the plugin using them is not looking at it.
+What a plugin that requires this one receives as `deck.requires[id]`. Values are copied and frozen when the plugin starts; functions are called through the main process and so return promises. Keep them working while the view is not on screen: the plugin using them is not looking at it.
 
 ## deck
 
@@ -182,7 +182,7 @@ What a plugin that requires this one receives as `deck.requires[id]`. Values are
 ### storage
 
 - `storage.values`: `get(key, fallback)`, `set(key, value)`, `remove(key)`. Small state that costs a click to lose (a fold, a width), in the sandbox's own storage.
-- `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by main. `get` and `keys` are synchronous; `set` and `remove` resolve once written, and a write that fails is shown on the plugin's row in Settings.
+- `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by the main process. `get` and `keys` are synchronous; `set` and `remove` resolve once written, and a write that fails is shown on the plugin's row in Settings.
 
 ### web
 
@@ -241,7 +241,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 ### mainProcess, requires, host
 
-`mainProcess(path)` starts a main process module of the plugin's (below) and resolves to its methods, each called through main and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe. A path outside the plugin's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for.
+`mainProcess(path)` starts a main process module of the plugin's (below) and resolves to its methods, each called through the main process and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe. A path outside the plugin's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for.
 
 `requires` is what each plugin named in `[requires]` exports. A plugin starts only when everything it requires started, so these are there.
 
@@ -288,7 +288,7 @@ A module exports a function that deck calls once, with what the module is handed
 
 `window` is a window of the host app's, holding a view the module made: `open({ key, title, view, size, onClose })`, `get(key)`, `close(key)`. The host app frames it. `onClose` runs once the view is out of the window, alive. `open` under a key already open brings that window forward and returns it. `ofPage()` is the window the plugin's view is in now, or null: where a dialog or a preview it opens belongs. Keys are the plugin's own: two plugins asking for `log` get two windows.
 
-A module runs in the app's main process and can do what the app can do, which is why it is asked for. The sandbox cannot widen its own reach: it calls only the methods a module of its own folder returns, and main knows which plugin calls by its sandbox.
+A module runs until the app quits and is not told when: one that starts processes or holds resources outside the app ends them itself, on Electron's `app` events. A module runs in the app's main process and can do what the app can do, which is why it is asked for. The sandbox cannot widen its own reach: it calls only the methods a module of its own folder returns, and the main process knows which plugin calls by its sandbox.
 
 ## Installing
 
