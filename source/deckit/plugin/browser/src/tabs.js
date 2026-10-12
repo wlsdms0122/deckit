@@ -1,3 +1,5 @@
+const { canonical, isFile, placeOf } = require('./address.js');
+
 // The open tabs, each with its page, and the session record that brings them back. A web address opens in the web
 // session and a file in the files session.
 function tabs({
@@ -209,3 +211,5 @@ function tabs({
 function tabLabel(tab) {
     return tab.title || placeOf(tab.url) || 'New tab';
 }
+
+module.exports = { tabs, tabLabel };

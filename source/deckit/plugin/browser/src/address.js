@@ -57,3 +57,5 @@ function hrefOf(url, base) {
         return null;
     }
 }
+
+module.exports = { parseAddress, canonical, hostOf, originOf, isFile, isWeb, placeOf, hrefOf };

@@ -1,3 +1,6 @@
+const { isWeb, placeOf } = require('./address.js');
+const { favicon } = require('./favicon.js');
+
 // The address bar, floating over the page in the corner it is dragged to. At rest it shows the site; a press opens it
 // with the page's controls, and a press on the open address edits it.
 function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
@@ -332,3 +335,5 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
         return ui.icon('star', { size: 16, fill: on ? 'currentColor' : 'none' });
     }
 }
+
+module.exports = { addressBar };

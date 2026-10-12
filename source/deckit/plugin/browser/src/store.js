@@ -1,6 +1,8 @@
+const { canonical, placeOf } = require('./address.js');
+
 // Bookmarks, trusted certificates and site permissions, in the plugin's records: the same in every window, and apart
-// from the app's profile. A bookmark is known by its canonical address, as a tab is, or the star stays dark on its own
-// page and adds it twice.
+// from the host app's profile. A bookmark is known by its canonical address, as a tab is, or the star stays dark on its
+// own page and adds it twice.
 function store({ records, onBookmarksChange }) {
     const bookmarks = {
         all: () => records.get('bookmarks', []),
@@ -45,8 +47,9 @@ function store({ records, onBookmarksChange }) {
         },
     };
 
-    // Main refuses an unverifiable certificate by default and forgets every decision on exit, so the accepted ones
-    // are kept here and replayed at startup. Kept with the fingerprint, so a swapped certificate asks again.
+    // The main process refuses an unverifiable certificate by default and forgets every decision on exit, so the
+    // accepted ones are kept here and replayed at startup. Kept with the fingerprint, so a swapped certificate asks
+    // again.
     const certificates = {
         all: () => records.get('trusted', []),
         add(host, fingerprint) {
@@ -85,3 +88,5 @@ function store({ records, onBookmarksChange }) {
 function grantKey({ origin, permission }) {
     return origin + '|' + permission;
 }
+
+module.exports = { store, grantKey };

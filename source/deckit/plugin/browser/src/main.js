@@ -1,4 +1,13 @@
-Deckit.register({
+const { addressBar } = require('./address-bar.js');
+const { parseAddress, hostOf } = require('./address.js');
+const { findInPage } = require('./find-in-page.js');
+const { prompts } = require('./prompts.js');
+const { sidebar } = require('./sidebar.js');
+const { store } = require('./store.js');
+const { switcher } = require('./switcher.js');
+const { tabs } = require('./tabs.js');
+
+module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`,
     keywords: ['브라우저', '웹', '인터넷', 'browser', 'web'],
     settings: {
@@ -21,7 +30,8 @@ Deckit.register({
         },
     },
 
-    make({ theme, ui, storage, web, host, settings }) {
+    start(deck) {
+        const { theme, ui, storage, web, settings } = deck;
         const { values, records } = storage;
 
         let shown = false;
@@ -104,7 +114,8 @@ Deckit.register({
         });
         const sidePanel = sidebar({
             ui,
-            host,
+            chordOf: deck.chordOf,
+            clipboard: deck.clipboard,
             values,
             bookmarks,
             notAnAddress,
@@ -117,7 +128,7 @@ Deckit.register({
         });
         const { resolve, commands } = switcher({
             ui,
-            host,
+            show: deck.show,
             bookmarks,
             notAnAddress,
             listTabs: () => openTabs.list(),
@@ -133,10 +144,9 @@ Deckit.register({
         openTabs.restore();
         showBookmarks();
 
-        return {
+        deck.view({
             content,
             sidebar: sidePanel.element,
-
             didAppear() {
                 shown = true;
                 sitePrompts.askPending(openTabs.active());
@@ -144,44 +154,44 @@ Deckit.register({
             didDisappear() {
                 shown = false;
             },
+        });
 
-            keys: {
-                newTab: { key: 'mod+t', label: 'New tab', run: () => openTabs.add() },
-                reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => openTabs.reopen() },
-                find: { key: 'mod+f', label: 'Find in page', run: openFind },
-                closeTab: { key: 'mod+w', label: 'Close tab', run: () => openTabs.close(openTabs.active()) },
-                address: { key: 'mod+l', label: 'Address', run: () => bar.edit() },
-                reload: { key: 'mod+r', label: 'Reload', run: reload },
-                back: { key: 'mod+[', label: 'Back', run: goBack },
-                forward: { key: 'mod+]', label: 'Forward', run: goForward },
-                ...Object.fromEntries(
-                    [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
-                        `tab${number}`,
-                        { key: `mod+${number}`, label: `Tab ${number}`, run: () => selectTab(number - 1) },
-                    ])
-                ),
-                lastTab: { key: 'mod+9', label: 'Last tab', run: () => selectTab(openTabs.list().length - 1) },
-            },
+        deck.keys({
+            newTab: { key: 'mod+t', label: 'New tab', run: () => openTabs.add() },
+            reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => openTabs.reopen() },
+            find: { key: 'mod+f', label: 'Find in page', run: openFind },
+            closeTab: { key: 'mod+w', label: 'Close tab', run: () => openTabs.close(openTabs.active()) },
+            address: { key: 'mod+l', label: 'Address', run: () => bar.edit() },
+            reload: { key: 'mod+r', label: 'Reload', run: reload },
+            back: { key: 'mod+[', label: 'Back', run: goBack },
+            forward: { key: 'mod+]', label: 'Forward', run: goForward },
+            ...Object.fromEntries(
+                [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
+                    `tab${number}`,
+                    { key: `mod+${number}`, label: `Tab ${number}`, run: () => selectTab(number - 1) },
+                ])
+            ),
+            lastTab: { key: 'mod+9', label: 'Last tab', run: () => selectTab(openTabs.list().length - 1) },
+        });
 
-            // `target` is the window the page named: a second request for it reuses the tab that answered the first.
-            open(url, { activates = true, target = '' } = {}) {
-                const address = parseAddress(url);
-                if (!address) return false;
-                const name = String(target || '');
-                const named = name && openTabs.list().find((tab) => tab.target === name);
-                if (activates) host.show();
-                if (named) {
-                    openTabs.navigate(named, address);
-                    if (activates) openTabs.select(named);
-                    return true;
-                }
-                openTabs.add(address, { background: !activates }).target = name;
+        // `target` is the window the page named: a second request for it reuses the tab that answered the first.
+        deck.handleURL((url, { activates = true, target = '' } = {}) => {
+            const address = parseAddress(url);
+            if (!address) return false;
+            const name = String(target || '');
+            const named = name && openTabs.list().find((tab) => tab.target === name);
+            if (activates) deck.show();
+            if (named) {
+                openTabs.navigate(named, address);
+                if (activates) openTabs.select(named);
                 return true;
-            },
+            }
+            openTabs.add(address, { background: !activates }).target = name;
+            return true;
+        });
 
-            resolve,
-            commands,
-        };
+        deck.resolve(resolve);
+        deck.commands(commands);
 
         function home() {
             return parseAddress(settings.get('homepage')) || 'about:blank';
@@ -228,13 +238,13 @@ Deckit.register({
 
         function notify(tab, notification) {
             const site = hostOf(tab.url);
-            host.notify({
+            deck.notify({
                 title: notification.title || site,
                 body: notification.body ? notification.body + ' · ' + site : site,
                 silent: notification.silent,
                 onClick: () => {
                     if (!openTabs.list().includes(tab)) return;
-                    host.show();
+                    deck.show();
                     openTabs.select(tab);
                     notification.click();
                 },
@@ -245,4 +255,4 @@ Deckit.register({
             ui.dialog({ title: 'Not a web address', message: text, confirmLabel: 'OK', cancelLabel: 'Close' });
         }
     },
-});
+};

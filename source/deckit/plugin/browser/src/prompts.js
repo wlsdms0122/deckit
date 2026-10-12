@@ -1,3 +1,6 @@
+const { hostOf, originOf, isWeb } = require('./address.js');
+const { grantKey } = require('./store.js');
+
 // The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open. And
 // the site permissions the person reviews. While the Browser is hidden a request waits until its tab is next in front;
 // a background tab that asks while the Browser is on screen is brought to the front.
@@ -23,7 +26,7 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
         clearAskedCertificates: () => askedCertificates.clear(),
     };
 
-    // Main shows no interstitial for an unverifiable certificate, only a refusal: this dialog is it.
+    // The main process shows no interstitial for an unverifiable certificate, only a refusal: this dialog is it.
     function askCertificate(info) {
         if (!info || !info.host || !info.fingerprint) return;
         const key = info.host + '|' + info.fingerprint;
@@ -39,7 +42,7 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
             destructive: true,
             onConfirm: async () => {
                 const entry = certificates.add(info.host, info.fingerprint);
-                // Main reloads what was refused, which may be a window this tab opened.
+                // The main process reloads what was refused, which may be a window this tab opened.
                 await webSession.trust([entry]);
                 askedCertificates.delete(key);
             },
@@ -117,7 +120,7 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
             message: 'Allowed, it is remembered for this site. Blocked, it stays blocked until this tab is closed.',
             confirmLabel: 'Allow',
             cancelLabel: 'Block',
-            // Kept, here and in main, before the page hears yes: what it does next asks main again.
+            // Kept, here and in the main process, before the page hears yes: what it does next asks it again.
             onConfirm: () => {
                 allowed = true;
                 const kept = wanted.map((permission) => ({ origin: request.origin, permission }));
@@ -186,3 +189,5 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
         return words.length > 1 ? words.slice(0, -1).join(', ') + ' and ' + words[words.length - 1] : words[0] || '';
     }
 }
+
+module.exports = { prompts };

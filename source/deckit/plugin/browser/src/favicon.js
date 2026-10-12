@@ -1,3 +1,5 @@
+const { hrefOf } = require('./address.js');
+
 // The icon of a page ({ url, icon, loading }) in a line: a spinner while it loads, else its favicon in a 16px box.
 function favicon({ ui, page }) {
     if (page.loading) return ui.spinner({ size: 13 });
@@ -31,3 +33,5 @@ function faviconOf({ url, icon }) {
     if (!/^https?:/i.test(url)) return '';
     return hrefOf('/favicon.ico', url) ?? '';
 }
+
+module.exports = { favicon };

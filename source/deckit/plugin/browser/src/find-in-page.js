@@ -101,3 +101,5 @@ function findInPage({ theme, ui, activeTab }) {
         searchedTab = tab;
     }
 }
+
+module.exports = { findInPage };

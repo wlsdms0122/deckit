@@ -1,7 +1,12 @@
+const { parseAddress } = require('./address.js');
+const { favicon } = require('./favicon.js');
+const { tabLabel } = require('./tabs.js');
+
 // The sidebar: the open tabs and the bookmarks, each a section that folds.
 function sidebar({
     ui,
-    host,
+    chordOf,
+    clipboard,
     values,
     bookmarks,
     notAnAddress,
@@ -145,7 +150,7 @@ function sidebar({
 
     function tabMenu(tab) {
         return [
-            { label: 'Reload', icon: 'reload', hint: host.chordOf('reload'), run: () => tab.page.reload() },
+            { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page.reload() },
             { label: 'Duplicate', icon: 'window', run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon }) },
             {
                 label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
@@ -153,14 +158,14 @@ function sidebar({
                 run: () => tab.page.mute(!tab.muted),
             },
             '-',
-            { label: 'Copy Link', icon: 'link', run: () => host.clipboard.writeText(tab.url).catch(() => {}) },
+            { label: 'Copy Link', icon: 'link', run: () => clipboard.writeText(tab.url).catch(() => {}) },
             {
                 label: bookmarks.has(tab.url) ? 'Remove Bookmark' : 'Add Bookmark',
                 icon: 'bookmark',
                 run: () => bookmarks.toggle(tab),
             },
             '-',
-            { label: 'Close Tab', icon: 'x', hint: host.chordOf('closeTab'), run: () => onCloseTab(tab) },
+            { label: 'Close Tab', icon: 'x', hint: chordOf('closeTab'), run: () => onCloseTab(tab) },
             { label: 'Close Other Tabs', disabled: shownTabs.length < 2, run: () => onCloseOtherTabs(tab) },
         ];
     }
@@ -174,7 +179,7 @@ function sidebar({
                 run: () => onNewTab(bookmark.url, { title: bookmark.label, icon: bookmark.icon }),
             },
             '-',
-            { label: 'Copy Link', icon: 'link', run: () => host.clipboard.writeText(bookmark.url).catch(() => {}) },
+            { label: 'Copy Link', icon: 'link', run: () => clipboard.writeText(bookmark.url).catch(() => {}) },
             { label: 'Edit…', icon: 'pencil', run: () => edit(bookmark) },
             { label: 'Remove', icon: 'x', run: () => bookmarks.remove(bookmark.url) },
         ];
@@ -216,3 +221,5 @@ function sidebar({
         values.set('folds', { ...values.get('folds', {}), [key]: on });
     }
 }
+
+module.exports = { sidebar };

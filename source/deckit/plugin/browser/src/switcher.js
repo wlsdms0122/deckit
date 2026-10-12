@@ -1,6 +1,9 @@
+const { parseAddress, placeOf } = require('./address.js');
+const { tabLabel } = require('./tabs.js');
+
 // What the Browser offers the switcher: an address typed there, and its commands. Bookmarks and tabs are pages of
 // their own, so a long list does not bury every other plugin.
-function switcher({ ui, host, bookmarks, notAnAddress, listTabs, lastClosedTab, onNewTab, onReopenTab, onSelectTab }) {
+function switcher({ ui, show, bookmarks, notAnAddress, listTabs, lastClosedTab, onNewTab, onReopenTab, onSelectTab }) {
     return { resolve, commands };
 
     // Only an address resolves: a search for any words would put a row above the ranked list on every keystroke.
@@ -13,7 +16,7 @@ function switcher({ ui, host, bookmarks, notAnAddress, listTabs, lastClosedTab, 
                 hint: 'In a new tab',
                 icon: ui.icon('window', { size: 16 }),
                 run: () => {
-                    host.show();
+                    show();
                     onNewTab(url);
                 },
             },
@@ -37,7 +40,7 @@ function switcher({ ui, host, bookmarks, notAnAddress, listTabs, lastClosedTab, 
                           icon: ui.icon('window', { size: 16 }),
                           keywords: ['닫은탭', '다시열기', '복구', 'reopen', 'undo', 'closed tab'],
                           run: () => {
-                              host.show();
+                              show();
                               onReopenTab();
                           },
                       },
@@ -56,7 +59,7 @@ function switcher({ ui, host, bookmarks, notAnAddress, listTabs, lastClosedTab, 
                             icon: ui.icon('bookmark'),
                             address: bookmark.url,
                             run: () => {
-                                host.show();
+                                show();
                                 onNewTab(bookmark.url);
                             },
                         })),
@@ -75,7 +78,7 @@ function switcher({ ui, host, bookmarks, notAnAddress, listTabs, lastClosedTab, 
                             icon: ui.icon('window'),
                             address: tab.url,
                             run: () => {
-                                host.show();
+                                show();
                                 onSelectTab(tab);
                             },
                         })),
@@ -94,9 +97,11 @@ function switcher({ ui, host, bookmarks, notAnAddress, listTabs, lastClosedTab, 
                 if (!text) return;
                 const address = parseAddress(text);
                 if (!address) return notAnAddress(text);
-                host.show();
+                show();
                 onNewTab(address);
             },
         });
     }
 }
+
+module.exports = { switcher };
