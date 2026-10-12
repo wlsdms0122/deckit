@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/ui/list',
     {
         uses: ['deckit/ui/token', 'deckit/ui/motion'],
-        provides: ['list', 'hold', 'heldWhile', 'busy', 'freed', 'waiting'],
+        provides: ['list', 'hold', 'heldWhile', 'freed'],
     },
     (TOKEN, MOTION) => {
         // MARK: - Property
@@ -84,14 +84,6 @@ DeckitModule.define(
             };
         }
 
-        // A list is busy while a row of it is held or leaving.
-        function busy(element) {
-            return !!(
-                element.matches?.('[data-deckit-held]') ||
-                element.querySelector?.('[data-deckit-held], [data-deckit-leaving]')
-            );
-        }
-
         // Draws what each list around `element` waited with, once it is no longer busy.
         function freed(element) {
             for (let node = element; node; node = node.parentElement) {
@@ -103,6 +95,11 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // A list is busy while a row of it is held.
+        function busy(element) {
+            return !!(element.matches?.('[data-deckit-held]') || element.querySelector?.('[data-deckit-held]'));
+        }
+
         function collapse(node, then) {
             const length = TOKEN.MOTION.fast;
             const height = node.getBoundingClientRect().height;
@@ -138,6 +135,6 @@ DeckitModule.define(
             );
         }
 
-        return { list, hold, heldWhile, busy, freed, waiting };
+        return { list, hold, heldWhile, freed };
     }
 );

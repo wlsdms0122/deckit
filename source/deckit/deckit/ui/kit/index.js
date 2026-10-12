@@ -51,7 +51,6 @@ DeckitModule.define(
                 alpha: COLOR.alpha,
                 mix: COLOR.mix,
                 capturePointer: POINTER.capture,
-                hoverIntent: POINTER.hoverIntent,
                 edgeFade: SCROLL.edgeFade,
                 isFullyVisible: SCROLL.isFullyVisible,
                 pressable: PART.pressable,
