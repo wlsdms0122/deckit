@@ -1,39 +1,39 @@
 # How deckit is built
 
-Deckit is a library an app embeds: a host that composes plugins. A plugin is what a person adds to the app, the way a mod is added to a game: a screen, a command, a few keys, a way to open an address, a library for other plugins, or work done in the app's process, in any mix. The host's core runs each plugin and joins what it contributes: its keys to the keymap, its commands to the switcher, its handlers to opening addresses, its exports to the plugins that require it. On that core deckit gives basic views: the panel that shows the plugins with a screen, the switcher, and the kit they draw with. They are built on the core and the core does not depend on them; a plugin runs whether or not the panel is shown. Where the panel is shown is the app's, and every app brings a shell to say so.
+Deckit is a library a host app embeds. Its core is deck, which runs plugins and composes them. A plugin is what a person adds to the host app, the way a mod is added to a game: a view, a command, a few keys, a way to open an address, a library for other plugins, or work done in the app's main process, in any mix. deck runs each plugin from its entry and joins what it registers: its keys to the keymap, its commands to the switcher, its URL scheme handler to opening addresses, its exports to the plugins that require it. On deck, deckit gives basic views: the panel that shows the plugins with a view, the switcher, and the kit they draw with. They are built on deck and deck does not depend on them; a plugin runs whether or not the panel is shown. Where the panel is shown is the host app's, and every host app brings a shell to say so.
 
-This document is why deckit is split the way it is, and the rules that keep it so. The contract a plugin is written against is [PLUGIN.md](PLUGIN.md); how an app embeds deckit is [EMBEDDING.md](EMBEDDING.md); the kit plugins draw with is [UI.md](UI.md).
+This document is why deckit is split the way it is, and the rules that keep it so. The contract a plugin is written against is [PLUGIN.md](PLUGIN.md); how a host app embeds deckit is [EMBEDDING.md](EMBEDDING.md); the kit plugins draw with is [UI.md](UI.md).
 
 ## 1. Principles
 
 1. Deckit runs by itself. The package builds, checks and runs from its own sources; nothing outside it is named.
-2. A plugin can do what the app can. Permissions say what a plugin reaches, and the person agrees to them; none is a dead end, and the main process half has the app's full power. A plugin draws its screen as it likes; the kit is the quick way, not the only one.
-3. Deckit owns only what it makes. The process, its menus and its windows are the app's; deckit is handed what it needs through `host/config`, `host/folders`, `connect()` and `host/exports`.
-4. A check happens once, where trust changes: main receiving from a page, the host receiving from a plugin's code, input from the disk or the network. Inside, each step trusts what the step before it made.
+2. A plugin can do what the host app can. Permissions say what a plugin reaches, and the person agrees to them; none is a dead end, and a main process module has the app's full power. A plugin draws its view as it likes; the kit is the quick way, not the only one.
+3. Deckit owns only what it makes. The process, its menus and its windows are the host app's; deckit is handed what it needs through `host/config`, `host/folders`, `connect()` and `host/exports`.
+4. A check happens once, where trust changes: main receiving from a page, deck receiving from a plugin's code, input from the disk or the network. Inside, each step trusts what the step before it made.
 5. A fact has one owner. Everyone else asks it.
 6. A folder is a module or a group. A name is the standard term of its field.
 
-## 2. The library, the plugins, the app
+## 2. The library, the plugins, the host app
 
 ```
-source/deckit/deckit       the library: the host and the kit. Names no app, not even its own
+source/deckit/deckit       the library: deck, its views and the kit. Names no host app, not even its own
 source/deckit/plugin       deckit's own plugins, Settings among them
 source/deckit/deckit-app   Deckit.app: deckit embedded by itself, its shell framing every window
-source/deckit/deckit-cli   the command line an embedding app ships for its plugins
+source/deckit/deckit-cli   the command line a host app ships for its plugins
 source/cli                 what builds, checks and runs deckit
 ```
 
-A new plugin needs no change to the host. A new shell to show the panel in needs no change to deckit.
+A new plugin needs no change to deck. A new shell to show the panel in needs no change to deckit.
 
 ## 3. Processes and pages
 
 | Where | What runs there |
 |---|---|
-| main | the host: plugin folders and their main halves, storage, the keymap, open, the switcher's relay, the views it puts in the app's windows, every check of what a page asks |
-| a plugin's page | where one plugin's page half runs, headless or not, in a `WebContentsView` of its own at `deckit://<id>.plugin/`; a plugin with something to show has the panel's frame around it there |
+| main | deck: plugin folders and their main process modules, storage, the keymap, open, the switcher's relay, the views it puts in the host app's windows, every check of what a page asks |
+| a plugin's sandbox | where one plugin's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.plugin/`; a plugin with a view has the panel's frame around it there |
 | the switcher's page | the quick switcher's list, at `deckit://switcher` |
 
-A plugin's page half is a renderer and main is the host. Each plugin's page has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is offered to its scheme's handlers.
+A plugin's sandbox is a renderer and deck is in main. Each plugin's sandbox has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
 The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`module/ipc`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
@@ -42,9 +42,9 @@ The pages never speak to each other. Main carries everything between them, and e
 | Fact | Owner |
 |---|---|
 | whether the panel is on screen, and where | the app's shell, asked through `feature/panel/main.js` |
-| which plugins run, each in its page | `service/plugin/deck/lifecycle.js` |
+| which plugins run, each in its sandbox | `service/plugin/deck/lifecycle.js` |
 | which plugin is on screen, and back and forward | `feature/panel/main.js` |
-| the plugins found, their order, their main halves, their settings and exports | `service/plugin/deck` |
+| the plugins found, their order, their main process modules, their settings and exports | `service/plugin/deck` |
 | which page is which plugin | `service/plugin/identity` |
 | what a keystroke means | `service/keymap/main.js`; a page only hears the chords it may act on |
 | who opens an address | `service/open/main.js`, in the order the person set |
@@ -56,26 +56,26 @@ The pages never speak to each other. Main carries everything between them, and e
 Deckit's folder is `host/folders`' `home`, or `~/.config/<id>`:
 
 ```
-plugins/        installed plugins, a folder each
-data/<id>/      a plugin's own files (a main half's notes, its workspaces)
+plugins/        installed plugins, a folder each, named by id
+data/<id>/      a plugin's own files (a main process module's notes, its workspaces)
 records/<id>/   a plugin's records, one JSON file a key
 settings/<id>.json
 state/          what the person arranged, one JSON file a key
 logs/
 ```
 
-Everything deckit keeps is named from its configured id, so two apps that embed deckit keep their data apart.
+Everything deckit keeps is named from its configured id, so two host apps that embed deckit keep their data apart.
 
 ## 5. What a plugin is handed
 
-A plugin reaches the host only through `context` (PLUGIN.md). Before a plugin runs, its page's boot takes away every global the bundle added, so a plugin reaches deckit only through what it is handed.
+A plugin reaches deck only through `deck`, what its `start` is handed (PLUGIN.md). Before a plugin runs, its sandbox's boot takes away every global the bundle added, and its entry runs with only `module` and `exports` in reach.
 
-Between plugins there are two ways, and one question picks: could the app do this if the other plugin were not there?
+Between plugins there are two ways, and one question picks: could the host app do this if the other plugin were not there?
 
-- If it could not, it is a dependency. A plugin names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. What the app offers (`host/exports`) is handed to the app's own plugin, whose id is the app's, and another plugin reaches it by requiring that one.
-- If it could, it is a URL scheme handler. A plugin asks for an address to be opened (`host.open(url)`) without knowing who answers. The plugins whose manifest names the scheme are its handlers and are asked in the order the person set, ahead of the host's own answer, which is always last.
+- If it could not, it is a dependency. A plugin names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. What the host app offers (`host/exports`) is handed to the host app's own plugin, whose id is the host app's, and another plugin reaches it by requiring that one.
+- If it could, it is a URL scheme handler. A plugin asks for an address to be opened (`deck.open(url)`) without knowing who answers. The plugins whose manifest names the scheme are its handlers and are asked in the order the person set, ahead of deck's own answer, which is always last.
 
-What reaches past a plugin's own page (the clipboard, notices, any web address, another plugin's settings, the keymap, a main half) is asked for by name in `permissions`, with a reason the person reads when installing. Main checks each one where the plugin asks, by the page it asks from.
+What reaches past a plugin's own sandbox (the clipboard, notices, any web address, another plugin's settings, the keymap, a main process module) is asked for by name in `permissions`, with a reason the person reads when installing. Main checks each one where the plugin asks, by the page it asks from.
 
 ## 6. Modules
 
@@ -85,14 +85,14 @@ The library is in four layers, and names go one way:
 
 | Layer | What it is | May name |
 |---|---|---|
-| `feature/` | what the outside meets: the app's entries, the panel, the switcher | feature, service, module, ui, config |
+| `feature/` | what the outside meets: the host app's entries, the panel, the switcher | feature, service, module, ui, config |
 | `service/` | what deckit does | service, module, config |
 | `module/` | what it is built from, with no deckit in it | module |
 | `ui/` | how it draws | ui |
 
-`config/` is the app's configuration (EMBEDDING.md), which `feature/` and `service/` read.
+`config/` is the host app's configuration (EMBEDDING.md), which `feature/` and `service/` read.
 
-A concept's sides are `main.js` and `page.js` (the shape a plugin has); a one-sided concept is `index.js`; `protocol.js` is how its own sides reach each other and nobody else's, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only).
+A concept's sides are `main.js` and `page.js`; a one-sided concept is `index.js`; `protocol.js` is how its own sides reach each other and nobody else's, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only).
 
 Bundles are worked out from their entries: the main bundle from `feature/app/main`, the page bundle from `feature/app/page`, the chord bundle, the command line's. A bundle carries what its entry names and what those name, each after what it names. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept, where each file runs, every folder a module or a group.
 
@@ -100,7 +100,7 @@ Bundles are worked out from their entries: the main bundle from `feature/app/mai
 
 The kit is the one way things look and behave in every page (UI.md):
 
-- One token, derived from the app's theme: colours, type, radius, shadow, motion, and a code palette. The kit's stylesheet and every plugin read it.
+- One token, derived from the host app's theme: colours, type, radius, shadow, motion, and a code palette. The kit's stylesheet and every plugin read it.
 - One stylesheet: hover, press, focus and selection are the platform's states, drawn by rules.
 - One overlay: what floats (a menu, a popover, a modal, a drag) is one stack that owns its order, the press outside, Escape and placement.
 - One list: rows drawn by key, so what the pointer rests on and what has the focus stay put; one listbox for a list with a cursor.

@@ -80,7 +80,7 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // A plugin with a main half runs its own code in this process and could open the file itself, so its word is
+        // A plugin with system.main-process may run its own code in this process and could open the file itself, so its word is
         // taken; any other has to show a person's press.
         function spendsUserActivation(sender) {
             const plugin = IDENTITY.pluginFrom(sender);

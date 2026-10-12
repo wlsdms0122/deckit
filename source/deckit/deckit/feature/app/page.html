@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <title></title>
-<!-- deckit and a plugin's page half run in the preload's isolated world, whose code this policy leaves alone. The
+<!-- deckit and a plugin's entry run in the preload's isolated world, whose code this policy leaves alone. The
      page's own world runs only scripts from its origin: a plugin's own files. What the isolated world loads the
      policy still holds, so the ranker's blob worker is named. -->
 <meta http-equiv="Content-Security-Policy" content="script-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">

@@ -25,7 +25,7 @@ DeckitModule.define(
             staging: path.join(folder, '.plugins-installing'),
             // Inside the plugins, so what removes them removes the record too.
             shipped: path.join(plugins, '.shipped'),
-            // A plugin's main half owns its data folder whole; what deckit keeps for a plugin is beside it.
+            // A plugin's main process modules own its data folder whole; what deckit keeps for a plugin is beside it.
             data: path.join(folder, 'data'),
             records: path.join(folder, 'records'),
             settings: path.join(folder, 'settings'),

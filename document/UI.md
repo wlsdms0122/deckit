@@ -1,6 +1,6 @@
-# The kit (`context.ui`)
+# The kit (`deck.ui`)
 
-Every page deckit draws, a plugin's and its own, draws with one kit, so the panel looks like one app. `context.theme` is the look; `context.ui` is the parts drawn in it.
+Every page deckit draws, a plugin's and its own, draws with one kit, so the panel looks like one app. `deck.theme` is the look; `deck.ui` is the parts drawn in it.
 
 The kit's parts are of five kinds:
 
@@ -14,7 +14,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 
 ## The theme
 
-`context.theme` is derived once from the app's colours:
+`deck.theme` is derived once from the host app's colours:
 
 | Key | What it holds |
 |---|---|

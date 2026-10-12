@@ -80,7 +80,7 @@ DeckitModule.define(
                 return handle;
             };
             const nameOf = (handle) => {
-                if (!sessions.has(handle)) throw new Error('a web page needs a session from context.web.session(name)');
+                if (!sessions.has(handle)) throw new Error('a web page needs a session from deck.web.session(name)');
                 return sessions.get(handle);
             };
             return Object.freeze({

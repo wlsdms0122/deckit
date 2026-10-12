@@ -12,7 +12,7 @@ DeckitModule.define(
         const KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
         const COUNT_LIMIT = 1000;
 
-        // A plugin's records: JSON by key, kept by deckit apart from the folder its main half owns.
+        // A plugin's records: JSON by key, kept by deckit apart from the folder its main process modules own.
         const records = {
             read: (pluginId, key) => STORE.read(recordFile(pluginId, key)),
             write: (pluginId, key, value) => STORE.write(recordFile(pluginId, key), value),
@@ -39,7 +39,7 @@ DeckitModule.define(
             return path.join(HOME.data, pluginId);
         }
 
-        // Every file counts, its main half's included: forgetting takes them all.
+        // Every file counts, its main process modules' included: forgetting takes them all.
         async function count(pluginId) {
             const seen = { count: 0, capped: false, hidden: false };
             await walk(folderOf(pluginId), 0, seen);

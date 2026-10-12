@@ -1,6 +1,6 @@
 # deckit
 
-A plugin host an app embeds: plugins add screens, commands, keys, address handlers and libraries to the app, the way mods add to a game, and deckit composes them. On that core it gives basic views (the panel, the quick switcher, the kit plugins draw with) and its own plugins (Editor, Finder, Notes, Browser, Settings). Where the panel is shown is the app's. Deckit.app is deckit embedded by itself.
+A plugin library a host app embeds. Its core, deck, runs plugins and composes what they add to the app: views, commands, keys, URL scheme handlers, libraries for other plugins and work in the app's main process, the way mods add to a game. On deck it gives basic views (the panel, the quick switcher, the kit plugins draw with) and its own plugins (Editor, Finder, Notes, Browser, Settings). Where the panel is shown is the host app's. Deckit.app is deckit embedded by itself.
 
 ## Building
 
@@ -8,13 +8,13 @@ A plugin host an app embeds: plugins add screens, commands, keys, address handle
 source/cli/deckit build
 ```
 
-writes `.build/deckit-lib-<version>.tgz`, with its sha256 beside it: the library's bundles, its page, `deckit.json`, the command line for plugins (`deckit-cli/`), the documents an embedding app reads, and deckit's own plugins beside them. It is what an app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
+writes `.build/deckit-lib-<version>.tgz`, with its sha256 beside it: the library's bundles, its page, `deckit.json`, the command line for plugins (`deckit-cli/`), the documents a host app reads, and deckit's own plugins, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
 
 ```
 source/cli/deckit app
 ```
 
-then makes `.build/Deckit.app` from that archive, the way any app embeds it. Its data is in `~/.config/deckit`.
+then makes `.build/Deckit.app` from that archive, the way any host app embeds it. Its data is in `~/.config/deckit`.
 
 ## Commands
 
@@ -33,6 +33,6 @@ source/cli/deckit engine <plugin>  build the Editor's or the Notes' editing engi
 ## Documents
 
 - [ARCHITECTURE.md](document/ARCHITECTURE.md): how deckit is built, and why
-- [EMBEDDING.md](document/EMBEDDING.md): what an app embeds, and how
+- [EMBEDDING.md](document/EMBEDDING.md): what a host app embeds, and how
 - [PLUGIN.md](document/PLUGIN.md): the plugin contract
 - [UI.md](document/UI.md): the kit plugins draw with
