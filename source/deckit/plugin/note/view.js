@@ -1,5 +1,5 @@
 // "system" is the face the rest of the panel is in.
-const NOTE_FONTS = [
+const FONTS = [
     { value: 'system', label: 'System' },
     ...[
         'Apple SD Gothic Neo',
@@ -35,7 +35,7 @@ Deckit.register({
         '할일',
     ],
     // Lucide "notebook-pen" (ISC).
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg>`,
+    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${NOTEBOOK_SHAPES}</svg>`,
 
     settings: {
         sort: {
@@ -55,1703 +55,342 @@ Deckit.register({
             type: 'choice',
             default: 'system',
             hint: 'The face a note is written in, its title too. Code in a note stays monospaced.',
-            options: ({ ui }) => ui.installedFonts(NOTE_FONTS),
+            options: ({ ui }) => ui.installedFonts(FONTS),
         },
     },
 
     make({ theme, ui, storage, host, main, settings, util }) {
-        const { values: store } = storage;
-        const el = (tag, style = {}, text) => {
-            const e = document.createElement(tag);
-            Object.assign(e.style, style);
-            if (text != null) e.textContent = text;
-            return e;
-        };
-        const quiet = theme.color.muted;
-        // Lucide (ISC), for the glyphs the kit does not carry.
-        const GLYPH = {
-            compose: `<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>`,
-            notes: `<path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/>`,
-        };
-        const glyph = (name, size = 16) =>
-            GLYPH[name]
-                ? `<svg viewBox="0 0 24 24" aria-hidden="true" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block">${GLYPH[name]}</svg>`
-                : ui.icon(name, { size });
-
-        // Paths are relative to the notes folder: "" is the folder itself, "Release/5.280.md" a note.
-        const baseName = (rel) => rel.split('/').pop() || '';
-        const parentOf = (rel) => (rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '');
-        const noteName = (rel) => baseName(rel).replace(/\.md$/i, '');
-        const within = (rel, folder) => rel === folder || rel.startsWith(folder + '/');
-        const kindOf = (e) => e?.kind || '';
-        const said = (e) => String(e?.message || e);
-
-        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const pad = (n) => String(n).padStart(2, '0');
-        const dayStart = (ms) => {
-            const d = new Date(ms);
-            return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-        };
-        const daysAgo = (ms) => Math.round((dayStart(Date.now()) - dayStart(ms)) / 86400000);
-        const clock = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        const shortDate = (ms) => {
-            const d = new Date(ms),
-                n = daysAgo(ms);
-            if (n === 0) return clock(d);
-            if (n === 1) return 'Yesterday';
-            if (n > 1 && n < 7) return DAYS[d.getDay()];
-            return d.getFullYear() === new Date().getFullYear()
-                ? `${MONTHS[d.getMonth()]} ${d.getDate()}`
-                : `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-        };
-        const longDate = (ms) => {
-            const d = new Date(ms);
-            return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} at ${clock(d)}`;
-        };
-
-        let tree = { name: '', rel: '', folders: [], notes: [], count: 0 };
-        let here = (() => {
-            const was = store.get('at', null);
-            return was && (was.kind === 'folder' || was.kind === 'note') && typeof was.rel === 'string'
-                ? was
-                : { kind: 'folder', rel: '' };
-        })();
-        const back = [],
-            ahead = [];
-        let expanded = new Set(store.get('expanded', []));
-        let query = '';
-        let hits = null,
-            searchPartial = false;
-        let cards = { rel: null, notes: [], seq: 0 };
-
-        const nodeAt = (rel) => {
-            if (!rel) return tree;
-            let node = tree;
-            for (const part of rel.split('/')) {
-                node = node.folders.find((f) => f.name === part);
-                if (!node) return null;
+        const STYLE = `
+            .note {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                color: var(--deckit-text);
+                font: var(--deckit-type-body);
             }
-            return node;
-        };
-        const folderList = () => {
-            const out = [];
-            const walk = (node, depth) => {
-                for (const f of node.folders) {
-                    out.push({ rel: f.rel, name: f.name, depth, hasChildren: f.folders.length + f.notes.length > 0 });
-                    walk(f, depth + 1);
-                }
-            };
-            walk(tree, 0);
-            return out;
-        };
-        const folderName = (rel) => (rel ? baseName(rel) : 'All Notes');
-        const currentFolder = () => (here.kind === 'folder' ? here.rel : parentOf(here.rel));
-        const persistHere = () => store.set('at', here);
-        const same = (a, b) => a && b && a.kind === b.kind && a.rel === b.rel;
-        const reveal = (rel) => {
-            let changed = false;
-            for (let p = parentOf(rel); p; p = parentOf(p))
-                if (!expanded.has(p)) {
-                    expanded.add(p);
-                    changed = true;
-                }
-            if (changed) store.set('expanded', [...expanded]);
-        };
+            .note-pane { position: relative; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+            .note-pane[hidden] { display: none; }
+        `;
+        const { values: store } = storage;
 
-        const content = el('div', {
-            position: 'relative',
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            color: theme.color.text,
-            font: '13px ' + theme.font,
-        });
-        const keyed = (el, text, action) => {
-            ui.tooltip(el, { text, chord: () => host.chordOf(action) });
-            return el;
-        };
-        const keepFocus = (b) => {
-            b.addEventListener('mousedown', (e) => e.preventDefault());
-            return b;
-        };
+        // Everything in the notes folder, with the relocation count it was asked at (`since`).
+        let allNotes = { name: '', rel: '', folders: [], notes: [], count: 0, since: 0 };
+        // A folder or a note, { kind, rel }.
+        let place = store.get('at', { kind: 'folder', rel: '' });
+        let hadFocus = false;
+        let changeTimer = 0;
 
-        const MOVE = 'note';
-        const dropZone = (zone, folderAt) =>
-            ui.folderDrop(zone, {
-                kind: MOVE,
-                path: (held) => held.rel,
-                folderAt,
-                onDrop: (held, t) =>
-                    moveTo(held.rel, t.folder, held.since, t.seq ?? (t.row ? Number(t.row.el.dataset.seq) : relocSeq)),
-            });
-        const pickUp = (item) => {
-            const rel = item.dataset.rel || item.dataset.folder;
-            if (!rel) return null;
-            const name = item.querySelector('[data-name]')?.textContent;
-            return {
-                kind: MOVE,
-                payload: { rel, since: Number(item.dataset.seq) },
-                text: name,
-                icon: item.dataset.rel ? glyph('fileText', 14) : ui.folderIcon({ open: false, size: 14 }),
-            };
-        };
-
-        const navBar = () => {
-            const bar = el('div', {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                flex: '0 0 auto',
-                padding: '8px 12px 6px',
-                minHeight: '30px',
-            });
-            const backBtn = ui.iconButton({
-                icon: ui.icon('chevronLeft', { size: 16 }),
-                title: 'Back',
-                onClick: () => goBack(),
-                size: 'small',
-            });
-            keyed(keepFocus(backBtn.element), 'Back', 'back');
-            const aheadBtn = ui.iconButton({
-                icon: ui.icon('chevronRight', { size: 16 }),
-                title: 'Forward',
-                onClick: () => goAhead(),
-                size: 'small',
-            });
-            keyed(keepFocus(aheadBtn.element), 'Forward', 'forward');
-            const crumbs = ui.breadcrumb({ onGo: (rel) => showFolder(rel) });
-            crumbs.element.style.margin = '0 6px';
-            const right = el('div', { display: 'flex', alignItems: 'center', gap: '4px', flex: '0 0 auto' });
-            bar.append(backBtn.element, aheadBtn.element, crumbs.element, right);
-            dropZone(crumbs.element, (at) => {
-                const b = at.closest?.('[data-crumb]');
-                return b ? { folder: b.dataset.crumb, mark: b } : null;
-            });
-            const paint = (rel, { leaf = true } = {}) => {
-                backBtn.setEnabled(back.length > 0);
-                aheadBtn.setEnabled(ahead.length > 0);
-                const parts = [''];
-                if (rel) rel.split('/').forEach((_, i, all) => parts.push(all.slice(0, i + 1).join('/')));
-                crumbs.set(
-                    parts.map((p, i) => ({
-                        key: p,
-                        label: folderName(p),
-                        icon: 'folder',
-                        current: i === parts.length - 1 && leaf,
-                    }))
-                );
-            };
-            return { bar, right, paint };
-        };
-
-        const galleryPane = el('div', { display: 'none', flexDirection: 'column', flex: '1 1 auto', minHeight: '0' });
-        const galleryNav = navBar();
-        let searchSeq = 0;
-        const search = ui.field({
-            placeholder: 'Search all notes',
-            size: 'small',
-            icon: ui.icon('search', { size: 13 }),
-            clearable: true,
-            onInput: (v) => runSearch(v),
-            onSubmit: () => {
-                const first = hits?.[0];
-                if (first) openAt(first.rel);
-            },
-            onCancel: () => {
-                search.set('');
-                runSearch('');
-            },
-        });
-        Object.assign(search.element.style, { flex: '0 1 220px', minWidth: '140px' });
-        galleryNav.right.append(
-            search.element,
-            keyed(
-                keepFocus(
-                    ui.iconButton({
-                        icon: glyph('folderPlus', 16),
-                        title: 'New folder',
-                        onClick: () => newFolder(currentFolder()),
-                        size: 'small',
-                    }).element
-                ),
-                'New folder',
-                'newFolder'
-            ),
-            keyed(
-                keepFocus(
-                    ui.iconButton({
-                        icon: glyph('compose', 16),
-                        title: 'New note',
-                        onClick: () => newNote(),
-                        size: 'small',
-                    }).element
-                ),
-                'New note',
-                'newNote'
-            )
-        );
-        const galleryBody = el('div', {
-            flex: '1 1 auto',
-            minHeight: '0',
-            overflowY: 'auto',
-            padding: '6px 24px 28px',
-            outline: 'none',
-            position: 'relative',
-        });
-        galleryBody.tabIndex = 0;
-        ui.edgeFade(galleryBody);
-        galleryPane.append(galleryNav.bar, galleryBody);
-
-        const notePane = el('div', {
-            display: 'none',
-            flexDirection: 'column',
-            flex: '1 1 auto',
-            minHeight: '0',
-            position: 'relative',
-        });
-        const noteNav = navBar();
-        const moreBtn = ui.iconButton({
-            icon: ui.icon('ellipsis', { size: 16 }),
-            title: 'More',
-            onClick: () => {
-                if (note.rel) ui.menu({ items: noteItems(note.rel), anchor: moreBtn.element });
-            },
-            size: 'small',
-        });
-        keepFocus(moreBtn.element);
-        noteNav.right.appendChild(moreBtn.element);
-        const head = el('div', { flex: '0 0 auto', width: '100%', padding: '6px 28px 6px', boxSizing: 'border-box' });
-        const titleInput = el('input', {
-            width: '100%',
-            boxSizing: 'border-box',
-            border: '0',
-            outline: 'none',
-            background: 'transparent',
-            padding: '0',
-            color: theme.color.text,
-            font: '800 26px ' + theme.font,
-            letterSpacing: '-.01em',
-        });
-        titleInput.spellcheck = false;
-        titleInput.placeholder = 'Untitled';
-        const stamp = el('div', { font: '11.5px ' + theme.font, color: quiet, minHeight: '16px', marginTop: '3px' });
-        const titleError = el('div', { font: '12px ' + theme.font, color: theme.color.alert, minHeight: '0' });
-        head.append(titleInput, titleError, stamp);
-        const banner = el('div', {
-            display: 'none',
-            alignItems: 'center',
-            gap: '8px',
-            flex: '0 0 auto',
-            margin: '4px 16px 6px',
-            padding: '7px 8px 7px 12px',
-            borderRadius: '8px',
-            background: ui.alpha(theme.color.warn, 0.16),
-            font: '12.5px ' + theme.font,
-        });
-        // A face not in the list (chosen on another Mac) falls back to the theme's.
-        const typeNow = () => {
-            const face = NOTE_FONTS.find((f) => f.value === settings.get('font'))?.font;
-            return { size: settings.get('textSize'), font: face ? `${face}, ${theme.font}` : theme.font };
-        };
-        const editor = noteLive({
+        ui.addStyle(STYLE);
+        const content = ui.element('div', { className: 'note' });
+        const relocations = relocationLog({ movePath: util.movePath, idle: () => noteSession.idle() });
+        const editor = liveEditor({
             theme,
             ui,
-            host,
             match: util.match,
-            type: typeNow(),
-            onChange: () => edited(),
-            onOpenNote: (href) => openLinked(href),
-            onMenu: (e, href) => pageMenu(e, href),
+            typeface: typefaceNow(),
+            onChange: () => noteSession.edited(),
+            onFollowLink: followLink,
+            onMenu: (event, href) =>
+                ui.menu({ items: noteMenus.editorItems(href), point: { x: event.clientX, y: event.clientY } }),
         });
-        const applyType = () => {
-            const type = typeNow();
-            editor.setType(type);
-            titleInput.style.fontFamily = type.font;
-        };
-        applyType();
-        notePane.append(noteNav.bar, head, banner, editor.element);
-        content.append(galleryPane, notePane);
-
-        const sortKey = () => settings.get('sort');
-        const sorted = (list) => {
-            const k = sortKey();
-            if (k === 'name')
-                return [...list].sort((a, b) =>
-                    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-                );
-            return [...list].sort((a, b) =>
-                k === 'created' ? (b.birth || b.mtime) - (a.birth || a.mtime) : b.mtime - a.mtime
-            );
-        };
-        const grid = () =>
-            el('div', { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' });
-        const groupHead = (text) =>
-            el('div', { font: '700 12px ' + theme.font, color: quiet, margin: '16px 2px 8px' }, text);
-        const card = (style) => {
-            const c = el('div', {
-                borderRadius: '10px',
-                background: 'rgba(128,128,128,.08)',
-                cursor: 'default',
-                boxSizing: 'border-box',
-                minWidth: '0',
-                transition: `background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
-                ...style,
-            });
-            c.addEventListener('mouseenter', () => {
-                c.style.background = 'rgba(128,128,128,.15)';
-            });
-            c.addEventListener('mouseleave', () => {
-                c.style.background = 'rgba(128,128,128,.08)';
-            });
-            return c;
-        };
-        const folderCard = (f, seq) => {
-            const c = card({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '12px 14px',
-                height: '62px',
-            });
-            c.dataset.folder = f.rel;
-            c.dataset.seq = String(seq);
-            const g = el('span', { display: 'flex', flex: '0 0 auto' });
-            g.innerHTML = ui.folderIcon({ open: false, size: 26 });
-            const words = el('div', { minWidth: '0', flex: '1 1 auto' });
-            const notes = f.count,
-                folders = f.folders.length;
-            const name = el(
-                'div',
-                {
-                    font: '600 13.5px ' + theme.font,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                },
-                f.name
-            );
-            name.dataset.name = '';
-            words.append(
-                name,
-                el(
-                    'div',
-                    { font: '12px ' + theme.font, color: quiet, marginTop: '2px', whiteSpace: 'nowrap' },
-                    [
-                        notes ? `${notes} note${notes === 1 ? '' : 's'}` : '',
-                        folders ? `${folders} folder${folders === 1 ? '' : 's'}` : '',
-                    ]
-                        .filter(Boolean)
-                        .join(' · ') || 'Empty'
-                )
-            );
-            c.append(g, words);
-            return c;
-        };
-        const clamp = (lines) => ({
-            display: '-webkit-box',
-            WebkitLineClamp: String(lines),
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-        });
-        const noteCard = (n, { where = false, seq = relocSeq } = {}) => {
-            const c = card({
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px',
-                padding: '12px 14px',
-                height: '156px',
-            });
-            c.dataset.rel = n.rel;
-            c.dataset.seq = String(seq);
-            const title = el(
-                'div',
-                { font: '700 13.5px ' + theme.font, lineHeight: '1.3', ...clamp(2) },
-                n.name || 'Untitled'
-            );
-            // data-name marks the label a drag carries and an inline rename types over.
-            title.dataset.name = '';
-            c.append(
-                title,
-                el(
-                    'div',
-                    { font: '12.5px ' + theme.font, lineHeight: '1.45', color: quiet, flex: '1 1 auto', ...clamp(4) },
-                    (hits ? n.snippet : n.preview) || 'No additional text'
-                ),
-                el(
-                    'div',
-                    {
-                        font: '11.5px ' + theme.font,
-                        color: quiet,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                    },
-                    [
-                        shortDate(sortKey() === 'created' ? n.birth || n.mtime : n.mtime),
-                        where && parentOf(n.rel) ? parentOf(n.rel) : '',
-                    ]
-                        .filter(Boolean)
-                        .join(' · ')
-                )
-            );
-            return c;
-        };
-        // whenFree: a card being renamed keeps its field until the name is in.
-        const renderGallery = () => ui.whenFree(galleryBody, drawGallery);
-        const drawGallery = () => {
-            if (here.kind !== 'folder') return;
-            const scroll = galleryBody.scrollTop;
-            galleryBody.textContent = '';
-            if (query) {
-                const list = hits || [];
-                galleryBody.appendChild(
-                    groupHead(hits ? `${list.length}${searchPartial ? '+' : ''} found` : 'Searching…')
-                );
-                const g = grid();
-                for (const n of list) g.appendChild(noteCard(n, { where: true, seq: n.seq }));
-                galleryBody.appendChild(g);
-                if (hits && !list.length)
-                    galleryBody.appendChild(el('div', { padding: '24px 4px', color: quiet }, 'No notes match'));
-                if (searchPartial)
-                    galleryBody.appendChild(
-                        el(
-                            'div',
-                            { padding: '14px 4px', color: quiet, font: '12px ' + theme.font },
-                            'Only some of the matches are shown. Add a word to narrow it down.'
-                        )
-                    );
-            } else {
-                const node = nodeAt(here.rel);
-                // Until this folder's list arrives, another folder's notes are never drawn under its name.
-                const mine = cards.rel === here.rel ? cards : null;
-                if (!node || !mine) {
-                    galleryBody.appendChild(el('div', { padding: '24px 4px', color: quiet }, 'Loading\u2026'));
-                    galleryBody.scrollTop = scroll;
-                    return;
-                }
-                if (node.folders.length) {
-                    galleryBody.appendChild(groupHead('Folders'));
-                    const g = grid();
-                    for (const f of node.folders) g.appendChild(folderCard(f, tree.seq));
-                    galleryBody.appendChild(g);
-                }
-                if (mine.notes.length) {
-                    galleryBody.appendChild(groupHead('Notes'));
-                    const g = grid();
-                    for (const n of sorted(mine.notes)) g.appendChild(noteCard(n, { seq: mine.seq }));
-                    galleryBody.appendChild(g);
-                }
-                if (!node.folders.length && !mine.notes.length) {
-                    const empty = ui.emptyState({
-                        icon: glyph('notes', 44),
-                        title: here.rel ? 'This folder is empty' : 'No notes yet',
-                        hint: here.rel ? '' : 'A note is a Markdown file, and a folder here is a folder on disk.',
-                        actions: [
-                            keyed(
-                                ui.button({
-                                    label: 'New Note',
-                                    title: 'New note',
-                                    onClick: () => newNote(),
-                                    size: 'small',
-                                    icon: glyph('compose', 14),
-                                }).element,
-                                'New note',
-                                'newNote'
-                            ),
-                            keyed(
-                                ui.button({
-                                    label: 'New Folder',
-                                    title: 'New folder',
-                                    onClick: () => newFolder(currentFolder()),
-                                    size: 'small',
-                                    icon: glyph('folderPlus', 14),
-                                }).element,
-                                'New folder',
-                                'newFolder'
-                            ),
-                        ],
-                    });
-                    // Absolute, so the gallery's padding cannot push it into a scroll.
-                    Object.assign(empty.element.style, { position: 'absolute', inset: '0' });
-                    galleryBody.appendChild(empty.element);
-                }
-            }
-            galleryBody.scrollTop = scroll;
-        };
-        // Delegated, so a redraw never loses a press.
-        const cardAt = (e) => e.target.closest?.('[data-rel], [data-folder]');
-        galleryBody.addEventListener('click', (e) => {
-            const c = cardAt(e);
-            if (!c) return;
-            if (c.dataset.rel) openAt(c.dataset.rel);
-            else showFolder(c.dataset.folder);
-        });
-        ui.contextMenu(galleryBody, {
-            rowAt: (t) => t.closest?.('[data-rel], [data-folder]') || null,
-            items: (c) =>
-                c?.dataset.rel
-                    ? noteItems(c.dataset.rel, Number(c.dataset.seq))
-                    : c
-                      ? folderItems(c.dataset.folder, Number(c.dataset.seq), c)
-                      : folderItems(currentFolder()),
-        });
-        ui.dragSource(galleryBody, {
-            itemAt: (t) => t.closest?.('[data-rel], [data-folder]') || null,
-            describe: pickUp,
-        });
-        dropZone(galleryBody, (at) => {
-            const c = at.closest?.('[data-folder]');
-            return c
-                ? { folder: c.dataset.folder, mark: c, seq: Number(c.dataset.seq) }
-                : { folder: here.rel, mark: galleryBody };
-        });
-
-        const paintPlace = () => {
-            const onNote = here.kind === 'note';
-            galleryPane.style.display = onNote ? 'none' : 'flex';
-            notePane.style.display = onNote ? 'flex' : 'none';
-            if (onNote) noteNav.paint(parentOf(here.rel), { leaf: false });
-            else {
-                galleryNav.paint(here.rel);
-                renderGallery();
-            }
-            renderTree();
-        };
-        /* `enter` answers "ok", "blocked" (unsaved typing or a question is up: stay, keep the history)
-       or "gone". Moves run one at a time, so two Backs pressed together are two steps in order. */
-        let moving = Promise.resolve();
-        const serial = (step) => (moving = moving.catch(() => {}).then(step));
-        const enter = async (to, { focus = false, quiet = false } = {}) => {
-            if (to.kind === 'note') return openNote(to.rel, { focus, quiet });
-            if (!nodeAt(to.rel)) return 'gone';
-            if (note.rel) {
-                const r = await openNote(null);
-                if (r !== 'ok') return r;
-            }
-            return 'ok';
-        };
-        const land = (to) => {
-            const folderChanged = to.kind === 'folder' && !same(here, to);
-            here = to;
-            persistHere();
-            reveal(to.rel);
-            if (to.kind === 'folder') {
-                if (query) {
-                    search.set('');
-                    query = '';
-                    hits = null;
-                }
-                if (folderChanged) galleryBody.scrollTop = 0;
-            }
-            paintPlace();
-            if (to.kind === 'folder') loadGallery();
-        };
-        const go = (to, { record = true, focus = false } = {}) =>
-            serial(async () => {
-                const r = await enter(to, { focus });
-                if (r !== 'ok') return r;
-                if (record && !same(here, to)) {
-                    back.push(here);
-                    ahead.length = 0;
-                    if (back.length > 50) back.shift();
-                }
-                land(to);
-                return r;
-            });
-        const showFolder = async (rel, options) => (await go({ kind: 'folder', rel }, options)) === 'ok';
-        const openAt = async (rel, options) => (await go({ kind: 'note', rel }, options)) === 'ok';
-        const step = (from, to) =>
-            serial(async () => {
-                while (from.length) {
-                    const there = from[from.length - 1];
-                    const r = await enter(there, { quiet: true });
-                    if (r === 'blocked') return r;
-                    from.pop();
-                    if (r === 'gone') continue;
-                    to.push(here);
-                    land(there);
-                    return r;
-                }
-                return 'gone';
-            });
-        const goBack = () => step(back, ahead);
-        const goAhead = () => step(ahead, back);
-        const leaveNote = async () => {
-            const rel = note.rel || (here.kind === 'note' ? here.rel : '');
-            closeNote();
-            let folder = parentOf(rel);
-            while (folder && !nodeAt(folder)) folder = parentOf(folder);
-            await showFolder(folder, { record: false });
-        };
-
-        const loadTree = async () => {
-            const seq = relocSeq;
-            try {
-                tree = await main.call('tree');
-            } catch {
-                return;
-            }
-            tree.seq = seq;
-            if (here.kind === 'folder' && !nodeAt(here.rel)) {
-                let up = parentOf(here.rel);
-                while (up && !nodeAt(up)) up = parentOf(up);
-                // Queued, not awaited: a refresh can run inside a move already under way.
-                go({ kind: 'folder', rel: up }, { record: false });
-                return;
-            }
-            paintPlace();
-        };
-        let gallerySeq = 0;
-        const loadGallery = async () => {
-            if (here.kind !== 'folder') return;
-            const mine = ++gallerySeq,
-                want = here.rel,
-                seq = relocSeq;
-            let got = [];
-            try {
-                got = await main.call('list', want);
-            } catch {}
-            if (mine !== gallerySeq || here.kind !== 'folder' || here.rel !== want) return;
-            cards = { rel: want, notes: got, seq };
-            renderGallery();
-        };
-        const runSearch = (raw) => {
-            query = String(raw || '').trim();
-            const mine = ++searchSeq;
-            if (!query) {
-                hits = null;
-                searchPartial = false;
-                renderGallery();
-                return;
-            }
-            hits = null;
-            renderGallery();
-            setTimeout(async () => {
-                if (mine !== searchSeq) return;
-                let got = { hits: [], partial: false };
-                const seq = relocSeq;
-                try {
-                    got = await main.call('search', query);
-                } catch {}
-                if (mine !== searchSeq) return;
-                hits = got.hits.map((n) => ({ ...n, seq }));
-                searchPartial = got.partial;
-                renderGallery();
-            }, 150);
-        };
-        const refresh = () => Promise.all([loadTree(), loadGallery(), query ? (runSearch(query), null) : null]);
-
-        /* On screen is the disk version (`base`, its modification time) plus unsaved typing (`dirty`),
-       unless a question about the disk is up (`trouble`): then nothing is written or typed until it
-       is answered. Every disk step on the open note goes through `queued`, so a rename or a move
-       never lands between a save's write and its answer. `token` changes with every note opened, so
-       an answer for the previous note is dropped. `fresh`: made a moment ago, text and name untouched.
-       `titleEdited`: a name typed in the title field and not yet given to the file. */
-        const note = {
-            rel: null,
-            base: null,
-            dirty: false,
-            trouble: null,
-            fresh: false,
-            titleEdited: false,
-            bom: false,
-            eol: '\n',
-            token: 0,
-        };
-        /* A rename in flight, which every gate awaits: a menu opened just after the title field lost
-       focus holds the old name. Meanwhile the title field shows the new name. */
-        let renaming = null;
-        const blank = () => note.fresh && !!note.rel && !editor.text();
-        let chain = Promise.resolve();
-        const queued = (step) => (chain = chain.catch(() => {}).then(step));
-
-        /* `says`: main's message follows the words. `settles`: the question goes by itself once the disk
-       matches the screen. `outlived`: gives way to CHANGED when another version turns up. `fromCopy`:
-       about the backup on disk, so a later read can repeat or end it. Any other kind is FAILED. */
-        const TROUBLE = {
-            CHANGED: {
-                settles: true,
-                words: 'This note was changed outside the panel while you were editing it.',
-                answers: [
-                    ['Use Theirs', 'Load the version on disk; your edits since are dropped', () => reload()],
-                    ['Keep Mine', 'Write what is on screen over the version on disk', () => save({ force: true })],
-                ],
+        const noteSession = session({
+            theme,
+            ui,
+            main,
+            editor,
+            movePath: util.movePath,
+            onLeave: leaveNote,
+            onRelocate: relocate,
+            onRenamed: async () => {
+                await refresh();
+                paintPlace();
             },
-            GONE: {
-                settles: true,
-                outlived: true,
-                words: 'This note was moved or deleted outside the panel.',
-                answers: [
-                    ['Save It Again', 'Write what is on screen back to where it was', () => save({ force: true })],
-                    ['Close', 'Close the note; anything typed since the last save is dropped', () => leaveNote()],
-                ],
-            },
-            UNREADABLE: {
-                settles: true,
-                outlived: true,
-                says: true,
-                words: 'This note can no longer be read as text',
-                answers: [
-                    ['Close', 'Close the note; anything typed since the last save is dropped', () => leaveNote()],
-                ],
-            },
-            TORN: {
-                settles: true,
-                says: true,
-                fromCopy: true,
-                words: 'A save of this note stopped partway, so the note on disk may be cut short. The version before that save is kept',
-                answers: () => [
-                    ...(note.dirty
-                        ? [
-                              [
-                                  "Save What's on Screen",
-                                  'Write what is on screen to the note; the kept version goes once it is down',
-                                  () => save({ force: true }),
-                              ],
-                          ]
-                        : []),
-                    [
-                        'Restore Kept Version',
-                        'Put the version from before that save back as the note',
-                        () => restoreKept(),
-                    ],
-                    note.dirty
-                        ? [
-                              'Close Without Saving',
-                              'Leave the note as it is on disk, with its kept version; what was typed here is dropped',
-                              () => leaveNote(),
-                          ]
-                        : [
-                              'Close',
-                              'Leave the note and its kept version as they are; it asks again when opened',
-                              () => leaveNote(),
-                          ],
-                ],
-            },
-            FAILED: {
-                says: true,
-                words: 'Could not save this note',
-                answers: [
-                    [
-                        'Try Again',
-                        'Save it again, the same way as the save that failed',
-                        () => {
-                            const force = !!note.trouble?.force;
-                            setTrouble(null);
-                            save({ force });
-                        },
-                    ],
-                    [
-                        'Close Without Saving',
-                        'Close the note; what was typed since the last save is dropped',
-                        () => leaveNote(),
-                    ],
-                ],
-            },
-        };
-        const troubleOf = (kind, e) => {
-            const k = TROUBLE[kind] ? kind : 'FAILED';
-            return { kind: k, message: TROUBLE[k].says && e ? said(e) : '' };
-        };
-        const readTrouble = (e) => troubleOf(kindOf(e) === 'GONE' ? 'GONE' : 'UNREADABLE', e);
-        const setTrouble = (t) => {
-            note.trouble = t;
-            editor.setReadOnly(!!t);
-            paintNote();
-        };
-        const paintNote = () => {
-            const has = !!note.rel;
-            moreBtn.setEnabled(has);
-            if (has && !note.titleEdited && !renaming && titleInput.value !== noteName(note.rel))
-                titleInput.value = noteName(note.rel);
-            titleInput.disabled = !has || !!note.trouble;
-            stamp.textContent = has && note.base ? 'Edited ' + longDate(note.base) : '';
-            banner.textContent = '';
-            const t = note.trouble && TROUBLE[note.trouble.kind];
-            banner.style.display = t ? 'flex' : 'none';
-            if (!t) return;
-            banner.appendChild(
-                el('span', { flex: '1 1 auto' }, t.words + (note.trouble.message ? ': ' + note.trouble.message : ''))
-            );
-            for (const [label, title, run] of typeof t.answers === 'function' ? t.answers() : t.answers)
-                banner.appendChild(ui.button({ label, title, onClick: run, size: 'small' }).element);
-        };
-        const nudge = () => {
-            if (theme.motion.fast)
-                banner.animate(
-                    [
-                        { transform: 'translateX(0)' },
-                        { transform: 'translateX(-4px)' },
-                        { transform: 'translateX(4px)' },
-                        { transform: 'translateX(0)' },
-                    ],
-                    { duration: 240, easing: theme.motion.easing }
-                );
-        };
-
-        let saveTimer = 0;
-        const scheduleSave = () => {
-            clearTimeout(saveTimer);
-            saveTimer = setTimeout(() => save(), 500);
-        };
-        const edited = () => {
-            note.dirty = true;
-            note.fresh = false;
-            scheduleSave();
-        };
-        // Resolves whether the note is in step with the disk. `force` writes without the check against base.
-        const save = ({ force = false } = {}) => {
-            clearTimeout(saveTimer);
-            saveTimer = 0;
-            return queued(async () => {
-                if (!note.rel) return true;
-                if (note.trouble && !force) return false;
-                if (!note.dirty && !force) return true;
-                const { rel, token } = note,
-                    text = editor.text();
-                try {
-                    const got = await main.call('write', rel, text, force ? null : note.base, {
-                        bom: note.bom,
-                        eol: note.eol,
-                    });
-                    if (token !== note.token) return true;
-                    note.base = got.mtime;
-                    // Typed while the write was in flight: still unsaved.
-                    note.dirty = editor.text() !== text;
-                    if (note.trouble) setTrouble(null);
-                    else paintNote();
-                    if (note.dirty) scheduleSave();
-                    return !note.dirty;
-                } catch (e) {
-                    if (token !== note.token) return false;
-                    const kind = kindOf(e);
-                    setTrouble({ ...troubleOf(kind, e), force });
-                    return false;
-                }
-            });
-        };
-        const reload = () =>
-            queued(async () => {
-                const { rel, token } = note;
-                if (!rel) return;
-                try {
-                    const got = await main.call('read', rel);
-                    if (token !== note.token) return;
-                    show(got);
-                    note.dirty = false;
-                    setTrouble(null);
-                } catch (e) {
-                    if (token === note.token) setTrouble(readTrouble(e));
-                }
-            });
-        const show = (got) => {
-            editor.replace(got.text);
-            Object.assign(note, { base: got.mtime, bom: got.bom, eol: got.eol });
-        };
-        const reconcile = () =>
-            queued(async () => {
-                const { rel, token } = note;
-                if (!rel) return;
-                let got;
-                try {
-                    got = await main.call('read', rel);
-                } catch (e) {
-                    if (token === note.token) setTrouble(readTrouble(e));
-                    return;
-                }
-                if (token !== note.token) return;
-                // Torn by a save here or in an earlier session.
-                if (got.torn) {
-                    if (!TROUBLE[note.trouble?.kind]?.fromCopy) setTrouble(troubleOf('TORN'));
-                    return;
-                }
-                // The disk matches the screen (saved elsewhere the same, restored, checked out again).
-                if (got.text === editor.text()) {
-                    Object.assign(note, { base: got.mtime, bom: got.bom, eol: got.eol, dirty: false });
-                    if (note.trouble && TROUBLE[note.trouble.kind]?.settles) setTrouble(null);
-                    else paintNote();
-                    return;
-                }
-                if (!note.trouble && Math.abs(got.mtime - note.base) <= 1) return;
-                // Nothing unsaved: the disk version comes in, which also ends a question about the backup.
-                if (!note.dirty && (!note.trouble || TROUBLE[note.trouble.kind]?.fromCopy)) {
-                    show(got);
-                    if (note.trouble) setTrouble(null);
-                    return paintNote();
-                }
-                // Another version is there: a change, whatever the question was (gone and back again is not gone).
-                if (!note.trouble || TROUBLE[note.trouble.kind]?.outlived) setTrouble(troubleOf('CHANGED'));
-            });
-        const restoreKept = async () => {
-            const { rel } = note;
-            if (!rel) return;
-            try {
-                await queued(() => main.call('restore', rel));
-            } catch (e) {
-                ui.dialog({ title: 'Could not restore ' + noteName(rel), message: said(e), confirmLabel: 'OK' });
-                return;
-            }
-            note.dirty = false;
-            setTrouble(null);
-            reload();
-        };
-
-        /* The gate before anything leaves, moves, renames or removes the open note (or a folder holding
-       it, with `rel`). False, with the question nudged, while anything typed is not on disk. A
-       question with nothing unsaved behind it (a torn note only looked at) holds no one. */
-        const settle = async (rel = null) => {
-            if (renaming) await renaming;
-            if (!note.rel || (rel != null && !within(note.rel, rel))) return true;
-            if (note.titleEdited && !(await renameNote())) return false;
-            for (let i = 0; i < 3 && note.dirty && !note.trouble; i++) await save();
-            if (note.dirty) {
-                nudge();
-                return false;
-            }
-            await queued(() => {});
-            return true;
-        };
-        // Called only once the switch is certain, so a failed switch keeps the note.
-        const discardFresh = (left) => {
-            if (left) main.call('discard', left).catch(() => {});
-        };
-        // "blocked" also covers another opening that overtook this one.
-        let opening = 0;
-        const openNote = async (rel, { focus = false, quiet = false } = {}) => {
-            if (rel && rel === note.rel) {
-                if (focus) editor.focus({ end: true });
-                return 'ok';
-            }
-            const mine = ++opening;
-            if (!(await settle())) return 'blocked';
-            if (mine !== opening) return 'blocked';
-            const left = blank() ? note.rel : null;
-            if (!rel) {
-                closeNote();
-                discardFresh(left);
-                return 'ok';
-            }
-            let got;
-            try {
-                got = await main.call('read', rel);
-            } catch (e) {
-                if (!quiet)
-                    ui.dialog({ title: 'Could not open ' + noteName(rel), message: said(e), confirmLabel: 'OK' });
-                return 'gone';
-            }
-            if (mine !== opening) return 'blocked';
-            Object.assign(note, {
-                rel,
-                base: got.mtime,
-                dirty: false,
-                trouble: null,
-                fresh: false,
-                titleEdited: false,
-                bom: got.bom,
-                eol: got.eol,
-                token: note.token + 1,
-            });
-            titleError.textContent = '';
-            try {
-                editor.open({ text: got.text });
-            } finally {
-                editor.setReadOnly(false);
-                paintNote();
-            }
-            discardFresh(left);
-            if (got.torn) setTrouble(troubleOf('TORN'));
-            if (focus) editor.focus({ end: true });
-            return 'ok';
-        };
-        // Drops unsaved typing: the caller has saved or chosen not to.
-        const closeNote = () => {
-            clearTimeout(saveTimer);
-            Object.assign(note, {
-                rel: null,
-                base: null,
-                dirty: false,
-                trouble: null,
-                fresh: false,
-                titleEdited: false,
-                token: note.token + 1,
-            });
-            editor.close();
-            paintNote();
-        };
-
-        /* Called inside the queue right after a move, so no save is in flight to the old place.
-       A path read at relocSeq N (a row, a card, a menu, a drag; their data-seq) is brought up to
-       date by the relocations after N (currentPath). */
-        const relocations = [];
-        let relocSeq = 0;
-        /* `to` null: the path went to the Trash. The open note and `here` are left by the caller
-       (leaveNote), which knows where to go instead. */
-        const relocate = (from, to) => {
-            relocations.push({ from, to, seq: ++relocSeq });
-            if (relocations.length > 100) relocations.shift();
-            const move = (p) => util.movePath(p, from, to);
-            if (to == null)
-                for (const list of [back, ahead])
-                    for (let i = list.length - 1; i >= 0; i--) {
-                        if (move(list[i].rel) === null) list.splice(i, 1);
-                    }
-            else {
-                if (note.rel) note.rel = move(note.rel);
-                for (const place of [here, ...back, ...ahead]) place.rel = move(place.rel);
-            }
-            persistHere();
-            expanded = new Set([...expanded].map(move).filter((x) => x != null));
-            store.set('expanded', [...expanded]);
-        };
-        // Null if the path went to the Trash since.
-        const currentPath = async (rel, since) => {
-            if (renaming) await renaming;
-            await queued(() => {});
-            return relocations.reduce((p, r) => (r.seq > since ? util.movePath(p, r.from, r.to) : p), rel);
-        };
-
-        const newNote = async ({ into = currentFolder() } = {}) => {
-            host.show();
-            if (!(await settle())) return;
-            // Making another would discard this blank one and take the next free name on every press.
-            if (blank() && parentOf(note.rel) === into) {
-                titleInput.focus();
-                titleInput.select();
-                return;
-            }
-            let made;
-            try {
-                made = await main.call('create', into);
-            } catch (e) {
-                ui.dialog({ title: 'Could not make a note', message: said(e), confirmLabel: 'OK' });
-                return;
-            }
-            if (!(await openAt(made.rel))) return;
-            note.fresh = true;
-            await refresh();
-            titleInput.focus();
-            titleInput.select();
-        };
-
-        titleInput.addEventListener('input', () => {
-            note.titleEdited = true;
-            note.fresh = false;
+            onMenu: (path, anchor) => ui.menu({ items: noteMenus.noteItems(path), anchor }),
         });
-        // `titleEdited` is cleared before the rename starts, so settle() does not ask for the same rename again.
-        const renameNote = () => {
-            if (!note.rel || !note.titleEdited) return Promise.resolve(true);
-            note.titleEdited = false;
-            const done = renameNow();
-            const tracked = done.finally(() => {
-                if (renaming === tracked) {
-                    renaming = null;
-                    paintNote();
-                }
-            });
-            renaming = tracked;
-            return done;
-        };
-        const renameNow = async () => {
-            const from = note.rel;
-            const want = titleInput.value.trim();
-            if (!want || want === noteName(from)) {
-                titleInput.value = noteName(from);
-                titleError.textContent = '';
-                return true;
-            }
-            if (!(await settle(from))) {
-                titleInput.value = noteName(note.rel || from);
-                return false;
-            }
-            let ok = false;
-            await queued(async () => {
-                try {
-                    relocate(from, (await main.call('rename', from, want)).rel);
-                    titleError.textContent = '';
-                    ok = true;
-                } catch (e) {
-                    if (note.rel === from) {
-                        titleError.textContent = said(e);
-                        titleInput.value = noteName(from);
-                    }
-                }
-            });
-            await refresh();
-            paintPlace();
-            return ok;
-        };
-        titleInput.addEventListener('keydown', (e) => {
-            if (e.isComposing || e.keyCode === 229) return;
-            if (e.key === 'Enter' || e.key === 'ArrowDown') {
-                e.preventDefault();
-                renameNote().then(() => editor.focus({ end: e.key === 'Enter' }));
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                note.titleEdited = false;
-                titleInput.value = noteName(note.rel || '');
-                titleError.textContent = '';
-                editor.focus();
-            }
-        });
-        titleInput.addEventListener('blur', () => {
-            renameNote();
-        });
-
-        const trashNote = async (held, since = relocSeq) => {
-            const rel = await currentPath(held, since);
-            if (rel == null) return;
-            const open = !!note.rel && within(note.rel, rel);
-            // Saved first, so what goes to the Trash is what was on screen.
-            if (!(await settle(rel))) return;
-            try {
-                await queued(() => main.call('trash', rel));
-            } catch (e) {
-                ui.dialog({
-                    title: 'Could not move ' + noteName(rel) + ' to the Trash',
-                    message: said(e),
-                    confirmLabel: 'OK',
-                });
-                return;
-            }
-            relocate(rel, null);
-            if (open) await leaveNote();
-            await refresh();
-        };
-        const moveTo = async (held, heldInto, since = relocSeq, intoSince = since) => {
-            const rel = await currentPath(held, since);
-            const into = await currentPath(heldInto, intoSince);
-            if (rel == null || into == null) return;
-            // Checked again: something may have moved since it was picked up.
-            if (!ui.movesInto(rel, into)) return;
-            if (!(await settle(rel))) return;
-            await queued(async () => {
-                try {
-                    relocate(rel, (await main.call('move', rel, into)).rel);
-                } catch (e) {
-                    ui.dialog({ title: 'Could not move ' + baseName(rel), message: said(e), confirmLabel: 'OK' });
-                }
-            });
-            await refresh();
-            paintNote();
-            paintPlace();
-        };
-        const openLinked = async (target) => {
-            const parts = parentOf(note.rel || '') ? parentOf(note.rel).split('/') : [];
-            for (const p of target.split('/')) {
-                if (p === '..') parts.pop();
-                else if (p && p !== '.') parts.push(p);
-            }
-            const rel = parts.join('/');
-            openAt(rel, { focus: true });
-        };
-
-        const KIND_KEY = {
-            title: 'title',
-            heading: 'heading',
-            subheading: 'subheading',
-            body: 'body',
-            mono: 'monospaced',
-            bullet: 'bulletedList',
-            number: 'numberedList',
-            check: 'checklist',
-            quote: 'blockQuote',
-        };
-        const styleItems = () => {
-            const now = editor.styleAt();
-            return NOTE_KINDS.map((k) =>
-                k === '-'
-                    ? '-'
-                    : {
-                          label: k.label,
-                          hint: host.chordOf(KIND_KEY[k.key]),
-                          checked: now === k.key,
-                          run: () => editor.format(k.key),
-                      }
-            );
-        };
-
-        const moveItems = (rel, since) => {
-            const listed = tree.seq ?? relocSeq;
-            return [
-                { label: 'All Notes', checked: parentOf(rel) === '', run: () => moveTo(rel, '', since, listed) },
-                ...folderList()
-                    .filter((f) => !within(f.rel, rel))
-                    .map((f) => ({
-                        label: ' '.repeat(f.depth + 1) + f.name,
-                        checked: parentOf(rel) === f.rel,
-                        run: () => moveTo(rel, f.rel, since, listed),
-                    })),
-            ];
-        };
-        const onNow = (rel, since, act) => async () => {
-            const now = await currentPath(rel, since);
-            if (now != null) act(now);
-        };
-        let rootAsked = null;
-        const showInFinder = async (rel) => {
-            rootAsked =
-                rootAsked ||
-                main
-                    .call('root')
-                    .then((r) => r.root)
-                    .catch(() => null);
-            const root = await rootAsked;
-            if (root) host.reveal(rel ? root + '/' + rel : root);
-        };
-        const copyText = async (rel) => {
-            const text = rel === note.rel ? editor.text() : (await main.call('read', rel).catch(() => null))?.text;
-            if (text != null) host.clipboard.writeText(text).catch(() => {});
-        };
-        const noteItems = (rel, since = relocSeq, row = null) => [
-            {
-                label: 'Rename…',
-                icon: 'pencil',
-                run: async () => {
-                    const label = row?.isConnected && row.querySelector('[data-name]');
-                    if (label) return renameAt(label, rel, since);
-                    const now = await currentPath(rel, since);
-                    if (now == null || (now !== note.rel && !(await openAt(now)))) return;
-                    titleInput.focus();
-                    titleInput.select();
-                },
+        const placeHistory = navigationHistory({ movePath: util.movePath, current: () => place, enter, land });
+        const fileOperations = operations({
+            ui,
+            host,
+            main,
+            noteSession,
+            relocations,
+            onRelocate: relocate,
+            onTrash: async (path, wasOpen) => {
+                if (wasOpen) await leaveNote();
+                else if (place.kind === 'folder' && isWithin(place.rel, path))
+                    await showFolder(parentOf(path), { record: false });
             },
-            { label: 'Move to', icon: 'folder', items: moveItems(rel, since) },
-            '-',
-            { label: 'Copy as Markdown', icon: 'copy', run: onNow(rel, since, copyText) },
-            { label: 'Show in Finder', icon: 'folder', run: onNow(rel, since, showInFinder) },
-            '-',
-            {
-                label: 'Move to Trash',
-                icon: glyph('trash', 14),
-                hint: host.chordOf('trash'),
-                run: () => trashNote(rel, since),
-            },
-        ];
-
-        const pageMenu = (e, href) => {
-            const items = [];
-            if (href) {
-                items.push(
-                    {
-                        label: 'Open Link',
-                        icon: 'externalWindow',
-                        disabled: noteLinkTarget(href).kind === 'none',
-                        run: () => {
-                            const t = noteLinkTarget(href);
-                            if (t.kind === 'address') noteOpenAddress({ host, ui }, t.href);
-                            else if (t.kind === 'note') openLinked(t.path);
-                        },
-                    },
-                    { label: 'Copy Link', icon: 'link', run: () => host.clipboard.writeText(href).catch(() => {}) },
-                    { label: 'Edit Link…', hint: '⌘K', run: () => editor.editLink() },
-                    '-'
-                );
-            }
-            if (editor.selectionText())
-                items.push(
-                    {
-                        label: 'Copy',
-                        hint: '⌘C',
-                        run: () => host.clipboard.writeText(editor.selectionText()).catch(() => {}),
-                    },
-                    '-'
-                );
-            items.push(...styleItems());
-            ui.menu({ items, point: { x: e.clientX, y: e.clientY } });
-        };
-
-        const sidebar = el('div', { display: 'flex', flexDirection: 'column', minHeight: '0', flex: '1 1 auto' });
-        const section = ui.section({
-            label: 'All Notes',
-            icon: glyph('notes', 16),
-            actions: [
-                { icon: glyph('compose', 16), title: 'New note', run: () => newNote() },
-                { icon: glyph('folderPlus', 16), title: 'New folder', run: () => newFolder(currentFolder()) },
-            ],
-            onHeading: () => {
-                host.show();
-                showFolder('');
-            },
-            onHeadingMenu: (e) => ui.menu({ items: folderItems(''), point: { x: e.clientX, y: e.clientY } }),
+            refresh,
+            paintPlace,
+            loadTree,
+            labelFor,
+            openNote,
         });
-        keyed(section.actions[0].element, 'New note', 'newNote');
-        keyed(section.actions[1].element, 'New folder', 'newFolder');
-        const sectionHeading = section.heading;
-        const treeEl = ui.list().element;
-        section.body.appendChild(treeEl);
-        sidebar.appendChild(section.element);
-
-        const toggle = (rel) => {
-            if (expanded.has(rel)) expanded.delete(rel);
-            else expanded.add(rel);
-            store.set('expanded', [...expanded]);
-            renderTree();
-        };
-        const foldable = (rel) => {
-            const n = nodeAt(rel);
-            return !!rel && !!n && n.folders.length + n.notes.length > 0;
-        };
-        const noteRow = ({ kind, rel, name, depth, open = false, folds = false }) => {
-            const page = `<span style="display:flex;color:${quiet}">${glyph('fileText', 16)}</span>`;
-            const r = ui.treeRow({
-                depth,
-                folder: kind === 'folder',
-                folds,
-                open,
-                glyph: page,
-                name: name || 'Untitled',
-            });
-            if (kind === 'note') r.element.dataset.rel = rel;
-            else r.element.dataset.folder = rel;
-            r.element.title = rel;
-            r.element.dataset.seq = String(tree.seq ?? 0);
-            const on =
-                kind === 'note' ? here.kind === 'note' && note.rel === rel : here.kind === 'folder' && here.rel === rel;
-            r.setActive(on);
-            return r.element;
-        };
-        /* Redrawn only when something shown changed: a save comes back as a tree refresh, and rebuilding
-       rows under a pointer pressing one would lose the press. Row events are delegated for the same reason. */
-        let drawn = '';
-        // whenFree: a row being renamed keeps its field until the name is in.
-        const renderTree = () => ui.whenFree(treeEl, drawTree);
-        const drawTree = () => {
-            const key = JSON.stringify([tree, here, note.rel, [...expanded].sort()]);
-            if (key === drawn) return;
-            drawn = key;
-            treeEl.textContent = '';
-            section.setCurrent(here.kind === 'folder' && here.rel === '');
-            const walk = (node, depth) => {
-                for (const f of node.folders) {
-                    const open = expanded.has(f.rel);
-                    treeEl.appendChild(
-                        noteRow({
-                            kind: 'folder',
-                            rel: f.rel,
-                            name: f.name,
-                            depth,
-                            open,
-                            folds: f.folders.length + f.notes.length > 0,
-                        })
-                    );
-                    if (open) walk(f, depth + 1);
-                }
-                for (const n of node.notes)
-                    treeEl.appendChild(noteRow({ kind: 'note', rel: n.rel, name: n.name, depth }));
-            };
-            walk(tree, 0);
-        };
-        const rowAt = (e) => e.target.closest?.('[data-rel], [data-folder]');
-        treeEl.addEventListener('click', (e) => {
-            const r = rowAt(e);
-            if (!r) return;
-            host.show();
-            if (r.dataset.rel) {
-                openAt(r.dataset.rel);
-                return;
-            }
-            const rel = r.dataset.folder;
-            if (foldable(rel)) toggle(rel);
-            if (!e.target.closest('[data-caret]')) showFolder(rel);
+        const noteMenus = menus({
+            ui,
+            host,
+            editor,
+            relocations,
+            fileOperations,
+            allNotes: () => allNotes,
+            notePath: () => noteSession.path(),
+            onOpenNote: openNote,
+            onFocusTitle: () => noteSession.focusTitle(),
+            onNewNote: (into) => fileOperations.newNote(into),
+            labelFor,
+            followLink,
         });
-        ui.contextMenu(treeEl, {
-            rowAt: (t) => t.closest?.('[data-rel], [data-folder]') || null,
-            items: (r) =>
-                !r
-                    ? null
-                    : r.dataset.rel
-                      ? noteItems(r.dataset.rel, Number(r.dataset.seq), r)
-                      : folderItems(r.dataset.folder, Number(r.dataset.seq), r),
+        const dragging = dragAndDrop({ ui, relocations, onMove: (...move) => fileOperations.move(...move) });
+        // What the gallery and the sidebar both do with a note or a folder.
+        const browsing = {
+            noteMenu: noteMenus.noteItems,
+            folderMenu: noteMenus.folderItems,
+            describeDrag: dragging.describe,
+            acceptDrops: dragging.acceptDrops,
+            onOpenNote: (path) => openNote(path),
+            onOpenFolder: (path) => showFolder(path),
+            onNewNote: () => fileOperations.newNote(currentFolder()),
+            onNewFolder: () => fileOperations.newFolder(currentFolder()),
+        };
+        const galleryNavigation = navigationBarFor();
+        const noteNavigation = navigationBarFor();
+        const notesGallery = gallery({
+            ui,
+            host,
+            main,
+            settings,
+            relocations,
+            navigation: galleryNavigation,
+            shownFolder: () => (place.kind === 'folder' ? place.rel : null),
+            allNotes: () => allNotes,
+            ...browsing,
         });
-        ui.dragSource(treeEl, { itemAt: (t) => t.closest?.('[data-rel], [data-folder]') || null, describe: pickUp });
-        dropZone(
-            sidebar,
-            ui.treeFolderAt({
-                row: (at) => {
-                    const r = at.closest?.('[data-rel], [data-folder]');
-                    return r ? { path: r.dataset.rel || r.dataset.folder, folder: !r.dataset.rel, el: r } : null;
-                },
-                markOf: (folder) => treeEl.querySelector(`[data-folder="${CSS.escape(folder)}"]`),
-                top: '',
-                topMark: sectionHeading,
-            })
-        );
+        const sidebarTree = tree({
+            ui,
+            host,
+            store,
+            movePath: util.movePath,
+            onShowAll: () => showFolder(''),
+            onToggle: paintTree,
+            ...browsing,
+        });
+        const notePane = ui.element('div', { className: 'note-pane' });
 
-        const folderItems = (rel, since = relocSeq, place = null) => [
-            {
-                label: 'New Note',
-                icon: glyph('compose', 14),
-                hint: host.chordOf('newNote'),
-                run: onNow(rel, since, (into) => newNote({ into })),
-            },
-            {
-                label: 'New Folder',
-                icon: glyph('folderPlus', 14),
-                hint: host.chordOf('newFolder'),
-                run: onNow(rel, since, newFolder),
-            },
-            ...(rel
-                ? [
-                      '-',
-                      {
-                          label: 'Rename…',
-                          icon: 'pencil',
-                          run: async () => {
-                              const now = await currentPath(rel, since);
-                              const label =
-                                  now != null &&
-                                  ((place?.isConnected && place.querySelector('[data-name]')) || (await nameAt(now)));
-                              if (label) renameAt(label, rel, since);
-                          },
-                      },
-                      { label: 'Move to', icon: 'folder', items: moveItems(rel, since) },
-                  ]
-                : []),
-            '-',
-            { label: 'Show in Finder', icon: 'folder', run: onNow(rel, since, showInFinder) },
-            ...(rel
-                ? [
-                      {
-                          label: 'Move to Trash',
-                          icon: glyph('trash', 14),
-                          hint: host.chordOf('trash'),
-                          run: () => trashFolder(rel, since),
-                      },
-                  ]
-                : []),
-        ];
-        const renameAt = (label, held, since = relocSeq) =>
-            ui.inlineEdit(label, {
-                onCommit: async (name) => {
-                    const rel = await currentPath(held, since);
-                    if (rel == null) return 'It is no longer there';
-                    if (!(await settle(rel))) return 'The open note has a question to answer first';
-                    let why = '';
-                    await queued(async () => {
-                        try {
-                            relocate(rel, (await main.call('rename', rel, name)).rel);
-                        } catch (e) {
-                            why = said(e);
-                        }
-                    });
-                    await refresh();
-                    paintNote();
-                    return why;
-                },
-            });
-        // With neither the row nor the card visible (the sidebar folded away), the parent's gallery is shown.
-        const nameAt = async (rel) => {
-            const sel = `[data-rel="${CSS.escape(rel)}"] [data-name], [data-folder="${CSS.escape(rel)}"] [data-name]`;
-            const seen = (n) => !!n?.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
-            reveal(rel);
-            renderTree();
-            const shown = [treeEl.querySelector(sel), galleryBody.querySelector(sel)].find(seen);
-            if (shown) return shown;
-            if (!(await showFolder(parentOf(rel)))) return null;
-            await loadGallery();
-            return [galleryBody.querySelector(sel)].find(seen) || null;
-        };
-        const newFolder = async (parent) => {
-            let made;
-            try {
-                made = await main.call('mkdir', parent, '');
-                await loadTree();
-            } catch (e) {
-                ui.dialog({ title: 'Could not make the folder', message: said(e), confirmLabel: 'OK' });
-                return;
-            }
-            const label = await nameAt(made.rel);
-            if (label) renameAt(label, made.rel);
-        };
-        const trashFolder = (held, since = relocSeq) =>
-            ui.dialog({
-                title: `Move “${baseName(held)}” to the Trash?`,
-                destructive: true,
-                confirmLabel: 'Move to Trash',
-                message: 'The folder and every note in it go to the macOS Trash, from where Finder can put them back.',
-                onConfirm: async () => {
-                    const rel = await currentPath(held, since);
-                    if (rel == null) return;
-                    const open = !!note.rel && within(note.rel, rel);
-                    if (!(await settle(rel))) return;
-                    try {
-                        await queued(() => main.call('trash', rel));
-                    } catch (e) {
-                        ui.dialog({
-                            title: 'Could not move the folder to the Trash',
-                            message: said(e),
-                            confirmLabel: 'OK',
-                        });
-                        return;
-                    }
-                    relocate(rel, null);
-                    if (open) await leaveNote();
-                    else if (here.kind === 'folder' && within(here.rel, rel))
-                        await showFolder(parentOf(rel), { record: false });
-                    await refresh();
-                },
-            });
-
-        let changeTimer = 0;
+        // Nothing is drawn until the place is reached, so a note path never flashes up as a gallery.
+        notesGallery.element.hidden = true;
+        notePane.hidden = true;
+        noteNavigation.trailing.append(noteSession.menuButton);
+        notePane.append(noteNavigation.element, noteSession.element, editor.element);
+        content.append(notesGallery.element, notePane);
+        applyTypeface();
         main.on('changed', (paths) => {
             clearTimeout(changeTimer);
             changeTimer = setTimeout(async () => {
                 await refresh();
-                if (note.rel && paths.some((p) => within(note.rel, p))) reconcile();
+                const open = noteSession.path();
+                if (open && paths.some((path) => isWithin(open, path))) noteSession.reconcile();
             }, 100);
         });
-        let hadFocus = false;
-        settings.on((key, value) => {
-            if (key === 'sort') renderGallery();
-            if (key === 'textSize' || key === 'font') applyType();
+        settings.on((key) => {
+            if (key === 'sort') notesGallery.draw();
+            if (key === 'textSize' || key === 'font') applyTypeface();
         });
-        window.addEventListener('pagehide', () => {
-            if (note.dirty) save();
-        });
+        window.addEventListener('pagehide', () => noteSession.saveIfUnsaved());
+        start();
 
-        // Nothing is drawn until the place is reached, so a note path never flashes up as a gallery.
-        paintNote();
-        (async () => {
-            await main.call('root').catch(() => {});
-            await loadTree();
-            const was = here;
-            if (was.kind === 'note' && (await openAt(was.rel, { record: false }))) return;
-            let folder = was.kind === 'folder' ? was.rel : parentOf(was.rel);
-            while (folder && !nodeAt(folder)) folder = parentOf(folder);
-            await showFolder(folder, { record: false });
-        })();
-
-        const searchEntries = async (raw) => {
-            const q = String(raw || '').trim();
-            const recent = () => {
-                const all = [];
-                const walk = (n) => {
-                    all.push(...n.notes);
-                    n.folders.forEach(walk);
-                };
-                walk(tree);
-                return all.sort((a, b) => b.mtime - a.mtime);
-            };
-            const got = q
-                ? await main.call('search', q).catch(() => ({ hits: [], partial: false }))
-                : { hits: recent(), partial: false };
-            const shown = got.hits.slice(0, 50);
-            // No run: a readout, not a place to go.
-            const more =
-                got.partial || got.hits.length > shown.length
-                    ? [
-                          {
-                              label: 'Only some matches are shown',
-                              hint: 'Add a word to narrow it down',
-                              icon: ui.icon('search', { size: 16 }),
-                          },
-                      ]
-                    : [];
-            return [
-                ...shown.map((n) => ({
-                    label: n.name || 'Untitled',
-                    hint: [shortDate(n.mtime), parentOf(n.rel), (n.snippet || '').slice(0, 70)]
-                        .filter(Boolean)
-                        .join(' · '),
-                    icon: glyph('fileText', 16),
-                    run: () => {
-                        host.show();
-                        openAt(n.rel);
-                    },
-                })),
-                ...more,
-            ];
-        };
-
-        // Only while the note has the keyboard: elsewhere a text key would change a line nobody is looking at.
-        const writing = (key) => () => {
-            if (editor.hasFocus()) editor.format(key);
-        };
         return {
             content,
-            sidebar,
+            sidebar: sidebarTree.element,
             didAppear: () => {
                 main.call('watch', true).catch(() => {});
                 refresh();
-                reconcile();
-                if (hadFocus && editor.isOpen() && here.kind === 'note') editor.focus();
-                else if (here.kind === 'folder') galleryBody.focus();
+                noteSession.reconcile();
+                if (hadFocus && editor.isOpen() && place.kind === 'note') editor.focus();
+                else if (place.kind === 'folder') notesGallery.focus();
             },
             didDisappear: () => {
                 hadFocus = editor.hasFocus();
-                if (note.dirty) save();
+                noteSession.saveIfUnsaved();
                 main.call('watch', false).catch(() => {});
             },
 
-            keys: {
-                newNote: { key: 'mod+n', label: 'New note', run: () => newNote() },
-                newFolder: { key: 'mod+shift+n', label: 'New folder', run: () => newFolder(currentFolder()) },
-                // While a text field has focus, ⌘⌫ stays the field's (delete to line start).
-                trash: {
-                    key: 'mod+backspace',
-                    label: 'Move to Trash',
-                    run: () => {
-                        if (here.kind === 'note') trashNote(here.rel);
-                        else if (here.rel) trashFolder(here.rel);
-                    },
+            keys: keyboardShortcuts({
+                editor,
+                onNewNote: browsing.onNewNote,
+                onNewFolder: browsing.onNewFolder,
+                onTrash: () => {
+                    if (place.kind === 'note') fileOperations.trashNote(place.rel);
+                    else if (place.rel) fileOperations.trashFolder(place.rel);
                 },
-                search: {
-                    key: 'mod+f',
-                    label: 'Search notes',
-                    run: async () => {
-                        if (here.kind === 'note' && !(await showFolder(currentFolder()))) return;
-                        search.input.focus();
-                        search.input.select();
-                    },
+                onSearch: async () => {
+                    if (place.kind === 'note' && !(await showFolder(currentFolder()))) return;
+                    notesGallery.focusSearch();
                 },
-                back: { key: 'mod+[', label: 'Back', run: () => goBack() },
-                forward: { key: 'mod+]', label: 'Forward', run: () => goAhead() },
-                title: { key: 'mod+shift+t', label: 'Title', run: writing('title') },
-                heading: { key: 'mod+shift+h', label: 'Heading', run: writing('heading') },
-                subheading: { key: 'mod+shift+j', label: 'Subheading', run: writing('subheading') },
-                body: { key: 'mod+shift+b', label: 'Body', run: writing('body') },
-                monospaced: { key: 'mod+shift+m', label: 'Monospaced', run: writing('mono') },
-                bulletedList: { key: 'mod+shift+7', label: 'Bulleted list', run: writing('bullet') },
-                numberedList: { key: 'mod+shift+9', label: 'Numbered list', run: writing('number') },
-                checklist: { key: 'mod+shift+l', label: 'Checklist', run: writing('check') },
-                markChecked: {
-                    key: 'mod+shift+u',
-                    label: 'Mark as checked',
-                    run: () => {
-                        if (editor.hasFocus()) editor.toggleChecked();
-                    },
-                },
-                blockQuote: { key: "mod+'", label: 'Block quote', run: writing('quote') },
-            },
+                onBack: () => placeHistory.goBack(),
+                onForward: () => placeHistory.goForward(),
+            }),
 
-            commands: () => [
-                {
-                    label: 'New Note',
-                    icon: glyph('compose', 16),
-                    keywords: ['새 노트', '새 메모', '노트', '메모', 'new', 'note', 'memo'],
-                    run: () => newNote(),
-                },
-                {
-                    label: 'Search Notes',
-                    icon: ui.icon('search', { size: 16 }),
-                    keywords: ['노트 검색', '메모 검색', '노트', '메모', 'find', 'notes'],
-                    page: { placeholder: 'Search notes', search: searchEntries },
-                },
-                ...folderList().map((f) => ({
-                    group: 'Folders',
-                    label: f.name,
-                    hint: f.rel === f.name ? '' : parentOf(f.rel),
-                    icon: ui.icon('folder', { size: 16 }),
-                    keywords: ['노트', '폴더', 'note', 'folder'],
-                    run: () => {
-                        host.show();
-                        showFolder(f.rel);
-                    },
-                })),
-            ],
+            commands: () =>
+                paletteCommands({
+                    ui,
+                    host,
+                    main,
+                    allNotes,
+                    onNewNote: browsing.onNewNote,
+                    onOpenNote: openNote,
+                    onShowFolder: showFolder,
+                }),
         };
+
+        async function start() {
+            await main.call('root').catch(() => {});
+            await loadTree();
+            const was = place;
+            if (was.kind === 'note' && (await openNote(was.rel, { record: false }))) return;
+            await showFolder(nearestFolder(was.kind === 'folder' ? was.rel : parentOf(was.rel)), { record: false });
+        }
+
+        // Resolves whether the folder was reached.
+        async function showFolder(path, options) {
+            return (await placeHistory.go({ kind: 'folder', rel: path }, options)) === 'ok';
+        }
+
+        // Resolves whether the note was reached.
+        async function openNote(path, options) {
+            return (await placeHistory.go({ kind: 'note', rel: path }, options)) === 'ok';
+        }
+
+        function enter(to, { focus = false, quiet = false } = {}) {
+            if (to.kind === 'note') return noteSession.open(to.rel, { focus, quiet });
+            if (!folderAt(allNotes, to.rel)) return 'gone';
+            return noteSession.close();
+        }
+
+        function land(to) {
+            const isNewFolder = to.kind === 'folder' && (place.kind !== 'folder' || place.rel !== to.rel);
+            place = to;
+            store.set('at', place);
+            sidebarTree.reveal(to.rel);
+            if (to.kind === 'folder') notesGallery.arrive({ isNewFolder });
+            paintPlace();
+            if (to.kind === 'folder') notesGallery.load();
+        }
+
+        async function leaveNote() {
+            const path = noteSession.path() || (place.kind === 'note' ? place.rel : '');
+            noteSession.closeWithoutSaving();
+            await showFolder(nearestFolder(parentOf(path)), { record: false });
+        }
+
+        function currentFolder() {
+            return place.kind === 'folder' ? place.rel : parentOf(place.rel);
+        }
+
+        function nearestFolder(path) {
+            let folder = path;
+            while (folder && !folderAt(allNotes, folder)) folder = parentOf(folder);
+            return folder;
+        }
+
+        function paintPlace() {
+            const steps = { canGoBack: placeHistory.canGoBack(), canGoForward: placeHistory.canGoForward() };
+            const isOnNote = place.kind === 'note';
+            notesGallery.element.hidden = isOnNote;
+            notePane.hidden = !isOnNote;
+            if (isOnNote) noteNavigation.paint(parentOf(place.rel), { isCurrent: false, ...steps });
+            else {
+                galleryNavigation.paint(place.rel, { isCurrent: true, ...steps });
+                notesGallery.draw();
+            }
+            paintTree();
+        }
+
+        function paintTree() {
+            sidebarTree.draw({ allNotes, place, openNote: noteSession.path() });
+        }
+
+        async function loadTree() {
+            const since = relocations.count();
+            try {
+                allNotes = { ...(await main.call('tree')), since };
+            } catch {
+                return;
+            }
+            if (place.kind === 'folder' && !folderAt(allNotes, place.rel)) {
+                // Left to run in its turn: a refresh can come from inside a move under way, which awaiting would hold.
+                placeHistory.go({ kind: 'folder', rel: nearestFolder(parentOf(place.rel)) }, { record: false });
+                return;
+            }
+            paintPlace();
+        }
+
+        function refresh() {
+            return Promise.all([loadTree(), notesGallery.refresh()]);
+        }
+
+        // Run in the open note's queue right after a move, so no save is in flight to the old place. `to` null: the
+        // path went to the Trash, and whoever trashed it moves the open note and the place away.
+        function relocate(from, to) {
+            relocations.record(from, to);
+            placeHistory.relocate(from, to);
+            if (to != null) {
+                noteSession.relocate(from, to);
+                place.rel = util.movePath(place.rel, from, to);
+            }
+            store.set('at', place);
+            sidebarTree.relocate(from, to);
+        }
+
+        function followLink(href) {
+            const target = linkTargetOf(href);
+            if (target?.address) openAddress(target.address);
+            else if (target?.note) openNote(linkedNotePath(noteSession.path() || '', target.note), { focus: true });
+        }
+
+        // host.open answers only whether anything opened the address, with no reason when nothing did.
+        async function openAddress(address) {
+            if (await host.open(address, { userInitiated: true }).catch(() => false)) return;
+            ui.dialog({ title: 'Could not open the link', message: address, confirmLabel: 'OK' });
+        }
+
+        // The name label of a row or a card in sight, for a rename to type over. With neither in sight (the sidebar
+        // folded away), the parent's gallery is shown.
+        async function labelFor(path) {
+            const isShown = (label) => !!label?.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+            sidebarTree.reveal(path);
+            paintTree();
+            const shown = [sidebarTree.labelOf(path), notesGallery.labelOf(path)].find(isShown);
+            if (shown) return shown;
+            if (!(await showFolder(parentOf(path)))) return null;
+            await notesGallery.load();
+            const label = notesGallery.labelOf(path);
+            return isShown(label) ? label : null;
+        }
+
+        function navigationBarFor() {
+            return navigationBar({
+                ui,
+                host,
+                onBack: () => placeHistory.goBack(),
+                onForward: () => placeHistory.goForward(),
+                onGo: (path) => showFolder(path),
+                acceptDrops: dragging.acceptDrops,
+            });
+        }
+
+        // A face not in the list (chosen on another Mac) falls back to the theme's.
+        function typefaceNow() {
+            const face = FONTS.find((font) => font.value === settings.get('font'))?.font;
+            return { size: settings.get('textSize'), font: face ? `${face}, ${theme.font}` : theme.font };
+        }
+
+        function applyTypeface() {
+            const typeface = typefaceNow();
+            editor.setTypeface(typeface);
+            noteSession.setFont(typeface.font);
+        }
     },
 });
