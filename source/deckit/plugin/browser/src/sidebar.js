@@ -30,7 +30,10 @@ function sidebar({
         ['camera', 'video', 'Using your camera'],
         ['screen', 'monitor', 'Sharing your screen'],
     ];
-    // Each group colour as it reads on a dark ground and on a light one.
+    // How far a group's tabs stand in from the heading: a drag sideways by as much moves a tab in or out of a group.
+    const GROUP_INDENT = 22;
+    // Each group colour as it reads on a dark ground and on a light one. A colour picked by the person is a hex, worn
+    // on both.
     const GROUP_INKS = {
         blue: ['#8ab4f8', '#1a73e8'],
         red: ['#f28b82', '#d93025'],
@@ -58,22 +61,23 @@ function sidebar({
         .browser-tab-indicators { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
         .browser-tab-capture { display: flex; color: var(--deckit-alert); }
         .browser-tab [hidden] { display: none; }
-        .browser-tab[data-grouped] { position: relative; padding-left: 30px; }
-        .browser-tab[data-grouped]::before {
-            content: '';
-            position: absolute;
-            top: 5px;
-            bottom: 5px;
-            left: 14px;
-            width: 2px;
-            border-radius: var(--deckit-radius-round);
-            background: var(--browser-group-ink);
+        .browser-tab[data-grouped] { padding-left: ${8 + GROUP_INDENT}px; }
+        /* A group's heading and its tabs are one block on the group's colour, which the hover and the selection wash. */
+        .browser-group,
+        .browser-tab[data-grouped] {
+            border-radius: 0;
+            background-image: linear-gradient(var(--browser-group-tint), var(--browser-group-tint));
         }
-        .browser-group-caret { display: flex; flex: 0 0 auto; color: var(--deckit-muted); transition: transform var(--deckit-fast) var(--deckit-easing); }
+        .browser-group { border-radius: var(--deckit-radius-control) var(--deckit-radius-control) 0 0; }
+        .browser-group[data-group-end],
+        .browser-tab[data-group-end] {
+            border-bottom-left-radius: var(--deckit-radius-control);
+            border-bottom-right-radius: var(--deckit-radius-control);
+        }
+        .browser-group-caret { display: flex; flex: 0 0 auto; color: var(--browser-group-ink); transition: transform var(--deckit-fast) var(--deckit-easing); }
         .browser-group[data-collapsed] .browser-group-caret { transform: rotate(-90deg); }
-        .browser-group-dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: var(--deckit-radius-round); background: var(--browser-group-ink); }
-        .browser-group-label[data-untitled] { color: var(--deckit-muted); }
-        .browser-group-count { flex: 0 0 auto; color: var(--deckit-muted); font: var(--deckit-type-small); }
+        .browser-group-label { color: var(--browser-group-ink); font-weight: 600; }
+        .browser-group-count { flex: 0 0 auto; color: var(--browser-group-ink); font: var(--deckit-type-small); opacity: 0.8; }
     `);
     const element = ui.element('div', { className: 'browser-sidebar' });
     // A row is a tab or a group's heading. A collapsed group shows its heading only.
@@ -103,22 +107,18 @@ function sidebar({
     bookmarkSection.body.append(bookmarkList.element);
     element.append(tabSection.element, bookmarkSection.element);
 
-    // Moved down, a row goes after the one it is let go on; moved up, before it. A tab let go just under an open
-    // group's heading is the group's first.
+    // Moved down, a group goes after the row it is let go on; moved up, before it. A tab goes between two rows, in
+    // the group there or out of it as far as it was drawn sideways (`depthAt`).
     ui.sortable(tabList, {
-        onReorder: (key, toKey) => {
-            const from = shownRows.findIndex((each) => keyOf(each) === key);
-            let to = shownRows.findIndex((each) => keyOf(each) === toKey);
-            if (from < 0 || to < 0) return;
-            let after = to > from;
-            const moving = shownRows[from];
-            if (moving.tab && !shownRows[to].tab && after && !shownRows[to].group.collapsed) {
-                to += 1;
-                after = false;
-            }
-            const target = shownRows[to].tab || shownRows[to].group;
-            if (moving.tab) onPlaceTab(moving.tab, target, after);
-            else onPlaceGroup(moving.group, target, after);
+        depth: { indent: GROUP_INDENT, project: (key, toKey, levels) => depthAt(key, toKey, levels) },
+        onReorder: (key, toKey, depth) => {
+            const moving = shownRows.find((each) => keyOf(each) === key);
+            if (!moving) return;
+            if (moving.tab) return placeTabBetween(moving.tab, between(key, toKey), depth);
+            const from = shownRows.indexOf(moving);
+            const to = shownRows.findIndex((each) => keyOf(each) === toKey);
+            if (to < 0 || to === from) return;
+            onPlaceGroup(moving.group, shownRows[to].tab || shownRows[to].group, to > from);
         },
     });
     ui.sortable(bookmarkList, { onReorder: (url, toUrl) => bookmarks.move(url, toUrl) });
@@ -144,18 +144,45 @@ function sidebar({
         renameGroup,
     };
 
-    // Each group's heading before its first tab.
+    // Each group's heading before its first tab. `end` marks the last row of a group's block.
     function rowsOf(tabs) {
         const rows = [];
         let last = null;
         for (const tab of tabs) {
             const group = groupOf(tab);
             if (group && group !== last)
-                rows.push({ group, size: tabs.filter((each) => groupOf(each) === group).length });
+                rows.push({ group, size: tabs.filter((each) => groupOf(each) === group).length, end: false });
             last = group;
-            if (!group?.collapsed) rows.push({ tab, group });
+            if (!group?.collapsed) rows.push({ tab, group, end: false });
         }
+        rows.forEach((row, index) => (row.end = !!row.group && rows[index + 1]?.group !== row.group));
         return rows;
+    }
+
+    // The rows a row would stand between, let go where `toKey` is: { before, after }, either missing at an end.
+    function between(key, toKey) {
+        const rest = shownRows.filter((each) => keyOf(each) !== key);
+        const to = shownRows.findIndex((each) => keyOf(each) === toKey);
+        return { before: rest[to - 1] || null, after: rest[to] || null };
+    }
+
+    // A tab's depth there: 1 in a group, 0 out of one. It can join the group the row before it is in, while that one
+    // is open, and has to when the row after it is in a group too. A group's heading stays at 0.
+    function depthAt(key, toKey, levels) {
+        const moving = shownRows.find((each) => keyOf(each) === key);
+        if (!moving?.tab) return 0;
+        const { before, after } = between(key, toKey);
+        const deepest = before?.group && (before.tab || !before.group.collapsed) ? 1 : 0;
+        const shallowest = after?.tab && after.group ? 1 : 0;
+        return Math.min(deepest, Math.max(shallowest, (moving.group ? 1 : 0) + levels));
+    }
+
+    function placeTabBetween(tab, { before, after }, depth) {
+        if (depth) {
+            if (before.tab) onPlaceTab(tab, before.tab, true);
+            else if (after?.tab && after.group === before.group) onPlaceTab(tab, after.tab, false);
+        } else if (after) onPlaceTab(tab, after.tab && !after.group ? after.tab : after.group, false);
+        else if (before) onPlaceTab(tab, before.group || before.tab, true);
     }
 
     function keyOf(row) {
@@ -176,10 +203,9 @@ function sidebar({
         row.element.classList.add('browser-group');
         const caret = ui.element('span', { className: 'browser-group-caret' });
         caret.innerHTML = ui.icon('chevronDown', { size: 14 });
-        const dot = ui.element('span', { className: 'browser-group-dot' });
         const label = ui.element('span', { className: 'browser-row-label browser-group-label' });
         const count = ui.element('span', { className: 'browser-group-count' });
-        row.element.append(caret, dot, label, count);
+        row.element.append(caret, label, count);
         row.element.addEventListener('click', () => {
             const { group } = groupRows.get(row.element);
             onChangeGroup(group, { collapsed: !group.collapsed });
@@ -190,13 +216,12 @@ function sidebar({
     }
 
     // A collapsed group holding the active tab is marked as the tab would be.
-    function updateGroupRow(rowElement, { group, size }) {
+    function updateGroupRow(rowElement, { group, size, end }) {
         const { row, label, count } = groupRows.get(rowElement);
-        rowElement.style.setProperty('--browser-group-ink', inkOf(group.color));
+        paintGroup(rowElement, group, end);
         rowElement.toggleAttribute('data-collapsed', group.collapsed);
         rowElement.title = group.collapsed ? 'Expand group' : 'Collapse group';
         label.textContent = group.title || (size === 1 ? '1 tab' : `${size} tabs`);
-        label.toggleAttribute('data-untitled', !group.title);
         count.textContent = group.title && group.collapsed ? String(size) : '';
         row.setActive(group.collapsed && groupOf(activeTab) === group);
     }
@@ -212,10 +237,22 @@ function sidebar({
     }
 
     function inkOf(color) {
+        if (/^#[0-9a-f]{6}$/i.test(color)) return color;
         return (GROUP_INKS[color] || GROUP_INKS.grey)[theme.dark ? 0 : 1];
     }
 
-    function tabRow({ tab, group }) {
+    // A row of a group's block: in the group's colour, and rounded below when it ends the block.
+    function paintGroup(rowElement, group, end) {
+        const ink = inkOf(group.color);
+        rowElement.style.setProperty('--browser-group-ink', ink);
+        rowElement.style.setProperty(
+            '--browser-group-tint',
+            `color-mix(in srgb, ${ink} ${theme.dark ? 18 : 14}%, transparent)`
+        );
+        rowElement.toggleAttribute('data-group-end', end);
+    }
+
+    function tabRow({ tab, group, end }) {
         const row = ui.row();
         row.element.classList.add('browser-tab');
         const icon = ui.element('span', { className: 'browser-tab-icon' });
@@ -242,14 +279,14 @@ function sidebar({
         row.element.append(icon, label, indicators, close.element);
         row.element.addEventListener('click', () => onSelectTab(tab));
         tabRows.set(row.element, { tab, row, icon, label, captures, mute });
-        updateTabRow(row.element, { tab, group });
+        updateTabRow(row.element, { tab, group, end });
         return row.element;
     }
 
-    function updateTabRow(rowElement, { tab, group }) {
+    function updateTabRow(rowElement, { tab, group, end }) {
         const { row, icon, label, captures, mute } = tabRows.get(rowElement);
         rowElement.toggleAttribute('data-grouped', !!group);
-        if (group) rowElement.style.setProperty('--browser-group-ink', inkOf(group.color));
+        if (group) paintGroup(rowElement, group, end);
         icon.replaceChildren(favicon({ ui, page: tab }).element);
         label.textContent = tabLabel(tab);
         label.title = tab.url;
@@ -324,11 +361,24 @@ function sidebar({
             { label: 'Rename Group…', icon: 'pencil', run: () => renameGroup(group) },
             {
                 label: 'Color',
-                items: GROUP_COLORS.map((color) => ({
-                    label: color[0].toUpperCase() + color.slice(1),
-                    checked: group.color === color,
-                    run: () => onChangeGroup(group, { color }),
-                })),
+                items: [
+                    ...GROUP_COLORS.map((color) => ({
+                        label: color[0].toUpperCase() + color.slice(1),
+                        checked: group.color === color,
+                        run: () => onChangeGroup(group, { color }),
+                    })),
+                    '-',
+                    {
+                        label: 'Custom…',
+                        checked: !GROUP_COLORS.includes(group.color),
+                        run: () =>
+                            ui.colorPicker({
+                                title: 'Group colour',
+                                value: inkOf(group.color),
+                                onPick: (color) => onChangeGroup(group, { color }),
+                            }),
+                    },
+                ],
             },
             '-',
             { label: 'Ungroup', run: () => onUngroup(group) },

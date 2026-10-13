@@ -29,7 +29,7 @@ function tabs({
     const saved = records.get('session', { tabs: [], active: 0, closed: [], groups: [] });
     const list = [];
     const closed = [...saved.closed];
-    // id -> { id, title, color, collapsed }
+    // id -> { id, title, color, collapsed }: `color` is one of GROUP_COLORS, or a hex the person picked
     const groups = new Map((saved.groups || []).map((group) => [group.id, { ...group }]));
     let current = null;
     let lastId = 0;
