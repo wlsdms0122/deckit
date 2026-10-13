@@ -4,6 +4,7 @@ const { fileArea } = require('./file-area.js');
 const { fileMenus } = require('./file-menus.js');
 const { fileOperations } = require('./file-operations.js');
 const { folderStatus } = require('./folder-status.js');
+const { goToFolder } = require('./go-to-folder.js');
 const { iconCache } = require('./icon-cache.js');
 const { listView } = require('./list-view.js');
 const { listingCache } = require('./listing-cache.js');
@@ -111,8 +112,10 @@ module.exports = {
             areaElement: area.element,
             entryAt: listings.entryAt,
             labelOf: area.labelOf,
+            selection: tabs.selection,
             select,
             onGo: (path) => tabs.go(path),
+            onOpenInNewTab: (path) => tabs.open(path),
             onMade: showMade,
             onMoved: relocate,
             onChanged: listings.load,
@@ -151,12 +154,16 @@ module.exports = {
             isColumnView: () => area.view() === 'columns',
             location: tabs.location,
             selectedPath: tabs.selectedPath,
+            selection: tabs.selection,
             walkedFolder: area.walkedFolder,
             entriesIn: area.entriesIn,
             entryAt: listings.entryAt,
             isLoaded: listings.has,
             load: listings.load,
             select,
+            toggle,
+            extend,
+            selectAll,
             open: operations.open,
             openInNewTab: (path) => tabs.open(path),
             quickLook: operations.quickLook,
@@ -171,6 +178,7 @@ module.exports = {
             rowOf: area.rowOf,
             folderAt: columns.folderAt,
             selectedPath: tabs.selectedPath,
+            selection: tabs.selection,
             workingFolder: area.workingFolder,
             select,
             isFavorite: favorites.has,
@@ -184,6 +192,15 @@ module.exports = {
             newFolder: operations.newFolder,
             showsHidden,
             onToggleHidden: toggleHidden,
+            onGoToFolder: () => goTo.show(),
+        });
+        const goTo = goToFolder({
+            ui,
+            disk,
+            tildify: util.tildify,
+            homeLocation: () => home,
+            location: tabs.location,
+            onGo: goToPlace,
         });
 
         ui.addStyle(STYLE);
@@ -236,8 +253,9 @@ module.exports = {
             back: { key: 'mod+[', label: 'Back', run: () => tabs.back() },
             forward: { key: 'mod+]', label: 'Forward', run: () => tabs.forward() },
             enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
-            open: { key: 'mod+down', label: 'Open', run: () => operations.open(selectedEntry()) },
+            open: { key: 'mod+down', label: 'Open', run: () => operations.open(selectedEntries()) },
             filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
+            goToFolder: { key: 'mod+l', label: 'Go to Folder', run: () => tabs.front() && goTo.show() },
             home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
             desktop: { key: 'mod+shift+d', label: 'Go to Desktop', run: () => goToLocation('desktop') },
             downloads: { key: 'mod+alt+l', label: 'Go to Downloads', run: () => goToLocation('downloads') },
@@ -255,7 +273,11 @@ module.exports = {
             // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
             columnView: { key: 'ctrl+mod+1', label: 'As columns', run: () => setView('columns') },
             listView: { key: 'ctrl+mod+2', label: 'As list', run: () => setView('list') },
-            trash: { key: 'mod+backspace', label: 'Move to Trash', run: () => operations.trash(selectedEntry()) },
+            trash: {
+                key: 'mod+backspace',
+                label: 'Move to Trash',
+                run: () => operations.trash(selectedEntries()),
+            },
         });
         deck.commands(() =>
             [
@@ -313,12 +335,62 @@ module.exports = {
         function select(path, { reveal = false } = {}) {
             if (!tabs.front()) return;
             tabs.select(path);
-            area.showSelection();
-            watchShown();
-            if (reveal && path) area.reveal(path);
+            showSelection(reveal && path);
         }
 
-        // A folder made where the person still looks is picked, in sight, to be named.
+        // Adds the entry to the selection, or takes it away; the lead and the anchor go to it, or to the last one left.
+        // An entry of another folder is selected alone.
+        function toggle(path) {
+            const before = tabs.selectedPath();
+            if (!tabs.front() || !before || parentOf(before) !== parentOf(path)) return select(path);
+            const was = new Set(tabs.selection());
+            if (was.has(path)) was.delete(path);
+            else was.add(path);
+            const next = area
+                .entriesIn(parentOf(path))
+                .map((entry) => entry.path)
+                .filter((each) => was.has(each));
+            if (!next.length) return select(null);
+            const lead = next.includes(path) ? path : next.at(-1);
+            tabs.setSelection(next, { lead, anchor: lead });
+            showSelection(null);
+        }
+
+        // The entries from the anchor to `path`, as the folder lists them. An entry of another folder is selected
+        // alone.
+        function extend(path, { reveal = false } = {}) {
+            const anchor = tabs.anchor() || tabs.selectedPath();
+            if (!tabs.front() || !anchor || parentOf(anchor) !== parentOf(path)) return select(path, { reveal });
+            const listed = area.entriesIn(parentOf(path)).map((entry) => entry.path);
+            const [from, to] = [listed.indexOf(anchor), listed.indexOf(path)];
+            if (from < 0 || to < 0) return select(path, { reveal });
+            tabs.setSelection(listed.slice(Math.min(from, to), Math.max(from, to) + 1), { lead: path, anchor });
+            showSelection(reveal && path);
+        }
+
+        // Everything the folder the keyboard walks shows.
+        function selectAll() {
+            if (!tabs.front()) return;
+            const listed = area.entriesIn(area.walkedFolder()).map((entry) => entry.path);
+            if (!listed.length) return;
+            const lead = listed.includes(tabs.selectedPath()) ? tabs.selectedPath() : listed[0];
+            tabs.setSelection(listed, { lead, anchor: listed[0] });
+            showSelection(null);
+        }
+
+        function showSelection(revealed) {
+            area.showSelection();
+            watchShown();
+            if (revealed) area.reveal(revealed);
+        }
+
+        // A folder, or a file selected in its folder.
+        function goToPlace(folder, file) {
+            if (folder !== tabs.location()) return tabs.go(folder, { from: file });
+            if (file) select(file, { reveal: true });
+        }
+
+        // A folder made where the person still looks is selected, in sight, to be named.
         async function showMade(path) {
             const folder = parentOf(path);
             if (!area.shownFolders().includes(folder)) return false;
@@ -328,7 +400,7 @@ module.exports = {
             return true;
         }
 
-        // In columns a crumb inside the tab's folder is picked, so the columns stay.
+        // In columns a crumb inside the tab's folder is selected, so the columns stay.
         function openCrumb(path) {
             const location = tabs.location();
             const inColumns = area.view() === 'columns';
@@ -352,7 +424,7 @@ module.exports = {
             favorites.relocate(follow);
         }
 
-        // The path runs to the pick in columns, or else to the tab's folder.
+        // The path runs to the lead in columns, or else to the tab's folder.
         function drawToolbar() {
             const selected = area.view() === 'columns' ? tabs.selectedPath() : null;
             const shown = selected && area.columnFolders().includes(parentOf(selected)) ? selected : tabs.location();
@@ -389,8 +461,8 @@ module.exports = {
             return !!settings.get('showHidden');
         }
 
-        function selectedEntry() {
-            return listings.entryAt(tabs.selectedPath());
+        function selectedEntries() {
+            return tabs.selection().map(listings.entryAt).filter(Boolean);
         }
     },
 };

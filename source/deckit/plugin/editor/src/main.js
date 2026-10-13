@@ -441,7 +441,7 @@ module.exports = {
             if (!front?.root) return;
             front.mode = mode;
             session.save();
-            sidePanel.redrawNavigator();
+            sidePanel.drawNavigator();
             if (mode !== 'search') return;
             const file = workspaces.current();
             const { from, to } = file ? file.view.state.selection.main : { from: 0, to: 0 };

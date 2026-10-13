@@ -5,8 +5,6 @@ DeckitModule.define(
             'deckit/ui/token',
             'deckit/ui/icon',
             'deckit/ui/kit',
-            'deckit/ui/list',
-            'deckit/ui/list/listbox',
             'deckit/service/switcher/page',
             'deckit/service/switcher/model/tone',
             'deckit/feature/switcher/view-model',
@@ -14,7 +12,7 @@ DeckitModule.define(
         ],
         provides: ['boot'],
     },
-    (TOKEN, ICON, KIT, LIST, LISTBOX, ENTRIES, TONE, VIEW_MODEL, PROTOCOL) => {
+    (TOKEN, ICON, KIT, ENTRIES, TONE, VIEW_MODEL, PROTOCOL) => {
         // MARK: - Property
         // How each tone looks on a row of the Now strip: its mark, its glyph, the row's wash and the colour it breathes
         // when it asks for attention. Only `alert` tints the row and `info` has no colour, so a colour still means
@@ -51,39 +49,7 @@ DeckitModule.define(
         };
         const STYLE =
             `
-            .deckit-switcher-bar { display: flex; align-items: center; }
-            .deckit-switcher-chip {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                flex: 0 0 auto;
-                height: 28px;
-                margin-left: 8px;
-                padding: 0 10px;
-                border-radius: var(--deckit-radius-control);
-                background: var(--deckit-selected);
-                font: 600 var(--deckit-type-medium);
-                white-space: nowrap;
-            }
-            .deckit-switcher-chip[hidden] { display: none; }
-            .deckit-switcher-chip svg { width: 15px; height: 15px; opacity: 0.85; }
-            .deckit-switcher-field {
-                flex: 1 1 auto;
-                min-width: 0;
-                width: 100%;
-                box-sizing: border-box;
-                height: 40px;
-                padding: 0 12px;
-                border: 0;
-                border-radius: var(--deckit-radius-medium);
-                outline: none;
-                background: transparent;
-                color: inherit;
-                font: var(--deckit-type-heading);
-            }
-            .deckit-switcher-rule { margin: 2px 0 4px; border-top: var(--deckit-border); }
-            .deckit-switcher-list { max-height: 44vh; overflow-y: auto; }
-            .deckit-switcher-empty { padding: 10px 12px; opacity: 0.45; }
+            .deckit-switcher-row[data-numbers] .deckit-switcher-number { display: inline; }
             .deckit-switcher-row {
                 position: relative;
                 display: flex;
@@ -136,7 +102,6 @@ DeckitModule.define(
                 font: var(--deckit-type-small);
                 font-variant-numeric: tabular-nums;
             }
-            .deckit-switcher-list[data-numbers] .deckit-switcher-number { display: inline; }
             .deckit-switcher-glow {
                 position: absolute;
                 inset: 0;
@@ -282,34 +247,59 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // The switcher on screen: a modal over a field and the list, drawn from its view model.
+        // The switcher on screen: the kit's quick pick, drawn from its view model.
         function open(ui, { placeholder, items, now, onQuery, onPick, onClose }) {
-            const model = VIEW_MODEL.make({ placeholder, items, now, onQuery, onPick, onClose: () => modal.close() });
-            const chip = element('span', 'deckit-switcher-chip');
-            const field = element('input', 'deckit-switcher-field');
-            field.spellcheck = false;
-            const box = element('div', 'deckit-switcher-list');
-            const rows = LIST.list({
-                element: box,
+            const model = VIEW_MODEL.make({ placeholder, items, now, onQuery, onPick, onClose: () => picker.close() });
+            const rows = new Set(); // the rows made, which show their ⌘ numbers while Command is held
+            let numbered = false;
+            const numbers = (on) => {
+                numbered = on;
+                for (const row of rows) row.toggleAttribute('data-numbers', on);
+            };
+            const picker = ui.quickPick({
+                placeholder,
                 key: (entry) => entry.key,
-                create: (entry) => (entry.heading ? headingOf(entry) : rowOf(entry)),
+                create: (entry) => {
+                    if (entry.heading) return headingOf(entry);
+                    const row = rowOf(entry);
+                    row.toggleAttribute('data-numbers', numbered);
+                    rows.add(row);
+                    return row;
+                },
                 update: (made, entry) =>
                     entry.heading ? made.toggleAttribute('data-first', entry.first) : fillRow(made, entry),
-            });
-            const listbox = LISTBOX.listbox(box, {
-                onPick: (index) => model.choose(index),
-                onActivate: (index, { pointer }) => pointer && model.point(index),
+                optionOf: (entry) => (entry.heading ? null : { disabled: !entry.actionable }),
+                onInput: (text) => model.type(text),
+                onPick: (_entry, index) => model.choose(index),
+                onActive: (_entry, index, { pointer }) => pointer && model.point(index),
+                onCommandKey: numbers,
+                onKey,
+                onClose,
             });
             let pageShown;
-            const draw = () => {
+            draw();
+            model.onChange(draw);
+            return { model, close: () => picker.close() };
+
+            // The view model owns the active row, so the arrows and Enter are its. Escape, and Backspace in an empty
+            // field, leave a page before they close anything.
+            function onKey(event) {
+                if (event.key === 'Escape' || (event.key === 'Backspace' && !picker.text())) return model.back();
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp')
+                    model.move(event.key === 'ArrowDown' ? 1 : -1);
+                else if (event.key === 'Enter') model.confirm();
+                else return false;
+                return true;
+            }
+
+            function draw() {
                 const state = model.state();
                 if ((state.page?.id ?? null) !== pageShown) {
                     pageShown = state.page?.id ?? null;
-                    field.value = '';
-                    field.placeholder = state.placeholder;
-                    chip.hidden = !state.page;
-                    chip.replaceChildren(...(state.page ? [ICON.sanitize(state.page.icon), state.page.label] : []));
-                    field.focus();
+                    picker.setText('');
+                    picker.setPlaceholder(state.placeholder);
+                    picker.setScope(state.page ? { icon: state.page.icon, label: state.page.label } : null);
+                    picker.focus();
                 }
                 const entries = state.rows.flatMap((row, index) => [
                     ...row.headings.map((heading, level) => ({
@@ -319,49 +309,12 @@ DeckitModule.define(
                     })),
                     row,
                 ]);
-                rows.set(
-                    state.rows.length ? entries : [{ key: 'empty', heading: { kind: 'empty', label: 'No match' } }]
-                );
-                listbox.set(
-                    state.rows.map((row) => ({ element: rows.elementOf(row.key), disabled: !row.actionable })),
-                    { active: state.active }
-                );
-            };
-            const numbers = (on) => box.toggleAttribute('data-numbers', on);
-            field.addEventListener('input', () => model.type(field.value));
-            field.addEventListener('keydown', (event) => {
-                if (event.key === 'ArrowDown') model.move(1);
-                else if (event.key === 'ArrowUp') model.move(-1);
-                else if (event.key === 'Enter') model.confirm();
-                else if (event.key === 'Meta') return numbers(true);
-                else return;
-                event.preventDefault();
-            });
-            field.addEventListener('keyup', (event) => event.key === 'Meta' && numbers(false));
-            field.addEventListener('blur', () => numbers(false));
-            // Escape, and Backspace in an empty field, leave a page before they close anything.
-            const onKey = (event) =>
-                (event.key === 'Escape' || (event.key === 'Backspace' && !field.value)) && model.back();
-            const modal = ui.modal({
-                chrome: false,
-                align: 'top',
-                width: 'min(520px, calc(100vw - 48px))',
-                onKey,
-                onClose,
-                fill: (card) => {
-                    const bar = element('div', 'deckit-switcher-bar');
-                    bar.append(chip, field);
-                    card.append(bar, element('div', 'deckit-switcher-rule'), box);
-                    draw();
-                    return field;
-                },
-            });
-            model.onChange(draw);
-            return { model, close: () => modal.close() };
+                picker.set(entries, { active: state.active, message: state.rows.length ? '' : 'No match' });
+            }
         }
 
         function headingOf({ heading, first }) {
-            const made = element('div', heading.kind === 'empty' ? 'deckit-switcher-empty' : 'deckit-switcher-heading');
+            const made = element('div', 'deckit-switcher-heading');
             made.dataset.kind = heading.kind;
             made.toggleAttribute('data-first', !!first);
             if (heading.kind === 'section') {

@@ -21,7 +21,7 @@ function dragAndDrop({ ui, relocations, onMove }) {
     function acceptDrops(zone, folderUnder) {
         ui.folderDrop(zone, {
             kind: KIND,
-            path: (payload) => payload.path,
+            paths: (payload) => [payload.path],
             folderAt: folderUnder,
             onDrop: (payload, target) =>
                 onMove(

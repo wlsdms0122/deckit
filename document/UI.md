@@ -58,6 +58,7 @@ What floats is one stack. The top layer has the keys first; Escape and a press o
 - `dialog({ title, message, content, fields, confirmLabel, cancelLabel, extraLabel, onExtra, destructive, onConfirm, onClose })` returns `{ close }`: a modal that says something and asks for values. `fields` are `{ key, label, type, value, placeholder, options }`, a text field unless `type` is `switch` or `color`. `onConfirm(values)`.
 - `confirmTrash({ name, onConfirm })`: asks before a folder and what is in it go to the Trash.
 - `colorPicker({ title, value, onPick })`.
+- `quickPick({ placeholder, value, width, key, create, update, optionOf, onInput, onPick, onEnter, onKey, onActive, onCommandKey, onClose })` returns `{ text(), setText(text), setPlaceholder(text), setScope({ icon, label } | null), focus(), set(items, { active, message, note, loading, alert }), move(by), active(), close() }`: a field over a list to pick from, at the top of the page. The switcher, Open Quickly and Go to Folder are each one. Items are drawn by key as a keyed list draws them; `optionOf(item)` is null for an item that is no option (a heading) or `{ disabled }`. The arrows move the active option and Enter picks it, or `onEnter({ item, text })` hears both. `onKey(event)` has a key first, and `onCommandKey(held)` hears Command held down or let go. The field keeps the focus. `setScope` shows what the field searches in, before it.
 
 Two floats are placed by their owner and are not layers: the keyboard stays with the text they act on.
 
@@ -81,7 +82,7 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 - `treeRow({ depth, folder, folds, open, glyph, name, size })` returns `{ element, setActive(on), setRevealed(on), setOpen(open) }`. Its name is marked `data-name`, what a rename types over.
 - `inlineEdit(label, { selectStem, onCommit })` renames a label in place; `onCommit(text)` answers nothing or why it refused. Resolves whether it renamed.
 - `movesInto(from, folder)`: whether a move changes anything and is possible.
-- `treeFolderAt({ row, markOf, top, topMark })` and `folderDrop(zone, { kind, path, folderAt, onDrop })`: a tree as a drop target of moves into folders.
+- `treeFolderAt({ row, markOf, top, topMark })` and `folderDrop(zone, { kind, paths, folderAt, onDrop })`: a tree as a drop target of moves into folders.
 
 ## Dragging and sizing
 

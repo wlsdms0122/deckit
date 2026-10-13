@@ -65,7 +65,7 @@ function listingCache({ about, disk, isShown, onRead }) {
     }
 
     // Applied at once, before the folders are read again, so a draw in between (the rename field letting go) finds the
-    // new name and keeps the pick. An entry moved into another folder joins that folder's listing.
+    // new name and keeps the selection. An entry moved into another folder joins that folder's listing.
     function relocate(follow) {
         const movedAway = [];
         for (const [folder, listing] of [...listings]) {
