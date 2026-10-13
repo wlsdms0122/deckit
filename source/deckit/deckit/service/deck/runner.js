@@ -176,11 +176,15 @@ DeckitModule.define(
             if (run.state === 'terminating') return slot.stopping;
             if (run.state === 'notRunning') return Promise.resolve();
             run.terminate(reason);
-            const asked = page.webContents.isDestroyed()
-                ? Promise.resolve()
-                : PROTOCOL.stop.invoke(page.webContents, {}, { timeout: STOP_LIMIT_MS }).catch(() => {});
-            slot.stopping = asked.then(() => run.state === 'terminating' && run.didTerminate());
+            slot.stopping = stop(page).then(() => run.state === 'terminating' && run.didTerminate());
             return slot.stopping;
+        }
+
+        // The plugin's stop() asked of its page, which answers once whatever it is asked: resolves once it has answered,
+        // its time ran out or the page is gone.
+        function stop(page) {
+            if (page.webContents.isDestroyed()) return Promise.resolve();
+            return PROTOCOL.stop.invoke(page.webContents, {}, { timeout: STOP_LIMIT_MS }).catch(() => {});
         }
 
         function leave(slot, reason) {
@@ -231,11 +235,13 @@ DeckitModule.define(
                 LOG.warn(`${run.plugin.id}: ${why}`);
                 run.record(why);
             });
+            // What start() did before it failed is ended at once by stop(), as for any run that ends.
             PROTOCOL.notStarted.on(({ run: number, why }, sender) => {
                 const run = runFrom(number, sender);
                 if (run?.state !== 'launching') return;
                 LOG.warn(`${run.plugin.id}: ${why}`);
                 run.didFailToLaunch(why);
+                stop(slots.get(run.plugin.id).page);
             });
         }
 

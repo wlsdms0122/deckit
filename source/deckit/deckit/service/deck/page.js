@@ -103,7 +103,7 @@ DeckitModule.define(
             const registry = registryOf();
             const deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
             made.resolve(deck);
-            // Whatever start() did before it ended, stop() is told when the run terminates.
+            // Whatever start() did before it ended, stop() is told: when the run terminates, or at once when start() fails.
             started = definition;
             try {
                 await definition.start(deck);
