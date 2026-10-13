@@ -52,7 +52,7 @@ const FILE_TYPES = {
     patch: { name: 'Diff', color: '#a3a3a3', shape: 'text', mode: 'diff' },
     txt: { name: 'Plain Text', color: '#a3a3a3', shape: 'text', mode: null },
 };
-// Icon shapes are Lucide's (ISC licence).
+//! Icon shapes are Lucide's (ISC licence).
 const FILE_SHAPE = `<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>`;
 const FILE_SHAPES = {
     code: FILE_SHAPE + `<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/>`,
