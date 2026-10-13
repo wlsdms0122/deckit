@@ -6,6 +6,8 @@ const { parentOf } = require('./path.js');
 // to its folder, selected there: `onGo(folder, file)`.
 function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
     const SUGGESTED = 8;
+    // A wait shorter than this shows nothing, so a quick answer does not flash the spinner.
+    const WAIT_SHOWN_AFTER = 120; // milliseconds
     const STYLE = `
         .finder-goto-icon { display: flex; flex: 0 0 auto; }
         .finder-goto-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -19,6 +21,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         const read = new Map(); // folder -> its entries, read once while the panel is up
         let suggestions = []; // { path, name, folder, entry }
         let problem = '';
+        let unsuggested = ''; // why the list is empty
         let turn = 0;
         let reading = false; // the folder typed is being read: its suggestions are not in yet
         let up = true; // the panel is up: one closed meanwhile goes nowhere
@@ -58,28 +61,49 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
             const folder = resolved(slash < 0 ? '.' : text.slice(0, slash + 1) || '/');
             const start = text.slice(slash + 1).toLowerCase();
             reading = true;
-            const entries = folder ? await entriesOf(folder) : [];
+            const entries = folder ? await waiting(entriesOf(folder), 'Reading the folder…', () => mine === turn) : [];
             if (mine !== turn || !up) return;
             reading = false;
-            suggestions = entries
+            suggestions = (entries ?? [])
                 .filter((entry) => entry.name.toLowerCase().startsWith(start))
                 .filter((entry) => start.startsWith('.') || !entry.name.startsWith('.'))
                 .sort((a, b) => (b.kind === 'folder') - (a.kind === 'folder') || a.name.localeCompare(b.name))
                 .slice(0, SUGGESTED)
                 .map((entry) => ({ path: entry.path, name: entry.name, folder: entry.kind === 'folder', entry }));
+            const where = folder && `“${tildify(folder)}”`;
+            unsuggested = !folder
+                ? 'Type a path'
+                : !entries
+                  ? `${where} can’t be read`
+                  : start
+                    ? `Nothing in ${where} starts with “${start}”`
+                    : `${where} is empty`;
             draw();
         }
 
         // No suggestion is active until the arrows choose one.
         function draw() {
-            picker.set(suggestions, { active: -1, message: problem });
+            picker.set(suggestions, { active: -1, message: problem || (suggestions.length ? '' : unsuggested) });
         }
 
+        // `promise` answered, with a spinner and `text` under the list once it takes a while and while `current()`.
+        async function waiting(promise, text, current) {
+            const timer = setTimeout(() => {
+                if (up && current()) picker.set([], { active: -1, message: text, loading: true });
+            }, WAIT_SHOWN_AFTER);
+            try {
+                return await promise;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        // Null for a folder that cannot be read.
         async function entriesOf(folder) {
             if (!read.has(folder))
                 read.set(
                     folder,
-                    disk.list(folder).catch(() => [])
+                    disk.list(folder).catch(() => null)
                 );
             return read.get(folder);
         }
@@ -87,7 +111,12 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         // A path that is not there keeps the panel up and says so.
         async function go(path) {
             if (!path) return;
-            const kind = await disk.exists(path).catch(() => null);
+            const asked = turn;
+            const kind = await waiting(
+                disk.exists(path).catch(() => null),
+                `Looking for “${tildify(path)}”…`,
+                () => asked === turn
+            );
             if (!up) return;
             if (!kind) {
                 problem = `“${tildify(path)}” can’t be found.`;
