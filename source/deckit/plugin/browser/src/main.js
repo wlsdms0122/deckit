@@ -113,6 +113,7 @@ module.exports = {
             onFound: (tab, result) => find.showCount(tab, result),
         });
         const sidePanel = sidebar({
+            theme,
             ui,
             chordOf: deck.chordOf,
             clipboard: deck.clipboard,
@@ -122,8 +123,15 @@ module.exports = {
             onNewTab: (url, options) => openTabs.add(url, options),
             onSelectTab: (tab) => openTabs.select(tab),
             onCloseTab: (tab) => openTabs.close(tab),
-            onMoveTab: (id, toId) => openTabs.move(id, toId),
+            onPlaceTab: (tab, target, after) => openTabs.placeTab(tab, target, after),
+            onPlaceGroup: (group, target, after) => openTabs.placeGroup(group, target, after),
             onCloseOtherTabs: (tab) => openTabs.closeOthers(tab),
+            onNewGroup: (tab) => sidePanel.renameGroup(openTabs.newGroup(tab)),
+            onJoinGroup: (tab, group) => openTabs.join(tab, group),
+            onLeaveGroup: (tab) => openTabs.leave(tab),
+            onChangeGroup: (group, change) => openTabs.changeGroup(group, change),
+            onUngroup: (group) => openTabs.ungroup(group),
+            onCloseGroup: (group) => openTabs.closeGroup(group),
             onOpenBookmark: (bookmark) => openTabs.navigate(openTabs.active(), bookmark.url),
         });
         const { resolve, commands } = switcher({
@@ -198,7 +206,7 @@ module.exports = {
         }
 
         function showTabs() {
-            sidePanel.showTabs(openTabs.list(), openTabs.active());
+            sidePanel.showTabs(openTabs.list(), openTabs.active(), openTabs.groupOf);
             showBar();
         }
 

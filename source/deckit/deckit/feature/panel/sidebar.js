@@ -117,7 +117,7 @@ DeckitModule.define(
                 outline: none;
                 border-radius: var(--deckit-radius-control);
                 background: transparent;
-                color: var(--deckit-muted);
+                color: color-mix(in srgb, var(--deckit-text) 72%, var(--deckit-background));
                 font: var(--deckit-type-large);
                 text-align: left;
                 cursor: pointer;
