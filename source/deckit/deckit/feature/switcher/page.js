@@ -49,7 +49,7 @@ DeckitModule.define(
         };
         const STYLE =
             `
-            .deckit-quick-pick-list[data-numbers] .deckit-switcher-number { display: inline; }
+            .deckit-switcher-list[data-numbers] .deckit-switcher-number { display: inline; }
             .deckit-switcher-row {
                 position: relative;
                 display: flex;
@@ -265,6 +265,7 @@ DeckitModule.define(
                 onClose,
             });
             let pageShown;
+            picker.list.classList.add('deckit-switcher-list');
             picker.field.addEventListener('keyup', (event) => event.key === 'Meta' && numbers(false));
             picker.field.addEventListener('blur', () => numbers(false));
             draw();
