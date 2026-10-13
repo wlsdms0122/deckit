@@ -25,6 +25,7 @@ function fileMenus({
     newFolder,
     showsHidden,
     onToggleHidden,
+    onGoToFolder,
 }) {
     return ui.contextMenu(areaElement, {
         rowAt: (target) => target.closest('[data-path]') || folderAt(target)?.mark || null,
@@ -81,6 +82,7 @@ function fileMenus({
     function folderItems(folder) {
         return [
             { label: 'New Folder', icon: 'folderPlus', hint: chordOf('newFolder'), run: () => newFolder(folder) },
+            { label: 'Go to Folder…', hint: chordOf('goToFolder'), run: onGoToFolder },
             '-',
             { label: 'Show in Finder', icon: 'folder', run: () => reveal(folder) },
             { label: 'Copy Path', icon: 'copy', run: () => copyPath(folder) },

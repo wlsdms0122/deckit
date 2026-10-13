@@ -4,6 +4,7 @@ const { fileArea } = require('./file-area.js');
 const { fileMenus } = require('./file-menus.js');
 const { fileOperations } = require('./file-operations.js');
 const { folderStatus } = require('./folder-status.js');
+const { goToFolder } = require('./go-to-folder.js');
 const { iconCache } = require('./icon-cache.js');
 const { listView } = require('./list-view.js');
 const { listingCache } = require('./listing-cache.js');
@@ -191,6 +192,15 @@ module.exports = {
             newFolder: operations.newFolder,
             showsHidden,
             onToggleHidden: toggleHidden,
+            onGoToFolder: () => goTo.show(),
+        });
+        const goTo = goToFolder({
+            ui,
+            disk,
+            tildify: util.tildify,
+            homeLocation: () => home,
+            location: tabs.location,
+            onGo: goToPlace,
         });
 
         ui.addStyle(STYLE);
@@ -245,6 +255,7 @@ module.exports = {
             enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
             open: { key: 'mod+down', label: 'Open', run: () => operations.open(selectedEntries()) },
             filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
+            goToFolder: { key: 'mod+l', label: 'Go to Folder', run: () => tabs.front() && goTo.show() },
             home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
             desktop: { key: 'mod+shift+d', label: 'Go to Desktop', run: () => goToLocation('desktop') },
             downloads: { key: 'mod+alt+l', label: 'Go to Downloads', run: () => goToLocation('downloads') },
@@ -366,6 +377,12 @@ module.exports = {
             area.showSelection();
             watchShown();
             if (revealed) area.reveal(revealed);
+        }
+
+        // A folder, or a file selected in its folder.
+        function goToPlace(folder, file) {
+            if (folder !== tabs.location()) return tabs.go(folder, { from: file });
+            if (file) select(file, { reveal: true });
         }
 
         // A folder made where the person still looks is picked, in sight, to be named.
