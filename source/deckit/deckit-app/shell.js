@@ -74,7 +74,8 @@ DeckitModule.define(
                 return require('electron').BrowserWindow.fromWebContents(webContents);
             }
 
-            // A second press closes it. It took the keyboard as it opened, so the panel takes it back.
+            // A second press closes it. It took the keyboard as it opened, so the panel takes it back. It covers the
+            // whole window, the bar too, so its scrim dims all of it.
             function summonSwitcher(webContents) {
                 const window = windowOf(webContents);
                 const here = deckit.switcher.shown();
@@ -82,7 +83,6 @@ DeckitModule.define(
                 if (here || !window || window !== live(state.window)) return;
                 switcher = deckit.switcher.view();
                 deckit.window.place(switcher, window, {
-                    bounds: WINDOW.viewBounds,
                     front: true,
                     onClose: () => deckit.switcher.close(),
                 });
