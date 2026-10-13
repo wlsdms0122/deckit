@@ -1,7 +1,7 @@
 // Between a plugin's page and main. Main knows which plugin a message is from by the view it came from, and which run
 // of that page by the `run` that `load` answered, carried back by what tells main how the run went.
 DeckitModule.define(
-    'deckit/service/plugin/deck/protocol',
+    'deckit/service/deck/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: [

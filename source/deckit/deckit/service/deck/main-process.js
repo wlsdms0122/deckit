@@ -1,15 +1,15 @@
 DeckitModule.define(
-    'deckit/service/plugin/deck/main-process',
+    'deckit/service/deck/main-process',
     {
         uses: [
             'deckit/module/file',
             'deckit/service/storage',
             'deckit/service/window',
             'deckit/service/log/main',
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/package/folder',
-            'deckit/service/plugin/package/model/permission',
-            'deckit/service/plugin/deck/protocol',
+            'deckit/service/deck/identity',
+            'deckit/service/plugin/folder',
+            'deckit/service/plugin/model/permission',
+            'deckit/service/deck/protocol',
         ],
         provides: ['start', 'prepare', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',

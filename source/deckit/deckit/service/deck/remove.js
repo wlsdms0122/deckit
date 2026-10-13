@@ -1,10 +1,10 @@
 DeckitModule.define(
-    'deckit/service/plugin/package/remove',
+    'deckit/service/deck/remove',
     {
         uses: [
             'deckit/service/storage',
-            'deckit/service/plugin/package/manifest',
-            'deckit/service/plugin/package/install',
+            'deckit/service/plugin/manifest',
+            'deckit/service/deck/install',
         ],
         provides: ['remove', 'forgetData', 'forgotten', 'clearForgotten'],
         runs: 'node',

@@ -2,8 +2,8 @@ DeckitModule.define(
     'deckit/service/event/main',
     {
         uses: [
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/deck',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/main',
             'deckit/service/event/protocol',
             'deckit/service/event/model/name',
         ],

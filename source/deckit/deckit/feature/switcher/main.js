@@ -3,13 +3,13 @@ DeckitModule.define(
     {
         uses: [
             'deckit/service/log/main',
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/deck/lifecycle',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/lifecycle',
             'deckit/service/keymap/main',
             'deckit/service/switcher/main',
             'deckit/feature/panel/main',
             'deckit/feature/switcher/protocol',
-            'deckit/service/plugin/identity/model/origin',
+            'deckit/service/deck/model/origin',
         ],
         provides: ['start', 'reload', 'control'],
     },

@@ -1,11 +1,11 @@
 DeckitModule.define(
-    'deckit/service/plugin/package/manifest',
+    'deckit/service/plugin/manifest',
     {
         uses: [
             'deckit/module/toml',
             'deckit/module/version',
             'deckit/service/open/model/scheme',
-            'deckit/service/plugin/package/model/permission',
+            'deckit/service/plugin/model/permission',
         ],
         provides: ['FILE', 'API', 'read', 'idProblem'],
         runs: 'any',

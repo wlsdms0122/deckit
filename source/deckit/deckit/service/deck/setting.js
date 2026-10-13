@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'deckit/service/plugin/deck/setting',
+    'deckit/service/deck/setting',
     {
-        uses: ['deckit/service/storage', 'deckit/service/plugin/identity', 'deckit/service/plugin/deck/protocol'],
+        uses: ['deckit/service/storage', 'deckit/service/deck/identity', 'deckit/service/deck/protocol'],
         provides: ['start', 'declare', 'forget', 'valuesOf'],
         runs: 'main',
     },

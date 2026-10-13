@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'deckit/service/plugin/package/install',
+    'deckit/service/deck/install',
     {
-        uses: ['deckit/config', 'deckit/service/home', 'deckit/service/plugin/package/folder'],
+        uses: ['deckit/config', 'deckit/service/home', 'deckit/service/plugin/folder'],
         provides: ['installed', 'installable', 'install', 'shipped', 'installShipped'],
         runs: 'node',
     },

@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/plugin/runtime',
+    'deckit/service/deck/page',
     {
         uses: [
             'deckit/config',
@@ -15,10 +15,10 @@ DeckitModule.define(
             'deckit/service/switcher/page',
             'deckit/service/event/page',
             'deckit/module/event-bus',
-            'deckit/service/plugin/runtime/storage',
-            'deckit/service/plugin/runtime/settings',
-            'deckit/service/plugin/deck/protocol',
-            'deckit/service/plugin/identity/model/origin',
+            'deckit/service/deck/page-storage',
+            'deckit/service/deck/page-settings',
+            'deckit/service/deck/protocol',
+            'deckit/service/deck/model/origin',
             'deckit/service/keymap/model/binding-id',
             'host/exports?',
         ],

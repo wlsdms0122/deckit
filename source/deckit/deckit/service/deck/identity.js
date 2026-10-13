@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'deckit/service/plugin/identity',
+    'deckit/service/deck/identity',
     {
-        uses: ['deckit/service/plugin/identity/model/origin'],
+        uses: ['deckit/service/deck/model/origin'],
         provides: [
             'add',
             'whenPageEnds',

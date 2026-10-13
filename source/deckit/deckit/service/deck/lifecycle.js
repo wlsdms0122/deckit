@@ -1,15 +1,15 @@
 DeckitModule.define(
-    'deckit/service/plugin/deck/lifecycle',
+    'deckit/service/deck/lifecycle',
     {
         uses: [
             'deckit/service/log/main',
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/deck',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/main',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/service/open/main',
-            'deckit/service/plugin/deck/protocol',
-            'deckit/service/plugin/identity/model/origin',
+            'deckit/service/deck/protocol',
+            'deckit/service/deck/model/origin',
         ],
         provides: ['start', 'pages', 'pageFor', 'onChange', 'reload'],
         runs: 'main',

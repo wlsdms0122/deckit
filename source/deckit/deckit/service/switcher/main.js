@@ -4,8 +4,8 @@ DeckitModule.define(
         uses: [
             'deckit/service/storage',
             'deckit/service/log/main',
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/deck',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/main',
             'deckit/service/switcher/protocol',
         ],
         provides: ['start'],

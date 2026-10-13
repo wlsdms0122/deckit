@@ -33,7 +33,7 @@ A new plugin needs no change to deck. A new shell to show the panel in needs no 
 | a plugin's sandbox | where one plugin's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.plugin/`; a plugin with a view has the panel's frame around it there |
 | the switcher's page | the quick switcher's list, at `deckit://switcher` |
 
-A plugin's sandbox is a renderer and deck is in main. Each plugin's sandbox has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/plugin/identity`): no page says who it is. A plugin's page is held to its origin; a link out of it is offered to its scheme's handlers.
+A plugin's sandbox is a renderer and deck is in main. Each plugin's sandbox has its own origin, its own sessions and its own storage, so one plugin cannot reach another's page, data, cookies or what it was allowed. Main knows which plugin is asking by the page that asks (`service/deck/identity.js`): no page says who it is. A plugin's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
 The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`module/ipc`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
@@ -42,10 +42,10 @@ The pages never speak to each other. Main carries everything between them, and e
 | Fact | Owner |
 |---|---|
 | whether the panel is on screen, and where | the app's shell, asked through `feature/panel/main.js` |
-| which plugins run, each in its sandbox | `service/plugin/deck/lifecycle.js` |
+| which plugins run, each in its sandbox | `service/deck/lifecycle.js` |
 | which plugin is on screen, and back and forward | `feature/panel/main.js` |
-| the plugins found, their order, their main process modules, their settings and exports | `service/plugin/deck` |
-| which page is which plugin | `service/plugin/identity` |
+| the plugins found, their order, their main process modules, their settings and exports | `service/deck/main.js` |
+| which page is which plugin | `service/deck/identity.js` |
 | what a keystroke means | `service/keymap/main.js`; a page only hears the chords it may act on |
 | who opens an address | `service/open/main.js`, in the order the person set |
 | what the switcher lists | `service/switcher/main.js`, from what each plugin's page supplies |

@@ -1,12 +1,12 @@
 DeckitModule.define(
-    'deckit/service/plugin/deck/catalog',
+    'deckit/service/deck/catalog',
     {
         uses: [
             'deckit/config',
             'deckit/service/home',
             'deckit/module/version',
-            'deckit/service/plugin/package/folder',
-            'deckit/service/plugin/package/install',
+            'deckit/service/plugin/folder',
+            'deckit/service/deck/install',
         ],
         provides: ['list', 'sourceOf'],
         runs: 'main',

@@ -6,7 +6,7 @@ DeckitModule.define(
             'deckit/service/storage',
             'deckit/service/log/main',
             'deckit/service/web/model/partition',
-            'deckit/service/plugin/identity/model/origin',
+            'deckit/service/deck/model/origin',
         ],
         provides: ['own', 'of', 'partitionOf', 'onCreate', 'fetchText', 'clear', 'forget'],
         runs: 'main',
