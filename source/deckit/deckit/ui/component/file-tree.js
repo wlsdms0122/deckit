@@ -20,7 +20,8 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // A tree of files and folders: paths are "/"-separated, "" is the top of a relative tree and "/" the root of a disk.
+        // A tree of files and folders: paths are "/"-separated, "" is the top of a relative tree and "/" the root of a
+        // disk.
         function make(theme, ui) {
             const folderIcon = ({ open = false, size = 15 } = {}) =>
                 ICON.icon(open ? 'folderOpen' : 'folder', { size, color: theme.color.folder });
@@ -66,24 +67,28 @@ DeckitModule.define(
             return { ...row, setOpen };
         }
 
-        // A drop target of moves into folders. `path(payload)` is where the dragged thing is; `folderAt(element)` is the
-        // folder under the pointer ({ folder, mark }). A move into the folder it is already in is shown as staying.
-        function folderDrop(ui, zone, { kind, path, folderAt, onDrop }) {
+        // A drop target of moves into folders. `paths(payload)` are where the dragged things are, all in one folder;
+        // `folderAt(element)` is the folder under the pointer ({ folder, mark }). A drop into one of them, or into what
+        // one holds, is refused; a move into the folder they are already in is shown as staying.
+        function folderDrop(ui, zone, { kind, paths, folderAt, onDrop }) {
             return ui.dropTarget(zone, {
                 kind,
                 onDrop,
                 placeAt: (under, payload) => {
                     const place = folderAt(under);
                     if (!place) return null;
-                    const from = path(payload);
-                    if (movesInto(from, place.folder)) return place;
-                    return parentOf(from) === place.folder ? { ...place, stays: true } : null;
+                    const froms = paths(payload);
+                    const into = place.folder;
+                    if (froms.some((from) => into === from || into.startsWith(from + '/'))) return null;
+                    if (froms.some((from) => movesInto(from, into))) return place;
+                    return froms.every((from) => parentOf(from) === into) ? { ...place, stays: true } : null;
                 },
             });
         }
 
-        // The folder under an element of a tree: the folder row itself, or the folder of a file row, or the top when it is
-        // on no row. `row(element)` finds the row ({ path, folder, element }); `markOf(folder)` the element that lights for it.
+        // The folder under an element of a tree: the folder row itself, or the folder of a file row, or the top when it
+        // is on no row. `row(element)` finds the row ({ path, folder, element }); `markOf(folder)` the element that
+        // lights for it.
         function treeFolderAt({ row, markOf, top, topMark }) {
             return (under) => {
                 const found = row(under);

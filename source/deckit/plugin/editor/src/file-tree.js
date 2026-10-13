@@ -71,7 +71,7 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
     });
     ui.folderDrop(element, {
         kind: 'editor-entry',
-        path: (held) => held.path,
+        paths: (held) => [held.path],
         folderAt: (under) => root && folderUnder(under),
         onDrop: (held, place) => onMove(held, place.folder),
     });
