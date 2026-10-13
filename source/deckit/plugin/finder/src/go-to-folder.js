@@ -38,7 +38,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
             },
             onPick: (suggestion) => go(suggestion.path),
             // The typed path, unless the arrows chose a suggestion: the pointer only marks one.
-            onEnter: ({ item }) => go(item && chosen ? item.path : resolved(picker.field.value)),
+            onEnter: ({ item }) => go(item && chosen ? item.path : resolved(picker.text())),
             onKey,
             onClose: () => (up = false),
         });
@@ -54,7 +54,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         }
 
         function complete(suggestion) {
-            picker.field.value = tildify(suggestion.path) + (suggestion.folder ? '/' : '');
+            picker.setText(tildify(suggestion.path) + (suggestion.folder ? '/' : ''));
             chosen = false;
             suggest();
         }
@@ -62,7 +62,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         // What the folder typed so far holds, starting with what follows its last slash.
         async function suggest() {
             const mine = ++turn;
-            const text = picker.field.value;
+            const text = picker.text();
             const slash = text.lastIndexOf('/');
             const folder = resolved(slash < 0 ? '.' : text.slice(0, slash + 1) || '/');
             const start = text.slice(slash + 1).toLowerCase();
