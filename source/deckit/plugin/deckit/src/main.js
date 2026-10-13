@@ -10,21 +10,15 @@ module.exports = {
         const { ui } = deck;
         const APP_NAME = deck.about().name;
         const icon = (name) => ui.icon(name, { size: 16 });
-        const address = openAddress({
-            ui,
-            urlSchemes: deck.urlSchemes,
-            open: (url) => deck.open(url, { userInitiated: true }),
-        });
+        const address = openAddress({ ui, open: (url) => deck.open(url, { userInitiated: true }) });
 
-        // Below the ranked list: a plugin that knows the address offers its own way to open it above.
-        deck.resolve((query) => address.entriesFor(query).map((entry) => ({ ...entry, fallback: true })));
         deck.commands(() => [
             {
                 label: 'Open Address…',
                 icon: icon('link'),
                 keywords: ['url', 'scheme', 'open', '주소', '열기'],
                 page: {
-                    placeholder: 'An address with its scheme: https://…, mailto:…',
+                    placeholder: 'An address with its scheme: https://…, file:///…',
                     search: (query) => address.entriesFor(query),
                 },
             },
@@ -32,7 +26,7 @@ module.exports = {
                 label: 'Restart Plugin…',
                 icon: icon('reload'),
                 keywords: ['relaunch', 'reload', '재시작'],
-                page: { placeholder: 'Search running plugins', entries: runningPlugins },
+                page: { placeholder: 'Search plugins', entries: installedPlugins },
             },
             {
                 label: 'Restart ' + APP_NAME,
@@ -66,11 +60,14 @@ module.exports = {
             },
         ]);
 
-        function runningPlugins() {
-            return deck.plugins.list().running.map((plugin) => ({
+        // One not running is launched.
+        function installedPlugins() {
+            const { installed, running } = deck.plugins.list();
+            const icons = new Map(running.map((plugin) => [plugin.id, plugin.icon]));
+            return installed.map((plugin) => ({
                 label: plugin.name,
-                hint: plugin.id,
-                icon: plugin.icon || icon('puzzle'),
+                hint: plugin.state === 'running' ? 'Running' : 'Not running',
+                icon: icons.get(plugin.id) || icon('puzzle'),
                 run: () => deck.plugins.relaunch(plugin.id),
             }));
         }
