@@ -42,11 +42,12 @@ DeckitModule.define(
                             view,
                             title: state.title,
                             glass: deckit.panel.glass,
+                            fullSize: true,
                             key: 'panel',
                             place: (window, { bounds }) => deckit.window.place(view, window, { bounds, onClose }),
                             focus: focusPanel,
                         });
-                        deckit.panel.present({ floating: false, dismissible: false });
+                        deckit.panel.present({ floating: false, dismissible: false, titleBar: WINDOW.titleBar });
                         deckit.panel.arrive();
                         return state.window;
                     })

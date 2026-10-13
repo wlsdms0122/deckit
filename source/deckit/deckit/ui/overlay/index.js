@@ -95,11 +95,13 @@ DeckitModule.define(
         // - `anchor` (an element) or `rect`: below it, or above when only that fits. `align` is `start` or `center`.
         // - `point`: at it, or above it.
         // - `beside` (a row of a menu): right of the menu, overlapping it, or left of it when only that fits.
-        // `prefer` puts a box above its target first.
+        // `prefer` puts a box above its target first. A placed box takes presses where it lies, over a part of the
+        // page that drags the window too.
         function place(
             element,
             { anchor = null, rect = null, point = null, beside = null, gap = 4, align = 'start', prefer = 'bottom' }
         ) {
+            element.style.webkitAppRegion = 'no-drag';
             const width = element.offsetWidth;
             const height = element.offsetHeight;
             let x;
@@ -139,11 +141,13 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // The box arrives from its closed state: laid out closed first, or both states land in one style pass.
+        // The box arrives from its closed state: laid out closed first, or both states land in one style pass. What
+        // floats takes presses where it lies, a part of the page that drags the window included.
         function show(element, layer) {
             element.classList.add('deckit-surface');
             element.dataset.state = 'closed';
             element.style.zIndex = String(layer.z);
+            element.style.webkitAppRegion = 'no-drag';
             document.body.append(element);
             layer.place();
             void element.offsetHeight;

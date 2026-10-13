@@ -6,12 +6,12 @@ DeckitModule.define(
             'deckit/service/keymap/page',
             'deckit/feature/panel/sidebar',
             'deckit/feature/panel/protocol',
+            'deckit/service/keymap/model/binding-id',
         ],
         provides: ['mount'],
     },
-    (COLOR, KEYMAP, SIDEBAR, PROTOCOL) => {
+    (COLOR, KEYMAP, SIDEBAR, PROTOCOL, BINDING_ID) => {
         // MARK: - Property
-        const OWNER = '@deckit';
 
         // MARK: - Initializer
         // MARK: - Public
@@ -43,9 +43,35 @@ DeckitModule.define(
                 color: theme.color.text,
                 position: 'relative',
                 display: 'flex',
+                flexDirection: 'column',
             });
-            Object.assign(parts.content.style, { width: '100%', height: '100%' });
-            content.appendChild(parts.content);
+            // Where the window's title bar lies over the panel, when the panel shares the window's top with it: a band
+            // across the panel that drags the window wherever nothing is drawn over it, and over the content the strip
+            // that names the plugin on screen, which leaves the window's buttons room when the sidebar is collapsed.
+            const dragBand = element('div', {
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                right: '0',
+                display: 'none',
+                webkitAppRegion: 'drag',
+            });
+            const titleStrip = element('div', {
+                flex: '0 0 auto',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxSizing: 'border-box',
+                font: '600 ' + theme.type.body,
+                color: theme.color.muted,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                webkitAppRegion: 'drag',
+                transition: `padding-left ${MOTION.base}ms ${MOTION.easing}`,
+            });
+            Object.assign(parts.content.style, { width: '100%', flex: '1 1 auto', minHeight: '0' });
+            content.append(titleStrip, parts.content);
             const sidebar = SIDEBAR.make({
                 theme,
                 ui,
@@ -56,15 +82,16 @@ DeckitModule.define(
                 onStep: (by) => PROTOCOL.step.send({ by }),
                 onReorder: (ids) => PROTOCOL.reorder.send({ ids }),
                 onLayout: (change) => PROTOCOL.layout.send(change),
-                chordOf: (action) => KEYMAP.chord(`${OWNER}.${action}`),
+                onCollapsedChange: () => dress(),
+                chordOf: (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action)),
             });
-            root.append(sidebar.element, content);
+            root.append(dragBand, sidebar.element, content);
             document.body.appendChild(root);
             dress();
-            sidebar.show(setup.state, false);
+            showState(setup.state, false);
             appear();
 
-            PROTOCOL.state.on((state) => sidebar.show(state, true));
+            PROTOCOL.state.on((state) => showState(state, true));
             PROTOCOL.look.on((next) => {
                 look = next;
                 dress();
@@ -86,6 +113,12 @@ DeckitModule.define(
                 else fadeIn();
             });
 
+            // The strip names the plugin on screen, as the panel's title does.
+            function showState(state, animate) {
+                sidebar.show(state, animate);
+                titleStrip.textContent = state.plugins.find(({ id }) => id === state.current)?.name || '';
+            }
+
             // didAppear and didDisappear alternate, worked out in this one place.
             function appear() {
                 if (open === appeared) return;
@@ -94,8 +127,17 @@ DeckitModule.define(
             }
 
             // Floating over an app, the ring makes the panel read as on top and the rounding needs the page behind
-            // to be clear. Filling a window, the frame is the OS's.
+            // to be clear. Filling a window, the frame is the OS's, and the panel may share the window's top with its
+            // title bar: the sidebar reaches up under it and the content keeps below it.
             function dress() {
+                const bar = look.titleBar;
+                Object.assign(dragBand.style, { display: bar ? 'block' : 'none', height: (bar?.height || 0) + 'px' });
+                Object.assign(titleStrip.style, {
+                    display: bar ? 'flex' : 'none',
+                    height: (bar?.height || 0) + 'px',
+                    paddingLeft: bar && sidebar.collapsed() ? bar.controlsWidth + 'px' : '0',
+                });
+                sidebar.setTitleBarHeight(bar?.height || 0);
                 Object.assign(
                     root.style,
                     { background: COLOR.alpha(theme.color.background, setup.glass), boxShadow: 'none' },
