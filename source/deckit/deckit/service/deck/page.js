@@ -355,6 +355,7 @@ DeckitModule.define(
                 pick: () => PROTOCOL.pick.invoke(),
                 install: (from) => PROTOCOL.install.invoke({ from: String(from) }),
                 remove: (id, data) => PROTOCOL.remove.invoke({ id: String(id), data: !!data }),
+                relaunch: (id) => PROTOCOL.relaunch.invoke({ id: String(id) }),
                 reveal: (id) => PROTOCOL.reveal.invoke({ id: String(id) }),
                 count: (id) => PROTOCOL.count.invoke({ id: String(id) }),
                 restartPending: () => PROTOCOL.restartPending.invoke(),

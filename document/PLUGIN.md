@@ -226,7 +226,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 | `clipboard.writeText(text)` | copies text |
 | `clipboard.readText()` | with `system.clipboard` |
 | `notify({ title, body, silent, onClick })` | with `system.notifications` |
-| `plugins` | with `deckit.plugins`: `list`, `pick`, `install`, `remove`, `reveal`, `count`, `restartPending`, `restart`; `list` and `restartPending` answer at once, the rest resolve |
+| `plugins` | with `deckit.plugins`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`; `list` and `restartPending` answer at once, the rest resolve. `relaunch(id)` terminates the plugin and launches it again, or launches one not running |
 | `pluginSettings` | with `deckit.plugin-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
 | `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
@@ -244,7 +244,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 `mainProcess(path)` starts a main process module of the plugin's (below) and resolves to its methods, each called through the main process and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe. A path outside the plugin's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for.
 
-`requires` is what each plugin named in `[requires]` exports. A plugin starts only when everything it requires started, so these are there.
+`requires` is what each plugin named in `[requires]` exports. A plugin runs only while everything it requires runs, so these are there: when one of them terminates or crashes, the plugin terminates too, and it launches again, with what that one exports now, once that one launches again.
 
 `host` is what the host app offers, handed to the host app's own plugin only.
 
@@ -256,10 +256,10 @@ Each launch of a plugin's entry is a run, and a run is in one of four states:
 |---|---|
 | `launching` | its sandbox loads, the entry is evaluated and its settings declared; once what it requires is running, `start(deck)` registers, and starts main process modules if it needs them |
 | `running` | `start` has ended and deck has joined what it registered (keys, switcher, URL handler, exports); a view, if it registered one, is in the panel: didAppear and didDisappear |
-| `terminating` | `stop()` is asked: removed, updated, the app quitting, a new theme, or `start` failed. A `stop()` asked while `start` is still going runs once it has ended |
+| `terminating` | `stop()` is asked: removed, updated, the app quitting, a new theme, restarted from Settings, a plugin it requires ending, or `start` failed. A `stop()` asked while `start` is still going runs once it has ended |
 | `notRunning` | it ended: `stop()` answered or its time ran out, or its page went away |
 
-A plugin launches again in a new sandbox when it is installed again, and in the same one, loaded again, when the host app's theme changes. A page that loads again by itself ends its run with the page it ran in, and launches a new one. A main process module is started once for each plugin and path while the app runs: a new sandbox asking for the same path gets the one already running. One whose code changed is taken up at the app's next start; Settings asks for the restart.
+A plugin launches again in a new sandbox when it is installed again, and in the same one, loaded again, when the host app's theme changes, when it is restarted from Settings, and when a plugin it requires launches again. A page that loads again by itself ends its run with the page it ran in, and launches a new one. A main process module is started once for each plugin and path while the app runs: a new sandbox asking for the same path gets the one already running. One whose code changed is taken up at the app's next start; Settings asks for the restart.
 
 Whatever deck calls after `start`, a call that throws or rejects costs that call alone: it is shown on the plugin's row in Settings, and the plugin goes on. What must outlive the sandbox is written when it changes: the sandbox can be made again at any of these times.
 

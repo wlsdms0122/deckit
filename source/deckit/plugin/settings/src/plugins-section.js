@@ -134,6 +134,11 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
         const version = ui.element('span', { className: 'settings-plugin-version' });
         const contributions = ui.element('div', { className: 'settings-plugin-contributions' });
         const actions = ui.element('div', { className: 'settings-plugin-actions' });
+        const relaunchAction = ui.rowAction({
+            icon: ui.icon('reload', { size: 14 }),
+            title: 'Restart this plugin, and the plugins that require it',
+            onClick: () => relaunch(current),
+        });
         const revealAction = ui.rowAction({
             icon: ui.icon('externalWindow', { size: 14 }),
             title: 'Open the plugin folder',
@@ -151,7 +156,7 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
         row.element.classList.add('settings-plugin-columns', 'settings-plugin-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
         nameCell.append(caret, name);
-        actions.append(revealAction.element, removeAction.element, source.element);
+        actions.append(relaunchAction.element, revealAction.element, removeAction.element, source.element);
         row.element.append(nameCell, version, contributions, actions);
         // Selectable: this is what gets pasted into a bug report.
         ui.selectable(failure);
@@ -177,6 +182,7 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
                     (text) => chip({ ui, text, muted: !labels.length }).element
                 )
             );
+            relaunchAction.element.hidden = !plugin.state;
             removeAction.element.hidden = !plugin.installed;
             source.element.hidden = !!(plugin.installed || plugin.shipped);
             source.element.title =
@@ -283,6 +289,15 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
         });
     }
 
+    async function relaunch(plugin) {
+        try {
+            await plugins.relaunch(plugin.id);
+        } catch (error) {
+            return showNotice('Could not restart: ' + error.message);
+        }
+        onChange();
+    }
+
     async function remove(plugin, { withData }) {
         try {
             await plugins.remove(plugin.id, withData);
@@ -303,6 +318,7 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
             version: plugin?.version,
             installed: plugin?.installed,
             shipped: plugin?.shipped,
+            state: plugin?.state,
             folder: plugin?.folder,
             permissions: plugin?.permissions,
             mainProcessFailure: plugin?.mainProcess.failure,
