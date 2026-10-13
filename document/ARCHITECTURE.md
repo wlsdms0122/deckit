@@ -42,9 +42,11 @@ The pages never speak to each other. Main carries everything between them, and e
 | Fact | Owner |
 |---|---|
 | whether the panel is on screen, and where | the app's shell, asked through `feature/panel/main.js` |
-| which plugins run, each in its sandbox | `service/deck/lifecycle.js` |
+| what a plugin's run is: its states, its transitions and what each tells | `service/plugin/lifecycle.js` |
+| the plugins found, and their order | `service/deck/catalog.js` |
+| which plugins run, each in its sandbox, and where each run is in its lifecycle | `service/deck/runner.js` |
 | which plugin is on screen, and back and forward | `feature/panel/main.js` |
-| the plugins found, their order, their main process modules, their settings and exports | `service/deck/main.js` |
+| what a plugin exports, its settings, its main process modules | `service/deck/export.js`, `setting.js`, `main-process.js` |
 | which page is which plugin | `service/deck/identity.js` |
 | what a keystroke means | `service/keymap/main.js`; a page only hears the chords it may act on |
 | who opens an address | `service/open/main.js`, in the order the person set |
@@ -52,6 +54,8 @@ The pages never speak to each other. Main carries everything between them, and e
 | a plugin's data, records and settings | main, under deckit's folder (below) |
 | a plugin's web sign-ins | its own sessions, `persist:<id>:<plugin>:<name>` |
 | what the person arranged (plugin order, key overrides, each scheme's handlers) | `state/` |
+
+What a plugin is, `service/plugin` says: its manifest, its folder, its permissions, its entry and its lifecycle. deck, `service/deck`, runs plugins by it, and `service/plugin` names nothing of deck. The runner tells each transition of a run (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`); what follows a plugin's run (its exports, its settings, its main process modules, its events, its place in the panel) listens to those, or asks the run, and changes none of it.
 
 Deckit's folder is `host/folders`' `home`, or `~/.config/<id>`:
 
