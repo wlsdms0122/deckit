@@ -78,7 +78,7 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 ## Files and folders
 
 - `folderIcon({ open, size })`: a folder's icon, in the folder colour.
-- `treeRow({ depth, folder, folds, open, glyph, name, size })` returns `{ element, setActive(on), setRevealed(on) }`. Its name is marked `data-name`, what a rename types over.
+- `treeRow({ depth, folder, folds, open, glyph, name, size })` returns `{ element, setActive(on), setRevealed(on), setOpen(open) }`. Its name is marked `data-name`, what a rename types over.
 - `inlineEdit(label, { selectStem, onCommit })` renames a label in place; `onCommit(text)` answers nothing or why it refused. Resolves whether it renamed.
 - `movesInto(from, folder)`: whether a move changes anything and is possible.
 - `treeFolderAt({ row, markOf, top, topMark })` and `folderDrop(zone, { kind, path, folderAt, onDrop })`: a tree as a drop target of moves into folders.

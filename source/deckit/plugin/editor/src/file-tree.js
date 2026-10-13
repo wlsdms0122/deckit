@@ -17,7 +17,8 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
     let selections = 0;
 
     // Grown to fill, so a drop or a right click under the rows is the top folder's.
-    const rows = ui.list({ key: (item) => item.path, create: rowOf });
+    const rows = ui.list({ key: (item) => item.path, create: rowOf, update: updateRow });
+    const shownRows = new WeakMap(); // row element -> { setActive, setOpen, unsaved }
     const element = rows.element;
     element.classList.add('editor-tree');
     element.tabIndex = -1;
@@ -165,7 +166,11 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
 
     function rowOf(item) {
         if (item.empty) return ui.element('div', { className: 'editor-tree-empty', text: 'Empty folder' });
-        const { element: row, setActive } = ui.treeRow({
+        const {
+            element: row,
+            setActive,
+            setOpen,
+        } = ui.treeRow({
             depth: item.depth,
             folder: item.folder,
             open: item.open,
@@ -175,7 +180,8 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         });
         row.title = item.path;
         row.dataset.path = item.path;
-        if (item.unsaved) row.append(ui.element('span', { className: 'editor-unsaved-dot' }));
+        const unsaved = ui.element('span', { className: 'editor-unsaved-dot' });
+        row.append(unsaved);
         if (item.folder)
             row.append(
                 ui.rowAction({
@@ -184,7 +190,8 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
                     onClick: () => onFindIn(relativePath(item.path, root)),
                 }).element
             );
-        setActive(item.selected);
+        shownRows.set(row, { setActive, setOpen, unsaved });
+        updateRow(row, item);
         row.addEventListener('click', () => {
             element.focus({ preventScroll: true });
             if (!item.folder) return moveTo(item.path);
@@ -193,6 +200,15 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         });
         if (!item.folder) row.addEventListener('dblclick', () => onOpen(item.path, { preview: false }));
         return row;
+    }
+
+    // What changes of a row in place, so the one under the pointer stays the same element.
+    function updateRow(row, item) {
+        const shown = shownRows.get(row);
+        if (!shown) return;
+        shown.setActive(item.selected);
+        shown.setOpen(item.open);
+        shown.unsaved.hidden = !item.unsaved;
     }
 
     function folderUnder(under) {
