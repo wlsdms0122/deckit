@@ -42,7 +42,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
     return { show, rank: async (files, query) => (await pageRanker.rank(files, query, { limit: SHOWN })) || [] };
 
     function show() {
-        if (picker) return picker.field.select();
+        if (picker) return picker.focus();
         shown = { root: null, query: '', files: [] };
         listing = true;
         picker = ui.quickPick({
@@ -63,7 +63,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
             },
             onPick: (_relative, index) => choose(index),
             onEnter: () => {
-                if (typing || listing || shown.query !== picker.field.value || shown.root !== root()) {
+                if (typing || listing || shown.query !== picker.text() || shown.root !== root()) {
                     clearTimeout(typing);
                     typing = null;
                     pickWhenRanked = true;
@@ -90,7 +90,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
         if (!picker) return;
         const turn = ++filterTurn;
         const base = root();
-        const query = picker.field.value;
+        const query = picker.text();
         if (!base) {
             listing = false;
             shown = { root: null, query, files: [] };
@@ -116,7 +116,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
         shown = { root: base, query, files: ranked };
         truncated = listed.truncated ? listed.files.length : 0;
         draw();
-        if (pickWhenRanked && query === picker.field.value) choose(picker.active());
+        if (pickWhenRanked && query === picker.text()) choose(picker.active());
     }
 
     function draw() {
@@ -127,7 +127,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
               ? 'Listing the files…'
               : failure
                 ? 'Could not list the files: ' + failure
-                : picker.field.value
+                : picker.text()
                   ? 'No matching files'
                   : 'Type part of a file name';
         picker.set(shown.files, {
