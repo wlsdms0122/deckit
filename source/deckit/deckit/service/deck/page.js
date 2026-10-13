@@ -72,14 +72,14 @@ DeckitModule.define(
         async function run({ theme, ui, layers, show, dismiss }) {
             // Answered from the first, so a page whose plugin never started does not keep main waiting. stop() runs
             // once, after a start() still going has ended; a plugin asked to stop before its start() is not started.
-            let started = null; // the entry, once its start() is called
+            let startedEntry = null; // the entry, once its start() is called
             let starting = null;
             let stopping = null;
             PROTOCOL.stop.handle(
                 () =>
                     (stopping ??= (async () => {
                         await starting?.catch(() => {});
-                        if (typeof started?.stop === 'function') await stopOf(started);
+                        if (typeof startedEntry?.stop === 'function') await stopOf(startedEntry);
                     })())
             );
             const loaded = PROTOCOL.load.invoke();
@@ -107,12 +107,12 @@ DeckitModule.define(
                 made.reject(new Error(`${plugin.id} did not start`));
                 return notStarted(entry);
             }
-            if (stopping) return stopped(entry);
+            if (stopping) return notContributed(entry);
             const registry = registryOf();
             const deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
             made.resolve(deck);
             // Whatever start() did, stop() is told: when the run terminates, or once start() has failed.
-            started = entry;
+            startedEntry = entry;
             starting = (async () => entry.start(deck))();
             try {
                 await starting;
@@ -122,7 +122,7 @@ DeckitModule.define(
                 return notStarted(entry);
             }
             const parts = registry.close();
-            if (stopping) return stopped(entry);
+            if (stopping) return notContributed(entry);
             let exported;
             try {
                 exported = structuredClone(snapshotOf(parts.exports || {}));
@@ -136,7 +136,7 @@ DeckitModule.define(
         }
 
         // Its run terminated before it started: nothing it registered is contributed.
-        function stopped(entry) {
+        function notContributed(entry) {
             return { plugin, entry, parts: null, tell: () => {} };
         }
 

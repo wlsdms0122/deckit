@@ -15,7 +15,7 @@ DeckitModule.define(
             'deckit/service/plugin/manifest',
             'deckit/service/plugin/lifecycle',
         ],
-        provides: ['start', 'runs', 'runOf', 'currentRun', 'observe', 'closed', 'restart'],
+        provides: ['start', 'runs', 'runOf', 'currentRun', 'observe', 'whenClosed', 'restart'],
         runs: 'main',
     },
     (STORAGE, LOG, EVENT_BUS, IDENTITY, CATALOG, WEB, KEYMAP, OPEN, PROTOCOL, ORIGIN, MANIFEST, LIFECYCLE) => {
@@ -78,7 +78,7 @@ DeckitModule.define(
         }
 
         // Resolves once the plugin's sandbox that is closing has closed, and whatever runs in its place has launched.
-        function closed(pluginId) {
+        function whenClosed(pluginId) {
             return sandboxes.get(pluginId)?.closing || Promise.resolve();
         }
 
@@ -155,12 +155,12 @@ DeckitModule.define(
             webContents.loadURL(addressOf(plugin));
         }
 
-        // What runs in its place opens once it has closed, unless the run ended for good (a quit came meanwhile).
+        // What runs in its place opens once it has closed.
         function closeSandbox(sandbox, reason) {
             sandbox.closing = terminate(sandbox, reason).then(() => {
                 if (!sandbox.view.webContents.isDestroyed()) sandbox.view.webContents.close();
                 sandboxes.delete(sandbox.plugin.id);
-                if (sandbox.run.relaunches) reconcile();
+                reconcile();
             });
         }
 
@@ -186,11 +186,11 @@ DeckitModule.define(
             if (run.state === 'notRunning') return Promise.resolve();
             const terminating = run.state === 'terminating';
             run.terminate(reason);
-            return terminating ? sandbox.stopping : ended(sandbox);
+            return terminating ? sandbox.stopping : endAfterStop(sandbox);
         }
 
         // A terminating run ends once its stop() has answered.
-        function ended(sandbox) {
+        function endAfterStop(sandbox) {
             const { run, view } = sandbox;
             sandbox.stopping = stop(view).then(() => run.state === 'terminating' && run.didTerminate());
             return sandbox.stopping;
@@ -224,7 +224,9 @@ DeckitModule.define(
                 const sandbox = sandboxes.get(IDENTITY.pluginFrom(sender).id);
                 if (sandbox.closing) throw new Error(`${sandbox.plugin.id} is going`);
                 // A page that loaded again by itself runs again: the run it had ended with the document it ran in.
+                // Nothing launches while the app quits.
                 if (sandbox.run.state !== 'launching') {
+                    if (quitting) throw new Error(`${sandbox.plugin.id} does not launch while the app quits`);
                     crash(sandbox, sandbox.run, 'its page loaded again');
                     launch(sandbox);
                 }
@@ -246,10 +248,10 @@ DeckitModule.define(
                 const sandbox = sandboxFrom(sender, number);
                 if (sandbox?.run.state !== 'launching') return;
                 sandbox.run.didFailToLaunch(problem);
-                ended(sandbox);
+                endAfterStop(sandbox);
             });
         }
 
-        return { start, runs, runOf, currentRun, observe, closed, restart };
+        return { start, runs, runOf, currentRun, observe, whenClosed, restart };
     }
 );

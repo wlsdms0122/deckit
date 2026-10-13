@@ -147,7 +147,7 @@ DeckitModule.define(
             const manifest = INSTALL.install(from, shadowed);
             MAIN_PROCESS.restartFor(manifest.id);
             CATALOG.refresh({ installed: manifest.id });
-            await RUNNER.closed(manifest.id);
+            await RUNNER.whenClosed(manifest.id);
             return {
                 ...MANIFEST.of(manifest),
                 restart: MAIN_PROCESS.restartPending().some(({ id }) => id === manifest.id),
@@ -169,7 +169,7 @@ DeckitModule.define(
             REMOVE.remove(id);
             MAIN_PROCESS.unload(id);
             CATALOG.refresh();
-            await RUNNER.closed(id);
+            await RUNNER.whenClosed(id);
             const removed = { data: data && REMOVE.forgetData(id) };
             if (removed.data) await forget(id);
             return removed;
