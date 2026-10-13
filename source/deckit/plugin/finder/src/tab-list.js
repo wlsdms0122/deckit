@@ -1,11 +1,12 @@
 const { nameOf, parentOf } = require('./path.js');
 const { sidebarRow } = require('./sidebar-row.js');
 
-// The tabs, each at a location with its own history, pick, filter and column widths, listed in the sidebar; closed ones
-// are kept to reopen. This list alone writes a tab; the others read the tab in front through its queries and change it
-// through its setters. A tab coming in front or going somewhere is given what to do once its folder is read ({ select,
-// scroll }, taken with `takeWhenRead()`), and `onEnter()` hears it; `onLeave()` hears the tab in front about to give
-// its place.
+// The tabs, each at a location with its own history, selection, filter and column widths, listed in the sidebar; closed
+// ones are kept to reopen. A selection is entries of one folder: the lead, the one the keys and the columns follow, and
+// the anchor a range is drawn from. This list alone writes a tab; the others read the tab in front through its queries
+// and change it through its setters. A tab coming in front or going somewhere is given what to do once its folder is
+// read ({ select, scroll }, taken with `takeWhenRead()`), and `onEnter()` hears it; `onLeave()` hears the tab in front
+// about to give its place.
 function tabList({
     ui,
     chordOf,
@@ -77,6 +78,8 @@ function tabList({
         front: () => front,
         location: () => front?.location ?? null,
         selectedPath: () => front?.selected ?? null,
+        selection: () => front?.selection ?? [],
+        anchor: () => front?.anchor ?? null,
         filter: () => ({ text: front?.filter ?? '', folder: front?.filterFolder ?? null }),
         widths: () => front?.widths ?? {},
         canGoBack: () => !!front?.back.length,
@@ -84,6 +87,7 @@ function tabList({
         locations: () => tabs.map((tab) => tab.location),
         folderAt,
         select,
+        setSelection,
         setFilter,
         clearFilter,
         takeWhenRead,
@@ -110,8 +114,16 @@ function tabList({
         return tab?.location ? { folder: tab.location, mark: row } : null;
     }
 
+    // The one entry at `path`, or none.
     function select(path) {
-        front.selected = path;
+        setSelection(path ? [path] : [], { lead: path, anchor: path });
+    }
+
+    // `paths` are entries of one folder, `lead` among them.
+    function setSelection(paths, { lead, anchor }) {
+        front.selection = paths;
+        front.selected = lead;
+        front.anchor = anchor;
     }
 
     function setFilter(text, folder) {
@@ -140,6 +152,8 @@ function tabList({
             back: [],
             forward: [],
             selected: null,
+            selection: [],
+            anchor: null,
             filter: '',
             filterFolder: null,
             scroll: 0,
@@ -205,6 +219,8 @@ function tabList({
         }
         tab.location = location;
         tab.selected = null;
+        tab.selection = [];
+        tab.anchor = null;
         tab.filter = '';
         tab.filterFolder = null;
         return enter(tab, { select: from, scroll: from ? 'reveal' : 0 });
@@ -243,8 +259,11 @@ function tabList({
             tab.location = follow(tab.location) ?? fallback;
             tab.back = followHistory(tab.back, follow);
             tab.forward = followHistory(tab.forward, follow);
-            // A pick that went is left as is; the next draw cuts it back once the listings no longer hold it.
-            tab.selected = tab.selected && (follow(tab.selected) ?? tab.selected);
+            // A selection that went is left as is; the next draw cuts it back once the listings no longer hold it.
+            const followed = (path) => path && (follow(path) ?? path);
+            tab.selected = followed(tab.selected);
+            tab.selection = tab.selection.map(followed);
+            tab.anchor = followed(tab.anchor);
             tab.widths = followWidths(tab.widths, follow);
         }
         const kept = closed

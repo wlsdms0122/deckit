@@ -63,7 +63,7 @@ function listView({ ui, icons, onSort }) {
     `;
     const rowParts = new WeakMap(); // row element -> its row
     let shown = COLUMNS;
-    let selected = null;
+    let selection = new Set();
 
     const header = ui.element('div', { className: 'finder-list-header' });
     const rows = ui.list({ key: (entry) => entry.path, create: createRow, update: updateRow });
@@ -86,17 +86,17 @@ function listView({ ui, icons, onSort }) {
         return true;
     }
 
-    function draw({ entries, selected: path, sortOrder }) {
-        selected = path;
+    function draw({ entries, selection: paths, sortOrder }) {
+        selection = new Set(paths);
         drawHeader(sortOrder);
         icons.request(entries);
         rows.set(entries);
     }
 
-    // Marks the row of `path` in place, the rows kept as they are.
-    function select(path) {
-        selected = path;
-        for (const row of rows.element.children) rowParts.get(row).setActive(row.dataset.path === path);
+    // Marks the rows of `paths` in place, the rows kept as they are.
+    function select(paths) {
+        selection = new Set(paths);
+        for (const row of rows.element.children) rowParts.get(row).setActive(selection.has(row.dataset.path));
     }
 
     function drawHeader(sortOrder) {
@@ -143,7 +143,7 @@ function listView({ ui, icons, onSort }) {
             template(),
         ];
         refillWhenChanged(element, signature, () => fillRow(element, entry));
-        rowParts.get(element).setActive(entry.path === selected);
+        rowParts.get(element).setActive(selection.has(entry.path));
     }
 
     function fillRow(element, entry) {

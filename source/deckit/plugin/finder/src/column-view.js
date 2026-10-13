@@ -51,7 +51,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
     `;
     const columnParts = new WeakMap(); // column element -> { rows, message }
     const cellParts = new WeakMap(); // cell element -> its row
-    let drawn = { tab: null, widths: {}, folders: new Map(), selected: null };
+    let drawn = { tab: null, widths: {}, folders: new Map(), selected: null, selection: [] };
     // The column being resized and its tab: a redraw meanwhile leaves its width alone, and the width is saved to that
     // tab even if another is in front by then.
     let sizing = null;
@@ -81,9 +81,16 @@ function columnView({ ui, icons, entryAt, onResize }) {
     }
 
     // `tab` is the tab drawn, for whom a resize is; `widths` its column widths by folder. `folders` are { folder,
-    // listing, entries, filtering }; `previewed` is the picked file, or null.
-    function draw({ tab, widths, folders, selected, previewed }) {
-        drawn = { tab, widths, selected, folders: new Map(folders.map((column) => [column.folder, column])) };
+    // listing, entries, filtering }; `selected` is the lead of the `selection`; `previewed` is the picked file, or
+    // null.
+    function draw({ tab, widths, folders, selected, selection, previewed }) {
+        drawn = {
+            tab,
+            widths,
+            selected,
+            selection,
+            folders: new Map(folders.map((column) => [column.folder, column])),
+        };
         for (const { listing, entries } of folders) if (listing && !listing.failure) icons.request(entries);
         columns.set(folders.map((column) => column.folder));
         preview?.remove();
@@ -179,15 +186,15 @@ function columnView({ ui, icons, entryAt, onResize }) {
         return cell.element;
     }
 
-    // A folder on the way to the pick is marked with it.
+    // A folder on the way to the lead is marked with the selection.
     function updateCell(element, entry) {
         refillWhenChanged(element, [entry.name, entry.kind, entry.hidden, icons.urlOf(entry)], () =>
             fillCell(element, entry)
         );
-        const { selected } = drawn;
+        const { selected, selection } = drawn;
         cellParts
             .get(element)
-            .setActive(!!selected && (selected === entry.path || selected.startsWith(entry.path + '/')));
+            .setActive(selection.includes(entry.path) || (!!selected && selected.startsWith(entry.path + '/')));
     }
 
     function fillCell(element, entry) {

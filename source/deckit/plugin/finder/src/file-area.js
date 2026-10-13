@@ -105,10 +105,13 @@ function fileArea({
         onDraw();
     }
 
-    // Columns follow the pick; the list only marks it, so the rest stays as drawn.
+    // Columns follow the lead; the list only marks the selection, so the rest stays as drawn.
     function showSelection() {
         if (view === 'columns') draw();
-        else list.select(tabs.selectedPath());
+        else {
+            list.select(tabs.selection());
+            footer.textContent = countText();
+        }
     }
 
     function reveal(path) {
@@ -162,8 +165,10 @@ function fileArea({
         });
     }
 
+    // Down to the lead, or with more than one entry selected, down to the folder that holds them.
     function columnFolders() {
-        return columns.foldersOf(tabs.location(), tabs.selectedPath());
+        const lead = tabs.selectedPath();
+        return columns.foldersOf(tabs.location(), tabs.selection().length > 1 ? parentOf(lead) : lead);
     }
 
     function shownFolders() {
@@ -206,7 +211,7 @@ function fileArea({
     function drawList(loading, failure) {
         const location = tabs.location();
         const entries = loading || failure ? [] : entriesIn(location);
-        list.draw({ entries, selected: tabs.selectedPath(), sortOrder });
+        list.draw({ entries, selection: tabs.selection(), sortOrder });
         status.draw({
             folder: location,
             loading,
@@ -222,12 +227,14 @@ function fileArea({
         const folders = columnFolders();
         for (const folder of folders) listings.request(folder);
         const selected = tabs.selectedPath();
+        const selection = tabs.selection();
         const filter = tabs.filter();
-        const picked = listings.entryAt(selected);
+        const picked = selection.length > 1 ? null : listings.entryAt(selected);
         columns.draw({
             tab: tabs.front(),
             widths: tabs.widths(),
             selected,
+            selection,
             folders: folders.map((folder) => ({
                 folder,
                 listing: listings.of(folder),
@@ -242,20 +249,32 @@ function fileArea({
         const filter = tabs.filter();
         const counted = filter.text ? filter.folder : walkedFolder();
         const total = (listings.of(counted)?.entries ?? []).filter((entry) => isVisible(entry, showsHidden())).length;
+        const selected = tabs.selection().length;
+        if (selected > 1) return `${selected} of ${filter.text ? entriesIn(counted).length : total} selected`;
         if (!filter.text) return `${total} item${total === 1 ? '' : 's'}`;
         return `${entriesIn(counted).length} of ${total} item${total === 1 ? '' : 's'}`;
     }
 
+    // The lead is held by `heldSelection`; the rest of the selection keeps what its folder still holds and shows, a
+    // filter or not.
     function holdSelection() {
-        tabs.select(
-            heldSelection({
-                location: tabs.location(),
-                selected: tabs.selectedPath(),
-                inColumns: view === 'columns',
-                listingOf: listings.of,
-                showHidden: showsHidden(),
-            })
-        );
+        const lead = tabs.selectedPath();
+        const held = heldSelection({
+            location: tabs.location(),
+            selected: lead,
+            inColumns: view === 'columns',
+            listingOf: listings.of,
+            showHidden: showsHidden(),
+        });
+        if (held !== lead) tabs.select(held);
+        else if (held && tabs.selection().length > 1 && listings.of(parentOf(held))) {
+            const listing = listings.of(parentOf(held));
+            const shown = new Set(
+                (listing?.entries ?? []).filter((entry) => isVisible(entry, showsHidden())).map((entry) => entry.path)
+            );
+            const kept = tabs.selection().filter((path) => path === held || shown.has(path));
+            if (kept.length !== tabs.selection().length) tabs.setSelection(kept, { lead: held, anchor: tabs.anchor() });
+        }
         // The filter goes when its folder does.
         const filter = tabs.filter();
         if (filter.text && !shownFolders().includes(filter.folder)) clearFilter();
