@@ -13,9 +13,9 @@ DeckitModule.define(
                 box-sizing: border-box;
                 min-height: var(--deckit-title-bar-area-height, 0px);
                 margin-left: var(--deckit-title-bar-area-x, 0px);
-                -webkit-app-region: drag;
                 transition: margin-left var(--deckit-base) var(--deckit-easing);
             }
+            [data-deckit-title-bar] .deckit-title-bar { -webkit-app-region: drag; }
             .deckit-title-bar :is(button, input, textarea, select, a[href], [role='button'], [tabindex], [contenteditable]) {
                 -webkit-app-region: no-drag;
             }

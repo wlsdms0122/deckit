@@ -47,6 +47,16 @@ DeckitModule.define(
             });
             Object.assign(parts.content.style, { width: '100%', flex: '1 1 auto', minHeight: '0' });
             content.append(parts.content);
+            // Where the window's buttons stand, the panel's whatever is drawn there: it drags the window, so a window
+            // can be moved however the plugin on screen draws its top. Last, so a region the plugin keeps from dragging
+            // does not take it back.
+            const buttonsRoom = element('div', {
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                display: 'none',
+                webkitAppRegion: 'drag',
+            });
             const sidebar = SIDEBAR.make({
                 theme,
                 ui,
@@ -60,7 +70,7 @@ DeckitModule.define(
                 onCollapsedChange: () => dress(),
                 chordOf: (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action)),
             });
-            root.append(sidebar.element, content);
+            root.append(sidebar.element, content, buttonsRoom);
             document.body.appendChild(root);
             dress();
             showState(setup.state, false);
@@ -105,6 +115,12 @@ DeckitModule.define(
             // (`ui.titleBar`): as tall as the bar, from past the window's buttons when the sidebar is collapsed.
             function dress() {
                 const bar = look.titleBar;
+                document.documentElement.toggleAttribute('data-deckit-title-bar', !!bar);
+                Object.assign(buttonsRoom.style, {
+                    display: bar ? 'block' : 'none',
+                    width: (bar?.controlsWidth || 0) + 'px',
+                    height: (bar?.height || 0) + 'px',
+                });
                 const page = document.documentElement.style;
                 page.setProperty('--deckit-title-bar-area-height', (bar?.height || 0) + 'px');
                 page.setProperty(
