@@ -25,6 +25,7 @@ DeckitModule.define(
             'deckit/ui/component/loading',
             'deckit/ui/component/fonts',
             'deckit/ui/component/modal',
+            'deckit/ui/component/quick-pick',
             'deckit/ui/component/color-picker',
             'deckit/ui/component/dialog',
         ],
