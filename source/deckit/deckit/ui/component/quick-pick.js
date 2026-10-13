@@ -36,7 +36,7 @@ DeckitModule.define(
             }
             .deckit-quick-pick-rule { margin: 2px 0 4px; border-top: var(--deckit-border); }
             .deckit-quick-pick-list { max-height: 44vh; overflow-y: auto; }
-            .deckit-quick-pick-message { padding: 10px 12px; opacity: 0.45; }
+            .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; opacity: 0.45; }
             .deckit-quick-pick-message:empty { display: none; }
             .deckit-quick-pick-note {
                 margin-top: 4px;
@@ -123,8 +123,9 @@ DeckitModule.define(
                 return true;
             }
 
-            // `active` is the option made active, -1 for none; `message` is said under the list, `note` at its foot.
-            function set(items, { active = 0, message: said = '', note: noted = '' } = {}) {
+            // `active` is the option made active, -1 for none; `message` is said under the list, after a spinner while
+            // `loading`; `note` is at its foot.
+            function set(items, { active = 0, message: said = '', note: noted = '', loading = false } = {}) {
                 rows.set(items);
                 options = items.filter((item) => optionOf(item));
                 listbox.set(
@@ -134,7 +135,7 @@ DeckitModule.define(
                     })),
                     { active }
                 );
-                message.textContent = said;
+                message.replaceChildren(...(loading ? [ui.spinner().element] : []), said);
                 note.textContent = noted;
             }
 
