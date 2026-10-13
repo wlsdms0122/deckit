@@ -15,10 +15,12 @@ DeckitModule.define(
         // A plugin reaches another only through what that one exports, and only one it requires.
         function start() {
             PROTOCOL.requirements.handle((_payload, sender) => requirementsOf(IDENTITY.pluginFrom(sender)));
-            PROTOCOL.callExport.handle(({ plugin, path, args }, sender) => {
+            // A provider running again answers once its new run has started.
+            PROTOCOL.callExport.handle(async ({ plugin, path, args }, sender) => {
                 const caller = IDENTITY.pluginFrom(sender);
                 if (!Object.hasOwn(caller.requires, plugin)) throw new Error(`${caller.id} does not require ${plugin}`);
                 const provider = providers.get(plugin);
+                await provider?.settled;
                 if (!provider?.exports?.functions.some((written) => written.join('.') === path.join('.'))) {
                     throw new Error(`${plugin} exports no function ${path.join('.')}`);
                 }

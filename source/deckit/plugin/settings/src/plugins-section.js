@@ -10,6 +10,7 @@ const { section } = require('./section.js');
 function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChange }) {
     const TITLE = 'Plugins';
     const KEYWORDS = ['플러그인', '설치', '삭제', 'plugins', 'install', 'remove'];
+    const STARTING = 'starting: its start() has not finished';
     const DESCRIPTION =
         'Install a plugin from its folder, or remove one you no longer need. Open a row to see what it adds, what it ' +
         'needs and where its files are.';
@@ -65,8 +66,10 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
             color: var(--deckit-alert);
             font: var(--deckit-type-small);
             line-height: 1.5;
+            white-space: pre-line;
             word-break: break-word;
         }
+        .settings-plugin-failure[data-starting] { color: var(--deckit-muted); }
         .settings-notice {
             margin: 8px 0 0;
             padding: 8px 10px;
@@ -176,8 +179,14 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
             source.element.hidden = !!plugin.installed;
             source.element.title =
                 `Read from ${plugin.folder || 'a source folder'}, ` + 'not installed: it is removed there, not here.';
-            failure.textContent = plugin.notLoaded || plugin.problem || '';
+            failure.textContent = [
+                plugin.notLoaded || plugin.problem,
+                ...(plugin.hides || []).map((folder) => `${folder} has the same id and is not read`),
+            ]
+                .filter(Boolean)
+                .join('\n');
             failure.hidden = !failure.textContent;
+            failure.toggleAttribute('data-starting', failure.textContent === STARTING);
             details.set(plugin, handlerLists);
         }
 
@@ -283,9 +292,9 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
     }
 
     // One row per plugin: the running ones first, in the order the panel loaded them so the list matches the nav, then
-    // the ones found on disk that did not load. `notLoaded` is why one is not running, `problem` what went wrong with
-    // one that is. Permissions are read from the folder, so one that did not load still shows the permissions it asks
-    // for.
+    // the ones found on disk that did not load or are still starting. `notLoaded` is why one is not running, `problem`
+    // what went wrong with one that is. Permissions are read from the folder, so one that did not load still shows the
+    // permissions it asks for.
     function pluginRowsOf({ onDisk, running, shortcuts }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (plugin) => ({
@@ -295,6 +304,7 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
             permissions: plugin?.permissions,
             mainProcessFailure: plugin?.mainProcess.failure,
             requirements: plugin?.requirements,
+            hides: plugin?.hides,
         });
         const loaded = running.map((live) => {
             const found = onDisk.find((plugin) => plugin.id === live.id);
@@ -317,7 +327,7 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
                 name: plugin.name,
                 ...fromDisk(plugin),
                 keys: keysOf(plugin.id),
-                notLoaded: plugin.problem || 'did not load',
+                notLoaded: plugin.problem || (plugin.starting ? STARTING : 'did not load'),
             }));
         return [...loaded, ...notLoaded];
     }

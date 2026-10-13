@@ -33,11 +33,11 @@ DeckitModule.define(
             listen();
         }
 
-        // A plugin's view that shows web pages. Only that plugin's sessions attach there, and only the web, or a
+        // A plugin's page that shows web pages. Only that plugin's sessions attach there, and only the web, or a
         // file for a plugin with system.files, loads in them.
-        function host(view) {
-            const plugin = IDENTITY.pluginOf(view);
-            LOG.guard(view, 'will-attach-webview', (event, preferences, params) => {
+        function host(pluginPage) {
+            const plugin = IDENTITY.pluginOf(pluginPage);
+            LOG.guard(pluginPage, 'will-attach-webview', (event, preferences, params) => {
                 // A page keeps only what an element may choose; the rules between sites and the sandbox are deckit's.
                 for (const key of Object.keys(preferences)) if (!KEPT_PREFERENCES.has(key)) delete preferences[key];
                 Object.assign(preferences, {
@@ -55,25 +55,26 @@ DeckitModule.define(
                 }
                 SESSION.of(plugin.id, named[0].name);
                 const source = String(params.src || '');
-                if (source !== 'about:blank' && !mayShow(view, source, { inPage: true })) params.src = 'about:blank';
+                if (source !== 'about:blank' && !mayShow(pluginPage, source, { inPage: true }))
+                    params.src = 'about:blank';
             });
-            LOG.guard(view, 'did-attach-webview', (_event, page) => adopt(view, page, { inPage: true }));
+            LOG.guard(pluginPage, 'did-attach-webview', (_event, page) => adopt(pluginPage, page, { inPage: true }));
             // A window page answers to the document that asked for it; a new document has no delegate for it.
             const closeWindows = () => {
-                for (const entry of windows.values()) if (entry.host === view) entry.window.close();
+                for (const entry of windows.values()) if (entry.host === pluginPage) entry.window.close();
             };
-            LOG.guard(view, 'did-navigate', closeWindows);
-            view.once('destroyed', closeWindows);
+            LOG.guard(pluginPage, 'did-navigate', closeWindows);
+            pluginPage.once('destroyed', closeWindows);
         }
 
-        // The plugin's view a page shown in it answers to, so a keystroke in the page is the view's.
+        // The plugin's page a web page shown in it answers to, so a keystroke in the web page is the plugin page's.
         function hostOf(page) {
             const entry = REGISTRY.get(page.id);
             return entry?.inPage && entry.tab === page.id ? entry.host : null;
         }
 
-        function holdsKeyboard(view) {
-            return [view, ...REGISTRY.pagesIn(view)].some(
+        function holdsKeyboard(pluginPage) {
+            return [pluginPage, ...REGISTRY.pagesIn(pluginPage)].some(
                 (contents) => !contents.isDestroyed() && contents.isFocused()
             );
         }
@@ -154,12 +155,12 @@ DeckitModule.define(
             return page && !page.isDestroyed() ? page : null;
         }
 
-        // The web anywhere. A file only in the plugin's own view, and only for a plugin with system.files, asked at
+        // The web anywhere. A file only in the plugin's own page, and only for a plugin with system.files, asked at
         // each load so a plugin updated without the permission loses it at once.
-        function mayShow(view, url, { inPage }) {
+        function mayShow(pluginPage, url, { inPage }) {
             if (/^https?:\/\//i.test(url)) return true;
             if (!inPage || !/^file:\/\//i.test(url)) return false;
-            return !!IDENTITY.pluginOf(view)?.permissions.some(({ id }) => id === 'system.files');
+            return !!IDENTITY.pluginOf(pluginPage)?.permissions.some(({ id }) => id === 'system.files');
         }
 
         // A file document never becomes a web one in its page: the session given to show files would keep the web's
@@ -183,18 +184,18 @@ DeckitModule.define(
             };
         }
 
-        function report(view, page) {
-            if (!page.isDestroyed()) PROTOCOL.changed.send(view, { id: page.id, state: stateOf(page) });
+        function report(pluginPage, page) {
+            if (!page.isDestroyed()) PROTOCOL.changed.send(pluginPage, { id: page.id, state: stateOf(page) });
         }
 
-        function adopt(view, page, { inPage }) {
+        function adopt(pluginPage, page, { inPage }) {
             const id = page.id;
-            REGISTRY.add(page, { host: view, plugin: IDENTITY.pluginOf(view).id, tab: id, inPage });
+            REGISTRY.add(page, { host: pluginPage, plugin: IDENTITY.pluginOf(pluginPage).id, tab: id, inPage });
             // A page is a webContents of its own: its keystrokes reach the key map only when it is listened to.
             KEYMAP.listen(page);
             AGENT.presentAsBrowser(page);
             page.once('destroyed', () => icons.delete(id));
-            const changed = () => report(view, page);
+            const changed = () => report(pluginPage, page);
             for (const event of [
                 'did-start-loading',
                 'did-stop-loading',
@@ -206,20 +207,21 @@ DeckitModule.define(
                 LOG.guard(page, event, changed);
             }
             // Every load passes here, whoever starts it: a load asked over IPC, or the element's src, which goes
-            // straight to loadURL. The page is deckit's own, made by its view. A link followed inside is will-navigate.
+            // straight to loadURL. The page is deckit's own, made by its plugin's page. A link followed inside is
+            // will-navigate.
             const load = page.loadURL.bind(page);
             page.loadURL = (url, options) => {
                 const to = String(url || '');
                 if (leavesFile(page, to)) {
-                    PROTOCOL.leaving.send(view, { id, url: to });
+                    PROTOCOL.leaving.send(pluginPage, { id, url: to });
                     return Promise.resolve();
                 }
-                return mayShow(view, to, { inPage }) ? load(url, options) : Promise.resolve();
+                return mayShow(pluginPage, to, { inPage }) ? load(url, options) : Promise.resolve();
             };
             LOG.guard(page, 'will-navigate', (event, url) => {
                 if (!leavesFile(page, url)) return;
                 event.preventDefault();
-                PROTOCOL.leaving.send(view, { id, url: String(url) });
+                PROTOCOL.leaving.send(pluginPage, { id, url: String(url) });
             });
             // A new document starts without the last one's icon or streams; it announces its own.
             LOG.guard(page, 'did-navigate', () => {
@@ -232,28 +234,28 @@ DeckitModule.define(
                 changed();
             });
             LOG.guard(page, 'found-in-page', (_event, result) =>
-                PROTOCOL.found.send(view, {
+                PROTOCOL.found.send(pluginPage, {
                     id,
                     matches: result.matches,
                     active: result.activeMatchOrdinal,
                     final: result.finalUpdate,
                 })
             );
-            SCRIPT.attach(view, page, changed);
-            holdWindowOpen(view, page, { inPage });
+            SCRIPT.attach(pluginPage, page, changed);
+            holdWindowOpen(pluginPage, page, { inPage });
         }
 
         // In a window, every page opened is a window: a consent step's popup posts its answer back to its opener,
         // which a tab could not do. A popup keeps the page Chromium made for it, where the opener link is, and it is
         // not a child window, which macOS fastens to its parent. A file page's window would share its session, so
         // it is asked of the delegate instead.
-        function holdWindowOpen(view, page, { inPage }) {
+        function holdWindowOpen(pluginPage, page, { inPage }) {
             page.setWindowOpenHandler(({ url, disposition, frameName }) => {
                 // An app's address opened as a window is the same question as one navigated to.
                 if (!/^https?:\/\//i.test(url)) {
                     const at = REGISTRY.tabOf(page);
                     if (at)
-                        PERMISSION.mayOpenApp(view, at.tab, url, page).then(
+                        PERMISSION.mayOpenApp(pluginPage, at.tab, url, page).then(
                             (ok) => ok && require('electron').shell.openExternal(url)
                         );
                     return { action: 'deny' };
@@ -269,10 +271,10 @@ DeckitModule.define(
                                 nodeIntegration: false,
                             },
                         },
-                        createWindow: (options) => openPopup(view, page, options),
+                        createWindow: (options) => openPopup(pluginPage, page, options),
                     };
                 }
-                PROTOCOL.opening.send(view, {
+                PROTOCOL.opening.send(pluginPage, {
                     id: REGISTRY.get(page.id)?.tab ?? page.id,
                     url,
                     ...windowOptions({ disposition, frameName }),
@@ -282,7 +284,7 @@ DeckitModule.define(
         }
 
         // A window a page opened answers to that page's tab, as do the windows it opens in turn.
-        function openPopup(view, opener, options) {
+        function openPopup(pluginPage, opener, options) {
             const { WebContentsView } = require('electron');
             const pageView = new WebContentsView({
                 webContents: options.webContents,
@@ -290,16 +292,16 @@ DeckitModule.define(
             });
             const page = pageView.webContents;
             const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
-            REGISTRY.add(page, { host: view, plugin: IDENTITY.pluginOf(view).id, tab });
+            REGISTRY.add(page, { host: pluginPage, plugin: IDENTITY.pluginOf(pluginPage).id, tab });
             KEYMAP.listen(page);
-            holdWindowOpen(view, page, { inPage: false });
+            holdWindowOpen(pluginPage, page, { inPage: false });
             const size = options.width && options.height ? { width: options.width, height: options.height } : null;
             showInWindow(pageView, { size: size || WINDOW_SIZE });
             return page;
         }
 
-        function openWindow(view, plugin, name, url, title) {
-            if (!mayShow(view, url, { inPage: false })) return 0;
+        function openWindow(pluginPage, plugin, name, url, title) {
+            if (!mayShow(pluginPage, url, { inPage: false })) return 0;
             const { WebContentsView } = require('electron');
             const pageView = new WebContentsView({
                 webPreferences: {
@@ -312,12 +314,12 @@ DeckitModule.define(
             const page = pageView.webContents;
             const id = page.id;
             const window = showInWindow(pageView, { title, size: WINDOW_SIZE });
-            windows.set(id, { window, host: view });
+            windows.set(id, { window, host: pluginPage });
             LOG.guard(window, 'closed', () => {
                 windows.delete(id);
-                PROTOCOL.closed.send(view, { id });
+                PROTOCOL.closed.send(pluginPage, { id });
             });
-            adopt(view, page, { inPage: false });
+            adopt(pluginPage, page, { inPage: false });
             page.loadURL(url).catch(() => {});
             return id;
         }

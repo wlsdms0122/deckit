@@ -10,7 +10,7 @@ DeckitModule.define(
             'deckit/feature/panel/main',
             'deckit/feature/switcher/protocol',
         ],
-        provides: ['start', 'reload', 'deck'],
+        provides: ['start', 'reload', 'control'],
     },
     (LOG, IDENTITY, LIFECYCLE, KEYMAP, SWITCHER, PANEL, PROTOCOL) => {
         // MARK: - Property
@@ -125,7 +125,8 @@ DeckitModule.define(
         return {
             start,
             reload,
-            deck: {
+            // What the shell drives of it.
+            control: {
                 view: build,
                 open,
                 close,

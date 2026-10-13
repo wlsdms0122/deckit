@@ -21,8 +21,10 @@ DeckitModule.define(
         const crypto = require('crypto');
         // `${plugin id}\0${path}` -> promise of { methods, paths }: a module started once, by the first who asks.
         const modules = new Map();
-        // plugin id -> { folder, files, hash }: the files its modules required, as they were when they were.
+        // plugin id -> { folder, stamp }: its folder as it was when its first module started. A module may require any
+        // file of it, then or later, so a change anywhere in it is new code for what runs.
         const loaded = new Map();
+        const live = new Set(); // plugin ids with a module that started
         const failures = new Map(); // plugin id -> Map of module path -> why it did not start
         // What only a restart can finish: a module once required stays in the process.
         const pending = new Map(); // plugin id -> 'updated' | 'removed' | 'reinstalled'
@@ -39,20 +41,22 @@ DeckitModule.define(
         }
 
         // Before a plugin runs again: modules it started from code that has changed since keep running the old code
-        // until a restart.
+        // until a restart. Its new run asks for its modules again, so what failed before is asked again too.
         function prepare(entry) {
             const before = loaded.get(entry.id);
-            if (before && (before.folder !== entry.folder || hashOf(entry.folder, before.files) !== before.hash))
+            if (before && (before.folder !== entry.folder || stampOf(entry.folder, entry.main) !== before.stamp))
                 pending.set(entry.id, 'updated');
+            failures.delete(entry.id);
         }
 
         // A plugin taken away: whatever its modules started keeps going until the process ends.
         function unload(pluginId) {
             if (loaded.has(pluginId)) pending.set(pluginId, 'removed');
+            failures.delete(pluginId);
         }
 
         function running(pluginId) {
-            return loaded.has(pluginId);
+            return live.has(pluginId);
         }
 
         function failure(pluginId) {
@@ -84,17 +88,28 @@ DeckitModule.define(
             return { path: relative, methods: paths };
         }
 
+        // Its files are what require() adds to the cache, and require() runs to its end before anything else does.
         async function make(plugin, file, relative) {
+            if (!loaded.has(plugin.id))
+                loaded.set(plugin.id, { folder: plugin.folder, stamp: stampOf(plugin.folder, plugin.main) });
+            const before = new Set(Object.keys(require.cache));
+            let own = null;
+            const added = () => Object.keys(require.cache).filter((key) => !before.has(key));
             try {
-                const factory = require(file);
+                let factory;
+                try {
+                    factory = require(file);
+                } finally {
+                    own = added();
+                }
                 if (typeof factory !== 'function')
                     throw new Error(
                         `${relative} exports no function; a main process module is (deck) => ({ methods })`
                     );
                 const made = await factory(deckOf(plugin, relative));
                 const methods = methodsOf(made, relative);
-                remember(plugin);
                 failures.get(plugin.id)?.delete(relative);
+                live.add(plugin.id);
                 const paths = [...methods.keys()].map((key) => JSON.parse(key));
                 LOG.info(`${plugin.id} ${relative}: ${paths.map((path) => path.join('.')).join(', ') || 'no methods'}`);
                 return { methods, paths };
@@ -103,7 +118,9 @@ DeckitModule.define(
                 const why = String(error.message || error);
                 if (!failures.has(plugin.id)) failures.set(plugin.id, new Map());
                 failures.get(plugin.id).set(relative, why.startsWith(relative) ? why : `${relative}: ${why}`);
-                forget(plugin);
+                forget(plugin, own);
+                // Nothing of a plugin whose first module did not start is running: a fixed copy is no update.
+                if (!live.has(plugin.id)) loaded.delete(plugin.id);
                 throw error;
             }
         }
@@ -114,7 +131,13 @@ DeckitModule.define(
             const { methods } = await modules.get(key);
             const found = methods.get(JSON.stringify(method));
             if (!found) throw new Error(`${given} has no method ${method.join('.')}`);
-            return found(...args);
+            const answer = await found(...args);
+            try {
+                structuredClone(answer);
+            } catch (error) {
+                throw new Error(`${given} ${method.join('.')} answered what cannot be copied: ${error.message}`);
+            }
+            return answer;
         }
 
         // What a module is handed. The id is part of a window's key, so two plugins asking for "log" get two windows
@@ -150,10 +173,13 @@ DeckitModule.define(
             if (Object.hasOwn(made, 'on'))
                 throw new Error(`${relative} has a method "on", which is how its events are heard`);
             const methods = new Map();
+            const walking = new Set(); // an object that holds itself is walked once
             const walk = (value, trail) => {
                 if (typeof value === 'function') return methods.set(JSON.stringify(trail), value);
-                if (value && typeof value === 'object')
-                    for (const [key, inner] of Object.entries(value)) walk(inner, [...trail, key]);
+                if (!value || typeof value !== 'object' || walking.has(value)) return;
+                walking.add(value);
+                for (const [key, inner] of Object.entries(value)) walk(inner, [...trail, key]);
+                walking.delete(value);
             };
             walk(made, []);
             return methods;
@@ -165,30 +191,35 @@ DeckitModule.define(
             return found;
         }
 
-        // A module that threw stays cached, so a fixed version installed later would load the broken one. What the
-        // plugin's folder put in the cache goes, but for the files its running modules hold.
-        function forget(plugin) {
+        // A module that threw stays cached, so a fixed version installed later would load the broken one. What its
+        // require() put in the cache from the plugin's folder goes.
+        function forget(plugin, own) {
             const root = fs.realpathSync(plugin.folder) + path.sep;
-            const held = new Set(loaded.get(plugin.id)?.files || []);
-            for (const key of Object.keys(require.cache))
-                if (key.startsWith(root) && !held.has(key.slice(root.length))) delete require.cache[key];
+            for (const key of own) if (key.startsWith(root)) delete require.cache[key];
         }
 
-        // Every file of the folder the process has required for this plugin.
-        function remember(plugin) {
-            const root = fs.realpathSync(plugin.folder) + path.sep;
-            const files = Object.keys(require.cache)
-                .filter((key) => key.startsWith(root))
-                .map((key) => key.slice(root.length))
-                .sort();
-            loaded.set(plugin.id, { folder: plugin.folder, files, hash: hashOf(plugin.folder, files) });
-        }
-
-        function hashOf(folder, files) {
+        // Every file of the folder by its path, size and time, but for the entry, which runs in the sandbox.
+        function stampOf(folder, main) {
             const hash = crypto.createHash('sha256');
-            for (const file of files) {
-                const full = path.join(folder, file);
-                hash.update('\0' + file + '\0').update(fs.existsSync(full) ? fs.readFileSync(full) : '');
+            const entry = FOLDER.entryOf(folder, { main });
+            let root = folder;
+            const walk = (at) => {
+                for (const item of fs
+                    .readdirSync(at, { withFileTypes: true })
+                    .sort((a, b) => (a.name < b.name ? -1 : 1))) {
+                    const full = path.join(at, item.name);
+                    if (item.isDirectory()) walk(full);
+                    else if (item.isFile() && full !== entry) {
+                        const { size, mtimeMs } = fs.statSync(full);
+                        hash.update(`${path.relative(root, full)}\0${size}\0${mtimeMs}\0`);
+                    }
+                }
+            };
+            try {
+                root = fs.realpathSync(folder);
+                walk(root);
+            } catch {
+                hash.update('unreadable');
             }
             return hash.digest('hex');
         }

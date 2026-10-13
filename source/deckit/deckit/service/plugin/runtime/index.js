@@ -42,6 +42,7 @@ DeckitModule.define(
         const DEFINITION = new Set(['icon', 'keywords', 'settings', 'start', 'stop']);
         const failures = [];
         let plugin = null;
+        let pageRun = null; // which run of this page main counts this one as
 
         // MARK: - Initializer
         // MARK: - Public
@@ -67,6 +68,7 @@ DeckitModule.define(
             PROTOCOL.stop.handle(() => (stopping ??= typeof started?.stop === 'function' ? stopOf(started) : null));
             const loaded = PROTOCOL.load.invoke();
             plugin = loaded.manifest;
+            pageRun = loaded.run;
             WEB.listen();
             NOTIFY.listen(deliver);
             const definition = evaluate(loaded.source);
@@ -83,7 +85,7 @@ DeckitModule.define(
                 deliver,
                 fail,
             });
-            PROTOCOL.declare.send({ settings: SETTINGS.declarationsOf(definition.settings, fail) });
+            PROTOCOL.declare.send({ run: pageRun, settings: SETTINGS.declarationsOf(definition.settings, fail) });
             const requires = await requirementsOf();
             if (!requires) {
                 made.reject(new Error(`${plugin.id} did not start`));
@@ -125,7 +127,7 @@ DeckitModule.define(
 
         // It did not start, and why: what the plugins that require it are told.
         function notStarted(definition) {
-            PROTOCOL.stopped.send({ why: String(failures.at(-1) || 'it did not start') });
+            PROTOCOL.stopped.send({ run: pageRun, why: String(failures.at(-1) || 'it did not start') });
             return { plugin, definition, parts: null, tell: () => {} };
         }
 
@@ -141,7 +143,7 @@ DeckitModule.define(
         function fail(why) {
             LOG.warn(`${plugin?.id ?? 'a plugin'}: ${why}`);
             failures.push(why);
-            PROTOCOL.failed.send({ why: String(why) });
+            PROTOCOL.failed.send({ run: pageRun, why: String(why) });
         }
 
         // The entry runs as a CommonJS module with nothing else in reach, and is what it sets module.exports to. Who
@@ -169,6 +171,10 @@ DeckitModule.define(
             }
             if (typeof definition.start !== 'function') {
                 fail('module.exports needs start(deck)');
+                return null;
+            }
+            if (definition.stop !== undefined && typeof definition.stop !== 'function') {
+                fail('module.exports has a stop that is no function');
                 return null;
             }
             return definition;
@@ -371,6 +377,7 @@ DeckitModule.define(
             KEYMAP.scope(parts.keys, {
                 invalid: fail,
                 global: plugin.permissions.some(({ id }) => id === 'system.global-keys'),
+                onScreen: !!parts.content,
             });
             KEYMAP.connect({ layers, deliver, dismiss });
             PROTOCOL.exportCalled.handle(({ path, args }) => {
@@ -380,6 +387,7 @@ DeckitModule.define(
                 return exported(...args);
             });
             PROTOCOL.started.send({
+                run: pageRun,
                 exports: exported,
                 summary: {
                     icon: String(definition.icon || ''),

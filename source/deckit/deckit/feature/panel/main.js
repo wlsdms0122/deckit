@@ -12,7 +12,7 @@ DeckitModule.define(
             'deckit/service/keymap/main',
             'deckit/feature/panel/protocol',
         ],
-        provides: ['start', 'deck', 'showsPanel', 'dismisses', 'reveal', 'awaitReply'],
+        provides: ['start', 'control', 'showsPanel', 'dismisses', 'reveal', 'awaitReply'],
     },
     (CONFIG, STORAGE, LOG, IDENTITY, DECK, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
         // MARK: - Property
@@ -178,7 +178,7 @@ DeckitModule.define(
         // Running, and not known to have nothing to show.
         function mayShow(id) {
             const running = LIFECYCLE.pages().some(({ entry }) => entry.id === id);
-            return running && DECK.summaryOf(id)?.view !== false && !DECK.failed(id);
+            return running && DECK.summaryOf(id)?.view !== false && !DECK.hasEnded(id);
         }
 
         // In the person's order: the first plugin that has something to show, or may have once it has started. One
@@ -340,7 +340,8 @@ DeckitModule.define(
 
         return {
             start,
-            deck: {
+            // What the shell drives of it.
+            control: {
                 glass: GLASS,
                 view: () => container,
                 contains,

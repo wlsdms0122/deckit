@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/plugin/package/install',
     {
         uses: ['deckit/config', 'deckit/service/home', 'deckit/service/plugin/package/folder'],
-        provides: ['folders', 'installable', 'install', 'shipped', 'installShipped'],
+        provides: ['installed', 'installable', 'install', 'shipped', 'installShipped'],
         runs: 'node',
     },
     (CONFIG, HOME, FOLDER) => {
@@ -12,14 +12,15 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // The plugin folders in `root`, by their names exactly as on disk: on a disk that ignores case, a name
-        // matching only in another case is no plugin's. A dot name (.shipped) is deckit's own.
-        function folders(root = HOME.plugins) {
-            if (!fs.existsSync(root)) return [];
-            return fs
-                .readdirSync(root)
-                .filter((name) => !name.startsWith('.') && isFolder(path.join(root, name)))
-                .sort();
+        // The installed copies of each plugin, by id, whatever their folders are named, in the order the catalog reads
+        // them: the first is the one read.
+        function installed() {
+            const copies = new Map();
+            for (const folder of FOLDER.pluginsIn(HOME.plugins)) {
+                const id = FOLDER.idOf(folder);
+                copies.set(id, [...(copies.get(id) || []), folder]);
+            }
+            return copies;
         }
 
         // The manifest of a folder that can be installed, or a throw that says why not: a plugin deckit would not
@@ -29,16 +30,20 @@ DeckitModule.define(
             const { manifest, problem } = FOLDER.loadable(from);
             if (problem) throw new Error(problem);
             const to = path.join(HOME.plugins, manifest.id);
-            if (path.resolve(from) === path.resolve(to)) throw new Error('that folder is already the installed one');
-            if (inside(to, from) || inside(from, to))
+            const copies = installed().get(manifest.id) || [];
+            if (copies.some((copy) => path.resolve(from) === path.resolve(copy)))
+                throw new Error('that folder is already the installed one');
+            if ([...copies, to].some((installedAt) => inside(installedAt, from) || inside(from, installedAt)))
                 throw new Error('that folder is inside the installed one, or holds it');
+            if (fs.existsSync(to) && !copies.includes(to))
+                throw new Error(`${to}, where ${manifest.id} would be installed, holds another folder`);
             const refused = refuse(manifest);
             if (refused) throw new Error(refused);
             return manifest;
         }
 
-        // Installed as plugins/<id>, replaced outright, so a file the new version dropped is not left to load. Only a
-        // whole staged copy takes the old one's place. Answers the manifest.
+        // Installed as plugins/<id>, every copy before it taken away wherever it was, so a file the new version dropped
+        // is not left to load. Only a whole staged copy takes the old one's place. Answers the manifest.
         function install(from, refuse) {
             const manifest = installable(from, refuse);
             const id = manifest.id;
@@ -47,7 +52,7 @@ DeckitModule.define(
             fs.mkdirSync(HOME.staging, { recursive: true });
             fs.cpSync(from, staged, { recursive: true });
             fs.mkdirSync(HOME.plugins, { recursive: true });
-            fs.rmSync(path.join(HOME.plugins, id), { recursive: true, force: true });
+            for (const copy of installed().get(id) || []) fs.rmSync(copy, { recursive: true, force: true });
             fs.renameSync(staged, path.join(HOME.plugins, id));
             fs.rmSync(HOME.staging, { recursive: true, force: true });
             return manifest;
@@ -72,17 +77,17 @@ DeckitModule.define(
             for (const id of only || []) if (!byId.has(id)) throw new Error(`not a plugin the app ships: ${id}`);
 
             const before = shipped();
-            const installed = (id) => fs.existsSync(path.join(HOME.plugins, id));
+            const copies = installed();
             const outcomes = [];
             const take = only ? [...only] : [];
             if (!only) {
                 for (const id of byId.keys()) {
-                    if (before?.has(id) && !installed(id)) outcomes.push({ id, outcome: 'left out', version: null });
+                    if (before?.has(id) && !copies.has(id)) outcomes.push({ id, outcome: 'left out', version: null });
                     else take.push(id);
                 }
                 for (const id of before || []) {
-                    if (byId.has(id) || !installed(id)) continue;
-                    fs.rmSync(path.join(HOME.plugins, id), { recursive: true, force: true });
+                    if (byId.has(id) || !copies.has(id)) continue;
+                    for (const copy of copies.get(id)) fs.rmSync(copy, { recursive: true, force: true });
                     outcomes.push({ id, outcome: 'dropped', version: null });
                 }
             }
@@ -105,16 +110,11 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // stat, not the entry's own type: a plugin folder may be a link to one.
-        function isFolder(file) {
-            return fs.existsSync(file) && fs.statSync(file).isDirectory();
-        }
-
         function inside(parent, child) {
             const relative = path.relative(path.resolve(parent), path.resolve(child));
             return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
         }
 
-        return { folders, installable, install, shipped, installShipped };
+        return { installed, installable, install, shipped, installShipped };
     }
 );

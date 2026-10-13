@@ -13,8 +13,9 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // A plugin's keys, checked once here: { action: { key, label, run, global } }. A global key is taken from every
-        // page, fields included, so it needs a modifier and must not be one that edits text.
-        function scope(keys, { invalid, global }) {
+        // page, fields included, so it needs a modifier and must not be one that edits text. `onScreen`: the plugin has
+        // a view, where a key that is not global runs.
+        function scope(keys, { invalid, global, onScreen }) {
             const declared = [];
             for (const [action, entry] of Object.entries(keys || {})) {
                 const key = entry && CHORD.normalize(entry.key);
@@ -24,6 +25,12 @@ DeckitModule.define(
                 }
                 if (entry.global && !global) {
                     invalid(`key "${action}" cannot be global: that takes the system.global-keys permission`);
+                    continue;
+                }
+                if (!entry.global && !onScreen) {
+                    invalid(
+                        `key "${action}" never runs: a plugin with no view is never on screen, so only a global key does`
+                    );
                     continue;
                 }
                 const chord = CHORD.parse(key);

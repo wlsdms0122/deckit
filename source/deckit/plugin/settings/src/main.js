@@ -15,6 +15,9 @@ module.exports = {
         const APP_NAME = deck.about().name;
 
         const pluginIcons = new Map(); // plugin id -> its icon, as the list was last drawn
+        const STARTING_LOOK_MS = 1000;
+        let shown = false;
+        let again = null; // the next look at a plugin still starting
 
         // In every rule of this plugin, `line-height` comes after `font`: the shorthand resets it.
         ui.addStyle(`
@@ -61,13 +64,19 @@ module.exports = {
             content: page,
             sidebar: contents.element,
             didAppear: () => {
+                shown = true;
                 redraw();
                 contents.follow();
             },
-            didDisappear: () => keyboard.stopRecording(),
+            didDisappear: () => {
+                shown = false;
+                clearTimeout(again);
+                keyboard.stopRecording();
+            },
         });
         deck.commands(commands);
 
+        // A plugin still starting is looked at again while Settings is on screen, until it has started or failed.
         function redraw() {
             const { installed: onDisk, running } = deck.plugins.list();
             for (const plugin of running) pluginIcons.set(plugin.id, plugin.icon);
@@ -75,6 +84,8 @@ module.exports = {
             pluginSettings.draw();
             urlSchemes.draw();
             keyboard.draw();
+            clearTimeout(again);
+            if (shown && onDisk.some((plugin) => plugin.starting)) again = setTimeout(redraw, STARTING_LOOK_MS);
         }
 
         function commands() {

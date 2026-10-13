@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/plugin/package/folder',
     {
         uses: ['deckit/service/plugin/package/manifest'],
-        provides: ['idOf', 'loadable', 'entryOf', 'fileIn'],
+        provides: ['pluginsIn', 'idOf', 'loadable', 'entryOf', 'fileIn'],
         runs: 'node',
     },
     (MANIFEST) => {
@@ -12,6 +12,19 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
+        // The plugin folders in `root`, in the order of their names exactly as on disk: on a disk that ignores case, a
+        // name matching only in another case is no plugin's. A folder with no manifest is not a broken plugin but no
+        // plugin, and a dot name (.shipped) is deckit's own.
+        function pluginsIn(root) {
+            if (!fs.existsSync(root)) return [];
+            return fs
+                .readdirSync(root)
+                .filter((name) => !name.startsWith('.'))
+                .sort()
+                .map((name) => path.join(root, name))
+                .filter((folder) => isFolder(folder) && fs.existsSync(path.join(folder, MANIFEST.FILE)));
+        }
+
         // Who the plugin in a folder is: the id its manifest gives, or the folder's name when it gives none.
         function idOf(folder) {
             return loadable(folder).manifest.id;
@@ -53,11 +66,16 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // stat, not the entry's own type: a plugin folder may be a link to one.
+        function isFolder(file) {
+            return fs.existsSync(file) && fs.statSync(file).isDirectory();
+        }
+
         function textOf(folder) {
             const file = path.join(folder, MANIFEST.FILE);
             return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
         }
 
-        return { idOf, loadable, entryOf, fileIn };
+        return { pluginsIn, idOf, loadable, entryOf, fileIn };
     }
 );

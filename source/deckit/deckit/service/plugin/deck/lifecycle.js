@@ -21,7 +21,7 @@ DeckitModule.define(
         // How long a plugin's stop() may take before its sandbox ends anyway.
         const STOP_LIMIT_MS = 2000;
         let makePage = null;
-        let quitting = false;
+        let stopping = null; // every plugin stopping as the app quits
 
         // MARK: - Initializer
         // Every plugin that loads runs in a page of its own, whether or not it has anything to show. `makePage()` makes
@@ -31,13 +31,14 @@ DeckitModule.define(
             DECK.onChange(reconcile);
             DECK.onStatus(notify);
             reconcile(DECK.plugins());
-            // The app quits once every plugin has stopped.
-            require('electron').app.on('before-quit', (event) => {
-                if (quitting) return;
+            // The app quits once every plugin has stopped. Held at will-quit, once every window has closed and the quit
+            // is decided; a quit asked again meanwhile waits too. Then the process ends as it would have, with the
+            // exit code the host app set, and is not asked a second time.
+            const { app } = require('electron');
+            app.on('will-quit', (event) => {
                 event.preventDefault();
-                quitting = true;
-                Promise.all([...running.values()].map(({ page }) => stopped(page))).then(() =>
-                    require('electron').app.quit()
+                stopping ??= Promise.all([...running.values()].map(({ page }) => stopped(page))).then(() =>
+                    app.exit(process.exitCode ?? 0)
                 );
             });
         }
@@ -146,6 +147,9 @@ DeckitModule.define(
                 'console-message',
                 ({ level, message }) => level === 'error' && LOG.error(`${entry.id}: ${message}`)
             );
+            // It runs at full speed off screen: it is the plugin running, not a tab put away. Chromium takes the
+            // preference back at each load, so it is given again as each one finishes.
+            LOG.guard(contents, 'did-finish-load', () => contents.setBackgroundThrottling(false));
             running.set(entry.id, { page, entry });
             contents.loadURL(origin + '/');
         }

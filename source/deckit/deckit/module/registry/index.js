@@ -7,7 +7,7 @@
     globalThis.DeckitModule = Object.freeze({ define, use });
 
     // MARK: - Public
-    // `runs` is the build's: it reads every declaration by running the file against a recorder.
+    // `runs` is for whoever reads the declarations by running each file against a recorder, as the check does.
     function define(name, { uses = [], provides = [] } = {}, make) {
         if (made.has(name)) throw new Error(`[deckit] ${name} is defined twice`);
         const value = make(...resolve(name, uses));

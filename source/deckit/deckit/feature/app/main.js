@@ -97,13 +97,13 @@ DeckitModule.define(
                 theme,
             }));
             PANEL.start({ shell });
-            SWITCHER.start({ makeView: () => pageView(preload, false), shell });
+            SWITCHER.start({ makeView: () => pageView(preload, { plugin: false }), shell });
             KEYMAP.connect({ pageOf: LIFECYCLE.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
-            LIFECYCLE.start({ makePage: () => pageView(preload, true) });
+            LIFECYCLE.start({ makePage: () => pageView(preload, { plugin: true }) });
             shell.start({
                 setTheme,
-                panel: PANEL.deck,
-                switcher: SWITCHER.deck,
+                panel: PANEL.control,
+                switcher: SWITCHER.control,
                 window: { place: WINDOW.place },
                 keymap: { listen: KEYMAP.listen },
             });
@@ -151,8 +151,9 @@ DeckitModule.define(
             }
         }
 
-        // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so the glass under it shows.
-        function pageView(preload, webview) {
+        // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so the glass under it shows. A
+        // plugin's page may show the web.
+        function pageView(preload, { plugin }) {
             const { WebContentsView } = require('electron');
             const view = new WebContentsView({
                 webPreferences: {
@@ -160,7 +161,7 @@ DeckitModule.define(
                     session: SESSION.own(),
                     sandbox: true,
                     contextIsolation: true,
-                    webviewTag: webview,
+                    webviewTag: plugin,
                     transparent: true,
                 },
             });

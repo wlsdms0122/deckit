@@ -23,7 +23,7 @@ DeckitModule.define(
             'prepare',
             'rerun',
             'summaryOf',
-            'failed',
+            'hasEnded',
             'ended',
             'onChange',
             'onStatus',
@@ -109,7 +109,7 @@ DeckitModule.define(
         }
 
         // Whether a plugin ended: it never started, or its page went.
-        function failed(pluginId) {
+        function hasEnded(pluginId) {
             return stopped.has(pluginId);
         }
 
@@ -155,15 +155,30 @@ DeckitModule.define(
                 );
                 return loadOf(plugin);
             });
-            PROTOCOL.declare.on(({ settings }, sender) => SETTING.declare(IDENTITY.pluginFrom(sender), settings));
-            PROTOCOL.started.on(({ exports, summary }, sender) => {
+            // What an older run sent before it was replaced, still on its way, is not this run's.
+            const current = (run, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
+                return run === null || run === undefined || run === runs.get(plugin.id) ? plugin : null;
+            };
+            PROTOCOL.declare.on(({ run, settings }, sender) => {
+                const plugin = current(run, sender);
+                if (plugin) SETTING.declare(plugin, settings);
+            });
+            PROTOCOL.started.on(({ run, exports, summary }, sender) => {
+                const plugin = current(run, sender);
+                if (!plugin) return;
                 EXPORT.provide(plugin.id, exports);
                 started.set(plugin.id, summary);
                 for (const listener of statusListeners) listener(plugin.id);
             });
-            PROTOCOL.failed.on(({ why }, sender) => record(IDENTITY.pluginFrom(sender).id, why));
-            PROTOCOL.stopped.on(({ why }, sender) => ended(IDENTITY.pluginFrom(sender).id, why));
+            PROTOCOL.failed.on(({ run, why }, sender) => {
+                const plugin = current(run, sender);
+                if (plugin) record(plugin.id, why);
+            });
+            PROTOCOL.stopped.on(({ run, why }, sender) => {
+                const plugin = current(run, sender);
+                if (plugin) ended(plugin.id, why);
+            });
             PROTOCOL.plugins.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
                 return describe();
@@ -202,6 +217,7 @@ DeckitModule.define(
                 manifest: publicOf(entry),
                 source: CATALOG.sourceOf(entry),
                 settings: STORAGE.settings.read(entry.id),
+                run: runs.get(plugin.id),
             };
         }
 
@@ -210,7 +226,8 @@ DeckitModule.define(
             if (!failures.has(pluginId)) failures.set(pluginId, why);
         }
 
-        // What Settings shows about every plugin folder, loaded or not, and what each running one contributes.
+        // What Settings shows about every plugin, loaded or not, and what each running one contributes. `starting`: its
+        // start() has not settled. `hides`: folders of the same id that are not read.
         function describe() {
             return {
                 installed: entries.map((entry) => ({
@@ -218,7 +235,9 @@ DeckitModule.define(
                     folder: entry.folder,
                     installed: entry.installed,
                     shipped: entry.shipped,
+                    hides: entry.hides,
                     problem: entry.problem || failures.get(entry.id) || null,
+                    starting: !entry.problem && runs.has(entry.id) && !started.has(entry.id) && !stopped.has(entry.id),
                     mainProcess: { running: MAIN_PROCESS.running(entry.id), failure: MAIN_PROCESS.failure(entry.id) },
                     requirements: entry.requirements.map((requirement) => ({
                         ...requirement,
@@ -263,11 +282,11 @@ DeckitModule.define(
 
         // Any folder, since a plugin may already run code in this process: restricting where it comes from guards
         // nothing.
-        function install(from) {
+        async function install(from) {
             const manifest = INSTALL.install(from, shadowed);
             installs.set(manifest.id, (installs.get(manifest.id) || 0) + 1);
             MAIN_PROCESS.restartFor(manifest.id);
-            refresh();
+            await refresh();
             return {
                 ...publicOf(manifest),
                 restart: MAIN_PROCESS.restartPending().some(({ id }) => id === manifest.id),
@@ -333,6 +352,6 @@ DeckitModule.define(
             return [...list].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
         }
 
-        return { start, plugins, prepare, rerun, summaryOf, failed, ended, onChange, onStatus, order, arrange };
+        return { start, plugins, prepare, rerun, summaryOf, hasEnded, ended, onChange, onStatus, order, arrange };
     }
 );

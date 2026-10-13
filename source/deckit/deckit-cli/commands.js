@@ -30,13 +30,13 @@ DeckitModule.define(
             list: {
                 about: 'the installed plugins: each version, or why it would not load',
                 run: () => {
-                    for (const name of INSTALL.folders()) {
-                        const { manifest, problem } = FOLDER.loadable(path.join(HOME.plugins, name));
-                        say(
-                            problem
-                                ? `${name.padEnd(12)} not loaded: ${problem}`
-                                : `${name.padEnd(12)} ${manifest.version}`
-                        );
+                    const read = new Set();
+                    for (const folder of FOLDER.pluginsIn(HOME.plugins)) {
+                        const { manifest, problem } = FOLDER.loadable(folder);
+                        const id = manifest.id.padEnd(12);
+                        if (read.has(manifest.id)) say(`${id} not read: another copy is (${folder})`);
+                        else say(problem ? `${id} not loaded: ${problem}` : `${id} ${manifest.version}`);
+                        read.add(manifest.id);
                     }
                     say('→ ' + HOME.plugins);
                 },

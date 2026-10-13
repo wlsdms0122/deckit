@@ -5,28 +5,26 @@ DeckitModule.define(
             'deckit/config',
             'deckit/service/home',
             'deckit/module/version',
-            'deckit/service/plugin/package/manifest',
             'deckit/service/plugin/package/folder',
             'deckit/service/plugin/package/install',
-            'deckit/service/log/main',
         ],
         provides: ['list', 'sourceOf'],
         runs: 'main',
     },
-    (CONFIG, HOME, VERSION, MANIFEST, FOLDER, INSTALL, LOG) => {
+    (CONFIG, HOME, VERSION, FOLDER, INSTALL) => {
         // MARK: - Property
         const fs = require('fs');
-        const path = require('path');
 
         // MARK: - Initializer
         // MARK: - Public
-        // Every plugin folder deckit reads, a source before an installed one of the same id, each with whether
-        // it loads and why not. A plugin that requires one that does not load does not load either.
+        // Every plugin deckit reads, a source before an installed one of the same id, each with whether it loads
+        // and why not, and the folders of the same id it hides. A plugin that requires one that does not load does not
+        // load either.
         function list() {
             const shipped = INSTALL.shipped() || new Set();
             const entries = [];
-            for (const [id, { folder, installed, manifest, problem }] of found()) {
-                entries.push({ ...manifest, folder, installed, shipped: installed && shipped.has(id), problem });
+            for (const [id, { folder, installed, manifest, problem, hides }] of found()) {
+                entries.push({ ...manifest, folder, installed, shipped: installed && shipped.has(id), problem, hides });
             }
             return withRequirements(entries);
         }
@@ -39,19 +37,21 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // By plugin id, as each folder is read. A folder with no manifest is not a broken plugin but no plugin.
+        // By plugin id, as each folder is read: the first of an id is the one read.
         function found() {
             const out = new Map();
             for (const root of [...CONFIG.sources, HOME.plugins]) {
-                for (const name of INSTALL.folders(root)) {
-                    const folder = path.join(root, name);
-                    if (!fs.existsSync(path.join(folder, MANIFEST.FILE))) continue;
+                for (const folder of FOLDER.pluginsIn(root)) {
                     const { manifest, problem } = FOLDER.loadable(folder);
-                    if (out.has(manifest.id)) {
-                        LOG.warn(`${folder} is hidden by ${out.get(manifest.id).folder}`);
-                        continue;
-                    }
-                    out.set(manifest.id, { folder, installed: root === HOME.plugins, manifest, problem });
+                    if (out.has(manifest.id)) out.get(manifest.id).hides.push(folder);
+                    else
+                        out.set(manifest.id, {
+                            folder,
+                            installed: root === HOME.plugins,
+                            manifest,
+                            problem,
+                            hides: [],
+                        });
                 }
             }
             return new Map([...out].sort(([a], [b]) => a.localeCompare(b)));
