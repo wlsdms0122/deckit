@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/notify/main',
     {
-        uses: ['deckit/service/log/main', 'deckit/service/plugin/identity', 'deckit/service/notify/protocol'],
+        uses: ['deckit/service/log/main', 'deckit/service/deck/identity', 'deckit/service/notify/protocol'],
         provides: ['start'],
     },
     (LOG, IDENTITY, PROTOCOL) => {

@@ -11,6 +11,8 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
     const TITLE = 'Plugins';
     const KEYWORDS = ['플러그인', '설치', '삭제', 'plugins', 'install', 'remove'];
     const STARTING = 'starting: its start() has not finished';
+    // What a plugin that loads but is not running is doing, by its run's state.
+    const STATE_WORDS = { launching: STARTING, terminating: 'stopping', notRunning: 'stopped' };
     const DESCRIPTION =
         'Install a plugin from its folder, or remove one you no longer need. Open a row to see what it adds, what it ' +
         'needs and where its files are.';
@@ -327,7 +329,7 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
                 name: plugin.name,
                 ...fromDisk(plugin),
                 keys: keysOf(plugin.id),
-                notLoaded: plugin.problem || (plugin.starting ? STARTING : 'did not load'),
+                notLoaded: plugin.problem || STATE_WORDS[plugin.state] || 'did not load',
             }));
         return [...loaded, ...notLoaded];
     }

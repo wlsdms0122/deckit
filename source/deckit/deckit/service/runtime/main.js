@@ -5,7 +5,7 @@ DeckitModule.define(
             'deckit/config',
             'deckit/service/home',
             'deckit/service/log/main',
-            'deckit/service/plugin/identity',
+            'deckit/service/deck/identity',
             'deckit/service/runtime/protocol',
             'deckit/service/build',
         ],

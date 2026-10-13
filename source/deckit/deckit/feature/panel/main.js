@@ -5,23 +5,25 @@ DeckitModule.define(
             'deckit/config',
             'deckit/service/storage',
             'deckit/service/log/main',
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/deck',
-            'deckit/service/plugin/deck/lifecycle',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/catalog',
+            'deckit/service/deck/runner',
+            'deckit/service/plugin/lifecycle',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/feature/panel/protocol',
         ],
         provides: ['start', 'control', 'showsPanel', 'dismisses', 'reveal', 'awaitReply'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, DECK, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
         // MARK: - Property
         const FRAME = 'panel-frame';
         const HISTORY_LIMIT = 50;
         // Main waits on a view only for an exit before it moves and a fade before it goes off screen; this guards a
         // view that is gone or stuck.
         const REPLY_TIMEOUT = 400;
-        const views = new Map(); // plugin id -> its page, while the plugin has something to show
+        const views = new Map(); // plugin id -> the view its page is in, while the plugin has something to show
+        const icons = new Map(); // plugin id -> the icon its latest run that started said it has
         const waiting = new Map(); // reply -> the wait in progress for it
         const heard = new Set(); // replies listened to
         const history = { list: [], at: -1 };
@@ -50,13 +52,15 @@ DeckitModule.define(
             LOG.guard(container, 'bounds-changed', layout);
             listen();
             registerKeys();
-            LIFECYCLE.onChange(reconcile);
+            CATALOG.onChange(reconcile);
+            RUNNER.observe('didLaunch', ({ plugin, summary }) => icons.set(plugin.id, summary.icon));
+            for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, reconcile);
             reconcile();
         }
 
         // A web page a plugin shows counts as its page; whether the page is what is on screen there is the shell's.
         function showsPanel(webContents) {
-            const page = LIFECYCLE.pageFor(webContents);
+            const page = WEB.pageFor(webContents);
             if (!page || !shown || page !== currentContents()) return false;
             return !!shell.showsPanel(page);
         }
@@ -112,7 +116,7 @@ DeckitModule.define(
             }));
             PROTOCOL.pick.on(({ id }, sender) => IDENTITY.pluginFrom(sender) && select(id));
             PROTOCOL.step.on(({ by }, sender) => IDENTITY.pluginFrom(sender) && step(by));
-            PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.pluginFrom(sender) && DECK.arrange(ids));
+            PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.pluginFrom(sender) && CATALOG.arrange(ids));
             PROTOCOL.layout.on((change, sender) => {
                 IDENTITY.pluginFrom(sender);
                 setFrame(change);
@@ -142,28 +146,33 @@ DeckitModule.define(
             });
         }
 
-        // The pages of the plugins that said they have something to show, as the plugins run. The plugin on screen
-        // whose page is replaced by a new run comes back on screen once the new page says it has something to show;
-        // until then, and when it has nothing, the panel lands as it does at the start.
+        // The pages of the plugins that said they have something to show, as the plugins run. A page shown stays while
+        // its plugin terminates, and while it launches again in that page. The plugin on screen whose page is replaced
+        // comes back on screen once the new page says it has something to show; until then, and when it has nothing,
+        // the panel lands as it does at the start.
         function reconcile() {
             const showing = new Map(
-                LIFECYCLE.pages()
-                    .filter(({ summary }) => summary?.view)
-                    .map(({ entry, page }) => [entry.id, page])
+                RUNNER.runs()
+                    .filter(({ run, view }) =>
+                        run.state === 'running'
+                            ? run.summary.view
+                            : views.get(run.plugin.id) === view && inTransition(run)
+                    )
+                    .map(({ run, view }) => [run.plugin.id, view])
             );
-            for (const [id, page] of views) {
-                if (showing.get(id) === page) continue;
-                container.removeChildView(page);
+            for (const [id, view] of views) {
+                if (showing.get(id) === view) continue;
+                container.removeChildView(view);
                 views.delete(id);
                 if (current !== id) continue;
                 current = null;
                 returning = id;
             }
-            for (const [id, page] of showing) {
+            for (const [id, view] of showing) {
                 if (views.has(id)) continue;
-                views.set(id, page);
-                page.setVisible(false);
-                container.addChildView(page);
+                views.set(id, view);
+                view.setVisible(false);
+                container.addChildView(view);
             }
             layout();
             if (returning && !mayShow(returning)) returning = null;
@@ -175,27 +184,33 @@ DeckitModule.define(
             broadcast();
         }
 
-        // Running, and not known to have nothing to show.
+        // Not known to have nothing to show.
         function mayShow(id) {
-            const running = LIFECYCLE.pages().some(({ entry }) => entry.id === id);
-            return running && DECK.summaryOf(id)?.view !== false && !DECK.hasEnded(id);
+            const run = RUNNER.runOf(id);
+            if (!run) return false;
+            return run.state === 'running' ? run.summary.view : inTransition(run);
+        }
+
+        // Launching, terminating, or ended to launch again.
+        function inTransition(run) {
+            return run.state !== 'notRunning' || run.relaunches;
         }
 
         // In the person's order: the first plugin that has something to show, or may have once it has started. One
         // still starting is waited for, so the panel lands where the order says and not on whoever started first.
         function firstShown() {
-            return DECK.plugins().find(({ id }) => mayShow(id))?.id;
+            return CATALOG.plugins().find(({ id }) => mayShow(id))?.id;
         }
 
         function layout() {
             const { width, height } = container.getBounds();
-            for (const page of views.values()) page.setBounds({ x: 0, y: 0, width, height });
+            for (const view of views.values()) view.setBounds({ x: 0, y: 0, width, height });
         }
 
         function stateOf() {
-            const plugins = DECK.plugins()
+            const plugins = CATALOG.plugins()
                 .filter(({ id }) => views.has(id))
-                .map(({ id, name }) => ({ id, name, icon: DECK.summaryOf(id)?.icon || '' }));
+                .map(({ id, name }) => ({ id, name, icon: icons.get(id) || '' }));
             return {
                 plugins,
                 current,
@@ -207,9 +222,9 @@ DeckitModule.define(
 
         function broadcast() {
             const state = stateOf();
-            for (const page of views.values()) PROTOCOL.state.send(page.webContents, state);
-            const name = DECK.plugins().find(({ id }) => id === current);
-            const title = name?.name || CONFIG.name;
+            for (const view of views.values()) PROTOCOL.state.send(view.webContents, state);
+            const plugin = CATALOG.plugins().find(({ id }) => id === current);
+            const title = plugin?.name || CONFIG.name;
             if (title !== titled) shell.panelTitled((titled = title));
         }
 
@@ -269,8 +284,8 @@ DeckitModule.define(
 
         // Whether a keystroke or a request in this webContents is the panel's: one of its pages, or a web page in one.
         function contains(webContents) {
-            const page = LIFECYCLE.pageFor(webContents);
-            return [...views.values()].some((shown) => shown.webContents === page);
+            const page = WEB.pageFor(webContents);
+            return [...views.values()].some((view) => view.webContents === page);
         }
 
         function currentContents() {
@@ -337,7 +352,7 @@ DeckitModule.define(
         // bar's height and the width the window's buttons take at its start.
         function present(next) {
             look = { floating: !!next?.floating, dismissible: !!next?.dismissible, titleBar: next?.titleBar || null };
-            for (const page of views.values()) PROTOCOL.look.send(page.webContents, look);
+            for (const view of views.values()) PROTOCOL.look.send(view.webContents, look);
         }
 
         return {

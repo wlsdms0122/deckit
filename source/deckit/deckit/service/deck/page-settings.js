@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'deckit/service/plugin/runtime/settings',
+    'deckit/service/deck/page-settings',
     {
-        uses: ['deckit/service/plugin/deck/protocol'],
+        uses: ['deckit/service/deck/protocol'],
         provides: ['of', 'declarationsOf'],
         runs: 'page',
     },

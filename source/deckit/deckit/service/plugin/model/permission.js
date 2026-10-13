@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/plugin/package/model/permission',
+    'deckit/service/plugin/model/permission',
     {
         uses: [],
         provides: ['PERMISSIONS', 'MAIN_PROCESS'],

@@ -5,7 +5,7 @@ DeckitModule.define(
             'deckit/service/window',
             'deckit/service/log/main',
             'deckit/service/keymap/main',
-            'deckit/service/plugin/identity',
+            'deckit/service/deck/identity',
             'deckit/service/web/session',
             'deckit/service/web/registry',
             'deckit/service/web/model/partition',
@@ -15,7 +15,7 @@ DeckitModule.define(
             'deckit/service/web/script',
             'deckit/service/web/protocol',
         ],
-        provides: ['start', 'host', 'hostOf', 'holdsKeyboard', 'windowOptions'],
+        provides: ['start', 'host', 'hostOf', 'pageFor', 'holdsKeyboard', 'windowOptions'],
     },
     (WINDOW, LOG, KEYMAP, IDENTITY, SESSION, REGISTRY, PARTITION, AGENT, PERMISSION, CERTIFICATE, SCRIPT, PROTOCOL) => {
         // MARK: - Property
@@ -71,6 +71,13 @@ DeckitModule.define(
         function hostOf(page) {
             const entry = REGISTRY.get(page.id);
             return entry?.inPage && entry.tab === page.id ? entry.host : null;
+        }
+
+        // The deckit page a webContents answers to: a plugin's or the switcher's own, or the plugin page that shows it
+        // as a web page.
+        function pageFor(webContents) {
+            if (IDENTITY.pluginOf(webContents) || IDENTITY.isSwitcher(webContents)) return webContents;
+            return hostOf(webContents);
         }
 
         function holdsKeyboard(pluginPage) {
@@ -342,6 +349,6 @@ DeckitModule.define(
             return window;
         }
 
-        return { start, host, hostOf, holdsKeyboard, windowOptions };
+        return { start, host, hostOf, pageFor, holdsKeyboard, windowOptions };
     }
 );

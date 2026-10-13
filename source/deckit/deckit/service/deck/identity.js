@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'deckit/service/plugin/identity',
+    'deckit/service/deck/identity',
     {
-        uses: ['deckit/service/plugin/identity/model/origin'],
+        uses: ['deckit/service/deck/model/origin'],
         provides: [
             'add',
             'whenPageEnds',
@@ -43,9 +43,9 @@ DeckitModule.define(
             if (owner.plugin) pages.set(owner.plugin.id, webContents);
             ends.set(id, new Set());
             const end = () => {
-                const runs = [...ends.get(id)];
+                const undos = [...ends.get(id)];
                 ends.get(id).clear();
-                for (const run of runs) run();
+                for (const undo of undos) undo();
             };
             // A reload or a crashed renderer keeps the webContents and its id, but the page that set things up is gone.
             // A navigation ends it only once it commits: one that pin refuses never does.
@@ -60,12 +60,12 @@ DeckitModule.define(
             });
         }
 
-        // What a page set up lasts as long as the page: `run` undoes it once, when the page navigates away, crashes or
-        // is gone. Calling what this returns drops `run` unrun.
-        function whenPageEnds(webContents, run) {
-            const runs = ends.get(webContents.id);
-            runs.add(run);
-            return () => runs.delete(run);
+        // What a page set up lasts as long as the page: `undo` is called once, when the page navigates away, crashes
+        // or is gone. Calling what this returns drops `undo` uncalled.
+        function whenPageEnds(webContents, undo) {
+            const undos = ends.get(webContents.id);
+            undos.add(undo);
+            return () => undos.delete(undo);
         }
 
         // Whether a person just pressed a key or the mouse in this page, used up by the answer: one press, one act.

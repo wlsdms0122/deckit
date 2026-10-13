@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/plugin/identity/model/origin',
+    'deckit/service/deck/model/origin',
     {
         uses: [],
         provides: ['SCHEME', 'SWITCHER_ORIGIN', 'originOf', 'pluginOfHost', 'addressOf'],

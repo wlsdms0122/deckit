@@ -5,11 +5,12 @@ DeckitModule.define(
             'deckit/config',
             'deckit/service/log/main',
             'deckit/service/window',
-            'deckit/service/plugin/package/install',
-            'deckit/service/plugin/package/folder',
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/deck',
-            'deckit/service/plugin/deck/lifecycle',
+            'deckit/service/deck/install',
+            'deckit/service/plugin/folder',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/main',
+            'deckit/service/deck/catalog',
+            'deckit/service/deck/runner',
             'deckit/service/web/session',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
@@ -21,7 +22,7 @@ DeckitModule.define(
             'deckit/feature/panel/main',
             'deckit/feature/switcher/main',
             'deckit/feature/app/protocol',
-            'deckit/service/plugin/identity/model/origin',
+            'deckit/service/deck/model/origin',
         ],
         provides: ['SCHEME', 'connect'],
     },
@@ -33,7 +34,8 @@ DeckitModule.define(
         FOLDER,
         IDENTITY,
         DECK,
-        LIFECYCLE,
+        CATALOG,
+        RUNNER,
         SESSION,
         WEB,
         KEYMAP,
@@ -105,7 +107,6 @@ DeckitModule.define(
                 for (const { id, outcome } of INSTALL.installShipped()) LOG.info(`${outcome} ${id}`);
             }
             WINDOW.start({ openWindow: (options) => shell.openWindow(options) });
-            DECK.start();
             WEB.start();
             KEYMAP.start();
             OPEN.start();
@@ -119,8 +120,8 @@ DeckitModule.define(
             }));
             PANEL.start({ shell });
             SWITCHER.start({ makeView: () => pageView(preload, { plugin: false }), shell });
-            KEYMAP.connect({ pageOf: LIFECYCLE.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
-            LIFECYCLE.start({ makePage: () => pageView(preload, { plugin: true }) });
+            KEYMAP.connect({ pageFor: WEB.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
+            DECK.start({ makeView: () => pageView(preload, { plugin: true }) });
             shell.start({
                 setTheme,
                 panel: PANEL.control,
@@ -134,7 +135,7 @@ DeckitModule.define(
         function setTheme(next) {
             if (JSON.stringify(next) === JSON.stringify(theme)) return;
             theme = next;
-            LIFECYCLE.reload();
+            RUNNER.restart();
             SWITCHER.reload();
         }
 
@@ -151,7 +152,7 @@ DeckitModule.define(
                 if (pathname === '/')
                     return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } });
                 const id = ORIGIN.pluginOfHost(host);
-                const folder = DECK.plugins().find((entry) => entry.id === id)?.folder;
+                const folder = CATALOG.plugins().find((plugin) => plugin.id === id)?.folder;
                 const file = folder && servedFile(folder, pathname);
                 return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
             });

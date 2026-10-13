@@ -6,14 +6,14 @@ DeckitModule.define(
             'deckit/service/storage',
             'deckit/service/log/main',
             'deckit/module/chord',
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/deck',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/catalog',
             'deckit/service/keymap/protocol',
             'deckit/service/keymap/model/binding-id',
         ],
         provides: ['start', 'connect', 'listen', 'register', 'chordOf'],
     },
-    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, DECK, PROTOCOL, BINDING_ID) => {
+    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, CATALOG, PROTOCOL, BINDING_ID) => {
         // MARK: - Property
         const OVERRIDES = 'keys';
         const RECORDING_MS = 20 * 1000;
@@ -24,7 +24,7 @@ DeckitModule.define(
         const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
         let overrides = {};
         let recording = null; // { webContents, timer }
-        let route = { pageOf: () => null, showsPanel: () => false, dismisses: () => false };
+        let route = { pageFor: () => null, showsPanel: () => false, dismisses: () => false };
 
         // MARK: - Initializer
         // MARK: - Public
@@ -62,8 +62,8 @@ DeckitModule.define(
 
         // Which deckit page a keystroke in a webContents belongs to, and the panel's answers: whether that page is the
         // panel on screen, and whether Escape there puts the panel away.
-        function connect({ pageOf, showsPanel, dismisses }) {
-            route = { pageOf, showsPanel, dismisses };
+        function connect({ pageFor, showsPanel, dismisses }) {
+            route = { pageFor, showsPanel, dismisses };
         }
 
         // Keystrokes in this webContents go through the key map. deckit listens on its own; an app hands its own
@@ -143,7 +143,7 @@ DeckitModule.define(
         // Global first, in the order a keystroke tries them; bindings() relies on this order to pick winners. A
         // plugin's key is global only with system.global-keys.
         function catalog() {
-            const plugins = DECK.plugins().filter(({ id }) => scopes.has(id));
+            const plugins = CATALOG.plugins().filter(({ id }) => scopes.has(id));
             const global = (plugin) => plugin.permissions.some(({ id }) => id === 'system.global-keys');
             const keysOf = (plugin, wantGlobal) =>
                 scopes.get(plugin.id).filter((key) => !!key.global === wantGlobal && (!wantGlobal || global(plugin)));
@@ -247,7 +247,7 @@ DeckitModule.define(
         }
 
         function announce() {
-            for (const plugin of DECK.plugins()) {
+            for (const plugin of CATALOG.plugins()) {
                 const view = IDENTITY.pageOf(plugin.id);
                 if (view) PROTOCOL.changed.send(view, {});
             }
@@ -262,7 +262,7 @@ DeckitModule.define(
                 own.run();
                 return true;
             }
-            const view = route.pageOf(webContents);
+            const view = route.pageFor(webContents);
             if (isEscape(input) && view && (floating.has(view.id) || route.dismisses(webContents))) {
                 PROTOCOL.escape.send(view, { last: route.dismisses(webContents) });
                 return true;

@@ -4,13 +4,13 @@ DeckitModule.define(
         uses: [
             'deckit/service/storage',
             'deckit/service/log/main',
-            'deckit/service/plugin/identity',
-            'deckit/service/plugin/deck',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/catalog',
             'deckit/service/switcher/protocol',
         ],
         provides: ['start'],
     },
-    (STORAGE, LOG, IDENTITY, DECK, PROTOCOL) => {
+    (STORAGE, LOG, IDENTITY, CATALOG, PROTOCOL) => {
         // MARK: - Property
         const USE = 'switcher-use';
         const USE_KEPT = 60;
@@ -44,7 +44,7 @@ DeckitModule.define(
 
         // MARK: - Private
         function running() {
-            return DECK.plugins().filter((plugin) => sources.has(plugin.id) && IDENTITY.pageOf(plugin.id));
+            return CATALOG.plugins().filter((plugin) => sources.has(plugin.id) && IDENTITY.pageOf(plugin.id));
         }
 
         function ownerOf(plugin) {
@@ -123,7 +123,7 @@ DeckitModule.define(
         function search(raw, page) {
             const opener = entries.get(page);
             if (!opener) return;
-            const plugin = DECK.plugins().find(({ id }) => id === opener.plugin);
+            const plugin = CATALOG.plugins().find(({ id }) => id === opener.plugin);
             ask(PROTOCOL.search, plugin, { raw, page: opener.local }, null).then((found) => {
                 if (found)
                     PROTOCOL.resolved.send(hooks.list(), {

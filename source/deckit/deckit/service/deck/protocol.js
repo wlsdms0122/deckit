@@ -1,15 +1,15 @@
 // Between a plugin's page and main. Main knows which plugin a message is from by the view it came from, and which run
 // of that page by the `run` that `load` answered, carried back by what tells main how the run went.
 DeckitModule.define(
-    'deckit/service/plugin/deck/protocol',
+    'deckit/service/deck/protocol',
     {
         uses: ['deckit/module/ipc'],
         provides: [
             'load',
             'declare',
             'started',
-            'failed',
-            'stopped',
+            'problem',
+            'notStarted',
             'stop',
             'requirements',
             'callExport',
@@ -42,14 +42,14 @@ DeckitModule.define(
         // What the page runs: the plugin's manifest, its entry's source, its settings, and which run this is.
         load: IPC.rendererToMain('deckit:plugin-load', {}, { reply: true, sync: true }),
         // Its settings, as soon as its entry is read: the declarations, without functions.
-        declare: IPC.rendererToMain('deckit:plugin-declare', { run: 'number?', settings: 'object' }),
+        declare: IPC.rendererToMain('deckit:plugin-declare', { run: 'number', settings: 'object' }),
         // Started, with what it contributes. `exports`: values copied, and the paths of its functions.
-        started: IPC.rendererToMain('deckit:plugin-started', { run: 'number?', exports: 'object', summary: 'object' }),
+        started: IPC.rendererToMain('deckit:plugin-started', { run: 'number', exports: 'object', summary: 'object' }),
         // A problem recorded against the plugin, which Settings shows.
-        failed: IPC.rendererToMain('deckit:plugin-failed', { run: 'number?', why: 'string' }),
+        problem: IPC.rendererToMain('deckit:plugin-problem', { run: 'number?', problem: 'string' }),
         // It did not start, and why: what the plugins that require it are told.
-        stopped: IPC.rendererToMain('deckit:plugin-stopped', { run: 'number?', why: 'string' }),
-        // Its sandbox is about to end: answered once the plugin's stop() has run.
+        notStarted: IPC.rendererToMain('deckit:plugin-not-started', { run: 'number?', problem: 'string' }),
+        // Its run is ending: answered once the plugin's stop() has run.
         stop: IPC.mainToRenderer('deckit:plugin-stop', { reply: true }),
         // Answers once every plugin it requires has started or failed: { [id]: { values, functions } or { error } }.
         requirements: IPC.rendererToMain('deckit:plugin-requirements', {}, { reply: true }),

@@ -1,13 +1,13 @@
 DeckitModule.define(
-    'deckit/service/plugin/package/manifest',
+    'deckit/service/plugin/manifest',
     {
         uses: [
             'deckit/module/toml',
             'deckit/module/version',
             'deckit/service/open/model/scheme',
-            'deckit/service/plugin/package/model/permission',
+            'deckit/service/plugin/model/permission',
         ],
-        provides: ['FILE', 'API', 'read', 'idProblem'],
+        provides: ['FILE', 'API', 'read', 'of', 'idProblem'],
         runs: 'any',
     },
     (TOML, VERSION, SCHEME, PERMISSION) => {
@@ -30,6 +30,12 @@ DeckitModule.define(
             }
             const manifest = manifestOf(raw, fallback);
             return { manifest, problem: problemOf(raw, manifest) };
+        }
+
+        // What a manifest says, from a plugin as deck found it, which carries its manifest among other things.
+        function of(plugin) {
+            const { id, name, version, api, main, requires, permissions, urlSchemes } = plugin;
+            return { id, name, version, api, main, requires, permissions, urlSchemes };
         }
 
         // Each plugin keeps its data in a folder named by its id, and macOS disks ignore case: "Note" and "note"
@@ -146,6 +152,6 @@ DeckitModule.define(
             return !!value && typeof value === 'object' && !Array.isArray(value);
         }
 
-        return { FILE, API, read, idProblem };
+        return { FILE, API, read, of, idProblem };
     }
 );

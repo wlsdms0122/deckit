@@ -100,7 +100,7 @@ module.exports = {
 | `keywords` | optional; the switcher's aliases for the plugin |
 | `settings` | optional; what the person can choose about the plugin (below) |
 | `start(deck)` | starts the plugin and registers what it contributes; may be async, and deck waits for it |
-| `stop()` | optional; the plugin's sandbox is ending (removed, updated, the app quitting, a new theme), whether or not `start` succeeded. It may be async, and deck waits for it a short while. A new theme runs `start` again in a new sandbox, so what `stop()` ended, `start()` starts again. A `stop()` that throws is written to the log; the row in Settings shows the run that follows |
+| `stop()` | optional; the plugin's run is ending: it terminates (removed, updated, the app quitting, a new theme), or `start` failed. It may be async, and deck waits for it a short while. A new theme launches the plugin again, so what `stop()` ended, `start()` starts again. A `stop()` that throws is written to the log; the row in Settings shows the run that follows |
 
 Any other member stops the plugin. Everything the plugin reaches is in `deck`.
 
@@ -250,17 +250,16 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 ## Lifecycle
 
-```
-deck starts
- └ for each plugin
-    1. its sandbox is made, the entry evaluated and its settings declared
-    2. once what it requires has started: start(deck), which registers, and starts main process modules if it needs them
-    3. start ends: deck contributes what it registered (keys, switcher, URL handler, exports)
-    4. a view, if it registered one, is put in the panel: didAppear and didDisappear
- ends: removed, updated, the app quitting, a new theme: stop()
-```
+Each launch of a plugin's entry is a run, and a run is in one of four states:
 
-The sandbox is made again when the plugin is installed again and when the host app's theme changes, and `start` runs again in it. A main process module is started once for each plugin and path while the app runs: a new sandbox asking for the same path gets the one already running. One whose code changed is taken up at the app's next start; Settings asks for the restart.
+| State | What happens |
+|---|---|
+| `launching` | its sandbox loads, the entry is evaluated and its settings declared; once what it requires is running, `start(deck)` registers, and starts main process modules if it needs them |
+| `running` | `start` has ended and deck has joined what it registered (keys, switcher, URL handler, exports); a view, if it registered one, is in the panel: didAppear and didDisappear |
+| `terminating` | `stop()` is asked: removed, updated, the app quitting, a new theme, or `start` failed. A `stop()` asked while `start` is still going runs once it has ended |
+| `notRunning` | it ended: `stop()` answered or its time ran out, or its page went away |
+
+A plugin launches again in a new sandbox when it is installed again, and in the same one, loaded again, when the host app's theme changes. A page that loads again by itself ends its run with the page it ran in, and launches a new one. A main process module is started once for each plugin and path while the app runs: a new sandbox asking for the same path gets the one already running. One whose code changed is taken up at the app's next start; Settings asks for the restart.
 
 Whatever deck calls after `start`, a call that throws or rejects costs that call alone: it is shown on the plugin's row in Settings, and the plugin goes on. What must outlive the sandbox is written when it changes: the sandbox can be made again at any of these times.
 
@@ -272,7 +271,7 @@ Two ways, and one question picks: could the host app do this if the other plugin
 
 **requires**, when it could not. The other plugin registers `deck.exports`, and this one names it in `[requires]` and receives it as `deck.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the plugin does not load, and Settings says why.
 
-Apart from both, a plugin says what happened to it, for whoever cares, as **events**. `deck.emit(name, ...args)` sends one, named after the plugin: `bot` emitting `status` is `bot:status` to listeners, and no plugin can send another's. `deck.on('<plugin id>:<name>', listener)` hears one and returns its off. Values are copied. It takes no requirement: a plugin's events go out once its `start` has finished and until it ends, and nothing arrives from one that is not running.
+Apart from both, a plugin says what happened to it, for whoever cares, as **events**. `deck.emit(name, ...args)` sends one, named after the plugin: `bot` emitting `status` is `bot:status` to listeners, and no plugin can send another's. `deck.on('<plugin id>:<name>', listener)` hears one and returns its off. Values are copied. It takes no requirement: a plugin's events go out while it is running, from when its `start` has finished until it terminates, and nothing arrives from one that is not running.
 
 ## A main process module
 

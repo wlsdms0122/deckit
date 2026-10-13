@@ -1,23 +1,36 @@
 DeckitModule.define(
-    'deckit/service/plugin/deck/setting',
+    'deckit/service/deck/setting',
     {
-        uses: ['deckit/service/storage', 'deckit/service/plugin/identity', 'deckit/service/plugin/deck/protocol'],
-        provides: ['start', 'declare', 'forget', 'valuesOf'],
+        uses: [
+            'deckit/service/storage',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/catalog',
+            'deckit/service/deck/runner',
+            'deckit/service/deck/protocol',
+        ],
+        provides: ['start', 'valuesOf'],
         runs: 'main',
     },
-    (STORAGE, IDENTITY, PROTOCOL) => {
+    (STORAGE, IDENTITY, CATALOG, RUNNER, PROTOCOL) => {
         // MARK: - Property
         const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
         // How long a plugin has to work out a setting's options: a plugin still starting answers once it has.
         const OPTIONS_LIMIT_MS = 5000;
         const declared = new Map(); // plugin id -> { name, settings: { key: declaration } }
-        let order = () => []; // the ids of the plugins that load, in the person's order
 
         // MARK: - Initializer
         // MARK: - Public
-        // `ordered()` gives the ids of the plugins that load, in the person's order, which Settings lists them in.
-        function start({ ordered }) {
-            order = ordered;
+        // A plugin's settings stand from its entry's declaring them until it no longer loads, or until a later run of
+        // it declares them again: one whose start failed can still be set.
+        function start() {
+            PROTOCOL.declare.on(({ run: number, settings }, sender) => {
+                if (RUNNER.currentRun(sender, number)?.state === 'launching')
+                    declare(IDENTITY.pluginFrom(sender), settings);
+            });
+            CATALOG.onChange(() => {
+                const loading = new Set(CATALOG.plugins().map(({ id }) => id));
+                for (const id of declared.keys()) if (!loading.has(id)) forget(id);
+            });
             PROTOCOL.setSetting.handle(({ key, value }, sender) => set(IDENTITY.pluginFrom(sender).id, key, value));
             PROTOCOL.pluginSettings.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugin-settings');
@@ -29,21 +42,8 @@ DeckitModule.define(
             });
             PROTOCOL.runPluginSetting.handle(({ plugin, key }, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugin-settings');
-                return run(plugin, key);
+                return runAction(plugin, key);
             });
-        }
-
-        // What a plugin declares as its entry is read. A declaration of an unknown type is left out.
-        function declare(plugin, settings) {
-            const kept = {};
-            for (const [key, declaration] of Object.entries(settings)) {
-                if (TYPES.has(declaration.type)) kept[key] = declaration;
-            }
-            declared.set(plugin.id, { name: plugin.name, settings: kept });
-        }
-
-        function forget(pluginId) {
-            declared.delete(pluginId);
         }
 
         // A value saved for a setting the plugin no longer declares is not handed back.
@@ -59,6 +59,19 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // What a plugin declares as its entry is read. A declaration of an unknown type is left out.
+        function declare(plugin, settings) {
+            const kept = {};
+            for (const [key, declaration] of Object.entries(settings)) {
+                if (TYPES.has(declaration.type)) kept[key] = declaration;
+            }
+            declared.set(plugin.id, { name: plugin.name, settings: kept });
+        }
+
+        function forget(pluginId) {
+            declared.delete(pluginId);
+        }
+
         async function set(pluginId, key, value) {
             const declaration = declared.get(pluginId)?.settings[key];
             if (!declaration) throw new Error(`${pluginId} has no setting "${key}"`);
@@ -66,8 +79,8 @@ DeckitModule.define(
             const values = STORAGE.settings.read(pluginId);
             if (values[key] === next) return next;
             STORAGE.settings.write(pluginId, { ...values, [key]: next });
-            const view = IDENTITY.pageOf(pluginId);
-            if (view) PROTOCOL.settingChanged.send(view, { key, value: next });
+            const webContents = IDENTITY.pageOf(pluginId);
+            if (webContents) PROTOCOL.settingChanged.send(webContents, { key, value: next });
             return next;
         }
 
@@ -96,23 +109,25 @@ DeckitModule.define(
         // Options worked out when Settings draws them (the fonts on this Mac) are the plugin's to answer.
         async function optionsOf(pluginId, key, declaration) {
             if (!declaration.computed) return declaration.options || [];
-            const view = IDENTITY.pageOf(pluginId);
-            return view ? PROTOCOL.settingOptions.invoke(view, { key }, { timeout: OPTIONS_LIMIT_MS }) : [];
+            const webContents = IDENTITY.pageOf(pluginId);
+            return webContents
+                ? PROTOCOL.settingOptions.invoke(webContents, { key }, { timeout: OPTIONS_LIMIT_MS })
+                : [];
         }
 
-        async function run(pluginId, key) {
+        async function runAction(pluginId, key) {
             const declaration = declared.get(pluginId)?.settings[key];
             if (declaration?.type !== 'action') throw new Error(`${pluginId} has no action "${key}"`);
-            const view = IDENTITY.pageOf(pluginId);
-            if (!view) throw new Error(`${pluginId} is not running`);
-            return PROTOCOL.runSetting.invoke(view, { key });
+            const webContents = IDENTITY.pageOf(pluginId);
+            if (!webContents) throw new Error(`${pluginId} is not running`);
+            return PROTOCOL.runSetting.invoke(webContents, { key });
         }
 
         // A saved value no option offers now (one this machine lacks, or one an update took away) is offered
         // marked absent, and left as it is.
         async function list() {
             const out = [];
-            for (const id of order().filter((id) => declared.has(id))) {
+            for (const { id } of CATALOG.plugins().filter(({ id }) => declared.has(id))) {
                 const { name, settings } = declared.get(id);
                 if (!Object.keys(settings).length) continue;
                 const values = valuesOf(id);
@@ -134,6 +149,6 @@ DeckitModule.define(
             return out;
         }
 
-        return { start, declare, forget, valuesOf };
+        return { start, valuesOf };
     }
 );

@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'deckit/service/plugin/runtime/storage',
+    'deckit/service/deck/page-storage',
     {
-        uses: ['deckit/service/plugin/deck/protocol'],
+        uses: ['deckit/service/deck/protocol'],
         provides: ['values', 'records'],
         runs: 'page',
     },

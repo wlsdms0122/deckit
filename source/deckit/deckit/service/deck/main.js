@@ -1,0 +1,193 @@
+DeckitModule.define(
+    'deckit/service/deck/main',
+    {
+        uses: [
+            'deckit/service/storage',
+            'deckit/service/web/session',
+            'deckit/service/log/main',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/install',
+            'deckit/service/deck/remove',
+            'deckit/service/deck/catalog',
+            'deckit/service/deck/runner',
+            'deckit/service/plugin/manifest',
+            'deckit/service/deck/main-process',
+            'deckit/service/deck/record',
+            'deckit/service/deck/setting',
+            'deckit/service/deck/export',
+            'deckit/service/deck/protocol',
+        ],
+        provides: ['start'],
+        runs: 'main',
+    },
+    (
+        STORAGE,
+        SESSION,
+        LOG,
+        IDENTITY,
+        INSTALL,
+        REMOVE,
+        CATALOG,
+        RUNNER,
+        MANIFEST,
+        MAIN_PROCESS,
+        RECORD,
+        SETTING,
+        EXPORT,
+        PROTOCOL
+    ) => {
+        // MARK: - Property
+        // MARK: - Initializer
+        // MARK: - Public
+        // Plugins run in the views `makeView()` makes. What follows their runs starts before the runner launches any.
+        function start({ makeView }) {
+            forgetRemoved();
+            CATALOG.start();
+            MAIN_PROCESS.start();
+            RECORD.start();
+            SETTING.start();
+            EXPORT.start();
+            listen();
+            RUNNER.start({ makeView });
+        }
+
+        // MARK: - Private
+        function listen() {
+            PROTOCOL.plugins.handle((_payload, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                return describe();
+            });
+            PROTOCOL.pick.handle((_payload, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                return pick();
+            });
+            PROTOCOL.install.handle(({ from }, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                return install(from);
+            });
+            PROTOCOL.remove.handle(({ id, data }, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                return remove(id, data);
+            });
+            PROTOCOL.reveal.handle(({ id }, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                const plugin = CATALOG.found().find((candidate) => candidate.id === id);
+                if (!plugin) throw new Error('no plugin ' + id);
+                return require('electron').shell.openPath(plugin.folder);
+            });
+            PROTOCOL.count.handle(({ id }, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                return STORAGE.count(id);
+            });
+            PROTOCOL.restartPending.handle((_payload, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                return MAIN_PROCESS.restartPending();
+            });
+        }
+
+        // What Settings shows about every plugin, loaded or not, and what each running one contributes. `state`: its
+        // latest run's, null for one with none. `starting`: it is launching. `hides`: folders of the same id that are
+        // not read.
+        function describe() {
+            const running = (id) => RUNNER.runOf(id)?.state === 'running';
+            return {
+                installed: CATALOG.found().map((plugin) => {
+                    const run = RUNNER.runOf(plugin.id);
+                    return {
+                        ...MANIFEST.of(plugin),
+                        folder: plugin.folder,
+                        installed: plugin.installed,
+                        shipped: plugin.shipped,
+                        hides: plugin.hides,
+                        problem: plugin.problem || run?.problem || null,
+                        state: run?.state || null,
+                        starting: run?.state === 'launching',
+                        mainProcess: {
+                            running: MAIN_PROCESS.started(plugin.id),
+                            failure: MAIN_PROCESS.failure(plugin.id),
+                        },
+                        requirements: plugin.requirements.map((requirement) => ({
+                            ...requirement,
+                            ok: requirement.ok && running(requirement.id),
+                        })),
+                    };
+                }),
+                running: CATALOG.plugins()
+                    .filter((plugin) => running(plugin.id))
+                    .map((plugin) => {
+                        const { summary, problem } = RUNNER.runOf(plugin.id);
+                        return { id: plugin.id, name: plugin.name, ...summary, problem };
+                    }),
+            };
+        }
+
+        // Picking and installing are two calls because the person is asked in between. A refused folder is refused
+        // before they are asked about it.
+        async function pick() {
+            const { dialog } = require('electron');
+            const result = await dialog.showOpenDialog({
+                title: 'Choose a plugin folder',
+                buttonLabel: 'Choose',
+                properties: ['openDirectory'],
+                message: 'Pick the folder that has manifest.toml in it',
+            });
+            if (result.canceled || !result.filePaths[0]) return null;
+            const from = result.filePaths[0];
+            const manifest = INSTALL.installable(from, shadowed);
+            return {
+                ...MANIFEST.of(manifest),
+                from,
+                replaces: CATALOG.found().some((plugin) => plugin.id === manifest.id && plugin.installed),
+            };
+        }
+
+        // Any folder, since a plugin may already run code in this process: restricting where it comes from guards
+        // nothing.
+        async function install(from) {
+            const manifest = INSTALL.install(from, shadowed);
+            MAIN_PROCESS.restartFor(manifest.id);
+            CATALOG.refresh({ installed: manifest.id });
+            await RUNNER.whenClosed(manifest.id);
+            return {
+                ...MANIFEST.of(manifest),
+                restart: MAIN_PROCESS.restartPending().some(({ id }) => id === manifest.id),
+            };
+        }
+
+        // A source folder of the same id would hide the installed copy.
+        function shadowed(manifest) {
+            const source = CATALOG.found().find((plugin) => plugin.id === manifest.id && !plugin.installed);
+            return source ? `${manifest.id} is read from ${source.folder}, which would hide the installed copy` : '';
+        }
+
+        // Its run has ended, stop() and all, and its page closed, before what it stored is taken, so nothing writes it
+        // back.
+        async function remove(id, data) {
+            const plugin = CATALOG.found().find((candidate) => candidate.id === id);
+            if (plugin && !plugin.installed)
+                throw new Error(`${id} is read from ${plugin.folder}, not installed, so it is removed there`);
+            REMOVE.remove(id);
+            MAIN_PROCESS.unload(id);
+            CATALOG.refresh();
+            await RUNNER.whenClosed(id);
+            const removed = { data: data && REMOVE.forgetData(id) };
+            if (removed.data) await forget(id);
+            return removed;
+        }
+
+        // A plugin removed with its data, whose pages' storage and sessions were not cleared then: cleared here.
+        function forgetRemoved() {
+            for (const id of REMOVE.forgotten()) {
+                forget(id).catch((error) => LOG.warn(`could not clear the web storage of ${id}`, error));
+            }
+        }
+
+        // The record that it is to be cleared goes only once it is, so a failure is tried again at the next start.
+        async function forget(id) {
+            await SESSION.forget(id);
+            REMOVE.clearForgotten(id);
+        }
+
+        return { start };
+    }
+);

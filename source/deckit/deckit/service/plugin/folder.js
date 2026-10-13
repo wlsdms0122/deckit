@@ -1,7 +1,7 @@
 DeckitModule.define(
-    'deckit/service/plugin/package/folder',
+    'deckit/service/plugin/folder',
     {
-        uses: ['deckit/service/plugin/package/manifest'],
+        uses: ['deckit/service/plugin/manifest'],
         provides: ['pluginsIn', 'idOf', 'loadable', 'entryOf', 'fileIn'],
         runs: 'node',
     },

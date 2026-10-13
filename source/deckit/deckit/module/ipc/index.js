@@ -134,7 +134,8 @@ DeckitModule.define(
         // was replaced by a navigation, or `timeout` ran out.
         function ask(webContents, channel, payload, { timeout = 0 } = {}) {
             if (!pending.has(channel)) hearAnswers(channel);
-            if (webContents.isDestroyed()) return Promise.reject(new Error(`${channel}: the page is gone`));
+            if (webContents.isDestroyed() || webContents.isCrashed())
+                return Promise.reject(new Error(`${channel}: the page is gone`));
             watch(webContents);
             const id = ++sequence;
             return new Promise((resolve, reject) => {
