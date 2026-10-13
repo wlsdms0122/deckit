@@ -36,8 +36,9 @@ DeckitModule.define(
         // and answers a double click as the person set. `size` is the view's, below the bar. `glass`, for a view drawn
         // as glass, is the strength it lays its colour over the blur at: the window blurs what is behind it, and the
         // bar lays the same colour at the same strength, so the two read as one surface. `fullSize`: the view fills the
-        // window, the bar's height included, and draws what lies under the bar itself (TITLE_BAR). A
-        // window with a `key` opens where it was last left; another opens over the window in front. `focus` hands the
+        // window, the bar's height included, and draws and drags what lies under the bar itself (TITLE_BAR); the page
+        // below is the window's colour alone. A window with a `key` opens where it was last left; another opens over
+        // the window in front. `focus` hands the
         // keyboard to the view, which macOS otherwise gives the bar each time the window comes forward.
         function open({
             view,

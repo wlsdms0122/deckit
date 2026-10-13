@@ -47,8 +47,8 @@ DeckitModule.define(
             });
             Object.assign(parts.content.style, { width: '100%', flex: '1 1 auto', minHeight: '0' });
             content.append(parts.content);
-            // Where the window's buttons stand, the panel's whatever is drawn there: it drags the window, so a window
-            // can be moved however the plugin on screen draws its top. Last, so a region the plugin keeps from dragging
+            // Where the window's buttons stand is the panel's, whatever is drawn there: it drags the window, so the
+            // window can be moved however the plugin on screen draws its top. Last, so a region the plugin keeps from dragging
             // does not take it back.
             const buttonsRoom = element('div', {
                 position: 'absolute',
