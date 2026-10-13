@@ -16,12 +16,15 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         .finder-goto-problem:empty { display: none; }
     `;
 
+    let panels = 0; // the panels shown: a Go that comes back after another opened goes nowhere
+
     ui.addStyle(STYLE);
 
     return { show };
 
     // `text` and `problem` are what a Go that failed after the panel closed brings back.
     function show({ text = null, problem = '' } = {}) {
+        const number = ++panels;
         const read = new Map(); // folder -> its entries, read once while the panel is up
         let suggestions = []; // { path, name, folder }
         let active = -1;
@@ -32,6 +35,8 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
             value: text ?? startText(),
             onInput: () => {
                 said.textContent = '';
+                active = -1;
+                draw();
                 suggest();
             },
         });
@@ -135,7 +140,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         async function go(path, { closed = false } = {}) {
             if (!path) return closed ? show({ text: field.input.value }) : undefined;
             const kind = await disk.exists(path).catch(() => null);
-            if (!closed && !up) return;
+            if (closed ? number !== panels : !up) return;
             if (!kind) {
                 const problem = `“${tildify(path)}” can’t be found.`;
                 if (closed) return show({ text: field.input.value, problem });

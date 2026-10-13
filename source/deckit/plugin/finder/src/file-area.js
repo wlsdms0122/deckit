@@ -255,21 +255,26 @@ function fileArea({
         return `${entriesIn(counted).length} of ${total} item${total === 1 ? '' : 's'}`;
     }
 
-    // Several selected are what their folder shows of them, the filter's too: an entry it no longer shows leaves, and
-    // the lead and the anchor go to the last one left when theirs does. One selected is held by `heldSelection`.
+    // Several selected keep those their folder still shows, the filter's included, in the order it shows them: the lead
+    // goes to the last one kept when it leaves, and the anchor to the lead when it leaves. They wait while the folder
+    // is unread. One selected, or none of several kept, is the lead held by `heldSelection`.
     function holdSelection() {
         const lead = tabs.selectedPath();
         const selection = tabs.selection();
-        if (selection.length > 1 && listings.of(parentOf(lead))) {
-            const shown = new Set(entriesIn(parentOf(lead)).map((entry) => entry.path));
-            const kept = selection.filter((path) => shown.has(path));
-            if (kept.length && kept.length !== selection.length) {
-                const keptLead = kept.includes(lead) ? lead : kept.at(-1);
-                tabs.setSelection(kept, {
-                    lead: keptLead,
-                    anchor: kept.includes(tabs.anchor()) ? tabs.anchor() : keptLead,
-                });
-            } else if (!kept.length) tabs.select(null);
+        const several = selection.length > 1;
+        if (several && !listings.of(parentOf(lead))) return clearGoneFilter();
+        const kept = several
+            ? entriesIn(parentOf(lead))
+                  .map((entry) => entry.path)
+                  .filter((path) => selection.includes(path))
+            : [];
+        if (kept.length) {
+            if (kept.length === selection.length) return clearGoneFilter();
+            const keptLead = kept.includes(lead) ? lead : kept.at(-1);
+            tabs.setSelection(kept, {
+                lead: keptLead,
+                anchor: kept.includes(tabs.anchor()) ? tabs.anchor() : keptLead,
+            });
         } else {
             const held = heldSelection({
                 location: tabs.location(),
@@ -278,8 +283,12 @@ function fileArea({
                 listingOf: listings.of,
                 showHidden: showsHidden(),
             });
-            if (held !== lead) tabs.select(held);
+            if (held !== lead || several) tabs.select(held);
         }
+        clearGoneFilter();
+    }
+
+    function clearGoneFilter() {
         // The filter goes when its folder does.
         const filter = tabs.filter();
         if (filter.text && !shownFolders().includes(filter.folder)) clearFilter();

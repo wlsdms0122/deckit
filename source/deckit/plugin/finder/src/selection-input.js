@@ -36,8 +36,9 @@ function selectionInput({
     });
     areaElement.addEventListener('keydown', handleKey);
 
-    // A second press soon after and where the first was opens what the first was on, even if the columns have since
-    // moved another row under the pointer. A right click or a Control-click is the menu's.
+    // A second press soon after and where the first was opens what the first was on, with the rest selected then when
+    // it was one of several, even if the columns have since moved another row under the pointer. A right click or a
+    // Control-click is the menu's.
     function handlePress(event) {
         if (event.button !== 0 || event.ctrlKey) return;
         const now = Date.now();
@@ -58,15 +59,18 @@ function selectionInput({
             return;
         }
         const entry = entryAt(event.target.closest('[data-path]')?.dataset.path);
-        // The selection as the first press found it: its click may have narrowed it by the second.
-        lastPress = entry ? { entry, selection: selection(), at: now, x: event.clientX, y: event.clientY } : null;
         picking = null;
-        if (!entry) return;
-        if (event.metaKey) return toggle(entry.path);
-        if (event.shiftKey) return extend(entry.path);
-        // In columns a selection moves the columns, and a press on one of several selected entries may drag them all:
-        // either waits for the press to end as a click, and a press that becomes a drag leaves them as they were.
-        if (isColumnView() || (selection().length > 1 && selection().includes(entry.path))) picking = entry.path;
+        if (entry) pressOn(entry, event);
+        // The selection as this press left it: the click may narrow it before a second press.
+        lastPress = entry ? { entry, selection: selection(), at: now, x: event.clientX, y: event.clientY } : null;
+    }
+
+    // In columns a selection moves the columns, and a press on one of several selected entries may drag them all:
+    // either waits for the press to end as a click, and a press that becomes a drag leaves them as they were.
+    function pressOn(entry, event) {
+        if (event.metaKey) toggle(entry.path);
+        else if (event.shiftKey) extend(entry.path);
+        else if (isColumnView() || (selection().length > 1 && selection().includes(entry.path))) picking = entry.path;
         else select(entry.path);
     }
 

@@ -116,7 +116,8 @@ function fileOperations({
         });
     }
 
-    // The folder is read again before a failure is told, as its drawing would take the message away.
+    // A failure is told in the footer when nothing went, or else in a dialog: the folder read again draws the footer
+    // anew.
     async function moveToTrash(entries) {
         const failures = [];
         for (const entry of entries) {
@@ -124,12 +125,18 @@ function fileOperations({
                 await disk.trash(entry.path);
                 onMoved(entry.path, null);
             } catch (error) {
-                failures.push('Could not move “' + entry.name + '” to the Trash: ' + error.message);
+                failures.push({ entry, error });
             }
         }
-        if (failures.length < entries.length) await onChanged(parentOf(entries[0].path));
-        if (failures.length === 1) onStatus(failures[0]);
-        else if (failures.length) onStatus(`Could not move ${failures.length} items to the Trash`);
+        if (!failures.length) return onChanged(parentOf(entries[0].path));
+        const title =
+            failures.length === 1
+                ? 'Could not move “' + failures[0].entry.name + '” to the Trash'
+                : `Could not move ${failures.length} items to the Trash`;
+        if (failures.length === entries.length)
+            return onStatus(failures.length === 1 ? title + ': ' + failures[0].error.message : title);
+        onChanged(parentOf(entries[0].path));
+        ui.dialog({ title, message: failures.map(({ error }) => error.message), confirmLabel: 'OK' });
     }
 
     // Each one that can go into `into`; one that fails does not keep the others. A failure is told in a dialog: the
@@ -153,7 +160,7 @@ function fileOperations({
                 failures.length === 1
                     ? 'Could not move “' + nameOf(failures[0].from) + '”'
                     : `Could not move ${failures.length} items`,
-            message: failures.map(({ from, error }) => nameOf(from) + ': ' + error.message),
+            message: failures.map(({ error }) => error.message),
             confirmLabel: 'OK',
         });
     }
