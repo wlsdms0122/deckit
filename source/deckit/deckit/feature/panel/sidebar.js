@@ -117,7 +117,7 @@ DeckitModule.define(
                 outline: none;
                 border-radius: var(--deckit-radius-control);
                 background: transparent;
-                color: var(--deckit-sidebar-name);
+                color: color-mix(in srgb, var(--deckit-text) 72%, var(--deckit-background));
                 font: var(--deckit-type-large);
                 text-align: left;
                 cursor: pointer;
@@ -315,7 +315,7 @@ DeckitModule.define(
 
         // MARK: - Private
         // The card's surface, drawn in the content's ink rather than the sidebar colour, which is chosen against a
-        // sidebar fill. A plugin's name not chosen is a step under the text: muted is a hint's, too faint for a name.
+        // sidebar fill.
         function surfaceOf(theme) {
             const ink = (alpha) => (theme.dark ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`);
             const shadow = theme.dark
@@ -326,7 +326,6 @@ DeckitModule.define(
                 --deckit-sidebar-bottom: ${ink(theme.dark ? 0.025 : 0.015)};
                 --deckit-sidebar-rim: ${ink(theme.dark ? 0.1 : 0.08)};
                 --deckit-sidebar-shadow: ${shadow};
-                --deckit-sidebar-name: color-mix(in srgb, var(--deckit-text) 72%, var(--deckit-background));
             }`;
         }
 
