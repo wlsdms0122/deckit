@@ -21,7 +21,7 @@ if (!app.requestSingleInstanceLock()) {
         protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
         // A restart is a quit, so every plugin stops first. relaunch() only queues the new instance.
         const restart = () => {
-            if (UNPACKAGED) process.exitCode = RESTART;
+            if (UNPACKAGED) app.once('quit', () => app.exit(RESTART));
             else app.relaunch();
             app.quit();
         };

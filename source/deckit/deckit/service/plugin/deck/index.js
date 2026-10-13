@@ -23,6 +23,7 @@ DeckitModule.define(
             'prepare',
             'rerun',
             'summaryOf',
+            'hasStarted',
             'hasEnded',
             'ended',
             'onChange',
@@ -56,6 +57,7 @@ DeckitModule.define(
         const failures = new Map(); // plugin id -> the first reason recorded against it
         const stopped = new Set(); // plugin ids that ended without starting
         const runs = new Map(); // plugin id -> which run of its page this is, counted from 1
+        const starting = new Set(); // plugin ids whose current run has not started yet
         // plugin id -> how many times it was installed while deckit ran: a copy of the same version is new code too
         const installs = new Map();
         const listeners = new Set();
@@ -92,6 +94,7 @@ DeckitModule.define(
         // keep running.
         function rerun(pluginId) {
             runs.set(pluginId, (runs.get(pluginId) || 0) + 1);
+            starting.add(pluginId);
             failures.delete(pluginId);
             stopped.delete(pluginId);
             EXPORT.expect(pluginId);
@@ -106,6 +109,11 @@ DeckitModule.define(
         // removal).
         function onChange(listener) {
             listeners.add(listener);
+        }
+
+        // Whether the plugin's current run has started, and not ended.
+        function hasStarted(pluginId) {
+            return started.has(pluginId) && !starting.has(pluginId);
         }
 
         // Whether a plugin ended: it never started, or its page went.
@@ -169,6 +177,7 @@ DeckitModule.define(
                 if (!plugin) return;
                 EXPORT.provide(plugin.id, exports);
                 started.set(plugin.id, summary);
+                starting.delete(plugin.id);
                 for (const listener of statusListeners) listener(plugin.id);
             });
             PROTOCOL.failed.on(({ run, why }, sender) => {
@@ -237,7 +246,7 @@ DeckitModule.define(
                     shipped: entry.shipped,
                     hides: entry.hides,
                     problem: entry.problem || failures.get(entry.id) || null,
-                    starting: !entry.problem && runs.has(entry.id) && !started.has(entry.id) && !stopped.has(entry.id),
+                    starting: !entry.problem && starting.has(entry.id) && !stopped.has(entry.id),
                     mainProcess: { running: MAIN_PROCESS.running(entry.id), failure: MAIN_PROCESS.failure(entry.id) },
                     requirements: entry.requirements.map((requirement) => ({
                         ...requirement,
@@ -352,6 +361,19 @@ DeckitModule.define(
             return [...list].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
         }
 
-        return { start, plugins, prepare, rerun, summaryOf, hasEnded, ended, onChange, onStatus, order, arrange };
+        return {
+            start,
+            plugins,
+            prepare,
+            rerun,
+            summaryOf,
+            hasStarted,
+            hasEnded,
+            ended,
+            onChange,
+            onStatus,
+            order,
+            arrange,
+        };
     }
 );

@@ -7,24 +7,22 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/plugin/identity',
             'deckit/service/runtime/protocol',
+            'deckit/service/build',
         ],
         provides: ['start'],
     },
-    (CONFIG, HOME, LOG, IDENTITY, PROTOCOL) => {
+    (CONFIG, HOME, LOG, IDENTITY, PROTOCOL, BUILD) => {
         // MARK: - Property
-        const fs = require('fs');
-        const path = require('path');
-
         // MARK: - Initializer
         // MARK: - Public
         // `restart` is the app's: the process is its own.
         function start({ restart }) {
             const { app } = require('electron');
-            const build = buildOf();
             PROTOCOL.about.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender);
                 return {
-                    ...build,
+                    version: BUILD.VERSION,
+                    source: BUILD.SOURCE,
                     name: CONFIG.name,
                     home: require('os').homedir(),
                     app: `${app.getName()} ${app.getVersion()}`,
@@ -43,13 +41,6 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // The build writes what it built beside the bundle; a deckit run from its sources has none.
-        function buildOf() {
-            const file = path.join(__dirname, 'deckit.json');
-            if (!fs.existsSync(file)) return { version: null, source: null };
-            const { version, source } = JSON.parse(fs.readFileSync(file, 'utf8'));
-            return { version, source };
-        }
 
         return { start };
     }

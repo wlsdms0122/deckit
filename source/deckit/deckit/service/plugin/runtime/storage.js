@@ -7,8 +7,8 @@ DeckitModule.define(
     },
     (PROTOCOL) => {
         // MARK: - Property
-        // What get() answers. It is synchronous because make() is, so it must never hold what the file will not: a
-        // write main refuses puts back what was there.
+        // What get() answers, synchronously. It never holds what the file will not: a write main refuses puts back what
+        // was there, and it holds and answers copies as the file has them, so a value changed in place is not kept.
         const cache = new Map(); // key -> value, undefined for none
 
         // MARK: - Initializer
@@ -33,11 +33,18 @@ DeckitModule.define(
         // What must not be lost: JSON by key in the plugin's folder, written whole by main. `fail` hears a write
         // that did not land.
         function records(fail) {
-            const write = (key, value, send) => {
+            const write = (key, given, send) => {
+                let value;
+                try {
+                    value = copyOf(given);
+                } catch (error) {
+                    fail(`could not keep "${key}": ${error.message}`);
+                    return Promise.reject(error);
+                }
                 const had = cache.has(key);
                 const before = cache.get(key);
                 cache.set(key, value);
-                return send().catch((error) => {
+                return send(value).catch((error) => {
                     // Put back only what this write put there: a later write to the same key answers for itself.
                     if (cache.get(key) === value) {
                         if (had) cache.set(key, before);
@@ -51,10 +58,10 @@ DeckitModule.define(
                 get(key, fallback) {
                     if (!cache.has(key)) cache.set(key, PROTOCOL.readRecord.invoke({ key: String(key) }) ?? undefined);
                     const value = cache.get(key);
-                    return value === undefined ? fallback : value;
+                    return copyOf(value === undefined ? fallback : value);
                 },
-                set: (key, value) =>
-                    write(String(key), value, () => PROTOCOL.writeRecord.invoke({ key: String(key), value })),
+                set: (key, given) =>
+                    write(String(key), given, (value) => PROTOCOL.writeRecord.invoke({ key: String(key), value })),
                 remove: (key) =>
                     write(String(key), undefined, () => PROTOCOL.removeRecord.invoke({ key: String(key) })),
                 keys: () => PROTOCOL.recordKeys.invoke(),
@@ -62,6 +69,13 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // A record as its file holds it: JSON, read back.
+        function copyOf(value) {
+            if (value === undefined) return undefined;
+            const text = JSON.stringify(value);
+            if (text === undefined) throw new Error('it is no JSON value');
+            return JSON.parse(text);
+        }
 
         return { values, records };
     }

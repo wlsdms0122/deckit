@@ -7,7 +7,6 @@ const LIBRARY = path.join(DECKIT, 'deckit');
 const PLUGINS = path.join(DECKIT, 'plugin');
 const APP = path.join(DECKIT, 'deckit-app');
 const REGISTRY = 'module/registry/index.js';
-const PAGE = 'feature/app/page.html';
 const ENTRIES = {
     chord: () => ['deckit/module/chord'],
     main: () => ['deckit/feature/app/main'],
@@ -138,7 +137,6 @@ module.exports = {
     PLUGINS,
     APP,
     REGISTRY,
-    PAGE,
     ENTRIES,
     code,
     files,
