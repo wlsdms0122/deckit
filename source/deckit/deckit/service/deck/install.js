@@ -9,7 +9,7 @@ DeckitModule.define(
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
-        const notInstalledShips = new Map(); // plugin id -> { folder, problem }: what the app ships that did not install
+        const notInstalledById = new Map(); // plugin id -> { folder, problem }: what the app ships that did not install
 
         // MARK: - Initializer
         // MARK: - Public
@@ -84,8 +84,8 @@ DeckitModule.define(
             const before = shipped();
             const copies = installed();
             const take = only ? [...only] : [];
-            if (!only) notInstalledShips.clear();
             if (!only) {
+                notInstalledById.clear();
                 for (const id of byId.keys()) {
                     if (before?.has(id) && !copies.has(id)) outcomes.push({ id, outcome: 'left out', version: null });
                     else take.push(id);
@@ -97,12 +97,12 @@ DeckitModule.define(
                 }
             }
             for (const id of take) {
-                notInstalledShips.delete(id);
+                notInstalledById.delete(id);
                 try {
                     const manifest = install(byId.get(id));
                     outcomes.push({ id, outcome: 'installed', version: manifest.version });
                 } catch (error) {
-                    notInstalledShips.set(id, { folder: byId.get(id), problem: error.message });
+                    notInstalledById.set(id, { folder: byId.get(id), problem: error.message });
                     outcomes.push({ id, outcome: 'failed', version: null, problem: error.message });
                 }
             }
@@ -110,7 +110,7 @@ DeckitModule.define(
             // A left out id stays on the list, so its absence keeps meaning it was removed.
             const now = installed();
             const list = (only ? [...new Set([...(before || []), ...only])].sort() : [...byId.keys()]).filter(
-                (id) => !notInstalledShips.has(id) || now.has(id)
+                (id) => !notInstalledById.has(id) || now.has(id)
             );
             fs.mkdirSync(HOME.plugins, { recursive: true });
             fs.writeFileSync(HOME.shipped + '.new', list.map((id) => id + '\n').join(''));
@@ -120,7 +120,7 @@ DeckitModule.define(
 
         // What the app ships that did not install at this start, and why: { folder, problem } by plugin id.
         function notInstalled() {
-            return notInstalledShips;
+            return notInstalledById;
         }
 
         // MARK: - Private

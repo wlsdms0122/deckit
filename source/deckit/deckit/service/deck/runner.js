@@ -278,9 +278,9 @@ DeckitModule.define(
                 // Nothing launches while the app quits, or while a plugin it requires is not running.
                 if (sandbox.run.state !== 'launching') {
                     if (quitting) throw new Error(`${sandbox.plugin.id} does not launch while the app quits`);
-                    crash(sandbox, sandbox.run, 'its page loaded again');
                     const missing = notRunningRequirement(sandbox);
                     if (missing) throw new Error(`${sandbox.plugin.id} needs ${missing}, which is not running`);
+                    crash(sandbox, sandbox.run, 'its page loaded again');
                     launch(sandbox);
                 }
                 const run = sandbox.run;

@@ -203,7 +203,7 @@ DeckitModule.define(
                 }
                 out[id] = deepFreeze(
                     proxyOf(exported.functions, structuredClone(exported.values), (path, args) =>
-                        PROTOCOL.callExport.invoke({ plugin: id, path, args })
+                        PROTOCOL.callExport.invoke({ run: runNumber, plugin: id, path, args })
                     )
                 );
             }

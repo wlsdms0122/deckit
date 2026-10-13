@@ -31,14 +31,20 @@ DeckitModule.define(
                 if (!run.relaunches) fail(run.plugin.id, run.problem || run.endReason);
             });
             PROTOCOL.requirements.handle((_payload, sender) => requirementsOf(IDENTITY.pluginFrom(sender)));
-            // A provider running again answers once its new run has started.
-            PROTOCOL.callExport.handle(async ({ plugin, path, args }, sender) => {
+            // A call is its caller's run's, and a run that has ended makes none. A provider running again answers a
+            // running caller once its new run has started; a terminating caller is answered only by the run it ran with.
+            PROTOCOL.callExport.handle(async ({ run: number, plugin, path, args }, sender) => {
                 const caller = IDENTITY.pluginFrom(sender);
                 if (!Object.hasOwn(caller.requires, plugin)) throw new Error(`${caller.id} does not require ${plugin}`);
+                const run = RUNNER.currentRun(sender, number);
+                const ended = () => RUNNER.currentRun(sender, number) !== run || run.state === 'notRunning';
+                if (!run || ended()) throw new Error(`${caller.id} is not running`);
                 let exports = answering.get(plugin);
                 if (!exports) {
+                    if (run.state === 'terminating') throw new Error(`${plugin} is not running`);
                     const provider = providers.get(plugin);
                     await provider?.settled;
+                    if (ended()) throw new Error(`${caller.id} is not running`);
                     if (provider?.error) throw new Error(`${plugin} is not running: ${provider.error}`);
                     exports = provider?.exports;
                 }

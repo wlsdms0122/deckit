@@ -56,7 +56,7 @@ DeckitModule.define(
         requirements: IPC.rendererToMain('deckit:plugin-requirements', {}, { reply: true }),
         callExport: IPC.rendererToMain(
             'deckit:plugin-call-export',
-            { plugin: 'string', path: 'array', args: 'array' },
+            { run: 'number', plugin: 'string', path: 'array', args: 'array' },
             { reply: true }
         ),
         exportCalled: IPC.mainToRenderer('deckit:plugin-export-called', { reply: true }),
