@@ -1,6 +1,6 @@
 {
   "private": true,
-  "description": "What the Editor plugin's engine.js is built from. package-lock.json pins every package under these, so build.sh makes the same file each time.",
+  "description": "What the Editor plugin's engine.js is built from. package-lock.json pins every package under these, so building it again makes the same file.",
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",
     "@codemirror/commands": "6.11.1",

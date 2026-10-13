@@ -1,6 +1,5 @@
-/* The editor plugin's engine: CodeMirror 6 (https://codemirror.net) and what it is built from, bundled
-   by source/cli/engine/build.sh editor. Do not edit: change cli/engine/editor/entry.mjs or package.json
-   and rebuild.
+/*! The editor plugin's engine: CodeMirror 6 (https://codemirror.net) and what it is built from, bundled
+   from src/engine/. Do not edit: change src/engine/entry.mjs or package.json and build it again.
 
    The licences of the packages in this file follow.
 

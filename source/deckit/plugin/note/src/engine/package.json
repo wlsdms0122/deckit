@@ -1,6 +1,6 @@
 {
   "private": true,
-  "description": "What the Notes plugin's engine.js is built from: the editor, Markdown and the few languages a fenced block is highlighted in. package-lock.json pins every package under these, so build.sh makes the same file each time.",
+  "description": "What the Notes plugin's engine.js is built from: the editor, Markdown and the few languages a fenced block is highlighted in. package-lock.json pins every package under these, so building it again makes the same file.",
   "dependencies": {
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-javascript": "6.2.5",
