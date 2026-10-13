@@ -57,16 +57,14 @@ DeckitModule.define(
             notify();
         }
 
-        // The folders read again. `installed` is the id of a plugin just installed. Resolves once whoever listens has
-        // done with the change: a plugin taken away has ended.
+        // The folders read again. `installed` is the id of a plugin just installed.
         function refresh({ installed = null } = {}) {
             if (installed) installs.set(installed, (installs.get(installed) || 0) + 1);
             catalogued = list();
-            return notify();
+            notify();
         }
 
-        // Told when the plugins or their order change; what a listener returns is waited for where the change is
-        // waited on (a removal).
+        // Told when the plugins or their order change.
         function onChange(listener) {
             listeners.add(listener);
         }
@@ -104,7 +102,7 @@ DeckitModule.define(
         }
 
         function notify() {
-            return Promise.all([...listeners].map((listener) => listener()));
+            for (const listener of listeners) listener();
         }
 
         // A plugin's place is the person's, kept in deckit's state. One never placed goes where the app ships it,

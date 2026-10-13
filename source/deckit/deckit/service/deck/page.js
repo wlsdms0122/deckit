@@ -51,7 +51,7 @@ DeckitModule.define(
         // MARK: - Property
         const failures = [];
         let plugin = null;
-        let pageRun = null; // which run of this page main counts this one as
+        let runNumber = null; // which run of the plugin main counts this one as
 
         // MARK: - Initializer
         // MARK: - Public
@@ -77,7 +77,7 @@ DeckitModule.define(
             PROTOCOL.stop.handle(() => (stopping ??= typeof started?.stop === 'function' ? stopOf(started) : null));
             const loaded = PROTOCOL.load.invoke();
             plugin = loaded.manifest;
-            pageRun = loaded.run;
+            runNumber = loaded.run;
             WEB.listen();
             NOTIFY.listen(deliver);
             const definition = evaluate(loaded.source);
@@ -94,7 +94,7 @@ DeckitModule.define(
                 deliver,
                 fail,
             });
-            PROTOCOL.declare.send({ run: pageRun, settings: SETTINGS.declarationsOf(definition.settings, fail) });
+            PROTOCOL.declare.send({ run: runNumber, settings: SETTINGS.declarationsOf(definition.settings, fail) });
             const requires = await requirementsOf();
             if (!requires) {
                 made.reject(new Error(`${plugin.id} did not start`));
@@ -103,7 +103,7 @@ DeckitModule.define(
             const registry = registryOf();
             const deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
             made.resolve(deck);
-            // Whatever start() did before it ended, stop() is told when the sandbox ends.
+            // Whatever start() did before it ended, stop() is told when the run terminates.
             started = definition;
             try {
                 await definition.start(deck);
@@ -125,7 +125,7 @@ DeckitModule.define(
             return { plugin, definition, parts, tell };
         }
 
-        // A stop() that throws is recorded like any call into the plugin; the sandbox ends either way.
+        // A stop() that throws is recorded like any call into the plugin; the run ends either way.
         async function stopOf(definition) {
             try {
                 await definition.stop();
@@ -136,7 +136,7 @@ DeckitModule.define(
 
         // It did not start, and why: what the plugins that require it are told.
         function notStarted(definition) {
-            PROTOCOL.stopped.send({ run: pageRun, why: String(failures.at(-1) || 'it did not start') });
+            PROTOCOL.notStarted.send({ run: runNumber, why: String(failures.at(-1) || 'it did not start') });
             return { plugin, definition, parts: null, tell: () => {} };
         }
 
@@ -152,7 +152,7 @@ DeckitModule.define(
         function fail(why) {
             LOG.warn(`${plugin?.id ?? 'a plugin'}: ${why}`);
             failures.push(why);
-            PROTOCOL.failed.send({ run: pageRun, why: String(why) });
+            PROTOCOL.problem.send({ run: runNumber, why: String(why) });
         }
 
         // The entry runs as a CommonJS module with nothing else in reach, and is what it sets module.exports to. Who
@@ -385,7 +385,7 @@ DeckitModule.define(
                 return exported(...args);
             });
             PROTOCOL.started.send({
-                run: pageRun,
+                run: runNumber,
                 exports: exported,
                 summary: {
                     icon: String(definition.icon || ''),

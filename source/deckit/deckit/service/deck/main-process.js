@@ -7,14 +7,15 @@ DeckitModule.define(
             'deckit/service/window',
             'deckit/service/log/main',
             'deckit/service/deck/identity',
+            'deckit/service/deck/runner',
             'deckit/service/plugin/folder',
             'deckit/service/plugin/model/permission',
             'deckit/service/deck/protocol',
         ],
-        provides: ['start', 'prepare', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
+        provides: ['start', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',
     },
-    (FILE, STORAGE, WINDOW, LOG, IDENTITY, FOLDER, PERMISSION, PROTOCOL) => {
+    (FILE, STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER, PERMISSION, PROTOCOL) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -32,6 +33,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         function start() {
+            RUNNER.onLifecycle('willLaunch', ({ plugin }) => prepare(plugin));
             PROTOCOL.startMainProcess.handle(({ path: given }, sender) =>
                 load(IDENTITY.pluginFrom(sender, PERMISSION.MAIN_PROCESS), given)
             );
@@ -224,6 +226,6 @@ DeckitModule.define(
             return hash.digest('hex');
         }
 
-        return { start, prepare, unload, running, failure, restartPending, restartFor };
+        return { start, unload, running, failure, restartPending, restartFor };
     }
 );

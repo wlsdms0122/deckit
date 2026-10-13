@@ -4,7 +4,7 @@ DeckitModule.define(
         uses: [
             'deckit/service/log/main',
             'deckit/service/deck/identity',
-            'deckit/service/deck/lifecycle',
+            'deckit/service/deck/runner',
             'deckit/service/keymap/main',
             'deckit/service/switcher/main',
             'deckit/feature/panel/main',
@@ -13,7 +13,7 @@ DeckitModule.define(
         ],
         provides: ['start', 'reload', 'control'],
     },
-    (LOG, IDENTITY, LIFECYCLE, KEYMAP, SWITCHER, PANEL, PROTOCOL, ORIGIN) => {
+    (LOG, IDENTITY, RUNNER, KEYMAP, SWITCHER, PANEL, PROTOCOL, ORIGIN) => {
         // MARK: - Property
         const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
         let makeView = null;
@@ -28,7 +28,7 @@ DeckitModule.define(
                 key: 'mod+shift+g',
                 label: 'Quick switcher',
                 global: true,
-                run: (webContents) => shell.summonSwitcher(LIFECYCLE.pageFor(webContents) || webContents),
+                run: (webContents) => shell.summonSwitcher(RUNNER.pageFor(webContents) || webContents),
             });
             SWITCHER.start({ list: () => state.view?.webContents || null, reveal: PANEL.reveal });
             PROTOCOL.ready.on((_payload, sender) => {

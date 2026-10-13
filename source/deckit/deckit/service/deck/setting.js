@@ -1,11 +1,16 @@
 DeckitModule.define(
     'deckit/service/deck/setting',
     {
-        uses: ['deckit/service/storage', 'deckit/service/deck/identity', 'deckit/service/deck/protocol'],
-        provides: ['start', 'declare', 'forget', 'valuesOf'],
+        uses: [
+            'deckit/service/storage',
+            'deckit/service/deck/identity',
+            'deckit/service/deck/runner',
+            'deckit/service/deck/protocol',
+        ],
+        provides: ['start', 'valuesOf'],
         runs: 'main',
     },
-    (STORAGE, IDENTITY, PROTOCOL) => {
+    (STORAGE, IDENTITY, RUNNER, PROTOCOL) => {
         // MARK: - Property
         const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
         // How long a plugin has to work out a setting's options: a plugin still starting answers once it has.
@@ -16,8 +21,18 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // `ordered()` gives the ids of the plugins that load, in the person's order, which Settings lists them in.
+        // A plugin's settings stand from its entry's declaring them until it ends, or until the next run of it declares
+        // them again.
         function start({ ordered }) {
             order = ordered;
+            PROTOCOL.declare.on(({ run, settings }, sender) => {
+                const plugin = IDENTITY.pluginFrom(sender);
+                const current = RUNNER.runOf(plugin.id);
+                if (current?.state === 'launching' && (run === null || run === undefined || run === current.number))
+                    declare(plugin, settings);
+            });
+            RUNNER.onLifecycle('didFailToLaunch', ({ plugin }) => forget(plugin.id));
+            RUNNER.onLifecycle('didTerminate', ({ plugin, endReason }) => endReason !== 'restart' && forget(plugin.id));
             PROTOCOL.setSetting.handle(({ key, value }, sender) => set(IDENTITY.pluginFrom(sender).id, key, value));
             PROTOCOL.pluginSettings.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugin-settings');
@@ -33,19 +48,6 @@ DeckitModule.define(
             });
         }
 
-        // What a plugin declares as its entry is read. A declaration of an unknown type is left out.
-        function declare(plugin, settings) {
-            const kept = {};
-            for (const [key, declaration] of Object.entries(settings)) {
-                if (TYPES.has(declaration.type)) kept[key] = declaration;
-            }
-            declared.set(plugin.id, { name: plugin.name, settings: kept });
-        }
-
-        function forget(pluginId) {
-            declared.delete(pluginId);
-        }
-
         // A value saved for a setting the plugin no longer declares is not handed back.
         function valuesOf(pluginId) {
             const saved = STORAGE.settings.read(pluginId);
@@ -59,6 +61,19 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // What a plugin declares as its entry is read. A declaration of an unknown type is left out.
+        function declare(plugin, settings) {
+            const kept = {};
+            for (const [key, declaration] of Object.entries(settings)) {
+                if (TYPES.has(declaration.type)) kept[key] = declaration;
+            }
+            declared.set(plugin.id, { name: plugin.name, settings: kept });
+        }
+
+        function forget(pluginId) {
+            declared.delete(pluginId);
+        }
+
         async function set(pluginId, key, value) {
             const declaration = declared.get(pluginId)?.settings[key];
             if (!declaration) throw new Error(`${pluginId} has no setting "${key}"`);
@@ -134,6 +149,6 @@ DeckitModule.define(
             return out;
         }
 
-        return { start, declare, forget, valuesOf };
+        return { start, valuesOf };
     }
 );

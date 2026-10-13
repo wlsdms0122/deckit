@@ -1,19 +1,30 @@
 DeckitModule.define(
     'deckit/service/deck/export',
     {
-        uses: ['deckit/service/deck/identity', 'deckit/service/deck/protocol'],
-        provides: ['start', 'expect', 'provide', 'fail'],
+        uses: ['deckit/service/deck/identity', 'deckit/service/deck/runner', 'deckit/service/deck/protocol'],
+        provides: ['start'],
         runs: 'main',
     },
-    (IDENTITY, PROTOCOL) => {
+    (IDENTITY, RUNNER, PROTOCOL) => {
         // MARK: - Property
-        // plugin id -> { settled: Promise, resolve, exports: { values, functions } | null, error }
+        // plugin id -> { settled: Promise, resolve, done, exports: { values, functions } | null, error }
         const providers = new Map();
+        // Why a run terminates when the plugin launches again after it.
+        const RUNS_AGAIN = new Set(['restart', 'updated']);
 
         // MARK: - Initializer
         // MARK: - Public
-        // A plugin reaches another only through what that one exports, and only one it requires.
+        // A plugin reaches another only through what that one exports, and only one it requires. Whoever requires a
+        // plugin waits while it launches or terminates, until it has started, or failed to, or ended for good.
         function start() {
+            RUNNER.onLifecycle('willLaunch', ({ plugin }) => expect(plugin.id));
+            RUNNER.onLifecycle('didLaunch', ({ plugin, exports }) => provide(plugin.id, exports));
+            RUNNER.onLifecycle('didFailToLaunch', ({ plugin, endReason }) => fail(plugin.id, endReason));
+            RUNNER.onLifecycle('willTerminate', ({ plugin }) => expect(plugin.id));
+            RUNNER.onLifecycle(
+                'didTerminate',
+                ({ plugin, endReason }) => !RUNS_AGAIN.has(endReason) && fail(plugin.id, endReason)
+            );
             PROTOCOL.requirements.handle((_payload, sender) => requirementsOf(IDENTITY.pluginFrom(sender)));
             // A provider running again answers once its new run has started.
             PROTOCOL.callExport.handle(async ({ plugin, path, args }, sender) => {
@@ -28,27 +39,28 @@ DeckitModule.define(
             });
         }
 
-        // Before a plugin's view starts: whoever requires it waits until it has started or failed.
+        // MARK: - Private
+        // Already waited for, it is still the same wait.
         function expect(pluginId) {
+            if (providers.get(pluginId)?.done === false) return;
             let resolve;
             const settled = new Promise((done) => (resolve = done));
-            providers.set(pluginId, { settled, resolve, exports: null, error: null });
+            providers.set(pluginId, { settled, resolve, done: false, exports: null, error: null });
         }
 
         function provide(pluginId, exports) {
             const provider = providers.get(pluginId);
-            provider.exports = exports;
+            Object.assign(provider, { done: true, exports });
             provider.resolve();
         }
 
         function fail(pluginId, why) {
             const provider = providers.get(pluginId);
-            if (!provider || provider.exports) return;
-            provider.error = why;
+            if (!provider || provider.done) return;
+            Object.assign(provider, { done: true, error: why });
             provider.resolve();
         }
 
-        // MARK: - Private
         async function requirementsOf(plugin) {
             const out = {};
             for (const id of Object.keys(plugin.requires)) {
@@ -59,6 +71,6 @@ DeckitModule.define(
             return out;
         }
 
-        return { start, expect, provide, fail };
+        return { start };
     }
 );

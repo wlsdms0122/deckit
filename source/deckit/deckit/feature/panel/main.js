@@ -6,16 +6,15 @@ DeckitModule.define(
             'deckit/service/storage',
             'deckit/service/log/main',
             'deckit/service/deck/identity',
-            'deckit/service/deck/main',
             'deckit/service/deck/catalog',
-            'deckit/service/deck/lifecycle',
+            'deckit/service/deck/runner',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/feature/panel/protocol',
         ],
         provides: ['start', 'control', 'showsPanel', 'dismisses', 'reveal', 'awaitReply'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, DECK, CATALOG, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER, WEB, KEYMAP, PROTOCOL) => {
         // MARK: - Property
         const FRAME = 'panel-frame';
         const HISTORY_LIMIT = 50;
@@ -51,13 +50,15 @@ DeckitModule.define(
             LOG.guard(container, 'bounds-changed', layout);
             listen();
             registerKeys();
-            LIFECYCLE.onChange(reconcile);
+            CATALOG.onChange(reconcile);
+            for (const name of ['willLaunch', 'didLaunch', 'didFailToLaunch', 'willTerminate', 'didTerminate'])
+                RUNNER.onLifecycle(name, reconcile);
             reconcile();
         }
 
         // A web page a plugin shows counts as its page; whether the page is what is on screen there is the shell's.
         function showsPanel(webContents) {
-            const page = LIFECYCLE.pageFor(webContents);
+            const page = RUNNER.pageFor(webContents);
             if (!page || !shown || page !== currentContents()) return false;
             return !!shell.showsPanel(page);
         }
@@ -143,14 +144,17 @@ DeckitModule.define(
             });
         }
 
-        // The pages of the plugins that said they have something to show, as the plugins run. The plugin on screen
-        // whose page is replaced by a new run comes back on screen once the new page says it has something to show;
-        // until then, and when it has nothing, the panel lands as it does at the start.
+        // The pages of the plugins that said they have something to show, as the plugins run. A page shown stays while
+        // its plugin terminates, and while it launches again in that page. The plugin on screen whose page is replaced
+        // comes back on screen once the new page says it has something to show; until then, and when it has nothing,
+        // the panel lands as it does at the start.
         function reconcile() {
             const showing = new Map(
-                LIFECYCLE.pages()
-                    .filter(({ summary }) => summary?.view)
-                    .map(({ entry, page }) => [entry.id, page])
+                RUNNER.runs()
+                    .filter(({ run, page }) =>
+                        run.state === 'running' ? run.summary.view : views.get(run.plugin.id) === page && onItsWay(run)
+                    )
+                    .map(({ run, page }) => [run.plugin.id, page])
             );
             for (const [id, page] of views) {
                 if (showing.get(id) === page) continue;
@@ -176,10 +180,16 @@ DeckitModule.define(
             broadcast();
         }
 
-        // Running, and not known to have nothing to show.
+        // Not known to have nothing to show.
         function mayShow(id) {
-            const running = LIFECYCLE.pages().some(({ entry }) => entry.id === id);
-            return running && DECK.summaryOf(id)?.view !== false && !DECK.hasEnded(id);
+            const run = RUNNER.runOf(id);
+            if (!run) return false;
+            return run.state === 'running' ? run.summary.view : onItsWay(run);
+        }
+
+        // Launching, terminating, or ended to launch again.
+        function onItsWay(run) {
+            return run.state !== 'notRunning' || run.endReason === 'restart';
         }
 
         // In the person's order: the first plugin that has something to show, or may have once it has started. One
@@ -196,7 +206,7 @@ DeckitModule.define(
         function stateOf() {
             const plugins = CATALOG.plugins()
                 .filter(({ id }) => views.has(id))
-                .map(({ id, name }) => ({ id, name, icon: DECK.summaryOf(id)?.icon || '' }));
+                .map(({ id, name }) => ({ id, name, icon: RUNNER.runOf(id)?.summary?.icon || '' }));
             return {
                 plugins,
                 current,
@@ -270,7 +280,7 @@ DeckitModule.define(
 
         // Whether a keystroke or a request in this webContents is the panel's: one of its pages, or a web page in one.
         function contains(webContents) {
-            const page = LIFECYCLE.pageFor(webContents);
+            const page = RUNNER.pageFor(webContents);
             return [...views.values()].some((shown) => shown.webContents === page);
         }
 

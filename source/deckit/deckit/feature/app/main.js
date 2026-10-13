@@ -10,7 +10,7 @@ DeckitModule.define(
             'deckit/service/deck/identity',
             'deckit/service/deck/main',
             'deckit/service/deck/catalog',
-            'deckit/service/deck/lifecycle',
+            'deckit/service/deck/runner',
             'deckit/service/web/session',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
@@ -35,7 +35,7 @@ DeckitModule.define(
         IDENTITY,
         DECK,
         CATALOG,
-        LIFECYCLE,
+        RUNNER,
         SESSION,
         WEB,
         KEYMAP,
@@ -121,8 +121,8 @@ DeckitModule.define(
             }));
             PANEL.start({ shell });
             SWITCHER.start({ makeView: () => pageView(preload, { plugin: false }), shell });
-            KEYMAP.connect({ pageOf: LIFECYCLE.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
-            LIFECYCLE.start({ makePage: () => pageView(preload, { plugin: true }) });
+            KEYMAP.connect({ pageOf: RUNNER.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
+            RUNNER.start({ makePage: () => pageView(preload, { plugin: true }) });
             shell.start({
                 setTheme,
                 panel: PANEL.control,
@@ -136,7 +136,7 @@ DeckitModule.define(
         function setTheme(next) {
             if (JSON.stringify(next) === JSON.stringify(theme)) return;
             theme = next;
-            LIFECYCLE.reload();
+            RUNNER.restart();
             SWITCHER.reload();
         }
 
