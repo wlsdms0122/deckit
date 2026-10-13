@@ -68,7 +68,13 @@ DeckitModule.define(
                 how();
             };
             const callOff = () => phase === 'held' && settle(() => held.cancel());
+            // A move with the button up is a press that ended where this page did not see it: the press put another
+            // view on screen, which had the release.
             const onMove = (event) => {
+                if (!(event.buttons & 1)) {
+                    listen(false);
+                    return phase === 'pressed' ? finished() : callOff();
+                }
                 x = event.clientX;
                 y = event.clientY;
                 if (phase === 'pressed') {
