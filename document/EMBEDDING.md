@@ -8,10 +8,10 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 
 | In the archive | |
 |---|---|
-| `deckit.json` | the version, the plugin contract it speaks (`api`), the hash of its sources, each bundle's file and the modules it defines, the page, the plugins |
+| `deckit.json` | the version, the plugin contract it speaks (`api`), the hash of its sources, the scheme deckit's pages load from (`scheme`, as `DECKIT.SCHEME` is), each bundle's file and the modules it defines, the plugins |
 | `registry.js` | the module registry: first wherever deckit runs, and the one global deckit adds |
 | `main.js` | the main process bundle |
-| `page.js`, `page.html` | every deckit page: each plugin's, and the switcher's. `page.js` is the page bundle |
+| `page.js` | the bundle of every deckit page: each plugin's, and the switcher's |
 | `chord.js` | how a chord is spelled and matched, for a page of the host app's that shows one of deckit's chords |
 | `plugin/<id>/` | deckit's own plugins, each with its entry bundled, a catalog the host app picks from |
 | `document/` | this, PLUGIN.md and UI.md |
@@ -52,7 +52,7 @@ protocol.registerSchemesAsPrivileged([DECKIT.SCHEME, ...theAppsOwn]);
 DECKIT.connect({ preload, shell });
 ```
 
-`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges; Electron takes privileged schemes in one call, which the host app makes. `preload` is the file the host app put together for deckit's pages (section 1).
+`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1). Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
 
 What a shell answers:
 
@@ -68,7 +68,7 @@ What a shell answers:
 | `noticeClicked()` | a notice deckit raised was clicked |
 | `restart()` | the host app restarts: the process is the host app's |
 
-`connect` is called once, with `preload` and a shell that answers every one of these; otherwise it throws and names what is missing. When the host app quits, once every window has closed, deck holds the quit at `will-quit` until every plugin's `stop()` has answered, two seconds at most each, and then ends the process with `app.exit(process.exitCode)`: the host app's own `will-quit` listeners have run once, and `quit` is not emitted. A restart the shell makes is a quit too: `app.relaunch()`, or an exit code in `process.exitCode`, then `app.quit()`. `app.exit()` skips every `stop()`. `openWindow` and `panelTitled` can be asked as plugins load, before `start`.
+`connect` is called once, with `preload` and a shell that answers every one of these; otherwise it throws and names what is missing. When the host app quits, once every window has closed, deck holds the quit at `will-quit` until every plugin's `stop()` has answered, two seconds at most each, and then asks for the quit again: it goes on as any quit does, `quit` and all. The host app's `before-quit` and `will-quit` listeners hear both. A quit the host app calls off leaves the plugins that stopped for it stopped, and the next quit stops the runs that started since. A restart the shell makes is a quit too, `app.relaunch()` and then `app.quit()`; `app.exit()` skips every `stop()`. The process ends with code 0; a host app that ends it with another calls `app.exit(code)` from its `quit` listener. `openWindow` and `panelTitled` can be asked as plugins load, before `start`.
 
 The keyboard in a window is the shell's to give. macOS hands it to a window's own page each time the window comes forward, so a shell whose views are not that page gives it to the view: the switcher's page while it is open, else `deckit.panel.focus()` for the panel, and the view's page for a window it opened.
 
@@ -76,13 +76,15 @@ What `deckit` holds:
 
 | | |
 |---|---|
-| `deckit.panel` | `glass`, the strength the panel lays its colour over the blur at, for a surface beside it to match; `view()`, the panel's container, which the shell places in a window with `deckit.window.place` (so a plugin's main process module can find the window its view is in); `contains(webContents)`, whether a webContents is a page the panel shows or a web page in one; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
+| `deckit.panel` | `glass`, the strength the panel lays its colour over the blur at, for a surface beside it to match; `view()`, the panel's container, which the shell places in a window with `deckit.window.place` (so a plugin's main process module can find the window its view is in); `contains(webContents)`, whether a webContents is a page the panel shows or a web page in one; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the shell makes; `present({ floating, dismissible, titleBar })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
 | `deckit.setTheme(theme)` | the host app's colours, for every deckit page |
-| `deckit.switcher` | `view()`, which the shell puts in front where it was summoned; `open()`, resolving true when it was put away; `close()`, `shown()` |
+| `deckit.switcher` | `view()`, which the shell puts in front where it was summoned; `open()`, resolving true when it was put away; `close()`, `shown()`; `chord()`, the chord that summons it now as a person reads it, or `''` |
 | `deckit.window` | `place(view, window, { bounds, front, onClose })`, which puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
 | `deckit.keymap` | `listen(webContents)`: a page of the host app's own that should hear deckit's global keys |
 
-Moving the panel is a re-parent: plugins keep their sandboxes and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, and whether Escape with nothing else to close puts it away.
+Moving the panel is a re-parent: plugins keep their sandboxes and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, whether Escape with nothing else to close puts it away, and, filling a window whose title bar lies over the panel's top, `titleBar: { height, controlsWidth }`: the bar's height and the width the window's buttons take at its start. The sidebar then reaches up under the bar, and the content keeps below it, under the plugin's name, where the bar drags the window.
+
+The shell reaches deckit through `connect` and the `deckit` it is handed, and nothing else of deckit's: its own listeners and its own files are its own.
 
 `setTheme` gives deckit the host app's colours: `{ sidebarBg, sidebarColor, border, contentBg, contentColor, font }`. Every deckit page derives its look from it (UI.md) and is made again when it changes, headless plugins' sandboxes included.
 

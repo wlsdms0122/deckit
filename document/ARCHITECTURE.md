@@ -75,6 +75,8 @@ Between plugins there are two ways, and one question picks: could the host app d
 - If it could not, it is a dependency. A plugin names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. What the host app offers (`host/exports`) is handed to the host app's own plugin, whose id is the host app's, and another plugin reaches it by requiring that one.
 - If it could, it is a URL scheme handler. A plugin asks for an address to be opened (`deck.open(url)`) without knowing who answers. The plugins whose manifest names the scheme are its handlers and are asked in the order the person set, ahead of deck's own answer, which is always last.
 
+Apart from both, a plugin says what happened to it through deck's events (`service/event`): `deck.emit(name)` is heard as `<its id>:<name>` by any plugin that listens, and no plugin speaks for another. Listening takes no dependency. The bus itself, listeners by name, is `module/event-bus`.
+
 What reaches past a plugin's own sandbox (the clipboard, notices, any web address, another plugin's settings, the keymap, a main process module) is asked for by name in `permissions`, with a reason the person reads when installing. Main checks each one where the plugin asks, by the page it asks from.
 
 ## 6. Modules
