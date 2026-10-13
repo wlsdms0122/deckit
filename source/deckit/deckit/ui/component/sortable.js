@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/component/sortable',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/scroll', 'deckit/ui/gesture', 'deckit/ui/list'],
+        uses: ['deckit/ui/token', 'deckit/ui/motion', 'deckit/ui/scroll', 'deckit/ui/gesture', 'deckit/ui/list'],
         provides: ['STYLE', 'make'],
     },
-    (TOKEN, SCROLL, GESTURE, LIST) => {
+    (TOKEN, MOTION, SCROLL, GESTURE, LIST) => {
         // MARK: - Property
         const STYLE = '';
         // A lifted row grows by this much.
@@ -21,10 +21,10 @@ DeckitModule.define(
         // hears that the item `key` goes where `toKey` is, and the owner draws the new order. Keys, so a change to the
         // items while the drag holds the list does not move another one. Returns the dispose.
         //
-        // With `depth`, the rows nest, and how far the pointer moves sideways asks for a depth as well: a level each
-        // `depth.indent` px. `depth.project(key, toKey, levels)` answers the depth the row would take there, levels
-        // deeper (or shallower) than it is, and the held row stands that far in. `onReorder(key, toKey, depth)` then
-        // hears a move to the same place at another depth too.
+        // With `depth`, the rows nest, and how far the pointer moves sideways asks for a depth as well: a level for
+        // each `depth.indent` px, to the nearest. `depth.project(key, toKey, levels)` answers the depth the row would
+        // take there, levels deeper (or shallower) than it is, and the held row stands that far in. `onReorder(key,
+        // toKey, depth)` then hears a move to the same place at another depth too.
         function sortable(theme, list, { onReorder, depth = null }) {
             const { element } = list;
             return GESTURE.drag(element, {
@@ -42,12 +42,14 @@ DeckitModule.define(
         // The row lifted, the others sliding aside as it passes them. The rows are the owner's items as laid out: one that
         // is not laid out has no place to move to or from, and one folding away is no longer an item.
         function lift(theme, list, row, down, keyOf, depth, onReorder, finished) {
-            const MOTION = TOKEN.MOTION;
+            const { base, easing } = TOKEN.MOTION;
             const rows = [...list.children].filter(
                 (child) => child.getClientRects().length && !child.hasAttribute(LIST.LEAVING)
             );
             const from = rows.indexOf(row);
             if (from < 0 || rows.length < 2) return null;
+            // A row still unfolding is taken at its own size.
+            rows.forEach((child) => MOTION.finish(child));
             // Places are read once, as they stood at the lift; a scroll since is added to the pointer instead.
             const boxes = rows.map((child) => child.getBoundingClientRect());
             const held = boxes[from];
@@ -61,7 +63,7 @@ DeckitModule.define(
                 transform: child.style.transform,
             }));
             const keptHeld = { position: row.style.position, zIndex: row.style.zIndex, boxShadow: row.style.boxShadow };
-            const slide = `transform ${MOTION.base}ms ${MOTION.easing}`;
+            const slide = `transform ${base}ms ${easing}`;
             rows.forEach((child, index) => index !== from && (child.style.transition = slide));
             // The fill is an inset shadow, not a background: the background is the hover's, which repaints as the
             // pointer comes and goes during the drag.
@@ -125,7 +127,7 @@ DeckitModule.define(
                 row.style.transition = slide;
                 place(target - held.top, 1);
                 then = after;
-                if (MOTION.base) timer = setTimeout(runThen, MOTION.base);
+                if (base) timer = setTimeout(runThen, base);
                 else runThen();
             };
             return {

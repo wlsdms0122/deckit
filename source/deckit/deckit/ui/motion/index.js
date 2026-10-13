@@ -1,11 +1,11 @@
 DeckitModule.define(
     'deckit/ui/motion',
-    { uses: ['deckit/ui/token'], provides: ['play', 'collapse', 'expand'] },
+    { uses: ['deckit/ui/token'], provides: ['play', 'collapse', 'expand', 'finish'] },
     (TOKEN) => {
         // MARK: - Property
         // What a fold sets inline, as the element had it before: put back once the fold is over.
         const FOLDED = ['transition', 'overflow', 'opacity', 'pointerEvents'];
-        const folding = new Map(); // element -> { inline, timer }: a fold under way
+        const folding = new Map(); // element -> { inline, timer, then }: a fold under way
 
         // MARK: - Initializer
         // MARK: - Public
@@ -32,8 +32,8 @@ DeckitModule.define(
             });
         }
 
-        // Unfolds `element` along an axis from nothing to its own size: the reverse of `collapse`, from where a fold under
-        // way stands.
+        // Unfolds `element` along an axis from nothing to its own size and opacity: the reverse of `collapse`, from
+        // where a fold under way stands.
         function expand(element, { across = false } = {}) {
             const axis = axisOf(across);
             const running = folding.has(element);
@@ -48,11 +48,18 @@ DeckitModule.define(
                 from: { [axis.size]: from + 'px', opacity, [axis.start]: '0', [axis.end]: '0' },
                 to: {
                     [axis.size]: to + 'px',
-                    opacity: '1',
+                    opacity: style.opacity,
                     [axis.start]: style[axis.start],
                     [axis.end]: style[axis.end],
                 },
             });
+        }
+
+        // A fold under way ends at once, as it would have: its `then` runs.
+        function finish(element) {
+            const then = folding.get(element)?.then;
+            settle(element);
+            then?.();
         }
 
         // MARK: - Private
@@ -79,10 +86,10 @@ DeckitModule.define(
                 settle(element);
                 then?.();
             }, length);
-            folding.set(element, { inline, timer });
+            folding.set(element, { inline, timer, then });
         }
 
-        // A fold under way ends where it stands, its `then` not run, and the element is as it was before it.
+        // A fold under way stops, its `then` not run, and the element's inline style is put back as it was before it.
         function settle(element) {
             const running = folding.get(element);
             if (!running) return;
@@ -91,6 +98,6 @@ DeckitModule.define(
             Object.assign(element.style, running.inline);
         }
 
-        return { play, collapse, expand };
+        return { play, collapse, expand, finish };
     }
 );
