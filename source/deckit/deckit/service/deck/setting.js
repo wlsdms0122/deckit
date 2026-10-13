@@ -20,8 +20,8 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // A plugin's settings stand from its entry's declaring them until it no longer loads, or until a later run of it
-        // declares them again: one whose start failed can still be set.
+        // A plugin's settings stand from its entry's declaring them until it no longer loads, or until a later run of
+        // it declares them again: one whose start failed can still be set.
         function start() {
             PROTOCOL.declare.on(({ run: number, settings }, sender) => {
                 if (RUNNER.currentRun(sender, number)?.state === 'launching')

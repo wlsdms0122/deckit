@@ -70,8 +70,8 @@ DeckitModule.define(
 
         // MARK: - Private
         async function run({ theme, ui, layers, show, dismiss }) {
-            // Answered from the first, so a page whose plugin never started does not keep main waiting. stop() runs once,
-            // after a start() still going has ended; a plugin asked to stop before its start() is not started.
+            // Answered from the first, so a page whose plugin never started does not keep main waiting. stop() runs
+            // once, after a start() still going has ended; a plugin asked to stop before its start() is not started.
             let started = null; // the entry, once its start() is called
             let starting = null;
             let stopping = null;
