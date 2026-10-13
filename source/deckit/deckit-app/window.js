@@ -7,14 +7,15 @@ DeckitModule.define(
     },
     (CONFIG) => {
         // MARK: - Property
-        // The bar over a view laid below it, and the taller one over a view that fills the window, whose buttons stand
-        // inside the sidebar card the panel draws under them. The buttons are centred on the bar's height.
+        // The bar over a view laid below it, and the taller one over a view that fills the window, the bar's height
+        // included, whose buttons stand inside the sidebar card the panel draws there. The buttons are centred on the
+        // bar's height.
         const BAR = barOf({ height: 38, left: 14 });
         const FULL_SIZE_BAR = barOf({ height: 52, left: 20 });
         // The window's three buttons, from the first one's left edge to the last one's right.
         const BUTTONS_WIDTH = 52;
-        // The bar, for a view laid under it: its height, and the width the buttons take from the window's left edge,
-        // with as much room after them as before.
+        // The bar over a view that fills the window: its height, and the width the buttons take from the window's left
+        // edge, with as much room after them as before.
         const TITLE_BAR = Object.freeze({
             height: FULL_SIZE_BAR.height,
             controlsWidth: FULL_SIZE_BAR.buttons.x * 2 + BUTTONS_WIDTH,
@@ -35,9 +36,9 @@ DeckitModule.define(
         // and answers a double click as the person set. `size` is the view's, below the bar. `glass`, for a view drawn
         // as glass, is the strength it lays its colour over the blur at: the window blurs what is behind it, and the
         // bar lays the same colour at the same strength, so the two read as one surface. `fullSize`: the view fills the
-        // window, the bar's height included, and draws what lies under the bar itself, the title too (TITLE_BAR). A window with a
-        // `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to the
-        // view, which macOS otherwise gives the bar each time the window comes forward.
+        // window, the bar's height included, and draws what lies under the bar itself, the title too (TITLE_BAR). A
+        // window with a `key` opens where it was last left; another opens over the window in front. `focus` hands the
+        // keyboard to the view, which macOS otherwise gives the bar each time the window comes forward.
         function open({
             view,
             title = '',
@@ -51,7 +52,7 @@ DeckitModule.define(
             const { BrowserWindow } = require('electron');
             const viewSize = size || DEFAULT_VIEW_SIZE;
             const bar = fullSize ? FULL_SIZE_BAR : BAR;
-            const windowSize = { width: viewSize.width, height: viewSize.height + BAR.height };
+            const windowSize = { width: viewSize.width, height: viewSize.height + bar.height };
             const window = new BrowserWindow({
                 ...windowSize,
                 ...((key && savedBounds(key)) || overFront(windowSize)),
