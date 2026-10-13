@@ -15,6 +15,7 @@ function sidebar({
     onSelectTab,
     onCloseTab,
     onPlaceTab,
+    onPlaceGroup,
     onCloseOtherTabs,
     onNewGroup,
     onJoinGroup,
@@ -102,13 +103,22 @@ function sidebar({
     bookmarkSection.body.append(bookmarkList.element);
     element.append(tabSection.element, bookmarkSection.element);
 
-    // Moved down, a row goes after the one it is let go on; moved up, before it.
+    // Moved down, a row goes after the one it is let go on; moved up, before it. A tab let go just under an open
+    // group's heading is the group's first.
     ui.sortable(tabList, {
         onReorder: (key, toKey) => {
             const from = shownRows.findIndex((each) => keyOf(each) === key);
-            const to = shownRows.findIndex((each) => keyOf(each) === toKey);
+            let to = shownRows.findIndex((each) => keyOf(each) === toKey);
             if (from < 0 || to < 0) return;
-            onPlaceTab(subjectOf(shownRows[from]), subjectOf(shownRows[to]), to > from);
+            let after = to > from;
+            const moving = shownRows[from];
+            if (moving.tab && !shownRows[to].tab && after && !shownRows[to].group.collapsed) {
+                to += 1;
+                after = false;
+            }
+            const target = shownRows[to].tab || shownRows[to].group;
+            if (moving.tab) onPlaceTab(moving.tab, target, after);
+            else onPlaceGroup(moving.group, target, after);
         },
     });
     ui.sortable(bookmarkList, { onReorder: (url, toUrl) => bookmarks.move(url, toUrl) });
@@ -123,11 +133,10 @@ function sidebar({
 
     return {
         element,
-        // `group(tab)` is the group the tab is in, or null.
-        showTabs(tabs, active, group) {
+        showTabs(tabs, active, groupOfTab) {
             shownTabs = tabs;
             activeTab = active;
-            groupOf = group;
+            groupOf = groupOfTab;
             shownRows = rowsOf(tabs);
             tabList.set(shownRows);
         },
@@ -151,10 +160,6 @@ function sidebar({
 
     function keyOf(row) {
         return row.tab ? 'tab:' + row.tab.id : 'group:' + row.group.id;
-    }
-
-    function subjectOf(row) {
-        return row.tab || row.group;
     }
 
     function tabOrGroupRow(row) {
@@ -196,15 +201,14 @@ function sidebar({
         row.setActive(group.collapsed && groupOf(activeTab) === group);
     }
 
-    // The heading's name typed over in place. Untitled, the field starts empty.
-    async function renameGroup(group) {
-        const rowElement = tabList.elementOf('group:' + group.id);
-        if (!rowElement) return;
-        const { label } = groupRows.get(rowElement);
-        label.textContent = group.title;
-        await ui.inlineEdit(label, { onCommit: (text) => onChangeGroup(group, { title: text.trim() }) });
-        const shown = shownRows.find((each) => each.group === group && !each.tab);
-        if (shown && rowElement.isConnected) updateGroupRow(rowElement, shown);
+    // An empty name leaves the group untitled.
+    function renameGroup(group) {
+        ui.dialog({
+            title: 'Name group',
+            fields: [{ key: 'title', label: 'Name', value: group.title, placeholder: 'optional' }],
+            confirmLabel: 'Name',
+            onConfirm: ({ title }) => onChangeGroup(group, { title: title.trim() }),
+        });
     }
 
     function inkOf(color) {
@@ -280,7 +284,11 @@ function sidebar({
     function tabMenu(tab) {
         return [
             { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page.reload() },
-            { label: 'Duplicate', icon: 'window', run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon }) },
+            {
+                label: 'Duplicate',
+                icon: 'window',
+                run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon, group: groupOf(tab) }),
+            },
             {
                 label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
                 icon: tab.muted ? 'volume' : 'volumeOff',

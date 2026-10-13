@@ -33,7 +33,8 @@ function tabs({
     const groups = new Map((saved.groups || []).map((group) => [group.id, { ...group }]));
     let current = null;
     let lastId = 0;
-    let lastGroupId = Math.max(0, ...groups.keys());
+    // Past every id a closed tab still names, so reopening one never finds its group in a newer one.
+    let lastGroupId = Math.max(0, ...groups.keys(), ...closed.map((tab) => tab.group || 0));
 
     return {
         list: () => list,
@@ -46,7 +47,8 @@ function tabs({
         close,
         closeOthers,
         reopen,
-        place,
+        placeTab,
+        placeGroup,
         restore,
         newGroup,
         join,
@@ -56,14 +58,16 @@ function tabs({
         closeGroup,
     };
 
-    // Adding a tab chooses it, which opens its group: the folds are given back once every tab is in.
+    // Choosing a tab opens its group: the folds are given back once the tabs are in and the active one is chosen.
     function restore() {
         if (!saved.tabs.length) return add();
+        const folds = [...groups.values()].map((group) => [group, group.collapsed]);
         const restored = saved.tabs.map(({ url, title, icon, group }) =>
             add(url, { title, icon, group: groups.get(group) })
         );
-        for (const { id, collapsed } of saved.groups || []) if (groups.has(id)) groups.get(id).collapsed = collapsed;
         select(restored[saved.active]);
+        for (const [group, collapsed] of folds) group.collapsed = collapsed;
+        changed();
     }
 
     function groupOf(tab) {
@@ -145,33 +149,39 @@ function tabs({
         else changed();
     }
 
+    // Back in its group while the group stands, else where it was and in no group.
     function reopen() {
         const last = closed.pop();
         if (!last) return;
-        const tab = add(last.url, { title: last.title, icon: last.icon });
+        const group = groups.get(last.group);
+        const tab = add(last.url, { title: last.title, icon: last.icon, group });
         const at = list[Math.min(last.at, list.length - 1)];
-        if (at !== tab) place(tab, at, false);
+        if (!group && at !== tab) placeTab(tab, groupOf(at) || at, false);
     }
 
-    // `moving`, a tab or a group, goes beside `target`, a tab or a group: after it with `after`, before it otherwise. A
-    // tab put among a group's tabs, or just after an open group's heading, is in that group, and one put anywhere else
-    // is in none. A group goes beside another group, never into it.
-    function place(moving, target, after) {
-        const movingGroup = isGroup(moving);
-        const beside = movingGroup && !isGroup(target) && groupOf(target) ? groupOf(target) : target;
-        const moved = movingGroup ? tabsOf(moving) : [moving];
-        if (beside === moving || moved.includes(beside)) return;
-        // A group's own tabs, but the one moving: a tab alone in its group has nothing to stand beside.
-        const span = isGroup(beside) ? tabsOf(beside).filter((tab) => tab !== moving) : [beside];
-        if (!span.length) return;
-        const opensInto = !movingGroup && isGroup(beside) && after && !beside.collapsed;
+    // The tab goes beside `target`, a tab or a group: after it with `after`, before it otherwise. Beside a tab it is in
+    // that tab's group; beside a group, in none.
+    function placeTab(tab, target, after) {
+        // The group's own tabs, but this one: alone in its group, it has nothing to stand beside.
+        const span = isGroup(target) ? tabsOf(target).filter((each) => each !== tab) : [target];
+        if (target === tab || !span.length) return;
+        const left = groupOf(tab);
+        list.splice(list.indexOf(tab), 1);
+        list.splice(after ? list.indexOf(span.at(-1)) + 1 : list.indexOf(span[0]), 0, tab);
+        tab.group = isGroup(target) ? null : target.group;
+        forgetIfEmpty(left);
+        changed();
+    }
+
+    // The group's tabs go beside `target`, a tab or a group, together: beside a tab in a group, they go beside its
+    // group.
+    function placeGroup(group, target, after) {
+        const beside = isGroup(target) ? target : groupOf(target) || target;
+        if (beside === group) return;
+        const moved = tabsOf(group);
+        const span = isGroup(beside) ? tabsOf(beside) : [beside];
         for (const tab of moved) list.splice(list.indexOf(tab), 1);
-        list.splice(opensInto || !after ? list.indexOf(span[0]) : list.indexOf(span.at(-1)) + 1, 0, ...moved);
-        if (!movingGroup) {
-            const left = groupOf(moving);
-            moving.group = isGroup(beside) ? (opensInto ? beside.id : null) : beside.group;
-            forgetIfEmpty(left);
-        }
+        list.splice(after ? list.indexOf(span.at(-1)) + 1 : list.indexOf(span[0]), 0, ...moved);
         changed();
     }
 
@@ -263,7 +273,7 @@ function tabs({
     function retire(tab) {
         const index = list.indexOf(tab);
         if (tab.url !== 'about:blank') {
-            closed.push({ url: tab.url, title: tab.title, icon: tab.icon, at: index });
+            closed.push({ url: tab.url, title: tab.title, icon: tab.icon, group: tab.group, at: index });
             closed.splice(0, Math.max(0, closed.length - KEPT_CLOSED));
         }
         release(tab, tab.page);
