@@ -250,14 +250,14 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 ## Lifecycle
 
-Each start of a plugin's entry is a run, and a run is in one of four states:
+Each launch of a plugin's entry is a run, and a run is in one of four states:
 
-| State | |
+| State | What happens |
 |---|---|
 | `launching` | its sandbox loads, the entry is evaluated and its settings declared; once what it requires is running, `start(deck)` registers, and starts main process modules if it needs them |
 | `running` | `start` has ended and deck has joined what it registered (keys, switcher, URL handler, exports); a view, if it registered one, is in the panel: didAppear and didDisappear |
-| `terminating` | `stop()` is asked: removed, updated, the app quitting, a new theme |
-| `notRunning` | it ended: `stop()` answered or its time ran out, `start` failed, or its page went away |
+| `terminating` | `stop()` is asked: removed, updated, the app quitting, a new theme, or `start` failed. A `stop()` asked while `start` is still going runs once it has ended |
+| `notRunning` | it ended: `stop()` answered or its time ran out, or its page went away |
 
 A plugin launches again in a new sandbox when it is installed again, and in the same one, loaded again, when the host app's theme changes. A page that loads again by itself ends its run with the page it ran in, and launches a new one. A main process module is started once for each plugin and path while the app runs: a new sandbox asking for the same path gets the one already running. One whose code changed is taken up at the app's next start; Settings asks for the restart.
 
