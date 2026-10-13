@@ -85,7 +85,7 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 
 ## Dragging and sizing
 
-- `sortable(list, { onReorder })` decorates a keyed list and returns its dispose: the rows put in a new order by a drag. `onReorder(key, toKey)` hears that the item `key` goes where `toKey` is, and the owner draws the new order.
+- `sortable(list, { onReorder, depth })` decorates a keyed list and returns its dispose: the rows put in a new order by a drag. `onReorder(key, toKey)` hears that the item `key` goes where `toKey` is, and the owner draws the new order. With `depth: { indent, project(key, toKey, levels) }` the rows nest: a sideways move of `indent` px asks for a level deeper or shallower, `project` answers the depth the row would take there, the held row stands that far in, and `onReorder(key, toKey, depth)` hears a move to the same place at another depth too.
 - `dragSource(area, { itemAt, describe })` is a decorator: `describe(item)` is `{ kind, payload, text, icon }`.
 - `dropTarget(zone, { kind, placeAt, onDrop })` is a decorator.
 - `resizer(handle, { axis, grow, size, min, max, onResize, onCommit, onClick, onDrag, resizable })` is a decorator: `size()` reads the size, `onResize(px)` draws one, `onCommit(px)` keeps the one let go of. Past a limit the edge gives and springs back; a press that does not travel is a click.
