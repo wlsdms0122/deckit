@@ -29,6 +29,7 @@ DeckitModule.define(
             'pick',
             'install',
             'remove',
+            'relaunch',
             'reveal',
             'count',
             'restartPending',
@@ -55,7 +56,7 @@ DeckitModule.define(
         requirements: IPC.rendererToMain('deckit:plugin-requirements', {}, { reply: true }),
         callExport: IPC.rendererToMain(
             'deckit:plugin-call-export',
-            { plugin: 'string', path: 'array', args: 'array' },
+            { run: 'number', plugin: 'string', path: 'array', args: 'array' },
             { reply: true }
         ),
         exportCalled: IPC.mainToRenderer('deckit:plugin-export-called', { reply: true }),
@@ -85,6 +86,7 @@ DeckitModule.define(
         pick: IPC.rendererToMain('deckit:plugins-pick', {}, { reply: true }),
         install: IPC.rendererToMain('deckit:plugins-install', { from: 'string' }, { reply: true }),
         remove: IPC.rendererToMain('deckit:plugins-remove', { id: 'string', data: 'boolean' }, { reply: true }),
+        relaunch: IPC.rendererToMain('deckit:plugins-relaunch', { id: 'string' }, { reply: true }),
         reveal: IPC.rendererToMain('deckit:plugins-reveal', { id: 'string' }, { reply: true }),
         count: IPC.rendererToMain('deckit:plugins-count', { id: 'string' }, { reply: true }),
         restartPending: IPC.rendererToMain('deckit:plugins-restart-pending', {}, { reply: true, sync: true }),

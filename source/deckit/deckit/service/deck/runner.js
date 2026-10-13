@@ -15,7 +15,7 @@ DeckitModule.define(
             'deckit/service/plugin/manifest',
             'deckit/service/plugin/lifecycle',
         ],
-        provides: ['start', 'runs', 'runOf', 'currentRun', 'observe', 'whenClosed', 'restart'],
+        provides: ['start', 'runs', 'runOf', 'currentRun', 'observe', 'whenClosed', 'restart', 'relaunch'],
         runs: 'main',
     },
     (STORAGE, LOG, EVENT_BUS, IDENTITY, CATALOG, WEB, KEYMAP, OPEN, PROTOCOL, ORIGIN, MANIFEST, LIFECYCLE) => {
@@ -39,6 +39,7 @@ DeckitModule.define(
         function start({ makeView: make }) {
             makeView = make;
             listen();
+            follow();
             CATALOG.onChange(reconcile);
             reconcile();
             // The app quits once every run has ended. Held at will-quit, once every window has closed and the quit is
@@ -82,25 +83,70 @@ DeckitModule.define(
             return sandboxes.get(pluginId)?.closing || Promise.resolve();
         }
 
-        // Every plugin terminates and launches again in its sandbox, at its page's own address, as a new theme asks. A
-        // run that terminates for good meanwhile (a removal, a quit) stays ended; one ended before, for a quit the host
-        // app called off or a crash, launches again, and a plugin whose sandbox closed for such a quit opens again.
+        // Every plugin terminates and launches again, as a new theme asks, and a plugin whose sandbox closed for a quit
+        // the host app called off opens again.
         function restart() {
-            for (const sandbox of sandboxes.values()) {
-                if (sandbox.closing) continue;
-                const { run } = sandbox;
-                const live = run.state !== 'notRunning';
-                terminate(sandbox, 'restart').then(() => {
-                    if (quitting || sandboxes.get(sandbox.plugin.id) !== sandbox || sandbox.closing) return;
-                    if (sandbox.run !== run || (live && !run.relaunches)) return;
-                    launch(sandbox);
-                    sandbox.view.webContents.loadURL(addressOf(sandbox.plugin));
-                });
-            }
+            for (const sandbox of sandboxes.values()) if (!sandbox.closing) relaunchSandbox(sandbox);
             reconcile();
         }
 
+        // The plugin terminates and launches again, or launches when it is not running. Throws while a plugin it
+        // requires is not running.
+        function relaunch(pluginId) {
+            const sandbox = sandboxes.get(pluginId);
+            if (!sandbox || sandbox.closing || quitting) return;
+            const missing = notRunningRequirement(sandbox);
+            if (missing) throw new Error(`${pluginId} needs ${missing}, which is not running`);
+            relaunchSandbox(sandbox);
+        }
+
         // MARK: - Private
+        // A plugin runs only while what it requires runs: it terminates as one of them ends, before that one's stop()
+        // is asked, and launches again as one of them launches. A run that crashed or did not launch ends with no
+        // willTerminate.
+        function follow() {
+            notifications.on('willTerminate', ({ plugin }) => relaunchDependents(plugin.id));
+            notifications.on('didTerminate', ({ plugin, endReason }) => !endReason && relaunchDependents(plugin.id));
+            notifications.on('willLaunch', ({ plugin }) => {
+                for (const sandbox of dependentsOf(plugin.id))
+                    if (sandbox.run.state === 'notRunning' && !sandbox.closing && !quitting) launchAgain(sandbox);
+            });
+        }
+
+        function relaunchDependents(pluginId) {
+            for (const sandbox of dependentsOf(pluginId))
+                if (sandbox.run.state !== 'notRunning' && !sandbox.closing) relaunchSandbox(sandbox);
+        }
+
+        function dependentsOf(pluginId) {
+            return [...sandboxes.values()].filter(({ plugin }) => Object.hasOwn(plugin.requires, pluginId));
+        }
+
+        // The run terminates for a restart, and the plugin launches again once it has ended, unless the run was given
+        // a stronger reason meanwhile (a removal, a quit). One ended before launches again.
+        function relaunchSandbox(sandbox) {
+            const { run } = sandbox;
+            const live = run.state !== 'notRunning';
+            terminate(sandbox, 'restart').then(() => {
+                if (quitting || sandboxes.get(sandbox.plugin.id) !== sandbox || sandbox.closing) return;
+                if (sandbox.run !== run || (live && !run.relaunches)) return;
+                launchAgain(sandbox);
+            });
+        }
+
+        // At its page's own address. While a plugin it requires is not running or launching, it launches with that one.
+        function launchAgain(sandbox) {
+            if (notRunningRequirement(sandbox)) return;
+            launch(sandbox);
+            sandbox.view.webContents.loadURL(addressOf(sandbox.plugin));
+        }
+
+        // The id of a plugin it requires whose run is neither launching nor running, or null.
+        function notRunningRequirement(sandbox) {
+            const live = (id) => ['launching', 'running'].includes(sandboxes.get(id)?.run.state);
+            return Object.keys(sandbox.plugin.requires).find((id) => !live(id)) || null;
+        }
+
         // A plugin runs as it arrives and goes as it leaves; one whose code changed goes and runs again, once its old
         // sandbox has closed. Nothing opens while the app quits.
         function reconcile() {
@@ -189,10 +235,15 @@ DeckitModule.define(
             return terminating ? sandbox.stopping : endAfterStop(sandbox);
         }
 
-        // A terminating run ends once its stop() has answered.
+        // A terminating run ends once its stop() has answered, asked once every plugin that requires it has ended.
         function endAfterStop(sandbox) {
             const { run, view } = sandbox;
-            sandbox.stopping = stop(view).then(() => run.state === 'terminating' && run.didTerminate());
+            const dependents = dependentsOf(sandbox.plugin.id).filter(
+                (dependent) => dependent.run.state === 'terminating'
+            );
+            sandbox.stopping = Promise.all(dependents.map(({ stopping }) => stopping))
+                .then(() => stop(view))
+                .then(() => run.state === 'terminating' && run.didTerminate());
             return sandbox.stopping;
         }
 
@@ -224,9 +275,11 @@ DeckitModule.define(
                 const sandbox = sandboxes.get(IDENTITY.pluginFrom(sender).id);
                 if (sandbox.closing) throw new Error(`${sandbox.plugin.id} is going`);
                 // A page that loaded again by itself runs again: the run it had ended with the document it ran in.
-                // Nothing launches while the app quits.
+                // Nothing launches while the app quits, or while a plugin it requires is not running.
                 if (sandbox.run.state !== 'launching') {
                     if (quitting) throw new Error(`${sandbox.plugin.id} does not launch while the app quits`);
+                    const missing = notRunningRequirement(sandbox);
+                    if (missing) throw new Error(`${sandbox.plugin.id} needs ${missing}, which is not running`);
                     crash(sandbox, sandbox.run, 'its page loaded again');
                     launch(sandbox);
                 }
@@ -252,6 +305,6 @@ DeckitModule.define(
             });
         }
 
-        return { start, runs, runOf, currentRun, observe, whenClosed, restart };
+        return { start, runs, runOf, currentRun, observe, whenClosed, restart, relaunch };
     }
 );

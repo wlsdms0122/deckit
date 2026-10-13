@@ -36,7 +36,7 @@ The host app's own files are modules too: `DeckitModule.define(name, { uses, pro
 | Key | What it is | Deckit's own |
 |---|---|---|
 | `home` | deckit's folder | `~/.config/<id>` |
-| `ship` | the plugin folders the host app ships; installed at every start, and a removed one stays removed | none |
+| `ship` | the plugin folders the host app ships; installed at every start, and a removed one stays removed. One that does not install fails alone and the next start tries it again: with no copy of it installed it does not load and Settings shows why, and an installed copy goes on running | none |
 | `sources` | folders that hold plugin folders, read in place ahead of installed ones (for a development build) | none |
 
 ## 3. The shell

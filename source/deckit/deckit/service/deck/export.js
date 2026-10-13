@@ -7,30 +7,48 @@ DeckitModule.define(
     },
     (IDENTITY, RUNNER, PROTOCOL) => {
         // MARK: - Property
-        // plugin id -> { settled: Promise, resolve, done, exports: { values, functions } | null, error }
+        // plugin id -> { settled: Promise, resolve, done, exports: { values, functions } | null, error }: what a plugin
+        // that starts is handed
         const providers = new Map();
+        // plugin id -> the exports of its run that answers calls: running, or terminating until it has ended
+        const answering = new Map();
 
         // MARK: - Initializer
         // MARK: - Public
-        // A plugin reaches another only through what that one exports, and only one it requires. Whoever requires a
-        // plugin waits while it launches or terminates, until it has started, or failed to, or ended for good.
+        // A plugin reaches another only through what that one exports, and only one it requires. A plugin that starts
+        // waits while what it requires launches or terminates, until it has started, or failed to, or ended for good.
+        // A call reaches a terminating run until it has ended: the plugins that require it end first.
         function start() {
             RUNNER.observe('willLaunch', ({ plugin }) => expect(plugin.id));
-            RUNNER.observe('didLaunch', ({ plugin, exports }) => provide(plugin.id, exports));
+            RUNNER.observe('didLaunch', ({ plugin, exports }) => {
+                answering.set(plugin.id, exports);
+                provide(plugin.id, exports);
+            });
             RUNNER.observe('didFailToLaunch', ({ plugin, problem }) => fail(plugin.id, problem));
             RUNNER.observe('willTerminate', ({ plugin }) => expect(plugin.id));
             RUNNER.observe('didTerminate', (run) => {
+                answering.delete(run.plugin.id);
                 if (!run.relaunches) fail(run.plugin.id, run.problem || run.endReason);
             });
             PROTOCOL.requirements.handle((_payload, sender) => requirementsOf(IDENTITY.pluginFrom(sender)));
-            // A provider running again answers once its new run has started.
-            PROTOCOL.callExport.handle(async ({ plugin, path, args }, sender) => {
+            // A call is its caller's run's, and a run that has ended makes none. A provider running again answers a
+            // running caller once its new run has started; a terminating caller is answered only by the run it ran with.
+            PROTOCOL.callExport.handle(async ({ run: number, plugin, path, args }, sender) => {
                 const caller = IDENTITY.pluginFrom(sender);
                 if (!Object.hasOwn(caller.requires, plugin)) throw new Error(`${caller.id} does not require ${plugin}`);
-                const provider = providers.get(plugin);
-                await provider?.settled;
-                if (provider?.error) throw new Error(`${plugin} is not running: ${provider.error}`);
-                if (!provider?.exports?.functions.some((written) => written.join('.') === path.join('.'))) {
+                const run = RUNNER.currentRun(sender, number);
+                const ended = () => RUNNER.currentRun(sender, number) !== run || run.state === 'notRunning';
+                if (!run || ended()) throw new Error(`${caller.id} is not running`);
+                let exports = answering.get(plugin);
+                if (!exports) {
+                    if (run.state === 'terminating') throw new Error(`${plugin} is not running`);
+                    const provider = providers.get(plugin);
+                    await provider?.settled;
+                    if (ended()) throw new Error(`${caller.id} is not running`);
+                    if (provider?.error) throw new Error(`${plugin} is not running: ${provider.error}`);
+                    exports = provider?.exports;
+                }
+                if (!exports?.functions.some((written) => written.join('.') === path.join('.'))) {
                     throw new Error(`${plugin} exports no function ${path.join('.')}`);
                 }
                 return PROTOCOL.exportCalled.invoke(IDENTITY.pageOf(plugin), { path, args });

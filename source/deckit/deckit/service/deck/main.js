@@ -69,6 +69,10 @@ DeckitModule.define(
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
                 return remove(id, data);
             });
+            PROTOCOL.relaunch.handle(({ id }, sender) => {
+                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                RUNNER.relaunch(id);
+            });
             PROTOCOL.reveal.handle(({ id }, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
                 const plugin = CATALOG.found().find((candidate) => candidate.id === id);
