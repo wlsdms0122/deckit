@@ -33,7 +33,7 @@ DeckitModule.define(
         const GLASS = 0.68;
         let shown = false;
         let titled = null; // the title the shell was last told
-        let look = { floating: false, dismissible: false };
+        let look = { floating: false, dismissible: false, titleBar: null };
         let frame = { width: 240, collapsed: false, navHeight: null };
         let replies = 0;
 
@@ -333,8 +333,10 @@ DeckitModule.define(
             if (contents) PROTOCOL.play.send(contents, { direction: 'in' });
         }
 
+        // `titleBar`, filling a window that draws its title bar over the panel's top: { height, controlsWidth }, the
+        // bar's height and the width the window's buttons take at its start.
         function present(next) {
-            look = { floating: !!next?.floating, dismissible: !!next?.dismissible };
+            look = { floating: !!next?.floating, dismissible: !!next?.dismissible, titleBar: next?.titleBar || null };
             for (const page of views.values()) PROTOCOL.look.send(page.webContents, look);
         }
 

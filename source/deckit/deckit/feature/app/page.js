@@ -11,18 +11,21 @@ DeckitModule.define(
             'deckit/feature/panel/protocol',
             'deckit/feature/switcher/page',
             'deckit/feature/app/protocol',
+            'deckit/service/plugin/identity/model/origin',
         ],
         provides: ['boot'],
     },
-    (TOKEN, POINTER, OVERLAY, UI, RUNTIME, PANEL, PANEL_PROTOCOL, SWITCHER, PROTOCOL) => {
+    (TOKEN, POINTER, OVERLAY, UI, RUNTIME, PANEL, PANEL_PROTOCOL, SWITCHER, PROTOCOL, ORIGIN) => {
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
         // The entry of every page deckit makes: a plugin's, or the switcher's. `before` is the globals the page had
         // before deckit's bundle ran: what the bundle added goes, the registry first, so a plugin reaches deckit only
-        // through what it is handed.
+        // through what it is handed. Nothing starts off deckit's scheme: the preload runs on an error page too, which
+        // is no plugin's.
         function boot(before) {
             for (const name of Object.keys(window)) if (!before.has(name)) delete window[name];
+            if (location.protocol !== ORIGIN.SCHEME.scheme + ':') return;
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
             else start();
         }

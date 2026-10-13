@@ -13,9 +13,13 @@ DeckitModule.define(
             'deckit/service/open/page',
             'deckit/service/keymap/page',
             'deckit/service/switcher/page',
+            'deckit/service/event/page',
+            'deckit/module/event-bus',
             'deckit/service/plugin/runtime/storage',
             'deckit/service/plugin/runtime/settings',
             'deckit/service/plugin/deck/protocol',
+            'deckit/service/plugin/identity/model/origin',
+            'deckit/service/keymap/model/binding-id',
             'host/exports?',
         ],
         provides: ['start'],
@@ -33,9 +37,13 @@ DeckitModule.define(
         OPEN,
         KEYMAP,
         SWITCHER,
+        EVENT,
+        EVENT_BUS,
         STORAGE,
         SETTINGS,
         PROTOCOL,
+        ORIGIN,
+        BINDING_ID,
         HOST
     ) => {
         // MARK: - Property
@@ -151,10 +159,11 @@ DeckitModule.define(
         function evaluate(source) {
             const module = { exports: {} };
             try {
-                new Function('module', 'exports', `${source}\n//# sourceURL=deckit://${plugin.id}/${plugin.main}`)(
-                    module,
-                    module.exports
-                );
+                new Function(
+                    'module',
+                    'exports',
+                    `${source}\n//# sourceURL=${ORIGIN.SCHEME.scheme}://${plugin.id}/${plugin.main}`
+                )(module, module.exports);
             } catch (error) {
                 fail(`${plugin.main} failed to load: ${error.message || error}`);
                 return null;
@@ -264,13 +273,14 @@ DeckitModule.define(
                 requires,
                 util: Object.freeze({ match: MATCH.match, ranker: RANKER.ranker, movePath, tildify: tildifyOf() }),
                 ...register,
+                ...EVENT.forPlugin({ owner: { deliver, recordFailure: fail } }),
                 show,
                 open: (url, options) => OPEN.open(url, options),
                 reveal: OPEN.reveal,
                 fileURL: OPEN.fileURL,
                 filePath: OPEN.filePath,
                 about: RUNTIME.about,
-                chordOf: (action) => KEYMAP.chord(`${plugin.id}.${action}`),
+                chordOf: (action) => KEYMAP.chord(BINDING_ID.idOf(plugin.id, action)),
                 clipboard: Object.freeze(
                     has('system.clipboard')
                         ? { readText: CLIPBOARD.readText, writeText: CLIPBOARD.writeText }
@@ -307,22 +317,22 @@ DeckitModule.define(
         // deck.mainProcess(path): the module started once, its methods called through main, `on(name, listener)`
         // for what it emits. A start that failed is tried again the next time it is asked for.
         function mainProcessOf() {
-            const listeners = new Map(); // `${path}\0${name}` -> Set
+            const buses = new Map(); // a module's path -> what listens to what it emits
+            const busOf = (path) => {
+                if (!buses.has(path))
+                    buses.set(
+                        path,
+                        EVENT_BUS.make({ call: (listener, args, name) => deliver(`on("${name}")`, listener, ...args) })
+                    );
+                return buses.get(path);
+            };
             const started = new Map(); // the path asked for -> promise of the module's proxy
-            PROTOCOL.mainProcessEvent.on(({ path, name, args }) => {
-                for (const listener of listeners.get(`${path}\0${name}`) || [])
-                    deliver(`on("${name}")`, listener, ...args);
-            });
+            PROTOCOL.mainProcessEvent.on(({ path, name, args }) => busOf(path).emit(name, ...args));
             const moduleOf = ({ path, methods }) => {
                 const proxy = proxyOf(methods, {}, (method, args) =>
                     PROTOCOL.callMainProcess.invoke({ path, method, args })
                 );
-                proxy.on = (name, listener) => {
-                    const key = `${path}\0${name}`;
-                    if (!listeners.has(key)) listeners.set(key, new Set());
-                    listeners.get(key).add(listener);
-                    return () => listeners.get(key).delete(listener);
-                };
+                proxy.on = (name, listener) => busOf(path).on(name, listener);
                 return deepFreeze(proxy);
             };
             return (path) => {

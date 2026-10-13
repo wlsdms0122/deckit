@@ -9,19 +9,21 @@ DeckitModule.define(
             'deckit/service/switcher/main',
             'deckit/feature/panel/main',
             'deckit/feature/switcher/protocol',
+            'deckit/service/plugin/identity/model/origin',
         ],
         provides: ['start', 'reload', 'control'],
     },
-    (LOG, IDENTITY, LIFECYCLE, KEYMAP, SWITCHER, PANEL, PROTOCOL) => {
+    (LOG, IDENTITY, LIFECYCLE, KEYMAP, SWITCHER, PANEL, PROTOCOL, ORIGIN) => {
         // MARK: - Property
         const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
         let makeView = null;
+        let bindingId = null; // the switcher's key in the keymap
 
         // MARK: - Initializer
         // MARK: - Public
         function start({ makeView: make, shell }) {
             makeView = make;
-            KEYMAP.register({
+            bindingId = KEYMAP.register({
                 action: 'switcher',
                 key: 'mod+shift+g',
                 label: 'Quick switcher',
@@ -76,7 +78,7 @@ DeckitModule.define(
         // Made the first time it is asked for. A page that reloads (a theme change reloads it) cannot hold an open list.
         function build() {
             if (state.view) return state.view;
-            const view = makeView(IDENTITY.SWITCHER_ORIGIN, { webview: false });
+            const view = makeView(ORIGIN.SWITCHER_ORIGIN, { webview: false });
             const contents = view.webContents;
             IDENTITY.add(contents, { switcher: true });
             KEYMAP.listen(contents, {
@@ -107,7 +109,7 @@ DeckitModule.define(
                 { once: true }
             );
             view.setVisible(false);
-            contents.loadURL(IDENTITY.SWITCHER_ORIGIN + '/');
+            contents.loadURL(ORIGIN.addressOf(ORIGIN.SWITCHER_ORIGIN));
             state.view = view;
             return view;
         }
@@ -131,6 +133,8 @@ DeckitModule.define(
                 open,
                 close,
                 shown: () => state.on,
+                // The chord that summons it now, as a person reads it, or '' when it has none.
+                chord: () => KEYMAP.chordOf(bindingId),
             },
         };
     }

@@ -9,14 +9,13 @@ DeckitModule.define(
             'deckit/service/plugin/identity',
             'deckit/service/plugin/deck',
             'deckit/service/keymap/protocol',
+            'deckit/service/keymap/model/binding-id',
         ],
         provides: ['start', 'connect', 'listen', 'register', 'chordOf'],
     },
-    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, DECK, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, DECK, PROTOCOL, BINDING_ID) => {
         // MARK: - Property
         const OVERRIDES = 'keys';
-        // Keys deckit runs itself. Their owner is no plugin id: a plugin id cannot start with @.
-        const OWNER = '@deckit';
         const RECORDING_MS = 20 * 1000;
         const own = []; // [{ action, key, label, scope: 'global' | 'panel', run(webContents) }]
         const scopes = new Map(); // plugin id -> [{ action, key, label, global }]
@@ -91,10 +90,11 @@ DeckitModule.define(
         }
 
         // A key deckit runs itself. `global` ones work anywhere a webContents is listened to; the rest only where the
-        // panel is on screen.
+        // panel is on screen. Answers its id, for chordOf.
         function register({ action, key, label, global = false, run }) {
             own.push({ action, key, label, scope: global ? 'global' : 'panel', run });
             announce();
+            return BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action);
         }
 
         // The chord bound now to an id, as a person reads it.
@@ -106,7 +106,7 @@ DeckitModule.define(
         // What a reader needs of the binding an issue is about.
         function factsOf(binding) {
             const { id, chord, label, owner, ownerName, scope } = binding;
-            return { id, chord, label, owner, ownerName, scope, deckit: owner === OWNER };
+            return { id, chord, label, owner, ownerName, scope, deckit: owner === BINDING_ID.DECKIT_OWNER };
         }
 
         function mark(set, sender, on) {
@@ -120,7 +120,7 @@ DeckitModule.define(
         }
 
         function bindingOf(owner, ownerName, scope, { action, key, label, run }) {
-            const id = owner + '.' + action;
+            const id = BINDING_ID.idOf(owner, action);
             const written = CHORD.normalize(key);
             const spec = effective(id, written);
             return {
@@ -150,11 +150,13 @@ DeckitModule.define(
             return [
                 ...own
                     .filter((key) => key.scope === 'global')
-                    .map((key) => bindingOf(OWNER, CONFIG.name, 'global', key)),
+                    .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'global', key)),
                 ...plugins.flatMap((plugin) =>
                     keysOf(plugin, true).map((key) => bindingOf(plugin.id, plugin.name, 'global', key))
                 ),
-                ...own.filter((key) => key.scope === 'panel').map((key) => bindingOf(OWNER, CONFIG.name, 'panel', key)),
+                ...own
+                    .filter((key) => key.scope === 'panel')
+                    .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'panel', key)),
                 ...plugins.flatMap((plugin) =>
                     keysOf(plugin, false).map((key) => bindingOf(plugin.id, plugin.name, 'plugin', key))
                 ),
@@ -281,7 +283,7 @@ DeckitModule.define(
         }
 
         function run(binding, webContents) {
-            if (binding.owner === OWNER) {
+            if (binding.owner === BINDING_ID.DECKIT_OWNER) {
                 binding.run(webContents);
                 return true;
             }

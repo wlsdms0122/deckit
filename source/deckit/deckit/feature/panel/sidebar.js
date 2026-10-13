@@ -134,8 +134,21 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // The panel's sidebar card: the plugins' list over the plugin's own sidebar. What it shows is main's (`state`),
-        // and what the person changes is told back: `onPick`, `onStep`, `onReorder`, `onLayout`.
-        function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, onLayout, chordOf }) {
+        // and what the person changes is told back: `onPick`, `onStep`, `onReorder`, `onLayout`. `onCollapsedChange`
+        // hears the card collapse or open.
+        function make({
+            theme,
+            ui,
+            root,
+            content,
+            sidebar,
+            onPick,
+            onStep,
+            onReorder,
+            onLayout,
+            onCollapsedChange,
+            chordOf,
+        }) {
             KIT.addStyle(surfaceOf(theme) + STYLE);
             let layout = { width: WIDTH_MIN, collapsed: false, navHeight: null };
             let plugins = [];
@@ -238,6 +251,7 @@ DeckitModule.define(
             // Folding animates width, a layout property, so the content is laid out again each frame and can stutter; a
             // transform would make the page jump to its final width instead.
             function apply(next, animate) {
+                const collapsedChanged = next.collapsed !== layout.collapsed;
                 layout = next;
                 const width = clamp(next.width);
                 const { base } = theme.motion;
@@ -256,6 +270,7 @@ DeckitModule.define(
                 handle.title = next.collapsed ? 'Show sidebar' : 'Hide sidebar · drag to resize';
                 handle.setAttribute('aria-label', handle.title);
                 handle.setAttribute('aria-expanded', String(!next.collapsed));
+                if (collapsedChanged) onCollapsedChange();
             }
 
             function show(state, animate) {
@@ -289,7 +304,13 @@ DeckitModule.define(
                 row.replaceChildren(glyph, name);
             }
 
-            return { element: card, show };
+            // Under a window's title bar `height` tall, what the card holds starts below it: the card's top, inset
+            // from the window's, is where the window's buttons sit.
+            function setTitleBarHeight(height) {
+                body.style.paddingTop = height ? Math.max(0, height - INSET) + 'px' : '';
+            }
+
+            return { element: card, show, setTitleBarHeight, collapsed: () => layout.collapsed };
         }
 
         // MARK: - Private

@@ -182,7 +182,7 @@ What a plugin that requires this one receives as `deck.requires[id]`. Values are
 ### storage
 
 - `storage.values`: `get(key, fallback)`, `set(key, value)`, `remove(key)`. Small state that costs a click to lose (a fold, a width), in the sandbox's own storage.
-- `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by the main process. `get` and `keys` are synchronous; `set` and `remove` resolve once written, and a write that fails is shown on the plugin's row in Settings.
+- `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by the main process. `get` and `keys` are synchronous, and `get` answers a copy: change it and `set` it to keep the change. `set` and `remove` resolve once written, and a write that fails is shown on the plugin's row in Settings.
 
 ### web
 
@@ -217,6 +217,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 | Member | What it does |
 |---|---|
 | `show()` | puts the calling plugin's view on screen; a plugin with no view in the panel, or one still starting, has nothing to show |
+| `emit(name, ...args)`, `on('<plugin id>:<name>', listener)` | events, its own sent and any plugin's heard (Using what another plugin does) |
 | `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deck's own answer; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | shows a file in the system's Finder, during a person's click or key; otherwise resolves `false` |
@@ -270,6 +271,8 @@ Two ways, and one question picks: could the host app do this if the other plugin
 **URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a plugin makes up. A plugin calls `deck.open(url)` and never names who answers. Each scheme has its handlers: the plugins whose manifest names it, in the order the person set in Settings, then deck's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only when `userInitiated` says a person asked, during their click or key; otherwise it is shown in Finder. A scheme no plugin takes and deck has no answer for ends unopened.
 
 **requires**, when it could not. The other plugin registers `deck.exports`, and this one names it in `[requires]` and receives it as `deck.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the plugin does not load, and Settings says why.
+
+Apart from both, a plugin says what happened to it, for whoever cares, as **events**. `deck.emit(name, ...args)` sends one, named after the plugin: `bot` emitting `status` is `bot:status` to listeners, and no plugin can send another's. `deck.on('<plugin id>:<name>', listener)` hears one and returns its off. Values are copied. It takes no requirement: a plugin's events go out once its `start` has finished and until it ends, and nothing arrives from one that is not running.
 
 ## A main process module
 

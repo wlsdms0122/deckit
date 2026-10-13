@@ -1,10 +1,8 @@
 DeckitModule.define(
     'deckit/service/plugin/identity',
     {
-        uses: [],
+        uses: ['deckit/service/plugin/identity/model/origin'],
         provides: [
-            'SWITCHER_ORIGIN',
-            'originOf',
             'add',
             'whenPageEnds',
             'consumeUserActivation',
@@ -16,9 +14,8 @@ DeckitModule.define(
         ],
         runs: 'main',
     },
-    () => {
+    (ORIGIN) => {
         // MARK: - Property
-        const SWITCHER_ORIGIN = 'deckit://switcher';
         // As long as Chromium lets a page act on a person's click or key.
         const ACTIVATION_MS = 5000;
         const owners = new Map(); // webContents id -> { plugin } or { switcher: true }
@@ -28,18 +25,12 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // Where a plugin's page loads from: an origin of its own, so its page storage is no one else's. Every plugin
-        // host ends in .plugin, so deckit's own pages (the switcher's) never share an origin with one.
-        function originOf(pluginId) {
-            return `deckit://${pluginId}.plugin`;
-        }
-
         // Only main makes the pages a plugin or the switcher runs in, so who sent a message is known by which
         // webContents it came from, and never by what the message says.
         function add(webContents, owner) {
             const id = webContents.id;
             owners.set(id, owner);
-            pin(webContents, owner.plugin ? originOf(owner.plugin.id) : SWITCHER_ORIGIN);
+            pin(webContents, owner.plugin ? ORIGIN.originOf(owner.plugin.id) : ORIGIN.SWITCHER_ORIGIN);
             // A key the key map takes never reaches the page, so keys are counted before it; a click after it.
             webContents.on(
                 'before-input-event',
@@ -116,27 +107,22 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // A navigation keeps the webContents, so a page that left its origin would still be known as its plugin
-        // while it ran another's page with that one's storage. Only main's own loadURL passes without these events.
+        // A navigation keeps the webContents, so a page that left its origin would still be known as its plugin while
+        // it ran another's page with that one's storage, and one that went to another path of its own origin would
+        // start the plugin again beside the run still going. So a deckit page stays at its one address. Only main's
+        // own loadURL and reload pass without these events.
         function pin(webContents, origin) {
-            const leaves = (details) => details.isMainFrame && originFrom(details.url) !== origin;
+            const address = ORIGIN.addressOf(origin);
+            const leaves = (details) => details.isMainFrame && withoutFragment(details.url) !== address;
             webContents.on('will-frame-navigate', (details) => leaves(details) && details.preventDefault());
             webContents.on('will-redirect', (details) => leaves(details) && details.preventDefault());
         }
 
-        // Node's URL gives a scheme it does not know the origin `null`, so the origin is put together here.
-        function originFrom(url) {
-            try {
-                const parsed = new URL(url);
-                return `${parsed.protocol}//${parsed.host}`;
-            } catch {
-                return '';
-            }
+        function withoutFragment(url) {
+            return String(url).split('#')[0];
         }
 
         return {
-            SWITCHER_ORIGIN,
-            originOf,
             add,
             whenPageEnds,
             consumeUserActivation,

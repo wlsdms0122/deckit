@@ -5,13 +5,13 @@ DeckitModule.define(
             'deckit/config',
             'deckit/service/storage',
             'deckit/service/log/main',
-            'deckit/service/plugin/identity',
             'deckit/service/web/model/partition',
+            'deckit/service/plugin/identity/model/origin',
         ],
         provides: ['own', 'of', 'partitionOf', 'onCreate', 'fetchText', 'clear', 'forget'],
         runs: 'main',
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, PARTITION) => {
+    (CONFIG, STORAGE, LOG, PARTITION, ORIGIN) => {
         // MARK: - Property
         const SESSIONS = 'web-sessions';
         // A cookie with no expiry would sign the person out of every site at each launch; a browser restoring its
@@ -87,7 +87,7 @@ DeckitModule.define(
 
         // What a plugin kept in sessions: its pages' storage in deckit's own session, and every session it made.
         async function forget(pluginId) {
-            await own().clearStorageData({ origin: IDENTITY.originOf(pluginId) });
+            await own().clearStorageData({ origin: ORIGIN.originOf(pluginId) });
             const sessions = STORAGE.state.read(SESSIONS, {});
             for (const name of sessions[pluginId] || []) await clear(pluginId, name);
             delete sessions[pluginId];

@@ -17,9 +17,11 @@ DeckitModule.define(
             'deckit/service/notify/main',
             'deckit/service/clipboard/main',
             'deckit/service/runtime/main',
+            'deckit/service/event/main',
             'deckit/feature/panel/main',
             'deckit/feature/switcher/main',
             'deckit/feature/app/protocol',
+            'deckit/service/plugin/identity/model/origin',
         ],
         provides: ['SCHEME', 'connect'],
     },
@@ -39,14 +41,32 @@ DeckitModule.define(
         NOTIFY,
         CLIPBOARD,
         RUNTIME,
+        EVENT,
         PANEL,
         SWITCHER,
-        PROTOCOL
+        PROTOCOL,
+        ORIGIN
     ) => {
         // MARK: - Property
-        // The scheme deckit's pages load from. Electron takes privileged schemes in one call before the app is ready,
-        // and the app makes that call, so it adds this one to its own.
-        const SCHEME = { scheme: 'deckit', privileges: { standard: true, secure: true, supportFetchAPI: true } };
+        // Electron takes privileged schemes in one call to registerSchemesAsPrivileged, before the app is ready, and a
+        // later call replaces an earlier one; the app makes it, with deckit's scheme beside its own.
+        const SCHEME = ORIGIN.SCHEME;
+        // Every deckit page. deckit and a plugin's entry run in the preload's isolated world, whose code the policy
+        // leaves alone; the page's own world runs only scripts from its origin, a plugin's own files. What the isolated
+        // world loads the policy still holds, so the ranker's blob worker is named. Transparent: the view is a
+        // rectangle, and what is rounded is drawn inside it. No drag selection: text meant to be copied opts in
+        // (ui.selectable).
+        const PAGE = [
+            '<!doctype html>',
+            '<meta charset="utf-8">',
+            '<title></title>',
+            `<meta http-equiv="Content-Security-Policy" content="script-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">`,
+            '<style>',
+            '  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }',
+            '  body { -webkit-user-select: none; user-select: none; }',
+            '</style>',
+            '',
+        ].join('\n');
         // What a shell answers: where deckit is shown is the app's.
         const ANSWERS = [
             'start',
@@ -91,6 +111,7 @@ DeckitModule.define(
             OPEN.start();
             NOTIFY.start({ clicked: () => shell.noticeClicked() });
             CLIPBOARD.start();
+            EVENT.start();
             RUNTIME.start({ restart: () => shell.restart() });
             PROTOCOL.setup.handle((_payload, sender) => ({
                 role: IDENTITY.isSwitcher(sender) ? 'switcher' : 'plugin',
@@ -117,20 +138,19 @@ DeckitModule.define(
             SWITCHER.reload();
         }
 
-        // Every page of deckit's is the same page.html, whichever origin it is loaded under: what it becomes is asked of
+        // Every page of deckit's is the same PAGE, whichever origin it is loaded under: what it becomes is asked of
         // main as it starts. Under a plugin's origin the rest of its folder is served too, for its page to use: images,
         // styles, data, scripts.
         function serve() {
             const { net } = require('electron');
-            const path = require('path');
             const { pathToFileURL } = require('url');
-            const page = pathToFileURL(path.join(__dirname, 'page.html')).toString();
             const missing = () => new Response('', { status: 404 });
             const own = SESSION.own();
             own.protocol.handle(SCHEME.scheme, (request) => {
                 const { host, pathname } = new URL(request.url);
-                if (pathname === '/') return net.fetch(page);
-                const id = host.endsWith('.plugin') ? host.slice(0, -'.plugin'.length) : null;
+                if (pathname === '/')
+                    return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+                const id = ORIGIN.pluginOfHost(host);
                 const folder = DECK.plugins().find((entry) => entry.id === id)?.folder;
                 const file = folder && servedFile(folder, pathname);
                 return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();

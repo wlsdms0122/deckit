@@ -2,13 +2,18 @@ DeckitModule.define(
     'host/window',
     {
         uses: ['host/config'],
-        provides: ['open', 'viewBounds', 'setTitle'],
+        provides: ['open', 'viewBounds', 'titleBar', 'setTitle'],
         runs: 'main',
     },
     (CONFIG) => {
         // MARK: - Property
         const BAR_HEIGHT = 38;
         const BUTTONS_AT = { x: 14, y: Math.round((BAR_HEIGHT - 14) / 2) };
+        // The window's three buttons, from the first one's left edge to the last one's right.
+        const BUTTONS_WIDTH = 52;
+        // The bar, for a view laid under it: its height, and the width the buttons take from the window's left edge,
+        // with as much room after them as before.
+        const TITLE_BAR = Object.freeze({ height: BAR_HEIGHT, controlsWidth: BUTTONS_AT.x * 2 + BUTTONS_WIDTH });
         const DEFAULT_VIEW_SIZE = { width: 1100, height: 722 };
         // The colour of Deckit.app's views, which a window's bar is drawn in too.
         const BACKGROUND = [26, 29, 33];
@@ -21,12 +26,22 @@ DeckitModule.define(
         // MARK: - Public
         // A window of Deckit.app: its own page is the bar, across the top and under everything else, and `view` fills
         // the rest through `place(window, { bounds })`. The bar is the window's title bar to macOS, so it drags, snaps
-        // and answers a double click as the person set. `size` is the view's. `glass`, for a view drawn as glass, is
-        // the strength it lays its colour over the blur at: the window blurs what is behind it, and the bar lays the
-        // same colour at the same strength, so the two read as one surface. A window with a `key` opens where it was
-        // last left; another opens over the window in front. `focus` hands the keyboard to the view, which macOS
-        // otherwise gives the bar each time the window comes forward.
-        function open({ view, title = '', size = null, glass = null, key = null, place, focus = null }) {
+        // and answers a double click as the person set. `size` is the view's, below the bar. `glass`, for a view drawn
+        // as glass, is the strength it lays its colour over the blur at: the window blurs what is behind it, and the
+        // bar lays the same colour at the same strength, so the two read as one surface. `fullSize`: the view fills the
+        // window, the bar's height included, and draws what lies under the bar itself (TITLE_BAR). A window with a
+        // `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to the
+        // view, which macOS otherwise gives the bar each time the window comes forward.
+        function open({
+            view,
+            title = '',
+            size = null,
+            glass = null,
+            fullSize = false,
+            key = null,
+            place,
+            focus = null,
+        }) {
             const { BrowserWindow } = require('electron');
             const viewSize = size || DEFAULT_VIEW_SIZE;
             const windowSize = { width: viewSize.width, height: viewSize.height + BAR_HEIGHT };
@@ -48,7 +63,7 @@ DeckitModule.define(
             titles.set(window, title);
             window.webContents.loadURL(barPage({ glass }));
             window.webContents.on('did-finish-load', () => showTitle(window));
-            place(window, { bounds: viewBounds });
+            place(window, { bounds: fullSize ? ({ width, height }) => ({ x: 0, y: 0, width, height }) : viewBounds });
             if (page) followPage(window, page);
             if (key) remember(window, key);
             window.on('focus', () => setImmediate(() => !window.isDestroyed() && window.isFocused() && giveKeyboard()));
@@ -161,6 +176,6 @@ window.setTitle = (text) => { document.getElementById('title').textContent = tex
             );
         }
 
-        return { open, viewBounds, setTitle };
+        return { open, viewBounds, titleBar: TITLE_BAR, setTitle };
     }
 );

@@ -9,19 +9,22 @@ DeckitModule.define(
             'deckit/service/keymap/main',
             'deckit/service/open/main',
             'deckit/service/plugin/deck/protocol',
+            'deckit/service/plugin/identity/model/origin',
         ],
         provides: ['start', 'pages', 'pageFor', 'onChange', 'reload'],
         runs: 'main',
     },
-    (LOG, IDENTITY, DECK, WEB, KEYMAP, OPEN, PROTOCOL) => {
+    (LOG, IDENTITY, DECK, WEB, KEYMAP, OPEN, PROTOCOL, ORIGIN) => {
         // MARK: - Property
         const running = new Map(); // plugin id -> { page, entry }
         const ending = new Set(); // plugin ids whose page is stopping, to run again once it has
         const listeners = new Set();
         // How long a plugin's stop() may take before its sandbox ends anyway.
         const STOP_LIMIT_MS = 2000;
+        const ERR_ABORTED = -3;
         let makePage = null;
-        let stopping = null; // every plugin stopping as the app quits
+        let stopping = null; // the plugins stopping as the app quits
+        const stoppedForQuit = new Set(); // pages whose run stopped for a quit
 
         // MARK: - Initializer
         // Every plugin that loads runs in a page of its own, whether or not it has anything to show. `makePage()` makes
@@ -31,15 +34,23 @@ DeckitModule.define(
             DECK.onChange(reconcile);
             DECK.onStatus(notify);
             reconcile(DECK.plugins());
-            // The app quits once every plugin has stopped. Held at will-quit, once every window has closed and the quit
-            // is decided; a quit asked again meanwhile waits too. Then the process ends as it would have, with the
-            // exit code the host app set, and is not asked a second time.
+            // The app quits once every plugin's run has stopped. Held at will-quit, once every window has closed and
+            // the quit is decided, while a run has not; a quit asked again meanwhile waits too. Then the quit is asked
+            // again and goes on as any quit does, quit event and all, so code in the host app that ends on it ends. A
+            // quit the host app calls off leaves the stopped runs stopped, and the next quit stops what ran since.
             const { app } = require('electron');
             app.on('will-quit', (event) => {
+                const unstopped = [...running.values()]
+                    .map(({ page }) => page)
+                    .filter((page) => !stoppedForQuit.has(page));
+                if (!stopping && !unstopped.length) return;
                 event.preventDefault();
-                stopping ??= Promise.all([...running.values()].map(({ page }) => stopped(page))).then(() =>
-                    app.exit(process.exitCode ?? 0)
-                );
+                stopping ??= Promise.all(
+                    unstopped.map((page) => stopped(page).then(() => stoppedForQuit.add(page)))
+                ).then(() => {
+                    stopping = null;
+                    app.quit();
+                });
             });
         }
 
@@ -64,12 +75,16 @@ DeckitModule.define(
             listeners.add(listener);
         }
 
-        // Every plugin stops and starts again in its page, as a new theme asks. Whoever requires one waits for its new
-        // run from the first.
+        // Every plugin stops and starts again in its page, at the page's own address, as a new theme asks. Whoever
+        // requires one waits for its new run from the first.
         function reload() {
-            for (const [id, { page }] of running) {
+            for (const [id, { page, entry }] of running) {
                 DECK.rerun(id);
-                stopped(page).then(() => running.get(id)?.page === page && page.webContents.reload());
+                stopped(page).then(() => {
+                    if (running.get(id)?.page !== page) return;
+                    stoppedForQuit.delete(page);
+                    page.webContents.loadURL(ORIGIN.addressOf(ORIGIN.originOf(entry.id)));
+                });
             }
         }
 
@@ -125,7 +140,7 @@ DeckitModule.define(
             DECK.prepare(entry);
             const page = makePage();
             const contents = page.webContents;
-            const origin = IDENTITY.originOf(entry.id);
+            const origin = ORIGIN.originOf(entry.id);
             IDENTITY.add(contents, { plugin: entry });
             WEB.host(contents);
             KEYMAP.listen(contents);
@@ -137,6 +152,11 @@ DeckitModule.define(
             // Identity holds the page to its origin, and a link that leaves it is opened by the scheme's handlers.
             LOG.guard(contents, 'will-frame-navigate', (details) => {
                 if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.open(details.url, {});
+            });
+            // A page that did not load runs no plugin: what loaded instead is an error page, never the plugin's origin.
+            // An aborted load is one replaced by another.
+            LOG.guard(contents, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
+                if (isMainFrame && code !== ERR_ABORTED) DECK.ended(entry.id, `its page did not load (${description})`);
             });
             // A page that crashed ran its plugin out with it.
             LOG.guard(contents, 'render-process-gone', (_event, { reason }) =>
@@ -151,7 +171,7 @@ DeckitModule.define(
             // preference back at each load, so it is given again as each one finishes.
             LOG.guard(contents, 'did-finish-load', () => contents.setBackgroundThrottling(false));
             running.set(entry.id, { page, entry });
-            contents.loadURL(origin + '/');
+            contents.loadURL(ORIGIN.addressOf(origin));
         }
 
         function notify() {
