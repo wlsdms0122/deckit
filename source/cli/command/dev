@@ -8,7 +8,7 @@ const APP = require(path.join(root, 'source', 'cli', 'app.js'));
 const { electronApp } = require(path.join(root, 'source', 'cli', 'electron.js'));
 const RUN = path.join(root, '.build', 'dev');
 const NEXT = RUN + '.next';
-// The exit code with which the app asks to be started again (deckit-app/main.js, restart).
+// The exit code with which Deckit.app, run unpackaged, asks to be started again (deckit-app/main.js).
 const RESTART = 75;
 const args = process.argv.slice(2);
 const electron = path.join(electronApp(), 'Contents', 'MacOS', 'Electron');
@@ -33,7 +33,7 @@ const start = () => {
     const running = spawn(electron, [RUN, ...args], {
         cwd: root,
         stdio: 'inherit',
-        env: { ...process.env, DECKIT_DEV_DATA: path.join(root, '.dev'), DECKIT_DEV_RESTART: String(RESTART) },
+        env: { ...process.env, DECKIT_DATA: path.join(root, '.dev') },
     });
     app = running;
     running.on('exit', (code) => {

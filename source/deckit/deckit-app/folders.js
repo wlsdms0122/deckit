@@ -10,15 +10,15 @@ DeckitModule.define(
         const path = require('path');
         // The plugins Deckit ships, in the order its panel lists them until the person changes it.
         const SHIPS = ['editor', 'finder', 'note', 'browser', 'settings'];
-        // Run from its sources by `deckit dev`, it keeps its data in the package's .dev/.
-        const development = process.env.DECKIT_DEV_DATA;
+        // Run unpackaged, all its data is in the folder DECKIT_DATA names (main.js).
+        const data = process.env.DECKIT_DATA;
 
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
 
         return {
-            home: development ? path.join(development, 'deckit') : null,
+            home: data ? path.join(data, 'deckit') : null,
             ship: SHIPS.map((id) => path.join(__dirname, 'deckit', 'plugin', id)),
         };
     }

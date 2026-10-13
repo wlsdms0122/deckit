@@ -2,12 +2,15 @@
 const path = require('path');
 const { app, protocol } = require('electron');
 
-// Started by `deckit dev`, Electron's default app loads this folder; Deckit.app has none. Not app.isPackaged: Electron
-// reads that off the executable's name, which Deckit.app keeps as Electron's.
-const DEVELOPMENT = !!process.defaultApp;
-if (DEVELOPMENT) {
-    if (!process.env.DECKIT_DEV_DATA) throw new Error('[deckit] run from its sources, start it with `deckit dev`');
-    app.setPath('userData', process.env.DECKIT_DEV_DATA);
+// Run unpackaged, Electron's default app loads this folder; Deckit.app has none. Not app.isPackaged: Electron reads
+// that off the executable's name, which Deckit.app keeps as Electron's. Unpackaged, it keeps all its data in the
+// folder DECKIT_DATA names, never the person's, and a restart is asked of whoever started it, by exiting with RESTART.
+const UNPACKAGED = !!process.defaultApp;
+const RESTART = 75;
+if (UNPACKAGED) {
+    if (!process.env.DECKIT_DATA)
+        throw new Error('[deckit] run unpackaged, Deckit.app needs DECKIT_DATA: its data folder');
+    app.setPath('userData', process.env.DECKIT_DATA);
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -16,13 +19,12 @@ if (!app.requestSingleInstanceLock()) {
     for (const file of require('./load.json').main) require(path.join(__dirname, file));
     DeckitModule.use(['deckit/feature/app/main', 'host/shell'], (DECKIT, SHELL) => {
         protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
-        // relaunch() only queues the new instance; quit() still has to end this one.
-        const restart = DEVELOPMENT
-            ? () => app.exit(Number(process.env.DECKIT_DEV_RESTART) || 0)
-            : () => {
-                  app.relaunch();
-                  app.quit();
-              };
+        // A restart is a quit, so every plugin stops first. relaunch() only queues the new instance.
+        const restart = () => {
+            if (UNPACKAGED) process.exitCode = RESTART;
+            else app.relaunch();
+            app.quit();
+        };
         const shell = SHELL.make({ restart });
         DECKIT.connect({ preload: path.join(__dirname, 'preload.js'), shell });
         // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
