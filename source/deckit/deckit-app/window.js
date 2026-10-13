@@ -7,13 +7,18 @@ DeckitModule.define(
     },
     (CONFIG) => {
         // MARK: - Property
-        const BAR_HEIGHT = 38;
-        const BUTTONS_AT = { x: 14, y: Math.round((BAR_HEIGHT - 14) / 2) };
+        // The bar over a view laid below it, and the taller one over a view that fills the window, whose buttons stand
+        // inside the sidebar card the panel draws under them. The buttons are centred on the bar's height.
+        const BAR = barOf({ height: 38, left: 14 });
+        const FULL_SIZE_BAR = barOf({ height: 52, left: 20 });
         // The window's three buttons, from the first one's left edge to the last one's right.
         const BUTTONS_WIDTH = 52;
         // The bar, for a view laid under it: its height, and the width the buttons take from the window's left edge,
         // with as much room after them as before.
-        const TITLE_BAR = Object.freeze({ height: BAR_HEIGHT, controlsWidth: BUTTONS_AT.x * 2 + BUTTONS_WIDTH });
+        const TITLE_BAR = Object.freeze({
+            height: FULL_SIZE_BAR.height,
+            controlsWidth: FULL_SIZE_BAR.buttons.x * 2 + BUTTONS_WIDTH,
+        });
         const DEFAULT_VIEW_SIZE = { width: 1100, height: 722 };
         // The colour of Deckit.app's views, which a window's bar is drawn in too.
         const BACKGROUND = [26, 29, 33];
@@ -21,6 +26,7 @@ DeckitModule.define(
         const FONT = '-apple-system, system-ui, sans-serif';
         const SAVE_DELAY = 400;
         const titles = new WeakMap(); // window -> the title it shows
+        const drawingTitle = new WeakSet(); // the windows whose view draws the title, under the bar
 
         // MARK: - Initializer
         // MARK: - Public
@@ -29,7 +35,7 @@ DeckitModule.define(
         // and answers a double click as the person set. `size` is the view's, below the bar. `glass`, for a view drawn
         // as glass, is the strength it lays its colour over the blur at: the window blurs what is behind it, and the
         // bar lays the same colour at the same strength, so the two read as one surface. `fullSize`: the view fills the
-        // window, the bar's height included, and draws what lies under the bar itself (TITLE_BAR). A window with a
+        // window, the bar's height included, and draws what lies under the bar itself, the title too (TITLE_BAR). A window with a
         // `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to the
         // view, which macOS otherwise gives the bar each time the window comes forward.
         function open({
@@ -44,7 +50,8 @@ DeckitModule.define(
         }) {
             const { BrowserWindow } = require('electron');
             const viewSize = size || DEFAULT_VIEW_SIZE;
-            const windowSize = { width: viewSize.width, height: viewSize.height + BAR_HEIGHT };
+            const bar = fullSize ? FULL_SIZE_BAR : BAR;
+            const windowSize = { width: viewSize.width, height: viewSize.height + BAR.height };
             const window = new BrowserWindow({
                 ...windowSize,
                 ...((key && savedBounds(key)) || overFront(windowSize)),
@@ -56,11 +63,12 @@ DeckitModule.define(
                     ? { vibrancy: 'hud', visualEffectState: 'active' }
                     : { backgroundColor: SOLID.background }),
                 titleBarStyle: 'hidden',
-                trafficLightPosition: BUTTONS_AT,
+                trafficLightPosition: bar.buttons,
             });
             const page = view.webContents || null;
             const giveKeyboard = focus || (() => page && !page.isDestroyed() && page.focus());
             titles.set(window, title);
+            if (fullSize) drawingTitle.add(window);
             window.webContents.loadURL(barPage({ glass }));
             window.webContents.on('did-finish-load', () => showTitle(window));
             place(window, { bounds: fullSize ? ({ width, height }) => ({ x: 0, y: 0, width, height }) : viewBounds });
@@ -73,7 +81,7 @@ DeckitModule.define(
 
         // Where a view goes in the window: all of it below the bar.
         function viewBounds({ width, height }) {
-            return { x: 0, y: BAR_HEIGHT, width, height: Math.max(0, height - BAR_HEIGHT) };
+            return { x: 0, y: BAR.height, width, height: Math.max(0, height - BAR.height) };
         }
 
         function setTitle(window, title) {
@@ -83,11 +91,13 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // The bar shows the latest title once it has loaded, whenever that came.
+        // The bar shows the latest title once it has loaded, whenever that came, unless the view draws it. macOS is
+        // told it either way.
         function showTitle(window) {
             if (window.isDestroyed()) return;
             const title = titles.get(window) || '';
             window.setTitle(title || CONFIG.name);
+            if (drawingTitle.has(window)) return;
             window.webContents.executeJavaScript(`setTitle(${JSON.stringify(title)})`, true).catch(() => {});
         }
 
@@ -161,6 +171,10 @@ DeckitModule.define(
             fs.renameSync(temporary, file());
         }
 
+        function barOf({ height, left }) {
+            return Object.freeze({ height, buttons: Object.freeze({ x: left, y: Math.round((height - 14) / 2) }) });
+        }
+
         // The bar's room on the left is the window buttons'; the title stays centred on the window.
         function barPage({ glass }) {
             const background = glass !== null ? `rgba(${BACKGROUND}, ${glass})` : SOLID.background;
@@ -168,7 +182,7 @@ DeckitModule.define(
                 'data:text/html,' +
                 encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>
 html,body{margin:0;height:100%;overflow:hidden;background:${background};cursor:default;-webkit-user-select:none;user-select:none}
-#bar{position:absolute;left:0;right:0;top:0;height:${BAR_HEIGHT}px;display:flex;align-items:center;justify-content:center;padding:0 88px;box-sizing:border-box;-webkit-app-region:drag;color:${SOLID.color};font:600 13px ${FONT}}
+#bar{position:absolute;left:0;right:0;top:0;height:${BAR.height}px;display:flex;align-items:center;justify-content:center;padding:0 88px;box-sizing:border-box;-webkit-app-region:drag;color:${SOLID.color};font:600 13px ${FONT}}
 #title{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;opacity:.7}
 </style><div id="bar"><span id="title"></span></div><script>
 window.setTitle = (text) => { document.getElementById('title').textContent = text; };
