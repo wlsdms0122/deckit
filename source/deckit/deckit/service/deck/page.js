@@ -19,6 +19,7 @@ DeckitModule.define(
             'deckit/service/deck/page-settings',
             'deckit/service/deck/protocol',
             'deckit/service/deck/model/origin',
+            'deckit/service/plugin/model/entry',
             'deckit/service/keymap/model/binding-id',
             'host/exports?',
         ],
@@ -43,11 +44,11 @@ DeckitModule.define(
         SETTINGS,
         PROTOCOL,
         ORIGIN,
+        ENTRY,
         BINDING_ID,
         HOST
     ) => {
         // MARK: - Property
-        const DEFINITION = new Set(['icon', 'keywords', 'settings', 'start', 'stop']);
         const failures = [];
         let plugin = null;
         let pageRun = null; // which run of this page main counts this one as
@@ -168,25 +169,12 @@ DeckitModule.define(
                 fail(`${plugin.main} failed to load: ${error.message || error}`);
                 return null;
             }
-            const definition = module.exports;
-            if (!definition || typeof definition !== 'object') {
-                fail(`${plugin.main} sets module.exports to no object`);
+            const problem = ENTRY.problemOf(module.exports);
+            if (problem) {
+                fail(`${plugin.main}: ${problem}`);
                 return null;
             }
-            const unknown = Object.keys(definition).filter((key) => !DEFINITION.has(key));
-            if (unknown.length) {
-                fail(`module.exports has ${[...DEFINITION].join(', ')}, not ${unknown.join(', ')}`);
-                return null;
-            }
-            if (typeof definition.start !== 'function') {
-                fail('module.exports needs start(deck)');
-                return null;
-            }
-            if (definition.stop !== undefined && typeof definition.stop !== 'function') {
-                fail('module.exports has a stop that is no function');
-                return null;
-            }
-            return definition;
+            return module.exports;
         }
 
         // What each plugin it requires exports: values copied and frozen, functions called through main.
