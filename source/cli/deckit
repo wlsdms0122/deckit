@@ -6,7 +6,7 @@ usage() {
   cat <<TEXT
 deckit: a panel of plugins, as a library an app embeds
 
-  build            deckit-lib, into .build/: what an app embeds
+  build            the deckit archive, into .build/: what an app embeds
   app              Deckit.app, into .build/, from the archive the last build made
   check            hold the files to how they reach each other
   dev              Deckit.app from the sources, built again when one changes
