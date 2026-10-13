@@ -52,8 +52,6 @@ function sidebar({
     const OPEN_FOLDER = 'open-folder';
 
     let frontDrawn = null;
-    // What the navigator shows, so it is redrawn only when that changes: the tree and the search keep their own state.
-    let navigatorShows = { workspace: null, mode: null };
 
     // A basis of 0: the panel never lets a plugin's sidebar shrink, and one sized by its content would scroll the whole
     // column. The negative margin puts the scrollbar on the sidebar's edge.
@@ -97,17 +95,12 @@ function sidebar({
     ui.edgeFade(navigatorBody);
     element.append(top, navigatorBody);
 
-    return { element, draw, redrawNavigator };
+    return { element, draw, drawNavigator };
 
     function draw() {
         drawWorkspaces();
         drawNavigator();
         workspaces.front()?.tree?.repaint();
-    }
-
-    function redrawNavigator() {
-        navigatorShows = { workspace: null, mode: null };
-        drawNavigator();
     }
 
     // A workspace being dragged keeps its row until it is let go. The front one is scrolled to only when the front
@@ -139,18 +132,19 @@ function sidebar({
         if (!front) return;
         if (!front.root) {
             looseFiles.set(front.files.map((file) => ({ path: file.path, file, current: file === front.current })));
-            if (navigatorShows.workspace === front) return;
-            navigatorShows = { workspace: front, mode: null };
-            navigatorHead.replaceChildren();
-            navigatorBody.replaceChildren(looseFiles.element);
+            show([], looseFiles.element);
             return;
         }
-        if (navigatorShows.workspace === front && navigatorShows.mode === front.mode) return;
-        navigatorShows = { workspace: front, mode: front.mode };
         modes.set(front.mode);
         const searching = front.mode === 'search';
-        navigatorHead.replaceChildren(...(searching ? [front.search.head] : []));
-        navigatorBody.replaceChildren(searching ? front.search.element : front.tree.element);
+        show(searching ? [front.search.head] : [], searching ? front.search.element : front.tree.element);
+    }
+
+    // Put in only when it is not what is there: putting the same tree in again would take it out first, and the row
+    // under the pointer would lose its hover.
+    function show(head, body) {
+        if (navigatorBody.firstChild !== body) navigatorBody.replaceChildren(body);
+        if (navigatorHead.firstChild !== (head[0] ?? null)) navigatorHead.replaceChildren(...head);
     }
 
     function workspaceRowOf(item) {
