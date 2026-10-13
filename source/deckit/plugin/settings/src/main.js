@@ -76,7 +76,7 @@ module.exports = {
         });
         deck.commands(commands);
 
-        // A plugin still starting is looked at again while Settings is on screen, until it has started or failed.
+        // A plugin still starting or stopping is looked at again while Settings is on screen, until it has settled.
         function redraw() {
             const { installed: onDisk, running } = deck.plugins.list();
             for (const plugin of running) pluginIcons.set(plugin.id, plugin.icon);

@@ -9,7 +9,7 @@ DeckitModule.define(
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
-        const failed = new Map(); // plugin id -> { folder, problem }: what the app ships that did not install
+        const notInstalledShips = new Map(); // plugin id -> { folder, problem }: what the app ships that did not install
 
         // MARK: - Initializer
         // MARK: - Public
@@ -70,26 +70,21 @@ DeckitModule.define(
         // nowhere else. `only` installs those ids whatever was decided before, and leaves the others as they are.
         //
         // One that does not install fails alone, and is not recorded as shipped unless a copy of it is installed: the
-        // next start tries it again rather than take it for removed.
+        // next start tries it again rather than take it for removed. A second folder shipped with an id is ignored.
         function installShipped({ only = null } = {}) {
             const byId = new Map();
-            failed.clear();
+            const outcomes = [];
             for (const folder of CONFIG.ship) {
                 const id = FOLDER.idOf(folder);
-                if (byId.has(id)) failed.set(id, { folder, problem: `${byId.get(id)} is shipped with the same id` });
-                else byId.set(id, folder);
+                if (!byId.has(id)) byId.set(id, folder);
+                else outcomes.push({ id, outcome: 'ignored', version: null, problem: `${folder} has its id too` });
             }
             for (const id of only || []) if (!byId.has(id)) throw new Error(`not a plugin the app ships: ${id}`);
 
             const before = shipped();
             const copies = installed();
-            const outcomes = [...failed].map(([id, { problem }]) => ({
-                id,
-                outcome: 'failed',
-                version: null,
-                problem,
-            }));
             const take = only ? [...only] : [];
+            if (!only) notInstalledShips.clear();
             if (!only) {
                 for (const id of byId.keys()) {
                     if (before?.has(id) && !copies.has(id)) outcomes.push({ id, outcome: 'left out', version: null });
@@ -102,11 +97,12 @@ DeckitModule.define(
                 }
             }
             for (const id of take) {
+                notInstalledShips.delete(id);
                 try {
                     const manifest = install(byId.get(id));
                     outcomes.push({ id, outcome: 'installed', version: manifest.version });
                 } catch (error) {
-                    failed.set(id, { folder: byId.get(id), problem: error.message });
+                    notInstalledShips.set(id, { folder: byId.get(id), problem: error.message });
                     outcomes.push({ id, outcome: 'failed', version: null, problem: error.message });
                 }
             }
@@ -114,7 +110,7 @@ DeckitModule.define(
             // A left out id stays on the list, so its absence keeps meaning it was removed.
             const now = installed();
             const list = (only ? [...new Set([...(before || []), ...only])].sort() : [...byId.keys()]).filter(
-                (id) => !failed.has(id) || now.has(id)
+                (id) => !notInstalledShips.has(id) || now.has(id)
             );
             fs.mkdirSync(HOME.plugins, { recursive: true });
             fs.writeFileSync(HOME.shipped + '.new', list.map((id) => id + '\n').join(''));
@@ -124,7 +120,7 @@ DeckitModule.define(
 
         // What the app ships that did not install at this start, and why: { folder, problem } by plugin id.
         function notInstalled() {
-            return failed;
+            return notInstalledShips;
         }
 
         // MARK: - Private

@@ -7,19 +7,27 @@ DeckitModule.define(
     },
     (IDENTITY, RUNNER, PROTOCOL) => {
         // MARK: - Property
-        // plugin id -> { settled: Promise, resolve, done, exports: { values, functions } | null, error }
+        // plugin id -> { settled: Promise, resolve, done, exports: { values, functions } | null, error }: what a plugin
+        // that starts is handed
         const providers = new Map();
+        // plugin id -> the exports of its run that answers calls: running, or terminating until it has ended
+        const answering = new Map();
 
         // MARK: - Initializer
         // MARK: - Public
-        // A plugin reaches another only through what that one exports, and only one it requires. Whoever requires a
-        // plugin waits while it launches or terminates, until it has started, or failed to, or ended for good.
+        // A plugin reaches another only through what that one exports, and only one it requires. A plugin that starts
+        // waits while what it requires launches or terminates, until it has started, or failed to, or ended for good.
+        // A call reaches a terminating run until it has ended: the plugins that require it end first.
         function start() {
             RUNNER.observe('willLaunch', ({ plugin }) => expect(plugin.id));
-            RUNNER.observe('didLaunch', ({ plugin, exports }) => provide(plugin.id, exports));
+            RUNNER.observe('didLaunch', ({ plugin, exports }) => {
+                answering.set(plugin.id, exports);
+                provide(plugin.id, exports);
+            });
             RUNNER.observe('didFailToLaunch', ({ plugin, problem }) => fail(plugin.id, problem));
             RUNNER.observe('willTerminate', ({ plugin }) => expect(plugin.id));
             RUNNER.observe('didTerminate', (run) => {
+                answering.delete(run.plugin.id);
                 if (!run.relaunches) fail(run.plugin.id, run.problem || run.endReason);
             });
             PROTOCOL.requirements.handle((_payload, sender) => requirementsOf(IDENTITY.pluginFrom(sender)));
@@ -27,10 +35,14 @@ DeckitModule.define(
             PROTOCOL.callExport.handle(async ({ plugin, path, args }, sender) => {
                 const caller = IDENTITY.pluginFrom(sender);
                 if (!Object.hasOwn(caller.requires, plugin)) throw new Error(`${caller.id} does not require ${plugin}`);
-                const provider = providers.get(plugin);
-                await provider?.settled;
-                if (provider?.error) throw new Error(`${plugin} is not running: ${provider.error}`);
-                if (!provider?.exports?.functions.some((written) => written.join('.') === path.join('.'))) {
+                let exports = answering.get(plugin);
+                if (!exports) {
+                    const provider = providers.get(plugin);
+                    await provider?.settled;
+                    if (provider?.error) throw new Error(`${plugin} is not running: ${provider.error}`);
+                    exports = provider?.exports;
+                }
+                if (!exports?.functions.some((written) => written.join('.') === path.join('.'))) {
                     throw new Error(`${plugin} exports no function ${path.join('.')}`);
                 }
                 return PROTOCOL.exportCalled.invoke(IDENTITY.pageOf(plugin), { path, args });

@@ -226,7 +226,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 | `clipboard.writeText(text)` | copies text |
 | `clipboard.readText()` | with `system.clipboard` |
 | `notify({ title, body, silent, onClick })` | with `system.notifications` |
-| `plugins` | with `deckit.plugins`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`; `list` and `restartPending` answer at once, the rest resolve. `relaunch(id)` terminates the plugin and launches it again, or launches one not running |
+| `plugins` | with `deckit.plugins`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`; `list` and `restartPending` answer at once, the rest resolve. `relaunch(id)` terminates the plugin and launches it again, or launches one not running, and rejects while a plugin it requires is not running |
 | `pluginSettings` | with `deckit.plugin-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
 | `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
@@ -244,7 +244,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 `mainProcess(path)` starts a main process module of the plugin's (below) and resolves to its methods, each called through the main process and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe. A path outside the plugin's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for.
 
-`requires` is what each plugin named in `[requires]` exports. A plugin runs only while everything it requires runs, so these are there: when one of them terminates or crashes, the plugin terminates too, and it launches again, with what that one exports now, once that one launches again.
+`requires` is what each plugin named in `[requires]` exports. A plugin runs only while everything it requires runs, so these are there: when one of them terminates or crashes, the plugin terminates too, before that one's `stop()` is asked, and it launches again, with what that one exports now, once that one launches again. Calls made in `stop()` still reach it.
 
 `host` is what the host app offers, handed to the host app's own plugin only.
 
