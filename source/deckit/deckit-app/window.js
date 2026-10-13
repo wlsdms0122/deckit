@@ -8,8 +8,8 @@ DeckitModule.define(
     (CONFIG) => {
         // MARK: - Property
         // The bar over a view laid below it, and the taller one over a view that fills the window, the bar's height
-        // included, whose buttons stand inside the sidebar card the panel draws there. The buttons are centred on the
-        // bar's height.
+        // included, whose buttons stand in the panel's top left, inside the sidebar card while it is open. The buttons
+        // are centred on the bar's height.
         const BAR = barOf({ height: 38, left: 14 });
         const FULL_SIZE_BAR = barOf({ height: 52, left: 20 });
         // The window's three buttons, from the first one's left edge to the last one's right.
@@ -70,7 +70,7 @@ DeckitModule.define(
             const giveKeyboard = focus || (() => page && !page.isDestroyed() && page.focus());
             titles.set(window, title);
             if (fullSize) covered.add(window);
-            window.webContents.loadURL(barPage({ glass }));
+            window.webContents.loadURL(barPage({ glass, covered: fullSize }));
             window.webContents.on('did-finish-load', () => showTitle(window));
             place(window, { bounds: fullSize ? ({ width, height }) => ({ x: 0, y: 0, width, height }) : viewBounds });
             if (page) followPage(window, page);
@@ -176,18 +176,21 @@ DeckitModule.define(
             return Object.freeze({ height, buttons: Object.freeze({ x: left, y: Math.round((height - 14) / 2) }) });
         }
 
-        // The bar's room on the left is the window buttons'; the title stays centred on the window.
-        function barPage({ glass }) {
+        // The bar's room on the left is the window buttons'; the title stays centred on the window. Under a view that
+        // covers it the page is the window's colour alone: a region it marked to drag would drag the window through the
+        // view, whatever the view drew there.
+        function barPage({ glass, covered }) {
             const background = glass !== null ? `rgba(${BACKGROUND}, ${glass})` : SOLID.background;
-            return (
-                'data:text/html,' +
-                encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>
-html,body{margin:0;height:100%;overflow:hidden;background:${background};cursor:default;-webkit-user-select:none;user-select:none}
+            const page = `html,body{margin:0;height:100%;overflow:hidden;background:${background};cursor:default;-webkit-user-select:none;user-select:none}`;
+            const bar = `
 #bar{position:absolute;left:0;right:0;top:0;height:${BAR.height}px;display:flex;align-items:center;justify-content:center;padding:0 88px;box-sizing:border-box;-webkit-app-region:drag;color:${SOLID.color};font:600 13px ${FONT}}
 #title{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;opacity:.7}
 </style><div id="bar"><span id="title"></span></div><script>
 window.setTitle = (text) => { document.getElementById('title').textContent = text; };
-</script>`)
+</script>`;
+            return (
+                'data:text/html,' +
+                encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>${page}${covered ? '</style>' : bar}`)
             );
         }
 
