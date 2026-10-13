@@ -2,7 +2,8 @@ id = "editor"
 name = "Editor"
 version = "1.0.0"
 api = "1.0.0"
+main = "main.js"
 url-schemes = ["file"]
 
 [permissions]
-"system.main-process" = "Reads, writes and searches the files in your workspaces, and puts the ones you delete in the Trash."
+"system.main-process" = "Reads, writes and searches the files and folders you open, and puts the ones you delete in the Trash."

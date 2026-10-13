@@ -1,19 +1,40 @@
-DeckitModule.define("deckit/module/store", {
-  uses: [],
-  provides: ["read", "write"],
-  runs: "node",
-}, () => {
-  const fs = require("fs");
-  const path = require("path");
+DeckitModule.define(
+    'deckit/module/store',
+    {
+        uses: [],
+        provides: ['read', 'write', 'remove'],
+        runs: 'node',
+    },
+    () => {
+        // MARK: - Property
+        const fs = require('fs');
+        const path = require('path');
 
-  const read = (file) => { try { return fs.readFileSync(file, "utf8"); } catch { return null; } };
-  // Through a temporary file and a rename, so a crash mid-write leaves the previous version whole.
-  const write = (file, text) => {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    const temporary = file + ".tmp";
-    fs.writeFileSync(temporary, String(text));
-    fs.renameSync(temporary, file);
-  };
+        // MARK: - Initializer
+        // MARK: - Public
+        // A file that is not there, or not JSON, reads as `fallback`: either way there is no value to give.
+        function read(file, fallback = null) {
+            try {
+                return JSON.parse(fs.readFileSync(file, 'utf8'));
+            } catch {
+                return fallback;
+            }
+        }
 
-  return { read, write };
-});
+        // Through a temporary file and a rename, so a crash mid-write leaves the previous version whole.
+        function write(file, value) {
+            fs.mkdirSync(path.dirname(file), { recursive: true });
+            const temporary = file + '.tmp';
+            fs.writeFileSync(temporary, JSON.stringify(value));
+            fs.renameSync(temporary, file);
+        }
+
+        function remove(file) {
+            fs.rmSync(file, { force: true });
+        }
+
+        // MARK: - Private
+
+        return { read, write, remove };
+    }
+);

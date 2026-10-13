@@ -2,6 +2,7 @@ id = "browser"
 name = "Browser"
 version = "1.0.0"
 api = "1.0.0"
+main = "main.js"
 url-schemes = ["http", "https"]
 
 [permissions]

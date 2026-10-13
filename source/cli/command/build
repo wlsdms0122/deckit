@@ -34,40 +34,34 @@ done
 cp "$LIBRARY/$(node -p "require('./source/cli/library.js').PAGE")" "$LIB/page.html"
 cp document/EMBEDDING.md document/PLUGIN.md document/UI.md "$LIB/document/"
 
+# deckit's own plugins keep their sandbox code as CommonJS files under src/, with src/main.js the entry; what the
+# manifest's main names is that, bundled from src/ alone, with the licences it carries. The rest of the folder ships as
+# it is.
+ESBUILD=esbuild@0.28.2
 for dir in source/deckit/plugin/*/; do
+  dir="${dir%/}"
   [ -f "$dir/manifest.toml" ] || continue
-  rsync -a --exclude .DS_Store "${dir%/}" "$LIB/plugin/"
+  rsync -a --exclude .DS_Store --exclude "/$(basename "$dir")/src" "$dir" "$LIB/plugin/"
+  MAIN="$(node -p "require('fs').readFileSync('$dir/manifest.toml','utf8').match(/^main\\s*=\\s*\"([^\"]+)\"/m)[1]")"
+  OUTFILE="$PWD/$LIB/plugin/$(basename "$dir")/$MAIN"
+  ( cd "$dir/src" && npx --yes "$ESBUILD" main.js --bundle --format=cjs --platform=browser --target=chrome120 \
+      --legal-comments=eof --log-level=warning --metafile="$OLDPWD/$WORK/meta.json" --outfile="$OUTFILE" ) \
+    || { echo "$dir could not be bundled: stopping" >&2; exit 1; }
+  node -e "
+    const outside = Object.keys(require('./$WORK/meta.json').inputs)
+      .filter((file) => file.startsWith('..') || file.includes('node_modules'));
+    if (outside.length) { console.error('$dir bundles files from outside its src/: ' + outside.join(', ')); process.exit(1); }
+    new Function('module', 'exports', require('fs').readFileSync('$OUTFILE', 'utf8'));
+  " || { echo "$dir does not bundle from its src/ alone into an entry: stopping" >&2; exit 1; }
 done
 
 rsync -a --exclude .DS_Store source/deckit/deckit-cli/ "$LIB/deckit-cli/"
 node --check "$LIB/deckit-cli/deckit-cli" && node --check "$LIB/deckit-cli/commands.js" \
   || { echo "deckit-cli has a syntax error: stopping" >&2; exit 1; }
 
-SOURCE_HASH="$({ find source/deckit/deckit source/deckit/plugin source/deckit/deckit-cli source/cli/library.js source/cli/concept.js -type f -not -name .DS_Store -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+SOURCE_HASH="$({ find source/deckit/deckit source/deckit/plugin source/deckit/deckit-cli source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
-# Each bundle is run against a registry stub that records the names it defines and makes nothing.
-DIR="$LIB" VERSION="$VERSION" SOURCE_HASH="$SOURCE_HASH" node -e '
-  const fs = require("fs"), path = require("path");
-  const dir = path.resolve(process.env.DIR);
-  const lists = require("./source/cli/library.js").bundles();
-  const { conceptOf } = require("./source/cli/concept.js");
-  const definedIn = (file) => {
-    const defined = {};
-    // A name outside the concept map counts as a face.
-    const faceOf = (name) => { const c = conceptOf(name); return c ? c.face : true; };
-    const listening = { define: (name, { provides = [] } = {}) => { defined[name] = { provides, face: faceOf(name) }; }, use: () => {} };
-    if (file !== "registry.js") new Function("DeckitModule", "require", fs.readFileSync(path.join(dir, file), "utf8"))(listening, require);
-    return defined;
-  };
-  const bundles = {};
-  for (const name of Object.keys(lists)) bundles[name] = { file: name + ".js", defines: definedIn(name + ".js") };
-  require(path.join(dir, "registry.js"));
-  require(path.join(dir, "cli.js"));
-  const api = DeckitModule.use(["deckit/service/plugin/model/manifest"], (m) => m.HOST_API);
-  const plugins = fs.readdirSync(path.join(dir, "plugin")).sort();
-  const said = { name: "deckit", version: process.env.VERSION, api, source: process.env.SOURCE_HASH, bundles, page: "page.html", cli: "deckit-cli/deckit-cli", plugins };
-  fs.writeFileSync(path.join(dir, "deckit.json"), JSON.stringify(said, null, 2) + "\n");
-'
+node source/cli/describe.js "$LIB" "$VERSION" "$SOURCE_HASH"
 
 # Byte for byte the same from the same sources, wherever built: the archive's hash is which deckit it is.
 pack() {

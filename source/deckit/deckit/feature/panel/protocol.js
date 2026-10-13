@@ -1,0 +1,52 @@
+// Between main and the pages the panel shows, about the panel itself.
+DeckitModule.define(
+    'deckit/feature/panel/protocol',
+    {
+        uses: ['deckit/module/ipc'],
+        provides: [
+            'setup',
+            'pick',
+            'step',
+            'reorder',
+            'layout',
+            'show',
+            'hide',
+            'played',
+            'hidden',
+            'state',
+            'visible',
+            'play',
+            'look',
+        ],
+        runs: 'electron',
+    },
+    (IPC) => ({
+        // Answers { look, shown, frame, state } at once: the panel's frame is built in one pass.
+        setup: IPC.rendererToMain('deckit:panel-setup', {}, { reply: true, sync: true }),
+        pick: IPC.rendererToMain('deckit:panel-pick', { id: 'string' }),
+        // by: -1 back, 1 forward, through the plugins shown.
+        step: IPC.rendererToMain('deckit:panel-step', { by: 'number' }),
+        reorder: IPC.rendererToMain('deckit:panel-reorder', { ids: 'array' }),
+        // The frame as the person left it: { width, collapsed, navHeight }, any of them.
+        layout: IPC.rendererToMain('deckit:panel-layout', {
+            width: 'number?',
+            collapsed: 'boolean?',
+            navHeight: 'number?',
+        }),
+        // The sending plugin asks to be on screen; or the panel to be put away.
+        show: IPC.rendererToMain('deckit:panel-show', {}),
+        hide: IPC.rendererToMain('deckit:panel-hide', {}),
+        // A command and the fact it brings about never share a name: play is answered by played, visible by hidden.
+        played: IPC.rendererToMain('deckit:panel-played', { token: 'number?' }),
+        hidden: IPC.rendererToMain('deckit:panel-hidden', { token: 'number?' }),
+
+        // { plugins: [{ id, name, icon }], current, canBack, canForward, frame: { width, collapsed, navHeight } }
+        state: IPC.mainToRenderer('deckit:panel-state'),
+        // { open, token }: `token` is set when main waits for the exit, and comes back with hidden.
+        visible: IPC.mainToRenderer('deckit:panel-visible'),
+        // { direction: 'in' | 'out', token }, around a move.
+        play: IPC.mainToRenderer('deckit:panel-play'),
+        // { floating, dismissible }: drawn over something, and whether Escape puts it away.
+        look: IPC.mainToRenderer('deckit:panel-look'),
+    })
+);

@@ -1,49 +1,175 @@
-DeckitModule.define("deckit/feature/app/main", {
-  uses: [
-    // First, so the log hears everything after it: the build orders modules as listed here.
-    "deckit/service/log",
-    "deckit/service/home/model/config",
-    "deckit/service/runtime/server",
-    "deckit/service/notify/server",
-    "deckit/feature/window/main",
-    "deckit/service/web/server",
-    "deckit/feature/panel/main",
-    "deckit/feature/switcher/main",
-    "deckit/service/switcher/server",
-    "deckit/service/plugin/server",
-    // Provides nothing; listed so it starts and answers the pages.
-    "deckit/module/clipboard/server",
-  ],
-  provides: ["connect"],
-}, (_log, CONFIG, RUNTIME, NOTIFY, FRAME, WEB, PANEL, SWITCHER, ENTRIES, PLUGINS) => {
-  const { app } = require("electron");
+DeckitModule.define(
+    'deckit/feature/app/main',
+    {
+        uses: [
+            'deckit/config',
+            'deckit/service/log/main',
+            'deckit/service/window',
+            'deckit/service/plugin/package/install',
+            'deckit/service/plugin/package/folder',
+            'deckit/service/plugin/identity',
+            'deckit/service/plugin/deck',
+            'deckit/service/plugin/deck/lifecycle',
+            'deckit/service/web/session',
+            'deckit/service/web/main',
+            'deckit/service/keymap/main',
+            'deckit/service/open/main',
+            'deckit/service/notify/main',
+            'deckit/service/clipboard/main',
+            'deckit/service/runtime/main',
+            'deckit/feature/panel/main',
+            'deckit/feature/switcher/main',
+            'deckit/feature/app/protocol',
+        ],
+        provides: ['SCHEME', 'connect'],
+    },
+    (
+        CONFIG,
+        LOG,
+        WINDOW,
+        INSTALL,
+        FOLDER,
+        IDENTITY,
+        DECK,
+        LIFECYCLE,
+        SESSION,
+        WEB,
+        KEYMAP,
+        OPEN,
+        NOTIFY,
+        CLIPBOARD,
+        RUNTIME,
+        PANEL,
+        SWITCHER,
+        PROTOCOL
+    ) => {
+        // MARK: - Property
+        // The scheme deckit's pages load from. Electron takes privileged schemes in one call before the app is ready,
+        // and the app makes that call, so it adds this one to its own.
+        const SCHEME = { scheme: 'deckit', privileges: { standard: true, secure: true, supportFetchAPI: true } };
+        // What a shell answers: where deckit is shown is the app's.
+        const ANSWERS = [
+            'start',
+            'showsPanel',
+            'reveal',
+            'dismiss',
+            'summonSwitcher',
+            'openWindow',
+            'panelTitled',
+            'noticeClicked',
+            'restart',
+        ];
+        let connected = false;
+        let theme = null; // the app's, which every deckit page derives its look from
 
-  const ANSWERS = ["start", "showsPanel", "reveal", "dismiss", "summonSwitcher", "noticeClicked", "restart"];
-  let shell = null;
+        // MARK: - Initializer
+        // MARK: - Public
+        // How an app starts deckit, once, before it is ready: `preload` is the file it put together around deckit's
+        // page bundle, and `shell` answers where deckit is shown.
+        function connect({ preload, shell } = {}) {
+            if (connected) throw new Error('[deckit] connect is called once');
+            const missing = ANSWERS.filter((name) => typeof shell?.[name] !== 'function');
+            if (missing.length) throw new Error(`[deckit] the shell does not answer ${missing.join(', ')}`);
+            if (!preload) throw new Error('[deckit] connect needs the preload deckit pages load with');
+            connected = true;
+            LOG.start();
+            require('electron')
+                .app.whenReady()
+                .then(() => start(preload, shell));
+        }
 
-  WEB.connect({
-    mayShowFile: (space) => PLUGINS.permissions.has(space, "system.files"),
-    agent: CONFIG.agent || [],
-    frame: FRAME,
-  });
-  PLUGINS.start({ frame: FRAME });
-  ENTRIES.connect({ sources: PANEL.page, list: SWITCHER.page });
+        // MARK: - Private
+        function start(preload, shell) {
+            serve();
+            if (CONFIG.ship.length) {
+                for (const { id, outcome } of INSTALL.installShipped()) LOG.info(`${outcome} ${id}`);
+            }
+            WINDOW.start({ openWindow: (options) => shell.openWindow(options) });
+            DECK.start();
+            WEB.start();
+            KEYMAP.start();
+            OPEN.start();
+            NOTIFY.start({ clicked: () => shell.noticeClicked() });
+            CLIPBOARD.start();
+            RUNTIME.start({ restart: () => shell.restart() });
+            PROTOCOL.setup.handle((_payload, sender) => ({
+                role: IDENTITY.isSwitcher(sender) ? 'switcher' : 'plugin',
+                theme,
+            }));
+            PANEL.start({ shell });
+            SWITCHER.start({ makeView: () => pageView(preload, { plugin: false }), shell });
+            KEYMAP.connect({ pageOf: LIFECYCLE.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
+            LIFECYCLE.start({ makePage: () => pageView(preload, { plugin: true }) });
+            shell.start({
+                setTheme,
+                panel: PANEL.control,
+                switcher: SWITCHER.control,
+                window: { place: WINDOW.place },
+                keymap: { listen: KEYMAP.listen },
+            });
+        }
 
-  const connect = ({ assets, shell: s } = {}) => {
-    if (shell) throw new Error("[deckit] connect is called once");
-    const missing = ANSWERS.filter((name) => typeof s?.[name] !== "function");
-    if (missing.length) throw new Error(`[deckit] the shell does not answer ${missing.join(", ")}`);
-    if (!assets) throw new Error("[deckit] connect needs the assets deckit's page is loaded from");
-    shell = s;
-    PANEL.connect({ assets, shell });
-    NOTIFY.connect({ clicked: () => shell.noticeClicked() });
-    RUNTIME.connect({ restart: () => shell.restart() });
-    // Deferred a tick so the app's own ready listeners are in place before the shell places anything.
-    app.whenReady().then(() => setImmediate(() => {
-      try { shell.start(Object.freeze({ panel: PANEL.deck, switcher: SWITCHER.deck })); }
-      catch (e) { console.error("[deckit] the shell did not start", e); }
-    }));
-  };
+        // A new theme makes every page again, which draws in it from the start.
+        function setTheme(next) {
+            if (JSON.stringify(next) === JSON.stringify(theme)) return;
+            theme = next;
+            LIFECYCLE.reload();
+            SWITCHER.reload();
+        }
 
-  return Object.freeze({ connect });
-});
+        // Every page of deckit's is the same page.html, whichever origin it is loaded under: what it becomes is asked of
+        // main as it starts. Under a plugin's origin the rest of its folder is served too, for its page to use: images,
+        // styles, data, scripts.
+        function serve() {
+            const { net } = require('electron');
+            const path = require('path');
+            const { pathToFileURL } = require('url');
+            const page = pathToFileURL(path.join(__dirname, 'page.html')).toString();
+            const missing = () => new Response('', { status: 404 });
+            const own = SESSION.own();
+            own.protocol.handle(SCHEME.scheme, (request) => {
+                const { host, pathname } = new URL(request.url);
+                if (pathname === '/') return net.fetch(page);
+                const id = host.endsWith('.plugin') ? host.slice(0, -'.plugin'.length) : null;
+                const folder = DECK.plugins().find((entry) => entry.id === id)?.folder;
+                const file = folder && servedFile(folder, pathname);
+                return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
+            });
+            // Electron grants every permission a session has no handler for. A plugin reaches the camera, the
+            // clipboard or a notice through deckit's API, which holds it to its permissions, and never through the web's.
+            own.setPermissionRequestHandler((_webContents, _permission, answer) => answer(false));
+            own.setPermissionCheckHandler(() => false);
+        }
+
+        // The file of the plugin's folder a path names: a link out of the folder and a path that is not one are not
+        // served.
+        function servedFile(folder, pathname) {
+            try {
+                return FOLDER.fileIn(folder, '.' + decodeURIComponent(pathname))?.file || null;
+            } catch {
+                return null;
+            }
+        }
+
+        // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so the glass under it shows. A
+        // plugin's page may show the web.
+        function pageView(preload, { plugin }) {
+            const { WebContentsView } = require('electron');
+            const view = new WebContentsView({
+                webPreferences: {
+                    preload,
+                    session: SESSION.own(),
+                    sandbox: true,
+                    contextIsolation: true,
+                    webviewTag: plugin,
+                    transparent: true,
+                },
+            });
+            view.setBackgroundColor('#00000000');
+            view.setVisible(false);
+            return view;
+        }
+
+        return { SCHEME, connect };
+    }
+);

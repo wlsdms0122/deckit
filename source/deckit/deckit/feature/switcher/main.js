@@ -1,92 +1,137 @@
-DeckitModule.define("deckit/feature/switcher/main", {
-  uses: [
-    "deckit/module/log",
-    "deckit/service/keymap/server",
-    "deckit/feature/panel/main",
-    "deckit/feature/switcher/model/protocol",
-  ],
-  provides: ["deck", "page"],
-}, (log, KEYMAP, PANEL, PROTOCOL) => {
-  const { guard } = log;
+DeckitModule.define(
+    'deckit/feature/switcher/main',
+    {
+        uses: [
+            'deckit/service/log/main',
+            'deckit/service/plugin/identity',
+            'deckit/service/plugin/deck/lifecycle',
+            'deckit/service/keymap/main',
+            'deckit/service/switcher/main',
+            'deckit/feature/panel/main',
+            'deckit/feature/switcher/protocol',
+        ],
+        provides: ['start', 'reload', 'control'],
+    },
+    (LOG, IDENTITY, LIFECYCLE, KEYMAP, SWITCHER, PANEL, PROTOCOL) => {
+        // MARK: - Property
+        const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
+        let makeView = null;
 
-  // `closed` resolves the open in progress.
-  const switcher = { view: null, wc: null, on: false, ready: false, closed: null };
+        // MARK: - Initializer
+        // MARK: - Public
+        function start({ makeView: make, shell }) {
+            makeView = make;
+            KEYMAP.register({
+                action: 'switcher',
+                key: 'mod+shift+g',
+                label: 'Quick switcher',
+                global: true,
+                run: (webContents) => shell.summonSwitcher(LIFECYCLE.pageFor(webContents) || webContents),
+            });
+            SWITCHER.start({ list: () => state.view?.webContents || null, reveal: PANEL.reveal });
+            PROTOCOL.ready.on((_payload, sender) => {
+                if (sender !== state.view?.webContents) return;
+                state.ready = true;
+                // A chord that came while the page was loading is answered now instead of lost.
+                if (state.on) PROTOCOL.open.send(sender, {});
+            });
+            PROTOCOL.close.on((_payload, sender) => sender === state.view?.webContents && close());
+        }
 
-  const toSwitcher = (end, payload) => { if (switcher.wc) end.send(switcher.wc, payload); };
-  // Only the switcher's page speaks for it.
-  const fromSwitcher = (fn) => (payload, sender) => { if (sender === switcher.wc) fn(payload); };
+        // A page made before a new theme is made again in it.
+        function reload() {
+            state.view?.webContents.reload();
+        }
 
-  PROTOCOL.ready.hear(fromSwitcher(() => {
-    switcher.ready = true;
-    // A chord that arrived while the page was still loading is answered now instead of lost.
-    if (switcher.on) toSwitcher(PROTOCOL.open);
-  }));
-  PROTOCOL.close.hear(fromSwitcher(() => close()));
+        // Resolves true when put away (the keyboard is the shell's to give back), false when it never opened or was
+        // opened again during its exit.
+        function open() {
+            return new Promise((resolve) => {
+                const view = build();
+                state.closed?.(false);
+                state.closed = resolve;
+                state.on = true;
+                view.setVisible(true);
+                view.webContents.focus();
+                if (state.ready) PROTOCOL.open.send(view.webContents, {});
+            });
+        }
 
-  // For a page that is going: there is no exit to wait for.
-  const drop = () => {
-    if (!switcher.on) return;
-    switcher.on = false;
-    try { switcher.view?.setVisible(false); } catch {}
-    const closed = switcher.closed;
-    switcher.closed = null;
-    closed?.(true);
-  };
+        // Hidden only after the page has played its exit. Opened again during it, it stays up.
+        function close() {
+            if (!state.on) return;
+            state.on = false;
+            const closed = state.closed;
+            state.closed = null;
+            const contents = state.view.webContents;
+            const token = PANEL.awaitReply(contents, PROTOCOL.hidden, () => {
+                if (state.on) return closed?.(false);
+                state.view?.setVisible(false);
+                closed?.(true);
+            });
+            PROTOCOL.dismiss.send(contents, { token });
+        }
 
-  // A page that reloads (a theme change reloads both) cannot hold an open switcher.
-  const build = () => {
-    if (switcher.view) return switcher.view;
-    const view = PANEL.pageView("switcher");
-    if (!view) return null;
-    switcher.view = view;
-    switcher.wc = view.webContents;
-    // Only a page that was up: the first load starts after the first open, which must stay open.
-    guard(view.webContents, "did-start-loading", () => {
-      const was = switcher.ready;
-      switcher.ready = false;
-      if (was) drop();
-    });
-    guard(view.webContents, "destroyed", () => {
-      drop();
-      switcher.view = null; switcher.wc = null; switcher.ready = false;
-    });
-    return view;
-  };
+        // MARK: - Private
+        // Made the first time it is asked for. A page that reloads (a theme change reloads it) cannot hold an open list.
+        function build() {
+            if (state.view) return state.view;
+            const view = makeView(IDENTITY.SWITCHER_ORIGIN, { webview: false });
+            const contents = view.webContents;
+            IDENTITY.add(contents, { switcher: true });
+            KEYMAP.listen(contents, {
+                keys: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => ({
+                    key: 'mod+' + number,
+                    run: () => PROTOCOL.number.send(contents, { number }),
+                })),
+            });
+            LOG.guard(
+                contents,
+                'console-message',
+                ({ level, message }) => level === 'error' && LOG.error(`switcher: ${message}`)
+            );
+            LOG.guard(contents, 'did-start-loading', () => {
+                const was = state.ready;
+                state.ready = false;
+                // Only a page that was up: the first load starts after the first open, which must stay open.
+                if (was) drop();
+            });
+            LOG.guard(
+                contents,
+                'destroyed',
+                () => {
+                    drop();
+                    state.view = null;
+                    state.ready = false;
+                },
+                { once: true }
+            );
+            view.setVisible(false);
+            contents.loadURL(IDENTITY.SWITCHER_ORIGIN + '/');
+            state.view = view;
+            return view;
+        }
 
-  /* Resolves true when put away (the keyboard is the shell's to give back), false when it never
-     opened or was opened again during the exit. Without a panel page there are no entries to list. */
-  const open = () => new Promise((resolve) => {
-    if (!PANEL.page() || !build()) { resolve(false); return; }
-    switcher.closed?.(false);
-    switcher.closed = resolve;
-    switcher.on = true;
-    switcher.view.setVisible(true);
-    try { switcher.wc.focus(); } catch {}
-    if (switcher.ready) toSwitcher(PROTOCOL.open);
-  });
+        // For a page that is going: there is no exit to wait for.
+        function drop() {
+            if (!state.on) return;
+            state.on = false;
+            state.view?.setVisible(false);
+            const closed = state.closed;
+            state.closed = null;
+            closed?.(true);
+        }
 
-  const close = () => {
-    if (!switcher.on) return;
-    switcher.on = false;
-    const closed = switcher.closed;
-    switcher.closed = null;
-    /* Hidden only after the page has played its exit. Opened again during the exit, it stays up
-       and the open that ended here resolves false. */
-    const token = PANEL.awaitPage(switcher.wc, PROTOCOL.hidden, () => {
-      if (switcher.on) { closed?.(false); return; }
-      try { switcher.view?.setVisible(false); } catch {}
-      closed?.(true);
-    });
-    toSwitcher(PROTOCOL.dismiss, { token });
-  };
-
-  return Object.freeze({
-    page: () => switcher.wc,
-    deck: Object.freeze({
-      view: build,
-      open, close,
-      shown: () => switcher.on,
-      chord: () => KEYMAP.globalSpec("host.switcher"),
-    }),
-  });
-});
+        return {
+            start,
+            reload,
+            // What the shell drives of it.
+            control: {
+                view: build,
+                open,
+                close,
+                shown: () => state.on,
+            },
+        };
+    }
+);

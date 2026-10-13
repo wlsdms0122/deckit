@@ -1,22 +1,36 @@
-DeckitModule.define("deckit/service/home", {
-  uses: ["deckit/service/home/model/config"],
-  provides: ["folder", "pluginInstall"],
-  runs: "node",
-}, (CONFIG) => {
-  const os = require("os");
-  const path = require("path");
-  // DECKIT_HOME: a development shell runs this exact code without touching the real folder.
-  const HOME = process.env.DECKIT_HOME || path.join(os.homedir(), ".config", CONFIG.id);
-  const root = process.env.DECKIT_PLUGIN_HOME || path.join(HOME, "plugins");
-  return Object.freeze({
-    folder: HOME,
-    pluginInstall: Object.freeze({
-      root,
-      // Beside the root: on the same disk, so the last step is a rename, and outside it, so a half-made
-      // copy is never read as a plugin.
-      staging: path.join(path.dirname(root), "." + path.basename(root) + "-installing"),
-      // A file inside the root: never read as a plugin, and moved and deleted with the plugins.
-      packageList: path.join(root, ".package"),
-    }),
-  });
-});
+DeckitModule.define(
+    'deckit/service/home',
+    {
+        uses: ['deckit/config'],
+        provides: ['folder', 'plugins', 'staging', 'shipped', 'data', 'records', 'settings', 'state', 'logs'],
+        runs: 'node',
+    },
+    (CONFIG) => {
+        // MARK: - Property
+        const os = require('os');
+        const path = require('path');
+        // Not the app's userData: an app that updates can be reinstalled under it.
+        const folder = CONFIG.home || path.join(os.homedir(), '.config', CONFIG.id);
+        const plugins = path.join(folder, 'plugins');
+
+        // MARK: - Initializer
+        // MARK: - Public
+        // MARK: - Private
+
+        return {
+            folder,
+            plugins,
+            // Beside the plugins, on the same disk so an install ends in a rename, and outside them so a copy
+            // half made is never read as a plugin.
+            staging: path.join(folder, '.plugins-installing'),
+            // Inside the plugins, so what removes them removes the record too.
+            shipped: path.join(plugins, '.shipped'),
+            // A plugin's main process modules own its data folder whole; what deckit keeps for a plugin is beside it.
+            data: path.join(folder, 'data'),
+            records: path.join(folder, 'records'),
+            settings: path.join(folder, 'settings'),
+            state: path.join(folder, 'state'),
+            logs: path.join(folder, 'logs'),
+        };
+    }
+);

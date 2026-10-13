@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# The output is checked in: a plugin's sandbox has no network or package manager, so the engine ships as one
+# CommonJS file of the plugin's, which deckit's build bundles with the rest of it.
+set -euo pipefail
+plugin="${1:?usage: deckit engine <plugin> (a plugin with src/engine/: editor, note)}"
+root="$(cd "$(dirname "$0")/../../.." && pwd)"
+here="$root/source/deckit/plugin/$plugin/src/engine"
+[ -f "$here/entry.mjs" ] || { echo "$plugin has no src/engine/entry.mjs" >&2; exit 1; }
+work="$root/.build/engine/$plugin"
+out="$root/source/deckit/plugin/$plugin/src/engine.js"
+# EditorEngine, NoteEngine: the name esbuild gives it inside the file.
+global="$(printf '%s' "$plugin" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')Engine"
+
+mkdir -p "$work"
+cp "$here/package.json" "$here/entry.mjs" "$work/"
+if [ -f "$here/package-lock.json" ]; then
+  cp "$here/package-lock.json" "$work/"
+  (cd "$work" && npm ci --silent --no-audit --no-fund)
+else
+  rm -f "$work/package-lock.json"
+  (cd "$work" && npm install --silent --no-audit --no-fund)
+  cp "$work/package-lock.json" "$here/package-lock.json"
+fi
+
+# An IIFE assigned to a name, then exported. The metafile names the packages whose licences it carries.
+(cd "$work" && npx --no-install esbuild entry.mjs --bundle --format=iife --global-name="$global" \
+  --minify --legal-comments=none --target=chrome120 --log-level=warning \
+  --metafile=meta.json --outfile=bundle.js)
+
+# The MIT licence asks that its notice travel with every copy.
+licences="$(cd "$work" && node -e '
+  const fs = require("fs"), path = require("path");
+  const meta = JSON.parse(fs.readFileSync("meta.json", "utf8"));
+  const roots = new Set();
+  for (const input of Object.keys(meta.inputs)) {
+    const m = input.match(/^node_modules\/((?:@[^/]+\/)?[^/]+)\//);
+    if (m) roots.add(m[1]);
+  }
+  const out = [];
+  for (const name of [...roots].sort()) {
+    const dir = path.join("node_modules", name);
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+    const file = fs.readdirSync(dir).find((f) => /^licen[cs]e/i.test(f));
+    if (!file) { console.error("no licence file in " + name); process.exit(1); }
+    const text = fs.readFileSync(path.join(dir, file), "utf8").trim().replace(/\*\//g, "* /");
+    out.push(`${name}@${pkg.version} (${pkg.license || "see below"})\n\n${text}`);
+  }
+  process.stdout.write(out.join("\n\n----------------------------------------\n\n"));
+')"
+
+{
+  echo "/*! The $plugin plugin's engine: CodeMirror 6 (https://codemirror.net) and what it is built from, bundled"
+  echo "   from src/engine/. Do not edit: change src/engine/entry.mjs or package.json and build it again."
+  echo
+  echo "   The licences of the packages in this file follow."
+  echo
+  printf '%s\n' "$licences"
+  echo "*/"
+  cat "$work/bundle.js"
+  echo "module.exports = $global;"
+} > "$out"
+echo "wrote $out ($(wc -c < "$out" | tr -d ' ') bytes)"

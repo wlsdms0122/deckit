@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Through the installed app's own deckit-cli and catalog, so this never writes a different version
-# than the app installs at launch.
+# A plugin Deckit ships, brought back after it was removed. Through the installed app's own deckit-cli and modules,
+# so this never installs a different version than the app does at launch.
 set -euo pipefail
 
 APP=/Applications/Deckit.app/Contents/Resources/app
 [ $# -gt 0 ] || { echo "usage: deckit plugins <id>…: which plugin to bring back (Deckit installs the rest at launch)" >&2; exit 1; }
 [ -x "$APP/deckit/deckit-cli/deckit-cli" ] || { echo "Deckit.app is not installed (deckit install)" >&2; exit 1; }
-SHIPS=()
-for dir in "$APP/deckit/plugin"/*/; do SHIPS+=(--ship "${dir%/}"); done
-exec node "$APP/deckit/deckit-cli/deckit-cli" --config "$APP/config.js" "${SHIPS[@]}" restore "$@"
+exec node "$APP/deckit/deckit-cli/deckit-cli" --app "$APP/config.js" --app "$APP/folders.js" restore "$@"
