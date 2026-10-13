@@ -121,8 +121,8 @@ DeckitModule.define(
             }));
             PANEL.start({ shell });
             SWITCHER.start({ makeView: () => pageView(preload, { plugin: false }), shell });
-            KEYMAP.connect({ pageOf: RUNNER.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
-            RUNNER.start({ makePage: () => pageView(preload, { plugin: true }) });
+            KEYMAP.connect({ pageFor: WEB.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
+            RUNNER.start({ makeView: () => pageView(preload, { plugin: true }) });
             shell.start({
                 setTheme,
                 panel: PANEL.control,
@@ -153,7 +153,7 @@ DeckitModule.define(
                 if (pathname === '/')
                     return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } });
                 const id = ORIGIN.pluginOfHost(host);
-                const folder = CATALOG.plugins().find((entry) => entry.id === id)?.folder;
+                const folder = CATALOG.plugins().find((plugin) => plugin.id === id)?.folder;
                 const file = folder && servedFile(folder, pathname);
                 return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
             });

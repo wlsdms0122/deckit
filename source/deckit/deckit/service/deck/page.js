@@ -19,7 +19,7 @@ DeckitModule.define(
             'deckit/service/deck/page-settings',
             'deckit/service/deck/protocol',
             'deckit/service/deck/model/origin',
-            'deckit/service/plugin/model/entry',
+            'deckit/service/plugin/entry',
             'deckit/service/keymap/model/binding-id',
             'host/exports?',
         ],
@@ -56,7 +56,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // The plugin this page runs, started and contributed. `show` puts it on screen and `dismiss` puts the panel
-        // away; `layers` is what floats in the page. Resolves { plugin, definition, parts, tell }, parts null when it
+        // away; `layers` is what floats in the page. Resolves { plugin, entry, parts, tell }, parts null when it
         // did not start; `tell(name)` calls one of its view's parts (didAppear, didDisappear) the way every call into
         // it is made.
         async function start(options) {
@@ -80,37 +80,37 @@ DeckitModule.define(
             runNumber = loaded.run;
             WEB.listen();
             NOTIFY.listen(deliver);
-            const definition = evaluate(loaded.source);
-            if (!definition) return notStarted(null);
+            const entry = evaluate(loaded.source);
+            if (!entry) return notStarted(null);
             // Declared before anything waits, so a setting is there to set from start(); what Settings asks of the
             // plugin waits for its deck.
             let made = null;
             const deckMade = new Promise((resolve, reject) => (made = { resolve, reject }));
             deckMade.catch(() => {});
             const settings = SETTINGS.of({
-                declared: definition.settings || {},
+                declared: entry.settings || {},
                 saved: loaded.settings,
                 deck: deckMade,
                 deliver,
                 fail,
             });
-            PROTOCOL.declare.send({ run: runNumber, settings: SETTINGS.declarationsOf(definition.settings, fail) });
+            PROTOCOL.declare.send({ run: runNumber, settings: SETTINGS.declarationsOf(entry.settings, fail) });
             const requires = await requirementsOf();
             if (!requires) {
                 made.reject(new Error(`${plugin.id} did not start`));
-                return notStarted(definition);
+                return notStarted(entry);
             }
             const registry = registryOf();
             const deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
             made.resolve(deck);
             // Whatever start() did before it ended, stop() is told: when the run terminates, or at once when start() fails.
-            started = definition;
+            started = entry;
             try {
-                await definition.start(deck);
+                await entry.start(deck);
             } catch (error) {
                 registry.close();
                 fail(`start() threw: ${error.message || error}`);
-                return notStarted(definition);
+                return notStarted(entry);
             }
             const parts = registry.close();
             let exported;
@@ -118,26 +118,26 @@ DeckitModule.define(
                 exported = structuredClone(snapshotOf(parts.exports || {}));
             } catch (error) {
                 fail(`deck.exports() takes values that can be copied: ${error.message || error}`);
-                return notStarted(definition);
+                return notStarted(entry);
             }
-            contribute(definition, parts, { exported, layers, dismiss });
+            contribute(entry, parts, { exported, layers, dismiss });
             const tell = (name) => typeof parts[name] === 'function' && deliver(`${name}()`, () => parts[name]());
-            return { plugin, definition, parts, tell };
+            return { plugin, entry, parts, tell };
         }
 
         // A stop() that throws is recorded like any call into the plugin; the run ends either way.
-        async function stopOf(definition) {
+        async function stopOf(entry) {
             try {
-                await definition.stop();
+                await entry.stop();
             } catch (error) {
                 fail(`stop() threw: ${error.message || error}`);
             }
         }
 
         // It did not start, and why: what the plugins that require it are told.
-        function notStarted(definition) {
-            PROTOCOL.notStarted.send({ run: runNumber, why: String(failures.at(-1) || 'it did not start') });
-            return { plugin, definition, parts: null, tell: () => {} };
+        function notStarted(entry) {
+            PROTOCOL.notStarted.send({ run: runNumber, problem: String(failures.at(-1) || 'it did not start') });
+            return { plugin, entry, parts: null, tell: () => {} };
         }
 
         // A throw, or a promise that rejects, is recorded against the plugin, never only a console line.
@@ -149,10 +149,10 @@ DeckitModule.define(
             }
         }
 
-        function fail(why) {
-            LOG.warn(`${plugin?.id ?? 'a plugin'}: ${why}`);
-            failures.push(why);
-            PROTOCOL.problem.send({ run: runNumber, why: String(why) });
+        function fail(problem) {
+            LOG.warn(`${plugin?.id ?? 'a plugin'}: ${problem}`);
+            failures.push(problem);
+            PROTOCOL.problem.send({ run: runNumber, problem: String(problem) });
         }
 
         // The entry runs as a CommonJS module with nothing else in reach, and is what it sets module.exports to. Who
@@ -355,7 +355,7 @@ DeckitModule.define(
             });
         }
 
-        function contribute(definition, parts, { exported, layers, dismiss }) {
+        function contribute(entry, parts, { exported, layers, dismiss }) {
             const names = plugin.urlSchemes;
             const opens = typeof parts.handleURL === 'function';
             if (names.length && !opens)
@@ -364,8 +364,8 @@ DeckitModule.define(
                 fail('start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it');
             if (names.length && opens) OPEN.answer((url, options) => parts.handleURL(url, options));
             SWITCHER.source({
-                icon: definition.icon,
-                aliases: definition.keywords,
+                icon: entry.icon,
+                aliases: entry.keywords,
                 open: !!parts.content,
                 commands: guarded('commands', parts.commands),
                 now: guarded('now', parts.now),
@@ -388,7 +388,7 @@ DeckitModule.define(
                 run: runNumber,
                 exports: exported,
                 summary: {
-                    icon: String(definition.icon || ''),
+                    icon: String(entry.icon || ''),
                     view: !!parts.content,
                     sidebar: !!parts.sidebar,
                     commands: typeof parts.commands === 'function',

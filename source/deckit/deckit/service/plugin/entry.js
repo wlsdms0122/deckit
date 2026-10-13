@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deckit/service/plugin/model/entry',
+    'deckit/service/plugin/entry',
     {
         uses: [],
         provides: ['MEMBERS', 'problemOf'],

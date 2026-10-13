@@ -10,6 +10,7 @@ DeckitModule.define(
             'deckit/service/deck/remove',
             'deckit/service/deck/catalog',
             'deckit/service/deck/runner',
+            'deckit/service/plugin/manifest',
             'deckit/service/deck/main-process',
             'deckit/service/deck/record',
             'deckit/service/deck/setting',
@@ -28,6 +29,7 @@ DeckitModule.define(
         REMOVE,
         CATALOG,
         RUNNER,
+        MANIFEST,
         MAIN_PROCESS,
         RECORD,
         SETTING,
@@ -68,9 +70,9 @@ DeckitModule.define(
             });
             PROTOCOL.reveal.handle(({ id }, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
-                const entry = CATALOG.entries().find((candidate) => candidate.id === id);
-                if (!entry) throw new Error('no plugin ' + id);
-                return require('electron').shell.openPath(entry.folder);
+                const plugin = CATALOG.found().find((candidate) => candidate.id === id);
+                if (!plugin) throw new Error('no plugin ' + id);
+                return require('electron').shell.openPath(plugin.folder);
             });
             PROTOCOL.count.handle(({ id }, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
@@ -87,25 +89,25 @@ DeckitModule.define(
         function describe() {
             const running = (id) => RUNNER.runOf(id)?.state === 'running';
             return {
-                installed: CATALOG.entries().map((entry) => ({
-                    ...CATALOG.manifestOf(entry),
-                    folder: entry.folder,
-                    installed: entry.installed,
-                    shipped: entry.shipped,
-                    hides: entry.hides,
-                    problem: entry.problem || RUNNER.runOf(entry.id)?.problem || null,
-                    starting: RUNNER.runOf(entry.id)?.state === 'launching',
-                    mainProcess: { running: MAIN_PROCESS.running(entry.id), failure: MAIN_PROCESS.failure(entry.id) },
-                    requirements: entry.requirements.map((requirement) => ({
+                installed: CATALOG.found().map((plugin) => ({
+                    ...MANIFEST.of(plugin),
+                    folder: plugin.folder,
+                    installed: plugin.installed,
+                    shipped: plugin.shipped,
+                    hides: plugin.hides,
+                    problem: plugin.problem || RUNNER.runOf(plugin.id)?.problem || null,
+                    starting: RUNNER.runOf(plugin.id)?.state === 'launching',
+                    mainProcess: { running: MAIN_PROCESS.started(plugin.id), failure: MAIN_PROCESS.failure(plugin.id) },
+                    requirements: plugin.requirements.map((requirement) => ({
                         ...requirement,
                         ok: requirement.ok && running(requirement.id),
                     })),
                 })),
                 running: CATALOG.plugins()
-                    .filter((entry) => running(entry.id))
-                    .map((entry) => {
-                        const { summary, problem } = RUNNER.runOf(entry.id);
-                        return { id: entry.id, name: entry.name, ...summary, problem };
+                    .filter((plugin) => running(plugin.id))
+                    .map((plugin) => {
+                        const { summary, problem } = RUNNER.runOf(plugin.id);
+                        return { id: plugin.id, name: plugin.name, ...summary, problem };
                     }),
             };
         }
@@ -124,9 +126,9 @@ DeckitModule.define(
             const from = result.filePaths[0];
             const manifest = INSTALL.installable(from, shadowed);
             return {
-                ...CATALOG.manifestOf(manifest),
+                ...MANIFEST.of(manifest),
                 from,
-                replaces: CATALOG.entries().some((entry) => entry.id === manifest.id && entry.installed),
+                replaces: CATALOG.found().some((plugin) => plugin.id === manifest.id && plugin.installed),
             };
         }
 
@@ -136,29 +138,29 @@ DeckitModule.define(
             const manifest = INSTALL.install(from, shadowed);
             MAIN_PROCESS.restartFor(manifest.id);
             CATALOG.refresh({ installed: manifest.id });
-            await RUNNER.settled(manifest.id);
+            await RUNNER.closed(manifest.id);
             return {
-                ...CATALOG.manifestOf(manifest),
+                ...MANIFEST.of(manifest),
                 restart: MAIN_PROCESS.restartPending().some(({ id }) => id === manifest.id),
             };
         }
 
         // A source folder of the same id would hide the installed copy.
         function shadowed(manifest) {
-            const source = CATALOG.entries().find((entry) => entry.id === manifest.id && !entry.installed);
+            const source = CATALOG.found().find((plugin) => plugin.id === manifest.id && !plugin.installed);
             return source ? `${manifest.id} is read from ${source.folder}, which would hide the installed copy` : '';
         }
 
         // Its run has ended, stop() and all, and its page closed, before what it stored is taken, so nothing writes it
         // back.
         async function remove(id, data) {
-            const entry = CATALOG.entries().find((candidate) => candidate.id === id);
-            if (entry && !entry.installed)
-                throw new Error(`${id} is read from ${entry.folder}, not installed, so it is removed there`);
+            const plugin = CATALOG.found().find((candidate) => candidate.id === id);
+            if (plugin && !plugin.installed)
+                throw new Error(`${id} is read from ${plugin.folder}, not installed, so it is removed there`);
             REMOVE.remove(id);
             MAIN_PROCESS.unload(id);
             CATALOG.refresh();
-            await RUNNER.settled(id);
+            await RUNNER.closed(id);
             const removed = { data: data && REMOVE.forgetData(id) };
             if (removed.data) await forget(id);
             return removed;

@@ -25,14 +25,17 @@ DeckitModule.define(
         // them again.
         function start({ ordered }) {
             order = ordered;
-            PROTOCOL.declare.on(({ run, settings }, sender) => {
+            PROTOCOL.declare.on(({ run: number, settings }, sender) => {
                 const plugin = IDENTITY.pluginFrom(sender);
                 const current = RUNNER.runOf(plugin.id);
-                if (current?.state === 'launching' && (run === null || run === undefined || run === current.number))
+                if (
+                    current?.state === 'launching' &&
+                    (number === null || number === undefined || number === current.number)
+                )
                     declare(plugin, settings);
             });
-            RUNNER.onLifecycle('didFailToLaunch', ({ plugin }) => forget(plugin.id));
-            RUNNER.onLifecycle('didTerminate', ({ plugin, endReason }) => endReason !== 'restart' && forget(plugin.id));
+            RUNNER.observe('didFailToLaunch', ({ plugin }) => forget(plugin.id));
+            RUNNER.observe('didTerminate', ({ plugin, endReason }) => endReason !== 'restart' && forget(plugin.id));
             PROTOCOL.setSetting.handle(({ key, value }, sender) => set(IDENTITY.pluginFrom(sender).id, key, value));
             PROTOCOL.pluginSettings.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugin-settings');
@@ -44,7 +47,7 @@ DeckitModule.define(
             });
             PROTOCOL.runPluginSetting.handle(({ plugin, key }, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugin-settings');
-                return run(plugin, key);
+                return runAction(plugin, key);
             });
         }
 
@@ -81,8 +84,8 @@ DeckitModule.define(
             const values = STORAGE.settings.read(pluginId);
             if (values[key] === next) return next;
             STORAGE.settings.write(pluginId, { ...values, [key]: next });
-            const view = IDENTITY.pageOf(pluginId);
-            if (view) PROTOCOL.settingChanged.send(view, { key, value: next });
+            const webContents = IDENTITY.pageOf(pluginId);
+            if (webContents) PROTOCOL.settingChanged.send(webContents, { key, value: next });
             return next;
         }
 
@@ -111,16 +114,18 @@ DeckitModule.define(
         // Options worked out when Settings draws them (the fonts on this Mac) are the plugin's to answer.
         async function optionsOf(pluginId, key, declaration) {
             if (!declaration.computed) return declaration.options || [];
-            const view = IDENTITY.pageOf(pluginId);
-            return view ? PROTOCOL.settingOptions.invoke(view, { key }, { timeout: OPTIONS_LIMIT_MS }) : [];
+            const webContents = IDENTITY.pageOf(pluginId);
+            return webContents
+                ? PROTOCOL.settingOptions.invoke(webContents, { key }, { timeout: OPTIONS_LIMIT_MS })
+                : [];
         }
 
-        async function run(pluginId, key) {
+        async function runAction(pluginId, key) {
             const declaration = declared.get(pluginId)?.settings[key];
             if (declaration?.type !== 'action') throw new Error(`${pluginId} has no action "${key}"`);
-            const view = IDENTITY.pageOf(pluginId);
-            if (!view) throw new Error(`${pluginId} is not running`);
-            return PROTOCOL.runSetting.invoke(view, { key });
+            const webContents = IDENTITY.pageOf(pluginId);
+            if (!webContents) throw new Error(`${pluginId} is not running`);
+            return PROTOCOL.runSetting.invoke(webContents, { key });
         }
 
         // A saved value no option offers now (one this machine lacks, or one an update took away) is offered

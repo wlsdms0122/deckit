@@ -8,20 +8,21 @@ DeckitModule.define(
             'deckit/service/deck/identity',
             'deckit/service/deck/catalog',
             'deckit/service/deck/runner',
+            'deckit/service/plugin/lifecycle',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/feature/panel/protocol',
         ],
         provides: ['start', 'control', 'showsPanel', 'dismisses', 'reveal', 'awaitReply'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER, WEB, KEYMAP, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
         // MARK: - Property
         const FRAME = 'panel-frame';
         const HISTORY_LIMIT = 50;
         // Main waits on a view only for an exit before it moves and a fade before it goes off screen; this guards a
         // view that is gone or stuck.
         const REPLY_TIMEOUT = 400;
-        const views = new Map(); // plugin id -> its page, while the plugin has something to show
+        const views = new Map(); // plugin id -> the view its page is in, while the plugin has something to show
         const waiting = new Map(); // reply -> the wait in progress for it
         const heard = new Set(); // replies listened to
         const history = { list: [], at: -1 };
@@ -51,14 +52,13 @@ DeckitModule.define(
             listen();
             registerKeys();
             CATALOG.onChange(reconcile);
-            for (const name of ['willLaunch', 'didLaunch', 'didFailToLaunch', 'willTerminate', 'didTerminate'])
-                RUNNER.onLifecycle(name, reconcile);
+            for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, reconcile);
             reconcile();
         }
 
         // A web page a plugin shows counts as its page; whether the page is what is on screen there is the shell's.
         function showsPanel(webContents) {
-            const page = RUNNER.pageFor(webContents);
+            const page = WEB.pageFor(webContents);
             if (!page || !shown || page !== currentContents()) return false;
             return !!shell.showsPanel(page);
         }
@@ -151,24 +151,24 @@ DeckitModule.define(
         function reconcile() {
             const showing = new Map(
                 RUNNER.runs()
-                    .filter(({ run, page }) =>
-                        run.state === 'running' ? run.summary.view : views.get(run.plugin.id) === page && onItsWay(run)
+                    .filter(({ run, view }) =>
+                        run.state === 'running' ? run.summary.view : views.get(run.plugin.id) === view && onItsWay(run)
                     )
-                    .map(({ run, page }) => [run.plugin.id, page])
+                    .map(({ run, view }) => [run.plugin.id, view])
             );
-            for (const [id, page] of views) {
-                if (showing.get(id) === page) continue;
-                container.removeChildView(page);
+            for (const [id, view] of views) {
+                if (showing.get(id) === view) continue;
+                container.removeChildView(view);
                 views.delete(id);
                 if (current !== id) continue;
                 current = null;
                 returning = id;
             }
-            for (const [id, page] of showing) {
+            for (const [id, view] of showing) {
                 if (views.has(id)) continue;
-                views.set(id, page);
-                page.setVisible(false);
-                container.addChildView(page);
+                views.set(id, view);
+                view.setVisible(false);
+                container.addChildView(view);
             }
             layout();
             if (returning && !mayShow(returning)) returning = null;
@@ -200,7 +200,7 @@ DeckitModule.define(
 
         function layout() {
             const { width, height } = container.getBounds();
-            for (const page of views.values()) page.setBounds({ x: 0, y: 0, width, height });
+            for (const view of views.values()) view.setBounds({ x: 0, y: 0, width, height });
         }
 
         function stateOf() {
@@ -218,9 +218,9 @@ DeckitModule.define(
 
         function broadcast() {
             const state = stateOf();
-            for (const page of views.values()) PROTOCOL.state.send(page.webContents, state);
-            const name = CATALOG.plugins().find(({ id }) => id === current);
-            const title = name?.name || CONFIG.name;
+            for (const view of views.values()) PROTOCOL.state.send(view.webContents, state);
+            const plugin = CATALOG.plugins().find(({ id }) => id === current);
+            const title = plugin?.name || CONFIG.name;
             if (title !== titled) shell.panelTitled((titled = title));
         }
 
@@ -280,8 +280,8 @@ DeckitModule.define(
 
         // Whether a keystroke or a request in this webContents is the panel's: one of its pages, or a web page in one.
         function contains(webContents) {
-            const page = RUNNER.pageFor(webContents);
-            return [...views.values()].some((shown) => shown.webContents === page);
+            const page = WEB.pageFor(webContents);
+            return [...views.values()].some((view) => view.webContents === page);
         }
 
         function currentContents() {
@@ -348,7 +348,7 @@ DeckitModule.define(
         // bar's height and the width the window's buttons take at its start.
         function present(next) {
             look = { floating: !!next?.floating, dismissible: !!next?.dismissible, titleBar: next?.titleBar || null };
-            for (const page of views.values()) PROTOCOL.look.send(page.webContents, look);
+            for (const view of views.values()) PROTOCOL.look.send(view.webContents, look);
         }
 
         return {

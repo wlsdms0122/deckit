@@ -10,7 +10,7 @@ DeckitModule.define(
             'deckit/service/plugin/folder',
             'deckit/service/deck/install',
         ],
-        provides: ['start', 'entries', 'plugins', 'order', 'arrange', 'refresh', 'onChange', 'sourceOf', 'manifestOf'],
+        provides: ['start', 'found', 'plugins', 'order', 'arrange', 'refresh', 'onChange', 'sourceOf'],
         runs: 'main',
     },
     (CONFIG, HOME, STORAGE, LOG, VERSION, FOLDER, INSTALL) => {
@@ -28,19 +28,19 @@ DeckitModule.define(
         function start() {
             shipOrder = CONFIG.ship.map((folder) => FOLDER.idOf(folder));
             catalogued = list();
-            for (const entry of catalogued)
-                if (entry.problem) LOG.warn(`plugin ${entry.id} not loaded: ${entry.problem}`);
+            for (const plugin of catalogued)
+                if (plugin.problem) LOG.warn(`plugin ${plugin.id} not loaded: ${plugin.problem}`);
         }
 
         // Every plugin deckit reads, a source before an installed one of the same id, each with whether it loads
         // and why not, and the folders of the same id it hides.
-        function entries() {
+        function found() {
             return catalogued;
         }
 
         // The plugins that load, in the person's order.
         function plugins() {
-            return arranged(catalogued.filter((entry) => !entry.problem));
+            return arranged(catalogued.filter((plugin) => !plugin.problem));
         }
 
         function order() {
@@ -49,11 +49,11 @@ DeckitModule.define(
 
         // The ids named take the places they held among themselves, in the order given; the rest stay put.
         function arrange(ids) {
-            const now = plugins().map(({ id }) => id);
-            const moved = [...new Set(ids)].filter((id) => now.includes(id));
-            const slots = now.map((id, index) => (moved.includes(id) ? index : -1)).filter((index) => index >= 0);
-            slots.forEach((slot, index) => (now[slot] = moved[index]));
-            STORAGE.state.write(ORDER, now);
+            const next = plugins().map(({ id }) => id);
+            const moved = [...new Set(ids)].filter((id) => next.includes(id));
+            const places = next.map((id, index) => (moved.includes(id) ? index : -1)).filter((index) => index >= 0);
+            places.forEach((place, index) => (next[place] = moved[index]));
+            STORAGE.state.write(ORDER, next);
             notify();
         }
 
@@ -70,25 +70,19 @@ DeckitModule.define(
         }
 
         // The text of the plugin's entry, the one file deckit runs in its sandbox.
-        function sourceOf(entry) {
-            const file = FOLDER.entryOf(entry.folder, entry);
-            if (!file) throw new Error(`main = "${entry.main}" names no file in the plugin's folder`);
+        function sourceOf(plugin) {
+            const file = FOLDER.entryOf(plugin.folder, plugin);
+            if (!file) throw new Error(`main = "${plugin.main}" names no file in the plugin's folder`);
             return fs.readFileSync(file, 'utf8');
-        }
-
-        // What its manifest says, as a plugin's page and Settings see it.
-        function manifestOf(entry) {
-            const { id, name, version, api, main, requires, permissions, urlSchemes } = entry;
-            return { id, name, version, api, main, requires, permissions, urlSchemes };
         }
 
         // MARK: - Private
         // A plugin that requires one that does not load does not load either.
         function list() {
             const shipped = INSTALL.shipped() || new Set();
-            const entries = [];
-            for (const [id, { folder, installed, manifest, problem, hides }] of found()) {
-                entries.push({
+            const read = [];
+            for (const [id, { folder, installed, manifest, problem, hides }] of foldersById()) {
+                read.push({
                     ...manifest,
                     folder,
                     installed,
@@ -98,7 +92,7 @@ DeckitModule.define(
                     installs: installs.get(id) || 0,
                 });
             }
-            return withRequirements(entries);
+            return withRequirements(read);
         }
 
         function notify() {
@@ -118,7 +112,7 @@ DeckitModule.define(
         }
 
         // By plugin id, as each folder is read: the first of an id is the one read.
-        function found() {
+        function foldersById() {
             const out = new Map();
             for (const root of [...CONFIG.sources, HOME.plugins]) {
                 for (const folder of FOLDER.pluginsIn(root)) {
@@ -138,36 +132,36 @@ DeckitModule.define(
         }
 
         // A cycle fails every plugin in it; then a failure spreads to whoever requires it, until nothing changes.
-        function withRequirements(entries) {
-            const byId = new Map(entries.map((entry) => [entry.id, entry]));
+        function withRequirements(read) {
+            const byId = new Map(read.map((plugin) => [plugin.id, plugin]));
             for (const loop of cycles(byId)) {
                 for (const id of new Set(loop)) {
-                    const entry = byId.get(id);
-                    if (!entry.problem) entry.problem = 'requires itself: ' + loop.join(' → ');
+                    const plugin = byId.get(id);
+                    if (!plugin.problem) plugin.problem = 'requires itself: ' + loop.join(' → ');
                 }
             }
             for (let changed = true; changed;) {
                 changed = false;
-                for (const entry of entries) {
-                    if (entry.problem) continue;
-                    for (const [id, want] of Object.entries(entry.requires)) {
+                for (const plugin of read) {
+                    if (plugin.problem) continue;
+                    for (const [id, want] of Object.entries(plugin.requires)) {
                         const problem = requirementProblem(id, want, byId.get(id));
                         if (!problem) continue;
-                        entry.problem = problem;
+                        plugin.problem = problem;
                         changed = true;
                         break;
                     }
                 }
             }
-            for (const entry of entries) {
-                entry.requirements = Object.entries(entry.requires).map(([id, want]) => ({
+            for (const plugin of read) {
+                plugin.requirements = Object.entries(plugin.requires).map(([id, want]) => ({
                     id,
                     want,
                     name: byId.get(id)?.name || id,
                     ok: !requirementProblem(id, want, byId.get(id)),
                 }));
             }
-            return entries;
+            return read;
         }
 
         function requirementProblem(id, want, provider) {
@@ -196,6 +190,6 @@ DeckitModule.define(
             return loops;
         }
 
-        return { start, entries, plugins, order, arrange, refresh, onChange, sourceOf, manifestOf };
+        return { start, found, plugins, order, arrange, refresh, onChange, sourceOf };
     }
 );

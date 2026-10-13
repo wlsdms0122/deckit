@@ -12,30 +12,32 @@ DeckitModule.define(
             'deckit/service/open/main',
             'deckit/service/deck/protocol',
             'deckit/service/deck/model/origin',
+            'deckit/service/plugin/manifest',
             'deckit/service/plugin/lifecycle',
         ],
-        provides: ['start', 'runs', 'runOf', 'onLifecycle', 'settled', 'restart', 'pageFor'],
+        provides: ['start', 'runs', 'runOf', 'observe', 'closed', 'restart'],
         runs: 'main',
     },
-    (STORAGE, LOG, EVENT_BUS, IDENTITY, CATALOG, WEB, KEYMAP, OPEN, PROTOCOL, ORIGIN, LIFECYCLE) => {
+    (STORAGE, LOG, EVENT_BUS, IDENTITY, CATALOG, WEB, KEYMAP, OPEN, PROTOCOL, ORIGIN, MANIFEST, LIFECYCLE) => {
         // MARK: - Property
         // How long a plugin's stop() may take before its run ends anyway.
         const STOP_LIMIT_MS = 2000;
         const ERR_ABORTED = -3;
-        // plugin id -> { entry, page, run, stopping, leaving }: the page a plugin runs in, kept across its runs until
-        // the plugin goes or its folder changes. `stopping` settles once its run's stop() has answered; `leaving`, once
-        // the page has closed for good.
-        const slots = new Map();
+        // plugin id -> { plugin, view, run, stopping, closing }: a plugin's sandbox, the view its page is in, kept
+        // across its runs until the plugin goes or its folder changes. `stopping` settles once its run's stop() has
+        // answered; `closing`, once the view has closed for good.
+        const sandboxes = new Map();
         const numbers = new Map(); // plugin id -> the number of its latest run, counted from 1
-        const lifecycle = EVENT_BUS.make();
-        let makePage = null;
+        const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
+        let makeView = null;
         let quitting = null; // the runs terminating as the app quits
 
         // MARK: - Initializer
-        // Every plugin that loads runs in a page of its own, whether or not it has anything to show. `makePage()` makes
-        // the view a page runs in.
-        function start({ makePage: make }) {
-            makePage = make;
+        // MARK: - Public
+        // Every plugin that loads runs in a sandbox of its own, whether or not it has anything to show. `makeView()`
+        // makes the view its page is in.
+        function start({ makeView: make }) {
+            makeView = make;
             listen();
             CATALOG.onChange(reconcile);
             reconcile();
@@ -45,67 +47,59 @@ DeckitModule.define(
             // the next quit terminates what launched since.
             const { app } = require('electron');
             app.on('will-quit', (event) => {
-                const live = [...slots.values()].filter(({ run }) => run.state !== 'notRunning');
+                const live = [...sandboxes.values()].filter(({ run }) => run.state !== 'notRunning');
                 if (!quitting && !live.length) return;
                 event.preventDefault();
-                quitting ??= Promise.all(live.map((slot) => terminate(slot, 'quit'))).then(() => {
+                quitting ??= Promise.all(live.map((sandbox) => terminate(sandbox, 'quit'))).then(() => {
                     quitting = null;
                     app.quit();
                 });
             });
         }
 
-        // MARK: - Public
-        // Each plugin's latest run, with the page it runs in.
+        // Each plugin's latest run, with the view its page is in.
         function runs() {
-            return [...slots.values()].map(({ run, page }) => ({ run, page }));
+            return [...sandboxes.values()].map(({ run, view }) => ({ run, view }));
         }
 
         function runOf(pluginId) {
-            return slots.get(pluginId)?.run || null;
+            return sandboxes.get(pluginId)?.run || null;
         }
 
-        // `listener(run)` is told `name`, one of the lifecycle's notifications, for every run. Answers its off.
-        function onLifecycle(name, listener) {
-            if (!LIFECYCLE.NOTIFICATIONS.includes(name)) throw new Error(`no lifecycle notification ${name}`);
-            return lifecycle.on(name, listener);
+        // `observer(run)` is told `name`, one of the lifecycle's notifications, for every run. Answers its off.
+        function observe(name, observer) {
+            return notifications.on(name, observer);
         }
 
-        // Resolves once the plugin's page that is going has closed, and whatever runs in its place has launched.
-        function settled(pluginId) {
-            return slots.get(pluginId)?.leaving || Promise.resolve();
+        // Resolves once the plugin's sandbox that is closing has closed, and whatever runs in its place has launched.
+        function closed(pluginId) {
+            return sandboxes.get(pluginId)?.closing || Promise.resolve();
         }
 
-        // Every plugin terminates and launches again in its page, at the page's own address, as a new theme asks.
+        // Every plugin terminates and launches again in its sandbox, at its page's own address, as a new theme asks.
         function restart() {
-            for (const slot of slots.values()) {
-                if (slot.leaving) continue;
-                terminate(slot, 'restart').then(() => {
-                    if (slots.get(slot.entry.id) !== slot || slot.leaving || slot.run.state !== 'notRunning') return;
-                    launch(slot);
-                    slot.page.webContents.loadURL(ORIGIN.addressOf(ORIGIN.originOf(slot.entry.id)));
+            for (const sandbox of sandboxes.values()) {
+                if (sandbox.closing) continue;
+                terminate(sandbox, 'restart').then(() => {
+                    if (sandboxes.get(sandbox.plugin.id) !== sandbox || sandbox.closing) return;
+                    if (sandbox.run.state !== 'notRunning') return;
+                    launch(sandbox);
+                    sandbox.view.webContents.loadURL(addressOf(sandbox.plugin));
                 });
             }
         }
 
-        // The deckit page a webContents belongs to: a plugin's or the switcher's own, or the plugin's that shows it as
-        // a web page.
-        function pageFor(webContents) {
-            if (IDENTITY.pluginOf(webContents) || IDENTITY.isSwitcher(webContents)) return webContents;
-            return WEB.hostOf(webContents);
-        }
-
         // MARK: - Private
         // A plugin runs as it arrives and goes as it leaves; one whose folder changed goes and runs again, once its
-        // old page has closed.
+        // old sandbox has closed.
         function reconcile() {
             const plugins = CATALOG.plugins();
-            for (const slot of slots.values()) {
-                if (slot.leaving) continue;
-                const now = plugins.find(({ id }) => id === slot.entry.id);
-                if (!now || !sameFolder(slot.entry, now)) leave(slot, now ? 'updated' : 'removed');
+            for (const sandbox of sandboxes.values()) {
+                if (sandbox.closing) continue;
+                const found = plugins.find(({ id }) => id === sandbox.plugin.id);
+                if (!found || !sameFolder(sandbox.plugin, found)) closeSandbox(sandbox, found ? 'updated' : 'removed');
             }
-            for (const entry of plugins) if (!slots.has(entry.id)) open(entry);
+            for (const plugin of plugins) if (!sandboxes.has(plugin.id)) openSandbox(plugin);
         }
 
         function sameFolder(before, after) {
@@ -117,111 +111,115 @@ DeckitModule.define(
             );
         }
 
-        function open(entry) {
-            const page = makePage();
-            const contents = page.webContents;
-            const origin = ORIGIN.originOf(entry.id);
-            const slot = { entry, page, run: null, stopping: null, leaving: null };
-            // Before identity's own, so a crash ends the run with its reason. A page that did not load runs no plugin:
+        function openSandbox(plugin) {
+            const view = makeView();
+            const webContents = view.webContents;
+            const origin = ORIGIN.originOf(plugin.id);
+            const sandbox = { plugin, view, run: null, stopping: null, closing: null };
+            // Before identity's own, so a crash ends the run with its cause. A page that did not load runs no plugin:
             // what loaded instead is an error page, never the plugin's origin. An aborted load is one replaced by
             // another.
-            LOG.guard(contents, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
+            LOG.guard(webContents, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
                 if (isMainFrame && code !== ERR_ABORTED)
-                    crash(slot, slot.run, `its page did not load (${description})`);
+                    crash(sandbox, sandbox.run, `its page did not load (${description})`);
             });
-            LOG.guard(contents, 'render-process-gone', (_event, { reason }) =>
-                crash(slot, slot.run, `its page ended (${reason})`)
+            LOG.guard(webContents, 'render-process-gone', (_event, { reason }) =>
+                crash(sandbox, sandbox.run, `its page ended (${reason})`)
             );
-            IDENTITY.add(contents, { plugin: entry });
-            WEB.host(contents);
-            KEYMAP.listen(contents);
+            IDENTITY.add(webContents, { plugin });
+            WEB.host(webContents);
+            KEYMAP.listen(webContents);
             // Every scheme: which ones open, and how, is the scheme's handlers' to say.
-            contents.setWindowOpenHandler((details) => {
+            webContents.setWindowOpenHandler((details) => {
                 OPEN.open(details.url, WEB.windowOptions(details));
                 return { action: 'deny' };
             });
             // Identity holds the page to its origin, and a link that leaves it is opened by the scheme's handlers.
-            LOG.guard(contents, 'will-frame-navigate', (details) => {
+            LOG.guard(webContents, 'will-frame-navigate', (details) => {
                 if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.open(details.url, {});
             });
             LOG.guard(
-                contents,
+                webContents,
                 'console-message',
-                ({ level, message }) => level === 'error' && LOG.error(`${entry.id}: ${message}`)
+                ({ level, message }) => level === 'error' && LOG.error(`${plugin.id}: ${message}`)
             );
-            // It runs at full speed off screen: it is the plugin running, not a tab put away. Chromium takes the
-            // preference back at each load, so it is given again as each one finishes.
-            LOG.guard(contents, 'did-finish-load', () => contents.setBackgroundThrottling(false));
-            slots.set(entry.id, slot);
-            launch(slot);
-            contents.loadURL(ORIGIN.addressOf(origin));
+            // It runs at full speed off screen, since the plugin runs there. Chromium takes the preference back at each
+            // load, so it is given again as each one finishes.
+            LOG.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
+            sandboxes.set(plugin.id, sandbox);
+            launch(sandbox);
+            webContents.loadURL(addressOf(plugin));
         }
 
-        function launch(slot) {
-            const pluginId = slot.entry.id;
-            const number = (numbers.get(pluginId) || 0) + 1;
-            numbers.set(pluginId, number);
-            slot.run = LIFECYCLE.makeRun({
-                plugin: slot.entry,
-                number,
-                notify: (name, run) => lifecycle.emit(name, run),
-            });
-            slot.run.launch();
-        }
-
-        // `reason`: removed, updated, restart or quit. Resolves once the run has ended, its stop() answered, its time
-        // run out or its page gone.
-        function terminate(slot, reason) {
-            const { run, page } = slot;
-            if (run.state === 'terminating') return slot.stopping;
-            if (run.state === 'notRunning') return Promise.resolve();
-            run.terminate(reason);
-            slot.stopping = stop(page).then(() => run.state === 'terminating' && run.didTerminate());
-            return slot.stopping;
-        }
-
-        // The plugin's stop() asked of its page, which answers once whatever it is asked: resolves once it has answered,
-        // its time ran out or the page is gone.
-        function stop(page) {
-            if (page.webContents.isDestroyed()) return Promise.resolve();
-            return PROTOCOL.stop.invoke(page.webContents, {}, { timeout: STOP_LIMIT_MS }).catch(() => {});
-        }
-
-        function leave(slot, reason) {
-            slot.leaving = terminate(slot, reason).then(() => {
-                if (!slot.page.webContents.isDestroyed()) slot.page.webContents.close();
-                slots.delete(slot.entry.id);
+        function closeSandbox(sandbox, reason) {
+            sandbox.closing = terminate(sandbox, reason).then(() => {
+                if (!sandbox.view.webContents.isDestroyed()) sandbox.view.webContents.close();
+                sandboxes.delete(sandbox.plugin.id);
                 reconcile();
             });
         }
 
-        function crash(slot, run, why) {
-            if (slot.run !== run || run.state === 'notRunning') return;
-            LOG.warn(`${run.plugin.id}: ${why}`);
-            run.crash(why);
+        function launch(sandbox) {
+            const pluginId = sandbox.plugin.id;
+            const number = (numbers.get(pluginId) || 0) + 1;
+            numbers.set(pluginId, number);
+            sandbox.run = LIFECYCLE.makeRun({
+                plugin: sandbox.plugin,
+                number,
+                notify: (name, run) => notifications.emit(name, run),
+            });
+            sandbox.run.launch();
+        }
+
+        // `reason`: removed, updated, restart or quit. Resolves once the run has ended, its stop() answered, its time
+        // run out or its page gone.
+        function terminate(sandbox, reason) {
+            const { run, view } = sandbox;
+            if (run.state === 'terminating') return sandbox.stopping;
+            if (run.state === 'notRunning') return Promise.resolve();
+            run.terminate(reason);
+            sandbox.stopping = stop(view).then(() => run.state === 'terminating' && run.didTerminate());
+            return sandbox.stopping;
+        }
+
+        // The plugin's stop() asked of its page. The page runs it once, however often it is asked. Resolves once it has
+        // answered, its time ran out or the page is gone.
+        function stop(view) {
+            if (view.webContents.isDestroyed()) return Promise.resolve();
+            return PROTOCOL.stop.invoke(view.webContents, {}, { timeout: STOP_LIMIT_MS }).catch(() => {});
+        }
+
+        function crash(sandbox, run, problem) {
+            if (sandbox.run !== run || run.state === 'notRunning') return;
+            LOG.warn(`${run.plugin.id}: ${problem}`);
+            run.crash(problem);
+        }
+
+        function addressOf(plugin) {
+            return ORIGIN.addressOf(ORIGIN.originOf(plugin.id));
         }
 
         // What a page says of its run carries the run's number: what an older run sent before it was replaced, still
         // on its way, is not the newer one's.
         function listen() {
             const runFrom = (number, sender) => {
-                const run = slots.get(IDENTITY.pluginFrom(sender).id)?.run;
+                const run = sandboxes.get(IDENTITY.pluginFrom(sender).id)?.run;
                 return run && (number === null || number === undefined || number === run.number) ? run : null;
             };
             PROTOCOL.load.handle((_payload, sender) => {
-                const slot = slots.get(IDENTITY.pluginFrom(sender).id);
-                if (slot.leaving) throw new Error(`${slot.entry.id} is going`);
+                const sandbox = sandboxes.get(IDENTITY.pluginFrom(sender).id);
+                if (sandbox.closing) throw new Error(`${sandbox.plugin.id} is going`);
                 // A page that loaded again by itself runs again: the run it had ended with the document it ran in.
-                if (slot.run.state !== 'launching') {
-                    crash(slot, slot.run, 'its page loaded again');
-                    launch(slot);
+                if (sandbox.run.state !== 'launching') {
+                    crash(sandbox, sandbox.run, 'its page loaded again');
+                    launch(sandbox);
                 }
-                const run = slot.run;
-                IDENTITY.whenPageEnds(sender, () => crash(slot, run, 'its page went away'));
+                const run = sandbox.run;
+                IDENTITY.whenPageEnds(sender, () => crash(sandbox, run, 'its page went away'));
                 return {
-                    manifest: CATALOG.manifestOf(slot.entry),
-                    source: CATALOG.sourceOf(slot.entry),
-                    settings: STORAGE.settings.read(slot.entry.id),
+                    manifest: MANIFEST.of(sandbox.plugin),
+                    source: CATALOG.sourceOf(sandbox.plugin),
+                    settings: STORAGE.settings.read(sandbox.plugin.id),
                     run: run.number,
                 };
             });
@@ -229,22 +227,22 @@ DeckitModule.define(
                 const run = runFrom(number, sender);
                 if (run?.state === 'launching') run.didLaunch({ summary, exports });
             });
-            PROTOCOL.problem.on(({ run: number, why }, sender) => {
+            PROTOCOL.problem.on(({ run: number, problem }, sender) => {
                 const run = runFrom(number, sender);
                 if (!run) return;
-                LOG.warn(`${run.plugin.id}: ${why}`);
-                run.record(why);
+                LOG.warn(`${run.plugin.id}: ${problem}`);
+                run.record(problem);
             });
             // What start() did before it failed is ended at once by stop(), as for any run that ends.
-            PROTOCOL.notStarted.on(({ run: number, why }, sender) => {
+            PROTOCOL.notStarted.on(({ run: number, problem }, sender) => {
                 const run = runFrom(number, sender);
                 if (run?.state !== 'launching') return;
-                LOG.warn(`${run.plugin.id}: ${why}`);
-                run.didFailToLaunch(why);
-                stop(slots.get(run.plugin.id).page);
+                LOG.warn(`${run.plugin.id}: ${problem}`);
+                run.didFailToLaunch(problem);
+                stop(sandboxes.get(run.plugin.id).view);
             });
         }
 
-        return { start, runs, runOf, onLifecycle, settled, restart, pageFor };
+        return { start, runs, runOf, observe, closed, restart };
     }
 );

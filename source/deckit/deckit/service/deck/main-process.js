@@ -12,7 +12,7 @@ DeckitModule.define(
             'deckit/service/plugin/model/permission',
             'deckit/service/deck/protocol',
         ],
-        provides: ['start', 'unload', 'running', 'failure', 'restartPending', 'restartFor'],
+        provides: ['start', 'unload', 'started', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',
     },
     (FILE, STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER, PERMISSION, PROTOCOL) => {
@@ -33,7 +33,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         function start() {
-            RUNNER.onLifecycle('willLaunch', ({ plugin }) => prepare(plugin));
+            RUNNER.observe('willLaunch', ({ plugin }) => prepare(plugin));
             PROTOCOL.startMainProcess.handle(({ path: given }, sender) =>
                 load(IDENTITY.pluginFrom(sender, PERMISSION.MAIN_PROCESS), given)
             );
@@ -42,22 +42,13 @@ DeckitModule.define(
             );
         }
 
-        // Before a plugin runs again: modules it started from code that has changed since keep running the old code
-        // until a restart. Its new run asks for its modules again, so what failed before is asked again too.
-        function prepare(entry) {
-            const before = loaded.get(entry.id);
-            if (before && (before.folder !== entry.folder || stampOf(entry.folder, entry.main) !== before.stamp))
-                pending.set(entry.id, 'updated');
-            failures.delete(entry.id);
-        }
-
         // A plugin taken away: whatever its modules started keeps going until the process ends.
         function unload(pluginId) {
             if (loaded.has(pluginId)) pending.set(pluginId, 'removed');
             failures.delete(pluginId);
         }
 
-        function running(pluginId) {
+        function started(pluginId) {
             return live.has(pluginId);
         }
 
@@ -76,6 +67,15 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // Before a plugin runs again: modules it started from code that has changed since keep running the old code
+        // until a restart. Its new run asks for its modules again, so what failed before is asked again too.
+        function prepare(plugin) {
+            const before = loaded.get(plugin.id);
+            if (before && (before.folder !== plugin.folder || stampOf(plugin.folder, plugin.main) !== before.stamp))
+                pending.set(plugin.id, 'updated');
+            failures.delete(plugin.id);
+        }
+
         // One instance for each plugin and file while the app runs: a module holds state (a token, a watcher), and
         // starting it twice makes two of everything. Answers { path, methods }, the paths of its functions.
         async function load(plugin, given) {
@@ -226,6 +226,6 @@ DeckitModule.define(
             return hash.digest('hex');
         }
 
-        return { start, unload, running, failure, restartPending, restartFor };
+        return { start, unload, started, failure, restartPending, restartFor };
     }
 );

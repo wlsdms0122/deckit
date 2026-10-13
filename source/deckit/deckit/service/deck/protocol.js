@@ -46,9 +46,9 @@ DeckitModule.define(
         // Started, with what it contributes. `exports`: values copied, and the paths of its functions.
         started: IPC.rendererToMain('deckit:plugin-started', { run: 'number?', exports: 'object', summary: 'object' }),
         // A problem recorded against the plugin, which Settings shows.
-        problem: IPC.rendererToMain('deckit:plugin-problem', { run: 'number?', why: 'string' }),
+        problem: IPC.rendererToMain('deckit:plugin-problem', { run: 'number?', problem: 'string' }),
         // It did not start, and why: what the plugins that require it are told.
-        notStarted: IPC.rendererToMain('deckit:plugin-not-started', { run: 'number?', why: 'string' }),
+        notStarted: IPC.rendererToMain('deckit:plugin-not-started', { run: 'number?', problem: 'string' }),
         // Its run is ending: answered once the plugin's stop() has run.
         stop: IPC.mainToRenderer('deckit:plugin-stop', { reply: true }),
         // Answers once every plugin it requires has started or failed: { [id]: { values, functions } or { error } }.

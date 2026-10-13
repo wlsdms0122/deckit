@@ -17,11 +17,11 @@ DeckitModule.define(
         // A plugin reaches another only through what that one exports, and only one it requires. Whoever requires a
         // plugin waits while it launches or terminates, until it has started, or failed to, or ended for good.
         function start() {
-            RUNNER.onLifecycle('willLaunch', ({ plugin }) => expect(plugin.id));
-            RUNNER.onLifecycle('didLaunch', ({ plugin, exports }) => provide(plugin.id, exports));
-            RUNNER.onLifecycle('didFailToLaunch', ({ plugin, endReason }) => fail(plugin.id, endReason));
-            RUNNER.onLifecycle('willTerminate', ({ plugin }) => expect(plugin.id));
-            RUNNER.onLifecycle(
+            RUNNER.observe('willLaunch', ({ plugin }) => expect(plugin.id));
+            RUNNER.observe('didLaunch', ({ plugin, exports }) => provide(plugin.id, exports));
+            RUNNER.observe('didFailToLaunch', ({ plugin, endReason }) => fail(plugin.id, endReason));
+            RUNNER.observe('willTerminate', ({ plugin }) => expect(plugin.id));
+            RUNNER.observe(
                 'didTerminate',
                 ({ plugin, endReason }) => !RUNS_AGAIN.has(endReason) && fail(plugin.id, endReason)
             );
