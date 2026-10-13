@@ -1,0 +1,9 @@
+id = "deckit"
+name = "Deckit"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"deckit.plugins" = "Restarts a plugin you pick, or the whole app, from the switcher."
+"deckit.url-schemes" = "Offers to open an address only when a plugin or the system opens its scheme, and says which."

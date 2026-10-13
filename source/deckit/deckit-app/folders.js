@@ -9,7 +9,7 @@ DeckitModule.define(
         // MARK: - Property
         const path = require('path');
         // The plugins Deckit ships, in the order its panel lists them until the person changes it.
-        const SHIPS = ['editor', 'finder', 'note', 'browser', 'settings'];
+        const SHIPS = ['editor', 'finder', 'note', 'browser', 'settings', 'deckit'];
         // Run unpackaged, all its data is in the folder DECKIT_DATA names (main.js).
         const data = process.env.DECKIT_DATA;
 
