@@ -66,7 +66,7 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 
 ## Lists
 
-- `list({ key, create, update, exit, maxRows, size })` returns `{ element, set(items), elementOf(key), keyOf(element) }`. Rows are drawn by key: the same key keeps the same element, so what the pointer rests on and what has the focus stay put. `create(item)` makes a row; `update(element, item)` refreshes a kept one. A key names one item: a key given twice throws. With `exit`, a removed row folds away along the list's axis. While something in or around the list is held (dragged, renamed), a new set waits and the last one is drawn when it is let go. With `maxRows`, the list is at most that many rows tall and scrolls.
+- `list({ key, create, update, animated, maxRows, size })` returns `{ element, set(items), elementOf(key), keyOf(element) }`. Rows are drawn by key: the same key keeps the same element, so what the pointer rests on and what has the focus stay put. `create(item)` makes a row; `update(element, item)` refreshes a kept one. A key names one item: a key given twice throws. With `animated`, a row added once the list has shown items unfolds along the list's axis, and a removed one folds away. While something in or around the list is held (dragged, renamed), a new set waits and the last one is drawn when it is let go. With `maxRows`, the list is at most that many rows tall and scrolls.
 - `row({ size })` returns `{ element, setActive(on), setRevealed(on) }`: washed under the pointer; `setActive` marks it chosen, `setRevealed` keeps its actions shown.
 - `listbox(element, { onPick, onActivate })` returns `{ set(options, { active }), move(by), activate(index), active(), dispose() }`: one active option among `options` (`{ element, disabled }`), moved by the keys and by a pointer that travels, picked by a press. `onActivate(index, { pointer })` hears the active option change and `onPick(index, { keyboard })` a pick; the active option is marked `data-active`.
 
@@ -78,14 +78,14 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 ## Files and folders
 
 - `folderIcon({ open, size })`: a folder's icon, in the folder colour.
-- `treeRow({ depth, folder, folds, open, glyph, name, size })` returns `{ element, setActive(on), setRevealed(on) }`. Its name is marked `data-name`, what a rename types over.
+- `treeRow({ depth, folder, folds, open, glyph, name, size })` returns `{ element, setActive(on), setRevealed(on), setOpen(open) }`. Its name is marked `data-name`, what a rename types over.
 - `inlineEdit(label, { selectStem, onCommit })` renames a label in place; `onCommit(text)` answers nothing or why it refused. Resolves whether it renamed.
 - `movesInto(from, folder)`: whether a move changes anything and is possible.
 - `treeFolderAt({ row, markOf, top, topMark })` and `folderDrop(zone, { kind, path, folderAt, onDrop })`: a tree as a drop target of moves into folders.
 
 ## Dragging and sizing
 
-- `sortable(list, { onReorder })` decorates a keyed list and returns its dispose: the rows put in a new order by a drag. `onReorder(key, toKey)` hears that the item `key` goes where `toKey` is, and the owner draws the new order.
+- `sortable(list, { onReorder, depth })` decorates a keyed list and returns its dispose: the rows put in a new order by a drag. `onReorder(key, toKey)` hears that the item `key` goes where `toKey` is, and the owner draws the new order. With `depth: { indent, project(key, toKey, levels) }` the rows nest: a sideways move asks for a level deeper or shallower for each `indent` px, to the nearest, `project` answers the depth the row would take there, the held row stands that far in, and `onReorder(key, toKey, depth)` hears a move to the same place at another depth too.
 - `dragSource(area, { itemAt, describe })` is a decorator: `describe(item)` is `{ kind, payload, text, icon }`.
 - `dropTarget(zone, { kind, placeAt, onDrop })` is a decorator.
 - `resizer(handle, { axis, grow, size, min, max, onResize, onCommit, onClick, onDrag, resizable })` is a decorator: `size()` reads the size, `onResize(px)` draws one, `onCommit(px)` keeps the one let go of. Past a limit the edge gives and springs back; a press that does not travel is a click.

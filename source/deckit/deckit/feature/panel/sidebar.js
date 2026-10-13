@@ -117,16 +117,14 @@ DeckitModule.define(
                 outline: none;
                 border-radius: var(--deckit-radius-control);
                 background: transparent;
-                color: color-mix(in srgb, var(--deckit-text) 72%, var(--deckit-background));
+                color: inherit;
                 font: var(--deckit-type-large);
                 text-align: left;
                 cursor: pointer;
-                transition:
-                    background-color var(--deckit-fast) var(--deckit-easing),
-                    color var(--deckit-fast) var(--deckit-easing);
+                transition: background-color var(--deckit-fast) var(--deckit-easing);
             }
             .deckit-plugin-row:hover { background: var(--deckit-hover); }
-            .deckit-plugin-row[aria-selected='true'] { background: var(--deckit-selected); color: var(--deckit-text); }
+            .deckit-plugin-row[aria-selected='true'] { background: var(--deckit-selected); }
             .deckit-plugin-row:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
             .deckit-plugin-icon { display: flex; flex: 0 0 auto; }
         `;

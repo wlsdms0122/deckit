@@ -55,19 +55,9 @@ const TABS_STYLE = `
 // The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab grows in and
 // a closed one folds away. A switch of workspace draws a new list, so the row is swapped whole and nothing plays. The
 // tab's space is in its icon's and its end's margins, which fold with it.
-function tabs({ theme, ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
-    const { motion } = theme;
-    const TRANSITION = ['background-color', 'max-width', 'opacity']
-        .map(
-            (property) =>
-                `${property} ${property === 'background-color' ? motion.fast : motion.base}ms ${motion.easing}`
-        )
-        .join(', ');
-
+function tabs({ ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
     let files = [];
     let shownFor = null; // the workspace whose tabs are drawn
-    // Until the list's first drawing: what is there then was there before.
-    let firstDrawing = true;
 
     const element = ui.element('div', { className: 'editor-tabs' });
     let rows = tabList();
@@ -88,7 +78,6 @@ function tabs({ theme, ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
         if (workspace !== shownFor) {
             shownFor = workspace;
             rows = tabList();
-            firstDrawing = true;
             element.replaceChildren(rows.element);
         }
         rows.set(
@@ -100,11 +89,10 @@ function tabs({ theme, ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
                 unsaved: isDirty(file),
             }))
         );
-        firstDrawing = false;
     }
 
     function tabList() {
-        const list = ui.list({ key: (item) => item.file, create: tabOf, update: refresh, exit: true });
+        const list = ui.list({ key: (item) => item.file, create: tabOf, update: refresh, animated: true });
         list.element.classList.add('editor-tab-list');
         return list;
     }
@@ -128,7 +116,6 @@ function tabs({ theme, ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
         });
         tab.append(iconElement(ui, 'editor-tab-icon', ''), ui.element('span', { className: 'editor-tab-label' }), end);
         refresh(tab, item);
-        if (!firstDrawing) growIn(tab);
         return tab;
     }
 
@@ -141,19 +128,6 @@ function tabs({ theme, ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
         tab.title = item.path;
         tab.querySelector('.editor-tab-icon').innerHTML = fileIconOf(ui, item.path, 13);
         tab.querySelector('.editor-tab-label').textContent = nameOf(item.path);
-    }
-
-    // From nothing to its width, once it is in the page.
-    function growIn(tab) {
-        if (!motion.base) return;
-        Object.assign(tab.style, { maxWidth: '0px', opacity: '0' });
-        requestAnimationFrame(() =>
-            requestAnimationFrame(() => {
-                tab.style.transition = TRANSITION;
-                Object.assign(tab.style, { maxWidth: '', opacity: '' });
-                setTimeout(() => (tab.style.transition = ''), motion.base);
-            })
-        );
     }
 }
 

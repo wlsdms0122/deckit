@@ -35,6 +35,7 @@ DeckitModule.define(
 
         // MARK: - Private
         // A row of a tree: a caret when it folds, its mark, its name (marked `data-name`, what a rename types over).
+        // `setOpen` shows a row that folds open or folded.
         function treeRow(
             ui,
             folderIcon,
@@ -45,20 +46,24 @@ DeckitModule.define(
             element.classList.add('deckit-tree-row');
             element.style.paddingLeft = 4 + depth * DEPTH_INDENT + 'px';
             element.toggleAttribute('data-folds', folds);
-            if (folds) element.setAttribute('aria-expanded', String(open));
             const caret = document.createElement('span');
             caret.className = 'deckit-tree-caret';
             caret.dataset.caret = '';
             caret.innerHTML = ICON.icon('chevronRight', { size: 12 });
             const mark = document.createElement('span');
             mark.className = 'deckit-tree-mark';
-            mark.innerHTML = folder ? folderIcon({ open, size: size === 'small' ? 14 : 16 }) : glyph;
+            if (!folder) mark.innerHTML = glyph;
             const label = document.createElement('span');
             label.className = 'deckit-tree-name';
             label.dataset.name = '';
             label.textContent = name;
             element.append(caret, mark, label);
-            return row;
+            const setOpen = (next) => {
+                if (folds) element.setAttribute('aria-expanded', String(next));
+                if (folder) mark.innerHTML = folderIcon({ open: next, size: size === 'small' ? 14 : 16 });
+            };
+            setOpen(open);
+            return { ...row, setOpen };
         }
 
         // A drop target of moves into folders. `path(payload)` is where the dragged thing is; `folderAt(element)` is the

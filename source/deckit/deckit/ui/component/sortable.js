@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/component/sortable',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/scroll', 'deckit/ui/gesture', 'deckit/ui/list'],
+        uses: ['deckit/ui/token', 'deckit/ui/motion', 'deckit/ui/scroll', 'deckit/ui/gesture', 'deckit/ui/list'],
         provides: ['STYLE', 'make'],
     },
-    (TOKEN, SCROLL, GESTURE, LIST) => {
+    (TOKEN, MOTION, SCROLL, GESTURE, LIST) => {
         // MARK: - Property
         const STYLE = '';
         // A lifted row grows by this much.
@@ -20,7 +20,12 @@ DeckitModule.define(
         // The rows of a keyed list put in a new order by a drag. The list itself is not reordered: `onReorder(key, toKey)`
         // hears that the item `key` goes where `toKey` is, and the owner draws the new order. Keys, so a change to the
         // items while the drag holds the list does not move another one. Returns the dispose.
-        function sortable(theme, list, { onReorder }) {
+        //
+        // With `depth`, the rows nest, and how far the pointer moves sideways asks for a depth as well: a level for
+        // each `depth.indent` px, to the nearest. `depth.project(key, toKey, levels)` answers the depth the row would
+        // take there, levels deeper (or shallower) than it is, and the held row stands that far in. `onReorder(key,
+        // toKey, depth)` then hears a move to the same place at another depth too.
+        function sortable(theme, list, { onReorder, depth = null }) {
             const { element } = list;
             return GESTURE.drag(element, {
                 pick: (target) => {
@@ -29,27 +34,22 @@ DeckitModule.define(
                     return null;
                 },
                 begin: LIST.heldWhile(element, (row, down, finished) =>
-                    lift(
-                        theme,
-                        element,
-                        row,
-                        down.clientY,
-                        (from, to) => from !== to && onReorder(list.keyOf(from), list.keyOf(to)),
-                        finished
-                    )
+                    lift(theme, element, row, down, list.keyOf, depth, onReorder, finished)
                 ),
             });
         }
 
         // The row lifted, the others sliding aside as it passes them. The rows are the owner's items as laid out: one that
         // is not laid out has no place to move to or from, and one folding away is no longer an item.
-        function lift(theme, list, row, startY, reorder, finished) {
-            const MOTION = TOKEN.MOTION;
+        function lift(theme, list, row, down, keyOf, depth, onReorder, finished) {
+            const { base, easing } = TOKEN.MOTION;
             const rows = [...list.children].filter(
                 (child) => child.getClientRects().length && !child.hasAttribute(LIST.LEAVING)
             );
             const from = rows.indexOf(row);
             if (from < 0 || rows.length < 2) return null;
+            // A row still unfolding is taken at its own size.
+            rows.forEach((child) => MOTION.finish(child));
             // Places are read once, as they stood at the lift; a scroll since is added to the pointer instead.
             const boxes = rows.map((child) => child.getBoundingClientRect());
             const held = boxes[from];
@@ -63,7 +63,7 @@ DeckitModule.define(
                 transform: child.style.transform,
             }));
             const keptHeld = { position: row.style.position, zIndex: row.style.zIndex, boxShadow: row.style.boxShadow };
-            const slide = `transform ${MOTION.base}ms ${MOTION.easing}`;
+            const slide = `transform ${base}ms ${easing}`;
             rows.forEach((child, index) => index !== from && (child.style.transition = slide));
             // The fill is an inset shadow, not a background: the background is the hover's, which repaints as the
             // pointer comes and goes during the drag.
@@ -73,7 +73,14 @@ DeckitModule.define(
                 boxShadow: `inset 0 0 0 100vmax ${theme.color.lifted}, ${theme.shadow.lifted}`,
                 transition: 'none',
             });
-            const place = (offset, scale) => (row.style.transform = `translateY(${offset}px) scale(${scale})`);
+            const key = keyOf(row);
+            const project = (to, levels) => (depth ? depth.project(key, keyOf(rows[to]), levels) : 0);
+            const startDepth = project(from, 0);
+            let projected = startDepth;
+            const place = (offset, scale) => {
+                const inward = (projected - startDepth) * (depth?.indent || 0);
+                row.style.transform = `translate(${inward}px, ${offset}px) scale(${scale})`;
+            };
             place(0, LIFTED);
             // Where the row goes is read from the pointer, not from the row held to the list: held, its middle could
             // never pass the end rows' middles, so no row could go first or last.
@@ -83,15 +90,16 @@ DeckitModule.define(
             let timer = 0;
             let done = false;
             let then = null;
-            const follow = (y) => {
-                const top = held.top + y + scrolled() - startY;
-                place(Math.min(highest, Math.max(lowest, top)) - held.top, LIFTED);
+            const follow = (x, y) => {
+                const top = held.top + y + scrolled() - down.clientY;
                 const middle = top + held.height / 2;
                 to = from;
                 for (let index = from + 1; index < rows.length; index++)
                     if (middle > boxes[index].top + boxes[index].height / 2) to = index;
                 for (let index = from - 1; index >= 0; index--)
                     if (middle < boxes[index].top + boxes[index].height / 2) to = index;
+                if (depth) projected = project(to, Math.round((x - down.clientX) / depth.indent));
+                place(Math.min(highest, Math.max(lowest, top)) - held.top, LIFTED);
                 rows.forEach((child, index) => {
                     if (index === from) return;
                     const shift = index > from && index <= to ? -span : index < from && index >= to ? span : 0;
@@ -119,18 +127,20 @@ DeckitModule.define(
                 row.style.transition = slide;
                 place(target - held.top, 1);
                 then = after;
-                if (MOTION.base) timer = setTimeout(runThen, MOTION.base);
+                if (base) timer = setTimeout(runThen, base);
                 else runThen();
             };
             return {
-                follow: (_x, y) => follow(y),
+                follow,
                 // The list is let go of whatever the owner's reorder does, or every later change would wait on it.
                 drop: () => {
                     const target = to === from ? held.top : to > from ? boxes[to].bottom - held.height : boxes[to].top;
                     settle(target, () => {
                         restore();
                         try {
-                            reorder(rows[from], rows[to]);
+                            if (depth && (to !== from || projected !== startDepth))
+                                onReorder(key, keyOf(rows[to]), projected);
+                            else if (!depth && to !== from) onReorder(key, keyOf(rows[to]));
                         } finally {
                             finished();
                         }
@@ -138,6 +148,7 @@ DeckitModule.define(
                 },
                 cancel: () => {
                     rows.forEach((child, index) => index !== from && (child.style.transform = ''));
+                    projected = startDepth;
                     settle(held.top, () => {
                         restore();
                         finished();

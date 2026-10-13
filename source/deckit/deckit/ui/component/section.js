@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/ui/component/section',
-    { uses: ['deckit/ui/token', 'deckit/ui/icon', 'deckit/ui/motion'], provides: ['STYLE', 'make'] },
-    (TOKEN, ICON, MOTION) => {
+    { uses: ['deckit/ui/icon', 'deckit/ui/motion'], provides: ['STYLE', 'make'] },
+    (ICON, MOTION) => {
         // MARK: - Property
         // A folding heading puts its caret (20px) and a gap (6px) before its label; the body moves in by the same less a
         // row's own side (8px), so a row's first element stands under the heading's icon.
@@ -56,12 +56,7 @@ DeckitModule.define(
             .deckit-section[data-collapsed] .deckit-section-caret { transform: rotate(-90deg); color: var(--deckit-disabled); }
             .deckit-section[data-collapsed] .deckit-section-icon { color: var(--deckit-disabled); }
             .deckit-section[data-collapsed] .deckit-section-label { color: var(--deckit-muted); }
-            .deckit-section-body {
-                display: flex;
-                flex-direction: column;
-                flex: 0 0 auto;
-                transition: opacity var(--deckit-fast) var(--deckit-easing);
-            }
+            .deckit-section-body { display: flex; flex-direction: column; flex: 0 0 auto; }
             .deckit-section[data-foldable] .deckit-section-body { padding-left: 18px; }
             .deckit-section-body[hidden] { display: none; }
             .deckit-breadcrumb {
@@ -163,18 +158,14 @@ DeckitModule.define(
             });
             const body = tag('div', 'deckit-section-body');
             let folded = !!collapsed;
+            // The body unfolds and folds away as a list's rows come and go.
             const fold = (animate) => {
                 element.toggleAttribute('data-collapsed', folded);
                 if (foldable) heading.setAttribute('aria-expanded', String(!folded));
                 if (!folded) {
                     body.hidden = false;
-                    if (animate) MOTION.play(body, { opacity: '0' }, { opacity: '1' });
-                    else body.style.opacity = '1';
-                    return;
-                }
-                body.style.opacity = '0';
-                const length = animate ? TOKEN.MOTION.fast : 0;
-                if (length) setTimeout(() => folded && (body.hidden = true), length);
+                    if (animate) MOTION.expand(body);
+                } else if (animate) MOTION.collapse(body, {}, () => (body.hidden = true));
                 else body.hidden = true;
             };
             fold(false);

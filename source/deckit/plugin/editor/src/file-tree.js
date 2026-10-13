@@ -17,7 +17,9 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
     let selections = 0;
 
     // Grown to fill, so a drop or a right click under the rows is the top folder's.
-    const rows = ui.list({ key: (item) => item.path, create: rowOf });
+    // A file and a folder at one path are two rows: one turning into the other is drawn again.
+    const rows = ui.list({ key: (item) => keyOf(item.path, item.folder), create: rowOf, update: updateRow });
+    const rowParts = new WeakMap(); // row element -> { setActive, setOpen, unsaved }
     const element = rows.element;
     element.classList.add('editor-tree');
     element.tabIndex = -1;
@@ -105,7 +107,7 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
     async function reveal(path) {
         if (!root || !isInside(path, root)) return;
         const turn = ++selections;
-        const shown = rows.elementOf(path);
+        const shown = rowAt(path);
         if (selected === path && shown && ui.isFullyVisible(shown)) return;
         let folder = root;
         for (const part of relativePath(path, root).split('/').slice(0, -1)) {
@@ -116,7 +118,7 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         selected = path;
         saveExpanded();
         draw();
-        const row = rows.elementOf(path);
+        const row = rowAt(path);
         if (row && !ui.isFullyVisible(row)) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
 
@@ -124,7 +126,7 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
     async function nameAt(path) {
         await readFolder(parentOf(path));
         await reveal(path);
-        return rows.elementOf(path)?.querySelector('[data-name]') || null;
+        return rowAt(path)?.querySelector('[data-name]') || null;
     }
 
     function follow(move) {
@@ -165,7 +167,11 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
 
     function rowOf(item) {
         if (item.empty) return ui.element('div', { className: 'editor-tree-empty', text: 'Empty folder' });
-        const { element: row, setActive } = ui.treeRow({
+        const {
+            element: row,
+            setActive,
+            setOpen,
+        } = ui.treeRow({
             depth: item.depth,
             folder: item.folder,
             open: item.open,
@@ -175,7 +181,8 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         });
         row.title = item.path;
         row.dataset.path = item.path;
-        if (item.unsaved) row.append(ui.element('span', { className: 'editor-unsaved-dot' }));
+        const unsaved = ui.element('span', { className: 'editor-unsaved-dot' });
+        row.append(unsaved);
         if (item.folder)
             row.append(
                 ui.rowAction({
@@ -184,7 +191,8 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
                     onClick: () => onFindIn(relativePath(item.path, root)),
                 }).element
             );
-        setActive(item.selected);
+        rowParts.set(row, { setActive, setOpen, unsaved });
+        updateRow(row, item);
         row.addEventListener('click', () => {
             element.focus({ preventScroll: true });
             if (!item.folder) return moveTo(item.path);
@@ -195,6 +203,23 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         return row;
     }
 
+    // What changes of a row in place, so the one under the pointer stays the same element.
+    function updateRow(row, item) {
+        const parts = rowParts.get(row);
+        if (!parts) return;
+        parts.setActive(item.selected);
+        parts.setOpen(item.open);
+        parts.unsaved.hidden = !item.unsaved;
+    }
+
+    function keyOf(path, folder) {
+        return (folder ? 'folder:' : 'file:') + path;
+    }
+
+    function rowAt(path) {
+        return rows.elementOf(keyOf(path, false)) || rows.elementOf(keyOf(path, true));
+    }
+
     function folderUnder(under) {
         return ui.treeFolderAt({
             row: (target) => {
@@ -202,7 +227,7 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
                 const entry = row && entryAt(row.dataset.path);
                 return entry ? { path: entry.path, folder: entry.folder, element: row } : null;
             },
-            markOf: (folder) => rows.elementOf(folder),
+            markOf: (folder) => rows.elementOf(keyOf(folder, true)),
             top: root,
             topMark: element,
         })(under);
@@ -219,7 +244,7 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         const entry = entryAt(path);
         if (entry && !entry.folder) onOpen(path, { preview: true, preserveFocus: true });
         draw();
-        rows.elementOf(path)?.scrollIntoView({ block: 'nearest' });
+        rowAt(path)?.scrollIntoView({ block: 'nearest' });
     }
 
     async function setExpanded(folder, open) {

@@ -159,7 +159,6 @@ module.exports = {
                 },
             });
         const tabBar = tabs({
-            theme,
             ui,
             isDirty: disk.isDirty,
             onSelect: (file) => show(file),
