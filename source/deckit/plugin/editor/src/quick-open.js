@@ -36,6 +36,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
     let pickWhenRanked = false;
     let picker = null;
     let typing = null;
+    let query = ''; // what was typed last, there again when the box opens again
 
     // Empty when a newer query cancelled this one.
     return { show, rank: async (files, query) => (await pageRanker.rank(files, query, { limit: SHOWN })) || [] };
@@ -46,10 +47,12 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
         listing = true;
         picker = ui.quickPick({
             placeholder: 'Open Quickly',
+            value: query,
             width: 'min(560px, calc(100vw - 40px))',
             key: (relative) => relative,
             create: rowOf,
-            onInput: () => {
+            onInput: (text) => {
+                query = text;
                 // An Enter meant the words before these.
                 pickWhenRanked = false;
                 clearTimeout(typing);
