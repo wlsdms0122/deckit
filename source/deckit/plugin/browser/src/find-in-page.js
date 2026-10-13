@@ -21,7 +21,7 @@ function findInPage({ theme, ui, activeTab }) {
                 opacity var(--deckit-fast) var(--deckit-easing),
                 transform var(--deckit-fast) var(--deckit-easing);
         }
-        .browser-find[data-left] { right: auto; left: 10px; }
+        .browser-find[data-left] { right: auto; left: calc(10px + var(--deckit-title-bar-area-x, 0px)); }
         .browser-find[data-open] { opacity: 1; transform: none; }
         .browser-find-field { flex: 0 0 auto; width: 330px; margin: 0 2px; }
     `);

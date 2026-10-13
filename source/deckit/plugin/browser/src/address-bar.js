@@ -32,6 +32,7 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
             cursor: grab;
             transition:
                 top var(--deckit-base) var(--deckit-easing),
+                left var(--deckit-base) var(--deckit-easing),
                 bottom var(--deckit-base) var(--deckit-easing),
                 transform var(--deckit-base) var(--deckit-easing),
                 box-shadow var(--deckit-base) var(--deckit-easing),
