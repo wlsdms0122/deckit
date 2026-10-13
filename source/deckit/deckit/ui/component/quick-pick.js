@@ -38,6 +38,7 @@ DeckitModule.define(
             .deckit-quick-pick-list { max-height: 44vh; overflow-y: auto; }
             .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; opacity: 0.45; }
             .deckit-quick-pick-message:empty { display: none; }
+            .deckit-quick-pick-message[data-alert] { opacity: 1; color: var(--deckit-alert); }
             .deckit-quick-pick-note {
                 margin-top: 4px;
                 padding: 6px 12px 2px;
@@ -59,8 +60,9 @@ DeckitModule.define(
         // (`set`), and hears what is typed (`onInput(text)`) and what is picked (`onPick(item, index)`). Items are drawn
         // by `key`, `create` and `update`, as a keyed list draws them; `optionOf(item)` is null for an item that is no
         // option (a heading), or else `{ disabled }`. The arrows move the active option and Enter picks it, or with
-        // `onEnter({ item, text })` hands both to the owner. `onKey(event)` has a key in the field first and returns
-        // whether it took it. `onActive(item, index, { pointer })` hears the active option move.
+        // `onEnter({ item, text })` hands both to the owner. `onKey(event)` has a key first and returns whether it took
+        // it. `onActive(item, index, { pointer })` hears the active option move. The field keeps the focus: a press
+        // anywhere else on the card leaves it there.
         function quickPick(
             ui,
             {
@@ -99,9 +101,10 @@ DeckitModule.define(
                 chrome: false,
                 align: 'top',
                 width,
-                onKey: (event) => event.target === field && handleKey(event),
+                onKey: handleKey,
                 onClose,
                 fill: (card) => {
+                    card.addEventListener('mousedown', (event) => event.target !== field && event.preventDefault());
                     const bar = element('div', 'deckit-quick-pick-bar');
                     bar.append(chip, field);
                     card.append(bar, element('div', 'deckit-quick-pick-rule'), box, message, note);
@@ -109,9 +112,11 @@ DeckitModule.define(
                 },
             });
 
+            // A key that composes text in an input method is the method's.
             function handleKey(event) {
+                if (event.isComposing) return false;
                 if (onKey(event)) return true;
-                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && options.length) {
                     listbox.move(event.key === 'ArrowDown' ? 1 : -1);
                     return true;
                 }
@@ -124,8 +129,11 @@ DeckitModule.define(
             }
 
             // `active` is the option made active, -1 for none; `message` is said under the list, after a spinner while
-            // `loading`; `note` is at its foot.
-            function set(items, { active = 0, message: said = '', note: noted = '', loading = false } = {}) {
+            // `loading` and as a failure with `alert`; `note` is at its foot.
+            function set(
+                items,
+                { active = 0, message: said = '', note: noted = '', loading = false, alert = false } = {}
+            ) {
                 rows.set(items);
                 options = items.filter((item) => optionOf(item));
                 listbox.set(
@@ -136,6 +144,7 @@ DeckitModule.define(
                     { active }
                 );
                 message.replaceChildren(...(loading ? [ui.spinner().element] : []), said);
+                message.toggleAttribute('data-alert', alert);
                 note.textContent = noted;
             }
 
