@@ -62,7 +62,7 @@ function sidebar({
         .browser-tab-capture { display: flex; color: var(--deckit-alert); }
         .browser-tab [hidden] { display: none; }
         .browser-tab[data-grouped] { padding-left: ${8 + GROUP_INDENT}px; }
-        /* A group's heading and its tabs are one block on the group's colour, which the hover and the selection wash. */
+        /* A group's heading and its tabs are one block in the group's colour, under the hover and the selection. */
         .browser-group,
         .browser-tab[data-grouped] {
             border-radius: 0;
@@ -177,12 +177,21 @@ function sidebar({
         return Math.min(deepest, Math.max(shallowest, (moving.group ? 1 : 0) + levels));
     }
 
+    // Out of a group, beside the row after it or else the one before. Beside its own group, a tab alone in it has
+    // nothing there to stand beside, and leaves the group where it is.
     function placeTabBetween(tab, { before, after }, depth) {
         if (depth) {
             if (before.tab) onPlaceTab(tab, before.tab, true);
             else if (after?.tab && after.group === before.group) onPlaceTab(tab, after.tab, false);
-        } else if (after) onPlaceTab(tab, after.tab && !after.group ? after.tab : after.group, false);
-        else if (before) onPlaceTab(tab, before.group || before.tab, true);
+            return;
+        }
+        const [target, behind] = after
+            ? [after.tab && !after.group ? after.tab : after.group, false]
+            : [before && (before.group || before.tab), true];
+        if (!target) return;
+        if (target === groupOf(tab) && shownTabs.every((each) => each === tab || groupOf(each) !== target))
+            onLeaveGroup(tab);
+        else onPlaceTab(tab, target, behind);
     }
 
     function keyOf(row) {
