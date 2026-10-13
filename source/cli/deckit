@@ -11,7 +11,6 @@ deckit: a panel of plugins, as a library an app embeds
   check            hold the files to how they reach each other
   dev              Deckit.app from the sources, built again when one changes
   install          Deckit.app into /Applications, as deckit app last made it
-  plugins <id>…    a plugin Deckit ships, brought back after it was removed
   engine <plugin>  build a plugin's editing engine again (editor, note)
 
 TEXT

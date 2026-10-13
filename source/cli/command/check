@@ -22,7 +22,6 @@ const RUNS = new Set(['main', 'page', 'node', 'electron', 'any']);
 const FITS = {
     page: ['page', 'electron', 'any'],
     main: ['main', 'node', 'electron', 'any'],
-    cli: ['node', 'any'],
     chord: ['any'],
 };
 const NODE =

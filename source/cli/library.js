@@ -6,16 +6,10 @@ const DECKIT = path.join(__dirname, '..', 'deckit');
 const LIBRARY = path.join(DECKIT, 'deckit');
 const PLUGINS = path.join(DECKIT, 'plugin');
 const APP = path.join(DECKIT, 'deckit-app');
-const CLI = path.join(DECKIT, 'deckit-cli');
 const REGISTRY = 'module/registry/index.js';
 const PAGE = 'feature/app/page.html';
-// deckit-cli is not in the library: its bundle starts from the library modules its commands name.
 const ENTRIES = {
     chord: () => ['deckit/module/chord'],
-    cli: () =>
-        moduleOf(path.join(CLI, 'commands.js'))
-            .uses.map(({ name }) => name)
-            .filter((name) => name.startsWith('deckit/')),
     main: () => ['deckit/feature/app/main'],
     page: () => ['deckit/feature/app/page'],
 };
@@ -115,9 +109,9 @@ function modules() {
     return all;
 }
 
-// Each file after what it names, starting at the entry. A name the library does not define is one the app hands
+// Each file after what it names, starting at the entries. A name the library does not define is one the app hands
 // it, loaded before the bundle.
-function bundle(name, all = modules()) {
+function filesFrom(entries, all = modules()) {
     const order = [];
     const seen = new Set();
     const visit = (module) => {
@@ -126,7 +120,7 @@ function bundle(name, all = modules()) {
         for (const use of all.get(module).uses) visit(use.name);
         order.push(all.get(module).file);
     };
-    for (const entry of ENTRIES[name]()) visit(entry);
+    for (const entry of entries) visit(entry);
     return order;
 }
 
@@ -134,7 +128,7 @@ function bundles() {
     const all = modules();
     return {
         registry: [REGISTRY],
-        ...Object.fromEntries(Object.keys(ENTRIES).map((name) => [name, bundle(name, all)])),
+        ...Object.fromEntries(Object.keys(ENTRIES).map((name) => [name, filesFrom(ENTRIES[name](), all)])),
     };
 }
 
@@ -143,7 +137,6 @@ module.exports = {
     LIBRARY,
     PLUGINS,
     APP,
-    CLI,
     REGISTRY,
     PAGE,
     ENTRIES,
@@ -152,5 +145,6 @@ module.exports = {
     moduleOf,
     nameOf,
     modules,
+    filesFrom,
     bundles,
 };

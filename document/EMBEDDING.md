@@ -8,13 +8,11 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 
 | In the archive | |
 |---|---|
-| `deckit.json` | the version, the plugin contract it speaks (`api`), the hash of its sources, each bundle's file and the modules it defines, the page, the command line, the plugins |
+| `deckit.json` | the version, the plugin contract it speaks (`api`), the hash of its sources, each bundle's file and the modules it defines, the page, the plugins |
 | `registry.js` | the module registry: first wherever deckit runs, and the one global deckit adds |
 | `main.js` | the main process bundle |
 | `page.js`, `page.html` | every deckit page: each plugin's, and the switcher's. `page.js` is the page bundle |
 | `chord.js` | how a chord is spelled and matched, for a page of the host app's that shows one of deckit's chords |
-| `cli.js` | what deckit's command line asks of the library, in Node |
-| `deckit-cli/` | the command line for the plugins in deckit's folder |
 | `plugin/<id>/` | deckit's own plugins, each with its entry bundled, a catalog the host app picks from |
 | `document/` | this, PLUGIN.md and UI.md |
 

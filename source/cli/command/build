@@ -22,10 +22,8 @@ for b in "${BUNDLES[@]}"; do
   for f in "${FILES[@]}"; do cat "$LIBRARY/$f"; printf '\n'; done > "$LIB/$b.js"
 done
 
-# Main's and the command line's run as CommonJS; the pages' as a function body.
-for b in main cli; do
-  node --check "$LIB/$b.js" || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
-done
+# Main's runs as CommonJS; the pages' as a function body.
+node --check "$LIB/main.js" || { echo "main.js has a syntax error: stopping" >&2; exit 1; }
 for b in registry chord page; do
   node -e "new Function(require('fs').readFileSync('$LIB/$b.js','utf8'))" \
     || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
@@ -55,11 +53,7 @@ for dir in source/deckit/plugin/*/; do
   " || { echo "$dir does not bundle from its src/ alone into an entry: stopping" >&2; exit 1; }
 done
 
-rsync -a --exclude .DS_Store source/deckit/deckit-cli/ "$LIB/deckit-cli/"
-node --check "$LIB/deckit-cli/deckit-cli" && node --check "$LIB/deckit-cli/commands.js" \
-  || { echo "deckit-cli has a syntax error: stopping" >&2; exit 1; }
-
-SOURCE_HASH="$({ find source/deckit/deckit source/deckit/plugin source/deckit/deckit-cli source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+SOURCE_HASH="$({ find source/deckit/deckit source/deckit/plugin source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 node source/cli/describe.js "$LIB" "$VERSION" "$SOURCE_HASH"
 

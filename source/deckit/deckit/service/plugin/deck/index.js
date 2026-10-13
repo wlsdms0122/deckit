@@ -313,7 +313,7 @@ DeckitModule.define(
             return removed;
         }
 
-        // A plugin whose data the command line removed: its pages' storage and sessions are cleared here.
+        // A plugin removed with its data, whose pages' storage and sessions were not cleared then: cleared here.
         function forgetRemoved() {
             for (const id of REMOVE.forgotten()) {
                 forget(id).catch((error) => LOG.warn(`could not clear the web storage of ${id}`, error));
