@@ -49,7 +49,7 @@ DeckitModule.define(
         };
         const STYLE =
             `
-            .deckit-switcher-list[data-numbers] .deckit-switcher-number { display: inline; }
+            .deckit-switcher-row[data-numbers] .deckit-switcher-number { display: inline; }
             .deckit-switcher-row {
                 position: relative;
                 display: flex;
@@ -250,24 +250,33 @@ DeckitModule.define(
         // The switcher on screen: the kit's quick pick, drawn from its view model.
         function open(ui, { placeholder, items, now, onQuery, onPick, onClose }) {
             const model = VIEW_MODEL.make({ placeholder, items, now, onQuery, onPick, onClose: () => picker.close() });
-            const numbers = (on) => picker.list.toggleAttribute('data-numbers', on);
+            const rows = new Set(); // the rows made, which show their ⌘ numbers while Command is held
+            let numbered = false;
+            const numbers = (on) => {
+                numbered = on;
+                for (const row of rows) row.toggleAttribute('data-numbers', on);
+            };
             const picker = ui.quickPick({
                 placeholder,
                 key: (entry) => entry.key,
-                create: (entry) => (entry.heading ? headingOf(entry) : rowOf(entry)),
+                create: (entry) => {
+                    if (entry.heading) return headingOf(entry);
+                    const row = rowOf(entry);
+                    row.toggleAttribute('data-numbers', numbered);
+                    rows.add(row);
+                    return row;
+                },
                 update: (made, entry) =>
                     entry.heading ? made.toggleAttribute('data-first', entry.first) : fillRow(made, entry),
                 optionOf: (entry) => (entry.heading ? null : { disabled: !entry.actionable }),
                 onInput: (text) => model.type(text),
                 onPick: (_entry, index) => model.choose(index),
                 onActive: (_entry, index, { pointer }) => pointer && model.point(index),
+                onCommandKey: numbers,
                 onKey,
                 onClose,
             });
             let pageShown;
-            picker.list.classList.add('deckit-switcher-list');
-            picker.field.addEventListener('keyup', (event) => event.key === 'Meta' && numbers(false));
-            picker.field.addEventListener('blur', () => numbers(false));
             draw();
             model.onChange(draw);
             return { model, close: () => picker.close() };
@@ -275,8 +284,7 @@ DeckitModule.define(
             // The view model owns the active row, so the arrows and Enter are its. Escape, and Backspace in an empty
             // field, leave a page before they close anything.
             function onKey(event) {
-                if (event.key === 'Meta') numbers(true);
-                if (event.key === 'Escape' || (event.key === 'Backspace' && !picker.field.value)) return model.back();
+                if (event.key === 'Escape' || (event.key === 'Backspace' && !picker.text())) return model.back();
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp')
                     model.move(event.key === 'ArrowDown' ? 1 : -1);
                 else if (event.key === 'Enter') model.confirm();
@@ -288,13 +296,10 @@ DeckitModule.define(
                 const state = model.state();
                 if ((state.page?.id ?? null) !== pageShown) {
                     pageShown = state.page?.id ?? null;
-                    picker.field.value = '';
-                    picker.field.placeholder = state.placeholder;
-                    picker.chip.hidden = !state.page;
-                    picker.chip.replaceChildren(
-                        ...(state.page ? [ICON.sanitize(state.page.icon), state.page.label] : [])
-                    );
-                    picker.field.focus();
+                    picker.setText('');
+                    picker.setPlaceholder(state.placeholder);
+                    picker.setScope(state.page ? { icon: state.page.icon, label: state.page.label } : null);
+                    picker.focus();
                 }
                 const entries = state.rows.flatMap((row, index) => [
                     ...row.headings.map((heading, level) => ({
