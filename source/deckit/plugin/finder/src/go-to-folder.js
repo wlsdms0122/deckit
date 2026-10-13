@@ -26,7 +26,15 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         let suggestions = []; // { path, name, folder }
         let active = -1;
         let turn = 0;
-        const field = ui.field({ value: text ?? startText(), onInput: () => suggest() });
+        let reading = false; // the folder typed is being read: its suggestions are not in yet
+        let up = true; // the panel is up: one closed meanwhile goes nowhere
+        const field = ui.field({
+            value: text ?? startText(),
+            onInput: () => {
+                said.textContent = '';
+                suggest();
+            },
+        });
         const list = ui.element('div', { className: 'finder-goto-suggestions' });
         const said = ui.element('div', { className: 'finder-goto-problem', text: problem });
         const panel = ui.modal({
@@ -34,6 +42,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
             confirmLabel: 'Go',
             onKey,
             onConfirm: () => go(typedPath(), { closed: true }),
+            onClose: () => (up = false),
             fill(card) {
                 card.append(field.element, said, list);
                 return field.input;
@@ -50,8 +59,8 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
                 draw();
                 return true;
             }
-            if (event.key === 'Tab' && !event.shiftKey && suggestions.length) {
-                complete(suggestions[Math.max(0, active)]);
+            if (event.key === 'Tab' && !event.shiftKey && (reading || suggestions.length)) {
+                if (!reading) complete(suggestions[Math.max(0, active)]);
                 return true;
             }
             if (event.key === 'Enter') {
@@ -69,13 +78,14 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         // What the folder typed so far holds, starting with what follows its last slash.
         async function suggest() {
             const mine = ++turn;
-            said.textContent = '';
             const text = field.input.value;
             const slash = text.lastIndexOf('/');
             const folder = resolved(slash < 0 ? '.' : text.slice(0, slash + 1) || '/');
             const start = text.slice(slash + 1).toLowerCase();
+            reading = true;
             const entries = folder ? await entriesOf(folder) : [];
             if (mine !== turn) return;
+            reading = false;
             suggestions = entries
                 .filter((entry) => entry.name.toLowerCase().startsWith(start))
                 .filter((entry) => start.startsWith('.') || !entry.name.startsWith('.'))
@@ -121,10 +131,11 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
             return resolved(field.input.value);
         }
 
-        // A path that is not there keeps the panel up and says so, or opens it again when it had closed.
+        // A path that is not there keeps the panel up and says so, or opens it again when Go had closed it.
         async function go(path, { closed = false } = {}) {
             if (!path) return closed ? show({ text: field.input.value }) : undefined;
             const kind = await disk.exists(path).catch(() => null);
+            if (!closed && !up) return;
             if (!kind) {
                 const problem = `“${tildify(path)}” can’t be found.`;
                 if (closed) return show({ text: field.input.value, problem });
@@ -143,12 +154,13 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         return here ? tildify(here) + (here === '/' ? '' : '/') : '';
     }
 
-    // An absolute path for what is typed: `~` is the home folder, and a path not from the root is from the tab's
-    // folder.
+    // An absolute path for what is typed: `~` is the home folder, `~name` the home folder of `name` beside it, and a
+    // path not from the root is from the tab's folder.
     function resolved(typed) {
         let text = typed.trim();
         if (!text) return null;
         if (text === '~' || text.startsWith('~/')) text = homeLocation() + text.slice(1);
+        else if (text.startsWith('~')) text = parentOf(homeLocation()) + '/' + text.slice(1);
         else if (!text.startsWith('/')) text = (location() || homeLocation()) + '/' + text;
         const parts = [];
         for (const part of text.split('/')) {

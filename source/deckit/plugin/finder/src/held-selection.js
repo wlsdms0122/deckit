@@ -1,8 +1,8 @@
 const { childOf, isInside, stepsFrom } = require('./path.js');
 const { isVisible } = require('./sort.js');
 
-// The pick held to what is on screen, run before every draw. A pick the filter hides stays picked. One whose folder no
-// longer holds it is cut back to the deepest folder that does; one whose folder is unread waits.
+// One selected entry held to what is on screen, run before every draw. One the filter hides stays selected. One whose
+// folder no longer holds it is cut back to the deepest folder that does; one whose folder is unread waits.
 function heldSelection({ location, selected, inColumns, listingOf, showHidden }) {
     if (!selected) return selected;
     const steps = isInside(selected, location) ? stepsFrom(location, selected) : [];

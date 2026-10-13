@@ -2,7 +2,7 @@ const { formatKind, formatSize, formatDate } = require('./format.js');
 const { parentOf, childOf, isInside, stepsFrom } = require('./path.js');
 const { refillWhenChanged } = require('./refill-when-changed.js');
 
-// The folders from the tab's down to the pick, side by side, and a preview of a picked file after them. A column
+// The folders from the tab's down to the lead, side by side, and a preview of a selected file after them. A column
 // keeps its scroll while it stays, and a width the person drags, kept per tab. `onResize(tab, folder, width)` hears
 // one let go.
 function columnView({ ui, icons, entryAt, onResize }) {
@@ -66,7 +66,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
 
     return { element, foldersOf, draw, endElement, folderAt };
 
-    // The tab's folder, and each folder on the way down to the pick, the pick too when it is a folder.
+    // The tab's folder, and each folder on the way down to the lead, the lead too when it is a folder.
     function foldersOf(location, selected) {
         if (!location) return [];
         const folders = [location];
@@ -81,7 +81,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
     }
 
     // `tab` is the tab drawn, for whom a resize is; `widths` its column widths by folder. `folders` are { folder,
-    // listing, entries, filtering }; `selected` is the lead of the `selection`; `previewed` is the picked file, or
+    // listing, entries, filtering }; `selected` is the lead of the `selection`; `previewed` is the selected file, or
     // null.
     function draw({ tab, widths, folders, selected, selection, previewed }) {
         drawn = {
@@ -103,7 +103,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
         return preview || columns.element.lastElementChild;
     }
 
-    // The folder of the column or the preview under `under`: the preview stands for the picked file, in the last
+    // The folder of the column or the preview under `under`: the preview stands for the selected file, in the last
     // column's folder.
     function folderAt(under) {
         const column = under.closest('[data-folder], [data-preview]');

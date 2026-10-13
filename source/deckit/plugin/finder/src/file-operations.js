@@ -2,10 +2,10 @@ const { kindIconOf } = require('./icon-cache.js');
 const { nameOf, parentOf } = require('./path.js');
 
 // What is done to files: opening, Quick Look, making a folder, renaming, the Trash, and moving by a drag onto a folder.
-// Opening, the Trash and a drag take every entry selected (`selection()`). `labelOf(path)` finds the name an entry
-// shows, which a rename types over. `onMade(path)` shows a folder just made and answers whether it is in sight, to be
-// named. `onMoved(from, to)` hears a path go elsewhere, `to` null when it went to the Trash; `onChanged(folder)` hears
-// a folder whose contents changed.
+// Opening and the Trash take the entries given; a drag from one of several selected (`selection()`) carries them all.
+// `labelOf(path)` finds the name an entry shows, which a rename types over. `onMade(path)` shows a folder just made and
+// answers whether it is in sight, to be named. `onMoved(from, to)` hears a path go elsewhere, `to` null when it went to
+// the Trash; `onChanged(folder)` hears a folder whose contents changed.
 function fileOperations({
     ui,
     openURL,
@@ -106,52 +106,56 @@ function fileOperations({
         });
     }
 
-    // Drops into folders under `zone`: `folderAt(element)` answers the folder under the pointer ({ folder, mark }). The
-    // entries dragged are all of one folder, so the first answers for them where they would stay.
+    // Drops into folders under `zone`: `folderAt(element)` answers the folder under the pointer ({ folder, mark }).
     function acceptDrops(zone, folderAt) {
         return ui.folderDrop(zone, {
             kind: MOVE,
-            path: (payload) => payload.paths[0],
+            paths: (payload) => payload.paths,
             folderAt,
             onDrop: (payload, place) => move(payload.paths, place.folder),
         });
     }
 
+    // The folder is read again before a failure is told, as its drawing would take the message away.
     async function moveToTrash(entries) {
+        const failures = [];
         for (const entry of entries) {
             try {
                 await disk.trash(entry.path);
+                onMoved(entry.path, null);
             } catch (error) {
-                onStatus('Could not move “' + entry.name + '” to the Trash: ' + error.message);
-                continue;
+                failures.push('Could not move “' + entry.name + '” to the Trash: ' + error.message);
             }
-            onMoved(entry.path, null);
         }
-        onChanged(parentOf(entries[0].path));
+        if (failures.length < entries.length) await onChanged(parentOf(entries[0].path));
+        if (failures.length === 1) onStatus(failures[0]);
+        else if (failures.length) onStatus(`Could not move ${failures.length} items to the Trash`);
     }
 
-    // Each one that can go into `into`: a folder dragged onto itself or into what it holds stays.
+    // Each one that can go into `into`; one that fails does not keep the others. A failure is told in a dialog: the
+    // footer is drawn again right after a drag ends, which would take a status message away.
     async function move(paths, into) {
         const moving = paths.filter((from) => ui.movesInto(from, into));
+        const failures = [];
         for (const from of moving) {
-            let to;
             try {
-                to = await disk.move(from, into);
+                onMoved(from, await disk.move(from, into));
             } catch (error) {
-                // In a dialog: the footer is drawn again right after a drag ends, which would take a status message
-                // away.
-                ui.dialog({
-                    title: 'Could not move “' + nameOf(from) + '”',
-                    message: error.message,
-                    confirmLabel: 'OK',
-                });
-                break;
+                failures.push({ from, error });
             }
-            onMoved(from, to);
         }
         if (!moving.length) return;
         onChanged(parentOf(moving[0]));
         onChanged(into);
+        if (!failures.length) return;
+        ui.dialog({
+            title:
+                failures.length === 1
+                    ? 'Could not move “' + nameOf(failures[0].from) + '”'
+                    : `Could not move ${failures.length} items`,
+            message: failures.map(({ from, error }) => nameOf(from) + ': ' + error.message),
+            confirmLabel: 'OK',
+        });
     }
 }
 

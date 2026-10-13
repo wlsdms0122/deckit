@@ -338,13 +338,18 @@ module.exports = {
             showSelection(reveal && path);
         }
 
-        // Adds the entry to the selection, or takes it away; the lead and the anchor go to it, or to the last one left. An
-        // entry of another folder is selected alone.
+        // Adds the entry to the selection, or takes it away; the lead and the anchor go to it, or to the last one left.
+        // An entry of another folder is selected alone.
         function toggle(path) {
             const before = tabs.selectedPath();
             if (!tabs.front() || !before || parentOf(before) !== parentOf(path)) return select(path);
-            const was = tabs.selection();
-            const next = was.includes(path) ? was.filter((each) => each !== path) : [...was, path];
+            const was = new Set(tabs.selection());
+            if (was.has(path)) was.delete(path);
+            else was.add(path);
+            const next = area
+                .entriesIn(parentOf(path))
+                .map((entry) => entry.path)
+                .filter((each) => was.has(each));
             if (!next.length) return select(null);
             const lead = next.includes(path) ? path : next.at(-1);
             tabs.setSelection(next, { lead, anchor: lead });
@@ -385,7 +390,7 @@ module.exports = {
             if (file) select(file, { reveal: true });
         }
 
-        // A folder made where the person still looks is picked, in sight, to be named.
+        // A folder made where the person still looks is selected, in sight, to be named.
         async function showMade(path) {
             const folder = parentOf(path);
             if (!area.shownFolders().includes(folder)) return false;
@@ -395,7 +400,7 @@ module.exports = {
             return true;
         }
 
-        // In columns a crumb inside the tab's folder is picked, so the columns stay.
+        // In columns a crumb inside the tab's folder is selected, so the columns stay.
         function openCrumb(path) {
             const location = tabs.location();
             const inColumns = area.view() === 'columns';
@@ -419,7 +424,7 @@ module.exports = {
             favorites.relocate(follow);
         }
 
-        // The path runs to the pick in columns, or else to the tab's folder.
+        // The path runs to the lead in columns, or else to the tab's folder.
         function drawToolbar() {
             const selected = area.view() === 'columns' ? tabs.selectedPath() : null;
             const shown = selected && area.columnFolders().includes(parentOf(selected)) ? selected : tabs.location();

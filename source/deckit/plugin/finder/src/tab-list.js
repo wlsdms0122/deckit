@@ -171,7 +171,7 @@ function tabList({
         if (tab === front) return;
         if (front) onLeave();
         front = tab;
-        return enter(tab, { select: tab.selected, scroll: tab.scroll });
+        return enter(tab, { scroll: tab.scroll });
     }
 
     function showAt(index) {

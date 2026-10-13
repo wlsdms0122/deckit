@@ -47,15 +47,19 @@ function selectionInput({
             Math.abs(event.clientX - lastPress.x) < DOUBLE_PRESS_DISTANCE &&
             Math.abs(event.clientY - lastPress.y) < DOUBLE_PRESS_DISTANCE;
         if (again) {
-            const { entry } = lastPress;
+            const { entry, selection: then } = lastPress;
             lastPress = null;
             event.preventDefault();
             if (event.metaKey && entry.kind === 'folder') openInNewTab(entry.path);
-            else open(selection().includes(entry.path) ? selected() : [entry], { usesDefaultApp: event.altKey });
+            else
+                open(then.includes(entry.path) ? then.map(entryAt).filter(Boolean) : [entry], {
+                    usesDefaultApp: event.altKey,
+                });
             return;
         }
         const entry = entryAt(event.target.closest('[data-path]')?.dataset.path);
-        lastPress = entry ? { entry, at: now, x: event.clientX, y: event.clientY } : null;
+        // The selection as the first press found it: its click may have narrowed it by the second.
+        lastPress = entry ? { entry, selection: selection(), at: now, x: event.clientX, y: event.clientY } : null;
         picking = null;
         if (!entry) return;
         if (event.metaKey) return toggle(entry.path);
@@ -66,7 +70,6 @@ function selectionInput({
         else select(entry.path);
     }
 
-    // The entries selected, as listed.
     function selected() {
         return selection().map(entryAt).filter(Boolean);
     }

@@ -176,7 +176,7 @@ function fileArea({
         return tabs.location() ? [tabs.location()] : [];
     }
 
-    // The folder the keyboard walks: in columns the one holding the pick, in the list the tab's.
+    // The folder the keyboard walks: in columns the one holding the lead, in the list the tab's.
     function walkedFolder() {
         if (view !== 'columns') return tabs.location();
         const selected = tabs.selectedPath();
@@ -255,25 +255,30 @@ function fileArea({
         return `${entriesIn(counted).length} of ${total} item${total === 1 ? '' : 's'}`;
     }
 
-    // The lead is held by `heldSelection`; the rest of the selection keeps what its folder still holds and shows, a
-    // filter or not.
+    // Several selected are what their folder shows of them, the filter's too: an entry it no longer shows leaves, and
+    // the lead and the anchor go to the last one left when theirs does. One selected is held by `heldSelection`.
     function holdSelection() {
         const lead = tabs.selectedPath();
-        const held = heldSelection({
-            location: tabs.location(),
-            selected: lead,
-            inColumns: view === 'columns',
-            listingOf: listings.of,
-            showHidden: showsHidden(),
-        });
-        if (held !== lead) tabs.select(held);
-        else if (held && tabs.selection().length > 1 && listings.of(parentOf(held))) {
-            const listing = listings.of(parentOf(held));
-            const shown = new Set(
-                (listing?.entries ?? []).filter((entry) => isVisible(entry, showsHidden())).map((entry) => entry.path)
-            );
-            const kept = tabs.selection().filter((path) => path === held || shown.has(path));
-            if (kept.length !== tabs.selection().length) tabs.setSelection(kept, { lead: held, anchor: tabs.anchor() });
+        const selection = tabs.selection();
+        if (selection.length > 1 && listings.of(parentOf(lead))) {
+            const shown = new Set(entriesIn(parentOf(lead)).map((entry) => entry.path));
+            const kept = selection.filter((path) => shown.has(path));
+            if (kept.length && kept.length !== selection.length) {
+                const keptLead = kept.includes(lead) ? lead : kept.at(-1);
+                tabs.setSelection(kept, {
+                    lead: keptLead,
+                    anchor: kept.includes(tabs.anchor()) ? tabs.anchor() : keptLead,
+                });
+            } else if (!kept.length) tabs.select(null);
+        } else {
+            const held = heldSelection({
+                location: tabs.location(),
+                selected: lead,
+                inColumns: view === 'columns',
+                listingOf: listings.of,
+                showHidden: showsHidden(),
+            });
+            if (held !== lead) tabs.select(held);
         }
         // The filter goes when its folder does.
         const filter = tabs.filter();
