@@ -1,7 +1,7 @@
 id = "finder"
 name = "Finder"
 version = "1.0.0"
-api = "3.0.0"
+api = "1.0.0"
 main = "main.js"
 
 [permissions]

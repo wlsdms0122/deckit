@@ -14,7 +14,7 @@ DeckitModule.define(
         // MARK: - Property
         const FILE = 'manifest.toml';
         // The version of the plugin contract, which a manifest's `api` is written against.
-        const API = '3.0.0';
+        const API = '1.0.0';
         const FIELDS = new Set(['id', 'name', 'version', 'api', 'main', 'url-schemes', 'requires', 'permissions']);
 
         // MARK: - Initializer

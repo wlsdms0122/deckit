@@ -22,7 +22,7 @@ Each plugin runs at the origin `deckit://<id>.plugin/`, with its own storage and
 id = "dashboard"
 name = "Dashboard"
 version = "1.0.0"
-api = "3.0.0"
+api = "1.0.0"
 main = "dist/main.js"
 url-schemes = ["https"]
 
@@ -54,7 +54,7 @@ An id is lower case letters, digits, `.`, `_` and `-`, starts with a letter or d
 
 ### api
 
-The version of the contract: what the entry exports, what `deck` holds and what a main process module is handed. This deck speaks `3.0.0`. A plugin loads when the major is the same and deck's minor and patch, in that order, are at least the plugin's; otherwise Settings shows why it did not. The same rule compares a plugin's `version` with what another requires.
+The version of the contract: what the entry exports, what `deck` holds and what a main process module is handed. This deck speaks `1.0.0`. A plugin loads when the major is the same and deck's minor and patch, in that order, are at least the plugin's; otherwise Settings shows why it did not. The same rule compares a plugin's `version` with what another requires.
 
 ### permissions
 
