@@ -104,7 +104,7 @@ function tabs({ theme, ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
     }
 
     function tabList() {
-        const list = ui.list({ key: (item) => item.file, create: tabOf, update: refresh, exit: true });
+        const list = ui.list({ key: (item) => item.file, create: tabOf, update: refresh, animated: true });
         list.element.classList.add('editor-tab-list');
         return list;
     }

@@ -38,7 +38,7 @@ function tabList({
             folds.set('tabs', collapsed);
         },
     });
-    const rows = ui.list({ key: (tab) => tab.id, create: createRow, update: updateRow, exit: true });
+    const rows = ui.list({ key: (tab) => tab.id, create: createRow, update: updateRow, animated: true });
 
     ui.tooltip(section.actions[0].element, { text: 'New tab', chord: () => chordOf('newTab') });
     section.body.append(rows.element);

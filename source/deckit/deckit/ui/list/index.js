@@ -1,10 +1,10 @@
 DeckitModule.define(
     'deckit/ui/list',
     {
-        uses: ['deckit/ui/token', 'deckit/ui/motion'],
+        uses: ['deckit/ui/motion'],
         provides: ['list', 'hold', 'heldWhile', 'LEAVING'],
     },
-    (TOKEN, MOTION) => {
+    (MOTION) => {
         // MARK: - Property
         // The mark of a row folding away: it is still drawn, but no longer one of the list's items.
         const LEAVING = 'data-deckit-leaving';
@@ -14,20 +14,25 @@ DeckitModule.define(
         // MARK: - Public
         // A list drawn from items by key: the same key keeps the same element, so what the pointer rests on, what has
         // the focus and what plays stay put. `create(item)` makes an element; a kept one is given to `update(element,
-        // item)` when there is one, or made again when its item changed. A key names one item. With `exit`, a removed
-        // row folds away along the list's axis. While something in or around the list is held (dragged, renamed) a new
-        // set of items waits, and the last one is drawn when it is let go.
-        function list({ element = document.createElement('div'), key, create, update = null, exit = false }) {
+        // item)` when there is one, or made again when its item changed. A key names one item. With `animated`, a row
+        // added once the list has shown items unfolds along the list's axis, and a removed one folds away. While
+        // something in or around the list is held (dragged, renamed) a new set of items waits, and the last one is drawn
+        // when it is let go.
+        function list({ element = document.createElement('div'), key, create, update = null, animated = false }) {
             const entries = new Map(); // key -> { element, item }
+            let shown = false; // whether the list has drawn items: the first ones are there from the start
             const draw = (items) => {
                 const kept = new Map();
                 const order = [];
+                const added = [];
                 for (const item of items) {
                     const name = key(item);
                     if (kept.has(name)) throw new Error(`a keyed list was given the key ${name} twice`);
                     let entry = entries.get(name);
-                    if (!entry) entry = { element: create(item), item };
-                    else if (update) update(entry.element, item);
+                    if (!entry) {
+                        entry = { element: create(item), item };
+                        added.push(entry.element);
+                    } else if (update) update(entry.element, item);
                     else if (!same(entry.item, item)) {
                         const made = create(item);
                         entry.element.replaceWith(made);
@@ -46,11 +51,13 @@ DeckitModule.define(
                     if (cursor === node) cursor = cursor.nextSibling;
                     else element.insertBefore(node, cursor);
                 }
+                if (animated && shown) for (const node of added) MOTION.expand(node, { across: across(element) });
+                shown ||= items.length > 0;
             };
             const remove = (node) => {
-                if (!exit || !TOKEN.MOTION.fast || !node.getBoundingClientRect().height) return node.remove();
+                if (!animated) return node.remove();
                 node.setAttribute(LEAVING, '');
-                collapse(element, node, () => node.remove());
+                MOTION.collapse(node, { across: across(element) }, () => node.remove());
             };
             return {
                 element,
@@ -105,35 +112,10 @@ DeckitModule.define(
             }
         }
 
-        // Folds `node` away along the axis `list` lays its rows on.
-        function collapse(list, node, then) {
-            const length = TOKEN.MOTION.fast;
+        // Whether `list` lays its rows across rather than down.
+        function across(list) {
             const layout = getComputedStyle(list);
-            const across = layout.display.includes('flex') && layout.flexDirection.startsWith('row');
-            const box = node.getBoundingClientRect();
-            const [size, minSize, start, end] = across
-                ? ['width', 'minWidth', 'marginLeft', 'marginRight']
-                : ['height', 'minHeight', 'marginTop', 'marginBottom'];
-            MOTION.play(
-                node,
-                {
-                    transition: 'none',
-                    [size]: (across ? box.width : box.height) + 'px',
-                    [minSize]: '0',
-                    overflow: 'hidden',
-                    pointerEvents: 'none',
-                },
-                {
-                    transition: [size, 'opacity', 'margin']
-                        .map((property) => `${property} ${length}ms ${TOKEN.MOTION.easing}`)
-                        .join(', '),
-                    [size]: '0px',
-                    opacity: '0',
-                    [start]: '0',
-                    [end]: '0',
-                }
-            );
-            setTimeout(then, length);
+            return layout.display.includes('flex') && layout.flexDirection.startsWith('row');
         }
 
         // Items as plain records: the same when every field is.

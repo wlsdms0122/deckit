@@ -51,9 +51,9 @@ DeckitModule.define(
             };
         }
 
-        // The kit's keyed list (`key(item)`, `create(item)`, `update(element, item)`, `exit`). With `maxRows`, as tall as
+        // The kit's keyed list (`key(item)`, `create(item)`, `update(element, item)`, `animated`). With `maxRows`, as tall as
         // that many rows, scrolling past them.
-        function list({ maxRows = 0, size = 'medium', key, create, update = null, exit = false }) {
+        function list({ maxRows = 0, size = 'medium', key, create, update = null, animated = false }) {
             const element = document.createElement('div');
             element.className = 'deckit-list';
             if (maxRows) {
@@ -61,7 +61,7 @@ DeckitModule.define(
                 element.style.maxHeight = maxRows * ROW_HEIGHT[size] + 'px';
                 SCROLL.edgeFade(element);
             }
-            return LIST.list({ element, key, create, update, exit });
+            return LIST.list({ element, key, create, update, animated });
         }
 
         return { STYLE, make };

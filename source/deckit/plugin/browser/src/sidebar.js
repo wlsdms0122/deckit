@@ -77,8 +77,8 @@ function sidebar({
     `);
     const element = ui.element('div', { className: 'browser-sidebar' });
     // A row is a tab or a group's heading. A collapsed group shows its heading only.
-    const tabList = ui.list({ key: keyOf, create: tabOrGroupRow, update: updateTabOrGroupRow, exit: true });
-    const bookmarkList = ui.list({ key: (bookmark) => bookmark.url, create: bookmarkRow, exit: true });
+    const tabList = ui.list({ key: keyOf, create: tabOrGroupRow, update: updateTabOrGroupRow, animated: true });
+    const bookmarkList = ui.list({ key: (bookmark) => bookmark.url, create: bookmarkRow, animated: true });
     const tabSection = ui.section({
         label: 'Tabs',
         icon: ui.icon('window', { size: 16 }),
