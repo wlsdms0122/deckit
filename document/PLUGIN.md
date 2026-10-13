@@ -44,7 +44,7 @@ bot = "1.0.0"
 | `requires` | no | plugin id = the lowest version it needs |
 | `permissions` | no | permission = why it is needed, in words the person reads |
 
-Any other field stops the plugin loading, and so does a `main` that names no file inside the folder. The manifest is read before a line of the plugin runs, by main and by the command line, against the same schema.
+Any other field stops the plugin loading, and so does a `main` that names no file inside the folder. The manifest is read before a line of the plugin runs, by the main process and by the command line, against the same schema.
 
 Only the part of TOML a manifest uses is read: top-level keys, one level of tables, and strings, booleans, integers and arrays of those as values. A key with a dot is quoted (`"system.main-process" = …`).
 
@@ -100,7 +100,7 @@ module.exports = {
 | `keywords` | optional; the switcher's aliases for the plugin |
 | `settings` | optional; what the person can choose about the plugin (below) |
 | `start(deck)` | starts the plugin and registers what it contributes; may be async, and deck waits for it |
-| `stop()` | optional; the plugin's sandbox is ending (removed, updated, the app quitting, a new theme), whether or not `start` succeeded. It may be async, and deck waits for it a short while |
+| `stop()` | optional; the plugin's sandbox is ending (removed, updated, the app quitting, a new theme), whether or not `start` succeeded. It may be async, and deck waits for it a short while. A new theme runs `start` again in a new sandbox, so what `stop()` ended, `start()` starts again. A `stop()` that throws is written to the log; the row in Settings shows the run that follows |
 
 Any other member stops the plugin. Everything the plugin reaches is in `deck`.
 
@@ -136,7 +136,7 @@ The view came on screen, and went. They come in turn, never twice running.
 deck.keys({ newTab: { key: 'mod+t', label: 'New tab', run() { … } } });
 ```
 
-`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. A key is live only while its plugin is on screen, in its view and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app, its plugin off screen and the panel closed included; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses. A headless plugin is never on screen, so its keys are global ones; what it offers to be reached from anywhere without one is a command.
+`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. A key is live only while its plugin is on screen, in its view and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app, its plugin off screen and the panel closed included; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses. A headless plugin is never on screen, so its keys are global ones, and one that is not is refused and shown on its row; what it offers to be reached from anywhere without one is a command.
 
 ### deck.commands(fn)
 
@@ -288,7 +288,7 @@ A module exports a function that deck calls once, with what the module is handed
 
 `window` is a window of the host app's, holding a view the module made: `open({ key, title, view, size, onClose })`, `get(key)`, `close(key)`. The host app frames it. `onClose` runs once the view is out of the window, alive. `open` under a key already open brings that window forward and returns it. `ofPage()` is the window the plugin's view is in now, or null: where a dialog or a preview it opens belongs. Keys are the plugin's own: two plugins asking for `log` get two windows.
 
-A module runs until the app quits and is not told when: one that starts processes or holds resources outside the app ends them itself, on Electron's `app` events. A module runs in the app's main process and can do what the app can do, which is why it is asked for. The sandbox cannot widen its own reach: it calls only the methods a module of its own folder returns, and the main process knows which plugin calls by its sandbox.
+A module runs until the app quits, and the app quits once every plugin's `stop()` has answered, a short while at most for each. A plugin whose module starts processes or holds resources outside the app has it end them from `stop()`, through a method of the module's own. A module runs in the app's main process and can do what the app can do, which is why it is asked for. The sandbox cannot widen its own reach: it calls only the methods a module of its own folder returns, and the main process knows which plugin calls by its sandbox.
 
 ## Installing
 

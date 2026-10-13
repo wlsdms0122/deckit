@@ -6,7 +6,7 @@ This document is why deckit is split the way it is, and the rules that keep it s
 
 ## 1. Principles
 
-1. Deckit runs by itself. The package builds, checks and runs from its own sources; nothing outside it is named.
+1. Deckit is whole by itself. `source/deckit` and the documents it ships (EMBEDDING, PLUGIN, UI) are all of it, and name nothing outside it. The package around it is for convenience: its commands check, build, run and ship deckit, with whatever tools serve.
 2. A plugin can do what the host app can. Permissions say what a plugin reaches, and the person agrees to them; none is a dead end, and a main process module has the app's full power. A plugin draws its view as it likes; the kit is the quick way, not the only one.
 3. Deckit owns only what it makes. The process, its menus and its windows are the host app's; deckit is handed what it needs through `host/config`, `host/folders`, `connect()` and `host/exports`.
 4. A check happens once, where trust changes: main receiving from a page, deck receiving from a plugin's code, input from the disk or the network. Inside, each step trusts what the step before it made.
@@ -20,8 +20,9 @@ source/deckit/deckit       the library: deck, its views and the kit. Names no ho
 source/deckit/plugin       deckit's own plugins, Settings among them
 source/deckit/deckit-app   Deckit.app: deckit embedded by itself, its shell framing every window
 source/deckit/deckit-cli   the command line a host app ships for its plugins
-source/cli                 what builds, checks and runs deckit
 ```
+
+The package around deckit, `manifest.toml` and `source/cli`, is the commands that check, build, run and ship it (README.md). Deckit names none of it.
 
 A new plugin needs no change to deck. A new shell to show the panel in needs no change to deckit.
 
