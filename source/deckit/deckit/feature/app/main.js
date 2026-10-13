@@ -9,6 +9,7 @@ DeckitModule.define(
             'deckit/service/plugin/folder',
             'deckit/service/deck/identity',
             'deckit/service/deck/main',
+            'deckit/service/deck/catalog',
             'deckit/service/deck/lifecycle',
             'deckit/service/web/session',
             'deckit/service/web/main',
@@ -33,6 +34,7 @@ DeckitModule.define(
         FOLDER,
         IDENTITY,
         DECK,
+        CATALOG,
         LIFECYCLE,
         SESSION,
         WEB,
@@ -151,7 +153,7 @@ DeckitModule.define(
                 if (pathname === '/')
                     return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } });
                 const id = ORIGIN.pluginOfHost(host);
-                const folder = DECK.plugins().find((entry) => entry.id === id)?.folder;
+                const folder = CATALOG.plugins().find((entry) => entry.id === id)?.folder;
                 const file = folder && servedFile(folder, pathname);
                 return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
             });

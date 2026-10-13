@@ -2,12 +2,10 @@ DeckitModule.define(
     'deckit/service/deck/main',
     {
         uses: [
-            'deckit/config',
             'deckit/service/storage',
             'deckit/service/web/session',
             'deckit/service/log/main',
             'deckit/service/deck/identity',
-            'deckit/service/plugin/folder',
             'deckit/service/deck/install',
             'deckit/service/deck/remove',
             'deckit/service/deck/catalog',
@@ -17,50 +15,16 @@ DeckitModule.define(
             'deckit/service/deck/export',
             'deckit/service/deck/protocol',
         ],
-        provides: [
-            'start',
-            'plugins',
-            'prepare',
-            'rerun',
-            'summaryOf',
-            'hasStarted',
-            'hasEnded',
-            'ended',
-            'onChange',
-            'onStatus',
-            'order',
-            'arrange',
-        ],
+        provides: ['start', 'prepare', 'rerun', 'summaryOf', 'hasStarted', 'hasEnded', 'ended', 'onStatus'],
         runs: 'main',
     },
-    (
-        CONFIG,
-        STORAGE,
-        SESSION,
-        LOG,
-        IDENTITY,
-        FOLDER,
-        INSTALL,
-        REMOVE,
-        CATALOG,
-        MAIN_PROCESS,
-        RECORD,
-        SETTING,
-        EXPORT,
-        PROTOCOL
-    ) => {
+    (STORAGE, SESSION, LOG, IDENTITY, INSTALL, REMOVE, CATALOG, MAIN_PROCESS, RECORD, SETTING, EXPORT, PROTOCOL) => {
         // MARK: - Property
-        const ORDER = 'plugin-order';
-        let entries = [];
-        let shipped = []; // the ids of what the app ships, in its order
         const started = new Map(); // plugin id -> what it said it contributes
         const failures = new Map(); // plugin id -> the first reason recorded against it
         const stopped = new Set(); // plugin ids that ended without starting
         const runs = new Map(); // plugin id -> which run of its page this is, counted from 1
         const starting = new Set(); // plugin ids whose current run has not started yet
-        // plugin id -> how many times it was installed while deckit ran: a copy of the same version is new code too
-        const installs = new Map();
-        const listeners = new Set();
         const statusListeners = new Set();
 
         // MARK: - Initializer
@@ -69,17 +33,10 @@ DeckitModule.define(
             forgetRemoved();
             MAIN_PROCESS.start();
             RECORD.start();
-            SETTING.start({ ordered: () => plugins().map(({ id }) => id) });
+            SETTING.start({ ordered: () => CATALOG.plugins().map(({ id }) => id) });
             EXPORT.start();
-            shipped = CONFIG.ship.map((folder) => FOLDER.idOf(folder));
-            entries = catalog();
-            for (const entry of entries) if (entry.problem) LOG.warn(`plugin ${entry.id} not loaded: ${entry.problem}`);
+            CATALOG.start();
             listen();
-        }
-
-        // The plugins that load, in the person's order.
-        function plugins() {
-            return arranged(entries.filter((entry) => !entry.problem));
         }
 
         // Before a plugin's page is made: whoever requires it told to wait.
@@ -105,12 +62,6 @@ DeckitModule.define(
             return started.get(pluginId) || null;
         }
 
-        // Told when the plugins change; what a listener returns is waited for where the change is waited on (a
-        // removal).
-        function onChange(listener) {
-            listeners.add(listener);
-        }
-
         // Whether the plugin's current run has started, and not ended.
         function hasStarted(pluginId) {
             return started.has(pluginId) && !starting.has(pluginId);
@@ -134,20 +85,6 @@ DeckitModule.define(
         // Told each time a plugin has started, or ended.
         function onStatus(listener) {
             statusListeners.add(listener);
-        }
-
-        function order() {
-            return STORAGE.state.read(ORDER, []);
-        }
-
-        // The ids named take the places they held among themselves, in the order given; the rest stay put.
-        function arrange(ids) {
-            const now = plugins().map(({ id }) => id);
-            const moved = [...new Set(ids)].filter((id) => now.includes(id));
-            const slots = now.map((id, index) => (moved.includes(id) ? index : -1)).filter((index) => index >= 0);
-            slots.forEach((slot, index) => (now[slot] = moved[index]));
-            STORAGE.state.write(ORDER, now);
-            notify();
         }
 
         // MARK: - Private
@@ -206,7 +143,7 @@ DeckitModule.define(
             });
             PROTOCOL.reveal.handle(({ id }, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugins');
-                const entry = entries.find((candidate) => candidate.id === id);
+                const entry = CATALOG.entries().find((candidate) => candidate.id === id);
                 if (!entry) throw new Error('no plugin ' + id);
                 return require('electron').shell.openPath(entry.folder);
             });
@@ -221,9 +158,9 @@ DeckitModule.define(
         }
 
         function loadOf(plugin) {
-            const entry = entries.find((candidate) => candidate.id === plugin.id);
+            const entry = CATALOG.entries().find((candidate) => candidate.id === plugin.id);
             return {
-                manifest: publicOf(entry),
+                manifest: CATALOG.manifestOf(entry),
                 source: CATALOG.sourceOf(entry),
                 settings: STORAGE.settings.read(entry.id),
                 run: runs.get(plugin.id),
@@ -239,8 +176,8 @@ DeckitModule.define(
         // start() has not settled. `hides`: folders of the same id that are not read.
         function describe() {
             return {
-                installed: entries.map((entry) => ({
-                    ...publicOf(entry),
+                installed: CATALOG.entries().map((entry) => ({
+                    ...CATALOG.manifestOf(entry),
                     folder: entry.folder,
                     installed: entry.installed,
                     shipped: entry.shipped,
@@ -253,7 +190,7 @@ DeckitModule.define(
                         ok: requirement.ok && started.has(requirement.id),
                     })),
                 })),
-                running: plugins()
+                running: CATALOG.plugins()
                     .filter((entry) => started.has(entry.id))
                     .map((entry) => ({
                         id: entry.id,
@@ -262,11 +199,6 @@ DeckitModule.define(
                         problem: failures.get(entry.id) || null,
                     })),
             };
-        }
-
-        function publicOf(entry) {
-            const { id, name, version, api, main, requires, permissions, urlSchemes } = entry;
-            return { id, name, version, api, main, requires, permissions, urlSchemes };
         }
 
         // Picking and installing are two calls because the person is asked in between. A refused folder is refused
@@ -283,9 +215,9 @@ DeckitModule.define(
             const from = result.filePaths[0];
             const manifest = INSTALL.installable(from, shadowed);
             return {
-                ...publicOf({ ...manifest, requires: manifest.requires }),
+                ...CATALOG.manifestOf(manifest),
                 from,
-                replaces: entries.some((entry) => entry.id === manifest.id && entry.installed),
+                replaces: CATALOG.entries().some((entry) => entry.id === manifest.id && entry.installed),
             };
         }
 
@@ -293,30 +225,29 @@ DeckitModule.define(
         // nothing.
         async function install(from) {
             const manifest = INSTALL.install(from, shadowed);
-            installs.set(manifest.id, (installs.get(manifest.id) || 0) + 1);
             MAIN_PROCESS.restartFor(manifest.id);
-            await refresh();
+            await CATALOG.refresh({ installed: manifest.id });
             return {
-                ...publicOf(manifest),
+                ...CATALOG.manifestOf(manifest),
                 restart: MAIN_PROCESS.restartPending().some(({ id }) => id === manifest.id),
             };
         }
 
         // A source folder of the same id would hide the installed copy.
         function shadowed(manifest) {
-            const source = entries.find((entry) => entry.id === manifest.id && !entry.installed);
+            const source = CATALOG.entries().find((entry) => entry.id === manifest.id && !entry.installed);
             return source ? `${manifest.id} is read from ${source.folder}, which would hide the installed copy` : '';
         }
 
         // Its sandbox has ended, stop() and all, before what it stored is taken, so nothing writes it back.
         async function remove(id, data) {
-            const entry = entries.find((candidate) => candidate.id === id);
+            const entry = CATALOG.entries().find((candidate) => candidate.id === id);
             if (entry && !entry.installed)
                 throw new Error(`${id} is read from ${entry.folder}, not installed, so it is removed there`);
             REMOVE.remove(id);
             MAIN_PROCESS.unload(id);
             SETTING.forget(id);
-            await refresh();
+            await CATALOG.refresh();
             const removed = { data: data && REMOVE.forgetData(id) };
             if (removed.data) await forget(id);
             return removed;
@@ -335,45 +266,6 @@ DeckitModule.define(
             REMOVE.clearForgotten(id);
         }
 
-        // Resolves once whoever listens has done with the change: a plugin taken away has ended.
-        function refresh() {
-            entries = catalog();
-            return notify();
-        }
-
-        function catalog() {
-            return CATALOG.list().map((entry) => ({ ...entry, installs: installs.get(entry.id) || 0 }));
-        }
-
-        function notify() {
-            return Promise.all([...listeners].map((listener) => listener(plugins())));
-        }
-
-        // A plugin's place is the person's, kept in deckit's state. One never placed goes where the app ships it,
-        // and one the app does not ship goes last, by id.
-        function arranged(list) {
-            const placed = order();
-            const rank = (id) => {
-                if (placed.includes(id)) return placed.indexOf(id);
-                if (shipped.includes(id)) return placed.length + shipped.indexOf(id);
-                return placed.length + shipped.length;
-            };
-            return [...list].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
-        }
-
-        return {
-            start,
-            plugins,
-            prepare,
-            rerun,
-            summaryOf,
-            hasStarted,
-            hasEnded,
-            ended,
-            onChange,
-            onStatus,
-            order,
-            arrange,
-        };
+        return { start, prepare, rerun, summaryOf, hasStarted, hasEnded, ended, onStatus };
     }
 );

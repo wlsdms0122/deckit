@@ -7,6 +7,7 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/deck/identity',
             'deckit/service/deck/main',
+            'deckit/service/deck/catalog',
             'deckit/service/deck/lifecycle',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
@@ -14,7 +15,7 @@ DeckitModule.define(
         ],
         provides: ['start', 'control', 'showsPanel', 'dismisses', 'reveal', 'awaitReply'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, DECK, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, DECK, CATALOG, LIFECYCLE, WEB, KEYMAP, PROTOCOL) => {
         // MARK: - Property
         const FRAME = 'panel-frame';
         const HISTORY_LIMIT = 50;
@@ -112,7 +113,7 @@ DeckitModule.define(
             }));
             PROTOCOL.pick.on(({ id }, sender) => IDENTITY.pluginFrom(sender) && select(id));
             PROTOCOL.step.on(({ by }, sender) => IDENTITY.pluginFrom(sender) && step(by));
-            PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.pluginFrom(sender) && DECK.arrange(ids));
+            PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.pluginFrom(sender) && CATALOG.arrange(ids));
             PROTOCOL.layout.on((change, sender) => {
                 IDENTITY.pluginFrom(sender);
                 setFrame(change);
@@ -184,7 +185,7 @@ DeckitModule.define(
         // In the person's order: the first plugin that has something to show, or may have once it has started. One
         // still starting is waited for, so the panel lands where the order says and not on whoever started first.
         function firstShown() {
-            return DECK.plugins().find(({ id }) => mayShow(id))?.id;
+            return CATALOG.plugins().find(({ id }) => mayShow(id))?.id;
         }
 
         function layout() {
@@ -193,7 +194,7 @@ DeckitModule.define(
         }
 
         function stateOf() {
-            const plugins = DECK.plugins()
+            const plugins = CATALOG.plugins()
                 .filter(({ id }) => views.has(id))
                 .map(({ id, name }) => ({ id, name, icon: DECK.summaryOf(id)?.icon || '' }));
             return {
@@ -208,7 +209,7 @@ DeckitModule.define(
         function broadcast() {
             const state = stateOf();
             for (const page of views.values()) PROTOCOL.state.send(page.webContents, state);
-            const name = DECK.plugins().find(({ id }) => id === current);
+            const name = CATALOG.plugins().find(({ id }) => id === current);
             const title = name?.name || CONFIG.name;
             if (title !== titled) shell.panelTitled((titled = title));
         }

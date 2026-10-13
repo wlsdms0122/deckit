@@ -5,6 +5,7 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/deck/identity',
             'deckit/service/deck/main',
+            'deckit/service/deck/catalog',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/service/open/main',
@@ -14,7 +15,7 @@ DeckitModule.define(
         provides: ['start', 'pages', 'pageFor', 'onChange', 'reload'],
         runs: 'main',
     },
-    (LOG, IDENTITY, DECK, WEB, KEYMAP, OPEN, PROTOCOL, ORIGIN) => {
+    (LOG, IDENTITY, DECK, CATALOG, WEB, KEYMAP, OPEN, PROTOCOL, ORIGIN) => {
         // MARK: - Property
         const running = new Map(); // plugin id -> { page, entry }
         const ending = new Set(); // plugin ids whose page is stopping, to run again once it has
@@ -31,9 +32,9 @@ DeckitModule.define(
         // the view a page runs in.
         function start({ makePage: make }) {
             makePage = make;
-            DECK.onChange(reconcile);
+            CATALOG.onChange(() => reconcile(CATALOG.plugins()));
             DECK.onStatus(notify);
-            reconcile(DECK.plugins());
+            reconcile(CATALOG.plugins());
             // The app quits once every plugin's run has stopped. Held at will-quit, once every window has closed and
             // the quit is decided, while a run has not; a quit asked again meanwhile waits too. Then the quit is asked
             // again and goes on as any quit does, quit event and all, so code in the host app that ends on it ends. A
@@ -58,7 +59,7 @@ DeckitModule.define(
         // The plugins running, in the person's order, each with its page and what it said it contributes once it
         // started (`summary`, null until then).
         function pages() {
-            return DECK.plugins()
+            return CATALOG.plugins()
                 .filter(({ id }) => running.has(id))
                 .map((entry) => ({ entry, page: running.get(entry.id).page, summary: DECK.summaryOf(entry.id) }));
         }
@@ -108,7 +109,7 @@ DeckitModule.define(
                 ends.push(
                     end(page).then(() => {
                         ending.delete(id);
-                        return reconcile(DECK.plugins());
+                        return reconcile(CATALOG.plugins());
                     })
                 );
             }

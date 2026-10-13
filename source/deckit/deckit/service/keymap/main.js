@@ -7,13 +7,13 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/module/chord',
             'deckit/service/deck/identity',
-            'deckit/service/deck/main',
+            'deckit/service/deck/catalog',
             'deckit/service/keymap/protocol',
             'deckit/service/keymap/model/binding-id',
         ],
         provides: ['start', 'connect', 'listen', 'register', 'chordOf'],
     },
-    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, DECK, PROTOCOL, BINDING_ID) => {
+    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, CATALOG, PROTOCOL, BINDING_ID) => {
         // MARK: - Property
         const OVERRIDES = 'keys';
         const RECORDING_MS = 20 * 1000;
@@ -143,7 +143,7 @@ DeckitModule.define(
         // Global first, in the order a keystroke tries them; bindings() relies on this order to pick winners. A
         // plugin's key is global only with system.global-keys.
         function catalog() {
-            const plugins = DECK.plugins().filter(({ id }) => scopes.has(id));
+            const plugins = CATALOG.plugins().filter(({ id }) => scopes.has(id));
             const global = (plugin) => plugin.permissions.some(({ id }) => id === 'system.global-keys');
             const keysOf = (plugin, wantGlobal) =>
                 scopes.get(plugin.id).filter((key) => !!key.global === wantGlobal && (!wantGlobal || global(plugin)));
@@ -247,7 +247,7 @@ DeckitModule.define(
         }
 
         function announce() {
-            for (const plugin of DECK.plugins()) {
+            for (const plugin of CATALOG.plugins()) {
                 const view = IDENTITY.pageOf(plugin.id);
                 if (view) PROTOCOL.changed.send(view, {});
             }
