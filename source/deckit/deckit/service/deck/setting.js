@@ -4,38 +4,33 @@ DeckitModule.define(
         uses: [
             'deckit/service/storage',
             'deckit/service/deck/identity',
+            'deckit/service/deck/catalog',
             'deckit/service/deck/runner',
             'deckit/service/deck/protocol',
         ],
         provides: ['start', 'valuesOf'],
         runs: 'main',
     },
-    (STORAGE, IDENTITY, RUNNER, PROTOCOL) => {
+    (STORAGE, IDENTITY, CATALOG, RUNNER, PROTOCOL) => {
         // MARK: - Property
         const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
         // How long a plugin has to work out a setting's options: a plugin still starting answers once it has.
         const OPTIONS_LIMIT_MS = 5000;
         const declared = new Map(); // plugin id -> { name, settings: { key: declaration } }
-        let order = () => []; // the ids of the plugins that load, in the person's order
 
         // MARK: - Initializer
         // MARK: - Public
-        // `ordered()` gives the ids of the plugins that load, in the person's order, which Settings lists them in.
-        // A plugin's settings stand from its entry's declaring them until it ends, or until the next run of it declares
-        // them again.
-        function start({ ordered }) {
-            order = ordered;
+        // A plugin's settings stand from its entry's declaring them until it no longer loads, or until a later run of it
+        // declares them again: one whose start failed can still be set.
+        function start() {
             PROTOCOL.declare.on(({ run: number, settings }, sender) => {
-                const plugin = IDENTITY.pluginFrom(sender);
-                const current = RUNNER.runOf(plugin.id);
-                if (
-                    current?.state === 'launching' &&
-                    (number === null || number === undefined || number === current.number)
-                )
-                    declare(plugin, settings);
+                if (RUNNER.currentRun(sender, number)?.state === 'launching')
+                    declare(IDENTITY.pluginFrom(sender), settings);
             });
-            RUNNER.observe('didFailToLaunch', ({ plugin }) => forget(plugin.id));
-            RUNNER.observe('didTerminate', ({ plugin, endReason }) => endReason !== 'restart' && forget(plugin.id));
+            CATALOG.onChange(() => {
+                const loading = new Set(CATALOG.plugins().map(({ id }) => id));
+                for (const id of declared.keys()) if (!loading.has(id)) forget(id);
+            });
             PROTOCOL.setSetting.handle(({ key, value }, sender) => set(IDENTITY.pluginFrom(sender).id, key, value));
             PROTOCOL.pluginSettings.handle((_payload, sender) => {
                 IDENTITY.pluginFrom(sender, 'deckit.plugin-settings');
@@ -132,7 +127,7 @@ DeckitModule.define(
         // marked absent, and left as it is.
         async function list() {
             const out = [];
-            for (const id of order().filter((id) => declared.has(id))) {
+            for (const { id } of CATALOG.plugins().filter(({ id }) => declared.has(id))) {
                 const { name, settings } = declared.get(id);
                 if (!Object.keys(settings).length) continue;
                 const values = valuesOf(id);

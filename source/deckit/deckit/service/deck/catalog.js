@@ -19,8 +19,7 @@ DeckitModule.define(
         const ORDER = 'plugin-order';
         let catalogued = []; // every plugin read, loading or not
         let shipOrder = []; // the ids of what the app ships, in its order
-        // plugin id -> how many times it was installed while deckit ran: a copy of the same version is new code too
-        const installs = new Map();
+        const installs = new Map(); // plugin id -> how many times it was installed while deckit ran
         const listeners = new Set();
 
         // MARK: - Initializer
@@ -77,11 +76,18 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // A plugin that requires one that does not load does not load either.
+        // A plugin that requires one that does not load does not load either. Two reads of a plugin with one
+        // `revision` are the same code: a copy installed again, even of the same version, is not.
         function list() {
             const shipped = INSTALL.shipped() || new Set();
             const read = [];
             for (const [id, { folder, installed, manifest, problem, hides }] of foldersById()) {
+                const revision = JSON.stringify([
+                    folder,
+                    manifest.version,
+                    installs.get(id) || 0,
+                    manifest.permissions,
+                ]);
                 read.push({
                     ...manifest,
                     folder,
@@ -89,7 +95,7 @@ DeckitModule.define(
                     shipped: installed && shipped.has(id),
                     problem,
                     hides,
-                    installs: installs.get(id) || 0,
+                    revision,
                 });
             }
             return withRequirements(read);

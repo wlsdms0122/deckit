@@ -39,15 +39,16 @@ DeckitModule.define(
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
-        // What it takes to run plugins, before the runner runs them.
-        function start() {
+        // Plugins run in the views `makeView()` makes. What follows their runs starts before the runner launches any.
+        function start({ makeView }) {
             forgetRemoved();
+            CATALOG.start();
             MAIN_PROCESS.start();
             RECORD.start();
-            SETTING.start({ ordered: () => CATALOG.plugins().map(({ id }) => id) });
+            SETTING.start();
             EXPORT.start();
-            CATALOG.start();
             listen();
+            RUNNER.start({ makeView });
         }
 
         // MARK: - Private
@@ -84,25 +85,33 @@ DeckitModule.define(
             });
         }
 
-        // What Settings shows about every plugin, loaded or not, and what each running one contributes. `starting`: it
-        // is launching. `hides`: folders of the same id that are not read.
+        // What Settings shows about every plugin, loaded or not, and what each running one contributes. `state`: its
+        // latest run's, null for one with none. `starting`: it is launching. `hides`: folders of the same id that are
+        // not read.
         function describe() {
             const running = (id) => RUNNER.runOf(id)?.state === 'running';
             return {
-                installed: CATALOG.found().map((plugin) => ({
-                    ...MANIFEST.of(plugin),
-                    folder: plugin.folder,
-                    installed: plugin.installed,
-                    shipped: plugin.shipped,
-                    hides: plugin.hides,
-                    problem: plugin.problem || RUNNER.runOf(plugin.id)?.problem || null,
-                    starting: RUNNER.runOf(plugin.id)?.state === 'launching',
-                    mainProcess: { running: MAIN_PROCESS.started(plugin.id), failure: MAIN_PROCESS.failure(plugin.id) },
-                    requirements: plugin.requirements.map((requirement) => ({
-                        ...requirement,
-                        ok: requirement.ok && running(requirement.id),
-                    })),
-                })),
+                installed: CATALOG.found().map((plugin) => {
+                    const run = RUNNER.runOf(plugin.id);
+                    return {
+                        ...MANIFEST.of(plugin),
+                        folder: plugin.folder,
+                        installed: plugin.installed,
+                        shipped: plugin.shipped,
+                        hides: plugin.hides,
+                        problem: plugin.problem || run?.problem || null,
+                        state: run?.state || null,
+                        starting: run?.state === 'launching',
+                        mainProcess: {
+                            running: MAIN_PROCESS.started(plugin.id),
+                            failure: MAIN_PROCESS.failure(plugin.id),
+                        },
+                        requirements: plugin.requirements.map((requirement) => ({
+                            ...requirement,
+                            ok: requirement.ok && running(requirement.id),
+                        })),
+                    };
+                }),
                 running: CATALOG.plugins()
                     .filter((plugin) => running(plugin.id))
                     .map((plugin) => {

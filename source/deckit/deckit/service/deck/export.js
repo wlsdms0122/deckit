@@ -9,8 +9,6 @@ DeckitModule.define(
         // MARK: - Property
         // plugin id -> { settled: Promise, resolve, done, exports: { values, functions } | null, error }
         const providers = new Map();
-        // Why a run terminates when the plugin launches again after it.
-        const RUNS_AGAIN = new Set(['restart', 'updated']);
 
         // MARK: - Initializer
         // MARK: - Public
@@ -19,12 +17,11 @@ DeckitModule.define(
         function start() {
             RUNNER.observe('willLaunch', ({ plugin }) => expect(plugin.id));
             RUNNER.observe('didLaunch', ({ plugin, exports }) => provide(plugin.id, exports));
-            RUNNER.observe('didFailToLaunch', ({ plugin, endReason }) => fail(plugin.id, endReason));
+            RUNNER.observe('didFailToLaunch', ({ plugin, problem }) => fail(plugin.id, problem));
             RUNNER.observe('willTerminate', ({ plugin }) => expect(plugin.id));
-            RUNNER.observe(
-                'didTerminate',
-                ({ plugin, endReason }) => !RUNS_AGAIN.has(endReason) && fail(plugin.id, endReason)
-            );
+            RUNNER.observe('didTerminate', (run) => {
+                if (!run.relaunches) fail(run.plugin.id, run.problem || run.endReason);
+            });
             PROTOCOL.requirements.handle((_payload, sender) => requirementsOf(IDENTITY.pluginFrom(sender)));
             // A provider running again answers once its new run has started.
             PROTOCOL.callExport.handle(async ({ plugin, path, args }, sender) => {
@@ -32,6 +29,7 @@ DeckitModule.define(
                 if (!Object.hasOwn(caller.requires, plugin)) throw new Error(`${caller.id} does not require ${plugin}`);
                 const provider = providers.get(plugin);
                 await provider?.settled;
+                if (provider?.error) throw new Error(`${plugin} is not running: ${provider.error}`);
                 if (!provider?.exports?.functions.some((written) => written.join('.') === path.join('.'))) {
                     throw new Error(`${plugin} exports no function ${path.join('.')}`);
                 }
@@ -54,10 +52,15 @@ DeckitModule.define(
             provider.resolve();
         }
 
-        function fail(pluginId, why) {
+        // A wait ends failed; what a provider had exported, if anything, is no longer there to call.
+        function fail(pluginId, problem) {
             const provider = providers.get(pluginId);
-            if (!provider || provider.done) return;
-            Object.assign(provider, { done: true, error: why });
+            if (!provider) return;
+            if (provider.done) {
+                providers.set(pluginId, { settled: Promise.resolve(), done: true, exports: null, error: problem });
+                return;
+            }
+            Object.assign(provider, { done: true, error: problem });
             provider.resolve();
         }
 
@@ -66,7 +69,7 @@ DeckitModule.define(
             for (const id of Object.keys(plugin.requires)) {
                 const provider = providers.get(id);
                 await provider.settled;
-                out[id] = provider.exports || { error: `needs ${id}, which did not start: ${provider.error}` };
+                out[id] = provider.exports || { error: `needs ${id}, which is not running: ${provider.error}` };
             }
             return out;
         }

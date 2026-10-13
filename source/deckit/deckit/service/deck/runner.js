@@ -15,7 +15,7 @@ DeckitModule.define(
             'deckit/service/plugin/manifest',
             'deckit/service/plugin/lifecycle',
         ],
-        provides: ['start', 'runs', 'runOf', 'observe', 'closed', 'restart'],
+        provides: ['start', 'runs', 'runOf', 'currentRun', 'observe', 'closed', 'restart'],
         runs: 'main',
     },
     (STORAGE, LOG, EVENT_BUS, IDENTITY, CATALOG, WEB, KEYMAP, OPEN, PROTOCOL, ORIGIN, MANIFEST, LIFECYCLE) => {
@@ -66,6 +66,12 @@ DeckitModule.define(
             return sandboxes.get(pluginId)?.run || null;
         }
 
+        // The run a page's message is from, while it is that plugin's latest: what an older run sent before it was
+        // replaced, still on its way, is not the newer one's.
+        function currentRun(sender, number) {
+            return sandboxFrom(sender, number)?.run || null;
+        }
+
         // `observer(run)` is told `name`, one of the lifecycle's notifications, for every run. Answers its off.
         function observe(name, observer) {
             return notifications.on(name, observer);
@@ -76,39 +82,37 @@ DeckitModule.define(
             return sandboxes.get(pluginId)?.closing || Promise.resolve();
         }
 
-        // Every plugin terminates and launches again in its sandbox, at its page's own address, as a new theme asks.
+        // Every plugin terminates and launches again in its sandbox, at its page's own address, as a new theme asks. A
+        // run that terminates for good meanwhile (a removal, a quit) stays ended; one ended before, for a quit the host
+        // app called off or a crash, launches again, and a plugin whose sandbox closed for such a quit opens again.
         function restart() {
             for (const sandbox of sandboxes.values()) {
                 if (sandbox.closing) continue;
+                const { run } = sandbox;
+                const live = run.state !== 'notRunning';
                 terminate(sandbox, 'restart').then(() => {
-                    if (sandboxes.get(sandbox.plugin.id) !== sandbox || sandbox.closing) return;
-                    if (sandbox.run.state !== 'notRunning') return;
+                    if (quitting || sandboxes.get(sandbox.plugin.id) !== sandbox || sandbox.closing) return;
+                    if (sandbox.run !== run || (live && !run.relaunches)) return;
                     launch(sandbox);
                     sandbox.view.webContents.loadURL(addressOf(sandbox.plugin));
                 });
             }
+            reconcile();
         }
 
         // MARK: - Private
-        // A plugin runs as it arrives and goes as it leaves; one whose folder changed goes and runs again, once its
-        // old sandbox has closed.
+        // A plugin runs as it arrives and goes as it leaves; one whose code changed goes and runs again, once its old
+        // sandbox has closed. Nothing opens while the app quits.
         function reconcile() {
             const plugins = CATALOG.plugins();
             for (const sandbox of sandboxes.values()) {
                 if (sandbox.closing) continue;
                 const found = plugins.find(({ id }) => id === sandbox.plugin.id);
-                if (!found || !sameFolder(sandbox.plugin, found)) closeSandbox(sandbox, found ? 'updated' : 'removed');
+                if (!found || found.revision !== sandbox.plugin.revision)
+                    closeSandbox(sandbox, found ? 'updated' : 'removed');
             }
+            if (quitting) return;
             for (const plugin of plugins) if (!sandboxes.has(plugin.id)) openSandbox(plugin);
-        }
-
-        function sameFolder(before, after) {
-            return (
-                before.folder === after.folder &&
-                before.version === after.version &&
-                before.installs === after.installs &&
-                JSON.stringify(before.permissions) === JSON.stringify(after.permissions)
-            );
         }
 
         function openSandbox(plugin) {
@@ -151,33 +155,43 @@ DeckitModule.define(
             webContents.loadURL(addressOf(plugin));
         }
 
+        // What runs in its place opens once it has closed, unless the run ended for good (a quit came meanwhile).
         function closeSandbox(sandbox, reason) {
             sandbox.closing = terminate(sandbox, reason).then(() => {
                 if (!sandbox.view.webContents.isDestroyed()) sandbox.view.webContents.close();
                 sandboxes.delete(sandbox.plugin.id);
-                reconcile();
+                if (sandbox.run.relaunches) reconcile();
             });
         }
 
+        // A run tells willLaunch as it is made, so it is the sandbox's run from the first thing it tells.
         function launch(sandbox) {
             const pluginId = sandbox.plugin.id;
             const number = (numbers.get(pluginId) || 0) + 1;
             numbers.set(pluginId, number);
-            sandbox.run = LIFECYCLE.makeRun({
+            LIFECYCLE.launch({
                 plugin: sandbox.plugin,
                 number,
-                notify: (name, run) => notifications.emit(name, run),
+                notify: (name, run) => {
+                    sandbox.run = run;
+                    notifications.emit(name, run);
+                },
             });
-            sandbox.run.launch();
         }
 
-        // `reason`: removed, updated, restart or quit. Resolves once the run has ended, its stop() answered, its time
-        // run out or its page gone.
+        // `reason`: one the lifecycle has. Resolves once the run has ended: its stop() answered, its time ran out or
+        // its page is gone.
         function terminate(sandbox, reason) {
-            const { run, view } = sandbox;
-            if (run.state === 'terminating') return sandbox.stopping;
+            const { run } = sandbox;
             if (run.state === 'notRunning') return Promise.resolve();
+            const terminating = run.state === 'terminating';
             run.terminate(reason);
+            return terminating ? sandbox.stopping : ended(sandbox);
+        }
+
+        // A terminating run ends once its stop() has answered.
+        function ended(sandbox) {
+            const { run, view } = sandbox;
             sandbox.stopping = stop(view).then(() => run.state === 'terminating' && run.didTerminate());
             return sandbox.stopping;
         }
@@ -199,13 +213,13 @@ DeckitModule.define(
             return ORIGIN.addressOf(ORIGIN.originOf(plugin.id));
         }
 
-        // What a page says of its run carries the run's number: what an older run sent before it was replaced, still
-        // on its way, is not the newer one's.
+        function sandboxFrom(sender, number) {
+            const sandbox = sandboxes.get(IDENTITY.pluginFrom(sender).id);
+            return sandbox?.run.number === number ? sandbox : null;
+        }
+
+        // What a page says of its run carries the run's number.
         function listen() {
-            const runFrom = (number, sender) => {
-                const run = sandboxes.get(IDENTITY.pluginFrom(sender).id)?.run;
-                return run && (number === null || number === undefined || number === run.number) ? run : null;
-            };
             PROTOCOL.load.handle((_payload, sender) => {
                 const sandbox = sandboxes.get(IDENTITY.pluginFrom(sender).id);
                 if (sandbox.closing) throw new Error(`${sandbox.plugin.id} is going`);
@@ -224,25 +238,18 @@ DeckitModule.define(
                 };
             });
             PROTOCOL.started.on(({ run: number, exports, summary }, sender) => {
-                const run = runFrom(number, sender);
+                const run = currentRun(sender, number);
                 if (run?.state === 'launching') run.didLaunch({ summary, exports });
             });
-            PROTOCOL.problem.on(({ run: number, problem }, sender) => {
-                const run = runFrom(number, sender);
-                if (!run) return;
-                LOG.warn(`${run.plugin.id}: ${problem}`);
-                run.record(problem);
-            });
-            // What start() did before it failed is ended at once by stop(), as for any run that ends.
+            PROTOCOL.problem.on(({ run: number, problem }, sender) => currentRun(sender, number)?.record(problem));
             PROTOCOL.notStarted.on(({ run: number, problem }, sender) => {
-                const run = runFrom(number, sender);
-                if (run?.state !== 'launching') return;
-                LOG.warn(`${run.plugin.id}: ${problem}`);
-                run.didFailToLaunch(problem);
-                stop(sandboxes.get(run.plugin.id).view);
+                const sandbox = sandboxFrom(sender, number);
+                if (sandbox?.run.state !== 'launching') return;
+                sandbox.run.didFailToLaunch(problem);
+                ended(sandbox);
             });
         }
 
-        return { start, runs, runOf, observe, closed, restart };
+        return { start, runs, runOf, currentRun, observe, closed, restart };
     }
 );

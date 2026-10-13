@@ -70,11 +70,18 @@ DeckitModule.define(
 
         // MARK: - Private
         async function run({ theme, ui, layers, show, dismiss }) {
-            // Answered from the first, so a page whose plugin never started does not keep main waiting; stop() runs
-            // once.
-            let started = null;
+            // Answered from the first, so a page whose plugin never started does not keep main waiting. stop() runs once,
+            // after a start() still going has ended; a plugin asked to stop before its start() is not started.
+            let started = null; // the entry, once its start() is called
+            let starting = null;
             let stopping = null;
-            PROTOCOL.stop.handle(() => (stopping ??= typeof started?.stop === 'function' ? stopOf(started) : null));
+            PROTOCOL.stop.handle(
+                () =>
+                    (stopping ??= (async () => {
+                        await starting?.catch(() => {});
+                        if (typeof started?.stop === 'function') await stopOf(started);
+                    })())
+            );
             const loaded = PROTOCOL.load.invoke();
             plugin = loaded.manifest;
             runNumber = loaded.run;
@@ -100,19 +107,22 @@ DeckitModule.define(
                 made.reject(new Error(`${plugin.id} did not start`));
                 return notStarted(entry);
             }
+            if (stopping) return stopped(entry);
             const registry = registryOf();
             const deck = deckOf({ theme, ui, settings, requires, show, register: registry.register });
             made.resolve(deck);
-            // Whatever start() did before it ended, stop() is told: when the run terminates, or at once when start() fails.
+            // Whatever start() did, stop() is told: when the run terminates, or once start() has failed.
             started = entry;
+            starting = (async () => entry.start(deck))();
             try {
-                await entry.start(deck);
+                await starting;
             } catch (error) {
                 registry.close();
                 fail(`start() threw: ${error.message || error}`);
                 return notStarted(entry);
             }
             const parts = registry.close();
+            if (stopping) return stopped(entry);
             let exported;
             try {
                 exported = structuredClone(snapshotOf(parts.exports || {}));
@@ -123,6 +133,11 @@ DeckitModule.define(
             contribute(entry, parts, { exported, layers, dismiss });
             const tell = (name) => typeof parts[name] === 'function' && deliver(`${name}()`, () => parts[name]());
             return { plugin, entry, parts, tell };
+        }
+
+        // Its run terminated before it started: nothing it registered is contributed.
+        function stopped(entry) {
+            return { plugin, entry, parts: null, tell: () => {} };
         }
 
         // A stop() that throws is recorded like any call into the plugin; the run ends either way.

@@ -107,7 +107,6 @@ DeckitModule.define(
                 for (const { id, outcome } of INSTALL.installShipped()) LOG.info(`${outcome} ${id}`);
             }
             WINDOW.start({ openWindow: (options) => shell.openWindow(options) });
-            DECK.start();
             WEB.start();
             KEYMAP.start();
             OPEN.start();
@@ -122,7 +121,7 @@ DeckitModule.define(
             PANEL.start({ shell });
             SWITCHER.start({ makeView: () => pageView(preload, { plugin: false }), shell });
             KEYMAP.connect({ pageFor: WEB.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
-            RUNNER.start({ makeView: () => pageView(preload, { plugin: true }) });
+            DECK.start({ makeView: () => pageView(preload, { plugin: true }) });
             shell.start({
                 setTheme,
                 panel: PANEL.control,

@@ -23,6 +23,7 @@ DeckitModule.define(
         // view that is gone or stuck.
         const REPLY_TIMEOUT = 400;
         const views = new Map(); // plugin id -> the view its page is in, while the plugin has something to show
+        const icons = new Map(); // plugin id -> the icon its latest run that started said it has
         const waiting = new Map(); // reply -> the wait in progress for it
         const heard = new Set(); // replies listened to
         const history = { list: [], at: -1 };
@@ -52,6 +53,7 @@ DeckitModule.define(
             listen();
             registerKeys();
             CATALOG.onChange(reconcile);
+            RUNNER.observe('didLaunch', ({ plugin, summary }) => icons.set(plugin.id, summary.icon));
             for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, reconcile);
             reconcile();
         }
@@ -152,7 +154,9 @@ DeckitModule.define(
             const showing = new Map(
                 RUNNER.runs()
                     .filter(({ run, view }) =>
-                        run.state === 'running' ? run.summary.view : views.get(run.plugin.id) === view && onItsWay(run)
+                        run.state === 'running'
+                            ? run.summary.view
+                            : views.get(run.plugin.id) === view && inTransition(run)
                     )
                     .map(({ run, view }) => [run.plugin.id, view])
             );
@@ -184,12 +188,12 @@ DeckitModule.define(
         function mayShow(id) {
             const run = RUNNER.runOf(id);
             if (!run) return false;
-            return run.state === 'running' ? run.summary.view : onItsWay(run);
+            return run.state === 'running' ? run.summary.view : inTransition(run);
         }
 
         // Launching, terminating, or ended to launch again.
-        function onItsWay(run) {
-            return run.state !== 'notRunning' || run.endReason === 'restart';
+        function inTransition(run) {
+            return run.state !== 'notRunning' || run.relaunches;
         }
 
         // In the person's order: the first plugin that has something to show, or may have once it has started. One
@@ -206,7 +210,7 @@ DeckitModule.define(
         function stateOf() {
             const plugins = CATALOG.plugins()
                 .filter(({ id }) => views.has(id))
-                .map(({ id, name }) => ({ id, name, icon: RUNNER.runOf(id)?.summary?.icon || '' }));
+                .map(({ id, name }) => ({ id, name, icon: icons.get(id) || '' }));
             return {
                 plugins,
                 current,
