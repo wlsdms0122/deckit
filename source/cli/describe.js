@@ -9,8 +9,10 @@ const [folder, version, source] = process.argv.slice(2);
 const bundles = {};
 for (const name of Object.keys(LIBRARY.bundles()))
     bundles[name] = { file: name + '.js', defines: definedIn(name + '.js') };
+// The contract it speaks, from the manifest module and what it names, run on the built registry.
 require(path.resolve(folder, 'registry.js'));
-require(path.resolve(folder, 'cli.js'));
+for (const file of LIBRARY.filesFrom(['deckit/service/plugin/package/manifest']))
+    require(path.join(LIBRARY.LIBRARY, file));
 const api = DeckitModule.use(['deckit/service/plugin/package/manifest'], (MANIFEST) => MANIFEST.API);
 const plugins = fs
     .readdirSync(path.join(folder, 'plugin'))
@@ -23,7 +25,6 @@ const described = {
     source,
     bundles,
     page: 'page.html',
-    cli: 'deckit-cli/deckit-cli',
     plugins,
 };
 fs.writeFileSync(path.join(folder, 'deckit.json'), JSON.stringify(described, null, 2) + '\n');

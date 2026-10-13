@@ -19,7 +19,6 @@ This document is why deckit is split the way it is, and the rules that keep it s
 source/deckit/deckit       the library: deck, its views and the kit. Names no host app, not even its own
 source/deckit/plugin       deckit's own plugins, Settings among them
 source/deckit/deckit-app   Deckit.app: deckit embedded by itself, its shell framing every window
-source/deckit/deckit-cli   the command line a host app ships for its plugins
 ```
 
 The package around deckit, `manifest.toml` and `source/cli`, is the commands that check, build, run and ship it (README.md). Deckit names none of it.
@@ -95,7 +94,7 @@ The library is in four layers, and names go one way:
 
 A concept's sides are `main.js` and `page.js`; a one-sided concept is `index.js`; `protocol.js` is how its own sides reach each other and nobody else's, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only).
 
-Bundles are worked out from their entries: the main bundle from `feature/app/main`, the page bundle from `feature/app/page`, the chord bundle, the command line's. A bundle carries what its entry names and what those name, each after what it names. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept, where each file runs, every folder a module or a group.
+Bundles are worked out from their entries: the main bundle from `feature/app/main`, the page bundle from `feature/app/page`, the chord bundle. A bundle carries what its entry names and what those name, each after what it names. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept, where each file runs, every folder a module or a group.
 
 ## 7. One design system
 

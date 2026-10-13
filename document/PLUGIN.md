@@ -44,7 +44,7 @@ bot = "1.0.0"
 | `requires` | no | plugin id = the lowest version it needs |
 | `permissions` | no | permission = why it is needed, in words the person reads |
 
-Any other field stops the plugin loading, and so does a `main` that names no file inside the folder. The manifest is read before a line of the plugin runs, by the main process and by the command line, against the same schema.
+Any other field stops the plugin loading, and so does a `main` that names no file inside the folder. The manifest is read by the main process before a line of the plugin runs.
 
 Only the part of TOML a manifest uses is read: top-level keys, one level of tables, and strings, booleans, integers and arrays of those as values. A key with a dot is quoted (`"system.main-process" = …`).
 
