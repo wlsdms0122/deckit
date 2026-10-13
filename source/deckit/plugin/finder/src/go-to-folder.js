@@ -25,6 +25,7 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         let turn = 0;
         let reading = false; // the folder typed is being read: its suggestions are not in yet
         let up = true; // the panel is up: one closed meanwhile goes nowhere
+        let chosen = false; // the arrows chose the active suggestion since the text last changed
         const picker = ui.quickPick({
             placeholder: 'Go to Folder',
             value: startText(),
@@ -32,24 +33,29 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
             create: rowOf,
             onInput: () => {
                 problem = '';
+                chosen = false;
                 suggest();
             },
             onPick: (suggestion) => go(suggestion.path),
-            // The typed path, unless the arrows chose a suggestion.
-            onEnter: ({ item }) => go(item ? item.path : resolved(picker.field.value)),
+            // The typed path, unless the arrows chose a suggestion: the pointer only marks one.
+            onEnter: ({ item }) => go(item && chosen ? item.path : resolved(picker.field.value)),
             onKey,
             onClose: () => (up = false),
         });
         suggest();
 
+        // Tab completes and never leaves the field.
         function onKey(event) {
-            if (event.key !== 'Tab' || event.shiftKey || !(reading || suggestions.length)) return false;
-            if (!reading) complete(suggestions[Math.max(0, picker.active())]);
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') chosen = suggestions.length > 0;
+            if (event.key !== 'Tab') return false;
+            if (!event.shiftKey && !reading && suggestions.length)
+                complete(suggestions[chosen ? Math.max(0, picker.active()) : 0]);
             return true;
         }
 
         function complete(suggestion) {
             picker.field.value = tildify(suggestion.path) + (suggestion.folder ? '/' : '');
+            chosen = false;
             suggest();
         }
 
@@ -83,7 +89,12 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
 
         // No suggestion is active until the arrows choose one.
         function draw() {
-            picker.set(suggestions, { active: -1, message: problem || (suggestions.length ? '' : unsuggested) });
+            chosen = false;
+            picker.set(suggestions, {
+                active: -1,
+                message: problem || (suggestions.length ? '' : unsuggested),
+                alert: !!problem,
+            });
         }
 
         // `promise` answered, with a spinner and `text` under the list once it takes a while and while `current()`.
