@@ -7,89 +7,59 @@ const { parentOf } = require('./path.js');
 function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
     const SUGGESTED = 8;
     const STYLE = `
-        .finder-goto-suggestions { display: flex; flex-direction: column; margin-top: 8px; }
-        .finder-goto-suggestions:empty { display: none; }
-        .finder-goto-suggestion { cursor: pointer; }
-        .finder-goto-suggestion-icon { display: flex; flex: 0 0 auto; }
-        .finder-goto-suggestion-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-        .finder-goto-problem { margin-top: 8px; color: var(--deckit-alert); font: var(--deckit-type-small); }
-        .finder-goto-problem:empty { display: none; }
+        .finder-goto-icon { display: flex; flex: 0 0 auto; }
+        .finder-goto-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     `;
-
-    let panels = 0; // the panels shown: a Go that comes back after another opened goes nowhere
 
     ui.addStyle(STYLE);
 
     return { show };
 
-    // `text` and `problem` are what a Go that failed after the panel closed brings back.
-    function show({ text = null, problem = '' } = {}) {
-        const number = ++panels;
+    function show() {
         const read = new Map(); // folder -> its entries, read once while the panel is up
-        let suggestions = []; // { path, name, folder }
-        let active = -1;
+        let suggestions = []; // { path, name, folder, entry }
+        let problem = '';
         let turn = 0;
         let reading = false; // the folder typed is being read: its suggestions are not in yet
         let up = true; // the panel is up: one closed meanwhile goes nowhere
-        const field = ui.field({
-            value: text ?? startText(),
+        const picker = ui.quickPick({
+            placeholder: 'Go to Folder',
+            value: startText(),
+            key: (suggestion) => suggestion.path,
+            create: rowOf,
             onInput: () => {
-                said.textContent = '';
-                active = -1;
-                draw();
+                problem = '';
                 suggest();
             },
-        });
-        const list = ui.element('div', { className: 'finder-goto-suggestions' });
-        const said = ui.element('div', { className: 'finder-goto-problem', text: problem });
-        const panel = ui.modal({
-            title: 'Go to Folder',
-            confirmLabel: 'Go',
+            onPick: (suggestion) => go(suggestion.path),
+            // The typed path, unless the arrows chose a suggestion.
+            onEnter: ({ item }) => go(item ? item.path : resolved(picker.field.value)),
             onKey,
-            onConfirm: () => go(typedPath(), { closed: true }),
             onClose: () => (up = false),
-            fill(card) {
-                card.append(field.element, said, list);
-                return field.input;
-            },
         });
         suggest();
 
         function onKey(event) {
-            if (event.target !== field.input) return false;
-            if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && suggestions.length) {
-                const by = event.key === 'ArrowDown' ? 1 : -1;
-                const count = suggestions.length;
-                active = active < 0 ? (by > 0 ? 0 : count - 1) : (active + by + count) % count;
-                draw();
-                return true;
-            }
-            if (event.key === 'Tab' && !event.shiftKey && (reading || suggestions.length)) {
-                if (!reading) complete(suggestions[Math.max(0, active)]);
-                return true;
-            }
-            if (event.key === 'Enter') {
-                go(active >= 0 ? suggestions[active].path : typedPath());
-                return true;
-            }
-            return false;
+            if (event.key !== 'Tab' || event.shiftKey || !(reading || suggestions.length)) return false;
+            if (!reading) complete(suggestions[Math.max(0, picker.active())]);
+            return true;
         }
 
         function complete(suggestion) {
-            field.set(tildify(suggestion.path) + (suggestion.folder ? '/' : ''));
+            picker.field.value = tildify(suggestion.path) + (suggestion.folder ? '/' : '');
             suggest();
         }
 
         // What the folder typed so far holds, starting with what follows its last slash.
         async function suggest() {
             const mine = ++turn;
-            const text = field.input.value;
+            const text = picker.field.value;
             const slash = text.lastIndexOf('/');
             const folder = resolved(slash < 0 ? '.' : text.slice(0, slash + 1) || '/');
             const start = text.slice(slash + 1).toLowerCase();
             reading = true;
             const entries = folder ? await entriesOf(folder) : [];
-            if (mine !== turn) return;
+            if (mine !== turn || !up) return;
             reading = false;
             suggestions = entries
                 .filter((entry) => entry.name.toLowerCase().startsWith(start))
@@ -97,30 +67,12 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
                 .sort((a, b) => (b.kind === 'folder') - (a.kind === 'folder') || a.name.localeCompare(b.name))
                 .slice(0, SUGGESTED)
                 .map((entry) => ({ path: entry.path, name: entry.name, folder: entry.kind === 'folder', entry }));
-            active = -1;
             draw();
         }
 
+        // No suggestion is active until the arrows choose one.
         function draw() {
-            list.replaceChildren(
-                ...suggestions.map((suggestion, index) => {
-                    const row = ui.row({ size: 'small' });
-                    row.element.classList.add('finder-goto-suggestion');
-                    const icon = ui.element('span', { className: 'finder-goto-suggestion-icon' });
-                    icon.innerHTML = suggestion.folder
-                        ? ui.folderIcon({ open: false, size: 14 })
-                        : ui.icon(kindIconOf(suggestion.entry), { size: 14 });
-                    row.element.append(
-                        icon,
-                        ui.element('span', { className: 'finder-goto-suggestion-name', text: suggestion.name })
-                    );
-                    row.setActive(index === active);
-                    // Before the field loses the focus.
-                    row.element.addEventListener('mousedown', (event) => event.preventDefault());
-                    row.element.addEventListener('click', () => go(suggestion.path));
-                    return row.element;
-                })
-            );
+            picker.set(suggestions, { active: -1, message: problem });
         }
 
         async function entriesOf(folder) {
@@ -132,25 +84,27 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
             return read.get(folder);
         }
 
-        function typedPath() {
-            return resolved(field.input.value);
-        }
-
-        // A path that is not there keeps the panel up and says so, or opens it again when Go had closed it.
-        async function go(path, { closed = false } = {}) {
-            if (!path) return closed ? show({ text: field.input.value }) : undefined;
+        // A path that is not there keeps the panel up and says so.
+        async function go(path) {
+            if (!path) return;
             const kind = await disk.exists(path).catch(() => null);
-            if (closed ? number !== panels : !up) return;
+            if (!up) return;
             if (!kind) {
-                const problem = `“${tildify(path)}” can’t be found.`;
-                if (closed) return show({ text: field.input.value, problem });
-                said.textContent = problem;
-                return;
+                problem = `“${tildify(path)}” can’t be found.`;
+                return draw();
             }
-            panel.close();
+            picker.close();
             if (kind === 'folder') onGo(path, null);
             else onGo(parentOf(path), path);
         }
+    }
+
+    function rowOf({ name, folder, entry }) {
+        const row = ui.row({ size: 'small' });
+        const icon = ui.element('span', { className: 'finder-goto-icon' });
+        icon.innerHTML = folder ? ui.folderIcon({ open: false, size: 14 }) : ui.icon(kindIconOf(entry), { size: 14 });
+        row.element.append(icon, ui.element('span', { className: 'finder-goto-name', text: name }));
+        return row.element;
     }
 
     // The tab's folder, to go on from.
