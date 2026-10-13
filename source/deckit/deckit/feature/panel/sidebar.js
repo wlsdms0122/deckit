@@ -33,6 +33,7 @@ DeckitModule.define(
                 box-shadow: var(--deckit-sidebar-shadow);
                 color: var(--deckit-text);
             }
+            .deckit-sidebar-title-bar { position: absolute; top: 0; left: 0; right: 0; -webkit-app-region: drag; }
             .deckit-sidebar-body {
                 display: flex;
                 flex-direction: column;
@@ -156,6 +157,7 @@ DeckitModule.define(
             // against its minimum widths every frame.
             const card = element('div', 'deckit-sidebar');
             const body = element('div', 'deckit-sidebar-body');
+            const titleBarRoom = element('div', 'deckit-sidebar-title-bar');
             const nav = element('div', 'deckit-sidebar-nav');
             SCROLL.edgeFade(nav);
             const section = ui.section({
@@ -235,7 +237,7 @@ DeckitModule.define(
             window.addEventListener('resize', () => !layout.collapsed && apply(layout, false));
 
             body.append(nav, splitter, slot);
-            card.append(body);
+            card.append(body, titleBarRoom);
 
             // The smaller of the one allowed anywhere and what leaves the plugin room. Read, not kept: the window resizes.
             function ceiling() {
@@ -303,9 +305,11 @@ DeckitModule.define(
             }
 
             // Under a window's title bar `height` tall, what the card holds starts below it: the card's top, inset
-            // from the window's, is where the window's buttons sit.
+            // from the window's, is where the window's buttons sit, and drags the window.
             function setTitleBarHeight(height) {
-                body.style.paddingTop = height ? Math.max(0, height - INSET) + 'px' : '';
+                const room = height ? Math.max(0, height - INSET) : 0;
+                body.style.paddingTop = room ? room + 'px' : '';
+                titleBarRoom.style.height = room + 'px';
             }
 
             return { element: card, show, setTitleBarHeight, collapsed: () => layout.collapsed };

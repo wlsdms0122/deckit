@@ -56,6 +56,7 @@ DeckitModule.define(
                 isFullyVisible: SCROLL.isFullyVisible,
                 pressable: PART.pressable,
                 selectable: PART.selectable,
+                titleBar: PART.titleBar,
             });
             return deepFreeze(ui);
         }

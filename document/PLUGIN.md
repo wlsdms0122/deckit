@@ -124,7 +124,7 @@ Each registration is a call on `deck`, made once, before `start` ends; deck cont
 
 ### deck.view({ content, sidebar, didAppear, didDisappear })
 
-`content` is the element shown in the panel. Registering a view gives the plugin a row in the plugin list and lets it be on screen. A plugin with no view is headless: it exists through whatever else it registers (keys, commands, opening addresses, exports, its main process modules) from when it starts until it stops, and a `start` that registers nothing is a headless plugin that does nothing yet. `sidebar` is an element shown in the sidebar under the plugin list while the view is on screen.
+`content` is the element shown in the panel, to the panel's top. Where a window's title bar lies over that top, the top of the view is its title bar area, as tall as the page's `--deckit-title-bar-area-height` and starting `--deckit-title-bar-area-x` from the left, past the window's buttons; both are `0px` where there is none. A plugin lays its own bar there with `ui.titleBar(element)`, or uses the two values itself. Registering a view gives the plugin a row in the plugin list and lets it be on screen. A plugin with no view is headless: it exists through whatever else it registers (keys, commands, opening addresses, exports, its main process modules) from when it starts until it stops, and a `start` that registers nothing is a headless plugin that does nothing yet. `sidebar` is an element shown in the sidebar under the plugin list while the view is on screen.
 
 ### didAppear() and didDisappear()
 

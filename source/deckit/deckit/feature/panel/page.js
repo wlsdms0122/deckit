@@ -45,33 +45,8 @@ DeckitModule.define(
                 display: 'flex',
                 flexDirection: 'column',
             });
-            // Where the window's title bar lies over the panel, when the panel shares the window's top with it: a band
-            // across the panel that drags the window wherever nothing is drawn over it, and over the content the strip
-            // that names the plugin on screen, which leaves the window's buttons room when the sidebar is collapsed.
-            const dragBand = element('div', {
-                position: 'absolute',
-                top: '0',
-                left: '0',
-                right: '0',
-                display: 'none',
-                webkitAppRegion: 'drag',
-            });
-            const titleStrip = element('div', {
-                flex: '0 0 auto',
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxSizing: 'border-box',
-                font: '600 ' + theme.type.body,
-                color: theme.color.muted,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                webkitAppRegion: 'drag',
-                transition: `padding-left ${MOTION.base}ms ${MOTION.easing}`,
-            });
             Object.assign(parts.content.style, { width: '100%', flex: '1 1 auto', minHeight: '0' });
-            content.append(titleStrip, parts.content);
+            content.append(parts.content);
             const sidebar = SIDEBAR.make({
                 theme,
                 ui,
@@ -85,7 +60,7 @@ DeckitModule.define(
                 onCollapsedChange: () => dress(),
                 chordOf: (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action)),
             });
-            root.append(dragBand, sidebar.element, content);
+            root.append(sidebar.element, content);
             document.body.appendChild(root);
             dress();
             showState(setup.state, false);
@@ -113,10 +88,8 @@ DeckitModule.define(
                 else fadeIn();
             });
 
-            // The strip names the plugin on screen, as the panel's title does.
             function showState(state, animate) {
                 sidebar.show(state, animate);
-                titleStrip.textContent = state.plugins.find(({ id }) => id === state.current)?.name || '';
             }
 
             // didAppear and didDisappear alternate, worked out in this one place.
@@ -128,15 +101,16 @@ DeckitModule.define(
 
             // Floating over an app, the ring makes the panel read as on top and the rounding needs the page behind
             // to be clear. Filling a window, the frame is the OS's, and the panel may share the window's top with its
-            // title bar: the sidebar reaches up under it and the content keeps below it.
+            // title bar: the sidebar reaches up under it, and so does the content, whose title bar area is the plugin's
+            // (`ui.titleBar`): as tall as the bar, from past the window's buttons when the sidebar is collapsed.
             function dress() {
                 const bar = look.titleBar;
-                Object.assign(dragBand.style, { display: bar ? 'block' : 'none', height: (bar?.height || 0) + 'px' });
-                Object.assign(titleStrip.style, {
-                    display: bar ? 'flex' : 'none',
-                    height: (bar?.height || 0) + 'px',
-                    paddingLeft: bar && sidebar.collapsed() ? bar.controlsWidth + 'px' : '0',
-                });
+                const page = document.documentElement.style;
+                page.setProperty('--deckit-title-bar-area-height', (bar?.height || 0) + 'px');
+                page.setProperty(
+                    '--deckit-title-bar-area-x',
+                    (bar && sidebar.collapsed() ? bar.controlsWidth : 0) + 'px'
+                );
                 sidebar.setTitleBarHeight(bar?.height || 0);
                 Object.assign(
                     root.style,

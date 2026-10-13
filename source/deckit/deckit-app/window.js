@@ -27,7 +27,7 @@ DeckitModule.define(
         const FONT = '-apple-system, system-ui, sans-serif';
         const SAVE_DELAY = 400;
         const titles = new WeakMap(); // window -> the title it shows
-        const drawingTitle = new WeakSet(); // the windows whose view draws the title, under the bar
+        const covered = new WeakSet(); // the windows whose view covers the bar, where its title would be
 
         // MARK: - Initializer
         // MARK: - Public
@@ -36,7 +36,7 @@ DeckitModule.define(
         // and answers a double click as the person set. `size` is the view's, below the bar. `glass`, for a view drawn
         // as glass, is the strength it lays its colour over the blur at: the window blurs what is behind it, and the
         // bar lays the same colour at the same strength, so the two read as one surface. `fullSize`: the view fills the
-        // window, the bar's height included, and draws what lies under the bar itself, the title too (TITLE_BAR). A
+        // window, the bar's height included, and draws what lies under the bar itself (TITLE_BAR). A
         // window with a `key` opens where it was last left; another opens over the window in front. `focus` hands the
         // keyboard to the view, which macOS otherwise gives the bar each time the window comes forward.
         function open({
@@ -69,7 +69,7 @@ DeckitModule.define(
             const page = view.webContents || null;
             const giveKeyboard = focus || (() => page && !page.isDestroyed() && page.focus());
             titles.set(window, title);
-            if (fullSize) drawingTitle.add(window);
+            if (fullSize) covered.add(window);
             window.webContents.loadURL(barPage({ glass }));
             window.webContents.on('did-finish-load', () => showTitle(window));
             place(window, { bounds: fullSize ? ({ width, height }) => ({ x: 0, y: 0, width, height }) : viewBounds });
@@ -92,13 +92,13 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // The bar shows the latest title once it has loaded, whenever that came, unless the view draws it. macOS is
+        // The bar shows the latest title once it has loaded, whenever that came, unless the view covers it. macOS is
         // told it either way.
         function showTitle(window) {
             if (window.isDestroyed()) return;
             const title = titles.get(window) || '';
             window.setTitle(title || CONFIG.name);
-            if (drawingTitle.has(window)) return;
+            if (covered.has(window)) return;
             window.webContents.executeJavaScript(`setTitle(${JSON.stringify(title)})`, true).catch(() => {});
         }
 
