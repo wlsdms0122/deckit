@@ -5,7 +5,7 @@ const { nameOf } = require('./path.js');
 const TABS_STYLE = `
     .editor-tabs {
         display: flex;
-        align-items: stretch;
+        align-items: flex-end;
         flex: 0 0 auto;
         height: 34px;
         padding: 8px 10px 0;
@@ -13,7 +13,7 @@ const TABS_STYLE = `
         overflow-y: hidden;
     }
     .editor-tabs:has(> .editor-tab-list:empty) { display: none; }
-    .editor-tab-list { display: flex; align-items: stretch; gap: 2px; }
+    .editor-tab-list { display: flex; align-items: stretch; gap: 2px; height: 26px; }
     .editor-tab {
         display: flex;
         align-items: center;
@@ -26,6 +26,7 @@ const TABS_STYLE = `
         white-space: nowrap;
         cursor: pointer;
         opacity: 0.65;
+        -webkit-app-region: no-drag;
         transition: background-color var(--deckit-fast) var(--deckit-easing);
     }
     .editor-tab:hover { background: var(--deckit-hover); }
@@ -60,6 +61,7 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
     let shownFor = null; // the workspace whose tabs are drawn
 
     const element = ui.element('div', { className: 'editor-tabs' });
+    ui.titleBar(element);
     let rows = tabList();
 
     element.append(rows.element);

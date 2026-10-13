@@ -8,10 +8,10 @@ function navigationBar({ ui, chordOf, onBack, onForward, onGo, acceptDrops }) {
             alignItems: 'center',
             gap: '2px',
             flex: '0 0 auto',
-            padding: '8px 12px 6px',
-            minHeight: '30px',
+            padding: '7px 12px',
         },
     });
+    ui.titleBar(element);
     const backButton = ui.iconButton({
         icon: ui.icon('chevronLeft', { size: 16 }),
         title: 'Back',

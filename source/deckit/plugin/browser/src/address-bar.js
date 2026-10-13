@@ -43,7 +43,7 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
         .browser-address-bar[data-open] { box-shadow: var(--deckit-shadow-raised); }
         .browser-address-bar[data-corner^='t'] { top: 8px; }
         .browser-address-bar[data-corner^='b'] { bottom: 10px; }
-        .browser-address-bar[data-corner$='l'] { left: 10px; }
+        .browser-address-bar[data-corner$='l'] { left: calc(10px + var(--deckit-title-bar-area-x, 0px)); }
         .browser-address-bar[data-corner$='r'] { right: 10px; }
         .browser-address-bar .browser-address-button { border-radius: var(--deckit-radius-round); }
         .browser-address-controls {
