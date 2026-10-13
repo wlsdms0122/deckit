@@ -11,7 +11,6 @@ function openAddress({ ui, open }) {
         return [
             {
                 label: 'Open ' + address,
-                hint: 'To the handlers of its scheme',
                 icon: ui.icon('link', { size: 16 }),
                 run: () => open(address),
             },

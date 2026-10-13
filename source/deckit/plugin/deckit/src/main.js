@@ -62,11 +62,12 @@ module.exports = {
 
         // One not running is launched.
         function installedPlugins() {
+            const STATES = { launching: 'Starting', running: 'Running', terminating: 'Stopping' };
             const { installed, running } = deck.plugins.list();
             const icons = new Map(running.map((plugin) => [plugin.id, plugin.icon]));
             return installed.map((plugin) => ({
                 label: plugin.name,
-                hint: plugin.state === 'running' ? 'Running' : 'Not running',
+                hint: STATES[plugin.state] || (plugin.problem ? 'Did not load' : 'Not running'),
                 icon: icons.get(plugin.id) || icon('puzzle'),
                 run: () => deck.plugins.relaunch(plugin.id),
             }));
