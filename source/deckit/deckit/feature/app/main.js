@@ -104,7 +104,9 @@ DeckitModule.define(
         function start(preload, shell) {
             serve();
             if (CONFIG.ship.length) {
-                for (const { id, outcome } of INSTALL.installShipped()) LOG.info(`${outcome} ${id}`);
+                for (const { id, outcome, problem } of INSTALL.installShipped())
+                    if (problem) LOG.warn(`${id} did not install: ${problem}`);
+                    else LOG.info(`${outcome} ${id}`);
             }
             WINDOW.start({ openWindow: (options) => shell.openWindow(options) });
             WEB.start();

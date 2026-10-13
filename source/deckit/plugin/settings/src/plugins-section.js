@@ -178,7 +178,7 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
                 )
             );
             removeAction.element.hidden = !plugin.installed;
-            source.element.hidden = !!plugin.installed;
+            source.element.hidden = !!(plugin.installed || plugin.shipped);
             source.element.title =
                 `Read from ${plugin.folder || 'a source folder'}, ` + 'not installed: it is removed there, not here.';
             failure.textContent = [
@@ -302,6 +302,7 @@ function pluginsSection({ ui, plugins, keymap, urlSchemes, util, appName, onChan
         const fromDisk = (plugin) => ({
             version: plugin?.version,
             installed: plugin?.installed,
+            shipped: plugin?.shipped,
             folder: plugin?.folder,
             permissions: plugin?.permissions,
             mainProcessFailure: plugin?.mainProcess.failure,

@@ -77,11 +77,24 @@ DeckitModule.define(
 
         // MARK: - Private
         // A plugin that requires one that does not load does not load either. Two reads of a plugin with one
-        // `revision` are the same code: a copy installed again, even of the same version, is not.
+        // `revision` are the same code: a copy installed again, even of the same version, is not. What the app ships
+        // and did not install, with no copy to read, is read where the app ships it, and does not load.
         function list() {
             const shipped = INSTALL.shipped() || new Set();
             const read = [];
-            for (const [id, { folder, installed, manifest, problem, hides }] of foldersById()) {
+            const folders = foldersById();
+            for (const [id, { folder, problem }] of INSTALL.notInstalled()) {
+                if (folders.has(id)) continue;
+                const { manifest } = FOLDER.loadable(folder);
+                folders.set(id, {
+                    folder,
+                    manifest,
+                    problem: 'did not install: ' + problem,
+                    hides: [],
+                    notInstalled: true,
+                });
+            }
+            for (const [id, { folder, installed = false, manifest, problem, hides, notInstalled }] of folders) {
                 const revision = JSON.stringify([
                     folder,
                     manifest.version,
@@ -92,7 +105,7 @@ DeckitModule.define(
                     ...manifest,
                     folder,
                     installed,
-                    shipped: installed && shipped.has(id),
+                    shipped: !!notInstalled || (installed && shipped.has(id)),
                     problem,
                     hides,
                     revision,

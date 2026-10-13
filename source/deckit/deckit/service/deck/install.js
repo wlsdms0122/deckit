@@ -2,13 +2,14 @@ DeckitModule.define(
     'deckit/service/deck/install',
     {
         uses: ['deckit/config', 'deckit/service/home', 'deckit/service/plugin/folder'],
-        provides: ['installed', 'installable', 'install', 'shipped', 'installShipped'],
+        provides: ['installed', 'installable', 'install', 'shipped', 'installShipped', 'notInstalled'],
         runs: 'node',
     },
     (CONFIG, HOME, FOLDER) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
+        const failed = new Map(); // plugin id -> { folder, problem }: what the app ships that did not install
 
         // MARK: - Initializer
         // MARK: - Public
@@ -67,18 +68,27 @@ DeckitModule.define(
         // What the app ships (CONFIG.ship) installed by one rule: a plugin it shipped before and that is not
         // installed now was removed by the person, and stays out; the rest is installed. Removals are recorded
         // nowhere else. `only` installs those ids whatever was decided before, and leaves the others as they are.
+        //
+        // One that does not install fails alone, and is not recorded as shipped unless a copy of it is installed: the
+        // next start tries it again rather than take it for removed.
         function installShipped({ only = null } = {}) {
             const byId = new Map();
+            failed.clear();
             for (const folder of CONFIG.ship) {
                 const id = FOLDER.idOf(folder);
-                if (byId.has(id)) throw new Error(`two plugins named ${id}: ${byId.get(id)} and ${folder}`);
-                byId.set(id, folder);
+                if (byId.has(id)) failed.set(id, { folder, problem: `${byId.get(id)} is shipped with the same id` });
+                else byId.set(id, folder);
             }
             for (const id of only || []) if (!byId.has(id)) throw new Error(`not a plugin the app ships: ${id}`);
 
             const before = shipped();
             const copies = installed();
-            const outcomes = [];
+            const outcomes = [...failed].map(([id, { problem }]) => ({
+                id,
+                outcome: 'failed',
+                version: null,
+                problem,
+            }));
             const take = only ? [...only] : [];
             if (!only) {
                 for (const id of byId.keys()) {
@@ -92,21 +102,29 @@ DeckitModule.define(
                 }
             }
             for (const id of take) {
-                let manifest;
                 try {
-                    manifest = install(byId.get(id));
+                    const manifest = install(byId.get(id));
+                    outcomes.push({ id, outcome: 'installed', version: manifest.version });
                 } catch (error) {
-                    throw new Error(`${byId.get(id)}: ${error.message}`);
+                    failed.set(id, { folder: byId.get(id), problem: error.message });
+                    outcomes.push({ id, outcome: 'failed', version: null, problem: error.message });
                 }
-                outcomes.push({ id, outcome: 'installed', version: manifest.version });
             }
 
             // A left out id stays on the list, so its absence keeps meaning it was removed.
-            const list = only ? [...new Set([...(before || []), ...only])].sort() : [...byId.keys()];
+            const now = installed();
+            const list = (only ? [...new Set([...(before || []), ...only])].sort() : [...byId.keys()]).filter(
+                (id) => !failed.has(id) || now.has(id)
+            );
             fs.mkdirSync(HOME.plugins, { recursive: true });
             fs.writeFileSync(HOME.shipped + '.new', list.map((id) => id + '\n').join(''));
             fs.renameSync(HOME.shipped + '.new', HOME.shipped);
             return outcomes;
+        }
+
+        // What the app ships that did not install at this start, and why: { folder, problem } by plugin id.
+        function notInstalled() {
+            return failed;
         }
 
         // MARK: - Private
@@ -115,6 +133,6 @@ DeckitModule.define(
             return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
         }
 
-        return { installed, installable, install, shipped, installShipped };
+        return { installed, installable, install, shipped, installShipped, notInstalled };
     }
 );
