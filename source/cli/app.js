@@ -1,4 +1,4 @@
-// Deckit.app's folder, put together from a deckit-lib archive the way any app that embeds deckit loads it.
+// Deckit.app's folder, put together from a deckit archive the way any app that embeds deckit loads it.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -9,8 +9,8 @@ const APP = path.join(__dirname, '..', 'deckit', 'deckit-app');
 // The one archive the last build made.
 function builtArchive() {
     const out = path.join(ROOT, '.build');
-    const found = fs.existsSync(out) ? fs.readdirSync(out).filter((file) => /^deckit-lib-.+\.tgz$/.test(file)) : [];
-    if (found.length !== 1) throw new Error('no deckit-lib archive in .build/: run deckit build first');
+    const found = fs.existsSync(out) ? fs.readdirSync(out).filter((file) => /^deckit-[0-9].*\.tgz$/.test(file)) : [];
+    if (found.length !== 1) throw new Error('no deckit archive in .build/: run deckit build first');
     return path.join(out, found[0]);
 }
 

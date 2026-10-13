@@ -10,7 +10,7 @@ Deckit is `source/deckit` and the documents it ships, whole by itself. This pack
 source/cli/deckit build
 ```
 
-writes `.build/deckit-lib-<version>.tgz`, with its sha256 beside it: the library's bundles, its page, `deckit.json`, the command line for plugins (`deckit-cli/`), the documents a host app reads, and deckit's own plugins, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
+writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the library's bundles, its page, `deckit.json`, the command line for plugins (`deckit-cli/`), the documents a host app reads, and deckit's own plugins, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
 
 ```
 source/cli/deckit app
@@ -21,7 +21,7 @@ then makes `.build/Deckit.app` from that archive, the way any host app embeds it
 ## Commands
 
 ```
-source/cli/deckit build            deckit-lib, into .build/
+source/cli/deckit build            the deckit archive, into .build/
 source/cli/deckit app              Deckit.app, into .build/, from the archive the last build made
 source/cli/deckit check            hold every file to how the library is laid out
 source/cli/deckit dev              Deckit.app from the sources, its data in .dev/, built again when one changes

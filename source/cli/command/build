@@ -73,9 +73,9 @@ pack() {
   rm -f "$to.list"
   ( cd "$(dirname "$to")" && shasum -a 256 "$(basename "$to")" > "$(basename "$to").sha256" )
 }
-NAME="deckit-lib-$VERSION.tgz"
+NAME="deckit-$VERSION.tgz"
 pack "$LIB" "$WORK/$NAME"
-rm -f "$OUT"/deckit-lib-*.tgz*
+rm -f "$OUT"/deckit-[0-9]*.tgz*
 mv "$WORK/$NAME" "$WORK/$NAME.sha256" "$OUT/"
 ARCHIVE="$OUT/$NAME"
 

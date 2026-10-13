@@ -4,7 +4,7 @@ Deckit is a library a host app embeds, UI included: deck, its core, which runs p
 
 ## 1. The archive
 
-A host app embeds one archive, `deckit-lib-<version>.tgz`, with its sha256 beside it, in an Electron of its own: deckit is made against Electron 44. It keeps the archive as built and unpacks it where it builds and runs. The same sources make the same archive, byte for byte, so its hash says which deckit it is.
+A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it, in an Electron of its own: deckit is made against Electron 44. It keeps the archive as built and unpacks it where it builds and runs. The same sources make the same archive, byte for byte, so its hash says which deckit it is.
 
 | In the archive | |
 |---|---|
