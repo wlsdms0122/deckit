@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/ui/component/quick-pick',
-    { uses: ['deckit/ui/list', 'deckit/ui/list/listbox'], provides: ['STYLE', 'make'] },
-    (LIST, LISTBOX) => {
+    { uses: ['deckit/ui/icon', 'deckit/ui/list', 'deckit/ui/list/listbox'], provides: ['STYLE', 'make'] },
+    (ICON, LIST, LISTBOX) => {
         // MARK: - Property
         const STYLE = `
             .deckit-quick-pick-bar { display: flex; align-items: center; }
@@ -61,8 +61,8 @@ DeckitModule.define(
         // by `key`, `create` and `update`, as a keyed list draws them; `optionOf(item)` is null for an item that is no
         // option (a heading), or else `{ disabled }`. The arrows move the active option and Enter picks it, or with
         // `onEnter({ item, text })` hands both to the owner. `onKey(event)` has a key first and returns whether it took
-        // it. `onActive(item, index, { pointer })` hears the active option move. The field keeps the focus: a press
-        // anywhere else on the card leaves it there.
+        // it. `onActive(item, index, { pointer })` hears the active option move, and `onCommandKey(held)` the Command
+        // key held down in it or let go. The field keeps the focus: a press anywhere else on the card leaves it there.
         function quickPick(
             ui,
             {
@@ -78,6 +78,7 @@ DeckitModule.define(
                 onEnter = null,
                 onKey = () => false,
                 onActive = () => {},
+                onCommandKey = () => {},
                 onClose,
             }
         ) {
@@ -97,6 +98,8 @@ DeckitModule.define(
                 onActivate: (index, { pointer }) => onActive(options[index], index, { pointer }),
             });
             field.addEventListener('input', () => onInput(field.value));
+            field.addEventListener('keyup', (event) => event.key === 'Meta' && onCommandKey(false));
+            field.addEventListener('blur', () => onCommandKey(false));
             const modal = ui.modal({
                 chrome: false,
                 align: 'top',
@@ -115,6 +118,7 @@ DeckitModule.define(
             // A key that composes text in an input method is the method's.
             function handleKey(event) {
                 if (event.isComposing) return false;
+                if (event.key === 'Meta') onCommandKey(true);
                 if (onKey(event)) return true;
                 if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && options.length) {
                     listbox.move(event.key === 'ArrowDown' ? 1 : -1);
@@ -148,10 +152,20 @@ DeckitModule.define(
                 note.textContent = noted;
             }
 
+            // What the field searches in, shown before it: `{ icon, label }`, the icon as SVG markup, or null for none.
+            function setScope(scope) {
+                chip.hidden = !scope;
+                chip.replaceChildren(...(scope ? [ICON.sanitize(scope.icon), scope.label] : []));
+            }
+
+            // The text typed is the owner's to set too; one it sets is not heard as typed.
             return {
-                field,
-                chip,
-                list: box,
+                text: () => field.value,
+                setText: (text) => (field.value = text),
+                setPlaceholder: (text) => (field.placeholder = text),
+                setScope,
+                // The field takes the keyboard with its text selected, to type over.
+                focus: () => field.select(),
                 set,
                 move: (by) => listbox.move(by),
                 active: () => listbox.active(),
