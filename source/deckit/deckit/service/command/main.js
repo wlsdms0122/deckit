@@ -5,12 +5,13 @@ DeckitModule.define(
             'deck/service/log/main',
             'deck/service/deck/identity',
             'deck/service/deck/catalog',
+            'deck/service/deck/runner',
             'deckit/service/command/protocol',
             'deckit/service/command/model/tone',
         ],
         provides: ['start', 'TONES', 'session'],
     },
-    (LOG, IDENTITY, CATALOG, PROTOCOL, TONE) => {
+    (LOG, IDENTITY, CATALOG, RUNNER, PROTOCOL, TONE) => {
         // MARK: - Property
         // A mod that has not answered by then answers nothing, so one stuck page does not hold the others.
         const ANSWER_MS = 2000;
@@ -26,6 +27,8 @@ DeckitModule.define(
                 sources.set(mod.id, source);
                 IDENTITY.whenPageEnds(sender, () => sources.get(mod.id) === source && sources.delete(mod.id));
             });
+            // A run that has ended offers nothing, though its page may stay until the mod launches again.
+            RUNNER.observe('didTerminate', ({ mod }) => sources.delete(mod.id));
         }
 
         // What the running mods offer to be run, asked by one caller: an entry runs by the id its session handed

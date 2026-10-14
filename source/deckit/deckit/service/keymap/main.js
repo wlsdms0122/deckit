@@ -8,13 +8,14 @@ DeckitModule.define(
             'deckit/module/chord',
             'deck/service/deck/identity',
             'deck/service/deck/catalog',
+            'deck/service/deck/runner',
             'deckit/service/keymap/protocol',
             'deckit/service/keymap/model/binding-id',
             'deckit/service/keymap/model/permission',
         ],
         provides: ['start', 'connect', 'delegate', 'listen', 'register', 'chordOf'],
     },
-    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, CATALOG, PROTOCOL, BINDING_ID, KEYMAP_PERMISSION) => {
+    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, CATALOG, RUNNER, PROTOCOL, BINDING_ID, KEYMAP_PERMISSION) => {
         // MARK: - Property
         const OVERRIDES = 'keys';
         const RECORDING_MS = 20 * 1000;
@@ -33,10 +34,13 @@ DeckitModule.define(
             overrides = STORAGE.state.read(OVERRIDES, {});
             PROTOCOL.scope.on(({ keys }, sender) => {
                 const mod = IDENTITY.modFrom(sender);
-                scopes.set(mod.id, keys);
-                IDENTITY.whenPageEnds(sender, () => scopes.get(mod.id) === keys && scopes.delete(mod.id));
+                const taken = keys.filter((key) => takes(mod, key));
+                scopes.set(mod.id, taken);
+                IDENTITY.whenPageEnds(sender, () => scopes.get(mod.id) === taken && scopes.delete(mod.id));
                 announce();
             });
+            // A run that has ended takes no key, though its page may stay until the mod launches again.
+            RUNNER.observe('didTerminate', ({ mod }) => scopes.delete(mod.id) && announce());
             PROTOCOL.typing.on(({ on }, sender) => mark(typing, sender, on));
             PROTOCOL.record.on(({ on }, sender) => {
                 IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
@@ -106,6 +110,19 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        // What a page declares is held to the rule here, where it is taken: a global key needs ⌘, ⌃ or ⌥, and none a
+        // text field uses, since it is taken from every page, fields included.
+        function takes(mod, key) {
+            const { action, key: spec, label, global } = key || {};
+            if (typeof action !== 'string' || typeof spec !== 'string' || typeof label !== 'string') return false;
+            if (typeof global !== 'boolean' || CHORD.normalize(spec) !== spec) return false;
+            if (!global) return true;
+            const chord = CHORD.parse(spec);
+            const fits = (chord.meta || chord.ctrl || chord.alt) && !CHORD.editsText({ ...chord, control: chord.ctrl });
+            if (!fits) LOG.warn(`${mod.id}: key "${action}" cannot be global, so it is not taken`);
+            return !!fits;
+        }
+
         // What a reader needs of the binding an issue is about.
         function factsOf(binding) {
             const { id, chord, label, owner, ownerName, scope } = binding;

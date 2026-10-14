@@ -7,6 +7,7 @@ DeckitModule.define(
             'deck/service/log/main',
             'deck/service/deck/identity',
             'deck/service/deck/catalog',
+            'deck/service/deck/runner',
             'deckit/service/main-process/model/permission',
             'deckit/service/open/model/scheme',
             'deckit/service/open/protocol',
@@ -14,7 +15,7 @@ DeckitModule.define(
         ],
         provides: ['start', 'open'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, MAIN_PROCESS_PERMISSION, SCHEME, PROTOCOL, OPEN_PERMISSION) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER, MAIN_PROCESS_PERMISSION, SCHEME, PROTOCOL, OPEN_PERMISSION) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -45,6 +46,8 @@ DeckitModule.define(
                 // A page being replaced ends after its successor is up: only the page on duty stops answering.
                 IDENTITY.whenPageEnds(sender, () => IDENTITY.pageOf(mod.id) === sender && answering.delete(mod.id));
             });
+            // A run that has ended answers no offer, though its page may stay until the mod launches again.
+            RUNNER.observe('didTerminate', ({ mod }) => answering.delete(mod.id));
             // Only on a person's click or key: otherwise any mod could open Finder at will, or learn which paths exist.
             PROTOCOL.reveal.handle(({ file }, sender) => {
                 IDENTITY.modFrom(sender);
@@ -64,7 +67,9 @@ DeckitModule.define(
             });
         }
 
-        // Each of the scheme's handlers is asked in turn and the first to take it ends it; then deckit's own answer.
+        // Each of the scheme's handlers is asked in turn and the first to take it ends it; then deckit's own answer. A
+        // file opens only during a person's click or key, whoever answers it, as reveal shows one: otherwise any mod
+        // could open apps at will, or learn which paths exist.
         async function open(
             url,
             { activates = true, userInitiated = false, usesDefaultApp = false, target = '' } = {}
@@ -72,6 +77,7 @@ DeckitModule.define(
             const address = String(url).trim();
             const scheme = schemeOf(address);
             if (!scheme || SCHEME.NOT_PLACES.has(scheme)) return false;
+            if (scheme === 'file' && !userInitiated) return false;
             const options = { activates, userInitiated, target };
             if (!usesDefaultApp && (await offer(handledAs(scheme), address, options))) return true;
             return system(scheme, address, options);
@@ -168,9 +174,8 @@ DeckitModule.define(
             return false;
         }
 
-        // The web goes to the system browser. A file is opened in its app when a person asked for it, and shown in
-        // Finder otherwise, whatever it is, since no list of which files are programs is complete.
-        async function system(scheme, url, { activates, userInitiated }) {
+        // The web goes to the system browser, and a file to its app.
+        async function system(scheme, url, { activates }) {
             const { shell } = require('electron');
             if (SYSTEM.get(scheme) === 'browser') {
                 await shell.openExternal(url, { activate: activates });
@@ -178,12 +183,7 @@ DeckitModule.define(
             }
             if (SYSTEM.get(scheme) !== 'file') return false;
             const file = existing(filePathOf(url));
-            if (!file) return false;
-            if (!userInitiated) {
-                shell.showItemInFolder(file);
-                return true;
-            }
-            return !(await shell.openPath(file));
+            return !!file && !(await shell.openPath(file));
         }
 
         function reveal(file) {

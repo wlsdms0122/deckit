@@ -165,13 +165,14 @@ DeckitModule.define(
         function preparePage(webContents, mod) {
             WEB.host(webContents);
             KEYMAP.listen(webContents);
+            const pressed = () => ({ userInitiated: IDENTITY.consumeUserActivation(webContents) });
             webContents.setWindowOpenHandler((details) => {
-                OPEN.open(details.url, WEB.windowOptions(details));
+                OPEN.open(details.url, { ...WEB.windowOptions(details), ...pressed() });
                 return { action: 'deny' };
             });
             const origin = ORIGIN.originOf(mod.id);
             LOG.guard(webContents, 'will-frame-navigate', (details) => {
-                if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.open(details.url, {});
+                if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.open(details.url, pressed());
             });
         }
 
