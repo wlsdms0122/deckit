@@ -21,9 +21,8 @@ function readCache({ records, accounts, feeds, client, onChange, onRead }) {
     const accountStatus = new Map(); // account id -> { loading, signedOut }
     let readAt = 0;
     let loading = false;
-    // A forced read asked for while one runs is run after it, for the range it was asked with: the running one was
-    // asked before the change.
-    let again = null;
+    // A forced read asked for while one runs waits for follow() after it: the running one was asked before the change.
+    let again = false;
 
     for (const [key, readWindow] of Object.entries(records.get(CACHE_KEY, {}))) {
         if (feeds.all().some((feed) => keyOf(feed) === key))
@@ -53,7 +52,7 @@ function readCache({ records, accounts, feeds, client, onChange, onRead }) {
             return;
         }
         if (loading) {
-            if (force) again = range;
+            if (force) again = true;
             return;
         }
         const failing = list.some((feed) => {
@@ -62,6 +61,7 @@ function readCache({ records, accounts, feeds, client, onChange, onRead }) {
         });
         if (!force && Date.now() - readAt < (failing ? RETRY_MS : REFRESH_INTERVAL)) return;
         loading = true;
+        again = false;
         try {
             for (const account of accounts.all())
                 statusOf(account.id).loading = list.some((feed) => feed.account === account.id);
@@ -82,16 +82,22 @@ function readCache({ records, accounts, feeds, client, onChange, onRead }) {
             for (const account of accounts.all()) statusOf(account.id).loading = false;
         }
         onRead();
-        if (again) {
-            const asked = again;
-            again = null;
-            refresh(asked, true);
-        }
     }
 
-    // Reads again when a calendar has nothing for `range`.
+    // Reads when a forced read waits, or a calendar has nothing for `range`. A calendar whose provider is not running
+    // is left as it is: it is not read.
     function follow(range) {
-        if (!loading && feeds.all().some((feed) => !covers(record.get(keyOf(feed)), range))) refresh(range, true);
+        if (loading) return;
+        const providing = new Set(
+            accounts
+                .all()
+                .filter((account) => client.providerOf(account))
+                .map((account) => account.id)
+        );
+        const uncovered = feeds
+            .all()
+            .some((feed) => providing.has(feed.account) && !covers(record.get(keyOf(feed)), range));
+        if (again || uncovered) refresh(range, true);
     }
 
     // What `list` has between `from` and `to`, each with its calendar's colour and account, in the order drawn.

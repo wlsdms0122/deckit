@@ -276,8 +276,8 @@ function calendar({ deck, accountsPoint }) {
         reads.refresh(rangeOf(mode, cursor), force);
     }
 
-    // Asked where the range moves and on the minute, not from render: render is put off while hidden, and the read
-    // must not be.
+    // Asked where the range moves, on the minute, and when a read ends, so a range moved to while it ran is read. Not
+    // from render: render is put off while hidden, and the read must not be.
     function follow() {
         reads.follow(rangeOf(mode, cursor));
     }
@@ -285,6 +285,7 @@ function calendar({ deck, accountsPoint }) {
     function onRead() {
         render();
         reminders.check();
+        follow();
     }
 
     function shift(by) {
