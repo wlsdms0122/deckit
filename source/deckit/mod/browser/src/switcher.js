@@ -1,4 +1,4 @@
-const { parseAddress, placeOf } = require('./address.js');
+const { parseAddress, isWrittenAddress, placeOf } = require('./address.js');
 const { tabLabel } = require('./tabs.js');
 
 // What the Browser offers the switcher: an address typed there, and its commands. Bookmarks and tabs are pages of
@@ -6,12 +6,15 @@ const { tabLabel } = require('./tabs.js');
 function switcher({ ui, show, bookmarks, listTabs, lastClosedTab, onNewTab, onReopenTab, onSelectTab }) {
     return { resolve, commands };
 
-    // Only an address resolves: a search for any words would put a row above the ranked list on every keystroke.
+    // Only an address resolves: a search for any words would put a row above the ranked list on every keystroke. One
+    // written with its scheme or as a path goes on top; a host guessed from a bare name ("README.md") goes below what
+    // matches it, so a file or a note of that name comes first.
     function resolve(query) {
         const url = parseAddress(query);
         if (!url) return [];
         return [
             {
+                fallback: !isWrittenAddress(query),
                 label: 'Open ' + placeOf(url),
                 hint: 'In a new tab',
                 icon: ui.icon('window', { size: 16 }),
