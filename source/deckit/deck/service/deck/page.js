@@ -81,7 +81,7 @@ DeckitModule.define(
             });
             PROTOCOL.declare.send({ run: runNumber, settings: SETTINGS.declarationsOf(entry.settings, fail) });
             const optional = optionalOf();
-            const requires = await requirementsOf(optional);
+            const requires = await dependenciesOf(optional);
             if (!requires) {
                 made.reject(new Error(`${mod.id} did not start`));
                 return notStarted();
@@ -172,10 +172,10 @@ DeckitModule.define(
             return module.exports;
         }
 
-        // What each mod it requires exports: values copied and frozen, functions called through main. What it uses
-        // optionally is set on `optional` as it is now.
-        async function requirementsOf(optional) {
-            const given = await PROTOCOL.requirements.invoke();
+        // What each mod it requires exports: values copied and frozen, functions called through main. Its optional
+        // dependencies are set on `optional` as they are now.
+        async function dependenciesOf(optional) {
+            const given = await PROTOCOL.dependencies.invoke();
             for (const [id, exported] of Object.entries(given.optional)) optional.set(id, exported);
             const out = {};
             for (const [id, exported] of Object.entries(given.requires)) {
@@ -196,7 +196,7 @@ DeckitModule.define(
             );
         }
 
-        // Each mod it uses optionally, as a handle: `exports()` is what that one exports while it runs, or null;
+        // Each optional dependency, as a handle: `exports()` is what that one exports while it runs, or null;
         // `onChange(listener)` hears it each time that one launches or ends, and answers its off. Listening starts
         // before what it is now is asked, so no change falls between.
         function optionalOf() {
@@ -314,7 +314,7 @@ DeckitModule.define(
 
         // One of the mod's extension points. `extensions()` is what extends it now, by the id of the mod that extends
         // it, each one's functions called through main; `onChange(listener)` hears what it is each time it changes, and
-        // answers its off. Nothing extends it before start() has ended: a mod that does requires this one.
+        // answers its off. Nothing extends it before start() has ended: what extends it is added once the mod has started.
         function extensionPointOf(name) {
             const point = EXTENSION_POINT.idOf(mod.id, name);
             const listeners = new Set();

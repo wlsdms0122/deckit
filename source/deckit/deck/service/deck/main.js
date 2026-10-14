@@ -16,7 +16,7 @@ DeckitModule.define(
             'deck/service/deck/extension',
             'deck/service/deck/protocol',
         ],
-        provides: ['start', 'installable'],
+        provides: ['start', 'wouldInstall'],
         runs: 'main',
     },
     (
@@ -98,9 +98,9 @@ DeckitModule.define(
                         state: run?.state || null,
                         starting: run?.state === 'launching',
                         ...layer.facts(mod),
-                        requirements: mod.requirements.map((requirement) => ({
-                            ...requirement,
-                            ok: requirement.ok && running(requirement.id),
+                        dependencies: mod.dependencies.map((dependency) => ({
+                            ...dependency,
+                            ok: dependency.ok && running(dependency.id),
                         })),
                     };
                 }),
@@ -121,8 +121,8 @@ DeckitModule.define(
 
         // What a folder would install, asked before the person is: its manifest, and whether it replaces an installed
         // mod. Throws for a folder install refuses, with why.
-        function installable(from) {
-            const manifest = INSTALL.installable(from, shadowed);
+        function wouldInstall(from) {
+            const manifest = INSTALL.wouldInstall(from, shadowed);
             return {
                 ...MANIFEST.of(manifest),
                 from,
@@ -173,6 +173,6 @@ DeckitModule.define(
             REMOVE.clearForgotten(id);
         }
 
-        return { start, installable };
+        return { start, wouldInstall };
     }
 );

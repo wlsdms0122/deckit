@@ -163,7 +163,7 @@ DeckitModule.define(
                 for (const mod of read) {
                     if (mod.problem) continue;
                     for (const [id, want] of Object.entries(mod.requires)) {
-                        const problem = requirementProblem(id, want, byId.get(id));
+                        const problem = dependencyProblem(id, want, byId.get(id));
                         if (!problem) continue;
                         mod.problem = problem;
                         changed = true;
@@ -171,20 +171,20 @@ DeckitModule.define(
                     }
                 }
             }
-            // What it uses when it is there is listed too, and stops nothing.
+            // Its optional dependencies are listed too, and stop nothing.
             const rowsOf = (table, optional) =>
                 Object.entries(table).map(([id, want]) => ({
                     id,
                     want,
                     name: byId.get(id)?.name || id,
-                    ok: !requirementProblem(id, want, byId.get(id)),
+                    ok: !dependencyProblem(id, want, byId.get(id)),
                     optional,
                 }));
-            for (const mod of read) mod.requirements = [...rowsOf(mod.requires, false), ...rowsOf(mod.optional, true)];
+            for (const mod of read) mod.dependencies = [...rowsOf(mod.requires, false), ...rowsOf(mod.optional, true)];
             return read;
         }
 
-        function requirementProblem(id, want, provider) {
+        function dependencyProblem(id, want, provider) {
             if (!provider) return `needs ${id}, which is not installed`;
             if (provider.problem) return `needs ${id}, which did not load`;
             if (!VERSION.satisfies(provider.version, want))

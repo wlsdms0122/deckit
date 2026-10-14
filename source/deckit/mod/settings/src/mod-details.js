@@ -1,4 +1,4 @@
-const { statusChip } = require('./chip.js');
+const { chip, statusChip } = require('./chip.js');
 const { ordinal, schemeName, storedFilesText } = require('./format.js');
 const { permissionList } = require('./permission-list.js');
 
@@ -92,19 +92,20 @@ function modDetails({ ui, mods, urlSchemes, util }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
-        const requirementChips = (optional) =>
-            (mod.requirements || [])
-                .filter((requirement) => !!requirement.optional === optional)
-                .map(
-                    (requirement) =>
-                        statusChip({ ui, text: `${requirement.name} ${requirement.want}`, ok: requirement.ok }).element
-                );
-        // What it uses when it is there is told apart: one missing stops nothing.
+        // An optional dependency missing stops nothing, so it is drawn quiet, not as a fault.
+        const dependencyChips = (optional) =>
+            (mod.dependencies || [])
+                .filter((dependency) => !!dependency.optional === optional)
+                .map((dependency) => {
+                    const text = `${dependency.name} ${dependency.want}`;
+                    if (optional && !dependency.ok) return chip({ ui, text, muted: true }).element;
+                    return statusChip({ ui, text, ok: dependency.ok }).element;
+                });
         for (const [label, optional] of [
             ['Requires', false],
             ['Optional', true],
         ]) {
-            const chips = requirementChips(optional);
+            const chips = dependencyChips(optional);
             if (chips.length) addPart(label, chipRow(chips));
         }
         if (mod.permissions?.length)

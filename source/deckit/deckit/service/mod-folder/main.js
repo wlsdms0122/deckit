@@ -25,7 +25,7 @@ DeckitModule.define(
                 IDENTITY.modFrom(sender, PERMISSION);
                 const mod = CATALOG.found().find((candidate) => candidate.id === id);
                 if (!mod) throw new Error('no mod ' + id);
-                return require('electron').shell.openPath(mod.folder);
+                require('electron').shell.showItemInFolder(mod.folder);
             });
         }
 
@@ -41,7 +41,7 @@ DeckitModule.define(
                 message: 'Pick the folder that has manifest.toml in it',
             });
             if (result.canceled || !result.filePaths[0]) return null;
-            return DECK.installable(result.filePaths[0]);
+            return DECK.wouldInstall(result.filePaths[0]);
         }
 
         return { start };

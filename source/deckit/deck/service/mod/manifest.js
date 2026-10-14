@@ -96,7 +96,7 @@ DeckitModule.define(
                 mainProblem(raw) ||
                 dependencyProblem(raw, 'requires') ||
                 dependencyProblem(raw, 'optional') ||
-                bothProblem(raw) ||
+                optionalProblem(raw) ||
                 permissionsProblem(raw) ||
                 addedProblem(raw, manifest)
             );
@@ -113,7 +113,7 @@ DeckitModule.define(
             return '';
         }
 
-        // `requires`: what it runs only with. `optional`: what it uses when it is there, and runs without.
+        // `requires`: what it runs only with. `optional`: its optional dependencies, which it runs without.
         function dependencyProblem(raw, field) {
             if (!Object.hasOwn(raw, field)) return '';
             if (!isTable(raw[field])) return `${field} must be a [${field}] table of mod id = version`;
@@ -126,11 +126,13 @@ DeckitModule.define(
             return '';
         }
 
-        function bothProblem(raw) {
-            const both = Object.keys(isTable(raw.optional) ? raw.optional : {}).filter(
-                (id) => isTable(raw.requires) && Object.hasOwn(raw.requires, id)
-            );
-            return both.length ? `${both.join(', ')} is in both [requires] and [optional]` : '';
+        // An optional dependency is neither the mod itself nor one it requires.
+        function optionalProblem(raw) {
+            const optional = Object.keys(isTable(raw.optional) ? raw.optional : {});
+            if (optional.includes(raw.id)) return `${raw.id} names itself in [optional]`;
+            const both = optional.filter((id) => isTable(raw.requires) && Object.hasOwn(raw.requires, id));
+            if (!both.length) return '';
+            return `${both.map((id) => `"${id}"`).join(', ')} ${both.length > 1 ? 'are' : 'is'} in both [requires] and [optional]`;
         }
 
         function permissionsProblem(raw) {

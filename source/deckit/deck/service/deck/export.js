@@ -20,10 +20,10 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // A mod reaches another only through what that one exports, and only one it requires or uses optionally. A mod
+        // A mod reaches another only through what that one exports, and only one it requires or has as an optional dependency. A mod
         // that starts waits while what it requires launches or terminates, until it has started, or failed to, or
         // ended for good. A call reaches a terminating run until it has ended: the mods that require it end first. What
-        // it uses optionally it does not wait for: it is handed what runs now, and told each time that launches or ends.
+        // Its optional dependencies it does not wait for: it is handed what runs now, and told each time that changes.
         function start() {
             RUNNER.observe('willLaunch', ({ mod }) => expect(mod.id));
             RUNNER.observe('didLaunch', ({ mod, contributions }) => {
@@ -32,21 +32,24 @@ DeckitModule.define(
                 tellOptional(mod.id);
             });
             RUNNER.observe('didFailToLaunch', ({ mod, problem }) => fail(mod.id, problem));
-            RUNNER.observe('willTerminate', ({ mod }) => expect(mod.id));
+            RUNNER.observe('willTerminate', ({ mod }) => {
+                expect(mod.id);
+                tellOptional(mod.id);
+            });
             RUNNER.observe('didTerminate', (run) => {
                 answering.delete(run.mod.id);
                 if (!run.relaunches) fail(run.mod.id, run.problem || run.endReason);
                 tellOptional(run.mod.id);
             });
-            PROTOCOL.requirements.handle((_payload, sender) => requirementsOf(IDENTITY.modFrom(sender)));
+            PROTOCOL.dependencies.handle((_payload, sender) => dependenciesOf(IDENTITY.modFrom(sender)));
             // A call is its caller's run's, and a run that has ended makes none. A provider running again answers a
             // running caller once its new run has started; a terminating caller is answered only by the run it ran with.
             PROTOCOL.callExport.handle(async ({ run: number, mod, path, args }, sender) => {
                 const caller = IDENTITY.modFrom(sender);
                 const optional = Object.hasOwn(caller.optional, mod);
                 if (!Object.hasOwn(caller.requires, mod) && !optional)
-                    throw new Error(`${caller.id} neither requires nor uses ${mod}`);
-                if (optional && !usable(caller, mod)) throw new Error(`${mod} is not running`);
+                    throw new Error(`${mod} is in neither [requires] nor [optional] of ${caller.id}`);
+                if (optional && !usable(caller, mod)) throw new Error(unusable(caller, mod));
                 const run = RUNNER.currentRun(sender, number);
                 const ended = () => RUNNER.currentRun(sender, number) !== run || run.state === 'notRunning';
                 if (!run || ended()) throw new Error(`${caller.id} is not running`);
@@ -93,8 +96,8 @@ DeckitModule.define(
             provider.resolve();
         }
 
-        // What it requires, once each has started or failed, and what it uses optionally as it is now.
-        async function requirementsOf(mod) {
+        // What it requires, once each has started or failed, and its optional dependencies as they are now.
+        async function dependenciesOf(mod) {
             const requires = {};
             for (const id of Object.keys(mod.requires)) {
                 const provider = providers.get(id);
@@ -105,22 +108,27 @@ DeckitModule.define(
             return { requires, optional };
         }
 
-        // The exports of what it uses optionally while that runs, at a version it uses, or null.
+        // What an optional dependency exports while it can be used, or null.
         function optionalOf(mod, id) {
             return usable(mod, id) ? answering.get(id) : null;
         }
 
+        // Running, not yet ending, at a version it has optional: one that starts ending is gone to it at once, as a mod
+        // that requires it would have ended first.
         function usable(mod, id) {
             const run = RUNNER.runOf(id);
             return (
-                answering.has(id) &&
-                !!run &&
-                VERSION.satisfies(run.mod.version, mod.optional[id]) &&
-                run.state !== 'notRunning'
+                answering.has(id) && run?.state === 'running' && VERSION.satisfies(run.mod.version, mod.optional[id])
             );
         }
 
-        // Every running mod that uses `id` optionally is told what it exports now.
+        function unusable(mod, id) {
+            const run = RUNNER.runOf(id);
+            if (run?.state !== 'running') return `${id} is not running`;
+            return `${id} is ${run.mod.version}, and the [optional] of ${mod.id} names ${mod.optional[id]}`;
+        }
+
+        // Every running mod with `id` optional is told what it exports now, or that it is gone.
         function tellOptional(id) {
             for (const { run } of RUNNER.runs()) {
                 if (!Object.hasOwn(run.mod.optional, id) || run.state === 'notRunning') continue;

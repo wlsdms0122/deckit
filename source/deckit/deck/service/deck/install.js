@@ -2,7 +2,7 @@ DeckitModule.define(
     'deck/service/deck/install',
     {
         uses: ['deck/config', 'deck/service/home', 'deck/service/mod/folder'],
-        provides: ['installed', 'installable', 'install', 'shipped', 'installShipped', 'notInstalled'],
+        provides: ['installed', 'wouldInstall', 'install', 'shipped', 'installShipped', 'notInstalled'],
         runs: 'node',
     },
     (CONFIG, HOME, FOLDER) => {
@@ -27,7 +27,7 @@ DeckitModule.define(
         // The manifest of a folder that can be installed, or a throw that says why not: a mod deck would not
         // load, or a folder that holds the installed copy or is held by it (copying would take the source with it).
         // `refuse(manifest)` adds the caller's own reason, or ''.
-        function installable(from, refuse = () => '') {
+        function wouldInstall(from, refuse = () => '') {
             const { manifest, problem } = FOLDER.loadable(from);
             if (problem) throw new Error(problem);
             const to = path.join(HOME.mods, manifest.id);
@@ -46,7 +46,7 @@ DeckitModule.define(
         // Installed as mods/<id>, every copy before it taken away wherever it was, so a file the new version dropped
         // is not left to load. Only a whole staged copy takes the old one's place. Answers the manifest.
         function install(from, refuse) {
-            const manifest = installable(from, refuse);
+            const manifest = wouldInstall(from, refuse);
             const id = manifest.id;
             const staged = path.join(HOME.staging, id);
             fs.rmSync(staged, { recursive: true, force: true });
@@ -129,6 +129,6 @@ DeckitModule.define(
             return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
         }
 
-        return { installed, installable, install, shipped, installShipped, notInstalled };
+        return { installed, wouldInstall, install, shipped, installShipped, notInstalled };
     }
 );

@@ -11,7 +11,7 @@ DeckitModule.define(
             'problem',
             'notStarted',
             'stop',
-            'requirements',
+            'dependencies',
             'callExport',
             'exportCalled',
             'callExtension',
@@ -58,7 +58,7 @@ DeckitModule.define(
         stop: IPC.mainToRenderer('deck:mod-stop', { reply: true }),
         // Answers once every mod it requires has started or failed: { requires: { [id]: { values, functions } or
         // { error } }, optional: { [id]: { values, functions } or null } }.
-        requirements: IPC.rendererToMain('deck:mod-requirements', {}, { reply: true }),
+        dependencies: IPC.rendererToMain('deck:mod-dependencies', {}, { reply: true }),
         callExport: IPC.rendererToMain(
             'deck:mod-call-export',
             { run: 'number', mod: 'string', path: 'array', args: 'array' },
@@ -75,7 +75,7 @@ DeckitModule.define(
         // The extensions of one of the mod's points now, by its name: { name, extensions: { [mod id]: { values,
         // functions } } }.
         extensionsChanged: IPC.mainToRenderer('deck:mod-extensions-changed'),
-        // What a mod it uses optionally exports now, launched or ended: { id, exports: { values, functions } or null }.
+        // What an optional dependency exports now, launched or ending: { id, exports: { values, functions } or null }.
         optionalChanged: IPC.mainToRenderer('deck:mod-optional-changed'),
 
         readRecord: IPC.rendererToMain('deck:record-read', { key: 'string' }, { reply: true, sync: true }),

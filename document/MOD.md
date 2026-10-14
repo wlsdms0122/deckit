@@ -274,7 +274,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 `requires` is what each mod named in `[requires]` exports. A mod runs only while everything it requires runs, so these are there: when one of them terminates or crashes, the mod terminates too, before that one's `stop()` is asked, and it launches again, with what that one exports now, once that one launches again. Calls made in `stop()` still reach it.
 
-`optional` is a handle for each mod named in `[optional]`: `exports()` is what that one exports while it runs at a version this one uses, or null; `onChange(listener)` hears it, the same or null, each time that one launches or ends, and returns its off. The mod runs whether or not that one does, and goes on running when that one ends or launches again: it neither waits for it nor launches again with it. A call to one that is not running rejects.
+`optional` is a handle for each optional dependency, each mod named in `[optional]`: `exports()` is what that one exports while it runs at a version this one names, or null; `onChange(listener)` hears it each time that changes (that one launched, or began to end), and returns its off. One that begins to end is gone at once: `exports()` is null and a call to it rejects, as a mod that required it would have ended first. The mod runs whether or not that one does, and goes on running when that one ends or launches again: it neither waits for it nor launches again with it.
 
 `host` is what the host app offers, handed to the host app's own mod only.
 

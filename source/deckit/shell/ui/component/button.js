@@ -158,7 +158,6 @@ DeckitModule.define('shell/ui/component/button', { uses: [], provides: ['STYLE',
         const element = buttonOf('deckit-row-action', title, 'medium');
         if (icon) element.innerHTML = icon;
         else element.textContent = label;
-        element.dataset.deckitReveal = '';
         element.addEventListener('click', (event) => {
             event.stopPropagation();
             onClick();

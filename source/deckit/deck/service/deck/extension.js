@@ -19,20 +19,24 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // A mod opens an extension point and another extends it: the one that extends requires the one that opened it,
-        // so it starts after that one has and ends before it does, or uses it optionally, and then what it extends the
-        // point with is held and handed again each time the point's mod launches. What it extends a point with stays
-        // in its own page and is called there through main; the point's mod is told each time what extends it changes.
+        // so it starts after that one has and ends before it does, or has it as an optional dependency, and then what
+        // it extends the point with is held and handed again each time the point's mod launches. What it extends a
+        // point with stays in its own page and is called there through main; the point's mod is told each time what
+        // extends it changes.
         function start() {
+            // A point's mod hears what extends it once, with all deck holds for it.
             RUNNER.observe('didLaunch', (run) => {
                 for (const name of run.contributions.extensionPoints)
                     points.set(EXTENSION_POINT.idOf(run.mod.id, name), new Map());
+                const changed = new Set();
                 for (const [point, extension] of Object.entries(run.contributions.extensions))
-                    extend(run, point, extension);
+                    changed.add(extend(run, point, extension));
                 for (const { run: other } of RUNNER.runs()) {
                     if (other.state !== 'running' || !Object.hasOwn(other.mod.optional, run.mod.id)) continue;
                     for (const [point, extension] of Object.entries(other.contributions.extensions))
-                        if (EXTENSION_POINT.modOf(point) === run.mod.id) extend(other, point, extension);
+                        if (EXTENSION_POINT.modOf(point) === run.mod.id) changed.add(extend(other, point, extension));
                 }
+                for (const point of changed) if (point) tell(point);
             });
             RUNNER.observe('didTerminate', ({ mod }) => {
                 for (const point of [...points.keys()]) {
@@ -61,21 +65,27 @@ DeckitModule.define(
 
         // MARK: - Private
         // A point it extends belongs to a mod it requires, which is running, so the point is open or never will be; or
-        // to one it uses optionally, which may not run now, and then nothing extends the point until it does.
+        // to an optional dependency, which may not run, or not open the point, and then nothing extends the point and
+        // nothing is wrong. Answers the point it extended, or null.
         function extend(run, point, extension) {
             const owner = EXTENSION_POINT.modOf(point);
             const optional = Object.hasOwn(run.mod.optional, owner);
-            if (!Object.hasOwn(run.mod.requires, owner) && !optional)
-                return run.record(`deck.extend() names ${point}, but manifest.toml neither requires nor uses ${owner}`);
-            const ownerRun = RUNNER.runOf(owner);
-            if (
-                optional &&
-                (ownerRun?.state !== 'running' || !VERSION.satisfies(ownerRun.mod.version, run.mod.optional[owner]))
-            )
-                return;
-            if (!points.has(point)) return run.record(`deck.extend() names ${point}, which ${owner} does not open`);
+            if (!Object.hasOwn(run.mod.requires, owner) && !optional) {
+                run.record(`deck.extend() names ${point}, but ${owner} is in neither [requires] nor [optional]`);
+                return null;
+            }
+            if (optional) {
+                const ownerRun = RUNNER.runOf(owner);
+                const usable =
+                    ownerRun?.state === 'running' && VERSION.satisfies(ownerRun.mod.version, run.mod.optional[owner]);
+                if (!usable || !points.has(point)) return null;
+            }
+            if (!points.has(point)) {
+                run.record(`deck.extend() names ${point}, which ${owner} does not open`);
+                return null;
+            }
             points.get(point).set(run.mod.id, extension);
-            tell(point);
+            return point;
         }
 
         function tell(point) {

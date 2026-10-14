@@ -24,9 +24,9 @@ DeckitModule.define(
             .deckit-row[data-size='small'] { gap: 6px; min-height: 24px; font: var(--deckit-type-body); }
             .deckit-row:hover { background: var(--deckit-hover); }
             .deckit-row[data-active] { background: var(--deckit-selected); }
-            .deckit-row:hover [data-deckit-reveal],
-            .deckit-row:focus-within [data-deckit-reveal],
-            .deckit-row[data-revealed] [data-deckit-reveal] { opacity: 1; }
+            .deckit-row:hover .deckit-row-action,
+            .deckit-row:focus-within .deckit-row-action,
+            .deckit-row[data-actions-shown] .deckit-row-action { opacity: 1; }
             .deckit-list { flex: 0 0 auto; }
             .deckit-list[data-scrolls] { overflow-y: auto; overscroll-behavior: contain; }
         `;
@@ -39,7 +39,8 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // A row of a list, washed under the pointer. `setActive` marks it chosen; `setRevealed` keeps its actions shown.
+        // A row of a list, washed under the pointer. `setActive` marks it chosen; `setActionsShown` keeps its actions
+        // shown.
         function row({ size = 'medium' } = {}) {
             const element = document.createElement('div');
             element.className = 'deckit-row';
@@ -47,7 +48,7 @@ DeckitModule.define(
             return {
                 element,
                 setActive: (on) => element.toggleAttribute('data-active', !!on),
-                setRevealed: (on) => element.toggleAttribute('data-revealed', !!on),
+                setActionsShown: (on) => element.toggleAttribute('data-actions-shown', !!on),
             };
         }
 

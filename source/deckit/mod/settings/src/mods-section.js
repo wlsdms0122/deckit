@@ -139,7 +139,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
             title: 'Restart this mod, and the mods that require it',
             onClick: () => relaunch(current),
         });
-        const revealAction = ui.rowAction({
+        const showInFinderAction = ui.rowAction({
             icon: ui.icon('externalWindow', { size: 14 }),
             title: 'Open the mod folder',
             onClick: () => mods.reveal(current.id),
@@ -156,7 +156,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
         nameCell.append(caret, name);
-        actions.append(relaunchAction.element, revealAction.element, removeAction.element, source.element);
+        actions.append(relaunchAction.element, showInFinderAction.element, removeAction.element, source.element);
         row.element.append(nameCell, version, contributions, actions);
         // Selectable: this is what gets pasted into a bug report.
         ui.selectable(failure);
@@ -201,7 +201,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
         function showOpen(animate) {
             element.toggleAttribute('data-open', open);
             details.setOpen(open, animate);
-            row.setRevealed(open);
+            row.setActionsShown(open);
         }
     }
 
@@ -322,7 +322,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
             folder: mod?.folder,
             permissions: mod?.permissions,
             mainProcessFailure: mod?.mainProcess.failure,
-            requirements: mod?.requirements,
+            dependencies: mod?.dependencies,
             hides: mod?.hides,
         });
         const loaded = running.map((live) => {
