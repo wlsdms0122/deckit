@@ -38,7 +38,7 @@ function calendar({ deck, accountsPoint }) {
     const { accounts, feeds } = store({ records });
     const client = providerClient({ deck, ui, records, accountsPoint, onSigningIn: render });
     const reads = readCache({ records, accounts, feeds, client, onChange: render, onRead });
-    const reminders = reminder({ deck, settings, records, occurrences: shownBetween, onOpen: showDate });
+    const reminders = reminder({ deck, settings, records, occurrences: occurrencesBetween, onOpen: showDate });
     // A draw put off while the popover was up runs when it closes.
     const detail = eventDetail({
         ui,
@@ -56,7 +56,7 @@ function calendar({ deck, accountsPoint }) {
         show: () => deck.show(),
         modes: MODES,
         reminders,
-        occurrences: shownBetween,
+        occurrences: occurrencesBetween,
         onGoTo: goTo,
         onMode: setMode,
         onAddAccount: editor.addAccount,
@@ -262,6 +262,11 @@ function calendar({ deck, accountsPoint }) {
 
     function fade(element, length) {
         element.animate([{ opacity: 0 }, { opacity: 1 }], { duration: length, easing: theme.motion.easing });
+    }
+
+    // Every calendar's, hidden ones too: hiding a calendar takes it off the screen, and it still reminds.
+    function occurrencesBetween(from, to) {
+        return reads.occurrences(feeds.all(), from, to);
     }
 
     function shownBetween(from, to) {

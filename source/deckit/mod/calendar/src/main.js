@@ -10,7 +10,7 @@ module.exports = {
             label: 'Notify me',
             type: 'choice',
             default: DEFAULT_LEAD,
-            hint: "Meetings you are invited to, and every event on your own calendars. A calendar's ✎ changes which it is.",
+            hint: "Meetings you are invited to, and every event on your own calendars. A calendar's ✎ changes which it is. A hidden calendar reminds too.",
             options: [
                 { value: 'off', label: leadText(null) },
                 ...REMINDER_LEADS.map((lead) => ({ value: lead, label: leadText(lead) })),
