@@ -16,8 +16,9 @@ const { session } = require('./session.js');
 const { tree } = require('./tree.js');
 const { FONTS, typefaceOf } = require('./typeface.js');
 
-// What stop() waits for: the open note written, so what was typed just before the run ends is kept.
-let saveUnsaved = null;
+// What stop() waits for: the open note written, so what was typed just before the run ends is kept, and the notes
+// folder no longer watched.
+let endRun = null;
 
 module.exports = {
     keywords: [
@@ -111,7 +112,7 @@ module.exports = {
             onRenamed: changed,
             onMenu: (path, anchor) => ui.menu({ items: noteMenus.noteItems(path), anchor }),
         });
-        saveUnsaved = () => noteSession.saveIfUnsaved();
+        endRun = () => Promise.all([noteSession.saveIfUnsaved(), notesFolder.watch(false).catch(() => {})]);
         const placeHistory = navigationHistory({
             movePath: util.movePath,
             current: () => place,
@@ -211,6 +212,8 @@ module.exports = {
             if (key === 'sort') notesGallery.draw();
             if (key === 'textSize' || key === 'font') applyTypeface();
         });
+        // A face left to the theme follows a new one.
+        theme.onChange(applyTypeface);
         window.addEventListener('pagehide', () => noteSession.saveIfUnsaved());
         reachSavedPlace();
 
@@ -392,7 +395,7 @@ module.exports = {
 
         // deck.open answers only whether anything opened the address, with no reason when nothing did.
         async function openAddress(address) {
-            if (await deck.open(address, { userInitiated: true }).catch(() => false)) return;
+            if (await deck.open(address).catch(() => false)) return;
             ui.dialog({ title: 'Could not open the link', message: address, confirmLabel: 'OK' });
         }
 
@@ -433,6 +436,6 @@ module.exports = {
     },
 
     stop() {
-        return saveUnsaved?.();
+        return endRun?.();
     },
 };
