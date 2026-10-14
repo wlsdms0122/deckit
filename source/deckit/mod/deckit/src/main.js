@@ -26,7 +26,7 @@ module.exports = {
                 label: 'Restart Mod…',
                 icon: icon('reload'),
                 keywords: ['relaunch', 'reload', '재시작'],
-                page: { placeholder: 'Search mods', entries: installedMods },
+                page: { placeholder: 'Search mods', entries: modEntries },
             },
             {
                 label: 'Restart ' + APP_NAME,
@@ -60,17 +60,32 @@ module.exports = {
             },
         ]);
 
-        // One not running is launched.
-        function installedMods() {
-            const STATES = { launching: 'Starting', running: 'Running', terminating: 'Stopping' };
+        // One not running is launched. One deck would refuse to restart is a readout saying why: one that did not
+        // load, one stopping, one whose required mod is not running. A refusal all the same is told in a notice.
+        function modEntries() {
+            const STATES = { launching: 'Starting', running: 'Running', notRunning: 'Not running' };
             const { installed, running } = deck.mods.list();
             const icons = new Map(running.map((mod) => [mod.id, mod.icon]));
-            return installed.map((mod) => ({
-                label: mod.name,
-                hint: STATES[mod.state] || (mod.problem ? 'Did not load' : 'Not running'),
-                icon: icons.get(mod.id) || icon('puzzle'),
-                run: () => deck.mods.relaunch(mod.id),
-            }));
+            return installed.map((mod) => {
+                const entry = { label: mod.name, icon: icons.get(mod.id) || icon('puzzle') };
+                const missing = mod.dependencies
+                    .filter((dependency) => !dependency.optional && !dependency.ok)
+                    .map((dependency) => dependency.name);
+                if (!mod.state) return { ...entry, hint: mod.problem || 'Did not load' };
+                if (mod.state === 'terminating') return { ...entry, hint: 'Stopping' };
+                if (missing.length)
+                    return {
+                        ...entry,
+                        hint: `Needs ${missing.join(', ')}, which ${missing.length === 1 ? 'is' : 'are'} not running`,
+                    };
+                return { ...entry, hint: STATES[mod.state], run: () => restart(mod) };
+            });
+        }
+
+        function restart(mod) {
+            return deck.mods
+                .relaunch(mod.id)
+                .catch((error) => deck.notify({ title: `Could not restart ${mod.name}`, body: error.message }));
         }
 
         // Each copies itself, for a report.
