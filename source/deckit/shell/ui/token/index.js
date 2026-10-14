@@ -3,8 +3,6 @@ import * as COLOR from '../color/index.js';
 // MARK: - Property
 // Worn until the embedder gives its theme.
 const FALLBACK_THEME = Object.freeze({
-    sidebarBg: 'rgb(16, 18, 20)',
-    sidebarColor: '#fff',
     border: '1px solid rgba(121,124,129,.3)',
     contentBg: '#1a1d21',
     contentColor: '#d1d2d3',

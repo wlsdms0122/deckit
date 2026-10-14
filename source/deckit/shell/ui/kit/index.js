@@ -48,7 +48,7 @@ let installed = false;
 // MARK: - Initializer
 // MARK: - Public
 // The `ui` a page draws with, for `theme`. Frozen all the way down: a mod is handed the very objects its page
-// draws with. Components are made in the order of `uses`, as one may lend another something through `inner`.
+// draws with. Components are made in the order of `components`, as one may lend another something through `inner`.
 function make(theme) {
     install();
     const ui = {};
