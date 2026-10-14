@@ -41,7 +41,9 @@ function open({ folder, name }) {
 
     function write(where, level, parts) {
         if (!stream) return;
-        const line = `${new Date().toISOString()} [${where}] ${level}: ${parts.map(textOf).join(' ')}\n`;
+        // One entry is one line, so what an entry says cannot read as another entry.
+        const said = parts.map(textOf).join(' ').replace(/\r?\n/g, '\\n');
+        const line = `${new Date().toISOString()} [${where}] ${level}: ${said}\n`;
         stream.write(line);
         written += Buffer.byteLength(line);
         if (written > LIMIT) rotate();
