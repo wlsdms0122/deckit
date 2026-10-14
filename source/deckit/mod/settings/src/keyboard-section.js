@@ -151,9 +151,16 @@ function keyboardSection({ ui, keymap }) {
                 }
                 endRecording = null;
                 drawAfterRecording = false;
-                if (recorded.spec) keymap.set(current.id, recorded.spec);
-                else if (recorded.clear) keymap.set(current.id, '');
-                draw(keymap.list());
+                const asked = recorded.spec || recorded.clear ? keymap.set(current.id, recorded.spec || '') : null;
+                // A chord the key map refuses (one that cannot work everywhere for a key that does) says why on the
+                // key, until it is drawn again.
+                Promise.resolve(asked).then(
+                    () => draw(keymap.list()),
+                    (error) => {
+                        draw(keymap.list());
+                        chord.textContent = error.message;
+                    }
+                );
             });
         });
         reset.element.classList.add('settings-reset');
