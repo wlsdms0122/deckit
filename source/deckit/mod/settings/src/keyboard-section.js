@@ -6,9 +6,8 @@ function keyboardSection({ ui, keymap }) {
     const TITLE = 'Keyboard';
     const KEYWORDS = ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys'];
     const DESCRIPTION =
-        'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Mods may share a ' +
-        'chord, since only one is on screen at a time. A change onto a chord already in use is not ' +
-        'applied until that chord is free.';
+        'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Mods may share a chord. A change onto ' +
+        'a chord already in use is not applied until that chord is free.';
     const SCOPE_NAMES = { global: 'Everywhere', shell: 'On any mod' };
 
     let endRecording = null;
