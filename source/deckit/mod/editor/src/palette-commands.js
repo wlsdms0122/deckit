@@ -1,15 +1,17 @@
 const { fileIconOf } = require('./file-type.js');
 const { nameOf, folderOf } = require('./path.js');
 
+const SHOWN = 50;
+
 // The editor's commands in the command palette: opening, the workspaces and recent folders, and a search of each
 // workspace's files.
 function paletteCommands({
     ui,
     show,
     util,
+    fileRanker,
     workspaces,
     recentFolders,
-    quickOpener,
     onPickFolder,
     onPickFiles,
     onCreateFile,
@@ -95,7 +97,9 @@ function paletteCommands({
         } catch (error) {
             return [{ label: 'Could not list the files', hint: error.message, icon: ui.icon('search', { size: 16 }) }];
         }
-        return (await quickOpener.rank(listing.files, query)).map((relative) => ({
+        // Null when a newer query cancelled this one.
+        const ranked = (await fileRanker.rank(listing.files, query, { limit: SHOWN })) || [];
+        return ranked.map((relative) => ({
             label: nameOf(relative),
             hint: folderOf(relative) || nameOf(workspace.root),
             icon: fileIconOf(ui, relative, 16),

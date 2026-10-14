@@ -17,13 +17,11 @@ const QUICK_OPEN_STYLE = `
 `;
 
 // Open Quickly: a file of the front workspace found by part of its name. Ranked in a worker: forty thousand paths take a
-// few hundred milliseconds. Two rankers, so a search in the box and one for the command palette's page do not cancel
-// each other.
+// few hundred milliseconds.
 function quickOpen({ ui, ranker, list, root, onOpen }) {
     const SHOWN = 50;
     const TYPING_DELAY_MS = 60;
     const boxRanker = ranker({ paths: true });
-    const pageRanker = ranker({ paths: true });
 
     // The folder is kept with the rows, and a row opens in it, not in whichever is in front by then: two checkouts of
     // one repository list the same relative paths.
@@ -38,8 +36,7 @@ function quickOpen({ ui, ranker, list, root, onOpen }) {
     let typing = null;
     let query = ''; // what was typed last, there again when the box opens again
 
-    // Empty when a newer query cancelled this one.
-    return { show, rank: async (files, query) => (await pageRanker.rank(files, query, { limit: SHOWN })) || [] };
+    return { show };
 
     function show() {
         if (picker) return picker.focus();

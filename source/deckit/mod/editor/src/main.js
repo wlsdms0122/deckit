@@ -339,14 +339,16 @@ module.exports = {
                 run: () => settings.set('wrap', !settings.get('wrap')),
             },
         });
+        // Its own, so a search in the switcher's page and one in Open Quickly do not cancel each other.
+        const fileRanker = util.ranker({ paths: true });
         deck.commands(() =>
             paletteCommands({
                 ui,
                 show: deck.show,
                 util,
+                fileRanker,
                 workspaces,
                 recentFolders: recent.unopened,
-                quickOpener,
                 onPickFolder: pickFolder,
                 onPickFiles: pickFiles,
                 onCreateFile: () => createHere('file'),
