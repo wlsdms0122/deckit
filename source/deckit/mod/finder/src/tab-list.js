@@ -24,7 +24,7 @@ function tabList({
     const WIDTHS_KEPT = 64;
     const saved = records.get('tabs', null);
     const tabs = [];
-    const closed = (saved?.closed ?? []).map((stored) => ({ ...tabFromStored(stored), at: stored.at }));
+    const closed = [...(saved?.closed ?? [])];
     const rowParts = new WeakMap(); // row element -> sidebar row
     let front = null;
     let lastId = 0;
@@ -277,8 +277,7 @@ function tabList({
     // answers 'folder', 'file' or null.
     async function restore(exists) {
         const alive = []; // from: its index in the saved list
-        for (const [index, stored] of (saved?.list ?? []).entries()) {
-            const tab = tabFromStored(stored);
+        for (const [index, tab] of (saved?.list ?? []).entries()) {
             const kind = await exists(tab.location).catch(() => 'unknown');
             if (kind === 'folder' || kind === 'unknown') alive.push({ ...tab, from: index });
         }
@@ -293,9 +292,9 @@ function tabList({
 
     function persist() {
         records.set('tabs', {
-            list: tabs.map(storedOf),
+            list: tabs.map(({ location, widths }) => ({ location, widths })),
             active: Math.max(0, tabs.indexOf(front)),
-            closed: closed.map((tab) => ({ ...storedOf(tab), at: tab.at })),
+            closed,
         });
         rows.set(tabs);
     }
@@ -358,15 +357,6 @@ function tabList({
                 return to ? [[to, width]] : [];
             })
         );
-    }
-
-    // A tab as it is saved: its location under `here`.
-    function storedOf({ location, widths }) {
-        return { here: location, widths };
-    }
-
-    function tabFromStored({ here, widths }) {
-        return { location: here, widths };
     }
 }
 

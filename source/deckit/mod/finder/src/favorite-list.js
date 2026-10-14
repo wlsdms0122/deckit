@@ -86,7 +86,7 @@ function favoriteList({ ui, reveal, show, records, tildify, folds, currentLocati
     }
 
     function paths() {
-        return records.get('sidebar', null) ?? places.map((place) => place.path);
+        return records.get('favorites', null) ?? places.map((place) => place.path);
     }
 
     function has(path) {
@@ -102,7 +102,7 @@ function favoriteList({ ui, reveal, show, records, tildify, folds, currentLocati
     }
 
     function set(list) {
-        records.set('sidebar', [...new Set(list)]);
+        records.set('favorites', [...new Set(list)]);
         draw();
     }
 
