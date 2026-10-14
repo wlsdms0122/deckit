@@ -23,114 +23,6 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
     const ICON_SIZE = 15;
     const engine = NoteEngine;
     const tags = engine.tags;
-    const muted = theme.color.muted;
-    const syntax = theme.syntax;
-    const linkColor = ui.mix(theme.color.accent, theme.color.text, 0.85);
-    // Translucent, so the panel's glass shows through.
-    const codeBackground = ui.alpha(theme.color.text, 0.07);
-    // Drawn as a background image, which needs the svg namespace that ui.iconOf markup leaves out.
-    const tick = encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${theme.color.onAccent}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${CHECK_SHAPES}</svg>`
-    );
-    const highlight = engine.HighlightStyle.define([
-        { tag: tags.heading1, fontSize: '1.6em', fontWeight: '800', letterSpacing: '-.01em' },
-        { tag: tags.heading2, fontSize: '1.3em', fontWeight: '700' },
-        { tag: tags.heading3, fontSize: '1.12em', fontWeight: '700' },
-        { tag: [tags.heading4, tags.heading5, tags.heading6], fontWeight: '700' },
-        { tag: tags.strong, fontWeight: '700' },
-        { tag: tags.emphasis, fontStyle: 'italic' },
-        { tag: tags.strikethrough, textDecoration: 'line-through' },
-        { tag: tags.link, color: linkColor },
-        { tag: tags.url, color: muted },
-        { tag: tags.monospace, fontFamily: theme.mono, fontSize: '.9em' },
-        { tag: [tags.processingInstruction, tags.contentSeparator, tags.labelName], color: muted },
-        { tag: tags.quote, color: ui.mix(theme.color.text, theme.color.background, 0.78) },
-        // Fenced code in the languages the engine carries.
-        { tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.modifier], color: syntax.keyword },
-        { tag: [tags.string, tags.regexp], color: syntax.string },
-        { tag: [tags.number, tags.bool, tags.null], color: syntax.number },
-        { tag: [tags.comment, tags.lineComment, tags.blockComment], color: syntax.comment, fontStyle: 'italic' },
-        { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: syntax.function },
-        { tag: [tags.typeName, tags.className], color: syntax.type },
-        { tag: tags.propertyName, color: syntax.property },
-    ]);
-    const editorTheme = engine.EditorView.theme(
-        {
-            '&': { height: '100%', color: theme.color.text, backgroundColor: 'transparent' },
-            '&.cm-focused': { outline: 'none' },
-            // The font face is set only by typefaceTheme, so two rules never race. The side margin is on the scroller:
-            // the engine paints a selected line from the content's outer edge, so a margin inside it would be painted.
-            '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 28px' },
-            '.cm-content': {
-                padding: '4px 0 40vh',
-                caretColor: theme.color.accent,
-                width: '100%',
-                boxSizing: 'border-box',
-            },
-            '.cm-line': { padding: '0' },
-            '.cm-cursor, .cm-dropCursor': { borderLeftColor: theme.color.accent, borderLeftWidth: '2px' },
-            '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
-                { backgroundColor: ui.alpha(theme.color.accent, 0.28) },
-            '.cm-placeholder': { color: muted },
-            '.note-h1': { paddingTop: '.35em !important' },
-            '.note-h2': { paddingTop: '.5em !important' },
-            '.note-h3': { paddingTop: '.35em !important' },
-            '.note-quote': { borderLeft: `3px solid ${theme.color.divider}`, paddingLeft: '.85em !important' },
-            '.note-code': {
-                fontFamily: theme.mono,
-                fontSize: '.9em',
-                backgroundColor: codeBackground,
-                padding: '0 .8em !important',
-            },
-            '.note-code-first': {
-                borderTopLeftRadius: '7px',
-                borderTopRightRadius: '7px',
-                paddingTop: '.3em !important',
-            },
-            '.note-code-last': {
-                borderBottomLeftRadius: '7px',
-                borderBottomRightRadius: '7px',
-                paddingBottom: '.3em !important',
-            },
-            '.note-fence': { color: muted, fontSize: '.8em' },
-            '.note-fence-folded': { color: muted, fontSize: '.7em', lineHeight: '1.1', textAlign: 'right' },
-            '.note-inline-code': {
-                backgroundColor: ui.alpha(theme.color.text, 0.1),
-                borderRadius: '4px',
-                padding: '.05em .25em',
-            },
-            '.note-link': {
-                color: linkColor,
-                textDecoration: 'underline',
-                textDecorationColor: ui.alpha(theme.color.accent, 0.45),
-                textUnderlineOffset: '2px',
-                cursor: 'pointer',
-            },
-            '.note-done': { color: muted },
-            '.note-rule': {
-                borderBottom: `1px solid ${theme.color.divider}`,
-                lineHeight: '.8 !important',
-                marginBottom: '.6em',
-            },
-            '.note-bullet': { display: 'inline-block', width: '1.1em', color: muted, textAlign: 'left' },
-            '.note-check': {
-                display: 'inline-block',
-                verticalAlign: '-.15em',
-                width: '1.05em',
-                height: '1.05em',
-                marginRight: '.45em',
-                boxSizing: 'border-box',
-                borderRadius: '50%',
-                boxShadow: `inset 0 0 0 1.5px ${muted}`,
-                cursor: 'pointer',
-            },
-            ".note-check[aria-checked='true']": {
-                background: `${theme.color.accent} url("data:image/svg+xml,${tick}") center / 68% no-repeat`,
-                boxShadow: 'none',
-            },
-        },
-        { dark: theme.dark }
-    );
 
     class Bullet extends engine.WidgetType {
         eq() {
@@ -179,6 +71,8 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
 
     const element = ui.element('div', { style: { flex: '1 1 auto', minHeight: '0', position: 'relative' } });
     const typefaceCompartment = new engine.Compartment();
+    const lookCompartment = new engine.Compartment();
+    theme.onChange(() => view?.dispatch({ effects: lookCompartment.reconfigure(lookOf()) }));
     const editableCompartment = new engine.Compartment();
     const preview = engine.ViewPlugin.fromClass(
         class {
@@ -301,6 +195,120 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         },
     };
 
+    // The editor's colours, from the theme as it is now: a new theme puts them in place again.
+    function lookOf() {
+        const muted = theme.color.muted;
+        const syntax = theme.syntax;
+        const linkColor = ui.mix(theme.color.accent, theme.color.text, 0.85);
+        // Translucent, so the panel's glass shows through.
+        const codeBackground = ui.alpha(theme.color.text, 0.07);
+        // Drawn as a background image, which needs the svg namespace that ui.iconOf markup leaves out.
+        const tick = encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${theme.color.onAccent}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${CHECK_SHAPES}</svg>`
+        );
+        const highlight = engine.HighlightStyle.define([
+            { tag: tags.heading1, fontSize: '1.6em', fontWeight: '800', letterSpacing: '-.01em' },
+            { tag: tags.heading2, fontSize: '1.3em', fontWeight: '700' },
+            { tag: tags.heading3, fontSize: '1.12em', fontWeight: '700' },
+            { tag: [tags.heading4, tags.heading5, tags.heading6], fontWeight: '700' },
+            { tag: tags.strong, fontWeight: '700' },
+            { tag: tags.emphasis, fontStyle: 'italic' },
+            { tag: tags.strikethrough, textDecoration: 'line-through' },
+            { tag: tags.link, color: linkColor },
+            { tag: tags.url, color: muted },
+            { tag: tags.monospace, fontFamily: theme.mono, fontSize: '.9em' },
+            { tag: [tags.processingInstruction, tags.contentSeparator, tags.labelName], color: muted },
+            { tag: tags.quote, color: ui.mix(theme.color.text, theme.color.background, 0.78) },
+            // Fenced code in the languages the engine carries.
+            { tag: [tags.keyword, tags.controlKeyword, tags.definitionKeyword, tags.modifier], color: syntax.keyword },
+            { tag: [tags.string, tags.regexp], color: syntax.string },
+            { tag: [tags.number, tags.bool, tags.null], color: syntax.number },
+            { tag: [tags.comment, tags.lineComment, tags.blockComment], color: syntax.comment, fontStyle: 'italic' },
+            { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: syntax.function },
+            { tag: [tags.typeName, tags.className], color: syntax.type },
+            { tag: tags.propertyName, color: syntax.property },
+        ]);
+        const editorTheme = engine.EditorView.theme(
+            {
+                '&': { height: '100%', color: theme.color.text, backgroundColor: 'transparent' },
+                '&.cm-focused': { outline: 'none' },
+                // The font face is set only by typefaceTheme, so two rules never race. The side margin is on the scroller:
+                // the engine paints a selected line from the content's outer edge, so a margin inside it would be painted.
+                '.cm-scroller': { lineHeight: '1.6', overflowX: 'hidden', padding: '0 28px' },
+                '.cm-content': {
+                    padding: '4px 0 40vh',
+                    caretColor: theme.color.accent,
+                    width: '100%',
+                    boxSizing: 'border-box',
+                },
+                '.cm-line': { padding: '0' },
+                '.cm-cursor, .cm-dropCursor': { borderLeftColor: theme.color.accent, borderLeftWidth: '2px' },
+                '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection':
+                    { backgroundColor: ui.alpha(theme.color.accent, 0.28) },
+                '.cm-placeholder': { color: muted },
+                '.note-h1': { paddingTop: '.35em !important' },
+                '.note-h2': { paddingTop: '.5em !important' },
+                '.note-h3': { paddingTop: '.35em !important' },
+                '.note-quote': { borderLeft: `3px solid ${theme.color.divider}`, paddingLeft: '.85em !important' },
+                '.note-code': {
+                    fontFamily: theme.mono,
+                    fontSize: '.9em',
+                    backgroundColor: codeBackground,
+                    padding: '0 .8em !important',
+                },
+                '.note-code-first': {
+                    borderTopLeftRadius: '7px',
+                    borderTopRightRadius: '7px',
+                    paddingTop: '.3em !important',
+                },
+                '.note-code-last': {
+                    borderBottomLeftRadius: '7px',
+                    borderBottomRightRadius: '7px',
+                    paddingBottom: '.3em !important',
+                },
+                '.note-fence': { color: muted, fontSize: '.8em' },
+                '.note-fence-folded': { color: muted, fontSize: '.7em', lineHeight: '1.1', textAlign: 'right' },
+                '.note-inline-code': {
+                    backgroundColor: ui.alpha(theme.color.text, 0.1),
+                    borderRadius: '4px',
+                    padding: '.05em .25em',
+                },
+                '.note-link': {
+                    color: linkColor,
+                    textDecoration: 'underline',
+                    textDecorationColor: ui.alpha(theme.color.accent, 0.45),
+                    textUnderlineOffset: '2px',
+                    cursor: 'pointer',
+                },
+                '.note-done': { color: muted },
+                '.note-rule': {
+                    borderBottom: `1px solid ${theme.color.divider}`,
+                    lineHeight: '.8 !important',
+                    marginBottom: '.6em',
+                },
+                '.note-bullet': { display: 'inline-block', width: '1.1em', color: muted, textAlign: 'left' },
+                '.note-check': {
+                    display: 'inline-block',
+                    verticalAlign: '-.15em',
+                    width: '1.05em',
+                    height: '1.05em',
+                    marginRight: '.45em',
+                    boxSizing: 'border-box',
+                    borderRadius: '50%',
+                    boxShadow: `inset 0 0 0 1.5px ${muted}`,
+                    cursor: 'pointer',
+                },
+                ".note-check[aria-checked='true']": {
+                    background: `${theme.color.accent} url("data:image/svg+xml,${tick}") center / 68% no-repeat`,
+                    boxShadow: 'none',
+                },
+            },
+            { dark: theme.dark }
+        );
+
+        return [engine.syntaxHighlighting(highlight), editorTheme];
+    }
+
     function open({ text = '', readOnly: locked = false, at = 0 } = {}) {
         readOnly = locked;
         const state = engine.EditorState.create({
@@ -315,8 +323,7 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
                 engine.markdown({ base: engine.markdownLanguage, codeLanguages: engine.codeLanguages }),
                 keys,
                 engine.keymap.of([...engine.defaultKeymap, ...engine.historyKeymap]),
-                engine.syntaxHighlighting(highlight),
-                editorTheme,
+                lookCompartment.of(lookOf()),
                 typefaceCompartment.of(typefaceTheme(currentTypeface)),
                 preview,
                 press,
