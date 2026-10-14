@@ -129,8 +129,7 @@ function checkUses(name, { file, uses }) {
         if (!MAY_NAME[mine.layer].has(other.layer))
             say(file, `names ${use.name}, in ${other.layer}/, which ${mine.layer}/ does not name`);
         // A concept's channels are how its own sides reach each other.
-        const ownUnitRoot = other.concept === mine.library && mine.library === other.library;
-        if (theirs.file.endsWith('/protocol.js') && other.concept !== mine.concept && !ROOTS.has(name) && !ownUnitRoot) {
+        if (theirs.file.endsWith('/protocol.js') && other.concept !== mine.concept && !ROOTS.has(name)) {
             say(file, `names ${use.name}, how ${other.concept} is reached, which is ${other.concept}'s own`);
         }
     }

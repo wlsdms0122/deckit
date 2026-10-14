@@ -6,7 +6,7 @@ DeckitModule.define(
             'deck/identity',
             'deck/catalog',
             'deck/runner/main',
-            'deck/protocol',
+            'deck/setting/protocol',
             'deck/mod/permission',
         ],
         provides: ['start', 'valuesOf'],

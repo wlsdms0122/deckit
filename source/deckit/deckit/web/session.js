@@ -1,17 +1,11 @@
 DeckitModule.define(
     'deckit/web/session',
     {
-        uses: [
-            'deckit/config',
-            'deck/storage',
-            'deck/log/main',
-            'deckit/web/model/partition',
-            'deck/identity/model/origin',
-        ],
-        provides: ['own', 'of', 'partitionOf', 'onCreate', 'fetchText', 'clear', 'forget'],
+        uses: ['deck/storage', 'deck/log/main', 'deckit/web/model/partition'],
+        provides: ['of', 'partitionOf', 'onCreate', 'fetchText', 'clear', 'forget'],
         runs: 'main',
     },
-    (CONFIG, STORAGE, LOG, PARTITION, ORIGIN) => {
+    (STORAGE, LOG, PARTITION) => {
         // MARK: - Property
         const SESSIONS = 'web-sessions';
         // A cookie with no expiry would sign the person out of every site at each launch; a browser restoring its
@@ -23,11 +17,6 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // The session deckit's own pages load in, apart from the app's.
-        function own() {
-            return require('electron').session.fromPartition(`persist:${CONFIG.id}`);
-        }
-
         // A mod's web session by name, made on first use. Its partition is spelled from the mod's id, so a
         // mod names its own sessions and no one else's.
         function of(modId, name) {
@@ -85,9 +74,8 @@ DeckitModule.define(
             await session.clearAuthCache();
         }
 
-        // What a mod kept in sessions: its pages' storage in deckit's own session, and every session it made.
+        // What a mod kept in the web sessions it made.
         async function forget(modId) {
-            await own().clearStorageData({ origin: ORIGIN.originOf(modId) });
             const sessions = STORAGE.state.read(SESSIONS, {});
             for (const name of sessions[modId] || []) await clear(modId, name);
             delete sessions[modId];
@@ -127,6 +115,6 @@ DeckitModule.define(
             return new Error(`response too large: more than ${FETCH_LIMIT} bytes (${bytes})`);
         }
 
-        return { own, of, partitionOf, onCreate, fetchText, clear, forget };
+        return { of, partitionOf, onCreate, fetchText, clear, forget };
     }
 );

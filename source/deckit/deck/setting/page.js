@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deck/setting/page',
     {
-        uses: ['deck/protocol'],
+        uses: ['deck/setting/protocol'],
         provides: ['of', 'declarationsOf'],
         runs: 'page',
     },

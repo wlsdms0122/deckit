@@ -5,7 +5,7 @@ DeckitModule.define(
             'core/version',
             'deck/identity',
             'deck/runner/main',
-            'deck/protocol',
+            'deck/extension/protocol',
             'deck/extension/model/extension-point',
         ],
         provides: ['start', 'pointsExtendedBy'],

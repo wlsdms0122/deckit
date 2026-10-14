@@ -5,7 +5,7 @@ DeckitModule.define(
             'core/version',
             'deck/identity',
             'deck/runner/main',
-            'deck/protocol',
+            'deck/export/protocol',
         ],
         provides: ['start'],
         runs: 'main',

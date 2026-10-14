@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deck/identity',
     {
-        uses: ['deck/identity/model/origin'],
+        uses: ['deck/sandbox/model/origin'],
         provides: [
             'add',
             'whenPageEnds',

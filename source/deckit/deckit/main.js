@@ -2,16 +2,13 @@ DeckitModule.define(
     'deckit/main',
     {
         uses: [
-            'deck/config',
             'deck/log/main',
             'deck/mod/manifest',
             'deck/mod/permission',
             'deckit/window',
-            'deck/install',
-            'deck/mod/folder',
             'deck/identity',
             'deck/main',
-            'deck/catalog',
+            'deck/sandbox',
             'deckit/web/session',
             'deckit/web/main',
             'deckit/keymap/main',
@@ -27,21 +24,18 @@ DeckitModule.define(
             'deckit/protocol',
             'deckit/model/permission',
             'deckit/open/model/scheme',
-            'deck/identity/model/origin',
+            'deck/sandbox/model/origin',
         ],
         provides: ['SCHEME', 'connect'],
     },
     (
-        DECK_CONFIG,
         LOG,
         MANIFEST,
         MOD_PERMISSION,
         WINDOW,
-        INSTALL,
-        FOLDER,
         IDENTITY,
         DECK,
-        CATALOG,
+        SANDBOX,
         SESSION,
         WEB,
         KEYMAP,
@@ -60,19 +54,8 @@ DeckitModule.define(
         ORIGIN
     ) => {
         // MARK: - Property
-        // Electron takes privileged schemes in one call to registerSchemesAsPrivileged, before the app is ready, and a
-        // later call replaces an earlier one; the app makes it, with deckit's scheme beside its own.
-        const SCHEME = ORIGIN.SCHEME;
-        // Every deckit page. deckit and a mod's entry run in the preload's isolated world, whose code the policy
-        // leaves alone; the page's own world runs only scripts from its origin, a mod's own files. What the isolated
-        // world loads the policy still holds, so the ranker's blob worker is named. How the page looks is the shell's.
-        const PAGE = [
-            '<!doctype html>',
-            '<meta charset="utf-8">',
-            '<title></title>',
-            `<meta http-equiv="Content-Security-Policy" content="script-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">`,
-            '',
-        ].join('\n');
+        // The scheme deck's pages load from, for the host app's registerSchemesAsPrivileged.
+        const SCHEME = SANDBOX.SCHEME;
         // What the host app answers deckit: the windows and the process are its own.
         const ANSWERS = ['openWindow', 'noticeClicked', 'restart'];
         const starting = []; // what starts with deckit, before any mod launches: the shell on it
@@ -100,7 +83,7 @@ DeckitModule.define(
                 .app.whenReady()
                 .then(() => start(preload, host));
             return API.make({
-                makeView: ({ webview }) => pageView(preload, { webview }),
+                makeView: SANDBOX.view,
                 onStart,
             });
         }
@@ -114,12 +97,7 @@ DeckitModule.define(
         }
 
         function start(preload, host) {
-            serve();
-            if (DECK_CONFIG.ship.length) {
-                for (const { id, outcome, problem } of INSTALL.installShipped())
-                    if (problem) LOG.warn(`${outcome} ${id}: ${problem}`);
-                    else LOG.info(`${outcome} ${id}`);
-            }
+            DECK.prepare({ preload });
             WINDOW.start({ openWindow: (options) => host.openWindow(options) });
             WEB.start();
             KEYMAP.start();
@@ -146,7 +124,6 @@ DeckitModule.define(
                 }
             }
             DECK.start({
-                makeView: () => pageView(preload, { webview: true }),
                 preparePage,
                 describe: (mod) => ({
                     mainProcess: { running: MAIN_PROCESS.started(mod.id), failure: MAIN_PROCESS.failure(mod.id) },
@@ -174,58 +151,6 @@ DeckitModule.define(
             LOG.guard(webContents, 'will-frame-navigate', (details) => {
                 if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.open(details.url, pressed());
             });
-        }
-
-        // Every page of deckit's is the same PAGE, whichever origin it is loaded under: what it becomes is asked of
-        // main as it starts. Under a mod's origin the rest of its folder is served too, for its page to use: images,
-        // styles, data, scripts.
-        function serve() {
-            const { net } = require('electron');
-            const { pathToFileURL } = require('url');
-            const missing = () => new Response('', { status: 404 });
-            const own = SESSION.own();
-            own.protocol.handle(SCHEME.scheme, (request) => {
-                const { host, pathname } = new URL(request.url);
-                if (pathname === '/')
-                    return new Response(PAGE, { headers: { 'content-type': 'text/html; charset=utf-8' } });
-                const id = ORIGIN.modOfHost(host);
-                const folder = CATALOG.mods().find((mod) => mod.id === id)?.folder;
-                const file = folder && servedFile(folder, pathname);
-                return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
-            });
-            // Electron grants every permission a session has no handler for. A mod reaches the camera, the clipboard or
-            // a notice through deckit's API, which holds it to its permissions, and never through the web's.
-            own.setPermissionRequestHandler((_webContents, _permission, answer) => answer(false));
-            own.setPermissionCheckHandler(() => false);
-        }
-
-        // The file of the mod's folder a path names: a link out of the folder and a path that is not one are not
-        // served.
-        function servedFile(folder, pathname) {
-            try {
-                return FOLDER.fileIn(folder, '.' + decodeURIComponent(pathname))?.file || null;
-            } catch {
-                return null;
-            }
-        }
-
-        // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so what is under it shows. A mod's
-        // page may show the web.
-        function pageView(preload, { webview }) {
-            const { WebContentsView } = require('electron');
-            const view = new WebContentsView({
-                webPreferences: {
-                    preload,
-                    session: SESSION.own(),
-                    sandbox: true,
-                    contextIsolation: true,
-                    webviewTag: webview,
-                    transparent: true,
-                },
-            });
-            view.setBackgroundColor('#00000000');
-            view.setVisible(false);
-            return view;
         }
 
         return { SCHEME, connect };

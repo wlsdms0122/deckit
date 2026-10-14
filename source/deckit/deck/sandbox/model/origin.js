@@ -1,5 +1,5 @@
 DeckitModule.define(
-    'deck/identity/model/origin',
+    'deck/sandbox/model/origin',
     {
         uses: [],
         provides: ['SCHEME', 'originOf', 'pageOriginOf', 'modOfHost', 'addressOf'],

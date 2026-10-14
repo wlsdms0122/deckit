@@ -11,7 +11,7 @@ for (const name of Object.keys(LIBRARY.bundles()))
     bundles[name] = { file: name + '.js', defines: definedIn(name + '.js') };
 // The contract it speaks and the scheme its pages load from, from their modules and what those name, run on the built
 // registry. The scheme is here as data for a host app that registers schemes before it loads a bundle.
-const MODULES = ['deck/mod/manifest', 'deck/identity/model/origin'];
+const MODULES = ['deck/mod/manifest', 'deck/sandbox/model/origin'];
 require(path.resolve(folder, 'registry.js'));
 for (const file of LIBRARY.filesFrom(MODULES)) require(path.join(LIBRARY.DECKIT, file));
 const [api, scheme] = DeckitModule.use(MODULES, (MANIFEST, ORIGIN) => [MANIFEST.API, ORIGIN.SCHEME]);

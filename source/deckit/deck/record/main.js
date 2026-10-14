@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deck/record/main',
     {
-        uses: ['deck/storage', 'deck/identity', 'deck/protocol'],
+        uses: ['deck/storage', 'deck/identity', 'deck/record/protocol'],
         provides: ['start'],
         runs: 'main',
     },

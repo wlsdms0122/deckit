@@ -5,7 +5,7 @@ DeckitModule.define(
             'deck/page',
             'deckit/mod/page',
             'deckit/protocol',
-            'deck/identity/model/origin',
+            'deck/sandbox/model/origin',
         ],
         provides: ['boot'],
     },

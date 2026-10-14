@@ -2,6 +2,7 @@ DeckitModule.define(
     'deck/main',
     {
         uses: [
+            'deck/config',
             'deck/storage',
             'deck/log/main',
             'deck/identity',
@@ -9,6 +10,7 @@ DeckitModule.define(
             'deck/install/remove',
             'deck/catalog',
             'deck/runner/main',
+            'deck/sandbox',
             'deck/mod/manifest',
             'deck/record/main',
             'deck/setting/main',
@@ -18,10 +20,11 @@ DeckitModule.define(
             'deck/mod/permission',
             'deck/mod/lifecycle',
         ],
-        provides: ['start', 'wouldInstall'],
+        provides: ['prepare', 'start', 'wouldInstall'],
         runs: 'main',
     },
     (
+        CONFIG,
         STORAGE,
         LOG,
         IDENTITY,
@@ -29,6 +32,7 @@ DeckitModule.define(
         REMOVE,
         CATALOG,
         RUNNER,
+        SANDBOX,
         MANIFEST,
         RECORD,
         SETTING,
@@ -44,12 +48,22 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // Mods run in the views `makeView()` makes. What follows their runs starts before the runner launches any.
+        // Before any page of deck's loads, once the app is ready: `preload` is the file every page loads with. What the
+        // host app ships is installed then, before anything reads the mods.
+        function prepare({ preload }) {
+            SANDBOX.start({ preload });
+            if (!CONFIG.ship.length) return;
+            for (const { id, outcome, problem } of INSTALL.installShipped())
+                if (problem) LOG.warn(`${outcome} ${id}: ${problem}`);
+                else LOG.info(`${outcome} ${id}`);
+        }
+
+        // What follows the mods' runs starts before the runner launches any.
         // What is on deck is told of a mod's page as it is made (`preparePage(webContents, mod)`), of a mod installed,
         // once what runs in its place has launched, and answers what it adds to what install answers
         // (`installed(id)`), and of one removed (`removed(id)`); it is asked what it knows of a mod (`describe(mod)`)
         // and to clear what it keeps of a mod removed with its data (`forget(id)`, a promise).
-        function start({ makeView, preparePage, describe: facts, installed, removed, forget: clear }) {
+        function start({ preparePage, describe: facts, installed, removed, forget: clear }) {
             layer = { facts, installed, removed, clear };
             forgetRemoved();
             CATALOG.start();
@@ -58,7 +72,7 @@ DeckitModule.define(
             EXPORT.start();
             EXTENSION.start();
             listen();
-            RUNNER.start({ makeView, preparePage });
+            RUNNER.start({ preparePage });
         }
 
         // MARK: - Private
@@ -185,10 +199,11 @@ DeckitModule.define(
 
         // The record that it is to be cleared goes only once it is, so a failure is tried again at the next start.
         async function forget(id) {
+            await SANDBOX.forget(id);
             await layer.clear(id);
             REMOVE.clearForgotten(id);
         }
 
-        return { start, wouldInstall };
+        return { prepare, start, wouldInstall };
     }
 );

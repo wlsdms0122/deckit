@@ -7,7 +7,11 @@ DeckitModule.define(
             'deck/record/page',
             'deck/setting/page',
             'deck/protocol',
-            'deck/identity/model/origin',
+            'deck/runner/protocol',
+            'deck/export/protocol',
+            'deck/extension/protocol',
+            'deck/setting/protocol',
+            'deck/sandbox/model/origin',
             'deck/extension/model/extension-point',
             'core/proxy',
             'deck/mod/entry',
@@ -16,7 +20,22 @@ DeckitModule.define(
         provides: ['start'],
         runs: 'page',
     },
-    (LOG, EVENT, STORAGE, SETTINGS, PROTOCOL, ORIGIN, EXTENSION_POINT, PROXY, ENTRY, MOD_PERMISSION) => {
+    (
+        LOG,
+        EVENT,
+        STORAGE,
+        SETTINGS,
+        PROTOCOL,
+        RUNNER_PROTOCOL,
+        EXPORT_PROTOCOL,
+        EXTENSION_PROTOCOL,
+        SETTING_PROTOCOL,
+        ORIGIN,
+        EXTENSION_POINT,
+        PROXY,
+        ENTRY,
+        MOD_PERMISSION
+    ) => {
         // MARK: - Property
         // What is on deck gives a mod when nothing is: nothing.
         const NOTHING = Object.freeze({
@@ -56,14 +75,14 @@ DeckitModule.define(
             let startedEntry = null; // the entry, once its start() is called
             let starting = null;
             let stopping = null;
-            PROTOCOL.stop.handle(
+            RUNNER_PROTOCOL.stop.handle(
                 () =>
                     (stopping ??= (async () => {
                         await starting?.catch(() => {});
                         if (typeof startedEntry?.stop === 'function') await stopOf(startedEntry);
                     })())
             );
-            const loaded = PROTOCOL.load.invoke();
+            const loaded = RUNNER_PROTOCOL.load.invoke();
             mod = loaded.manifest;
             runNumber = loaded.run;
             const given = layer ? { ...NOTHING, ...layer({ mod, run: runNumber, deliver, fail }) } : NOTHING;
@@ -81,7 +100,7 @@ DeckitModule.define(
                 deliver,
                 fail,
             });
-            PROTOCOL.declare.send({ run: runNumber, settings: SETTINGS.declarationsOf(entry.settings, fail) });
+            SETTING_PROTOCOL.declare.send({ run: runNumber, settings: SETTINGS.declarationsOf(entry.settings, fail) });
             const optional = optionalOf();
             const requires = await dependenciesOf(optional);
             if (!requires) {
@@ -134,7 +153,7 @@ DeckitModule.define(
 
         // It did not start, and why: what the mods that require it are told.
         function notStarted() {
-            PROTOCOL.notStarted.send({ run: runNumber, problem: String(failures.at(-1) || 'it did not start') });
+            RUNNER_PROTOCOL.notStarted.send({ run: runNumber, problem: String(failures.at(-1) || 'it did not start') });
         }
 
         // A throw, or a promise that rejects, is recorded against the mod, never only a console line.
@@ -149,7 +168,7 @@ DeckitModule.define(
         function fail(problem) {
             LOG.warn(`${mod?.id ?? 'a mod'}: ${problem}`);
             failures.push(problem);
-            PROTOCOL.problem.send({ run: runNumber, problem: String(problem) });
+            RUNNER_PROTOCOL.problem.send({ run: runNumber, problem: String(problem) });
         }
 
         // The entry runs as a CommonJS module with nothing else in reach, and is what it sets module.exports to. Who
@@ -177,7 +196,7 @@ DeckitModule.define(
         // What each mod it requires exports: values copied and frozen, functions called through main. Its optional
         // dependencies are set on `optional` as they are now.
         async function dependenciesOf(optional) {
-            const given = await PROTOCOL.dependencies.invoke();
+            const given = await EXPORT_PROTOCOL.dependencies.invoke();
             for (const [id, exported] of Object.entries(given.optional)) optional.set(id, exported);
             const out = {};
             for (const [id, exported] of Object.entries(given.requires)) {
@@ -193,7 +212,7 @@ DeckitModule.define(
         function exportsOf(id, exported) {
             return PROXY.deepFreeze(
                 PROXY.proxyOf(exported.functions, structuredClone(exported.values), (path, args) =>
-                    PROTOCOL.callExport.invoke({ run: runNumber, mod: id, path, args })
+                    EXPORT_PROTOCOL.callExport.invoke({ run: runNumber, mod: id, path, args })
                 )
             );
         }
@@ -224,7 +243,7 @@ DeckitModule.define(
                     },
                 });
             }
-            PROTOCOL.optionalChanged.on(({ id, exports }) => sides.get(id)?.set(exports));
+            EXPORT_PROTOCOL.optionalChanged.on(({ id, exports }) => sides.get(id)?.set(exports));
             return { handles: Object.freeze(handles), set: (id, exported) => sides.get(id)?.set(exported) };
         }
 
@@ -330,9 +349,9 @@ DeckitModule.define(
 
         function modSettingsTool() {
             return Object.freeze({
-                list: () => PROTOCOL.modSettings.invoke(),
-                set: (id, key, value) => PROTOCOL.setModSetting.invoke({ mod: id, key, value }),
-                run: (id, key) => PROTOCOL.runModSetting.invoke({ mod: id, key }),
+                list: () => SETTING_PROTOCOL.modSettings.invoke(),
+                set: (id, key, value) => SETTING_PROTOCOL.setModSetting.invoke({ mod: id, key, value }),
+                run: (id, key) => SETTING_PROTOCOL.runModSetting.invoke({ mod: id, key }),
             });
         }
 
@@ -359,7 +378,13 @@ DeckitModule.define(
                                 id,
                                 PROXY.deepFreeze(
                                     PROXY.proxyOf(functions, values, (path, args) =>
-                                        PROTOCOL.callExtension.invoke({ run: runNumber, mod: id, point, path, args })
+                                        EXTENSION_PROTOCOL.callExtension.invoke({
+                                            run: runNumber,
+                                            mod: id,
+                                            point,
+                                            path,
+                                            args,
+                                        })
                                     )
                                 ),
                             ])
@@ -394,7 +419,7 @@ DeckitModule.define(
 
         // `reported` is what is on deck tells main of the mod, under deck's own: deck carries it and does not read it.
         function contribute(parts, { contributions, reported }) {
-            PROTOCOL.exportCalled.handle(({ caller: from, path, args }) => {
+            EXPORT_PROTOCOL.exportCalled.handle(({ caller: from, path, args }) => {
                 const exported = path.reduce((at, key) => at?.[key], parts.exports);
                 if (typeof exported !== 'function') throw new Error(`${mod.id} exports no function ${path.join('.')}`);
                 caller = from;
@@ -404,14 +429,14 @@ DeckitModule.define(
                     caller = null;
                 }
             });
-            PROTOCOL.extensionCalled.handle(({ point, path, args }) => {
+            EXTENSION_PROTOCOL.extensionCalled.handle(({ point, path, args }) => {
                 const extension = path.reduce((at, key) => at?.[key], parts.extend?.[point]);
                 if (typeof extension !== 'function')
                     throw new Error(`${mod.id} extends ${point} with no function ${path.join('.')}`);
                 return extension(...args);
             });
-            PROTOCOL.extensionsChanged.on(({ name, extensions }) => parts.points.get(name)?.set(extensions));
-            PROTOCOL.started.send({
+            EXTENSION_PROTOCOL.extensionsChanged.on(({ name, extensions }) => parts.points.get(name)?.set(extensions));
+            RUNNER_PROTOCOL.started.send({
                 run: runNumber,
                 contributions: { ...reported.contributions, ...contributions },
                 summary: {

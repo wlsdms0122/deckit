@@ -7,15 +7,16 @@ DeckitModule.define(
             'core/event-bus',
             'deck/identity',
             'deck/catalog',
-            'deck/protocol',
-            'deck/identity/model/origin',
+            'deck/sandbox',
+            'deck/runner/protocol',
+            'deck/sandbox/model/origin',
             'deck/mod/manifest',
             'deck/mod/lifecycle',
         ],
         provides: ['start', 'runs', 'runOf', 'currentRun', 'observe', 'whenClosed', 'restart', 'relaunch'],
         runs: 'main',
     },
-    (STORAGE, LOG, EVENT_BUS, IDENTITY, CATALOG, PROTOCOL, ORIGIN, MANIFEST, LIFECYCLE) => {
+    (STORAGE, LOG, EVENT_BUS, IDENTITY, CATALOG, SANDBOX, PROTOCOL, ORIGIN, MANIFEST, LIFECYCLE) => {
         // MARK: - Property
         // How long a mod's stop() may take before its run ends anyway.
         const STOP_LIMIT_MS = 2000;
@@ -26,16 +27,14 @@ DeckitModule.define(
         const sandboxes = new Map();
         const numbers = new Map(); // mod id -> the number of its latest run, counted from 1
         const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
-        let makeView = null;
         let preparePage = null;
         let quitting = null; // the runs terminating as the app quits
 
         // MARK: - Initializer
         // MARK: - Public
-        // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show. `makeView()`
-        // makes the view its page is in; `preparePage(webContents, mod)` is what is on deck setting the page up.
-        function start({ makeView: make, preparePage: prepare }) {
-            makeView = make;
+        // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show.
+        // `preparePage(webContents, mod)` is what is on deck setting the page up.
+        function start({ preparePage: prepare }) {
             preparePage = prepare;
             listen();
             follow();
@@ -160,7 +159,7 @@ DeckitModule.define(
         }
 
         function openSandbox(mod) {
-            const view = makeView();
+            const view = SANDBOX.view({ webview: true });
             const webContents = view.webContents;
             const sandbox = { mod, view, run: null, stopping: null, closing: null };
             // Before identity's own, so a crash ends the run with its cause. A page that did not load runs no mod:

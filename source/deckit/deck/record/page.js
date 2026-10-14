@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deck/record/page',
     {
-        uses: ['deck/protocol'],
+        uses: ['deck/record/protocol'],
         provides: ['values', 'records'],
         runs: 'page',
     },

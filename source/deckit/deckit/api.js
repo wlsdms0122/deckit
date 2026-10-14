@@ -16,7 +16,7 @@ DeckitModule.define(
             'deckit/web/main',
             'deckit/keymap/main',
             'deckit/command/main',
-            'deck/identity/model/origin',
+            'deck/sandbox/model/origin',
         ],
         provides: ['make'],
         runs: 'main',
