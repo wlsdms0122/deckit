@@ -76,7 +76,7 @@ The pages never speak to each other. Main carries everything between them, and e
 | which styles each page wears, in what order | `shell/style/main.js` |
 | a mod's data, records and settings | main, under deckit's folder (below) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
-| what the person arranged (mod order, key overrides, each scheme's handlers) | `state/` |
+| what the person arranged (mod order, key overrides, each scheme's handlers), and what deck and deckit keep for themselves between runs (the web sessions each mod made, the mods whose sessions are still to clear) | `state/` |
 | what the host app and its shell keep (the panel's frame, what was picked in the switcher before) | `state/host/` |
 
 What a mod is, `deck/mod` says: its manifest, its folder, its permissions, its entry and its lifecycle. The rest of deck runs mods by it, and `deck/mod` names nothing of running them. The runner tells each transition of a run (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`); what follows a mod's run (its exports, its extensions, its settings, its events, and above deck its main process modules, its keys, its styles and its place in the panel) listens to those, or asks the run, and changes none of it but to record a problem.
@@ -88,7 +88,7 @@ mods/           installed mods, a folder each, named by id
 data/<id>/      a mod's own files (a main process module's notes, its workspaces)
 records/<id>/   a mod's records, one JSON file a key
 settings/<id>.json
-state/          what the person arranged, one JSON file a key
+state/          what the person arranged, and what deck and deckit keep between runs, one JSON file a key
 state/host/     what the host app and its shell keep, one JSON file a key
 logs/
 ```
