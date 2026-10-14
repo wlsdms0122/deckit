@@ -1,4 +1,3 @@
-const { trimUrl } = require('./event.js');
 const { MONTHS, clockText, dayDelta } = require('./date.js');
 const { nameOf, isSpanning } = require('./occurrence.js');
 const { paintPast, paintDot, paintText } = require('./paint.js');
@@ -228,6 +227,18 @@ function eventDetail({ ui, onAnswer, onClose }) {
         ui.selectable(box);
         return box;
     }
+}
+
+// A link ends where its sentence's punctuation starts, including a ")" the address never opened.
+function trimUrl(url) {
+    let trimmed = url;
+    while (
+        /[.,;:!?]$/.test(trimmed) ||
+        (trimmed.endsWith(')') && trimmed.split('(').length < trimmed.split(')').length)
+    ) {
+        trimmed = trimmed.slice(0, -1);
+    }
+    return trimmed;
 }
 
 module.exports = { eventDetail };
