@@ -139,9 +139,9 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             title: 'Restart this mod, and the mods that require it',
             onClick: () => relaunch(current),
         });
-        const showInFinderAction = ui.rowAction({
+        const revealAction = ui.rowAction({
             icon: ui.icon('externalWindow', { size: 14 }),
-            title: 'Open the mod folder',
+            title: 'Show in Finder',
             onClick: () => mods.reveal(current.id),
         });
         const removeAction = ui.rowAction({
@@ -156,7 +156,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
         nameCell.append(caret, name);
-        actions.append(relaunchAction.element, showInFinderAction.element, removeAction.element, source.element);
+        actions.append(relaunchAction.element, revealAction.element, removeAction.element, source.element);
         row.element.append(nameCell, version, contributions, actions);
         // Selectable: this is what gets pasted into a bug report.
         ui.selectable(failure);
