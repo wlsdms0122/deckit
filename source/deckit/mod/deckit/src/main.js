@@ -10,7 +10,7 @@ module.exports = {
         const { ui } = deck;
         const APP_NAME = deck.about().name;
         const icon = (name) => ui.icon(name, { size: 16 });
-        const address = openAddress({ ui, open: (url) => deck.open(url, { userInitiated: true }) });
+        const address = openAddress({ ui, open: (url) => deck.open(url) });
 
         deck.commands(() => [
             {

@@ -52,9 +52,7 @@ function fileOperator({
                 onOpenInNewTab(entry.path);
                 continue;
             }
-            const opened = await openURL(fileURL(entry.path), { usesDefaultApp, userInitiated: true }).catch(
-                () => false
-            );
+            const opened = await openURL(fileURL(entry.path), { usesDefaultApp }).catch(() => false);
             if (!opened) onStatus('Could not open “' + entry.name + '”');
         }
     }
