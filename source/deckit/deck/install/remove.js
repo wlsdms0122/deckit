@@ -1,40 +1,40 @@
 export function createRemove({ STORAGE, MANIFEST, INSTALL }) {
     // MARK: - Property
     const fs = require('fs');
-    const FORGOTTEN = 'forgotten';
+    const UNCLEARED = 'forgotten';
 
     // MARK: - Initializer
     // MARK: - Public
-    // The installed mod with this id, every copy of it. With `data`, what it stored goes too.
-    function remove(id, { data = false } = {}) {
+    // The installed mod with this id, every copy of it. What it stored stays: that goes by eraseData, once its run
+    // has ended and its page closed.
+    function remove(id) {
         const copies = INSTALL.installed().get(id);
         if (!copies) throw new Error('no installed mod ' + id);
         for (const copy of copies) fs.rmSync(copy, { recursive: true, force: true });
-        return { data: data && forgetData(id) };
     }
 
-    // What a mod stored, taken away: whether there was any to take. An id that is no mod id never loaded, so
-    // it stored nothing.
-    function forgetData(id) {
+    // What a mod stored, erased: whether there was any to erase. An id that is no mod id never loaded, so it stored
+    // nothing. Its pages' storage and its web sessions are their sessions' to clear, so it is noted until they are.
+    function eraseData(id) {
         if (MANIFEST.idProblem(id)) return false;
-        STORAGE.forget(id);
-        // Its pages' storage and its web sessions are the app's sessions', which main clears at its next start.
-        STORAGE.state.write(FORGOTTEN, [...new Set([...forgotten(), id])]);
+        STORAGE.erase(id);
+        STORAGE.state.write(UNCLEARED, [...new Set([...uncleared(), id])]);
         return true;
     }
 
-    function forgotten() {
-        return STORAGE.state.read(FORGOTTEN, []);
+    // The mods whose data was erased and whose sessions are not cleared yet.
+    function uncleared() {
+        return STORAGE.state.read(UNCLEARED, []);
     }
 
-    function clearForgotten(modId) {
+    function cleared(modId) {
         STORAGE.state.write(
-            FORGOTTEN,
-            forgotten().filter((id) => id !== modId)
+            UNCLEARED,
+            uncleared().filter((id) => id !== modId)
         );
     }
 
     // MARK: - Private
 
-    return { remove, forgetData, forgotten, clearForgotten };
+    return { remove, eraseData, uncleared, cleared };
 }

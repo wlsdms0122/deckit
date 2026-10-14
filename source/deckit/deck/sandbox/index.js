@@ -46,7 +46,7 @@ export function createSandbox({ CONFIG, CATALOG, FOLDER }) {
     }
 
     // What a mod's pages kept: their storage in deck's own session.
-    function forget(modId) {
+    function clearSessions(modId) {
         return session().clearStorageData({ origin: ORIGIN.originOf(modId) });
     }
 
@@ -74,7 +74,7 @@ export function createSandbox({ CONFIG, CATALOG, FOLDER }) {
             return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
         });
         // Electron grants every permission a session has no handler for. A mod reaches the camera, the clipboard or
-        // a notice through what deck and the layers on it hand it, which hold it to its permissions, and never
+        // a notification through what deck and the layers on it hand it, which hold it to its permissions, and never
         // through the web's.
         own.setPermissionRequestHandler((_webContents, _permission, answer) => answer(false));
         own.setPermissionCheckHandler(() => false);
@@ -90,5 +90,5 @@ export function createSandbox({ CONFIG, CATALOG, FOLDER }) {
         }
     }
 
-    return { SCHEME, start, view, forget };
+    return { SCHEME, start, view, clearSessions };
 }

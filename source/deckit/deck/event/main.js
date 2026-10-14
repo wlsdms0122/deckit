@@ -1,5 +1,5 @@
 import * as PROTOCOL from './protocol.js';
-import * as NAME from './model/name.js';
+import * as SCOPED from '../mod/model/scoped-name.js';
 
 export function createEvent({ IDENTITY, RUNNER }) {
     // MARK: - Property
@@ -21,7 +21,7 @@ export function createEvent({ IDENTITY, RUNNER }) {
         PROTOCOL.emit.on(({ name, args }, sender) => {
             const mod = IDENTITY.modFrom(sender);
             if (RUNNER.runOf(mod.id)?.state !== 'running') return;
-            const named = NAME.nameOf(mod.id, name);
+            const named = SCOPED.scopedName(mod.id, name);
             for (const [page, names] of listening)
                 if (names.has(named)) PROTOCOL.event.send(page, { name: named, args });
         });

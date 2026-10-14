@@ -39,7 +39,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     const RECORD = createRecord({ STORAGE, IDENTITY });
     const SETTING = createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER });
     const EXPORT = createExport({ IDENTITY, RUNNER });
-    const EXTENSION = createExtension({ IDENTITY, RUNNER });
+    const EXTENSION = createExtension({ IDENTITY, RUNNER, EXPORT });
     const EVENT = createEvent({ IDENTITY, RUNNER });
 
     // MARK: - Property
@@ -48,9 +48,12 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
 
     // MARK: - Initializer
     // MARK: - Public
-    // Before any page of deck's loads, once the app is ready: `preload` is the file every page loads with. What the
-    // host app ships is installed then, before anything reads the mods.
+    // Before any page of deck's loads, once the app is ready: `preload` is the file every page loads with. The log
+    // starts then, and what the host app ships is installed, before anything reads the mods.
     function prepare({ preload }) {
+        LOG.start({
+            nameOf: (webContents) => IDENTITY.modOf(webContents)?.id || IDENTITY.pageNameOf(webContents) || 'page',
+        });
         SANDBOX.start({ preload });
         if (!CONFIG.ship.length) return;
         for (const { id, outcome, problem } of INSTALL.installShipped())
@@ -62,10 +65,10 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     // What is on deck is told of a mod's page as it is made (`preparePage(webContents, mod)`), of a mod installed,
     // once what runs in its place has launched, and answers what it adds to what install answers
     // (`installed(id)`), and of one removed (`removed(id)`); it is asked what it knows of a mod (`describe(mod)`)
-    // and to clear what it keeps of a mod removed with its data (`forget(id)`, a promise).
-    function start({ preparePage, describe: facts, installed, removed, forget: clear }) {
-        layer = { facts, installed, removed, clear };
-        forgetRemoved();
+    // and to clear the sessions it made for a mod removed with its data (`clearSessions(id)`, a promise).
+    function start({ preparePage, describe: facts, installed, removed, clearSessions }) {
+        layer = { facts, installed, removed, clearSessions };
+        clearUncleared();
         CATALOG.start();
         RECORD.start();
         SETTING.start();
@@ -96,6 +99,9 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         });
         PROTOCOL.count.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
+            // A mod id names a folder of deck's and nothing outside it.
+            const problem = MANIFEST.idProblem(id);
+            if (problem) throw Object.assign(new Error(problem), { kind: 'REFUSED' });
             return STORAGE.count(id);
         });
         PROTOCOL.watchMods.on((_payload, sender) => {
@@ -186,23 +192,23 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         layer.removed(id);
         CATALOG.refresh();
         await RUNNER.whenClosed(id);
-        const removed = { data: data && REMOVE.forgetData(id) };
-        if (removed.data) await forget(id);
+        const removed = { data: data && REMOVE.eraseData(id) };
+        if (removed.data) await clearSessions(id);
         return removed;
     }
 
     // A mod removed with its data, whose pages' storage and sessions were not cleared then: cleared here.
-    function forgetRemoved() {
-        for (const id of REMOVE.forgotten()) {
-            forget(id).catch((error) => LOG.warn(`could not clear the web storage of ${id}`, error));
+    function clearUncleared() {
+        for (const id of REMOVE.uncleared()) {
+            clearSessions(id).catch((error) => LOG.warn(`could not clear the web storage of ${id}`, error));
         }
     }
 
     // The record that it is to be cleared goes only once it is, so a failure is tried again at the next start.
-    async function forget(id) {
-        await SANDBOX.forget(id);
-        await layer.clear(id);
-        REMOVE.clearForgotten(id);
+    async function clearSessions(id) {
+        await SANDBOX.clearSessions(id);
+        await layer.clearSessions(id);
+        REMOVE.cleared(id);
     }
 
     return {
@@ -223,8 +229,9 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     };
 }
 
-// What the layers on deck read of it: the scheme its pages load from and their origins, a run's notifications, and the
-// permissions deck checks itself.
+// What the layers on deck read of it: the scheme its pages load from and their origins, a run's notifications, the
+// permissions deck checks itself, and how a name of a mod's is scoped by it.
 export { SCHEME, originOf, pageOriginOf, addressOf } from './sandbox/model/origin.js';
 export { NOTIFICATIONS } from './mod/lifecycle.js';
 export { MODS, MOD_SETTINGS } from './mod/permission.js';
+export { scopedName } from './mod/model/scoped-name.js';

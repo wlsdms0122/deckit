@@ -15,7 +15,7 @@ const TRANSITIONS = {
 // one. `relaunches`: the mod launches again once the run has ended. `requirement`: a mod it requires ended; it
 // launches again as that one does.
 const REASONS = {
-    restart: { relaunches: true },
+    relaunch: { relaunches: true },
     requirement: { relaunches: false },
     updated: { relaunches: true },
     removed: { relaunches: false },

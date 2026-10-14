@@ -26,12 +26,13 @@ export function createLog({ CONFIG, HOME }) {
         return LISTENER.guard(emitter, event, listener, options);
     }
 
-    function start() {
+    // `nameOf(webContents)` names the page a line came from, as main knows it: no page says who it is.
+    function start({ nameOf }) {
         const { app } = require('electron');
         writer = LOG.open({ folder: HOME.logs, name: CONFIG.id });
         file = writer.file;
         LISTENER.reportTo((label, failure) => error(`${label} failed`, failure));
-        PROTOCOL.line.on(({ level, parts }) => say('page', LEVELS.has(level) ? level : 'info', parts));
+        PROTOCOL.line.on(({ level, parts }, sender) => say(nameOf(sender), LEVELS.has(level) ? level : 'info', parts));
         info(`start, ${app.getName()} ${app.getVersion()}, Electron ${process.versions.electron}`);
     }
 

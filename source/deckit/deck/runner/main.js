@@ -70,7 +70,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
 
     // Every mod terminates and launches again, and a mod whose sandbox closed for a quit
     // the host app called off opens again.
-    function restart() {
+    function relaunchAll() {
         for (const sandbox of sandboxes.values()) if (!sandbox.closing) relaunchSandbox(sandbox);
         reconcile();
     }
@@ -106,12 +106,12 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
         return [...sandboxes.values()].filter(({ mod }) => Object.hasOwn(mod.requires, modId));
     }
 
-    // The run terminates for a restart, and the mod launches again once it has ended, unless the run was given
+    // The run terminates to relaunch, and the mod launches again once it has ended, unless the run was given
     // a stronger reason meanwhile (a removal, a quit). One ended before launches again.
     function relaunchSandbox(sandbox) {
         const { run } = sandbox;
         const live = run.state !== 'notRunning';
-        terminate(sandbox, 'restart').then(() => {
+        terminate(sandbox, 'relaunch').then(() => {
             if (quitting || sandboxes.get(sandbox.mod.id) !== sandbox || sandbox.closing) return;
             if (sandbox.run !== run || (live && !run.relaunches)) return;
             launchAgain(sandbox);
@@ -277,5 +277,5 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
         });
     }
 
-    return { start, runs, runOf, currentRun, observe, whenClosed, restart, relaunch };
+    return { start, runs, runOf, currentRun, observe, whenClosed, relaunchAll, relaunch };
 }

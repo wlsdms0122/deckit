@@ -4,7 +4,8 @@ export function createStorage({ HOME }) {
     // MARK: - Property
     const fs = require('fs');
     const path = require('path');
-    const KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+    // A key names a file, and a Mac's disk is blind to case: lower case only, as a mod id is.
+    const KEY = /^[a-z0-9][a-z0-9._-]{0,63}$/;
     const COUNT_LIMIT = 1000;
 
     // A mod's records: JSON by key, kept by deck apart from the mod's own data folder.
@@ -34,7 +35,7 @@ export function createStorage({ HOME }) {
         return path.join(HOME.data, modId);
     }
 
-    // Every file counts, whatever wrote it: forgetting takes them all.
+    // Every file counts, whatever wrote it: erasing takes them all.
     async function count(modId) {
         const seen = { count: 0, capped: false, hidden: false };
         await walk(folderOf(modId), 0, seen);
@@ -43,7 +44,7 @@ export function createStorage({ HOME }) {
     }
 
     // What deck kept for a mod. Its pages' storage and its web sessions are their sessions' to clear.
-    function forget(modId) {
+    function erase(modId) {
         fs.rmSync(folderOf(modId), { recursive: true, force: true });
         fs.rmSync(path.join(HOME.records, modId), { recursive: true, force: true });
         fs.rmSync(path.join(HOME.settings, modId + '.json'), { force: true });
@@ -76,5 +77,5 @@ export function createStorage({ HOME }) {
         }
     }
 
-    return { folderOf, records, settings, state, count, forget };
+    return { folderOf, records, settings, state, count, erase };
 }

@@ -1,8 +1,7 @@
-import * as VERSION from '../../core/version/index.js';
 import * as PROTOCOL from './protocol.js';
-import * as EXTENSION_POINT from './model/extension-point.js';
+import * as SCOPED from '../mod/model/scoped-name.js';
 
-export function createExtension({ IDENTITY, RUNNER }) {
+export function createExtension({ IDENTITY, RUNNER, EXPORT }) {
     // MARK: - Property
     // an open point's id -> mod id -> { values, functions }: what each mod extends it with
     const points = new Map();
@@ -18,26 +17,26 @@ export function createExtension({ IDENTITY, RUNNER }) {
         // A point's mod hears what extends it once, with all deck holds for it.
         RUNNER.observe('didLaunch', (run) => {
             for (const name of run.contributions.extensionPoints)
-                points.set(EXTENSION_POINT.idOf(run.mod.id, name), new Map());
+                points.set(SCOPED.scopedName(run.mod.id, name), new Map());
             const changed = new Set();
             for (const [point, extension] of Object.entries(run.contributions.extensions))
                 changed.add(extend(run, point, extension));
             for (const { run: other } of RUNNER.runs()) {
                 if (other.state !== 'running' || !Object.hasOwn(other.mod.optional, run.mod.id)) continue;
                 for (const [point, extension] of Object.entries(other.contributions.extensions))
-                    if (EXTENSION_POINT.modOf(point) === run.mod.id) changed.add(extend(other, point, extension));
+                    if (SCOPED.modOf(point) === run.mod.id) changed.add(extend(other, point, extension));
             }
             for (const point of changed) if (point) tell(point);
         });
         RUNNER.observe('didTerminate', ({ mod }) => {
             for (const point of [...points.keys()]) {
-                if (EXTENSION_POINT.modOf(point) === mod.id) points.delete(point);
+                if (SCOPED.modOf(point) === mod.id) points.delete(point);
                 else if (points.get(point).delete(mod.id)) tell(point);
             }
         });
         PROTOCOL.callExtension.handle(async ({ run: number, mod, point, path, args }, sender) => {
             const caller = IDENTITY.modFrom(sender);
-            if (EXTENSION_POINT.modOf(point) !== caller.id) throw new Error(`${point} is not a point of ${caller.id}`);
+            if (SCOPED.modOf(point) !== caller.id) throw new Error(`${point} is not a point of ${caller.id}`);
             const run = RUNNER.currentRun(sender, number);
             if (!run || run.state === 'notRunning') throw new Error(`${caller.id} is not running`);
             const extension = points.get(point)?.get(mod);
@@ -58,18 +57,13 @@ export function createExtension({ IDENTITY, RUNNER }) {
     // to an optional dependency, which may not run, or not open the point, and then nothing extends the point and
     // nothing is wrong. Answers the point it extended, or null.
     function extend(run, point, extension) {
-        const owner = EXTENSION_POINT.modOf(point);
+        const owner = SCOPED.modOf(point);
         const optional = Object.hasOwn(run.mod.optional, owner);
         if (!Object.hasOwn(run.mod.requires, owner) && !optional) {
             run.record(`deck.extend() names ${point}, but ${owner} is in neither [requires] nor [optional]`);
             return null;
         }
-        if (optional) {
-            const ownerRun = RUNNER.runOf(owner);
-            const usable =
-                ownerRun?.state === 'running' && VERSION.satisfies(ownerRun.mod.version, run.mod.optional[owner]);
-            if (!usable || !points.has(point)) return null;
-        }
+        if (optional && (!EXPORT.usable(run.mod, owner) || !points.has(point))) return null;
         if (!points.has(point)) {
             run.record(`deck.extend() names ${point}, which ${owner} does not open`);
             return null;
@@ -79,10 +73,10 @@ export function createExtension({ IDENTITY, RUNNER }) {
     }
 
     function tell(point) {
-        const page = IDENTITY.pageOf(EXTENSION_POINT.modOf(point));
+        const page = IDENTITY.pageOf(SCOPED.modOf(point));
         if (!page) return;
         PROTOCOL.extensionsChanged.send(page, {
-            name: EXTENSION_POINT.nameOf(point),
+            name: SCOPED.nameOf(point),
             extensions: Object.fromEntries(points.get(point)),
         });
     }

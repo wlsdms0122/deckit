@@ -61,6 +61,13 @@ export function createExport({ IDENTITY, RUNNER }) {
         });
     }
 
+    // Running, not yet ending, at a version it has optional: one that starts ending is gone to it at once, as a mod
+    // that requires it would have ended first.
+    function usable(mod, id) {
+        const run = RUNNER.runOf(id);
+        return answering.has(id) && run?.state === 'running' && VERSION.satisfies(run.mod.version, mod.optional[id]);
+    }
+
     // MARK: - Private
     // Already waited for, it is still the same wait.
     function expect(modId) {
@@ -105,13 +112,6 @@ export function createExport({ IDENTITY, RUNNER }) {
         return usable(mod, id) ? answering.get(id) : null;
     }
 
-    // Running, not yet ending, at a version it has optional: one that starts ending is gone to it at once, as a mod
-    // that requires it would have ended first.
-    function usable(mod, id) {
-        const run = RUNNER.runOf(id);
-        return answering.has(id) && run?.state === 'running' && VERSION.satisfies(run.mod.version, mod.optional[id]);
-    }
-
     function unusable(mod, id) {
         const run = RUNNER.runOf(id);
         if (run?.state !== 'running') return `${id} is not running`;
@@ -127,5 +127,5 @@ export function createExport({ IDENTITY, RUNNER }) {
         }
     }
 
-    return { start };
+    return { start, usable };
 }

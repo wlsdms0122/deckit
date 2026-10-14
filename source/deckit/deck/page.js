@@ -7,7 +7,7 @@ import * as EXPORT_PROTOCOL from './export/protocol.js';
 import * as EXTENSION_PROTOCOL from './extension/protocol.js';
 import * as SETTING_PROTOCOL from './setting/protocol.js';
 import * as ORIGIN from './sandbox/model/origin.js';
-import * as EXTENSION_POINT from './extension/model/extension-point.js';
+import * as SCOPED from './mod/model/scoped-name.js';
 import * as PROXY from '../core/proxy/index.js';
 import * as ENTRY from './mod/entry.js';
 import * as MOD_PERMISSION from './mod/permission.js';
@@ -244,7 +244,7 @@ export function createDeck() {
         const extensions = (value) => {
             if (!value || typeof value !== 'object') return 'takes { "<mod id>:<point>": extension }';
             const wrong = Object.entries(value).find(
-                ([point, extension]) => !EXTENSION_POINT.isId(point) || !extension || typeof extension !== 'object'
+                ([point, extension]) => !SCOPED.isScoped(point) || !extension || typeof extension !== 'object'
             );
             return wrong ? `takes { "<mod id>:<point>": extension }, not "${wrong[0]}"` : '';
         };
@@ -285,7 +285,13 @@ export function createDeck() {
             storage: Object.freeze({ values: STORAGE.values(), records: STORAGE.records(fail) }),
             requires,
             optional,
-            caller: () => caller,
+            caller() {
+                if (caller === null)
+                    throw new Error(
+                        "deck.caller() is read while a call into the mod's exports runs, before its first await"
+                    );
+                return caller;
+            },
             ...register,
             extensionPoint,
             ...EVENT.forMod({ owner: { deliver, recordFailure: fail } }),
@@ -339,7 +345,7 @@ export function createDeck() {
     // it, each one's functions called through main; `onChange(listener)` hears what it is each time it changes, and
     // answers its off. Nothing extends it before start() has ended: what extends it is added once the mod has started.
     function extensionPointOf(name) {
-        const point = EXTENSION_POINT.idOf(mod.id, name);
+        const point = SCOPED.scopedName(mod.id, name);
         const listeners = new Set();
         let extensions = Object.freeze({});
         return {
