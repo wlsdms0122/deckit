@@ -124,12 +124,12 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     }
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.
-    // `state`: its latest run's, null for one with none. `starting`: it is launching. `hides`: folders of the same
-    // id that are not read.
+    // `found`: every mod the catalog found, each with `installed`, whether it is a copy in deck's mods folder, and
+    // `state`, its latest run's, null for one with none; `hides`: folders of the same id that are not read.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
-            installed: CATALOG.found().map((mod) => {
+            found: CATALOG.found().map((mod) => {
                 const run = RUNNER.runOf(mod.id);
                 return {
                     ...MANIFEST.of(mod),
@@ -139,7 +139,6 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
                     hides: mod.hides,
                     problem: mod.problem || run?.problem || null,
                     state: run?.state || null,
-                    starting: run?.state === 'launching',
                     ...layer.facts(mod),
                     dependencies: mod.dependencies.map((dependency) => ({
                         ...dependency,
