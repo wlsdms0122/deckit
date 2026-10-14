@@ -199,6 +199,7 @@ export function createPanel({ REGION }) {
         for (const [id, view] of showing) {
             if (views.has(id)) continue;
             views.set(id, view);
+            view.setBackgroundColor('#00000000');
             view.setVisible(false);
             container.addChildView(view);
         }

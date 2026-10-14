@@ -109,6 +109,7 @@ export function createSwitcher({ PANEL }) {
             },
             { once: true }
         );
+        view.setBackgroundColor('#00000000');
         view.setVisible(false);
         state.view = view;
         return view;

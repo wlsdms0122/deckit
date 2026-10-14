@@ -89,7 +89,6 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         prepare,
         start,
         wouldInstall: MODS.wouldInstall,
-        view: SANDBOX.view,
         pages: Object.freeze({ make: SANDBOX.page }),
         identity: Object.freeze({
             modFrom: IDENTITY.modFrom,

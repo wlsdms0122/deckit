@@ -28,23 +28,19 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER }) {
         serve();
     }
 
-    // A view for a page of deck's: sandboxed, isolated, in deck's own session, and clear, so what is under it shows.
-    // `webview`: whether its page may show the web.
+    // A view for a page of deck's: sandboxed, isolated, in deck's own session. `webview`: whether its page may show
+    // the web. How it looks where it is shown is for whoever shows it.
     function view({ webview }) {
         const { WebContentsView } = require('electron');
-        const made = new WebContentsView({
+        return new WebContentsView({
             webPreferences: {
                 preload,
                 session: session(),
                 sandbox: true,
                 contextIsolation: true,
                 webviewTag: webview,
-                transparent: true,
             },
         });
-        made.setBackgroundColor('#00000000');
-        made.setVisible(false);
-        return made;
     }
 
     // A page that runs no mod, made for a layer on deck: at its own origin, it loads as every page of deck's does
