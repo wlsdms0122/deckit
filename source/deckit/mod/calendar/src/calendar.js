@@ -146,7 +146,7 @@ function calendar({ deck, accountsPoint }) {
         if (mode === 'month' && !month.fitsAsDrawn()) render();
     }).observe(body);
 
-    // refresh() decides for itself whether a read is due, so asking every minute costs nothing.
+    // A read decides for itself whether it is due, so asking every minute costs nothing.
     setInterval(() => {
         read();
         follow();
@@ -222,7 +222,7 @@ function calendar({ deck, accountsPoint }) {
         body.style.visibility = blank || firstRead ? 'hidden' : '';
 
         const [from, to] = rangeOf(mode, cursor);
-        // Only a move to another range fades in: a background refresh of the same range should not blink.
+        // Only a move to another range fades in, so a background refresh of the same range does not blink.
         const view = mode + '@' + +from;
         const navigated = view !== drawnView;
         drawnView = view;

@@ -19,7 +19,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
         { title: 'Add account', run: () => editor.addAccount() },
     ]);
     const todaySection = foldingSection('Today', 'calendarDays', 'today');
-    // Plain boxes drawn whole, not keyed lists: a row leaving means only that time moved.
+    // Drawn whole: a row leaving means only that time moved, so it does not fold away.
     const todayList = document.createElement('div');
     const upcomingSection = foldingSection('Upcoming', 'clock', 'upcoming');
     const upcomingList = document.createElement('div');
