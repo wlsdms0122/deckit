@@ -19,8 +19,6 @@ module.exports = ({ window, files }) => {
     const LISTING_TIME_LIMIT_MS = 30000;
     const HIDDEN_NAMES = new Set(['.git', '.DS_Store']);
 
-    // Listing a big repository takes a moment, so a listing is kept until the view asks for it `fresh`.
-    const listings = new Map(); // root -> promise of { files, truncated }
     const listingsUnderWay = new Map(); // root -> { listing, next }
     // The view only wants the newest answer, so a new search stops the one before it.
     const searches = new Map(); // root -> { stop() }
@@ -130,7 +128,6 @@ module.exports = ({ window, files }) => {
                 underWay.next ??= underWay.listing.catch(() => {}).then(() => startListing(root));
                 return underWay.next;
             }
-            if (!fresh && listings.has(root)) return listings.get(root);
             return startListing(root);
         },
 
@@ -177,17 +174,11 @@ module.exports = ({ window, files }) => {
 
     function startListing(root) {
         const underWay = { listing: listFiles(root), next: null };
-        listings.set(root, underWay.listing);
         listingsUnderWay.set(root, underWay);
-        underWay.listing.then(
-            () => {
-                if (!underWay.next) listingsUnderWay.delete(root);
-            },
-            () => {
-                if (!underWay.next) listingsUnderWay.delete(root);
-                if (listings.get(root) === underWay.listing) listings.delete(root);
-            }
-        );
+        const end = () => {
+            if (!underWay.next) listingsUnderWay.delete(root);
+        };
+        underWay.listing.then(end, end);
         return underWay.listing;
     }
 

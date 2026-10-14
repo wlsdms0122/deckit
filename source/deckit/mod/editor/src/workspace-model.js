@@ -156,7 +156,8 @@ function workspaceModel({ fileSystem, onRelease }) {
         if (workspace && file !== undefined && !workspace.current) workspace.current = file;
     }
 
-    // Listing a big repository takes a moment, so the listing is kept until it is asked for `fresh`.
+    // A workspace's listing, kept until it is asked for `fresh`: listing a big repository takes a moment, each answer
+    // of the main process is a copy, and a ranker sends its worker a list only when it is another array.
     function listFiles(workspace, fresh = false) {
         if (!workspace?.root) return null;
         if (fresh || !workspace.listing) {
