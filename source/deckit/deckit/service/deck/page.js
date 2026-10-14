@@ -223,13 +223,20 @@ DeckitModule.define(
             return Object.freeze(out);
         }
 
-        // Values as given, with a function at each path that calls it by its path.
+        // Values as given, with a function at each path that calls it by its path. A path names the object's own
+        // properties, defined rather than assigned: a name such as `__proto__` is a property like any other, never
+        // the page's prototypes.
         function proxyOf(functions, values, call) {
             const out = values && typeof values === 'object' ? values : {};
+            const own = (at, key, value) =>
+                Object.defineProperty(at, key, { value, enumerable: true, writable: true, configurable: true });
             for (const path of functions) {
                 let at = out;
-                for (const key of path.slice(0, -1)) at = at[key] ??= {};
-                at[path.at(-1)] = (...args) => call(path, args);
+                for (const key of path.slice(0, -1)) {
+                    if (!Object.hasOwn(at, key)) own(at, key, {});
+                    at = at[key];
+                }
+                own(at, path.at(-1), (...args) => call(path, args));
             }
             return out;
         }
@@ -277,13 +284,18 @@ DeckitModule.define(
                     extend: once('extend', extensions),
                     styles: once('styles', styles),
                 },
+                // A call it refuses is shown on the mod's row like any registration's, and answers a point nothing
+                // extends.
                 extensionPoint(name) {
                     const point = String(name);
-                    if (!open) throw new Error('deck.extensionPoint() is called in start(), and start() has ended');
-                    if (!point) throw new Error('deck.extensionPoint() takes a name');
-                    if (points.has(point)) throw new Error(`deck.extensionPoint("${point}") is called once`);
-                    points.set(point, extensionPointOf(point));
-                    return points.get(point).handle;
+                    if (!open) fail('deck.extensionPoint() is called in start(), and start() has ended');
+                    else if (!point) fail('deck.extensionPoint() takes a name');
+                    else if (points.has(point)) fail(`deck.extensionPoint("${point}") is called once`);
+                    else {
+                        points.set(point, extensionPointOf(point));
+                        return points.get(point).handle;
+                    }
+                    return extensionPointOf(point).handle;
                 },
                 // The parts deck contributes: the view's, its keys, its switcher answers, its URL handler, its exports, what
                 // it extends other mods' points with, its styles, and the points it opens.
@@ -517,7 +529,6 @@ DeckitModule.define(
                     urlSchemes: opens ? names : [],
                     exports: !!parts.exports,
                     extensionPoints: contributions.extensionPoints,
-                    extends: Object.keys(contributions.extensions),
                     styles: Object.keys(contributions.styles),
                     requires: Object.keys(mod.requires),
                 },

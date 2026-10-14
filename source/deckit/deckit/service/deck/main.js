@@ -123,7 +123,13 @@ DeckitModule.define(
                     .filter((mod) => running(mod.id))
                     .map((mod) => {
                         const { summary, problem } = RUNNER.runOf(mod.id);
-                        return { id: mod.id, name: mod.name, ...summary, problem };
+                        return {
+                            id: mod.id,
+                            name: mod.name,
+                            ...summary,
+                            extends: EXTENSION.extendsOf(mod.id),
+                            problem,
+                        };
                     }),
             };
         }

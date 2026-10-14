@@ -7,7 +7,7 @@ DeckitModule.define(
             'deckit/service/deck/protocol',
             'deckit/service/deck/model/extension-target',
         ],
-        provides: ['start'],
+        provides: ['start', 'extendsOf'],
         runs: 'main',
     },
     (IDENTITY, RUNNER, PROTOCOL, TARGET) => {
@@ -46,6 +46,11 @@ DeckitModule.define(
             });
         }
 
+        // The points the mod extends now, as deck took them.
+        function extendsOf(modId) {
+            return [...points].filter(([, extensions]) => extensions.has(modId)).map(([target]) => target);
+        }
+
         // MARK: - Private
         // A point it extends belongs to a mod it requires, which is running, so the point is open or never will be.
         function extend(run, target, extension) {
@@ -66,6 +71,6 @@ DeckitModule.define(
             });
         }
 
-        return { start };
+        return { start, extendsOf };
     }
 );
