@@ -9,8 +9,16 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
         microphone: 'your microphone',
         camera: 'your camera',
         notifications: 'notifications',
+        'clipboard-read': 'what you copied',
+        geolocation: 'your location',
     };
-    const PERMISSION_LABELS = { microphone: 'Microphone', camera: 'Camera', notifications: 'Notifications' };
+    const PERMISSION_LABELS = {
+        microphone: 'Microphone',
+        camera: 'Camera',
+        notifications: 'Notifications',
+        'clipboard-read': 'Clipboard',
+        geolocation: 'Location',
+    };
 
     // A refused load reports on every retry, so each certificate is asked once per attempt.
     const askedCertificates = new Set();
