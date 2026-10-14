@@ -98,7 +98,7 @@ function createApp({ WINDOW }) {
                 state.title = title;
                 if (live(state.window)) WINDOW.setTitle(state.window, title);
             },
-            noticeClicked: () => void show(),
+            notificationClicked: () => void show(),
             restart,
         };
     }
