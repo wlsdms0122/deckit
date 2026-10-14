@@ -11,7 +11,7 @@ function timeGridView({ detail }) {
     // The grid is drawn anew each time, so its scroll offset is carried here. It opens on the working day.
     let hourScroll = 7.5 * HOUR_HEIGHT;
 
-    return { draw };
+    return { draw, moveNowLine };
 
     function draw(into, { days, occurrences }) {
         const spanning = occurrences.filter(isSpanning);
@@ -152,18 +152,29 @@ function timeGridView({ detail }) {
         }
         if (sameDay(day, now)) {
             const line = document.createElement('div');
+            line.dataset.nowLine = '';
             Object.assign(line.style, {
                 position: 'absolute',
                 left: '0',
                 right: '0',
                 height: '2px',
                 background: 'var(--deckit-alert)',
-                top: ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_HEIGHT + 'px',
+                top: topOf(now),
                 pointerEvents: 'none',
             });
             column.appendChild(line);
         }
         return column;
+    }
+
+    // The current-time line drawn under `root`, moved to the time it is now.
+    function moveNowLine(root) {
+        const line = root.querySelector('[data-now-line]');
+        if (line) line.style.top = topOf(new Date());
+    }
+
+    function topOf(time) {
+        return ((time.getHours() * 60 + time.getMinutes()) / 60) * HOUR_HEIGHT + 'px';
     }
 
     // An occurrence from `startMinute` to `endMinute` of its column, beside those it overlaps.

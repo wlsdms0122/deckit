@@ -2,6 +2,7 @@ const { accountEditor } = require('./account-editor.js');
 const { WEEKDAYS, MONTHS, addDays, startOfDay, startOfWeek, clockText } = require('./date.js');
 const { eventDetail } = require('./event-detail.js');
 const { monthView } = require('./month-view.js');
+const { paintPastNow } = require('./paint.js');
 const { providerClient } = require('./provider-client.js');
 const { readCache } = require('./read-cache.js');
 const { reminder } = require('./reminder.js');
@@ -34,6 +35,7 @@ function calendar({ deck, accountsPoint }) {
     let visible = false;
     let drawPending = false;
     let drawnView = '';
+    let drawnDay = 0; // the day the view was drawn on, whose today it shows
 
     const { accounts, feeds } = store({ records });
     const client = providerClient({ deck, ui, records, accountsPoint, onSigningIn: render });
@@ -161,8 +163,9 @@ function calendar({ deck, accountsPoint }) {
     });
     read();
 
-    // Being past changes with the clock alone, and so does the current-time line.
-    setInterval(render, 60 * 1000);
+    // Being past changes with the clock alone, and so does the current-time line: each is moved in place, and only
+    // a new day, which changes what today is, draws the view again.
+    setInterval(tick, 60 * 1000);
 
     return {
         content,
@@ -189,6 +192,14 @@ function calendar({ deck, accountsPoint }) {
         now,
         commands,
     };
+
+    function tick() {
+        if (!visible) return;
+        if (+startOfDay(new Date()) !== drawnDay) return render();
+        paintPastNow(body);
+        paintPastNow(side.element);
+        timeGrid.moveNowLine(body);
+    }
 
     function render() {
         if (!visible || detail.isOpen()) {
@@ -228,6 +239,7 @@ function calendar({ deck, accountsPoint }) {
         drawnView = view;
 
         body.textContent = '';
+        drawnDay = +startOfDay(new Date());
         const occurrences = shownBetween(from, to);
         if (mode === 'month') month.draw(body, { start: from, month: cursor.getMonth(), occurrences });
         else timeGrid.draw(body, { days: daysOf(from, to), occurrences });
