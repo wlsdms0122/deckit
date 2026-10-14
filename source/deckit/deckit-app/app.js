@@ -1,4 +1,4 @@
-function createApp({ WINDOW }) {
+function createApp({ WINDOW, THEME }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -81,6 +81,11 @@ function createApp({ WINDOW }) {
         return {
             start: (given) => {
                 controls = given;
+                controls.setTheme(THEME.now().theme);
+                THEME.onChange(() => {
+                    controls.setTheme(THEME.now().theme);
+                    WINDOW.recolor();
+                });
                 show();
             },
             showsPanel: (webContents) => {

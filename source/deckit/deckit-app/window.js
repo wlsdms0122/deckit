@@ -1,4 +1,4 @@
-function createWindow({ CONFIG }) {
+function createWindow({ CONFIG, THEME }) {
     // MARK: - Property
     // The bar over a view laid below it, and the taller one over a view that fills the window, the bar's height
     // included, whose buttons stand in the panel's top left, inside the sidebar card while it is open. The buttons
@@ -15,10 +15,8 @@ function createWindow({ CONFIG }) {
     });
     const DEFAULT_VIEW_SIZE = { width: 1100, height: 722 };
     // The colour of Deckit.app's views, which a window's bar is drawn in too.
-    const BACKGROUND = [26, 29, 33];
-    const SOLID = { background: `rgb(${BACKGROUND})`, color: '#d1d2d3' };
-    const FONT = '-apple-system, system-ui, sans-serif';
     const SAVE_DELAY = 400;
+    const looks = new WeakMap(); // window -> { glass, covered }: how its bar page is drawn
     const titles = new WeakMap(); // window -> the title it shows
     const covered = new WeakSet(); // the windows whose view covers the bar, where its title would be
 
@@ -56,7 +54,7 @@ function createWindow({ CONFIG }) {
             // offers only materials, and the others tint so much that the glass page over them reads as solid.
             ...(glass !== null
                 ? { vibrancy: 'hud', visualEffectState: 'active' }
-                : { backgroundColor: SOLID.background }),
+                : { backgroundColor: `rgb(${THEME.now().bar.background})` }),
             titleBarStyle: 'hidden',
             trafficLightPosition: bar.buttons,
         });
@@ -64,7 +62,8 @@ function createWindow({ CONFIG }) {
         const giveKeyboard = focus || (() => page && !page.isDestroyed() && page.focus());
         titles.set(window, title);
         if (fullSize) covered.add(window);
-        window.webContents.loadURL(barPage({ glass, covered: fullSize }));
+        looks.set(window, { glass, covered: fullSize });
+        window.webContents.loadURL(barPage(looks.get(window)));
         window.webContents.on('did-finish-load', () => showTitle(window));
         place(window, { bounds: fullSize ? ({ width, height }) => ({ x: 0, y: 0, width, height }) : viewBounds });
         if (page) followPage(window, page);
@@ -184,10 +183,11 @@ function createWindow({ CONFIG }) {
     // covers it the page is the window's colour alone: a region it marked to drag would drag the window through the
     // view, whatever the view drew there.
     function barPage({ glass, covered }) {
-        const background = glass !== null ? `rgba(${BACKGROUND}, ${glass})` : SOLID.background;
+        const { bar: colour } = THEME.now();
+        const background = glass !== null ? `rgba(${colour.background}, ${glass})` : `rgb(${colour.background})`;
         const page = `html,body{margin:0;height:100%;overflow:hidden;background:${background};cursor:default;-webkit-user-select:none;user-select:none}`;
         const bar = `
-#bar{position:absolute;left:0;right:0;top:0;height:${BAR.height}px;display:flex;align-items:center;justify-content:center;padding:0 88px;box-sizing:border-box;-webkit-app-region:drag;color:${SOLID.color};font:600 13px ${FONT}}
+#bar{position:absolute;left:0;right:0;top:0;height:${BAR.height}px;display:flex;align-items:center;justify-content:center;padding:0 88px;box-sizing:border-box;-webkit-app-region:drag;color:${colour.color};font:600 13px ${THEME.FONT}}
 #title{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;opacity:.7}
 </style><div id="bar"><span id="title"></span></div><script>
 window.setTitle = (text) => { document.getElementById('title').textContent = text; };
@@ -198,7 +198,18 @@ window.setTitle = (text) => { document.getElementById('title').textContent = tex
         );
     }
 
-    return { open, viewBounds, titleBar: TITLE_BAR, setTitle };
+    // The system's appearance changed: every window's bar, and the colour under a solid one, are drawn again in it.
+    function recolor() {
+        const { BrowserWindow } = require('electron');
+        for (const window of BrowserWindow.getAllWindows()) {
+            const look = looks.get(window);
+            if (!look) continue;
+            if (look.glass === null) window.setBackgroundColor(`rgb(${THEME.now().bar.background})`);
+            window.webContents.loadURL(barPage(look));
+        }
+    }
+
+    return { open, viewBounds, titleBar: TITLE_BAR, setTitle, recolor };
 }
 
 module.exports = { createWindow };

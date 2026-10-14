@@ -21,6 +21,7 @@ if (!app.requestSingleInstanceLock()) {
     const { config, folders } = require('./config.js');
     const { createWindow } = require('./window.js');
     const { createApp } = require('./app.js');
+    const { createTheme } = require('./theme.js');
     protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
     // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
     const restart = () => {
@@ -28,7 +29,8 @@ if (!app.requestSingleInstanceLock()) {
         else app.relaunch();
         app.quit();
     };
-    const host = createApp({ WINDOW: createWindow({ CONFIG: config }) }).make({ restart });
+    const THEME = createTheme();
+    const host = createApp({ WINDOW: createWindow({ CONFIG: config, THEME }), THEME }).make({ restart });
     const deckit = DECKIT.connect({ preload: path.join(__dirname, 'preload.js'), host, config, folders });
     SHELL.attach(deckit, { host });
     // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
