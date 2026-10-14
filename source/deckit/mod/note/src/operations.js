@@ -12,7 +12,7 @@ function operations({
     enqueue,
     openPath,
     isBlank,
-    text,
+    openText,
     onRelocate,
     onTrash,
     onNoteMade,
@@ -102,7 +102,7 @@ function operations({
     }
 
     async function copyText(path) {
-        const copied = path === openPath() ? text() : (await notesFolder.read(path).catch(() => null))?.text;
+        const copied = path === openPath() ? openText() : (await notesFolder.read(path).catch(() => null))?.text;
         if (copied != null) deck.clipboard.writeText(copied).catch(() => {});
     }
 

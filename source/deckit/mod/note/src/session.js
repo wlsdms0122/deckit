@@ -200,7 +200,6 @@ function session({ theme, ui, notesFolder, editor, movePath, onLeave, onRelocate
         element,
         menuButton: menuButton.element,
         path: () => note.path,
-        text: () => editor.text(),
         open,
         close,
         closeWithoutSaving,

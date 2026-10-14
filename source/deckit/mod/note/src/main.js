@@ -128,7 +128,7 @@ module.exports = {
             enqueue: noteSession.enqueue,
             openPath: noteSession.path,
             isBlank: noteSession.isBlank,
-            text: noteSession.text,
+            openText: editor.text,
             onRelocate: relocate,
             onTrash: async (path, wasOpen) => {
                 if (wasOpen) await leaveNote();
