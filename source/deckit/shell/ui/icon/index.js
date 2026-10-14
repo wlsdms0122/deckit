@@ -1,6 +1,8 @@
 import { LUCIDE } from './model/lucide.js';
 
 // MARK: - Property
+// The kit's icon frame, in px: as big as an icon of another mod's is drawn.
+const FRAME = 24;
 const SVG = 'http://www.w3.org/2000/svg';
 const ELEMENTS = new Set([
     'svg',
@@ -80,7 +82,8 @@ function iconOf(shapes, { size = 15, fill = 'none', color = 'currentColor', stro
 }
 
 // Another mod's icon, drawn in this page. The text is that mod's, so it is rebuilt from shapes alone:
-// nothing that runs, loads or styles crosses. What is not an SVG draws nothing.
+// nothing that runs, loads or styles crosses, and it is no bigger than the kit's frame, so it cannot size itself
+// in a page that is not its own. What is not an SVG draws nothing.
 function sanitize(text) {
     // The HTML parser places <svg> in the SVG namespace without an xmlns, as icons are written. Its document is
     // inert: nothing in it loads or runs.
@@ -88,10 +91,22 @@ function sanitize(text) {
     if (parsed?.namespaceURI !== SVG || parsed.localName !== 'svg') return document.createElementNS(SVG, 'svg');
     const svg = copyOf(parsed);
     svg.setAttribute('aria-hidden', 'true');
+    fit(svg);
     return svg;
 }
 
 // MARK: - Private
+// Its width and height at most the frame's, its shape kept: a viewBox from what it said, if it said none.
+function fit(svg) {
+    const width = Number(svg.getAttribute('width'));
+    const height = Number(svg.getAttribute('height'));
+    if (!(width > 0) || !(height > 0) || (width <= FRAME && height <= FRAME)) return;
+    if (!svg.hasAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    const scale = FRAME / Math.max(width, height);
+    svg.setAttribute('width', String(Math.round(width * scale)));
+    svg.setAttribute('height', String(Math.round(height * scale)));
+}
+
 function copyOf(source) {
     const copy = document.createElementNS(SVG, source.localName);
     for (const { name, value } of source.attributes) {

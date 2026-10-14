@@ -4,9 +4,8 @@ import * as IPC from '../../core/ipc/index.js';
 export const ready = IPC.rendererToMain('shell:switcher-ready', {});
 export const open = IPC.mainToRenderer('shell:switcher-open');
 export const close = IPC.rendererToMain('shell:switcher-close', {});
-// { token }, which comes back with hidden once the exit has played.
-export const dismiss = IPC.mainToRenderer('shell:switcher-dismiss');
-export const hidden = IPC.rendererToMain('shell:switcher-hidden', { token: 'number?' });
+// The list is put away: answered once its exit has played.
+export const dismiss = IPC.mainToRenderer('shell:switcher-dismiss', { reply: true });
 // { number }: ⌘1 to ⌘9 pressed in the list.
 export const number = IPC.mainToRenderer('shell:switcher-number');
 

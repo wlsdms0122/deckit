@@ -68,3 +68,12 @@ export function createRegion() {
 
     return { children, make };
 }
+
+// Why a view's parent is not one a mod may name, or '': a mod it uses, in its [requires] or [optional].
+export function parentProblem(parent, mod) {
+    if (parent === undefined || parent === null) return '';
+    if (typeof parent !== 'string') return "takes a parent that is a mod's id";
+    if (!Object.hasOwn(mod.requires, parent) && !Object.hasOwn(mod.optional, parent))
+        return `names the parent ${parent}, which is in neither [requires] nor [optional]`;
+    return '';
+}

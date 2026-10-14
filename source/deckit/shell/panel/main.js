@@ -1,12 +1,11 @@
 import * as PROTOCOL from './protocol.js';
 
-export function createPanel({ REPLY, REGION }) {
+export function createPanel({ REGION }) {
     // MARK: - Property
     const FRAME = 'panel-frame';
     const PINNED = 'panel-pinned';
     const HISTORY_LIMIT = 50;
     const views = new Map(); // mod id -> the view its page is in, while the mod has something to show
-    const icons = new Map(); // mod id -> the icon its latest run that started said it has
     const floating = new Map(); // webContents id of a mod page with something floating -> its end's off
     const sent = { onScreen: new Set(), looks: new WeakMap() }; // what the pages were last told
     let raised = new Set(); // the children laid over their regions, lifted over the mod on screen
@@ -18,7 +17,10 @@ export function createPanel({ REPLY, REGION }) {
     let returning = null; // the mod that was on screen while its page runs again
     // The panel is glass: its colour laid at this strength over what is behind it, blurred through.
     const GLASS = 0.68;
+    // How long main waits on a page's exit before it goes on: it guards a page that is gone or stuck.
+    const EXIT_LIMIT_MS = 400;
     let shown = false;
+    let moves = 0; // counts the hides and moves, so a newer one takes the place of one still waiting
     let titled = null; // the title the host was last told
     let look = { floating: false, dismissible: false, titleBar: null };
     let frame = { width: 240, collapsed: false, navHeight: null };
@@ -44,7 +46,6 @@ export function createPanel({ REPLY, REGION }) {
         deckit.mods.onChange(reconcile);
         // Who is whose child changes with the runs, which reconcile hears too: a region's change is only layout.
         REGION.onChange(update);
-        deckit.mods.observe('didLaunch', ({ mod, summary }) => icons.set(mod.id, summary.icon));
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
         reconcile();
     }
@@ -87,12 +88,16 @@ export function createPanel({ REPLY, REGION }) {
             frame,
             state: stateOf(),
         }));
-        PROTOCOL.pick.on(({ id }, sender) => modOf(sender) && select(id));
-        PROTOCOL.step.on(({ by }, sender) => modOf(sender) && step(by));
-        PROTOCOL.reorder.on(({ ids }, sender) => modOf(sender) && deckit.mods.arrange(ids));
-        PROTOCOL.layout.on((change, sender) => modOf(sender) && setFrame(change));
+        // The panel's frame is drawn in each mod's page, so what it tells is taken only while a person presses there:
+        // otherwise a mod's own code could reorder the mods, and with them who opens an address first.
+        const pressed = (sender) => !!modOf(sender) && deckit.pages.isPressing(sender);
+        PROTOCOL.pick.on(({ id }, sender) => pressed(sender) && select(id));
+        PROTOCOL.step.on(({ by }, sender) => pressed(sender) && step(by));
+        // A reorder not taken puts the list the page drew back as it is.
+        PROTOCOL.reorder.on(({ ids }, sender) => (pressed(sender) ? deckit.mods.arrange(ids) : broadcast()));
+        PROTOCOL.layout.on((change, sender) => pressed(sender) && setFrame(change));
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
-        PROTOCOL.dismiss.on((_payload, sender) => modOf(sender) && onScreen().includes(sender) && host.dismiss());
+        PROTOCOL.dismiss.on((_payload, sender) => pressed(sender) && onScreen().includes(sender) && host.dismiss());
         PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);
@@ -321,7 +326,7 @@ export function createPanel({ REPLY, REGION }) {
         const mods = deckit.mods
             .list()
             .filter(({ id }) => hasView(id))
-            .map(({ id, name }) => ({ id, name, icon: icons.get(id) || '' }));
+            .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));
         return {
             mods,
             current,
@@ -394,15 +399,11 @@ export function createPanel({ REPLY, REGION }) {
 
     // The view's own idea of whether it is up (didAppear, its keys, its entrance and exit) never parts from this.
     // The children on screen play it with the mod on screen; main waits on that mod's alone.
-    function setShown(on, token) {
+    // `waited`: a page main waits on to play its exit, told by its own channel.
+    function setShown(on, waited = null) {
         shown = on;
         const pages = onScreen();
-        for (const page of pages)
-            PROTOCOL.visible.send(page, {
-                open: on,
-                token: page === currentContents() ? (token ?? null) : null,
-                animate: true,
-            });
+        for (const page of pages) if (page !== waited) PROTOCOL.visible.send(page, { open: on, animate: true });
         sent.onScreen = new Set(on ? pages : []);
     }
 
@@ -418,20 +419,23 @@ export function createPanel({ REPLY, REGION }) {
     // Resolves whether the panel had the keyboard as it went, in any of its pages on screen: a hidden view keeps
     // its focus and goes on taking keystrokes, so the host gives it back. Hidden only after the view has played
     // its exit.
-    function hide() {
-        return new Promise((resolve) => {
-            if (!shown) return resolve(false);
-            REPLY.cancel(PROTOCOL.played);
-            const contents = currentContents();
-            const pages = onScreen();
-            const token = REPLY.awaitReply(contents, PROTOCOL.hidden, () => {
-                if (shown) return resolve(false);
-                const held = pages.some((page) => !page.isDestroyed() && deckit.web.holdsKeyboard(page));
-                container.setVisible(false);
-                resolve(held);
-            });
-            setShown(false, token);
-        });
+    // A newer hide or move takes the place of one waiting on its exit, which then resolves false.
+    async function hide() {
+        if (!shown) return false;
+        const mine = ++moves;
+        const contents = currentContents();
+        const pages = onScreen();
+        setShown(false, contents);
+        if (contents) await exitOf(PROTOCOL.exit, contents);
+        if (mine !== moves || shown) return false;
+        const held = pages.some((page) => !page.isDestroyed() && deckit.web.holdsKeyboard(page));
+        container.setVisible(false);
+        return held;
+    }
+
+    // Main waits on a page's exit only so long: a page that is gone or stuck plays none.
+    function exitOf(channel, contents) {
+        return channel.invoke(contents, {}, { timeout: EXIT_LIMIT_MS }).catch(() => {});
     }
 
     function focus() {
@@ -440,16 +444,13 @@ export function createPanel({ REPLY, REGION }) {
 
     // A move keeps the panel up the whole way, its exit played as it leaves and its entrance as it arrives.
     // Resolves false when it was put away on the way, or a newer move replaced it.
-    function leave() {
-        return new Promise((resolve) => {
-            const contents = currentContents();
-            if (!shown || !contents) return resolve(true);
-            const token = REPLY.awaitReply(contents, PROTOCOL.played, () => resolve(true), {
-                superseded: () => resolve(false),
-            });
-            for (const page of onScreen())
-                PROTOCOL.play.send(page, { direction: 'out', token: page === contents ? token : null });
-        });
+    async function leave() {
+        const contents = currentContents();
+        if (!shown || !contents) return true;
+        const mine = ++moves;
+        for (const page of onScreen()) if (page !== contents) PROTOCOL.play.send(page, { direction: 'out' });
+        await exitOf(PROTOCOL.leave, contents);
+        return mine === moves;
     }
 
     function arrive() {

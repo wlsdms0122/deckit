@@ -18,9 +18,6 @@ export const show = IPC.rendererToMain('shell:panel-show', {});
 export const dismiss = IPC.rendererToMain('shell:panel-dismiss', {});
 // Something floats in the page (a dialog, a menu), so the page answers Escape.
 export const floating = IPC.rendererToMain('shell:panel-floating', { on: 'boolean' });
-// A command and the fact it brings about never share a name: play is answered by played, visible by hidden.
-export const played = IPC.rendererToMain('shell:panel-played', { token: 'number?' });
-export const hidden = IPC.rendererToMain('shell:panel-hidden', { token: 'number?' });
 // The children the person pinned to the panel's list, asked by a mod with deckit.mods; and pinning one.
 export const pinned = IPC.rendererToMain('shell:panel-pinned', {}, { reply: true, sync: true });
 export const setPinned = IPC.rendererToMain(
@@ -31,10 +28,14 @@ export const setPinned = IPC.rendererToMain(
 
 // { mods: [{ id, name, icon }], current, canBack, canForward, frame: { width, collapsed, navHeight } }
 export const state = IPC.mainToRenderer('shell:panel-state');
-// { open, token }: `token` is set when main waits for the exit, and comes back with hidden.
+// { open, animate }: the panel is put on screen or taken off it.
 export const visible = IPC.mainToRenderer('shell:panel-visible');
-// { direction: 'in' | 'out', token }, around a move.
+// The panel is taken off screen: answered once the page in front has played its exit.
+export const exit = IPC.mainToRenderer('shell:panel-exit', { reply: true });
+// { direction: 'in' | 'out' }, around a move.
 export const play = IPC.mainToRenderer('shell:panel-play');
+// The panel moves: answered once the page in front has played its exit.
+export const leave = IPC.mainToRenderer('shell:panel-leave', { reply: true });
 // { floating, dismissible, titleBar, region }: drawn over something, whether Escape puts it away, the window's
 // title bar over the page, and whether the page is in a region of another mod's.
 export const look = IPC.mainToRenderer('shell:panel-look');

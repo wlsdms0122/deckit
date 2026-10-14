@@ -4,7 +4,7 @@ export function createRegion() {
     // MARK: - Property
     // `${webContents id}:${number}` -> { parent, rect, child }: a place in a mod's page that shows a child's view
     const regions = new Map();
-    // mod id -> { parent, icon }: the view its run that last started has, kept while the mod launches again
+    // mod id -> { parent }: the view its run that last started has, kept while the mod launches again
     const known = new Map();
     const sentChildren = new Map(); // parent mod id -> its children as its page was last told them, written
     const listeners = new Set();
@@ -19,7 +19,7 @@ export function createRegion() {
         deckit = given;
         deckit.mods.observe('didLaunch', ({ mod, summary }) => {
             const before = parentOf(mod.id);
-            if (summary.view) known.set(mod.id, { parent: summary.parent || null, icon: summary.icon || '' });
+            if (summary.view) known.set(mod.id, { parent: summary.parent || null });
             else known.delete(mod.id);
             if (parentOf(mod.id) !== before) leave(mod.id);
         });
@@ -113,7 +113,7 @@ export function createRegion() {
         return deckit.mods
             .list()
             .filter(({ id }) => parentOf(id) === parent && runs(id))
-            .map(({ id, name }) => ({ id, name, icon: known.get(id).icon }));
+            .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));
     }
 
     function runs(id) {

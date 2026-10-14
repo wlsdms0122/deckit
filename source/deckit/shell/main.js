@@ -1,5 +1,4 @@
 import * as STYLE_PERMISSION from './style/model/permission.js';
-import { createReply } from './reply/index.js';
 import { createRegion } from './region/main.js';
 import { createPanel } from './panel/main.js';
 import { createSwitcher } from './switcher/main.js';
@@ -26,10 +25,9 @@ function attach(deckit, { host } = {}) {
         icon: 'eye',
         means: "It can change how every page in the app looks, other mods' among them, and so read what they show.",
     });
-    const REPLY = createReply();
     const REGION = createRegion();
-    const PANEL = createPanel({ REPLY, REGION });
-    const SWITCHER = createSwitcher({ REPLY, PANEL });
+    const PANEL = createPanel({ REGION });
+    const SWITCHER = createSwitcher({ PANEL });
     const STYLE = createStyle();
     const THEME = createTheme();
     deckit.onStart(() => {

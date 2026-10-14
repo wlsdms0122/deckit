@@ -1,7 +1,7 @@
 import * as PROTOCOL from './protocol.js';
 import * as PAGE from './model/page-name.js';
 
-export function createSwitcher({ REPLY, PANEL }) {
+export function createSwitcher({ PANEL }) {
     // MARK: - Property
     const USE = 'switcher-use';
     const USE_KEPT = 60;
@@ -11,6 +11,8 @@ export function createSwitcher({ REPLY, PANEL }) {
     const NOW_WAIT_MS = 150;
     // An entry that opens a mod is the switcher's own, under an id no mod's entry has.
     const OPEN = '@open:';
+    // How long main waits on the list's exit before it goes on.
+    const EXIT_LIMIT_MS = 400;
     const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
     const handed = new Map(); // entry id -> { mod, kind, group, label }, of what the list was given since it opened
     let deckit = null;
@@ -65,13 +67,13 @@ export function createSwitcher({ REPLY, PANEL }) {
         state.on = false;
         const closed = state.closed;
         state.closed = null;
-        const contents = state.view.webContents;
-        const token = REPLY.awaitReply(contents, PROTOCOL.hidden, () => {
+        // Main waits on the exit only so long: a page that is gone or stuck plays none.
+        const played = PROTOCOL.dismiss.invoke(state.view.webContents, {}, { timeout: EXIT_LIMIT_MS }).catch(() => {});
+        played.then(() => {
             if (state.on) return closed?.(false);
             state.view?.setVisible(false);
             closed?.(true);
         });
-        PROTOCOL.dismiss.send(contents, { token });
     }
 
     // MARK: - Private
@@ -171,10 +173,10 @@ export function createSwitcher({ REPLY, PANEL }) {
                     label: 'Open ' + mod.name,
                     group: '',
                     hint: '',
-                    icon: deckit.mods.runOf(mod.id).summary.icon,
+                    icon: deckit.mods.listingOf(mod.id).icon,
                     keywords: '',
                     address: '',
-                    aliases: [mod.name, ...deckit.mods.runOf(mod.id).summary.keywords],
+                    aliases: [mod.name, ...deckit.mods.listingOf(mod.id).keywords],
                     runnable: true,
                     page: null,
                     mod,
@@ -217,15 +219,15 @@ export function createSwitcher({ REPLY, PANEL }) {
     // An entry as the list is handed it, its mod drawn with the mod's icon and found by its keywords; what it is,
     // kept to remember it by when it is picked.
     function hand(entry) {
-        const summary = deckit.mods.runOf(entry.mod.id)?.summary;
+        const listing = deckit.mods.listingOf(entry.mod.id);
         handed.set(entry.id, { mod: entry.mod.id, kind: entry.kind, group: entry.group, label: entry.label });
         return {
             ...entry,
             mod: {
                 id: entry.mod.id,
                 name: entry.mod.name,
-                icon: summary?.icon || '',
-                aliases: summary?.keywords || [],
+                icon: listing?.icon || '',
+                aliases: listing?.keywords || [],
             },
         };
     }

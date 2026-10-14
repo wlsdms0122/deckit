@@ -160,11 +160,11 @@ function boot(theme) {
     MOD_STYLE.wear();
     let switcher = null;
     // Reported from the close itself: Escape and a click away close here first and main hears afterwards. It
-    // carries the token of the hide main waits on, and an exit overtaken by a reopen never reports, or it would
-    // answer the next hide mid-fade.
+    // answers the dismiss main waits on, and an exit overtaken by a reopen never answers, or it would answer the
+    // next dismiss mid-fade.
     let closing = false;
     let exitTimer = null;
-    let hideToken = null;
+    let hiddenAnswer = null; // answers main's dismiss, once the exit has played
     let giveUpTimer = null;
 
     Object.assign(document.body.style, { margin: '0', background: 'transparent' });
@@ -213,14 +213,15 @@ function boot(theme) {
     // ⌘1 to ⌘9 are caught in main, where only a chord taken first wins over the app's menu.
     PROTOCOL.number.on(({ number }) => switcher?.model.takeNumber(number));
     // The list goes with the view, so a reopen never shows stale entries.
-    PROTOCOL.dismiss.on(({ token }) => {
-        hideToken = token ?? null;
+    PROTOCOL.dismiss.handle(() => {
+        const hidden = new Promise((resolve) => (hiddenAnswer = resolve));
         const closed = switcher;
         switcher = null;
         // Closing reports through onClose. With nothing open or closing, report now so main does not wait out
         // its guard timer.
         if (closed) closed.close();
         else if (!closing) reportHidden();
+        return hidden;
     });
     PROTOCOL.ready.send();
     console.log('[deckit] switcher up');
@@ -228,7 +229,8 @@ function boot(theme) {
     function reportHidden() {
         closing = false;
         exitTimer = null;
-        PROTOCOL.hidden.send({ token: hideToken });
+        hiddenAnswer?.();
+        hiddenAnswer = null;
     }
 
     function reportAfterExit() {

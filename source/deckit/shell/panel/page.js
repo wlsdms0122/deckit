@@ -91,7 +91,7 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
         look = next;
         dress();
     });
-    PROTOCOL.visible.on(({ open: on, token, animate }) => {
+    PROTOCOL.visible.on(({ open: on, animate }) => {
         if (open === on) return;
         open = on;
         appear();
@@ -100,13 +100,21 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
             return;
         }
         if (on) fadeIn();
-        else fadeOut(() => !open && PROTOCOL.hidden.send({ token }));
+        else fadeOut(() => {});
     });
-    // Main waits for the exit before it moves the panel, so a move is not seen as a flicker.
-    PROTOCOL.play.on(({ direction, token }) => {
-        if (direction === 'out') fadeOut(() => PROTOCOL.played.send({ token }));
-        else fadeIn();
-    });
+    // Main waits for the exit of the page in front before it takes the panel off screen, or moves it, so neither is
+    // seen as a flicker. An entrance cancels an exit under way, which is then never answered.
+    PROTOCOL.exit.handle(
+        () =>
+            new Promise((resolve) => {
+                if (!open) return resolve();
+                open = false;
+                appear();
+                fadeOut(resolve);
+            })
+    );
+    PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut(() => {}) : fadeIn()));
+    PROTOCOL.leave.handle(() => new Promise((resolve) => fadeOut(resolve)));
 
     function showState(state, animate) {
         sidebar.show(state, animate);
@@ -216,16 +224,10 @@ function show() {
     PROTOCOL.show.send();
 }
 
-// Why what `deck.view` was handed is not a view, or ''. A view's parent is a mod it uses: one in its
-// [requires] or [optional].
-function viewProblem(value, mod) {
+// Why what `deck.view` was handed is not a view, or ''. Its parent is the region's to judge.
+function viewProblem(value) {
     if (value?.content?.nodeType !== Node.ELEMENT_NODE)
         return 'takes { content, sidebar, parent, didAppear, didDisappear }, content an element';
-    const parent = value.parent;
-    if (parent === undefined || parent === null) return '';
-    if (typeof parent !== 'string') return "takes a parent that is a mod's id";
-    if (!Object.hasOwn(mod.requires, parent) && !Object.hasOwn(mod.optional, parent))
-        return `names the parent ${parent}, which is in neither [requires] nor [optional]`;
     return '';
 }
 

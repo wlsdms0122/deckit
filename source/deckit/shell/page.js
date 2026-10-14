@@ -7,7 +7,7 @@ import * as PANEL from './panel/page.js';
 import * as SWITCHER from './switcher/page.js';
 import * as SWITCHER_PAGE from './switcher/model/page-name.js';
 import * as THEME from './theme/page.js';
-import { createRegion } from './region/page.js';
+import { createRegion, parentProblem } from './region/page.js';
 
 // MARK: - Property
 // Every page the shell draws in: clear around what it draws, and no drag selection, so text meant to be copied
@@ -38,7 +38,7 @@ function mod({ mod: running, chordOf, deliver }) {
         deck: { theme, ui, show: PANEL.show, region: REGION.make, children: REGION.children },
         mods: PANEL.pins,
         registrations: {
-            view: (value) => PANEL.viewProblem(value, running),
+            view: (value) => PANEL.viewProblem(value) || parentProblem(value.parent, running),
             ...(styles ? { styles: STYLE.problemOf } : {}),
         },
         blocksKeys: () => OVERLAY.layers.count() > 0,
