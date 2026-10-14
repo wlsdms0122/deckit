@@ -7,7 +7,7 @@ Deckit is three layers, each built on the one under it:
 | Layer | What it is | As an operating system has it |
 |---|---|---|
 | deck | the engine: what a mod is, running each in a sandbox of its own, what mods give each other (requires and exports, extension points, events), their storage and settings, and the permissions a person grants | the kernel |
-| deckit | the platform on deck: the web, windows, keys, commands, opening addresses, the clipboard, notices and main process modules, and `connect`, which a host app starts it with | the system and its services |
+| deckit | the platform on deck: the web, windows, keys, commands, opening addresses, the clipboard, notifications and main process modules, and `connect`, which a host app starts it with | the system and its services |
 | the shell | the surface a person uses deckit through. Deckit's own shell is the panel that shows the mods with a view, the quick switcher, the kit they draw with, and styles; a host app may put its own on deckit instead | a shell, bash or zsh |
 
 The host app is the process and its windows: it starts deckit, puts a shell on it, and says where the shell is shown, as a terminal runs a shell. Deck knows nothing of a screen: to deck a mod's page is where the mod runs. Deckit knows no shell: the shell is built on what `connect` answers, as a host app's own would be. A mod runs whether or not the panel is shown.
@@ -99,7 +99,7 @@ Everything deckit keeps is named from its configured id, so two host apps that e
 
 A mod reaches deckit only through `deck`, what its `start` is handed (MOD.md). Before a mod runs, its sandbox's boot takes away every global the bundles added, and its entry runs with only `module` and `exports` in reach.
 
-`deck` is put together by the layers, each adding to it. Deck gives a mod its id and name, its settings and storage, what it requires and uses optionally, `exports` and `caller()`, `extend` and `extensionPoint`, events, and with their permissions `mods` and `modSettings`. Deckit adds the web, opening addresses, the clipboard, notices, keys, commands and main process modules, and on `mods` picking and revealing mod folders and restarting, and reads the entry's `icon` and `keywords`. The shell on deckit adds the theme, the kit, `show()`, `region()` and `children`, the registrations `view` and `styles`, and on `mods` the panel's pins. A layer's registrations are kinds deck does not know, and what a layer says of a mod (its summary and contributions) deck carries to main and does not read. What a layer gives a mod is never replaced by what a layer above it gives.
+`deck` is put together by the layers, each adding to it. Deck gives a mod its id and name, its settings and storage, what it requires and uses optionally, `exports` and `caller()`, `extend` and `extensionPoint`, events, and with their permissions `mods` and `modSettings`. Deckit adds the web, opening addresses, the clipboard, notifications, keys, commands and main process modules, and on `mods` picking and revealing mod folders and restarting, and reads the entry's `icon` and `keywords`. The shell on deckit adds the theme, the kit, `show()`, `region()` and `children`, the registrations `view` and `styles`, and on `mods` the panel's pins. A layer's registrations are kinds deck does not know, and what a layer says of a mod (its summary and contributions) deck carries to main and does not read. What a layer gives a mod is never replaced by what a layer above it gives.
 
 Between mods there are two ways, and one question picks: could the host app do this if the other mod were not there?
 
@@ -110,7 +110,7 @@ Apart from both, a mod says what happened to it through deck's events (`deck/eve
 
 A mod changes how another's pages look with styles, which the shell puts last on each page they style, and nothing else of another mod.
 
-What reaches past a mod's own sandbox (the clipboard, notices, any web address, another mod's settings, the keymap, other mods' looks, a main process module) is asked for by name in `permissions`, with a reason the person reads when installing. Deck keeps what was granted; each permission is defined by the layer that adds what it grants, and checked there, where the mod asks, by the page it asks from. A permission no layer on deck defines is refused.
+What reaches past a mod's own sandbox (the clipboard, notifications, any web address, another mod's settings, the keymap, other mods' looks, a main process module) is asked for by name in `permissions`, with a reason the person reads when installing. Deck keeps what was granted; each permission is defined by the layer that adds what it grants, and checked there, where the mod asks, by the page it asks from. A permission no layer on deck defines is refused.
 
 ## 6. Modules
 

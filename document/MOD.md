@@ -67,9 +67,9 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.files` | files on this Mac, opened in its own pages | `file://` addresses in its web pages |
 | `system.network` | any address, past the rules that keep one site from reading another | `fetchText(url)` on a web session |
 | `system.certificates` | trusting a certificate this Mac cannot verify, in one of its sessions | `trust` on a web session |
-| `system.site-permissions` | what a site's pages may use (the camera, the microphone, notices, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
+| `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
 | `system.clipboard` | reading what was copied, from any app | `deck.clipboard.readText` |
-| `system.notifications` | notices in the corner of the screen | `deck.notify` |
+| `system.notifications` | notifications in the corner of the screen | `deck.notify` |
 | `system.global-keys` | keys that work wherever the keyboard is in the app | `global: true` on a key |
 | `deckit.mods` | every installed mod: listing, installing and removing them | `deck.mods` |
 | `deckit.mod-settings` | every mod's settings | `deck.modSettings` |
@@ -167,7 +167,7 @@ An entry of `commands` has a `run` or a `page`; one with neither is left out. In
 
 ### deck.exports(object)
 
-What a mod that requires this one receives as `deck.requires[id]`. Values are copied and frozen when the mod starts, and a value that cannot be copied (a Symbol, an object that holds itself) leaves the mod unstarted; functions are called through the main process and so return promises. Keep them working while the view is not on screen: the mod using them is not looking at it. While a function runs, until its first `await`, `deck.caller()` is the id of the mod that called it; it is `null` at any other time, so a function that answers each caller in its own way reads it first.
+What a mod that requires this one receives as `deck.requires[id]`. Values are copied and frozen when the mod starts, and a value that cannot be copied (a Symbol, an object that holds itself) leaves the mod unstarted; functions are called through the main process and so return promises. Keep them working while the view is not on screen: the mod using them is not looking at it. While a function runs, until its first `await`, `deck.caller()` is the id of the mod that called it, and at any other time it throws: a function that answers each caller in its own way reads it first, before it waits on anything.
 
 ### deck.extensionPoint(name)
 
@@ -212,7 +212,7 @@ With `deckit.styles`, styles other pages while the mod runs: a mod's page by its
 ### storage
 
 - `storage.values`: `get(key, fallback)`, `set(key, value)`, `remove(key)`. Small state that costs a click to lose (a fold, a width), in the sandbox's own storage.
-- `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by the main process. `get` and `keys` are synchronous, and `get` answers a copy: change it and `set` it to keep the change. `set` and `remove` resolve once written, and a write that fails is shown on the mod's row in Settings.
+- `storage.records`: `get(key, fallback)`, `set(key, value)`, `remove(key)`, `keys()`. What must not be lost (bookmarks, open tabs), as JSON files in deckit's folder, written by the main process. `get` and `keys` are synchronous, and `get` answers a copy: change it and `set` it to keep the change. `set` and `remove` resolve once written, and a write that fails is shown on the mod's row in Settings. A key is lower case letters, digits, `.`, `_` and `-`, starting with a letter or a digit, at most 64: it names a file, and a Mac's disk is blind to case.
 
 ### web
 
@@ -230,7 +230,7 @@ page.delegate = {
     didChange(state) {},
     didFocus() {},
     didFind(result) {},              // { matches, active, final }
-    didReceiveNotification(notice) {}, // { title, body, silent, click() }
+    didReceiveNotification(notification) {}, // { title, body, silent, click() }
     didRefuseCertificate(info) {},
     didRequestClose() {},
     didClose() {},
@@ -242,7 +242,7 @@ page.delegate = {
 
 A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers. Answer `false` when the mod opened it itself.
 
-A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notices, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. Anything else a site asks for is refused.
+A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notifications, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. Anything else a site asks for is refused.
 
 ### What the mod asks
 
@@ -251,7 +251,7 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `show()` | the shell's: puts the calling mod's view on screen; a mod with no view in the panel, or one still starting, has nothing to show. A child not in the mod list brings its parent on screen |
 | `region(element)` | the shell's: a place in the mod's view where its children are shown (Using what another mod does) |
 | `children` | the shell's: `list()`, `[{ id, name, icon }]` of the mods whose view names this one as its `parent`, in the person's order, and `onChange(listener)`, which hears them each time they change and returns its off |
-| `caller()` | the mod that called one of this mod's exports, while the function runs to its first `await` (`deck.exports`); `null` otherwise |
+| `caller()` | the mod that called one of this mod's exports, while the function runs to its first `await` (`deck.exports`); it throws otherwise |
 | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` | events, its own sent and any mod's heard (Using what another mod does) |
 | `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deck's own answer; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
@@ -312,7 +312,7 @@ Two ways, and one question picks: could the host app do this if the other mod we
 
 **Extension points**, the same dependency the other way round: the other mod uses what this one does. That one opens a point (`deck.extensionPoint`), and this one requires it, or uses it optionally, and extends the point (`deck.extend`): a calendar opens `accounts` and a mod adds Google accounts to it, an editor opens `languages` and a mod adds a language server. The dependency goes the one way requires does, so the calendar knows no provider by name, and a new provider is a new mod.
 
-**Regions**, when this mod's view is shown in the other's. The other gives a place in its view (`deck.region(element)`) and this one names it as its view's `parent`, requiring it or using it optionally: a dashboard shows its boards, each a mod, beside its own list of them. The parent hears its children through `deck.children`, and a region answers `show(id)`, which puts that child's view in the region and out of any other, and `clear()`. A region ends when its element, once in the page, leaves it, and an ended region refuses `show` and `clear`. The child keeps running in its own page, which the shell lays over the element's whole rect, following it frame by frame: nothing the parent draws, its menus too, comes over a region, and a region in a scrolling area is not cut at the scroller's edge, so keep it out of one. Regions are shown while their mod is the one on screen, and a child comes and goes with it (didAppear, didDisappear, its keys). A child is its parent's from when it starts, through launching again, until it starts naming another or none. A child pinned to the mod list is in the panel while it is on screen there, and back in its region after.
+**Regions**, when this mod's view is shown in the other's. The other gives a place in its view (`deck.region(element)`) and this one names it as its view's `parent`, requiring it or using it optionally: a dashboard shows its boards, each a mod, beside its own list of them. The parent hears its children through `deck.children`, and a region answers `place(id)`, which puts that child's view in the region and out of any other, and `clear()`. A region ends when its element, once in the page, leaves it, and an ended region refuses `place` and `clear`. The child keeps running in its own page, which the shell lays over the element's whole rect, following it frame by frame: nothing the parent draws, its menus too, comes over a region, and a region in a scrolling area is not cut at the scroller's edge, so keep it out of one. Regions are shown while their mod is the one on screen, and a child comes and goes with it (didAppear, didDisappear, its keys). A child is its parent's from when it starts, through launching again, until it starts naming another or none. A child pinned to the mod list is in the panel while it is on screen there, and back in its region after.
 
 How another mod's pages look is changed by **styles** (`deck.styles`), with the person's leave. What another mod does is changed only where it opens a point.
 
