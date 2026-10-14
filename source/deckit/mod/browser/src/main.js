@@ -138,7 +138,6 @@ module.exports = {
             ui,
             show: deck.show,
             bookmarks,
-            notAnAddress,
             listTabs: () => openTabs.list(),
             lastClosedTab: () => openTabs.lastClosed(),
             onNewTab: (url) => openTabs.add(url),

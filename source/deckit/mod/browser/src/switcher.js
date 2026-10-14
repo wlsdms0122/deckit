@@ -3,7 +3,7 @@ const { tabLabel } = require('./tabs.js');
 
 // What the Browser offers the switcher: an address typed there, and its commands. Bookmarks and tabs are pages of
 // their own, so a long list does not bury every other mod.
-function switcher({ ui, show, bookmarks, notAnAddress, listTabs, lastClosedTab, onNewTab, onReopenTab, onSelectTab }) {
+function switcher({ ui, show, bookmarks, listTabs, lastClosedTab, onNewTab, onReopenTab, onSelectTab }) {
     return { resolve, commands };
 
     // Only an address resolves: a search for any words would put a row above the ranked list on every keystroke.
@@ -27,10 +27,13 @@ function switcher({ ui, show, bookmarks, notAnAddress, listTabs, lastClosedTab, 
         const lastClosed = lastClosedTab();
         return [
             {
-                label: 'New Tab…',
+                label: 'New Tab',
                 icon: ui.icon('window', { size: 16 }),
                 keywords: ['웹', '웹페이지', '열기', '주소', '새탭', 'url', 'open', 'web', 'address', 'new tab'],
-                run: askNewTab,
+                run: () => {
+                    show();
+                    onNewTab();
+                },
             },
             ...(lastClosed
                 ? [
@@ -85,22 +88,6 @@ function switcher({ ui, show, bookmarks, notAnAddress, listTabs, lastClosedTab, 
                 },
             },
         ];
-    }
-
-    function askNewTab() {
-        ui.dialog({
-            title: 'New Tab',
-            fields: [{ key: 'url', label: 'Address', placeholder: 'example.com' }],
-            confirmLabel: 'Open',
-            onConfirm: ({ url }) => {
-                const text = url.trim();
-                if (!text) return;
-                const address = parseAddress(text);
-                if (!address) return notAnAddress(text);
-                show();
-                onNewTab(address);
-            },
-        });
     }
 }
 
