@@ -42,7 +42,10 @@ function open({ folder, name }) {
     function write(where, level, parts) {
         if (!stream) return;
         // One entry is one line, so what an entry says cannot read as another entry.
-        const said = parts.map(textOf).join(' ').replace(/\r?\n/g, '\\n');
+        const said = parts
+            .map(textOf)
+            .join(' ')
+            .replace(/\r\n|[\n\r\u0085\u2028\u2029]/g, '\\n');
         const line = `${new Date().toISOString()} [${where}] ${level}: ${said}\n`;
         stream.write(line);
         written += Buffer.byteLength(line);
