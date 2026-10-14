@@ -1,5 +1,5 @@
-import * as TOML from '../../core/toml/index.js';
-import * as VERSION from '../../core/version/index.js';
+import * as TOML from './toml.js';
+import * as VERSION from './version.js';
 
 const FILE = 'manifest.toml';
 // The version of the mod contract, which a manifest's `api` is written against.

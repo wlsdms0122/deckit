@@ -15,7 +15,7 @@ function builtArchive() {
 }
 
 // The archive unpacked into `to`/deckit, the app's own files beside it, and the preload every deckit page loads with:
-// the page bundles, then the start of deckit, handed the shell's page side.
+// the renderer bundles, then the start of deckit, handed the shell's renderer side.
 function assemble(archive, to) {
     const order = require(path.join(APP, 'bundle.js'));
     fs.rmSync(to, { recursive: true, force: true });
@@ -31,7 +31,7 @@ function assemble(archive, to) {
         [
             'const before = new Set(Object.keys(globalThis));',
             ...order.preload.map(read),
-            `${built.bundles.page.global}.boot({ before, shell: ${built.bundles['shell-page'].global} });`,
+            `${built.bundles.renderer.global}.boot({ before, shell: ${built.bundles['shell-renderer'].global} });`,
         ].join('\n;\n') + '\n'
     );
     fs.writeFileSync(

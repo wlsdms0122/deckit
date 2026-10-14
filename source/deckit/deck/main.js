@@ -117,7 +117,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         manifest: Object.freeze({ of: MANIFEST.of, define: MANIFEST.define }),
         permission: Object.freeze({ define: PERMISSION.define }),
         folder: Object.freeze({ fileIn: FOLDER.fileIn, entryOf: FOLDER.entryOf }),
-        storage: Object.freeze({ state: STORAGE.state, folderOf: STORAGE.folderOf }),
+        storage: Object.freeze({ state: STORAGE.state, stateIn: STORAGE.stateIn, folderOf: STORAGE.folderOf }),
         home: Object.freeze({ data: HOME.data, mods: HOME.mods, state: HOME.state }),
         log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, file: LOG.file, guard: LOG.guard }),
     });

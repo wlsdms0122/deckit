@@ -100,7 +100,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY });
     const API = createApi({
         CONFIG,
-        HOME,
+        STORAGE,
         LOG,
         WINDOW,
         IDENTITY,

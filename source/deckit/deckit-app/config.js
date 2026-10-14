@@ -10,6 +10,6 @@ module.exports = {
     config: { id: 'deckit', name: 'Deckit' },
     folders: {
         home: data ? path.join(data, 'deckit') : null,
-        ship: SHIPS.map((id) => path.join(__dirname, 'deckit', 'mod', id)),
+        ship: SHIPS.map((id) => path.join(__dirname, 'deckit', 'mods', id)),
     },
 };

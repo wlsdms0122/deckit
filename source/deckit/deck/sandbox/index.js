@@ -22,7 +22,7 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER }) {
     // MARK: - Initializer
     // MARK: - Public
     // Before any page of deck's loads, once the app is ready. `given` is the file every page loads with, which the
-    // host app put together around the page bundles.
+    // host app put together around the renderer bundles.
     function start({ preload: given }) {
         preload = given;
         serve();

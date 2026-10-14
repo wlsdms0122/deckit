@@ -1,4 +1,4 @@
-import * as STORE from '../../core/store/index.js';
+import * as STORE from './store.js';
 
 export function createStorage({ HOME }) {
     // MARK: - Property
@@ -50,6 +50,18 @@ export function createStorage({ HOME }) {
         fs.rmSync(path.join(HOME.settings, modId + '.json'), { force: true });
     }
 
+    // State kept in a folder of its own beside deck's, for one who names its keys as it likes: the host app.
+    function stateIn(folder) {
+        const file = (key) => {
+            if (!KEY.test(String(key)) || String(key).includes('..')) throw new Error('not a state key: ' + key);
+            return path.join(HOME.state, folder, key + '.json');
+        };
+        return Object.freeze({
+            read: (key, fallback) => STORE.read(file(key), fallback),
+            write: (key, value) => STORE.write(file(key), value),
+        });
+    }
+
     // MARK: - Private
     function recordFile(modId, key) {
         if (!KEY.test(String(key)) || String(key).includes('..')) {
@@ -77,5 +89,5 @@ export function createStorage({ HOME }) {
         }
     }
 
-    return { folderOf, records, settings, state, count, erase };
+    return { folderOf, records, settings, state, stateIn, count, erase };
 }

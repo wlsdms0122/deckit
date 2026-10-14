@@ -1,4 +1,4 @@
-import * as IPC from '../../core/ipc/index.js';
+import * as IPC from '../../deck/ipc.js';
 
 // What the sending mod answers.
 export const source = IPC.rendererToMain('deckit:command-source', { resolves: 'boolean' });

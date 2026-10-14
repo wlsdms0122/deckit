@@ -1,5 +1,5 @@
 import * as PROTOCOL from './protocol.js';
-import * as LOG from '../log/page.js';
+import * as LOG from '../log/renderer.js';
 
 // What a mod's page knows of its run: the mod, the run's number main counts it by, and what went wrong with it,
 // which main is told as it is recorded.

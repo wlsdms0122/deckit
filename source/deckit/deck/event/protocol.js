@@ -1,4 +1,4 @@
-import * as IPC from '../../core/ipc/index.js';
+import * as IPC from '../ipc.js';
 
 // An event a mod sends of itself, to every mod that listens to it.
 export const emit = IPC.rendererToMain('deck:event-emit', { name: 'string', args: 'array' });

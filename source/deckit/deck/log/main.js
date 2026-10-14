@@ -1,5 +1,5 @@
-import * as LOG from '../../core/log/index.js';
-import * as LISTENER from '../../core/listener/index.js';
+import * as LOG from './file.js';
+import * as LISTENER from './listener.js';
 import * as PROTOCOL from './protocol.js';
 
 export function createLog({ CONFIG, HOME }) {

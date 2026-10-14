@@ -1,5 +1,5 @@
 // Between a mod's page and main, about extension points and what extends them.
-import * as IPC from '../../core/ipc/index.js';
+import * as IPC from '../ipc.js';
 
 // An extension point's mod calls a function of what another mod extends it with.
 export const callExtension = IPC.rendererToMain(

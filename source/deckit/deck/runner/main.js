@@ -1,4 +1,4 @@
-import * as EVENT_BUS from '../../core/event-bus/index.js';
+import * as EVENT_BUS from '../event/bus.js';
 import * as PROTOCOL from './protocol.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
 import * as LIFECYCLE from '../mod/lifecycle.js';

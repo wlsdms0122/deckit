@@ -1,4 +1,4 @@
-import * as VERSION from '../../core/version/index.js';
+import * as VERSION from '../mod/version.js';
 import * as PROTOCOL from './protocol.js';
 
 export function createExport({ IDENTITY, RUNNER }) {

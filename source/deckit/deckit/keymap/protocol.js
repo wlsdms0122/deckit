@@ -1,4 +1,4 @@
-import * as IPC from '../../core/ipc/index.js';
+import * as IPC from '../../deck/ipc.js';
 
 // The sending mod's keys: [{ action, key, label, global }].
 export const scope = IPC.rendererToMain('deckit:keymap-scope', { keys: 'array' });

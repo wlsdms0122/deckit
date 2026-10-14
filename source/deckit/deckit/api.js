@@ -1,10 +1,8 @@
-import * as STORE from '../core/store/index.js';
-import * as PROXY from '../core/proxy/index.js';
 import * as DECK from '../deck/main.js';
 
 export function createApi({
     CONFIG,
-    HOME,
+    STORAGE,
     LOG,
     WINDOW,
     IDENTITY,
@@ -18,9 +16,6 @@ export function createApi({
     COMMAND,
 }) {
     // MARK: - Property
-    const path = require('path');
-    // A key names a file, and a Mac's disk is blind to case: lower case only.
-    const STATE_KEY = /^[a-z0-9][a-z0-9._-]{0,63}$/;
     const NOTIFICATIONS = Object.freeze([...DECK.NOTIFICATIONS]);
     const facts = new WeakMap(); // a run -> what the host app reads of it
     // mod id -> how it is listed, { icon, keywords }, as its latest run that launched said: kept while it launches
@@ -76,10 +71,7 @@ export function createApi({
             commands: Object.freeze({ tones: COMMAND.TONES, session: COMMAND.session }),
             permissions: Object.freeze({ define: MOD_PERMISSION.define }),
             // What the host app and its shell keep of the person's, in a folder of their own beside deck's state.
-            state: Object.freeze({
-                read: (key, fallback) => STORE.read(stateFile(key), fallback),
-                write: (key, value) => STORE.write(stateFile(key), value),
-            }),
+            state: STORAGE.stateIn('host'),
             web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
             window: Object.freeze({ place: WINDOW.place }),
             log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, guard: LOG.guard }),
@@ -87,11 +79,6 @@ export function createApi({
     }
 
     // MARK: - Private
-    function stateFile(key) {
-        if (!STATE_KEY.test(String(key)) || String(key).includes('..')) throw new Error('not a state key: ' + key);
-        return path.join(HOME.state, 'host', key + '.json');
-    }
-
     function manifestOf(mod) {
         return frozen(MANIFEST.of(mod));
     }
@@ -131,7 +118,14 @@ export function createApi({
     }
 
     function frozen(value) {
-        return PROXY.deepFreeze(structuredClone(value));
+        const freeze = (inner) => {
+            if (!inner || typeof inner !== 'object' || Object.isFrozen(inner)) return;
+            Object.freeze(inner);
+            for (const held of Object.values(inner)) freeze(held);
+        };
+        const copy = structuredClone(value);
+        freeze(copy);
+        return copy;
     }
 
     return { make };

@@ -1,6 +1,6 @@
 // Between a mod's view and main, about the web pages it shows. `name` is a session's name within the mod;
 // `id` is a page's webContents id, which main hands out and holds.
-import * as IPC from '../../core/ipc/index.js';
+import * as IPC from '../../deck/ipc.js';
 
 // Answers the new window page's id, or 0 when it may not be shown.
 export const window = IPC.rendererToMain(

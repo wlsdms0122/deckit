@@ -1,28 +1,34 @@
-// The libraries as the build reads them: core, deck, deckit on it, and the shell on deckit, each a tree of ES
-// modules under source/deckit, and the bundles they are carried in. A file is named by its path under source/deckit.
+// The libraries as the build reads them: deck, deckit on it, and deckit-shell on deckit, each a package of ES modules
+// under source/deckit, and the bundles they are carried in. A file is named by its path under source/deckit.
 const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
-const UNITS = ['core', 'deck', 'deckit', 'shell'];
-const MODS = path.join(DECKIT, 'mod');
+const PACKAGES = ['deck', 'deckit', 'deckit-shell'];
+const MODS = path.join(DECKIT, 'mods');
 const APP = path.join(DECKIT, 'deckit-app');
 const ESBUILD = 'esbuild@0.28.2';
-// Each bundle: the file it starts from, how it loads, and for a page's, the global the preload starts it by. Main's
-// bundles are CommonJS modules a host app requires; a page's run as they are in the preload.
+// Each bundle: the file it starts from, how it loads, and for a renderer's, the global the preload starts it by. Main's
+// bundles are CommonJS modules a host app requires; a renderer's run as they are in the preload.
 const BUNDLES = {
     main: { entry: 'deckit/main.js', format: 'cjs', platform: 'node', target: 'node22' },
-    'shell-main': { entry: 'shell/main.js', format: 'cjs', platform: 'node', target: 'node22' },
-    page: { entry: 'deckit/page.js', format: 'iife', platform: 'browser', target: 'chrome120', global: 'DeckitPage' },
-    'shell-page': {
-        entry: 'shell/page.js',
+    'shell-main': { entry: 'deckit-shell/main.js', format: 'cjs', platform: 'node', target: 'node22' },
+    renderer: {
+        entry: 'deckit/renderer.js',
         format: 'iife',
         platform: 'browser',
         target: 'chrome120',
-        global: 'DeckitShellPage',
+        global: 'DeckitRenderer',
+    },
+    'shell-renderer': {
+        entry: 'deckit-shell/renderer.js',
+        format: 'iife',
+        platform: 'browser',
+        target: 'chrome120',
+        global: 'DeckitShellRenderer',
     },
     chord: {
-        entry: 'core/chord/index.js',
+        entry: 'deckit/keymap/chord.js',
         format: 'iife',
         platform: 'browser',
         target: 'chrome120',
@@ -79,7 +85,7 @@ function files() {
             if (entry.isDirectory()) return walk(relative);
             return entry.name.endsWith('.js') ? [relative] : [];
         });
-    return UNITS.flatMap(walk).sort();
+    return PACKAGES.flatMap(walk).sort();
 }
 
 // What a file imports: each `import ... from`, `export ... from` and bare `import '...'`, with the file a relative
@@ -106,4 +112,4 @@ function reach(entry) {
     return seen;
 }
 
-module.exports = { DECKIT, UNITS, MODS, APP, ESBUILD, BUNDLES, code, files, importsOf, reach };
+module.exports = { DECKIT, PACKAGES, MODS, APP, ESBUILD, BUNDLES, code, files, importsOf, reach };

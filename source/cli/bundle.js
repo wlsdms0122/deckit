@@ -54,7 +54,7 @@ fs.rmSync(facts);
 fs.rmSync(entry);
 
 const mods = fs
-    .readdirSync(path.join(folder, 'mod'))
+    .readdirSync(path.join(folder, 'mods'))
     .filter((name) => !name.startsWith('.'))
     .sort();
 const described = { name: 'deckit', version, api, source, scheme, bundles, mods };

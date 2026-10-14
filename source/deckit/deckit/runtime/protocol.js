@@ -1,4 +1,4 @@
-import * as IPC from '../../core/ipc/index.js';
+import * as IPC from '../../deck/ipc.js';
 
 // At once: a page draws it in one pass.
 export const about = IPC.rendererToMain('deckit:about', {}, { reply: true, sync: true });

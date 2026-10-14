@@ -1,4 +1,4 @@
-import * as CHORD from '../../core/chord/index.js';
+import * as CHORD from './chord.js';
 import * as PROTOCOL from './protocol.js';
 import * as BINDING_ID from './model/binding-id.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';

@@ -1,4 +1,4 @@
-import * as VERSION from '../../core/version/index.js';
+import * as VERSION from '../mod/version.js';
 
 export function createCatalog({ CONFIG, HOME, STORAGE, LOG, FOLDER, INSTALL }) {
     // MARK: - Property

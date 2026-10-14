@@ -1,4 +1,4 @@
-import * as FILE from '../../core/file/index.js';
+import * as FILE from './file.js';
 import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
 import * as PROTOCOL from './protocol.js';
 import * as DECK from '../../deck/main.js';
