@@ -66,7 +66,7 @@ const MOD_DETAILS_STYLE = `
 // What an opened mod row shows: what it requires, where its view is shown, its permissions, the addresses it opens,
 // its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it. It
 // opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the base
-// duration: over the fast one a tall row reads as a jump.
+// duration.
 function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
     let mod = null;
     let open = false;

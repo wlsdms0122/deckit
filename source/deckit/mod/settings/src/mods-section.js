@@ -5,8 +5,9 @@ const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
 const { section } = require('./section.js');
 
-// The Mods section: every mod found, what each contributes, and installing and removing them. `onChange` hears
-// that a mod was installed or removed. Failures and what was done are told in the notice under the list.
+// The Mods section: every mod found, what each contributes, and installing and removing them. `onChange` hears that
+// a mod was installed, removed, restarted or pinned here. Failures and what was done are told in the notice under the
+// list.
 function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
@@ -307,10 +308,9 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         onChange();
     }
 
-    // One row per mod: the running ones first, in the order the panel loaded them so the list matches the nav, then
-    // the ones found on disk that did not load or are still starting. `notLoaded` is why one is not running, `problem`
-    // what went wrong with one that is. Permissions are read from the folder, so one that did not load still shows the
-    // permissions it asks for.
+    // One row per mod: the running ones first, in the person's order, then the ones found on disk that did not load
+    // or are still starting. `notLoaded` is why one is not running, `problem` what went wrong with one that is.
+    // Permissions are read from the folder, so one that did not load still shows the permissions it asks for.
     function modRowsOf({ onDisk, running, shortcuts, handlerLists, pinned }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (mod) => ({
