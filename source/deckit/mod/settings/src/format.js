@@ -30,6 +30,9 @@ function contributionsOf(live, keyCount, everyScheme) {
     for (const scheme of live.urlSchemes)
         labels.push('opens: ' + (scheme === everyScheme ? 'every scheme' : scheme + ':'));
     if (live.exports) labels.push('exports');
+    for (const point of live.extensionPoints) labels.push('extension point: ' + point);
+    for (const target of live.extends) labels.push('extends: ' + target);
+    for (const target of live.styles) labels.push('styles: ' + (target === '*' ? 'every page' : target));
     return labels;
 }
 
