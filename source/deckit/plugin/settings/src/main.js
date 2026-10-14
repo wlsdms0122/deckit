@@ -30,7 +30,13 @@ module.exports = {
                 color: var(--deckit-text);
                 font: var(--deckit-type-medium);
             }
-            .settings-title { flex: 0 0 auto; padding: 12px 14px 8px; font: 700 var(--deckit-type-large); }
+            .settings-title {
+                display: flex;
+                align-items: center;
+                flex: 0 0 auto;
+                padding: 10px 14px;
+                font: 700 var(--deckit-type-large);
+            }
             .settings-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
         `);
         ui.addStyle(SECTION_STYLE + CHIP_STYLE);
@@ -56,7 +62,9 @@ module.exports = {
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
-        page.append(ui.element('div', { className: 'settings-title', text: 'Settings' }), body);
+        const title = ui.element('div', { className: 'settings-title', text: 'Settings' });
+        ui.titleBar(title);
+        page.append(title, body);
         // commands() can be asked before the first visit draws anything.
         pluginSettings.draw();
 

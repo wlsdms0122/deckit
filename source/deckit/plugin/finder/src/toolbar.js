@@ -30,8 +30,7 @@ function toolbar({
             align-items: center;
             gap: 4px;
             flex: 0 0 auto;
-            min-height: 30px;
-            padding: 10px 12px 8px;
+            padding: 9px 12px;
         }
         .finder-breadcrumb { margin: 0 6px; }
         .finder-toolbar .finder-view-button { width: auto; padding: 0 5px; }
@@ -41,6 +40,7 @@ function toolbar({
     let view = null;
 
     const element = ui.element('div', { className: 'finder-toolbar' });
+    ui.titleBar(element);
     const back = ui.iconButton({
         icon: ui.icon('chevronLeft', { size: 16 }),
         title: 'Back',
