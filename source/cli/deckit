@@ -4,7 +4,7 @@ HERE="$(cd "$(dirname "$0")/command" && pwd)"
 
 usage() {
   cat <<TEXT
-deckit: a panel of mods, as a library an app embeds
+deckit: a library a host app embeds to take mods, the way a game does
 
   build            the deckit archive, into .build/: what an app embeds
   app              Deckit.app, into .build/, from the archive the last build made
