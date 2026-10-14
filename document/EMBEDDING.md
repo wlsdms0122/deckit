@@ -1,6 +1,6 @@
 # How a host app embeds deckit
 
-Deckit is a library a host app embeds, in three layers (ARCHITECTURE.md): deck, the engine that runs mods, deckit, the platform on deck, and a shell, the surface a person uses it through. A host app connects deckit and puts deckit's own shell on it (the panel, the switcher and the kit), or a shell of its own built on what connect answers. It brings what deckit cannot know: its configuration, its folders, its answers about the process and where the shell is shown, and, if it wants, what it offers its own mod. This is the line between them.
+Deckit is a library a host app embeds, in three layers: deck, the engine that runs mods, deckit, the platform on deck, and a shell, the surface a person uses it through. A host app connects deckit and puts deckit's own shell on it (the panel, the switcher and the kit), or a shell of its own built on what connect answers. It brings what deckit cannot know: its configuration, its folders, its answers about the process and where the shell is shown, and, if it wants, what it offers its own mod. This is the line between them.
 
 ## 1. The archive
 
@@ -8,22 +8,28 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 
 | In the archive | |
 |---|---|
-| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the scheme deckit's pages load from (`scheme`, as `DECKIT.SCHEME` is), each bundle's file and the modules it defines, the mods |
-| `registry.js` | the module registry: first wherever deckit runs, and the one global deckit adds |
-| `main.js` | deck and deckit, in main |
-| `page.js` | deck and deckit, in every deckit page: each mod's, and each that runs no mod |
-| `shell-main.js`, `shell-page.js` | deckit's shell, each loaded after the bundle of the same process |
-| `chord.js` | how a chord is spelled and matched, for a page of the host app's that shows one of deckit's chords |
+| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a page's, the global it leaves, the mods |
+| `main.js` | deck and deckit in main, a CommonJS module: `{ SCHEME, connect }` |
+| `shell-main.js` | deckit's shell in main, a CommonJS module: `{ attach }` |
+| `page.js` | deck and deckit in every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitPage`: `{ boot }` |
+| `shell-page.js` | deckit's shell in a page. It leaves one global, `DeckitShellPage`: `{ page, mod }` |
+| `chord.js` | how a chord is spelled and matched, for a page of the host app's that shows one of deckit's chords. It leaves one global, `DeckitChord` |
 | `mod/<id>/` | deckit's own mods, each with its entry bundled, a catalog the host app picks from |
 | `document/` | this, MOD.md and UI.md |
 
-In main the host app loads `registry.js`, its own `host/config` and `host/folders`, `main.js`, `shell-main.js`, then its own files. A deckit page loads, as its preload, a file the host app puts together: `registry.js`, the host app's `host/config` (and `host/exports`, if it has one), `page.js`, `shell-page.js`, and the start of deckit: `DeckitModule.use(['deckit/page', 'shell/page'], (APP, SHELL) => APP.boot(before, SHELL))`, where `before` is the names the page's global object had before `registry.js` ran, so boot takes away every global the bundles added. A host app with a shell of its own loads its bundles instead of deckit's shell's and hands `boot` its page side; with no shell on deckit, it leaves them out and calls `APP.boot(before)`.
+In main the host app requires `main.js` and, to put deckit's shell on deckit, `shell-main.js`. A deckit page loads, as its preload, a file the host app puts together:
 
-The host app's own files are modules too: `DeckitModule.define(name, { uses, provides, runs }, make)`. What `host/config` and `host/folders` set is held to what deckit reads: a key deckit does not read stops the bundle with its name.
+```js
+const before = new Set(Object.keys(globalThis));
+// page.js, then shell-page.js, as they are
+DeckitPage.boot({ before, shell: DeckitShellPage, exports });
+```
+
+`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. `exports` is what the host app offers its own mod (section 5), left out when it offers nothing. A host app with a shell of its own puts its page side in place of `shell-page.js` and hands it to `boot` as `shell` (section 4); with no shell on deckit, it leaves `shell` out.
 
 ## 2. The configuration
 
-`host/config`, read in every process:
+`connect` takes the host app's configuration in two objects. `config`, read by deck and deckit:
 
 | Key | What it is | Deckit's own |
 |---|---|---|
@@ -32,13 +38,15 @@ The host app's own files are modules too: `DeckitModule.define(name, { uses, pro
 | `agent` | names the host app adds to its user agent, taken out of the agent of a page a mod shows | none |
 | `schemeHandlers` | by scheme, the mods asked first to open an address, until the person orders them | none |
 
-`host/folders`, read where there is a disk:
+`folders`, deck's, read where there is a disk:
 
 | Key | What it is | Deckit's own |
 |---|---|---|
 | `home` | deckit's folder | `~/.config/<id>` |
 | `ship` | the mod folders the host app ships; installed at every start, and a removed one stays removed. One that does not install fails alone and the next start tries it again: with no copy of it installed it does not load and Settings shows why, and an installed copy goes on running | none |
 | `sources` | folders that hold mod folders, read in place ahead of installed ones (for a development build) | none |
+
+A key deckit does not read stops `connect` with its name. A page holds none of it: what a page needs of it, main answers.
 
 ## 3. The host and the shell
 
@@ -49,14 +57,15 @@ Every window is the host app's: its frame, its bar, where it opens. Deckit makes
 In main, before the host app is ready:
 
 ```js
+const DECKIT = require('<deckit>/main.js');
+const SHELL = require('<deckit>/shell-main.js');
 protocol.registerSchemesAsPrivileged([DECKIT.SCHEME, ...theAppsOwn]);
-const deckit = DECKIT.connect({ preload, host });
+const deckit = DECKIT.connect({ preload, host, config, folders });
 SHELL.attach(deckit, { host });
 ```
+ `SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1). Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
 
-`DECKIT` is `deckit/main` and `SHELL` is `shell/main`. `SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1). Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
-
-`connect` is called once, with `preload` and the host app's answers about what of deckit is its own; `attach`, once, with what connect answered and the host app's answers about where the shell is shown. One object may answer both. Either throws and names what is missing.
+`connect` is called once, with `preload`, the host app's answers about what of deckit is its own and its configuration (section 2); `attach`, once, with what connect answered and the host app's answers about where the shell is shown. One object may answer both. Either throws and names what is missing.
 
 What the host app answers deckit:
 
@@ -111,16 +120,16 @@ What connect answers is all a host app, or the shell on deckit, reaches of decki
 | `window` | `place(view, window, { bounds, front, onClose })`, which puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
 | `log` | `info`, `warn`, `error`, `guard(emitter, event, listener)` |
 
-On a page, the shell is the second argument of `boot`: `page(name)` draws a page it made, and `mod(context)` is what it gives each mod as deckit runs it, answering `deck` (members it adds), `registrations` (each by its check), `mods` (what it adds to `deck.mods` for a mod with `deckit.mods`), `blocksKeys()`, `keyProblem(key, parts)` and `contribute(parts)`, which mounts what it shows and answers what main is told of the mod. That is how deckit's shell hands a mod `theme`, `ui`, `show`, `region`, `children`, the registrations `view` and `styles`, and the pins on `mods`, and how the panel's frame goes around a view. What deckit gives a mod is never replaced by what the shell gives.
+On a page, the shell is what the host app hands `boot` as `shell`: `page(name)` draws a page it made, and `mod(context)` is what it gives each mod as deckit runs it, answering `deck` (members it adds), `registrations` (each by its check), `mods` (what it adds to `deck.mods` for a mod with `deckit.mods`), `blocksKeys()`, `keyProblem(key, parts)` and `contribute(parts)`, which mounts what it shows and answers what main is told of the mod. That is how deckit's shell hands a mod `theme`, `ui`, `show`, `region`, `children`, the registrations `view` and `styles`, and the pins on `mods`, and how the panel's frame goes around a view. What deckit gives a mod is never replaced by what the shell gives.
 
 The host app and its shell reach deckit through these, and nothing else of deckit's: their own listeners and their own files are their own.
 
 ## 5. The host app's own mod, and what the host app offers
 
-What a person does with the host app from the panel is the host app's own mod: the one whose id is the host app's. It ships with the host app and can be removed like any other. That is all that sets it apart: it alone is handed what the host app offers, the page module `host/exports`, as `deck.host`, and it may export that on. A mod that wants the host app requires that mod like any other. In another host app a mod with that id is handed nothing.
+What a person does with the host app from the panel is the host app's own mod: the one whose id is the host app's. It ships with the host app and can be removed like any other. That is all that sets it apart: it alone is handed what the host app offers, the `exports` it hands `boot`, as `deck.host`, and it may export that on. A mod that wants the host app requires that mod like any other. In another host app a mod with that id is handed nothing.
 
 It may stand first among a scheme's handlers (`schemeHandlers`, and the scheme in its manifest's `url-schemes`): it opens the addresses it knows and passes the rest on. Deckit never asks whose an address is.
 
 ## 6. Deckit.app
 
-`source/deckit/deckit-app` is deckit embedded by itself, the way any host app embeds it: its own `host/config` and `host/folders`, answers that keep the panel in one window of its own with the switcher in front of it, and an Electron entry that calls `connect` and puts deckit's shell on deckit. It ships deckit's own mods, `deckit` among them, which is therefore its own mod (section 5): what a person does with Deckit.app is what they ask of deck. Its windows carry a bar that is always there: the window's own page, across the top and under the views, in the panel's colour at the panel's `glass` so the two read as one surface. To macOS it is the title bar, so it drags, snaps and answers a double click as the person set. The panel's window is the exception: the panel fills it, the bar's height included, so the page under it is the colour alone, and the panel drags the window from the top of its sidebar, from where the window's buttons stand, and from the bars mods lay there. Run unpackaged, from a folder Electron's default app loads, it keeps all its data in the folder `DECKIT_DATA` names and asks for a restart by exiting with 75, for whoever started it to start it again.
+`source/deckit/deckit-app` is deckit embedded by itself, the way any host app embeds it: its own configuration, answers that keep the panel in one window of its own with the switcher in front of it, and an Electron entry that calls `connect` and puts deckit's shell on deckit. It ships deckit's own mods, `deckit` among them, which is therefore its own mod (section 5): what a person does with Deckit.app is what they ask of deck. Its windows carry a bar that is always there: the window's own page, across the top and under the views, in the panel's colour at the panel's `glass` so the two read as one surface. To macOS it is the title bar, so it drags, snaps and answers a double click as the person set. The panel's window is the exception: the panel fills it, the bar's height included, so the page under it is the colour alone, and the panel drags the window from the top of its sidebar, from where the window's buttons stand, and from the bars mods lay there. Run unpackaged, from a folder Electron's default app loads, it keeps all its data in the folder `DECKIT_DATA` names and asks for a restart by exiting with 75, for whoever started it to start it again.
