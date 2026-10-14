@@ -20,10 +20,11 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // A mod reaches another only through what that one exports, and only one it requires or has as an optional dependency. A mod
-        // that starts waits while what it requires launches or terminates, until it has started, or failed to, or
-        // ended for good. A call reaches a terminating run until it has ended: the mods that require it end first. What
-        // Its optional dependencies it does not wait for: it is handed what runs now, and told each time that changes.
+        // A mod reaches another only through what that one exports, and only one it requires or has as an optional
+        // dependency. A mod that starts waits while what it requires launches or terminates, until it has started, or
+        // failed to, or ended for good. A call reaches a terminating run until it has ended: the mods that require it
+        // end first. Its optional dependencies it does not wait for: it is handed what runs now, and told each time
+        // that changes. The function called hears who called it (`deck.caller()`).
         function start() {
             RUNNER.observe('willLaunch', ({ mod }) => expect(mod.id));
             RUNNER.observe('didLaunch', ({ mod, contributions }) => {
@@ -65,7 +66,7 @@ DeckitModule.define(
                 if (!exports?.functions.some((written) => written.join('.') === path.join('.'))) {
                     throw new Error(`${mod} exports no function ${path.join('.')}`);
                 }
-                return PROTOCOL.exportCalled.invoke(IDENTITY.pageOf(mod), { path, args });
+                return PROTOCOL.exportCalled.invoke(IDENTITY.pageOf(mod), { caller: caller.id, path, args });
             });
         }
 

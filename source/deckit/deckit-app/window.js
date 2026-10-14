@@ -31,17 +31,17 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // A window of Deckit.app: its own page is the bar, across the top and under everything else, and `view` fills
-        // the rest through `place(window, { bounds })`. The bar is the window's title bar to macOS, so it drags, snaps
-        // and answers a double click as the person set. `size` is the view's, below the bar. `glass`, for a view drawn
-        // as glass, is the strength it lays its colour over the blur at: the window blurs what is behind it, and the
-        // bar lays the same colour at the same strength, so the two read as one surface. `fullSize`: the view fills the
-        // window, the bar's height included, and draws and drags what lies under the bar itself (TITLE_BAR); the page
-        // below is the window's colour alone. A window with a `key` opens where it was last left; another opens over
-        // the window in front. `focus` hands the
-        // keyboard to the view, which macOS otherwise gives the bar each time the window comes forward.
+        // A window of Deckit.app: its own page is the bar, across the top and under everything else, and a view fills
+        // the rest through `place(window, { bounds })`; `view`, when it is one page, is followed for its title. The bar
+        // is the window's title bar to macOS, so it drags, snaps and answers a double click as the person set. `size`
+        // is the view's, below the bar. `glass`, for a view drawn as glass, is the strength it lays its colour over the
+        // blur at: the window blurs what is behind it, and the bar lays the same colour at the same strength, so the
+        // two read as one surface. `fullSize`: the view fills the window, the bar's height included, and draws and
+        // drags what lies under the bar itself (TITLE_BAR); the page below is the window's colour alone. A window with
+        // a `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to
+        // the view, which macOS otherwise gives the bar each time the window comes forward.
         function open({
-            view,
+            view = null,
             title = '',
             size = null,
             glass = null,
@@ -67,7 +67,7 @@ DeckitModule.define(
                 titleBarStyle: 'hidden',
                 trafficLightPosition: bar.buttons,
             });
-            const page = view.webContents || null;
+            const page = view?.webContents || null;
             const giveKeyboard = focus || (() => page && !page.isDestroyed() && page.focus());
             titles.set(window, title);
             if (fullSize) covered.add(window);

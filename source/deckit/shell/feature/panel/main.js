@@ -1,21 +1,19 @@
 DeckitModule.define(
     'shell/feature/panel/main',
     {
-        uses: ['shell/service/reply', 'shell/feature/panel/protocol'],
-        provides: ['start', 'control', 'isActive', 'monitor', 'bringToFront'],
+        uses: ['shell/service/reply', 'shell/feature/region/main', 'shell/feature/panel/protocol'],
+        provides: ['start', 'control', 'isActive', 'monitor', 'bringToFront', 'canBringToFront'],
     },
-    (REPLY, PROTOCOL) => {
+    (REPLY, REGION, PROTOCOL) => {
         // MARK: - Property
         const FRAME = 'panel-frame';
-        const LISTED = 'panel-listed';
+        const PINNED = 'panel-pinned';
         const HISTORY_LIMIT = 50;
         const views = new Map(); // mod id -> the view its page is in, while the mod has something to show
         const icons = new Map(); // mod id -> the icon its latest run that started said it has
         const floating = new Map(); // webContents id of a mod page with something floating -> its end's off
-        // `${webContents id}:${number}` -> { parent, rect, child }: a place in a mod's page that shows a child's view
-        const regions = new Map();
-        const told = { onScreen: new Set(), looks: new WeakMap(), children: new WeakMap() }; // what pages last heard
-        let laidOver = new Set(); // the children laid over their regions now
+        const sent = { onScreen: new Set(), looks: new WeakMap() }; // what the pages were last told
+        let raised = new Set(); // the children laid over their regions, lifted over the mod on screen
         const history = { list: [], at: -1 };
         let deckit = null;
         let container = null;
@@ -28,18 +26,18 @@ DeckitModule.define(
         let titled = null; // the title the host was last told
         let look = { floating: false, dismissible: false, titleBar: null };
         let frame = { width: 240, collapsed: false, navHeight: null };
-        let chosen = new Set(); // the children the person put in the panel's list
+        let pinned = new Set(); // the children the person pinned to the panel's list
 
         // MARK: - Initializer
         // MARK: - Public
         // The mods that have something to show, in a container the host app places. A mod whose view names a parent is
         // that one's child: its view is shown where a region of the parent's shows it, and in the panel only once the
-        // person lists it there. `deckit` is what connect answered, `host` the app's answers.
+        // person pins it to the list. `deckit` is what connect answered, `host` the app's answers.
         function start({ deckit: given, host: answers }) {
             deckit = given;
             host = answers;
             frame = { ...frame, ...deckit.state.read(FRAME, {}) };
-            chosen = new Set(deckit.state.read(LISTED, []));
+            pinned = new Set(deckit.state.read(PINNED, []));
             const { View } = require('electron');
             container = new View();
             container.setBackgroundColor('#00000000');
@@ -48,6 +46,7 @@ DeckitModule.define(
             listen();
             registerKeys();
             deckit.mods.onChange(reconcile);
+            REGION.onChange(() => update() || broadcast());
             deckit.mods.observe('didLaunch', ({ mod, summary }) => icons.set(mod.id, summary.icon));
             for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
             reconcile();
@@ -72,8 +71,12 @@ DeckitModule.define(
         // A mod on screen, asked by the mod itself, the switcher or an address it opened. One with no view in the
         // panel has nothing to show. A child not in the list brings its parent, whose regions show what they show.
         function bringToFront(modId) {
-            const parent = parentOf(modId);
-            if (select(parent && !listed(modId) ? parent : modId)) host.show();
+            if (select(frontOf(modId))) host.show();
+        }
+
+        // Whether bringToFront has a mod to put on screen for it.
+        function canBringToFront(modId) {
+            return hasView(frontOf(modId));
         }
 
         // MARK: - Private
@@ -83,7 +86,7 @@ DeckitModule.define(
             PROTOCOL.setup.handle((_payload, sender) => ({
                 glass: GLASS,
                 look: lookOf(sender),
-                shown: told.onScreen.has(sender),
+                shown: sent.onScreen.has(sender),
                 frame,
                 state: stateOf(),
             }));
@@ -94,54 +97,33 @@ DeckitModule.define(
             PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
             PROTOCOL.hide.on((_payload, sender) => modOf(sender) && onScreen().includes(sender) && host.dismiss());
             PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
-            PROTOCOL.children.handle((_payload, sender) => (modOf(sender) ? childrenOf(modOf(sender)) : []));
-            PROTOCOL.regionPlace.on(
-                ({ region, ...rect }, sender) => modOf(sender) && placeRegion(sender, region, rect)
-            );
-            PROTOCOL.regionShow.handle(({ region, id }, sender) => showInRegion(sender, region, id ?? null));
-            PROTOCOL.listed.handle((_payload, sender) => deckit.mods.managerOf(sender) && [...chosen]);
-            PROTOCOL.setListed.handle(
-                ({ id, listed: on }, sender) => deckit.mods.managerOf(sender) && setListed(id, on)
-            );
+            PROTOCOL.pinned.handle((_payload, sender) => {
+                deckit.mods.managerFrom(sender);
+                return [...pinned];
+            });
+            PROTOCOL.setPinned.handle(({ id, pinned: on }, sender) => {
+                deckit.mods.managerFrom(sender);
+                setPinned(id, on);
+            });
         }
 
-        // A child taken out of the list while on screen leaves it for its parent.
-        function setListed(id, on) {
-            if (on === chosen.has(id)) return;
-            if (on) chosen.add(id);
-            else chosen.delete(id);
-            deckit.state.write(LISTED, [...chosen]);
+        // A child unpinned while on screen leaves the panel for its parent.
+        function setPinned(id, on) {
+            if (on === pinned.has(id)) return;
+            if (on) pinned.add(id);
+            else pinned.delete(id);
+            deckit.state.write(PINNED, [...pinned]);
             if (!on && current === id) {
                 current = null;
-                select(parentOf(id)) || select(firstShown());
+                if (!select(REGION.parentOf(id)) && !select(firstShown())) update();
             }
             broadcast();
         }
 
-        // A region is its page's: it ends as the page does, run by run.
-        function placeRegion(page, number, rect) {
-            const key = page.id + ':' + number;
-            if (!regions.has(key)) {
-                regions.set(key, { parent: deckit.mods.modOf(page), rect: null, child: null });
-                deckit.pages.whenEnds(page, () => {
-                    regions.delete(key);
-                    update();
-                });
-            }
-            regions.get(key).rect = rect;
-            update();
-        }
-
-        // A child is in one region at a time: shown in another, it leaves the one it was in.
-        function showInRegion(page, number, id) {
-            const parent = deckit.mods.modOf(page);
-            if (!parent) throw new Error('only a mod has regions');
-            if (id !== null && parentOf(id) !== parent) throw new Error(`${id} is not a child of ${parent}`);
-            const key = page.id + ':' + number;
-            if (!regions.has(key)) placeRegion(page, number, { x: 0, y: 0, width: 0, height: 0 });
-            for (const region of regions.values()) if (id !== null && region.child === id) region.child = null;
-            regions.get(key).child = id;
-            update();
+        // The mod put on screen for one: itself, or the parent of a child not in the list.
+        function frontOf(id) {
+            const parent = REGION.parentOf(id);
+            return parent && !listed(id) ? parent : id;
         }
 
         function setFloating(page, on) {
@@ -237,53 +219,43 @@ DeckitModule.define(
             return run.state !== 'notRunning' || run.relaunches;
         }
 
-        // In the person's order: the first mod that has something to show, or may have once it has started. One
-        // still starting is waited for, so the panel lands where the order says and not on whoever started first.
+        // In the person's order: the first mod that has something to show, or may have once it has started, of those
+        // in the list. One still starting is waited for, so the panel lands where the order says and not on whoever
+        // started first.
         function firstShown() {
             return deckit.mods.list().find(({ id }) => mayShow(id) && listed(id))?.id;
         }
 
-        // The mod whose regions its view is shown in, as its run said, or null.
-        function parentOf(id) {
-            return deckit.mods.runOf(id)?.summary?.parent || null;
-        }
-
-        // In the panel's list: a mod that is no child, or a child the person listed.
+        // In the panel's list: a mod that is no child, or a child the person pinned.
         function listed(id) {
-            return !parentOf(id) || chosen.has(id);
-        }
-
-        function childrenOf(parent) {
-            return deckit.mods
-                .list()
-                .filter(({ id }) => views.has(id) && parentOf(id) === parent)
-                .map(({ id, name }) => ({ id, name, icon: icons.get(id) || '' }));
+            return !REGION.parentOf(id) || pinned.has(id);
         }
 
         // The pages on screen while the panel is: the mod on screen, then the children its regions show.
         function onScreen() {
-            const pages = [];
-            if (!views.has(current)) return pages;
-            pages.push(views.get(current).webContents);
-            for (const id of shownChildren().keys()) pages.push(views.get(id).webContents);
-            return pages;
+            if (!views.has(current)) return [];
+            return [current, ...childrenOnScreen().keys()].map((id) => views.get(id).webContents);
         }
 
         // child id -> its rect: the children the mod on screen shows in its regions, laid out.
-        function shownChildren() {
-            const shown = new Map();
-            for (const { parent, rect, child } of regions.values()) {
-                if (parent !== current || !child || child === current || !views.has(child)) continue;
-                if (rect && rect.width > 0 && rect.height > 0) shown.set(child, rect);
-            }
-            return shown;
+        function childrenOnScreen() {
+            return REGION.laidOut(current, (id) => id !== current && views.has(id));
         }
 
-        // Every view where it goes: the mod on screen fills the container, the children it shows are laid over their
-        // regions, above it, and the rest are hidden. Each page hears whether it is on screen and how it is framed.
+        // Every view where it goes, then every page told whether it is on screen and how it is framed. A page that
+        // leaves the screen holding the keyboard would go on taking keystrokes unseen: the mod on screen takes it.
         function update() {
+            const holder = [...sent.onScreen].find((page) => !page.isDestroyed() && deckit.web.holdsKeyboard(page));
+            layout();
+            tellPages();
+            if (holder && !sent.onScreen.has(holder)) focus();
+        }
+
+        // The mod on screen fills the container, the children it shows are laid over their regions, above it, and
+        // the rest are hidden.
+        function layout() {
             const { width, height } = container.getBounds();
-            const children = shownChildren();
+            const children = childrenOnScreen();
             for (const [id, view] of views) {
                 if (id === current) {
                     view.setBounds({ x: 0, y: 0, width, height });
@@ -296,22 +268,25 @@ DeckitModule.define(
                     continue;
                 }
                 // Added again, a view is lifted over the rest.
-                if (!laidOver.has(id)) container.addChildView(view);
+                if (!raised.has(id)) container.addChildView(view);
                 view.setBounds(clip(rect, width, height));
                 view.setVisible(true);
             }
-            laidOver = new Set(children.keys());
+            raised = new Set(children.keys());
+        }
+
+        function tellPages() {
             const now = new Set(shown ? onScreen() : []);
-            for (const page of told.onScreen)
+            for (const page of sent.onScreen)
                 if (!now.has(page)) PROTOCOL.visible.send(page, { open: false, animate: false });
             for (const page of now)
-                if (!told.onScreen.has(page)) PROTOCOL.visible.send(page, { open: true, animate: false });
-            told.onScreen = now;
+                if (!sent.onScreen.has(page)) PROTOCOL.visible.send(page, { open: true, animate: false });
+            sent.onScreen = now;
             for (const view of views.values()) {
                 const next = lookOf(view.webContents);
                 const written = JSON.stringify(next);
-                if (told.looks.get(view.webContents) === written) continue;
-                told.looks.set(view.webContents, written);
+                if (sent.looks.get(view.webContents) === written) continue;
+                sent.looks.set(view.webContents, written);
                 PROTOCOL.look.send(view.webContents, next);
             }
         }
@@ -328,17 +303,19 @@ DeckitModule.define(
         }
 
         // How a page is framed where it is. In a region its frame is the region's: what of the window's title bar
-        // lies over it, and Escape as the mod on screen has it.
+        // lies over it as it is laid, and Escape as the mod on screen has it.
         function lookOf(page) {
             const id = deckit.mods.modOf(page);
-            if (!id || id === current || !parentOf(id)) return { ...look, region: false };
-            const rect = [...regions.values()].find(({ child }) => child === id)?.rect;
+            if (!id || id === current || !REGION.parentOf(id)) return { ...look, region: false };
+            const { width, height } = container.getBounds();
+            const rect = REGION.rectOf(id);
+            const laid = rect && clip(rect, width, height);
             const bar = look.titleBar;
-            const over = bar && rect ? Math.max(0, bar.height - rect.y) : 0;
+            const over = bar && laid ? Math.max(0, bar.height - laid.y) : 0;
             return {
                 floating: false,
                 dismissible: look.dismissible,
-                titleBar: over ? { height: over, controlsWidth: Math.max(0, bar.controlsWidth - rect.x) } : null,
+                titleBar: over ? { height: over, controlsWidth: Math.max(0, bar.controlsWidth - laid.x) } : null,
                 region: true,
             };
         }
@@ -346,7 +323,7 @@ DeckitModule.define(
         function stateOf() {
             const mods = deckit.mods
                 .list()
-                .filter(({ id }) => views.has(id) && listed(id))
+                .filter(({ id }) => hasView(id))
                 .map(({ id, name }) => ({ id, name, icon: icons.get(id) || '' }));
             return {
                 mods,
@@ -360,13 +337,6 @@ DeckitModule.define(
         function broadcast() {
             const state = stateOf();
             for (const view of views.values()) PROTOCOL.state.send(view.webContents, state);
-            for (const [id, view] of views) {
-                const children = childrenOf(id);
-                const written = JSON.stringify(children);
-                if ((told.children.get(view.webContents) ?? '[]') === written) continue;
-                told.children.set(view.webContents, written);
-                PROTOCOL.childrenChanged.send(view.webContents, { children });
-            }
             const mod = deckit.mods.list().find(({ id }) => id === current);
             const title = mod?.name || deckit.config.name;
             if (title !== titled) host.panelTitled((titled = title));
@@ -386,7 +356,7 @@ DeckitModule.define(
         // Which mod is on screen. No fade: here it is a swap of views, on the most repeated action in the panel.
         // Answers whether it is on screen now.
         function select(id, { fromHistory = false } = {}) {
-            if (!views.has(id) || !listed(id)) return false;
+            if (!hasView(id)) return false;
             // Another mod put on screen meanwhile is where the panel stays.
             if (id !== returning) returning = null;
             if (current === id) return true;
@@ -438,7 +408,7 @@ DeckitModule.define(
                     token: page === currentContents() ? (token ?? null) : null,
                     animate: true,
                 });
-            told.onScreen = new Set(on ? pages : []);
+            sent.onScreen = new Set(on ? pages : []);
         }
 
         // Showing over an app does not move focus off the app's document, so the app's keys would still answer
@@ -450,16 +420,18 @@ DeckitModule.define(
             focus();
         }
 
-        // Resolves whether the panel had the keyboard as it went: a hidden view keeps its focus and goes on taking
-        // keystrokes, so the host gives it back. Hidden only after the view has played its exit.
+        // Resolves whether the panel had the keyboard as it went, in any of its pages on screen: a hidden view keeps
+        // its focus and goes on taking keystrokes, so the host gives it back. Hidden only after the view has played
+        // its exit.
         function hide() {
             return new Promise((resolve) => {
                 if (!shown) return resolve(false);
                 REPLY.cancel(PROTOCOL.played);
                 const contents = currentContents();
+                const pages = onScreen();
                 const token = REPLY.awaitReply(contents, PROTOCOL.hidden, () => {
                     if (shown) return resolve(false);
-                    const held = !!contents && deckit.web.holdsKeyboard(contents);
+                    const held = pages.some((page) => !page.isDestroyed() && deckit.web.holdsKeyboard(page));
                     container.setVisible(false);
                     resolve(held);
                 });
@@ -502,7 +474,6 @@ DeckitModule.define(
             // What the host drives of it.
             control: {
                 glass: GLASS,
-                view: () => container,
                 // Into one of the host app's windows, as deckit places a view (`bounds`, `onClose`).
                 place: (window, options) => deckit.window.place(container, window, options),
                 contains,
@@ -517,6 +488,7 @@ DeckitModule.define(
             isActive,
             monitor,
             bringToFront,
+            canBringToFront,
         };
     }
 );

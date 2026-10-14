@@ -9,7 +9,7 @@ DeckitModule.define(
             'shell/service/style/page',
             'shell/service/style/model/permission',
             'shell/feature/panel/page',
-            'shell/feature/panel/region',
+            'shell/feature/region/page',
             'shell/feature/switcher/page',
             'shell/feature/switcher/model/page-name',
             'shell/feature/app/protocol',
@@ -34,16 +34,16 @@ DeckitModule.define(
         }
 
         // What the shell gives a mod's page, as deckit runs it (deckit/feature/mod/page): the theme, the kit, `show()`,
-        // `region(element)`, and the registrations `view` and, with deckit.styles, `styles`. Once start() has ended, a
-        // view goes in the panel's frame.
+        // `region(element)`, `children`, the registrations `view` and, with deckit.styles, `styles`, and on deck.mods
+        // the panel's pins. Once start() has ended, a view goes in the panel's frame, or a region's for a child.
         function mod({ mod: running, chordOf, deliver }) {
             const theme = start();
             const ui = KIT.make(theme);
             STYLE.wear();
-            const styles = running.permissions.some(({ id }) => id === STYLE_PERMISSION.PERMISSION);
+            const styles = running.permissions.some(({ id }) => id === STYLE_PERMISSION.STYLES);
             return {
-                deck: { theme, ui, show: PANEL.show, region: REGION.make },
-                mods: PANEL.listing,
+                deck: { theme, ui, show: PANEL.show, region: REGION.make, children: REGION.children },
+                mods: PANEL.pins,
                 registrations: {
                     view: (value) => PANEL.viewProblem(value, running),
                     ...(styles ? { styles: STYLE.problemOf } : {}),

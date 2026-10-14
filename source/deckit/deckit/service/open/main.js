@@ -14,7 +14,7 @@ DeckitModule.define(
         ],
         provides: ['start', 'open'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, MAIN_PROCESS, SCHEME, PROTOCOL, PERMISSION) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, MAIN_PROCESS_PERMISSION, SCHEME, PROTOCOL, OPEN_PERMISSION) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -51,7 +51,7 @@ DeckitModule.define(
                 return spendsUserActivation(sender) && reveal(file);
             });
             PROTOCOL.handlerLists.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.URL_SCHEMES);
+                IDENTITY.modFrom(sender, OPEN_PERMISSION.URL_SCHEMES);
                 return schemes().map((scheme) => ({
                     scheme,
                     system: scheme === SCHEME.EVERY ? null : SYSTEM.get(scheme) || null,
@@ -59,7 +59,7 @@ DeckitModule.define(
                 }));
             });
             PROTOCOL.setHandlers.handle(({ scheme, order, off }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.URL_SCHEMES);
+                IDENTITY.modFrom(sender, OPEN_PERMISSION.URL_SCHEMES);
                 return setHandlers(scheme, order, off);
             });
         }
@@ -82,7 +82,7 @@ DeckitModule.define(
         // taken; any other has to show a person's press.
         function spendsUserActivation(sender) {
             const mod = IDENTITY.modFrom(sender);
-            if (mod.permissions.some(({ id }) => id === MAIN_PROCESS.PERMISSION)) return true;
+            if (mod.permissions.some(({ id }) => id === MAIN_PROCESS_PERMISSION.MAIN_PROCESS)) return true;
             return IDENTITY.consumeUserActivation(sender);
         }
 

@@ -10,7 +10,7 @@ DeckitModule.define(
             'deckit/service/web/registry',
             'deckit/service/web/model/partition',
             'deckit/service/web/agent',
-            'deckit/service/web/permission',
+            'deckit/service/web/site-permission',
             'deckit/service/web/certificate',
             'deckit/service/web/script',
             'deckit/service/web/protocol',
@@ -27,11 +27,11 @@ DeckitModule.define(
         REGISTRY,
         PARTITION,
         AGENT,
-        PERMISSION,
+        SITE_PERMISSION,
         CERTIFICATE,
         SCRIPT,
         PROTOCOL,
-        MOD_PERMISSION
+        WEB_PERMISSION
     ) => {
         // MARK: - Property
         const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
@@ -42,7 +42,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         function start() {
-            PERMISSION.start();
+            SITE_PERMISSION.start();
             CERTIFICATE.start();
             SCRIPT.start();
             listen();
@@ -111,17 +111,17 @@ DeckitModule.define(
                 openWindow(sender, IDENTITY.modFrom(sender), name, url, title)
             );
             PROTOCOL.fetchText.handle(({ name, url }, sender) =>
-                SESSION.fetchText(IDENTITY.modFrom(sender, MOD_PERMISSION.NETWORK).id, name, url)
+                SESSION.fetchText(IDENTITY.modFrom(sender, WEB_PERMISSION.NETWORK).id, name, url)
             );
             PROTOCOL.clear.handle(({ name }, sender) => SESSION.clear(IDENTITY.modFrom(sender).id, name));
             PROTOCOL.trust.handle(({ name, entries }, sender) =>
-                CERTIFICATE.trust(partitionFor(sender, MOD_PERMISSION.CERTIFICATES, name), entries)
+                CERTIFICATE.trust(partitionFor(sender, WEB_PERMISSION.CERTIFICATES, name), entries)
             );
             PROTOCOL.allow.handle(({ name, entries }, sender) =>
-                PERMISSION.allow(partitionFor(sender, MOD_PERMISSION.SITE_PERMISSIONS, name), entries)
+                SITE_PERMISSION.allow(partitionFor(sender, WEB_PERMISSION.SITE_PERMISSIONS, name), entries)
             );
             PROTOCOL.revoke.handle(({ name, entries }, sender) =>
-                PERMISSION.revoke(partitionFor(sender, MOD_PERMISSION.SITE_PERMISSIONS, name), entries)
+                SITE_PERMISSION.revoke(partitionFor(sender, WEB_PERMISSION.SITE_PERMISSIONS, name), entries)
             );
 
             PROTOCOL.load.on(({ id, url }, sender) =>
@@ -181,7 +181,7 @@ DeckitModule.define(
         function mayShow(modPage, url, { inPage }) {
             if (/^https?:\/\//i.test(url)) return true;
             if (!inPage || !/^file:\/\//i.test(url)) return false;
-            return !!IDENTITY.modOf(modPage)?.permissions.some(({ id }) => id === MOD_PERMISSION.FILES);
+            return !!IDENTITY.modOf(modPage)?.permissions.some(({ id }) => id === WEB_PERMISSION.FILES);
         }
 
         // A file document never becomes a web one in its page: the session given to show files would keep the web's
@@ -276,7 +276,7 @@ DeckitModule.define(
                 if (!/^https?:\/\//i.test(url)) {
                     const at = REGISTRY.tabOf(page);
                     if (at)
-                        PERMISSION.mayOpenApp(modPage, at.tab, url, page).then(
+                        SITE_PERMISSION.mayOpenApp(modPage, at.tab, url, page).then(
                             (ok) => ok && require('electron').shell.openExternal(url)
                         );
                     return { action: 'deny' };

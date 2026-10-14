@@ -2,15 +2,15 @@ DeckitModule.define(
     'shell/feature/panel/page',
     {
         uses: ['shell/ui/color', 'shell/feature/panel/sidebar', 'shell/feature/panel/protocol'],
-        provides: ['mount', 'show', 'listing', 'viewProblem', 'keyProblem'],
+        provides: ['mount', 'show', 'pins', 'viewProblem', 'keyProblem'],
     },
     (COLOR, SIDEBAR, PROTOCOL) => {
         // MARK: - Property
-        // What a mod with deckit.mods reads and changes of the panel's list, on deck.mods: `listed()`, the children the
-        // person put in it, and `setListed(id, listed)`.
-        const listing = Object.freeze({
-            listed: () => PROTOCOL.listed.invoke(),
-            setListed: (id, listed) => PROTOCOL.setListed.invoke({ id: String(id), listed: !!listed }),
+        // What a mod with deckit.mods reads and changes of the panel's list, on deck.mods: `pinned()`, the children the
+        // person pinned to it, and `setPinned(id, pinned)`.
+        const pins = Object.freeze({
+            pinned: () => PROTOCOL.pinned.invoke(),
+            setPinned: (id, pinned) => PROTOCOL.setPinned.invoke({ id: String(id), pinned: !!pinned }),
         });
 
         // MARK: - Initializer
@@ -139,7 +139,7 @@ DeckitModule.define(
                     width: (bar?.controlsWidth || 0) + 'px',
                     height: (bar?.height || 0) + 'px',
                 });
-                sidebar.place(!!look.region);
+                sidebar.setInRegion(!!look.region);
                 const page = document.documentElement.style;
                 page.setProperty('--deckit-title-bar-area-height', (bar?.height || 0) + 'px');
                 page.setProperty(
@@ -248,6 +248,6 @@ DeckitModule.define(
             return made;
         }
 
-        return { mount, show, listing, viewProblem, keyProblem };
+        return { mount, show, pins, viewProblem, keyProblem };
     }
 );

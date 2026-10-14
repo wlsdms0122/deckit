@@ -4,13 +4,14 @@ DeckitModule.define(
         uses: [
             'shell/service/style/main',
             'shell/service/style/model/permission',
+            'shell/feature/region/main',
             'shell/feature/panel/main',
             'shell/feature/switcher/main',
             'shell/feature/app/protocol',
         ],
         provides: ['attach'],
     },
-    (STYLE, STYLE_PERMISSION, PANEL, SWITCHER, PROTOCOL) => {
+    (STYLE, STYLE_PERMISSION, REGION, PANEL, SWITCHER, PROTOCOL) => {
         // MARK: - Property
         // What the host app answers the shell: where it is shown is the app's.
         const ANSWERS = ['start', 'showsPanel', 'show', 'dismiss', 'summonSwitcher', 'panelTitled'];
@@ -27,7 +28,7 @@ DeckitModule.define(
             if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
             deckit = given;
             deckit.permissions.define({
-                id: STYLE_PERMISSION.PERMISSION,
+                id: STYLE_PERMISSION.STYLES,
                 name: 'Styles',
                 icon: 'eye',
                 means: "It can change how every page in the app looks, other mods' among them, and so read what they show.",
@@ -43,6 +44,7 @@ DeckitModule.define(
                 return { theme };
             });
             STYLE.start({ deckit });
+            REGION.start({ deckit });
             PANEL.start({ deckit, host });
             SWITCHER.start({ deckit, host });
             deckit.keymap.delegate({ isActive: PANEL.isActive, monitor: PANEL.monitor });

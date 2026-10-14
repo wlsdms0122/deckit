@@ -62,15 +62,15 @@ While a provider's mod is not running its accounts stay, unread, with what was r
 
 ## Asking
 
-A provider asks the person through Calendar, which exports `ask`:
+The provider signing an account in asks the person through Calendar, which exports `ask`:
 
 ```js
 const open = await deck.requires.calendar.ask({
     message: 'Open the authenticator app?',
     detail: 'It confirms the sign-in on this Mac.',
-    confirm: 'Open',
-    cancel: 'Cancel',
+    confirmLabel: 'Open',
+    cancelLabel: 'Cancel',
 });
 ```
 
-Calendar comes on screen and asks in a dialog under the name of the provider signing in, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only while an account signs in: any other time the call is refused. `detail`, `confirm` and `cancel` are optional (`''`, `OK`, `Cancel`). The sign-in window is not moved: where it stands in front of the panel, the dialog is behind it.
+Calendar comes on screen and asks in a dialog under the provider's name, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only for a provider while its `signIn` runs: any other mod, or the provider at any other time, is refused, and a question still open when the sign-in ends closes and resolves `false`. `detail`, `confirmLabel` and `cancelLabel` are optional (`''`, `OK`, `Cancel`). A provider that uses Calendar optionally calls `deck.optional.calendar.exports().ask` the same way. The sign-in window is not moved: where it stands in front of the panel, the dialog is behind it.

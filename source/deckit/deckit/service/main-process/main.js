@@ -16,7 +16,7 @@ DeckitModule.define(
         provides: ['start', 'unload', 'started', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',
     },
-    (FILE, STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER, PERMISSION, PROTOCOL, MOD_PERMISSION) => {
+    (FILE, STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER, MAIN_PROCESS_PERMISSION, PROTOCOL, MOD_PERMISSION) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -36,10 +36,10 @@ DeckitModule.define(
         function start() {
             RUNNER.observe('willLaunch', ({ mod }) => prepare(mod));
             PROTOCOL.start.handle(({ path: given }, sender) =>
-                load(IDENTITY.modFrom(sender, PERMISSION.PERMISSION), given)
+                load(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS), given)
             );
             PROTOCOL.call.handle(({ path: given, method, args }, sender) =>
-                call(IDENTITY.modFrom(sender, PERMISSION.PERMISSION), given, method, args)
+                call(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS), given, method, args)
             );
             PROTOCOL.restartPending.handle((_payload, sender) => {
                 IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);

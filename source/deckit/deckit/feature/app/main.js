@@ -35,7 +35,7 @@ DeckitModule.define(
         DECK_CONFIG,
         LOG,
         MANIFEST,
-        PERMISSION,
+        MOD_PERMISSION,
         WINDOW,
         INSTALL,
         FOLDER,
@@ -91,7 +91,7 @@ DeckitModule.define(
             if (!preload) throw new Error('[deckit] connect needs the preload deckit pages load with');
             connected = true;
             for (const permission of PERMISSIONS.PERMISSIONS)
-                PERMISSION.define(permission, {
+                MOD_PERMISSION.define(permission, {
                     before: permission.id.startsWith('system.') ? PERMISSIONS.WIDER_THAN : null,
                 });
             MANIFEST.define(SCHEMES.FIELD, SCHEMES.field());

@@ -5,13 +5,13 @@ DeckitModule.define(
             'deck/service/log/main',
             'deckit/service/web/debugger',
             'deckit/service/web/session',
-            'deckit/service/web/permission',
+            'deckit/service/web/site-permission',
             'deckit/service/web/protocol',
         ],
         provides: ['start', 'attach', 'clickNotification', 'captureOf', 'forget'],
         runs: 'main',
     },
-    (LOG, DEBUGGER, SESSION, PERMISSION, PROTOCOL) => {
+    (LOG, DEBUGGER, SESSION, SITE_PERMISSION, PROTOCOL) => {
         // MARK: - Property
         // Electron's own notice knows nothing of the page, so the page's Notification is replaced by a content
         // script, which reports through a binding only the DevTools session hears. Chromium does not tell an
@@ -25,21 +25,21 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         function start() {
-            PERMISSION.onChange(() => {
+            SITE_PERMISSION.onChange(() => {
                 for (const install of scripts.values()) install();
             });
         }
 
         function attach(host, page, changed) {
             const partition = SESSION.partitionOf(page);
-            const allowed = (origin) => PERMISSION.granted(partition, origin, 'notifications');
+            const allowed = (origin) => SITE_PERMISSION.granted(partition, origin, 'notifications');
             const evaluate = (expression) =>
                 DEBUGGER.send(page, 'Runtime.evaluate', { expression, userGesture: true }).catch(() => {});
             let script = null;
             // Also run in the document already there: it is usually under way before the session is. The script
             // does nothing the second time.
             const install = () => {
-                const source = `(${inPage})(${JSON.stringify(BINDING)}, ${JSON.stringify(PERMISSION.notices(partition))})`;
+                const source = `(${inPage})(${JSON.stringify(BINDING)}, ${JSON.stringify(SITE_PERMISSION.notices(partition))})`;
                 const dropped = script
                     ? DEBUGGER.send(page, 'Page.removeScriptToEvaluateOnNewDocument', { identifier: script })
                     : Promise.resolve();
@@ -51,7 +51,7 @@ DeckitModule.define(
             };
             scripts.set(page.id, () => {
                 install();
-                if (allowed(PERMISSION.originOf(page.getURL())))
+                if (allowed(SITE_PERMISSION.originOf(page.getURL())))
                     evaluate('window.__deckitNotification?.permission(0, "granted")');
             });
             page.once('destroyed', () => {
@@ -63,7 +63,7 @@ DeckitModule.define(
                 if (method !== 'Runtime.bindingCalled' || sessionId || params?.name !== BINDING) return;
                 const message = JSON.parse(params.payload);
                 const id = Number(message.id) || 0;
-                const origin = PERMISSION.originOf(page.getURL());
+                const origin = SITE_PERMISSION.originOf(page.getURL());
                 if (message.op === 'capture') {
                     capturing.set(page.id, {
                         microphone: !!message.microphone,
@@ -80,7 +80,7 @@ DeckitModule.define(
                         silent: !!message.silent,
                     });
                 } else if (message.op === 'request') {
-                    PERMISSION.ask(host, page, origin, ['notifications']).then((ok) =>
+                    SITE_PERMISSION.ask(host, page, origin, ['notifications']).then((ok) =>
                         evaluate(`window.__deckitNotification?.permission(${id}, "${ok ? 'granted' : 'denied'}")`)
                     );
                 }

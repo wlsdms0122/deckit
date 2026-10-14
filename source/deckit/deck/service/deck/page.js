@@ -16,7 +16,7 @@ DeckitModule.define(
         provides: ['start'],
         runs: 'page',
     },
-    (LOG, EVENT, STORAGE, SETTINGS, PROTOCOL, ORIGIN, EXTENSION_POINT, PROXY, ENTRY, PERMISSION) => {
+    (LOG, EVENT, STORAGE, SETTINGS, PROTOCOL, ORIGIN, EXTENSION_POINT, PROXY, ENTRY, MOD_PERMISSION) => {
         // MARK: - Property
         // What is on deck gives a mod when nothing is: nothing.
         const NOTHING = Object.freeze({
@@ -29,6 +29,7 @@ DeckitModule.define(
         const failures = [];
         let mod = null;
         let runNumber = null; // which run of the mod main counts this one as
+        let caller = null; // the mod whose call into this mod's exports is running, in its synchronous part
 
         // MARK: - Initializer
         // MARK: - Public
@@ -285,11 +286,12 @@ DeckitModule.define(
                 storage: Object.freeze({ values: STORAGE.values(), records: STORAGE.records(fail) }),
                 requires,
                 optional,
+                caller: () => caller,
                 ...register,
                 extensionPoint,
                 ...EVENT.forMod({ owner: { deliver, recordFailure: fail } }),
-                ...(has(PERMISSION.MODS) ? { mods: modsTool(given.mods) } : {}),
-                ...(has(PERMISSION.MOD_SETTINGS) ? { modSettings: modSettingsTool() } : {}),
+                ...(has(MOD_PERMISSION.MODS) ? { mods: modsTool(given.mods) } : {}),
+                ...(has(MOD_PERMISSION.MOD_SETTINGS) ? { modSettings: modSettingsTool() } : {}),
             });
         }
 
@@ -371,10 +373,15 @@ DeckitModule.define(
 
         // `reported` is what is on deck tells main of the mod, under deck's own: deck carries it and does not read it.
         function contribute(parts, { contributions, reported }) {
-            PROTOCOL.exportCalled.handle(({ path, args }) => {
+            PROTOCOL.exportCalled.handle(({ caller: from, path, args }) => {
                 const exported = path.reduce((at, key) => at?.[key], parts.exports);
                 if (typeof exported !== 'function') throw new Error(`${mod.id} exports no function ${path.join('.')}`);
-                return exported(...args);
+                caller = from;
+                try {
+                    return exported(...args);
+                } finally {
+                    caller = null;
+                }
             });
             PROTOCOL.extensionCalled.handle(({ point, path, args }) => {
                 const extension = path.reduce((at, key) => at?.[key], parts.extend?.[point]);

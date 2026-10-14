@@ -64,10 +64,10 @@ const MOD_DETAILS_STYLE = `
 `;
 
 // What an opened mod row shows: what it requires, where its view is shown, its permissions, the addresses it opens,
-// its keys and where it lives. `onListedChange` hears the person put a mod in the sidebar's list or take it out. It
+// its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it. It
 // opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the base
 // duration: over the fast one a tall row reads as a jump.
-function modDetails({ ui, mods, urlSchemes, util, onListedChange }) {
+function modDetails({ ui, mods, urlSchemes, util, onPinnedChange }) {
     const everyScheme = urlSchemes.everyScheme;
 
     let mod = null;
@@ -110,7 +110,7 @@ function modDetails({ ui, mods, urlSchemes, util, onListedChange }) {
             const chips = dependencyChips(optional);
             if (chips.length) addPart(label, chipRow(chips));
         }
-        if (mod.live?.parent) addPart('Sidebar', sidebarListing());
+        if (mod.live?.parent && mods.setPinned) addPart('Sidebar', sidebarPin());
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
         if (mod.live?.urlSchemes.length) addPart('Opens', chipRow(openingChips(handlerLists)));
@@ -147,23 +147,23 @@ function modDetails({ ui, mods, urlSchemes, util, onListedChange }) {
         );
     }
 
-    // A child's view is shown in its parent's, and in the sidebar's list as well once the person puts it there.
-    function sidebarListing() {
+    // A child's view is shown in its parent's, and in the sidebar's list as well once the person pins it there.
+    function sidebarPin() {
         const parent = (mod.dependencies || []).find((dependency) => dependency.id === mod.live.parent);
         const { id } = mod;
-        const listing = ui.element('div', { className: 'settings-details-switch' });
+        const pin = ui.element('div', { className: 'settings-details-switch' });
         const toggle = ui.toggle({
-            value: !!mod.listed,
+            value: !!mod.pinned,
             onChange: (on) => {
                 toggle.set(on);
-                mods.setListed(id, on).then(onListedChange, () => toggle.set(!on));
+                mods.setPinned(id, on).then(onPinnedChange, () => toggle.set(!on));
             },
         });
-        listing.append(
-            detailsLine(`Shown in ${parent?.name || mod.live.parent}. Listed in the sidebar too`),
+        pin.append(
+            detailsLine(`Shown in ${parent?.name || mod.live.parent}. Pinned to the sidebar too`),
             toggle.element
         );
-        return listing;
+        return pin;
     }
 
     function addPart(title, body) {

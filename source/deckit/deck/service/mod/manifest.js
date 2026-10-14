@@ -5,7 +5,7 @@ DeckitModule.define(
         provides: ['FILE', 'API', 'define', 'read', 'of', 'idProblem'],
         runs: 'any',
     },
-    (TOML, VERSION, PERMISSION) => {
+    (TOML, VERSION, MOD_PERMISSION) => {
         // MARK: - Property
         const FILE = 'manifest.toml';
         // The version of the mod contract, which a manifest's `api` is written against.
@@ -69,7 +69,7 @@ DeckitModule.define(
                 main: typeof raw.main === 'string' ? raw.main : null,
                 requires: isTable(raw.requires) ? { ...raw.requires } : {},
                 optional: isTable(raw.optional) ? { ...raw.optional } : {},
-                permissions: PERMISSION.all()
+                permissions: MOD_PERMISSION.all()
                     .filter(({ id }) => Object.hasOwn(permissions, id))
                     .map((permission) => ({ ...permission, reason: String(permissions[permission.id]).trim() })),
                 ...Object.fromEntries(
@@ -139,7 +139,7 @@ DeckitModule.define(
             if (!Object.hasOwn(raw, 'permissions')) return '';
             const example = '[permissions] table of name = "why it is needed", such as "deckit.mods" = "…"';
             if (!isTable(raw.permissions)) return `permissions must be a ${example}`;
-            const known = new Set(PERMISSION.all().map(({ id }) => id));
+            const known = new Set(MOD_PERMISSION.all().map(({ id }) => id));
             const unknown = Object.keys(raw.permissions).filter((id) => !known.has(id));
             if (unknown.length) {
                 return `unknown permission ${unknown.map((id) => `"${id}"`).join(', ')}; there are ${[...known].map((id) => `"${id}"`).join(', ')}`;

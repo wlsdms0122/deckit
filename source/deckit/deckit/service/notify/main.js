@@ -23,7 +23,7 @@ DeckitModule.define(
         // `clicked` is the app's answer to a clicked notice, which brings it forward before the mod hears of it.
         function start({ clicked }) {
             PROTOCOL.notify.handle(({ id, title, body, silent }, sender) => {
-                IDENTITY.modFrom(sender, NOTIFY_PERMISSION.PERMISSION);
+                IDENTITY.modFrom(sender, NOTIFY_PERMISSION.NOTIFICATIONS);
                 return show(sender, id, title, body, silent, clicked);
             });
         }

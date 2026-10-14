@@ -7,8 +7,7 @@ DeckitModule.define(
     },
     () => {
         // MARK: - Property
-        // What a mod holds to open files in its own pages, to read any address, to accept a certificate this Mac cannot
-        // verify, and to let a site's pages use what a page asks for.
+        // The ids of the permissions this service checks; what each grants is in the app's list.
         const FILES = 'system.files';
         const NETWORK = 'system.network';
         const CERTIFICATES = 'system.certificates';

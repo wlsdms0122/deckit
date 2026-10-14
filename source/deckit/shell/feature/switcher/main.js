@@ -172,11 +172,12 @@ DeckitModule.define(
             PROTOCOL.supply.send(list(), { items, now: roundRobin(buckets), tones: deckit.commands.tones });
         }
 
-        // The mod's names are aliases here, so a prefix of its name still finds it.
+        // The mods the panel can put on screen. The mod's names are aliases here, so a prefix of its name still finds
+        // it.
         function opens() {
             return deckit.mods
                 .list()
-                .filter(({ id }) => deckit.mods.runOf(id)?.state === 'running' && deckit.mods.runOf(id).summary.view)
+                .filter(({ id }) => deckit.mods.runOf(id)?.state === 'running' && PANEL.canBringToFront(id))
                 .map((mod) =>
                     hand({
                         id: OPEN + mod.id,
@@ -281,9 +282,10 @@ DeckitModule.define(
             reload,
             // What the host drives of it.
             control: {
-                view: build,
                 // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`).
                 place: (window, options) => deckit.window.place(build(), window, options),
+                contains: (webContents) => !!state.view && state.view.webContents === webContents,
+                focus: () => state.view?.webContents.focus(),
                 open,
                 close,
                 shown: () => state.on,

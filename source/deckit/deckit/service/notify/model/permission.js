@@ -2,18 +2,18 @@ DeckitModule.define(
     'deckit/service/notify/model/permission',
     {
         uses: [],
-        provides: ['PERMISSION'],
+        provides: ['NOTIFICATIONS'],
         runs: 'any',
     },
     () => {
         // MARK: - Property
         // What a mod holds to show notices.
-        const PERMISSION = 'system.notifications';
+        const NOTIFICATIONS = 'system.notifications';
 
         // MARK: - Initializer
         // MARK: - Public
         // MARK: - Private
 
-        return { PERMISSION };
+        return { NOTIFICATIONS };
     }
 );

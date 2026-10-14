@@ -14,7 +14,7 @@ DeckitModule.define(
         ],
         provides: ['start', 'connect', 'delegate', 'listen', 'register', 'chordOf'],
     },
-    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, CATALOG, PROTOCOL, BINDING_ID, PERMISSION) => {
+    (CONFIG, STORAGE, LOG, CHORD, IDENTITY, CATALOG, PROTOCOL, BINDING_ID, KEYMAP_PERMISSION) => {
         // MARK: - Property
         const OVERRIDES = 'keys';
         const RECORDING_MS = 20 * 1000;
@@ -39,22 +39,22 @@ DeckitModule.define(
             });
             PROTOCOL.typing.on(({ on }, sender) => mark(typing, sender, on));
             PROTOCOL.record.on(({ on }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.KEY_MAP);
+                IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
                 if (on) startRecording(sender);
                 else if (recording?.webContents === sender) stopRecording(false);
             });
             PROTOCOL.chord.handle(({ id }) => chordOf(id));
             PROTOCOL.bindings.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.KEY_MAP);
+                IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
                 return bindings().map(({ run, ...binding }) => binding);
             });
             PROTOCOL.bind.handle(({ id, spec }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.KEY_MAP);
+                IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
                 bind(id, spec);
                 return true;
             });
             PROTOCOL.reset.handle(({ id }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.KEY_MAP);
+                IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
                 reset(id);
                 return true;
             });
@@ -147,7 +147,7 @@ DeckitModule.define(
         // mod's key is global only with system.global-keys.
         function catalog() {
             const mods = CATALOG.mods().filter(({ id }) => scopes.has(id));
-            const global = (mod) => mod.permissions.some(({ id }) => id === PERMISSION.GLOBAL_KEYS);
+            const global = (mod) => mod.permissions.some(({ id }) => id === KEYMAP_PERMISSION.GLOBAL_KEYS);
             const keysOf = (mod, wantGlobal) =>
                 scopes.get(mod.id).filter((key) => !!key.global === wantGlobal && (!wantGlobal || global(mod)));
             return [

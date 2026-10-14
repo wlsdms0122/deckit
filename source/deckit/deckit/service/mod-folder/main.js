@@ -11,17 +11,17 @@ DeckitModule.define(
         provides: ['start'],
         runs: 'main',
     },
-    (IDENTITY, CATALOG, DECK, PROTOCOL, PERMISSION) => {
+    (IDENTITY, CATALOG, DECK, PROTOCOL, MOD_PERMISSION) => {
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
         function start() {
             PROTOCOL.pick.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MODS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 return pick();
             });
             PROTOCOL.reveal.handle(({ id }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MODS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 const mod = CATALOG.found().find((candidate) => candidate.id === id);
                 if (!mod) throw new Error('no mod ' + id);
                 require('electron').shell.showItemInFolder(mod.folder);

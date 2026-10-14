@@ -13,7 +13,6 @@ DeckitModule.define(
         function make({ restart }) {
             const state = { window: null, opening: null, title: '' }; // `opening`: a second show waits on it
             let controls = null; // what the host drives of the shell, handed as it starts
-            let switcher = null;
 
             function live(window) {
                 return window && !window.isDestroyed() ? window : null;
@@ -33,13 +32,11 @@ DeckitModule.define(
                     .leave()
                     .then((left) => {
                         if (!left) return null;
-                        const view = controls.panel.view();
                         const onClose = () => {
                             state.window = null;
                             controls.panel.hide();
                         };
                         state.window = WINDOW.open({
-                            view,
                             title: state.title,
                             glass: controls.panel.glass,
                             fullSize: true,
@@ -57,7 +54,7 @@ DeckitModule.define(
 
             // What has the keyboard in the panel's window: the switcher while it is open, or else the panel.
             function focusPanel() {
-                if (controls.switcher.shown()) switcher?.webContents.focus();
+                if (controls.switcher.shown()) controls.switcher.focus();
                 else if (controls.panel.shown()) controls.panel.focus();
             }
 
@@ -69,7 +66,7 @@ DeckitModule.define(
 
             // The panel's views and the switcher's are in the panel's window, which only this host knows.
             function windowOf(webContents) {
-                if (controls.panel.contains(webContents) || webContents === switcher?.webContents)
+                if (controls.panel.contains(webContents) || controls.switcher.contains(webContents))
                     return live(state.window);
                 return require('electron').BrowserWindow.fromWebContents(webContents);
             }
@@ -81,7 +78,6 @@ DeckitModule.define(
                 const here = controls.switcher.shown();
                 controls.switcher.close();
                 if (here || !window || window !== live(state.window)) return;
-                switcher = controls.switcher.view();
                 controls.switcher.place(window, {
                     front: true,
                     onClose: () => controls.switcher.close(),
@@ -95,7 +91,7 @@ DeckitModule.define(
                     show();
                 },
                 showsPanel: (webContents) => {
-                    if (webContents === switcher?.webContents) return false;
+                    if (controls.switcher.contains(webContents)) return false;
                     const window = windowOf(webContents);
                     return !!window && window === live(state.window) && !controls.switcher.shown();
                 },

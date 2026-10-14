@@ -66,9 +66,9 @@ DeckitModule.define(
         // `keywords`, which every shell reads in its run's summary. `shellMod(context)` is what the shell on deckit, if
         // one is, gives the mod: `members`, what it reads of the entry; `deck`, the members it adds; `registrations`,
         // the ones it adds, each by its check; `blocksKeys()`, whether a key pressed now is dropped;
-        // `keyProblem(key, parts)`, why a key would never run, or ''; `mods`, what it adds to `deck.mods` for a mod with
-        // deckit.mods; and `contribute(parts, entry)`, which answers what main is told of the mod beside deckit's own.
-        // Deckit's own members and registrations are never the shell's.
+        // `keyProblem(key, parts)`, why a key would never run, or ''; `mods`, what it adds to `deck.mods` for a mod
+        // with deckit.mods; and `contribute(parts, entry)`, which answers what main is told of the mod beside
+        // deckit's own. Deckit's own members and registrations are never the shell's.
         function layerOf(shellMod) {
             return ({ mod, deliver, fail }) => {
                 WEB.listen();
@@ -119,12 +119,12 @@ DeckitModule.define(
                 about: RUNTIME.about,
                 chordOf: (action) => KEYMAP.chord(BINDING_ID.idOf(mod.id, action)),
                 clipboard: Object.freeze(
-                    has(CLIPBOARD_PERMISSION.PERMISSION)
+                    has(CLIPBOARD_PERMISSION.CLIPBOARD)
                         ? { readText: CLIPBOARD.readText, writeText: CLIPBOARD.writeText }
                         : { writeText: CLIPBOARD.writeText }
                 ),
-                ...(has(NOTIFY_PERMISSION.PERMISSION) ? { notify: NOTIFY.notify } : {}),
-                ...(has(MAIN_PROCESS_PERMISSION.PERMISSION) ? { mainProcess: MAIN_PROCESS.forMod({ deliver }) } : {}),
+                ...(has(NOTIFY_PERMISSION.NOTIFICATIONS) ? { notify: NOTIFY.notify } : {}),
+                ...(has(MAIN_PROCESS_PERMISSION.MAIN_PROCESS) ? { mainProcess: MAIN_PROCESS.forMod({ deliver }) } : {}),
                 ...(has(KEYMAP_PERMISSION.KEY_MAP)
                     ? {
                           keymap: Object.freeze({

@@ -5,7 +5,7 @@ DeckitModule.define(
         provides: ['start'],
         runs: 'main',
     },
-    (PROTOCOL, STYLE) => {
+    (PROTOCOL, STYLE_PERMISSION) => {
         // MARK: - Property
         const EVERY_PAGE = '*';
         const pages = new Map(); // a page that wears styles -> the mod it runs, or null for a page the shell made
@@ -48,7 +48,7 @@ DeckitModule.define(
         function stylesOf(run) {
             const given = run.contributions?.styles;
             if (!given || !Object.keys(given).length) return null;
-            return run.mod.permissions.some(({ id }) => id === STYLE.PERMISSION) ? given : null;
+            return run.mod.permissions.some(({ id }) => id === STYLE_PERMISSION.STYLES) ? given : null;
         }
 
         function tell() {

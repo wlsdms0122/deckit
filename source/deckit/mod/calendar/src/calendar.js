@@ -1320,35 +1320,42 @@ const calendar = (deck, accountsPoint) => {
 
     /* The provider signs the account in, in a window of its own, and answers the address it signed
      in as, or nothing when it was cancelled. A cancelled or failed sign-in leaves nothing behind. */
-    const signingIn = []; // the names of the providers signing an account in now
+    const signingIn = new Map(); // provider mod id -> { name, asks }: a sign-in under way, and its open questions
     const signIn = async (provider, account, title) => {
-        signingIn.push(provider.name);
+        const signing = { name: provider.name, asks: new Set() };
+        signingIn.set(account.provider, signing);
         render();
         try {
             return await provider.signIn(account, { title });
         } finally {
-            signingIn.splice(signingIn.indexOf(provider.name), 1);
+            for (const close of signing.asks) close();
+            if (signingIn.get(account.provider) === signing) signingIn.delete(account.provider);
             render();
         }
     };
 
-    /* What a provider asks the person on the way through a sign-in (README.md, Asking): Calendar comes on
-     screen and asks in a dialog under the provider's name. Resolves whether the person confirmed. A sign-in
-     is Calendar's to run, so nothing is asked outside one. */
-    const ask = ({ message, detail = '', confirm = 'OK', cancel = 'Cancel' } = {}) => {
-        if (!signingIn.length) return Promise.reject(new Error('Calendar asks only while an account signs in'));
+    /* What the provider signing in asks the person on the way (README.md, Asking): Calendar comes on screen and
+     asks in a dialog under the provider's name. Resolves whether the person confirmed, and false once the
+     sign-in has ended. A mod that is not signing in is refused. */
+    const ask = ({ message, detail = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) => {
+        const signing = signingIn.get(deck.caller());
+        if (!signing) return Promise.reject(new Error('Calendar asks only for the provider signing in'));
         deck.show();
         return new Promise((resolve) => {
             let confirmed = false;
-            ui.dialog({
-                title: signingIn.length === 1 ? signingIn[0] : 'Sign in',
+            const dialog = ui.dialog({
+                title: signing.name,
                 message: [String(message ?? ''), String(detail ?? '')],
-                confirmLabel: String(confirm),
-                cancelLabel: String(cancel),
+                confirmLabel: String(confirmLabel),
+                cancelLabel: String(cancelLabel),
                 onConfirm: () => (confirmed = true),
                 // The dialog closes before it confirms.
-                onClose: () => queueMicrotask(() => resolve(confirmed)),
+                onClose: () => {
+                    signing.asks.delete(dialog.close);
+                    queueMicrotask(() => resolve(confirmed));
+                },
             });
+            signing.asks.add(dialog.close);
         });
     };
 
@@ -1936,7 +1943,7 @@ const calendar = (deck, accountsPoint) => {
         const signedOut = accounts().filter((account) => accountStatus.get(account.id)?.signedOut).length;
         const broken = feeds().filter((feed) => reads.of(feed)?.error).length;
         const unprovided = accounts().filter((account) => !providerOf(account)).length;
-        status.textContent = signingIn.length
+        status.textContent = signingIn.size
             ? 'Signing in…'
             : loading
               ? 'Loading…'

@@ -18,7 +18,7 @@ DeckitModule.define(
         function start() {
             const { clipboard } = require('electron');
             PROTOCOL.readText.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, CLIPBOARD_PERMISSION.PERMISSION);
+                IDENTITY.modFrom(sender, CLIPBOARD_PERMISSION.CLIPBOARD);
                 return clipboard.readText();
             });
             PROTOCOL.writeText.handle(({ text }, sender) => {

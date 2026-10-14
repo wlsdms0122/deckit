@@ -316,15 +316,21 @@ DeckitModule.define(
             }
 
             // In a region of another mod's the card holds the mod's own sidebar alone, and none at all without one.
-            function place(region) {
-                if (region === inRegion) return;
-                inRegion = region;
-                for (const part of [nav, splitter, handle]) part.style.display = region ? 'none' : '';
-                card.style.display = region && !sidebar ? 'none' : '';
+            function setInRegion(on) {
+                if (on === inRegion) return;
+                inRegion = on;
+                for (const part of [nav, splitter, handle]) part.style.display = on ? 'none' : '';
+                card.style.display = on && !sidebar ? 'none' : '';
                 apply(layout, false);
             }
 
-            return { element: card, show, place, setTitleBarHeight, collapsed: () => layout.collapsed && !inRegion };
+            return {
+                element: card,
+                show,
+                setInRegion,
+                setTitleBarHeight,
+                collapsed: () => layout.collapsed && !inRegion,
+            };
         }
 
         // MARK: - Private

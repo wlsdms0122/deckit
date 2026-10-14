@@ -68,7 +68,8 @@ The pages never speak to each other. Main carries everything between them, and e
 | what mods offer to be run | `deckit/service/command/main.js`, from what each mod's page supplies, to each caller in a session of its own |
 | whether the panel is on screen, and where | the host app, asked through `shell/feature/panel/main.js` |
 | which mod is in front, and back and forward | `shell/feature/panel/main.js` |
-| which children a region shows, where each view is laid, and the children the person listed | `shell/feature/panel/main.js`, the list in `state/host/` |
+| which mod's view is whose child, which child a region shows, and where it lies | `shell/feature/region/main.js` |
+| where each view is laid in the panel, and the children the person pinned to its list | `shell/feature/panel/main.js`, the pins in `state/host/` |
 | what the switcher lists, and what was picked before | `shell/feature/switcher/main.js` |
 | which styles each page wears, in what order | `shell/service/style/main.js` |
 | a mod's data, records and settings | main, under deckit's folder (below) |
@@ -96,7 +97,7 @@ Everything deckit keeps is named from its configured id, so two host apps that e
 
 A mod reaches deckit only through `deck`, what its `start` is handed (MOD.md). Before a mod runs, its sandbox's boot takes away every global the bundles added, and its entry runs with only `module` and `exports` in reach.
 
-`deck` is put together by the layers, each adding to it. Deck gives a mod its id and name, its settings and storage, what it requires, `exports`, `extend` and `extensionPoint`, events, and with their permissions `mods` and `modSettings`. Deckit adds the web, opening addresses, the clipboard, notices, keys, commands and main process modules, and reads the entry's `icon` and `keywords`. The shell on deckit adds the theme, the kit, `show()`, and the registrations `view` and `styles`. A layer's registrations are kinds deck does not know, and what a layer says of a mod (its summary and contributions) deck carries to main and does not read. What a layer gives a mod is never replaced by what a layer above it gives.
+`deck` is put together by the layers, each adding to it. Deck gives a mod its id and name, its settings and storage, what it requires and uses optionally, `exports` and `caller()`, `extend` and `extensionPoint`, events, and with their permissions `mods` and `modSettings`. Deckit adds the web, opening addresses, the clipboard, notices, keys, commands and main process modules, and on `mods` picking and revealing mod folders and restarting, and reads the entry's `icon` and `keywords`. The shell on deckit adds the theme, the kit, `show()`, `region()` and `children`, the registrations `view` and `styles`, and on `mods` the panel's pins. A layer's registrations are kinds deck does not know, and what a layer says of a mod (its summary and contributions) deck carries to main and does not read. What a layer gives a mod is never replaced by what a layer above it gives.
 
 Between mods there are two ways, and one question picks: could the host app do this if the other mod were not there?
 
@@ -122,7 +123,7 @@ Each library is in layers, and names go one way:
 | `deckit/feature/` | what the outside meets: the host app's entries, what connect answers (`feature/api`), what deckit gives a mod (`feature/mod`) | its feature, service, module, config, and deck's |
 | `deckit/service/` | what deckit does | its service, module, config, and deck's |
 | `deckit/module/` | what it is built from, with no deckit in it | module |
-| `shell/feature/` | the shell's entries, the panel, the switcher | its feature, service and ui, and deck's and deckit's module |
+| `shell/feature/` | the shell's entries, the panel, regions, the switcher | its feature, service and ui, and deck's and deckit's module |
 | `shell/service/` | what the shell does: styles | its service, and deck's and deckit's module |
 | `shell/ui/` | how it draws: the kit | ui |
 

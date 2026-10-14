@@ -12,7 +12,7 @@ DeckitModule.define(
         provides: ['start', 'valuesOf'],
         runs: 'main',
     },
-    (STORAGE, IDENTITY, CATALOG, RUNNER, PROTOCOL, PERMISSION) => {
+    (STORAGE, IDENTITY, CATALOG, RUNNER, PROTOCOL, MOD_PERMISSION) => {
         // MARK: - Property
         const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
         // How long a mod has to work out a setting's options: a mod still starting answers once it has.
@@ -34,15 +34,15 @@ DeckitModule.define(
             });
             PROTOCOL.setSetting.handle(({ key, value }, sender) => set(IDENTITY.modFrom(sender).id, key, value));
             PROTOCOL.modSettings.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MOD_SETTINGS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MOD_SETTINGS);
                 return list();
             });
             PROTOCOL.setModSetting.handle(({ mod, key, value }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MOD_SETTINGS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MOD_SETTINGS);
                 return set(mod, key, value);
             });
             PROTOCOL.runModSetting.handle(({ mod, key }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MOD_SETTINGS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MOD_SETTINGS);
                 return runAction(mod, key);
             });
         }

@@ -7,7 +7,7 @@ DeckitModule.define(
     },
     () => {
         // MARK: - Property
-        // What a mod holds for keys that work wherever the person is in the app, and to change every mod's keys.
+        // The ids of the permissions this service checks; what each grants is in the app's list.
         const GLOBAL_KEYS = 'system.global-keys';
         const KEY_MAP = 'deckit.key-map';
 

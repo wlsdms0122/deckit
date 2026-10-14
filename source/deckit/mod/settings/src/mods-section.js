@@ -19,7 +19,6 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
     const COLUMNS = ['NAME', 'VERSION', 'CONTRIBUTES', ''];
 
     let handlerLists = [];
-    let draws = 0;
     const rowFills = new WeakMap(); // row element -> its fill(mod)
 
     ui.addStyle(`
@@ -110,14 +109,13 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
     body.append(columns, rows.element, restart.element, notice);
     return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
 
-    // The latest draw is the one drawn: an earlier one still asking the panel's list gives way.
-    async function draw({ onDisk, running }) {
-        const turn = ++draws;
+    // The panel's pins are the shell's: under a shell that has none, no child is pinned.
+    function draw({ onDisk, running }) {
         const shortcuts = keymap.list();
         handlerLists = urlSchemes.list();
         restart.draw(onDisk);
-        const listed = new Set(await mods.listed());
-        if (turn === draws) rows.set(modRowsOf({ onDisk, running, shortcuts, listed }));
+        const pinned = new Set(mods.pinned ? mods.pinned() : []);
+        rows.set(modRowsOf({ onDisk, running, shortcuts, pinned }));
     }
 
     function showNotice(text) {
@@ -155,7 +153,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
         });
         const source = chip({ ui, text: 'source', muted: true });
         const failure = ui.element('div', { className: 'settings-mod-failure' });
-        const details = modDetails({ ui, mods, urlSchemes, util, onListedChange: onChange });
+        const details = modDetails({ ui, mods, urlSchemes, util, onPinnedChange: onChange });
 
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
@@ -316,7 +314,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
     // the ones found on disk that did not load or are still starting. `notLoaded` is why one is not running, `problem`
     // what went wrong with one that is. Permissions are read from the folder, so one that did not load still shows the
     // permissions it asks for.
-    function modRowsOf({ onDisk, running, shortcuts, listed }) {
+    function modRowsOf({ onDisk, running, shortcuts, pinned }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (mod) => ({
             version: mod?.version,
@@ -336,7 +334,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
                 name: live.name,
                 ...fromDisk(found),
                 live,
-                listed: listed.has(live.id),
+                pinned: pinned.has(live.id),
                 keys: keysOf(live.id),
                 problem: found?.mainProcess.failure
                     ? 'a main process module did not start: ' + found.mainProcess.failure

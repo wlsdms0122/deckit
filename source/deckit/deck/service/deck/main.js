@@ -34,7 +34,7 @@ DeckitModule.define(
         EXPORT,
         EXTENSION,
         PROTOCOL,
-        PERMISSION
+        MOD_PERMISSION
     ) => {
         // MARK: - Property
         let layer = null;
@@ -61,23 +61,23 @@ DeckitModule.define(
         // MARK: - Private
         function listen() {
             PROTOCOL.mods.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MODS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 return describe();
             });
             PROTOCOL.install.handle(({ from }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MODS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 return install(from);
             });
             PROTOCOL.remove.handle(({ id, data }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MODS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 return remove(id, data);
             });
             PROTOCOL.relaunch.handle(({ id }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MODS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 RUNNER.relaunch(id);
             });
             PROTOCOL.count.handle(({ id }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION.MODS);
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 return STORAGE.count(id);
             });
         }
