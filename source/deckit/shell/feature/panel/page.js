@@ -1,10 +1,10 @@
 DeckitModule.define(
     'shell/feature/panel/page',
     {
-        uses: ['shell/ui/color', 'shell/feature/panel/sidebar', 'shell/feature/panel/protocol'],
+        uses: ['shell/feature/panel/sidebar', 'shell/feature/panel/protocol'],
         provides: ['mount', 'show', 'pins', 'viewProblem', 'keyProblem'],
     },
-    (COLOR, SIDEBAR, PROTOCOL) => {
+    (SIDEBAR, PROTOCOL) => {
         // MARK: - Property
         // What a mod with deckit.mods reads and changes of the panel's list, on deck.mods: `pinned()`, the children the
         // person pinned to it, and `setPinned(id, pinned)`.
@@ -25,22 +25,20 @@ DeckitModule.define(
             let leaving = null;
             let appeared = false;
 
-            // So what the browser draws itself (scrollbars, native controls) follows the theme.
-            document.documentElement.style.colorScheme = theme.dark ? 'dark' : 'light';
             const root = element('div', {
                 position: 'fixed',
                 inset: '0',
                 display: 'flex',
                 overflow: 'hidden',
                 flexDirection: 'row',
-                font: '15px ' + theme.font,
+                font: '15px var(--deckit-font)',
                 boxSizing: 'border-box',
             });
             const content = element('div', {
                 flex: '1 1 auto',
                 minWidth: '0',
                 background: 'transparent',
-                color: theme.color.text,
+                color: 'var(--deckit-text)',
                 position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
@@ -160,7 +158,10 @@ DeckitModule.define(
                 }
                 Object.assign(
                     root.style,
-                    { background: COLOR.alpha(theme.color.background, setup.glass), boxShadow: 'none' },
+                    {
+                        background: `color-mix(in srgb, var(--deckit-background) ${setup.glass * 100}%, transparent)`,
+                        boxShadow: 'none',
+                    },
                     look.floating
                         ? {
                               border: '1px solid rgba(255,255,255,.14)',

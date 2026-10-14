@@ -2,7 +2,6 @@ DeckitModule.define(
     'shell/feature/app/page',
     {
         uses: [
-            'shell/ui/token',
             'shell/ui/pointer',
             'shell/ui/overlay',
             'shell/ui/kit',
@@ -12,11 +11,11 @@ DeckitModule.define(
             'shell/feature/region/page',
             'shell/feature/switcher/page',
             'shell/feature/switcher/model/page-name',
-            'shell/feature/app/protocol',
+            'shell/feature/theme/page',
         ],
         provides: ['page', 'mod'],
     },
-    (TOKEN, POINTER, OVERLAY, KIT, STYLE, STYLE_PERMISSION, PANEL, REGION, SWITCHER, SWITCHER_PAGE, PROTOCOL) => {
+    (POINTER, OVERLAY, KIT, STYLE, STYLE_PERMISSION, PANEL, REGION, SWITCHER, SWITCHER_PAGE, THEME) => {
         // MARK: - Property
         // Every page the shell draws in: clear around what it draws, and no drag selection, so text meant to be copied
         // opts in (ui.selectable).
@@ -77,7 +76,7 @@ DeckitModule.define(
             KIT.addStyle(PAGE_STYLE);
             POINTER.start();
             OVERLAY.start();
-            return TOKEN.tokenOf(PROTOCOL.setup.invoke().theme || TOKEN.FALLBACK_THEME);
+            return THEME.start();
         }
 
         return { page, mod };

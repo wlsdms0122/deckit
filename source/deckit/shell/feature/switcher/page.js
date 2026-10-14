@@ -174,8 +174,6 @@ DeckitModule.define(
             let hideToken = null;
             let giveUpTimer = null;
 
-            // Scrollbars and other native drawing follow the theme.
-            document.documentElement.style.colorScheme = theme.dark ? 'dark' : 'light';
             Object.assign(document.body.style, { margin: '0', background: 'transparent' });
 
             const entries = {

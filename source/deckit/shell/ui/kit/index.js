@@ -2,7 +2,6 @@ DeckitModule.define(
     'shell/ui/kit',
     {
         uses: [
-            'shell/ui/token',
             'shell/ui/color',
             'shell/ui/icon',
             'shell/ui/pointer',
@@ -31,18 +30,18 @@ DeckitModule.define(
         ],
         provides: ['make', 'addStyle'],
     },
-    (TOKEN, COLOR, ICON, POINTER, OVERLAY, SCROLL, LISTBOX, PART, ...components) => {
+    (COLOR, ICON, POINTER, OVERLAY, SCROLL, LISTBOX, PART, ...components) => {
         // MARK: - Property
         let installed = false;
         // MARK: - Initializer
         // MARK: - Public
-        // The `ui` a page draws with, for `token`. Frozen all the way down: a mod is handed the very objects its page
+        // The `ui` a page draws with, for `theme`. Frozen all the way down: a mod is handed the very objects its page
         // draws with. Components are made in the order of `uses`, as one may lend another something through `inner`.
-        function make(token) {
-            install(token);
+        function make(theme) {
+            install();
             const ui = {};
             const inner = {};
-            for (const component of components) Object.assign(ui, component.make(token, ui, inner));
+            for (const component of components) Object.assign(ui, component.make(theme, ui, inner));
             Object.assign(ui, {
                 icon: ICON.icon,
                 iconOf: ICON.iconOf,
@@ -70,12 +69,12 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // The kit's look, once per page: the token's values as custom properties, then every part's rules.
-        function install(token) {
+        // The kit's look, once per page: every part's rules, drawn with the theme's custom properties.
+        function install() {
             if (installed) return;
             installed = true;
             const rules = [OVERLAY, PART, ...components].map((part) => part.STYLE);
-            addStyle(TOKEN.propertiesOf(token) + rules.join('\n'));
+            addStyle(rules.join('\n'));
         }
 
         function deepFreeze(value) {

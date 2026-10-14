@@ -7,7 +7,7 @@ DeckitModule.define(
             'shell/feature/switcher/protocol',
             'shell/feature/switcher/model/page-name',
         ],
-        provides: ['start', 'reload', 'control'],
+        provides: ['start', 'control'],
     },
     (REPLY, PANEL, PROTOCOL, PAGE) => {
         // MARK: - Property
@@ -53,11 +53,6 @@ DeckitModule.define(
             PROTOCOL.pick.on(({ id }, sender) => sender === state.view?.webContents && pick(id));
         }
 
-        // A page made before a new theme is made again in it.
-        function reload() {
-            state.view?.webContents.reload();
-        }
-
         // Resolves true when put away (the keyboard is the host's to give back), false when it never opened or was
         // opened again during its exit.
         function open() {
@@ -88,8 +83,7 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // Made the first time it is asked for. A page that reloads (a theme change reloads it) cannot hold an open
-        // list.
+        // Made the first time it is asked for. A page that reloads cannot hold an open list.
         function build() {
             if (state.view) return state.view;
             const view = deckit.pages.make(PAGE.PAGE_NAME);
@@ -279,7 +273,6 @@ DeckitModule.define(
 
         return {
             start,
-            reload,
             // What the host drives of it.
             control: {
                 // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`).

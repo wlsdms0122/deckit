@@ -17,6 +17,15 @@ DeckitModule.define(
         // The card's inset from the panel's edges, and how far the handle stands past it, over the content's edge.
         const INSET = 8;
         const HANDLE_OUT = 6;
+        // The card's surface, drawn in the content's ink rather than the sidebar colour, which is chosen against a
+        // sidebar fill: white over a dark ground, black over a light one.
+        const SURFACE = `:root {
+            --deckit-sidebar-top: light-dark(rgba(0,0,0,.03), rgba(255,255,255,.045));
+            --deckit-sidebar-bottom: light-dark(rgba(0,0,0,.015), rgba(255,255,255,.025));
+            --deckit-sidebar-rim: light-dark(rgba(0,0,0,.08), rgba(255,255,255,.1));
+            --deckit-sidebar-shadow: inset 0 1px 0 light-dark(rgba(255,255,255,.8), rgba(255,255,255,.09)),
+                0 1px 2px light-dark(rgba(0,0,0,.08), rgba(0,0,0,.35)), 0 10px 28px light-dark(rgba(0,0,0,.1), rgba(0,0,0,.32));
+        }`;
         const STYLE = `
             .deckit-sidebar {
                 position: relative;
@@ -148,7 +157,7 @@ DeckitModule.define(
             onCollapsedChange,
             chordOf,
         }) {
-            KIT.addStyle(surfaceOf(theme) + STYLE);
+            KIT.addStyle(SURFACE + STYLE);
             let layout = { width: WIDTH_MIN, collapsed: false, navHeight: null };
             let mods = [];
             let current = null;
@@ -334,21 +343,6 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // The card's surface, drawn in the content's ink rather than the sidebar colour, which is chosen against a
-        // sidebar fill.
-        function surfaceOf(theme) {
-            const ink = (alpha) => (theme.dark ? `rgba(255,255,255,${alpha})` : `rgba(0,0,0,${alpha})`);
-            const shadow = theme.dark
-                ? 'inset 0 1px 0 rgba(255,255,255,.09), 0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.32)'
-                : 'inset 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.08), 0 10px 28px rgba(0,0,0,.10)';
-            return `:root {
-                --deckit-sidebar-top: ${ink(theme.dark ? 0.045 : 0.03)};
-                --deckit-sidebar-bottom: ${ink(theme.dark ? 0.025 : 0.015)};
-                --deckit-sidebar-rim: ${ink(theme.dark ? 0.1 : 0.08)};
-                --deckit-sidebar-shadow: ${shadow};
-            }`;
-        }
-
         function element(tag, className) {
             const made = document.createElement(tag);
             if (className) made.className = className;

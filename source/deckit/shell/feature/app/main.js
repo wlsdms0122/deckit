@@ -7,16 +7,15 @@ DeckitModule.define(
             'shell/feature/region/main',
             'shell/feature/panel/main',
             'shell/feature/switcher/main',
-            'shell/feature/app/protocol',
+            'shell/feature/theme/main',
         ],
         provides: ['attach'],
     },
-    (STYLE, STYLE_PERMISSION, REGION, PANEL, SWITCHER, PROTOCOL) => {
+    (STYLE, STYLE_PERMISSION, REGION, PANEL, SWITCHER, THEME) => {
         // MARK: - Property
         // What the host app answers the shell: where it is shown is the app's.
         const ANSWERS = ['start', 'showsPanel', 'show', 'dismiss', 'summonSwitcher', 'panelTitled'];
         let deckit = null;
-        let theme = null; // the app's, which every page the shell draws in derives its look from
 
         // MARK: - Initializer
         // MARK: - Public
@@ -38,25 +37,13 @@ DeckitModule.define(
 
         // MARK: - Private
         function start(host) {
-            PROTOCOL.setup.handle((_payload, sender) => {
-                if (!deckit.mods.modOf(sender) && !deckit.pages.nameOf(sender))
-                    throw Object.assign(new Error('only a deckit page draws'), { kind: 'REFUSED' });
-                return { theme };
-            });
+            THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
             STYLE.start({ deckit });
             REGION.start({ deckit });
             PANEL.start({ deckit, host });
             SWITCHER.start({ deckit, host });
             deckit.keymap.delegate({ isActive: PANEL.isActive, monitor: PANEL.monitor });
-            host.start({ setTheme, panel: PANEL.control, switcher: SWITCHER.control });
-        }
-
-        // A new theme makes every page again, which draws in it from the start.
-        function setTheme(next) {
-            if (JSON.stringify(next) === JSON.stringify(theme)) return;
-            theme = next;
-            deckit.mods.relaunchAll();
-            SWITCHER.reload();
+            host.start({ setTheme: THEME.set, panel: PANEL.control, switcher: SWITCHER.control });
         }
 
         return { attach };
