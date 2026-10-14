@@ -1,17 +1,14 @@
-// Which library, concept and layer a file is. A concept is a module folder, its core files and its model/.
+// Which unit and concept a file is. A unit (core, deck, deckit, the shell) is one module: its root files are what the
+// others reach it by, and each folder in it a concept, its core files and its model/.
 const path = require('path');
 
-const LAYERS = {
-    deck: new Set(['config', 'service', 'module']),
-    deckit: new Set(['config', 'feature', 'service', 'module']),
-    shell: new Set(['feature', 'service', 'ui']),
-};
+const UNITS = new Set(['core', 'deck', 'deckit', 'shell']);
 
 // `file` is the path under source/deckit, as library.files() lists it.
 function conceptOf(file) {
-    const [library, layer] = file.split('/');
-    if (!LAYERS[library]?.has(layer)) return null;
-    return { library, concept: path.posix.dirname(file).replace(/\/model$/, ''), layer: `${library}/${layer}` };
+    const [unit] = file.split('/');
+    if (!UNITS.has(unit)) return null;
+    return { library: unit, concept: path.posix.dirname(file).replace(/\/model$/, ''), layer: unit };
 }
 
-module.exports = { conceptOf, LAYERS };
+module.exports = { conceptOf, UNITS };

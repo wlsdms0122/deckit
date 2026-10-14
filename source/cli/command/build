@@ -17,7 +17,7 @@ SOURCE_HASH="$({ find source/deckit/deck source/deckit/deckit source/deckit/shel
 # Read into an array first, where a node that fails stops the build. Which deckit this is goes into the bundles: the
 # build module's empty values are written over with the version and the source hash.
 LIBRARY=source/deckit
-BUILD_MODULE=deckit/service/build/index.js
+BUILD_MODULE=deckit/build/index.js
 EMPTY_VERSION='const VERSION = null;'
 EMPTY_SOURCE='const SOURCE = null;'
 for empty in "$EMPTY_VERSION" "$EMPTY_SOURCE"; do

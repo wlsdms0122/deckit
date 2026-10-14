@@ -4,16 +4,16 @@ const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
-const LIBRARIES = ['deck', 'deckit', 'shell'];
+const LIBRARIES = ['core', 'deck', 'deckit', 'shell'];
 const MODS = path.join(DECKIT, 'mod');
 const APP = path.join(DECKIT, 'deckit-app');
-const REGISTRY = 'deck/module/registry/index.js';
+const REGISTRY = 'core/registry/index.js';
 const ENTRIES = {
-    chord: () => ['deckit/module/chord'],
-    main: () => ['deckit/feature/app/main'],
-    page: () => ['deckit/feature/app/page'],
-    'shell-main': () => ['shell/feature/app/main'],
-    'shell-page': () => ['shell/feature/app/page'],
+    chord: () => ['core/chord'],
+    main: () => ['deckit/main'],
+    page: () => ['deckit/page'],
+    'shell-main': () => ['shell/main'],
+    'shell-page': () => ['shell/page'],
 };
 // The shell's bundles load after deckit's of the same process, so they carry nothing deckit's already do.
 const LOADS_AFTER = { 'shell-main': 'main', 'shell-page': 'page' };

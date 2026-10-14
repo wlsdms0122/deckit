@@ -47,31 +47,31 @@ A new mod needs no change to deck. A new place to show the panel in needs no cha
 | a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; with deckit's shell on deckit, a mod with a view has the panel's frame around it there, or a region's where it is another's child |
 | a page that runs no mod | made for the shell, at `deckit://<name>/`: the quick switcher's list, at `deckit://switcher/` |
 
-A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed; a mod with `deckit.styles` styles another's page, and that is all. Main knows which mod is asking by the page that asks (`deck/service/deck/identity.js`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
+A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed; a mod with `deckit.styles` styles another's page, and that is all. Main knows which mod is asking by the page that asks (`deck/identity/index.js`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
-The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`deck/module/ipc`), named for its library (`deck:`, `deckit:`, `shell:`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
+The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`core/ipc`), named for its library (`deck:`, `deckit:`, `shell:`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
 ## 4. One owner for each fact
 
 | Fact | Owner |
 |---|---|
-| what a mod's run is: its states, its transitions and what each tells | `deck/service/mod/lifecycle.js` |
-| what a manifest may say, and what may be asked for in it | `deck/service/mod/manifest.js` and `permission.js`, with what each layer defines |
-| the mods found, and their order | `deck/service/deck/catalog.js` |
-| which mods run, each in its sandbox, and where each run is in its lifecycle | `deck/service/deck/runner.js` |
-| what a mod exports, its settings | `deck/service/deck/export.js`, `setting.js` |
-| which mods extend each extension point | `deck/service/deck/extension.js` |
-| which page is which mod, or which page runs none | `deck/service/deck/identity.js` |
-| a mod's main process modules | `deckit/service/main-process/main.js` |
-| what a keystroke means | `deckit/service/keymap/main.js`; a page only hears the chords it may act on |
-| who opens an address | `deckit/service/open/main.js`, in the order the person set |
-| what mods offer to be run | `deckit/service/command/main.js`, from what each mod's page supplies, to each caller in a session of its own |
-| whether the panel is on screen, and where | the host app, asked through `shell/feature/panel/main.js` |
-| which mod is in front, and back and forward | `shell/feature/panel/main.js` |
-| which mod's view is whose child, which child a region shows, and where it lies | `shell/feature/region/main.js` |
-| where each view is laid in the panel, and the children the person pinned to its list | `shell/feature/panel/main.js`, the pins in `state/host/` |
-| what the switcher lists, and what was picked before | `shell/feature/switcher/main.js` |
-| which styles each page wears, in what order | `shell/service/style/main.js` |
+| what a mod's run is: its states, its transitions and what each tells | `deck/mod/lifecycle.js` |
+| what a manifest may say, and what may be asked for in it | `deck/mod/manifest.js` and `permission.js`, with what each layer defines |
+| the mods found, and their order | `deck/catalog/index.js` |
+| which mods run, each in its sandbox, and where each run is in its lifecycle | `deck/runner/main.js` |
+| what a mod exports, its settings | `deck/export/main.js`, `setting.js` |
+| which mods extend each extension point | `deck/extension/main.js` |
+| which page is which mod, or which page runs none | `deck/identity/index.js` |
+| a mod's main process modules | `deckit/main-process/main.js` |
+| what a keystroke means | `deckit/keymap/main.js`; a page only hears the chords it may act on |
+| who opens an address | `deckit/open/main.js`, in the order the person set |
+| what mods offer to be run | `deckit/command/main.js`, from what each mod's page supplies, to each caller in a session of its own |
+| whether the panel is on screen, and where | the host app, asked through `shell/panel/main.js` |
+| which mod is in front, and back and forward | `shell/panel/main.js` |
+| which mod's view is whose child, which child a region shows, and where it lies | `shell/region/main.js` |
+| where each view is laid in the panel, and the children the person pinned to its list | `shell/panel/main.js`, the pins in `state/host/` |
+| what the switcher lists, and what was picked before | `shell/switcher/main.js` |
+| which styles each page wears, in what order | `shell/style/main.js` |
 | a mod's data, records and settings | main, under deckit's folder (below) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
 | what the person arranged (mod order, key overrides, each scheme's handlers) | `state/` |
@@ -104,7 +104,7 @@ Between mods there are two ways, and one question picks: could the host app do t
 - If it could not, it is a dependency. A mod names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. A mod that runs without the other but does more with it names it in `optional`, an optional dependency: it neither waits for that one nor ends or launches again with it, and is told each time what that one exports to it changes. The other way round, a mod opens an extension point and one that requires it, or has it as an optional dependency, extends the point: what extends it stays in the extending mod's page, and the point's mod calls it through main, never naming it. What the host app offers (`host/exports`) is handed to the host app's own mod, whose id is the host app's, and another mod reaches it by requiring that one.
 - If it could, it is a URL scheme handler. A mod asks for an address to be opened (`deck.open(url)`) without knowing who answers. The mods whose manifest names the scheme are its handlers and are asked in the order the person set, ahead of deckit's own answer, which is always last.
 
-Apart from both, a mod says what happened to it through deck's events (`deck/service/event`): `deck.emit(name)` is heard as `<its id>:<name>` by any mod that listens, and no mod speaks for another. Listening takes no dependency. The bus itself, listeners by name, is `deck/module/event-bus`.
+Apart from both, a mod says what happened to it through deck's events (`deck/service/event`): `deck.emit(name)` is heard as `<its id>:<name>` by any mod that listens, and no mod speaks for another. Listening takes no dependency. The bus itself, listeners by name, is `core/event-bus`.
 
 A mod changes how another's pages look with styles, which the shell puts last on each page they style, and nothing else of another mod.
 
@@ -131,7 +131,7 @@ Each library is in layers, and names go one way:
 
 A concept's sides are `main.js` and `page.js`; a one-sided concept is `index.js`; `protocol.js` is how its own sides reach each other and nobody else's, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only).
 
-Bundles are worked out from their entries: the main bundle from `deckit/feature/app/main`, the page bundle from `deckit/feature/app/page`, both carrying deck and deckit, the chord bundle, and the shell's `shell-main` and `shell-page` from `shell/feature/app/main` and `shell/feature/app/page`. A bundle carries what its entry names and what those name, each after what it names; a shell bundle leaves out what the bundle of the same process under it carries. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept and every channel its library's and declared once, where each file runs, every folder a module or a group.
+Bundles are worked out from their entries: the main bundle from `deckit/main`, the page bundle from `deckit/page`, both carrying deck and deckit, the chord bundle, and the shell's `shell-main` and `shell-page` from `shell/main` and `shell/page`. A bundle carries what its entry names and what those name, each after what it names; a shell bundle leaves out what the bundle of the same process under it carries. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept and every channel its library's and declared once, where each file runs, every folder a module or a group.
 
 ## 7. One design system
 

@@ -17,7 +17,7 @@ if (!app.requestSingleInstanceLock()) {
     app.quit();
 } else {
     for (const file of require('./load.json').main) require(path.join(__dirname, file));
-    DeckitModule.use(['deckit/feature/app/main', 'shell/feature/app/main', 'host/app'], (DECKIT, SHELL, APP) => {
+    DeckitModule.use(['deckit/main', 'shell/main', 'host/app'], (DECKIT, SHELL, APP) => {
         protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
         // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
         const restart = () => {

@@ -6,31 +6,20 @@ const path = require('path');
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 const { conceptOf } = require(path.join(__dirname, '..', 'concept.js'));
 
-const IPC = 'deck/module/ipc';
-// The entries a host app starts, which put a page or main together and so may name any concept's protocol.
-const ENTRIES = new Set([
-    'deckit/feature/app/main',
-    'deckit/feature/app/page',
-    'shell/feature/app/main',
-    'shell/feature/app/page',
-]);
+const IPC = 'core/ipc';
+// The entries a host app starts.
+const ENTRIES = new Set(['deckit/main', 'deckit/page', 'shell/main', 'shell/page']);
+// A unit's root files put its main or its page together, and so may name any of its concepts' protocols.
+const ROOTS = new Set(['deck/main', 'deck/page', ...ENTRIES]);
 // What a host app hands deckit, which it may not: named as optional.
 const HOST_INPUTS = new Set(['host/config', 'host/folders', 'host/exports']);
-// Deck names nothing of deckit, and deckit nothing of the shell. Deckit is built on deck. The shell reaches deckit
-// through what connect answers (deckit/feature/api), so of the libraries under it it names only the parts with no
-// deckit in them, their modules.
-const DECK = ['deck/config', 'deck/service', 'deck/module'];
+// Core names nothing of deckit. Deck names nothing of deckit, and deckit nothing of the shell. The shell reaches
+// deckit through what connect answers, so of the units under it it names only core.
 const MAY_NAME = {
-    'deck/config': new Set(),
-    'deck/service': new Set(DECK),
-    'deck/module': new Set(['deck/module']),
-    'deckit/config': new Set(['deck/config']),
-    'deckit/feature': new Set([...DECK, 'deckit/config', 'deckit/feature', 'deckit/service', 'deckit/module']),
-    'deckit/service': new Set([...DECK, 'deckit/config', 'deckit/service', 'deckit/module']),
-    'deckit/module': new Set(['deck/module', 'deckit/module']),
-    'shell/feature': new Set(['shell/feature', 'shell/service', 'shell/ui', 'deck/module', 'deckit/module']),
-    'shell/service': new Set(['shell/service', 'deck/module', 'deckit/module']),
-    'shell/ui': new Set(['shell/ui']),
+    core: new Set(['core']),
+    deck: new Set(['core', 'deck']),
+    deckit: new Set(['core', 'deck', 'deckit']),
+    shell: new Set(['core', 'shell']),
 };
 const RUNS = new Set(['main', 'page', 'node', 'electron', 'any']);
 const FITS = {
@@ -70,7 +59,7 @@ if (problems.length) {
     console.error(`${problems.length} problem${problems.length === 1 ? '' : 's'}`);
     process.exit(1);
 }
-console.log(`ok: ${all.size} modules, each in its layer, naming what it uses`);
+console.log(`ok: ${all.size} modules, each in its unit, naming what it uses`);
 
 function say(file, what) {
     problems.push(`deckit/${file}: ${what}`);
@@ -119,7 +108,7 @@ function checkUses(name, { file, uses }) {
     if (!mine)
         return say(
             file,
-            'is in no layer: a module of deck is in config/, service/ or module/, of deckit in config/, feature/, service/ or module/, and of the shell in feature/, service/ or ui/'
+            'is in no unit: a file is in core/, deck/, deckit/ or shell/'
         );
     for (const use of uses) {
         if (HOST_INPUTS.has(use.name)) {
@@ -140,7 +129,8 @@ function checkUses(name, { file, uses }) {
         if (!MAY_NAME[mine.layer].has(other.layer))
             say(file, `names ${use.name}, in ${other.layer}/, which ${mine.layer}/ does not name`);
         // A concept's channels are how its own sides reach each other.
-        if (theirs.file.endsWith('/protocol.js') && other.concept !== mine.concept && !ENTRIES.has(name)) {
+        const ownUnitRoot = other.concept === mine.library && mine.library === other.library;
+        if (theirs.file.endsWith('/protocol.js') && other.concept !== mine.concept && !ROOTS.has(name) && !ownUnitRoot) {
             say(file, `names ${use.name}, how ${other.concept} is reached, which is ${other.concept}'s own`);
         }
     }
@@ -209,7 +199,9 @@ function checkFolders() {
         const files = entries.filter((entry) => entry.isFile());
         const folders = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
         const below = folders.filter((name) => name !== 'model');
-        if (!LIBRARY.LIBRARIES.includes(folder) && files.length && below.length) {
+        // A unit's root holds its root files beside its concepts; core is a group.
+        const unitRoot = LIBRARY.LIBRARIES.includes(folder) && folder !== 'core';
+        if (!unitRoot && files.length && below.length) {
             say(
                 folder,
                 `holds files and the folders ${below.join(', ')}: a folder is a module (files, and model/) or a group (folders only)`
