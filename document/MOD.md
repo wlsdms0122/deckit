@@ -67,7 +67,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.files` | files on this Mac, opened in its own pages | `file://` addresses in its web pages |
 | `system.network` | any address, past the rules that keep one site from reading another | `fetchText(url)` on a web session |
 | `system.certificates` | trusting a certificate this Mac cannot verify, in one of its sessions | `trust` on a web session |
-| `system.site-permissions` | what a site's pages may use (the camera, the microphone, notices), in one of its sessions | `allow`, `revoke` on a web session |
+| `system.site-permissions` | what a site's pages may use (the camera, the microphone, notices, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
 | `system.clipboard` | reading what was copied, from any app | `deck.clipboard.readText` |
 | `system.notifications` | notices in the corner of the screen | `deck.notify` |
 | `system.global-keys` | keys that work wherever the keyboard is in the app | `global: true` on a key |
@@ -242,6 +242,8 @@ page.delegate = {
 
 A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers. Answer `false` when the mod opened it itself.
 
+A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notices, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. Anything else a site asks for is refused.
+
 ### What the mod asks
 
 | Member | What it does |
@@ -302,7 +304,7 @@ Whatever deck calls after `start`, a call that throws or rejects costs that call
 
 Two ways, and one question picks: could the host app do this if the other mod were not there?
 
-**URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a mod makes up. A mod calls `deck.open(url)` and never names who answers. Each scheme has its handlers: the mods whose manifest names it, in the order the person set in Settings, then deck's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only when `userInitiated` says a person asked, during their click or key; otherwise it is shown in Finder. A scheme no mod takes and deck has no answer for ends unopened.
+**URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a mod makes up. A mod calls `deck.open(url)` and never names who answers. Each scheme has its handlers: the mods whose manifest names it, in the order the person set in Settings, then deck's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only during a person's click or key: otherwise `deck.open` answers `false` and no handler is asked, as `reveal` does. A scheme no mod takes and deck has no answer for ends unopened.
 
 **requires**, when it could not. The other mod registers `deck.exports`, and this one names it in `[requires]` and receives it as `deck.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the mod does not load, and Settings says why.
 
