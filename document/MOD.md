@@ -51,7 +51,7 @@ Only the part of TOML a manifest uses is read: top-level keys, one level of tabl
 
 An id is lower case letters, digits, `.`, `_` and `-`, starts with a letter or digit, is at most 64 characters and has no `..`. Lower case only, because a mod's data is kept in a folder named by its id and macOS disks ignore case.
 
-`url-schemes` is a list of lower case schemes without `:` (`"https"`, `"my-app"`), or `["*"]` alone for every scheme. `javascript`, `data`, `blob` and `about` are refused.
+`url-schemes` is a list of lower case schemes without `:` (`"https"`, `"my-app"`), or `["*"]` alone for every scheme. An empty list is refused, and so are `javascript`, `data`, `blob` and `about`.
 
 ### api
 
@@ -71,7 +71,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.clipboard` | reading what was copied, from any app | `deck.clipboard.readText` |
 | `system.notifications` | notifications in the corner of the screen | `deck.notify` |
 | `system.global-keys` | keys that work wherever the keyboard is in the app | `global: true` on a key |
-| `deckit.mods` | every installed mod: listing, installing and removing them | `deck.mods` |
+| `deckit.mods` | every mod: listing, installing, removing and launching them again, picking and revealing their folders, the children pinned to the mod list, and restarting the app | `deck.mods` |
 | `deckit.mod-settings` | every mod's settings | `deck.modSettings` |
 | `deckit.key-map` | every mod's shortcuts | `deck.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
@@ -99,7 +99,7 @@ module.exports = {
 
 | Member | What it is |
 |---|---|
-| `icon` | an inline SVG string, about 18px, which the shell draws rebuilt from its shapes |
+| `icon` | optional; an inline SVG string, about 18px, which the shell draws rebuilt from its shapes |
 | `keywords` | optional; the switcher's aliases for the mod |
 | `settings` | optional; what the person can choose about the mod (below) |
 | `start(deck)` | starts the mod and registers what it contributes; may be async, and deck waits for it |
@@ -256,13 +256,13 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` | events, its own sent and any mod's heard (Using what another mod does) |
 | `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deckit's own answer; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
-| `reveal(path)` | shows a file in the system's Finder, during a person's click or key; otherwise resolves `false` |
+| `reveal(path)` | shows a file in the system's Finder, during a person's click or key, or at any time for a mod with `system.main-process`, which could do it itself; otherwise resolves `false` |
 | `chordOf(action)` | the chord one of the mod's keys is bound to now, or `''` |
 | `about()` | `{ name, app, version, source, electron, chrome, home, mods, data, log }`: the host app's name and version, deckit's version and the hash of its sources, the engines, the person's home folder, and the folders of deckit's mods, data and log |
 | `clipboard.writeText(text)` | copies text, during a person's click or key in the mod's page or a command they ran; otherwise it resolves `false` and copies nothing |
 | `clipboard.readText()` | with `system.clipboard` |
 | `notify({ title, body, silent, onClick })` | with `system.notifications` |
-| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`, and the shell's `pinned()` (the children the person pinned to the mod list) and `setPinned(id, pinned)`; `list`, `restartPending` and `pinned` answer at once, the rest resolve. `list()` answers `{ found, running }`: `found` is every mod deck found, loaded or not, each its manifest with `folder`, `installed` (a copy in deckit's mods folder), `shipped`, `hides` (folders of the same id not read), `problem`, `state` (its latest run's, or null), `mainProcess` (`{ running, failure }`: whether a main process module of its started, and why one did not, or null) and `dependencies` (`[{ id, want, name, ok, optional }]`, a row for each mod in its `[requires]` and `[optional]`: `want` is the version it names, `ok` whether that one loaded at that version and runs); `running` is each running mod's `id`, `name` and summary, what it contributes, with `extends` (the points it extends) and `problem`. `onChange(listener)` hears that what `list` answers may have changed (a mod found or gone, a run that moved), and answers its off. `install(from)` is refused but during a person's click or key in the page, since what the mod installed asks for is granted as it installs. `relaunch(id)` terminates the mod and launches it again, or launches one not running, and rejects while a mod it requires is not running |
+| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`, and the shell's `pinned()` (the children the person pinned to the mod list) and `setPinned(id, pinned)`; `list`, `restartPending` and `pinned` answer at once, the rest resolve. `list()` answers `{ found, running }`: `found` is every mod deck found, loaded or not, each its manifest with `folder`, `installed` (a copy in deckit's mods folder), `shipped`, `hides` (folders of the same id not read), `problem`, `state` (its latest run's, or null), `mainProcess` (`{ running, failure }`: whether a main process module of its started, and why one did not, or null) and `dependencies` (`[{ id, want, name, ok, optional }]`, a row for each mod in its `[requires]` and `[optional]`: `want` is the version it names, `ok` whether that one loaded at that version and runs); `running` is each running mod's `id`, `name` and summary, what it contributes, with `extends` (the points it extends) and `problem`. `onChange(listener)` hears that what `list` answers may have changed (a mod found or gone, a run that moved), and answers its off. `install(from)` is refused but during a person's click or key in the page, since what the mod installed asks for is granted as it installs. `relaunch(id)` terminates the mod and launches it again, or launches one not running, and rejects while a mod it requires is not running; for a mod that did not load it resolves and does nothing |
 | `modSettings` | with `deckit.mod-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
 | `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
