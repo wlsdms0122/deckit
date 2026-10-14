@@ -91,6 +91,7 @@ module.exports = {
         deck.view({ content, sidebar, didAppear, didDisappear });
         deck.keys({ … });
         deck.commands(() => [ … ]);
+        deck.handleURL((url, options) => { … });
     },
     stop() { … },
 };
@@ -163,7 +164,7 @@ An entry of `commands` has a `run` or a `page`; one with neither is left out. In
 
 ### deck.handleURL(fn)
 
-`fn(url, options)` answers for the addresses of the schemes the manifest names: the mod is one of their URL scheme handlers. `options` is `{ activates, userInitiated, target }`. Return `true` when it opened the address; anything else passes it on.
+`fn(url, options)` answers for the addresses of the schemes the manifest names: the mod is one of their URL scheme handlers. `options` is `{ activates, userInitiated, target }`. Return `true` when it opened the address; anything else passes it on. The manifest's `url-schemes` and `deck.handleURL` come together: one without the other is shown on the mod's row in Settings, and the mod is asked to open nothing.
 
 ### deck.exports(object)
 
