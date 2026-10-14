@@ -200,7 +200,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
             const key = answerKey(inside.id, inside.ranked ? '' : asked);
             if (answers.has(key)) lastAnswer = answers.get(key);
             lit = new Map();
-            show(inside.ranked && query ? rank(lastAnswer, query) : lastAnswer);
+            setList(inside.ranked && query ? rank(lastAnswer, query) : lastAnswer);
         } else if (!query) {
             browse();
         } else {
@@ -208,7 +208,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
             // ones (somewhere else to look) go last so they never stand over every command. The Now strip is
             // left out under a query.
             const offered = answers.get(answerKey(null, asked)) || [];
-            show(
+            setList(
                 offered
                     .filter((item) => !item.fallback)
                     .concat(
@@ -247,10 +247,10 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
     function browse() {
         lit = new Map();
         const { list, at } = layout();
-        show(list, at);
+        setList(list, at);
     }
 
-    function show(list, at = null) {
+    function setList(list, at = null) {
         shown = at ? list : list.slice(0, SEARCH_LIMIT);
         headings = at || new Map();
         numbers = shown

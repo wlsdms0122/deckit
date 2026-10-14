@@ -15,7 +15,7 @@ export const layout = IPC.rendererToMain('shell:panel-layout', {
 });
 // The sending mod asks to be on screen; or the panel to be put away.
 export const show = IPC.rendererToMain('shell:panel-show', {});
-export const hide = IPC.rendererToMain('shell:panel-hide', {});
+export const dismiss = IPC.rendererToMain('shell:panel-dismiss', {});
 // Something floats in the page (a dialog, a menu), so the page answers Escape.
 export const floating = IPC.rendererToMain('shell:panel-floating', { on: 'boolean' });
 // A command and the fact it brings about never share a name: play is answered by played, visible by hidden.

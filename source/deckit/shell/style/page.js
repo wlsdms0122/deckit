@@ -16,7 +16,7 @@ function wear() {
         get: () => adopted.get.call(document),
         set: (sheets) => adopted.set.call(document, [...sheets.filter((sheet) => !worn.includes(sheet)), ...worn]),
     });
-    const show = (styles) => {
+    const apply = (styles) => {
         const kept = others();
         worn = styles.map((css) => {
             const sheet = new CSSStyleSheet();
@@ -25,8 +25,8 @@ function wear() {
         });
         adopted.set.call(document, [...kept, ...worn]);
     };
-    show(PROTOCOL.current.invoke());
-    PROTOCOL.changed.on(({ styles }) => show(styles));
+    apply(PROTOCOL.current.invoke());
+    PROTOCOL.changed.on(({ styles }) => apply(styles));
 }
 
 // Why what `deck.styles` was handed is not styles, or ''.

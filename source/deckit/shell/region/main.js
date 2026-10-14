@@ -27,7 +27,7 @@ export function createRegion() {
         deckit.mods.onChange(changed);
         PROTOCOL.children.handle((_payload, sender) => childrenOf(deckit.mods.modOf(sender)));
         PROTOCOL.rect.on(({ region, ...rect }, sender) => deckit.mods.modOf(sender) && setRect(sender, region, rect));
-        PROTOCOL.show.handle(({ region, id }, sender) => show(sender, region, id ?? null));
+        PROTOCOL.place.handle(({ region, id }, sender) => place(sender, region, id ?? null));
         PROTOCOL.end.on(({ region }, sender) => end(sender.id + ':' + region));
     }
 
@@ -70,7 +70,7 @@ export function createRegion() {
     }
 
     // A child is in one region at a time: shown in another, it leaves the one it was in.
-    function show(page, number, id) {
+    function place(page, number, id) {
         const parent = deckit.mods.modOf(page);
         if (!parent) throw new Error('only a mod has regions');
         if (id !== null && parentOf(id) !== parent) throw new Error(`${id} is not a child of ${parent}`);

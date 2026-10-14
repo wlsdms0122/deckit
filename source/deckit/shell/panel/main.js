@@ -92,7 +92,7 @@ export function createPanel({ REPLY, REGION }) {
         PROTOCOL.reorder.on(({ ids }, sender) => modOf(sender) && deckit.mods.arrange(ids));
         PROTOCOL.layout.on((change, sender) => modOf(sender) && setFrame(change));
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
-        PROTOCOL.hide.on((_payload, sender) => modOf(sender) && onScreen().includes(sender) && host.dismiss());
+        PROTOCOL.dismiss.on((_payload, sender) => modOf(sender) && onScreen().includes(sender) && host.dismiss());
         PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);

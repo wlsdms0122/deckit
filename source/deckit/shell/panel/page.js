@@ -84,7 +84,7 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
             if (!handled && document.activeElement === field) field.blur();
             return;
         }
-        if (last) PROTOCOL.hide.send();
+        if (last) PROTOCOL.dismiss.send();
     });
     PROTOCOL.state.on((state) => showState(state, true));
     PROTOCOL.look.on((next) => {

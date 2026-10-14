@@ -12,7 +12,7 @@ export const rect = IPC.rendererToMain('shell:region-rect', {
     height: 'number',
 });
 // The child a region shows, or none: refused for a mod that is not the sender's child.
-export const show = IPC.rendererToMain('shell:region-show', { region: 'number', id: 'string?' }, { reply: true });
+export const place = IPC.rendererToMain('shell:region-place', { region: 'number', id: 'string?' }, { reply: true });
 // The region's element left the page.
 export const end = IPC.rendererToMain('shell:region-end', { region: 'number' });
 

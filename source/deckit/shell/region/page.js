@@ -21,7 +21,7 @@ export function createRegion() {
     // MARK: - Public
     // A place in the mod's view where the shell shows a child's. The child runs in its own page, laid over
     // `element`'s rect as it moves, so what the parent draws there is covered and nothing of the parent's floats
-    // over it. `show(id)` puts a child in this region, out of any other it was in, and `clear()` leaves the region
+    // over it. `place(id)` puts a child in this region, out of any other it was in, and `clear()` leaves the region
     // empty. The region ends when its element, once in the page, leaves it.
     function make(element) {
         if (element?.nodeType !== Node.ELEMENT_NODE) throw new Error('deck.region() takes an element');
@@ -45,8 +45,8 @@ export function createRegion() {
         };
         follow();
         return Object.freeze({
-            show: (id) => (ended ? refused() : PROTOCOL.show.invoke({ region, id: String(id) })),
-            clear: () => (ended ? refused() : PROTOCOL.show.invoke({ region, id: null })),
+            place: (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, id: String(id) })),
+            clear: () => (ended ? refused() : PROTOCOL.place.invoke({ region, id: null })),
         });
     }
 
