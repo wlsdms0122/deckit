@@ -1,15 +1,7 @@
 // Between a mod's page and main, about the mod's records.
-DeckitModule.define(
-    'deck/record/protocol',
-    {
-        uses: ['core/ipc'],
-        provides: ['readRecord', 'writeRecord', 'removeRecord', 'recordKeys'],
-        runs: 'electron',
-    },
-    (IPC) => ({
-        readRecord: IPC.rendererToMain('deck:record-read', { key: 'string' }, { reply: true, sync: true }),
-        writeRecord: IPC.rendererToMain('deck:record-write', { key: 'string', value: 'any' }, { reply: true }),
-        removeRecord: IPC.rendererToMain('deck:record-remove', { key: 'string' }, { reply: true }),
-        recordKeys: IPC.rendererToMain('deck:record-keys', {}, { reply: true, sync: true }),
-    })
-);
+import * as IPC from '../../core/ipc/index.js';
+
+export const readRecord = IPC.rendererToMain('deck:record-read', { key: 'string' }, { reply: true, sync: true });
+export const writeRecord = IPC.rendererToMain('deck:record-write', { key: 'string', value: 'any' }, { reply: true });
+export const removeRecord = IPC.rendererToMain('deck:record-remove', { key: 'string' }, { reply: true });
+export const recordKeys = IPC.rendererToMain('deck:record-keys', {}, { reply: true, sync: true });

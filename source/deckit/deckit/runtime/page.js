@@ -1,23 +1,16 @@
-DeckitModule.define(
-    'deckit/runtime/page',
-    {
-        uses: ['deckit/runtime/protocol'],
-        provides: ['about', 'restart'],
-    },
-    (PROTOCOL) => {
-        // MARK: - Property
-        // MARK: - Initializer
-        // MARK: - Public
-        function about() {
-            return PROTOCOL.about.invoke();
-        }
+import * as PROTOCOL from './protocol.js';
 
-        function restart() {
-            return PROTOCOL.restart.invoke();
-        }
+// MARK: - Property
+// MARK: - Initializer
+// MARK: - Public
+function about() {
+    return PROTOCOL.about.invoke();
+}
 
-        // MARK: - Private
+function restart() {
+    return PROTOCOL.restart.invoke();
+}
 
-        return { about, restart };
-    }
-);
+// MARK: - Private
+
+export { about, restart };

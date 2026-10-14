@@ -89,7 +89,7 @@ const changed = () => {
 };
 fs.watch(path.join(root, 'source', 'deckit'), { recursive: true }, changed);
 // These decide what goes into the bundles, so they are sources of the archive too.
-for (const file of ['library.js', 'concept.js']) fs.watch(path.join(root, 'source', 'cli', file), changed);
+for (const file of ['library.js', 'bundle.js']) fs.watch(path.join(root, 'source', 'cli', file), changed);
 for (const signal of ['SIGINT', 'SIGTERM'])
     process.on(signal, () => {
         app?.kill('SIGTERM');

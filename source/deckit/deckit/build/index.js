@@ -1,21 +1,5 @@
-DeckitModule.define(
-    'deckit/build',
-    {
-        uses: [],
-        provides: ['VERSION', 'SOURCE'],
-        runs: 'any',
-    },
-    () => {
-        // MARK: - Property
-        // Which deckit this is: its version and the hash of its sources, which the build writes in here. Run from its
-        // sources, there are none.
-        const VERSION = null;
-        const SOURCE = null;
+// Which deckit this is: its version and the hash of its sources, which the build defines as it bundles.
+const VERSION = DECKIT_VERSION;
+const SOURCE = DECKIT_SOURCE;
 
-        // MARK: - Initializer
-        // MARK: - Public
-        // MARK: - Private
-
-        return { VERSION, SOURCE };
-    }
-);
+export { VERSION, SOURCE };

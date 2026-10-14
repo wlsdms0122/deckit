@@ -1,22 +1,35 @@
-// The libraries as the build reads them: deck, deckit on it, and the shell on deckit. Their files, what each declares,
-// and each bundle worked out from its entry. A file is named by its path under source/deckit, its library first.
+// The libraries as the build reads them: core, deck, deckit on it, and the shell on deckit, each a tree of ES
+// modules under source/deckit, and the bundles they are carried in. A file is named by its path under source/deckit.
 const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
-const LIBRARIES = ['core', 'deck', 'deckit', 'shell'];
+const UNITS = ['core', 'deck', 'deckit', 'shell'];
 const MODS = path.join(DECKIT, 'mod');
 const APP = path.join(DECKIT, 'deckit-app');
-const REGISTRY = 'core/registry/index.js';
-const ENTRIES = {
-    chord: () => ['core/chord'],
-    main: () => ['deckit/main'],
-    page: () => ['deckit/page'],
-    'shell-main': () => ['shell/main'],
-    'shell-page': () => ['shell/page'],
+const ESBUILD = 'esbuild@0.28.2';
+// Each bundle: the file it starts from, how it loads, and for a page's, the global the preload starts it by. Main's
+// bundles are CommonJS modules a host app requires; a page's run as they are in the preload.
+const BUNDLES = {
+    main: { entry: 'deckit/main.js', format: 'cjs', platform: 'node', target: 'node22' },
+    'shell-main': { entry: 'shell/main.js', format: 'cjs', platform: 'node', target: 'node22' },
+    page: { entry: 'deckit/page.js', format: 'iife', platform: 'browser', target: 'chrome120', global: 'DeckitPage' },
+    'shell-page': {
+        entry: 'shell/page.js',
+        format: 'iife',
+        platform: 'browser',
+        target: 'chrome120',
+        global: 'DeckitShellPage',
+    },
+    chord: {
+        entry: 'core/chord/index.js',
+        format: 'iife',
+        platform: 'browser',
+        target: 'chrome120',
+        global: 'DeckitChord',
+    },
 };
-// The shell's bundles load after deckit's of the same process, so they carry nothing deckit's already do.
-const LOADS_AFTER = { 'shell-main': 'main', 'shell-page': 'page' };
+
 // A "/" starts a regular expression where a value is expected: after one of these, or at the start.
 const VALUE_BEFORE = '(,=:[!&|?{};+-*%<>~^';
 
@@ -66,87 +79,29 @@ function files() {
             if (entry.isDirectory()) return walk(relative);
             return entry.name.endsWith('.js') ? [relative] : [];
         });
-    return LIBRARIES.flatMap(walk).sort();
+    return UNITS.flatMap(walk).sort();
 }
 
-// A file's declaration, read by running it against a registry that records define() and makes nothing.
-function moduleOf(file) {
-    const text = fs.readFileSync(path.resolve(DECKIT, file), 'utf8');
-    const plain = code(text);
-    const defines = [];
-    const recorder = { define: (name, declared) => defines.push({ name, ...declared }), use: () => {} };
-    try {
-        new Function('DeckitModule', text)(recorder);
-    } catch (error) {
-        return { problem: `does not load: ${error.message}`, plain };
-    }
-    if (defines.length !== 1) {
-        return {
-            problem: `defines ${defines.length} modules, not one, each as define('<name>', { uses, provides, runs }, make)`,
-            plain,
-        };
-    }
-    const [{ name, uses = [], provides = [], runs = null }] = defines;
-    return {
-        name,
-        runs,
-        uses: uses.map((written) => ({ name: written.replace(/\?$/, ''), optional: written.endsWith('?') })),
-        provides,
-        plain,
+// What a file imports: each `import ... from` and `export ... from`, with the file a relative path names, or null for
+// a package.
+function importsOf(file) {
+    const plain = code(fs.readFileSync(path.join(DECKIT, file), 'utf8'));
+    return [...plain.matchAll(/^\s*(?:import|export)\b[^;'"]*?\bfrom\s*(['"])([^'"]+)\1/gm)].map(([, , spec]) => ({
+        spec,
+        file: spec.startsWith('.') ? path.posix.normalize(path.posix.join(path.posix.dirname(file), spec)) : null,
+    }));
+}
+
+// The files a bundle carries: the one it starts from and every file that one imports, through and through.
+function reach(entry) {
+    const seen = new Set();
+    const visit = (file) => {
+        if (seen.has(file) || !fs.existsSync(path.join(DECKIT, file))) return;
+        seen.add(file);
+        for (const imported of importsOf(file)) if (imported.file) visit(imported.file);
     };
+    visit(entry);
+    return seen;
 }
 
-// A file's module name: its path, with index.js standing for its folder.
-function nameOf(file) {
-    return file.replace(/(\/index)?\.js$/, '');
-}
-
-// The registry defines the modules but is not one.
-function modules() {
-    const all = new Map();
-    for (const file of files()) {
-        if (file === REGISTRY) continue;
-        const declared = moduleOf(file);
-        if (declared.name) all.set(declared.name, { file, uses: declared.uses, provides: declared.provides });
-    }
-    return all;
-}
-
-// Each file after what it names, starting at the entries, but those `loaded` already. A name no library defines is
-// one the app hands it, loaded before the bundle.
-function filesFrom(entries, all = modules(), loaded = []) {
-    const order = [];
-    const seen = new Set(loaded.map(nameOf));
-    const visit = (module) => {
-        if (seen.has(module) || !all.has(module)) return;
-        seen.add(module);
-        for (const use of all.get(module).uses) visit(use.name);
-        order.push(all.get(module).file);
-    };
-    for (const entry of entries) visit(entry);
-    return order;
-}
-
-function bundles() {
-    const all = modules();
-    const made = { registry: [REGISTRY] };
-    for (const name of Object.keys(ENTRIES))
-        made[name] = filesFrom(ENTRIES[name](), all, made[LOADS_AFTER[name]] || []);
-    return made;
-}
-
-module.exports = {
-    DECKIT,
-    LIBRARIES,
-    MODS,
-    APP,
-    REGISTRY,
-    ENTRIES,
-    code,
-    files,
-    moduleOf,
-    nameOf,
-    modules,
-    filesFrom,
-    bundles,
-};
+module.exports = { DECKIT, UNITS, MODS, APP, ESBUILD, BUNDLES, code, files, importsOf, reach };

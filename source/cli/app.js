@@ -14,8 +14,8 @@ function builtArchive() {
     return path.join(out, found[0]);
 }
 
-// The archive unpacked into `to`/deckit, the app's own files beside it, and what loads them: load.json for main,
-// preload.js for every deckit page.
+// The archive unpacked into `to`/deckit, the app's own files beside it, and the preload every deckit page loads with:
+// the page bundles, then the start of deckit, handed the shell's page side.
 function assemble(archive, to) {
     const order = require(path.join(APP, 'bundle.js'));
     fs.rmSync(to, { recursive: true, force: true });
@@ -23,29 +23,20 @@ function assemble(archive, to) {
     fs.mkdirSync(library, { recursive: true });
     execFileSync('tar', ['-xzf', archive, '-C', library]);
     const built = JSON.parse(fs.readFileSync(path.join(library, 'deckit.json'), 'utf8'));
-    const placed = (entry) =>
-        typeof entry === 'string' ? entry : path.join('deckit', built.bundles[entry.bundle].file);
-    for (const entry of [order.entry, ...order.main, ...order.page]) {
-        if (typeof entry === 'string') fs.copyFileSync(path.join(APP, entry), path.join(to, entry));
-    }
-    fs.writeFileSync(
-        path.join(to, 'load.json'),
-        JSON.stringify({ main: ['deckit/' + built.bundles.registry.file, ...order.main.map(placed)] }, null, 4) + '\n'
-    );
-    // The page's globals before the bundle runs, so boot can take away every one the bundle added.
-    const read = (file) => fs.readFileSync(path.join(to, file), 'utf8');
+    for (const file of order.files) fs.copyFileSync(path.join(APP, file), path.join(to, file));
+    // The page's globals before the bundles run, so boot can take away every one they added.
+    const read = (bundle) => fs.readFileSync(path.join(library, built.bundles[bundle].file), 'utf8');
     fs.writeFileSync(
         path.join(to, 'preload.js'),
         [
-            'const globalsBefore = new Set(Object.keys(globalThis));',
-            read('deckit/' + built.bundles.registry.file),
-            ...order.page.map((entry) => read(placed(entry))),
-            "DeckitModule.use(['deckit/page', 'shell/page'], (APP, SHELL) => APP.boot(globalsBefore, SHELL));",
+            'const before = new Set(Object.keys(globalThis));',
+            ...order.preload.map(read),
+            `${built.bundles.page.global}.boot({ before, shell: ${built.bundles['shell-page'].global} });`,
         ].join('\n;\n') + '\n'
     );
     fs.writeFileSync(
         path.join(to, 'package.json'),
-        JSON.stringify({ name: 'deckit', productName: 'Deckit', version: built.version, main: 'main.js' }, null, 4) +
+        JSON.stringify({ name: 'deckit', productName: 'Deckit', version: built.version, main: order.entry }, null, 4) +
             '\n'
     );
     return to;

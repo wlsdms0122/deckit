@@ -1,23 +1,16 @@
-DeckitModule.define(
-    'deckit/clipboard/page',
-    {
-        uses: ['deckit/clipboard/protocol'],
-        provides: ['readText', 'writeText'],
-    },
-    (PROTOCOL) => {
-        // MARK: - Property
-        // MARK: - Initializer
-        // MARK: - Public
-        function readText() {
-            return PROTOCOL.readText.invoke();
-        }
+import * as PROTOCOL from './protocol.js';
 
-        function writeText(text) {
-            return PROTOCOL.writeText.invoke({ text: String(text ?? '') });
-        }
+// MARK: - Property
+// MARK: - Initializer
+// MARK: - Public
+function readText() {
+    return PROTOCOL.readText.invoke();
+}
 
-        // MARK: - Private
+function writeText(text) {
+    return PROTOCOL.writeText.invoke({ text: String(text ?? '') });
+}
 
-        return { readText, writeText };
-    }
-);
+// MARK: - Private
+
+export { readText, writeText };

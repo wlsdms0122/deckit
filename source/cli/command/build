@@ -12,39 +12,7 @@ WORK="$(mktemp -d "$OUT/.building.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 LIB="$WORK/lib"
 mkdir -p "$LIB/document" "$LIB/mod"
-SOURCE_HASH="$({ find source/deckit/deck source/deckit/deckit source/deckit/shell source/deckit/mod source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
-
-# Read into an array first, where a node that fails stops the build. Which deckit this is goes into the bundles: the
-# build module's empty values are written over with the version and the source hash.
-LIBRARY=source/deckit
-BUILD_MODULE=deckit/build/index.js
-EMPTY_VERSION='const VERSION = null;'
-EMPTY_SOURCE='const SOURCE = null;'
-for empty in "$EMPTY_VERSION" "$EMPTY_SOURCE"; do
-  grep -qF "$empty" "$LIBRARY/$BUILD_MODULE" || { echo "$BUILD_MODULE has no $empty: stopping" >&2; exit 1; }
-done
-files_of() { node -p "require('./source/cli/library.js').bundles()['$1'].join(' ')"; }
-BUNDLES=($(node -p "Object.keys(require('./source/cli/library.js').bundles()).join(' ')"))
-for b in "${BUNDLES[@]}"; do
-  FILES=($(files_of "$b"))
-  for f in "${FILES[@]}"; do
-    if [ "$f" = "$BUILD_MODULE" ]; then
-      sed -e "s/$EMPTY_VERSION/const VERSION = '$VERSION';/" -e "s/$EMPTY_SOURCE/const SOURCE = '$SOURCE_HASH';/" "$LIBRARY/$f"
-    else
-      cat "$LIBRARY/$f"
-    fi
-    printf '\n'
-  done > "$LIB/$b.js"
-done
-
-# Main's run as CommonJS; the pages' as a function body.
-for b in main shell-main; do
-  node --check "$LIB/$b.js" || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
-done
-for b in registry chord page shell-page; do
-  node -e "new Function(require('fs').readFileSync('$LIB/$b.js','utf8'))" \
-    || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
-done
+SOURCE_HASH="$({ find source/deckit/core source/deckit/deck source/deckit/deckit source/deckit/shell source/deckit/mod source/cli/library.js source/cli/bundle.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 cp document/EMBEDDING.md document/MOD.md document/UI.md "$LIB/document/"
 
@@ -69,7 +37,8 @@ for dir in source/deckit/mod/*/; do
   " || { echo "$dir does not bundle from its src/ alone into an entry: stopping" >&2; exit 1; }
 done
 
-node source/cli/describe.js "$LIB" "$VERSION" "$SOURCE_HASH"
+# The libraries' bundles, each from its entry, and deckit.json, which says what they are.
+node source/cli/bundle.js "$LIB" "$VERSION" "$SOURCE_HASH" || { echo "deckit could not be bundled: stopping" >&2; exit 1; }
 
 # Byte for byte the same from the same sources, wherever built: the archive's hash is which deckit it is.
 pack() {

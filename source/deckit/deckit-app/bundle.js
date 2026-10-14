@@ -1,7 +1,7 @@
-// Deckit.app's own files around each of the library's bundles ({ bundle }), in the order they load. Paths are from
-// this folder.
+// Deckit.app's folder, around the deckit archive it embeds: its own files, its entry, and deckit's page bundles its
+// preload is made of, in the order they load. Paths are from this folder.
 module.exports = {
-    main: ['config.js', 'folders.js', { bundle: 'main' }, { bundle: 'shell-main' }, 'window.js', 'app.js'],
-    page: ['config.js', { bundle: 'page' }, { bundle: 'shell-page' }],
+    files: ['main.js', 'app.js', 'window.js', 'config.js'],
     entry: 'main.js',
+    preload: ['page', 'shell-page'],
 };

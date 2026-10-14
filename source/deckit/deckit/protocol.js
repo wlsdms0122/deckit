@@ -1,13 +1,6 @@
 // Between main and every page deckit makes, about what the page is.
-DeckitModule.define(
-    'deckit/protocol',
-    {
-        uses: ['core/ipc'],
-        provides: ['setup'],
-        runs: 'electron',
-    },
-    (IPC) => ({
-        // Answers { page } at once, the name of a page the shell made, or {} for a mod's: a page is built in one pass.
-        setup: IPC.rendererToMain('deckit:app-setup', {}, { reply: true, sync: true }),
-    })
-);
+import * as IPC from '../core/ipc/index.js';
+
+// Answers at once, so a page is built in one pass: { page }, the name of a page the shell made, or for a mod's
+// { id }, what deckit's names for a mod's sessions start from.
+export const setup = IPC.rendererToMain('deckit:app-setup', {}, { reply: true, sync: true });
