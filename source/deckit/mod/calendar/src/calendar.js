@@ -62,6 +62,33 @@ const calendar = (deck, accountsPoint) => {
     // A provider says an account has to be signed in again by the kind of the error it throws.
     const SIGN_IN = 'SIGN_IN';
     const asksToSignIn = (error) => error?.kind === SIGN_IN;
+    // How long a provider may take to answer a read before it counts as failed, so one that never answers does not
+    // hold every account's refresh.
+    const ANSWER_LIMIT_MS = 60 * 1000;
+    const answered = (provider, asking) => {
+        let timer = null;
+        const limit = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`${provider.name} did not answer`)), ANSWER_LIMIT_MS);
+        });
+        return Promise.race([asking, limit]).finally(() => clearTimeout(timer));
+    };
+    // What a provider keeps for an account goes with it; one that keeps nothing has no forget(). Removed while its
+    // provider is not running, the account waits for it in FORGOTTEN.
+    const FORGOTTEN = 'forgotten';
+    const forget = (provider, account) => Promise.resolve(provider.forget?.(account)).catch(() => {});
+    const forgetWaiting = () => {
+        const waiting = records.get(FORGOTTEN, []);
+        const left = waiting.filter((account) => !providerOf(account));
+        if (left.length === waiting.length) return;
+        for (const account of waiting) if (providerOf(account)) forget(providerOf(account), account);
+        keep(FORGOTTEN, left);
+    };
+    // Occurrences as the cache and providers give them: anything else is left out, and the dates made Dates.
+    const occurrencesOf = (events) =>
+        events
+            .filter((event) => event && typeof event === 'object')
+            .map((event) => ({ ...event, start: new Date(event.start), end: new Date(event.end) }))
+            .filter((event) => !isNaN(event.start) && !isNaN(event.end));
 
     // Records rather than values, so a reset profile keeps them.
     const accounts = () => records.get('accounts', []).filter((account) => account && account.id && account.provider);
@@ -87,16 +114,11 @@ const calendar = (deck, accountsPoint) => {
     const reads = (() => {
         const CACHE_KEY = 'cache';
         const record = new Map();
+        // The cache is a file, so a window that is not one is not read.
         const revive = (readWindow) =>
-            readWindow && {
-                from: readWindow.from,
-                to: readWindow.to,
-                events: readWindow.events.map((event) => ({
-                    ...event,
-                    start: new Date(event.start),
-                    end: new Date(event.end),
-                })),
-            };
+            Array.isArray(readWindow?.events)
+                ? { from: readWindow.from, to: readWindow.to, events: occurrencesOf(readWindow.events) }
+                : null;
         for (const [key, readWindow] of Object.entries(records.get(CACHE_KEY, {}))) {
             if (feeds().some((feed) => keyOf(feed) === key))
                 record.set(key, { now: revive(readWindow), view: null, error: null, failedAt: 0 });
@@ -210,11 +232,14 @@ const calendar = (deck, accountsPoint) => {
         const nowRange = nowWindow(),
             viewRange = viewWindow();
         state.signedOut = false;
-        const read = async (feed, [from, to]) => ({
-            from,
-            to,
-            events: await provider.events(account, feed.calendar, new Date(from), new Date(to)),
-        });
+        const read = async (feed, [from, to]) => {
+            const events = await answered(
+                provider,
+                provider.events(account, feed.calendar, new Date(from), new Date(to))
+            );
+            if (!Array.isArray(events)) throw new Error(`${provider.name} answered no list of events`);
+            return { from, to, events: occurrencesOf(events) };
+        };
         await Promise.all(
             list.map(async (feed) => {
                 try {
@@ -1305,14 +1330,13 @@ const calendar = (deck, accountsPoint) => {
 
     const accountList = document.createElement('div');
 
+    // A provider's icon is another mod's text: drawn from its shapes alone.
     const glyph = (svg, size = 14) => {
         const holder = document.createElement('span');
-        holder.innerHTML = svg;
-        const icon = holder.firstElementChild;
-        if (icon) {
-            icon.setAttribute('width', size);
-            icon.setAttribute('height', size);
-        }
+        const icon = ui.sanitizeIcon(svg);
+        icon.setAttribute('width', size);
+        icon.setAttribute('height', size);
+        holder.append(icon);
         Object.assign(holder.style, { display: 'flex', flex: '0 0 auto' });
         return holder;
     };
@@ -1380,7 +1404,7 @@ const calendar = (deck, accountsPoint) => {
         if (!email) return;
         const same = accounts().find((existing) => existing.provider === providerId && existing.email === email);
         if (same) {
-            provider.forget(account).catch(() => {});
+            forget(provider, account);
             return accountSheet(same);
         }
         account.email = email;
@@ -1393,13 +1417,15 @@ const calendar = (deck, accountsPoint) => {
     const reconnect = async (account) => {
         const provider = providerOf(account);
         if (!provider) return;
-        let email = '';
+        let email;
         try {
             email = await signIn(provider, account, `Sign in to ${account.email}`);
-        } catch {}
+        } catch (error) {
+            return ui.dialog({ title: 'Sign in', message: String(error.message || error), confirmLabel: 'OK' });
+        }
         if (!email) return;
         if (email !== account.email) {
-            await provider.forget(account).catch(() => {});
+            await forget(provider, account);
             return ui.dialog({
                 title: 'Different account',
                 message: `That signed in as ${email || 'someone else'}, not ${account.email}. Sign in again with ${account.email}.`,
@@ -1416,9 +1442,9 @@ const calendar = (deck, accountsPoint) => {
         reads.dropAccount(account.id);
         accountStatus.delete(account.id);
         render();
-        await providerOf(account)
-            ?.forget(account)
-            .catch(() => {});
+        const provider = providerOf(account);
+        if (provider) await forget(provider, account);
+        else keep(FORGOTTEN, [...records.get(FORGOTTEN, []), account]);
     };
 
     // A new account starts with the calendars its own calendar app shows.
@@ -1740,7 +1766,12 @@ const calendar = (deck, accountsPoint) => {
             block.list.set(
                 all
                     .filter((feed) => feed.account === account.id)
-                    .map((feed) => ({ ...feed, key: keyOf(feed), error: reads.of(feed)?.error || '' }))
+                    .map((feed) => ({
+                        ...feed,
+                        key: keyOf(feed),
+                        // An account waiting for its provider says so on its own row, not as a calendar's failure.
+                        error: (providerOf(account) && reads.of(feed)?.error) || '',
+                    }))
             );
             return block.element;
         });
@@ -2009,6 +2040,7 @@ const calendar = (deck, accountsPoint) => {
     render();
     // A provider that starts reads its accounts at once; one that ends leaves what was read.
     accountsPoint.onChange(() => {
+        forgetWaiting();
         render();
         refresh(true);
     });

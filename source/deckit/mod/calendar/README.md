@@ -33,12 +33,28 @@ Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's i
 
 | Member | What it is |
 |---|---|
-| `name`, `hint`, `icon` | what the Add account sheet shows: the provider's name, a line under it, an inline SVG |
-| `signIn(account, { title })` | signs the account in, in a window of the provider's own (`deck.web.window`, `title` its title), and resolves to the address it signed in as, or to nothing when the person cancelled. A cancelled or failed sign-in leaves nothing behind. Called to add an account and to sign one in again; signing in again as someone else is refused by Calendar |
-| `calendars(account)` | `[{ id, name, primary, selected, owned }]`: the account's calendars. `primary` is the account's own, `selected` one its own calendar app shows (a new account starts with those), `owned` one it may change |
-| `events(account, calendar, from, to)` | the occurrences in `calendar` between two Dates, each in the shape `src/event.js` describes |
-| `respond(account, eventId, status)` | answers an invitation: `ACCEPTED`, `DECLINED` or `TENTATIVE` |
-| `forget(account)` | the account is removed: drop what the provider kept for it |
+| `name`, `hint`, `icon` | what the Add account sheet shows: the provider's name, a line under it, an inline SVG (drawn from its shapes alone) |
+| `signIn(account, { title })` | signs the account in and resolves to the address it signed in as, or to nothing when the person cancelled. The sign-in is the provider's to show, in a window of its own (`deck.web.window`, `title` its title), with whatever it asks on the way (a certificate, an app to open). A cancelled or failed sign-in leaves nothing behind. Called to add an account and to sign one in again; signing in again as another address, compared exactly, is refused |
+| `calendars(account)` | `[{ id, name, primary, selected, owned }]`: the account's calendars. `primary` is the account's own, `selected` one its own calendar app shows (a new account starts with those), `owned` one the account owns, whose every event reminds, not only invitations |
+| `events(account, calendar, from, to)` | the occurrences of the calendar whose `id` is `calendar` between two Dates, as an array (below). Anything else is a failure, and an answer that takes more than a minute is one too |
+| `respond(account, eventId, status)` | answers an invitation (an occurrence with `invited`): `ACCEPTED`, `DECLINED` or `TENTATIVE` |
+| `forget(account)` | optional: drop what the provider keeps for `account.id`, so it is signed out. Called when the account is removed (once the provider runs, if it did not then), when a sign-in for a new account turns out to be one already there, and when signing in again lands on another address |
+
+An occurrence, one for each time an event happens, in what every provider maps its own events to:
+
+| Field | What it is |
+|---|---|
+| `id` | the provider's id for this occurrence, what `respond` is given |
+| `uid` | the same meeting across occurrences and calendars; keys the reminders |
+| `summary` | its title |
+| `start`, `end` | Dates, or what `new Date()` reads; local midnights for an all-day event |
+| `allDay` | whether it takes whole days |
+| `call` | `{ name, url }` of its video call, or `null` |
+| `rooms` | the names of the rooms booked |
+| `location` | as written, less what `call` and `rooms` already say |
+| `description` | plain text, links kept as addresses |
+| `rsvp` | the account's answer, `ACCEPTED`, `DECLINED`, `TENTATIVE` or `NEEDS-ACTION`, or `''` when it is not a guest |
+| `invited` | the account is a guest and not the organiser, so it has an answer to give |
 
 A call that fails because the account has to sign in again throws an error whose `kind` is `SIGN_IN`: Calendar shows a Sign in button that calls `signIn` again. Any other error is shown as it is, and the read is tried again a minute later.
 
