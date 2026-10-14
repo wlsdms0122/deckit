@@ -4,7 +4,8 @@ const { isInside } = require('./path.js');
 // files are its tabs, and the workspace with no folder holds the files opened on their own. Each request to bring
 // something to the front takes the next number, and the workspace it brought forward keeps it (`requestedAt`), so an
 // open that took long gives way to anything requested after it. A released file is handed to `onRelease` to take down.
-function workspaceModel({ fileSystem, onRelease }) {
+// `onOpenFilesChange` hears each file opened, released or moved.
+function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
     const list = [];
     const openFiles = new Map(); // path -> open file
     const foldersByListing = new WeakMap();
@@ -92,6 +93,7 @@ function workspaceModel({ fileSystem, onRelease }) {
         const at = index == null ? workspace.files.length : Math.min(index, workspace.files.length);
         workspace.files.splice(at, 0, file);
         openFiles.set(file.path, file);
+        onOpenFilesChange();
         return workspace;
     }
 
@@ -101,6 +103,7 @@ function workspaceModel({ fileSystem, onRelease }) {
         unlist(workspace, file);
         openFiles.delete(file.path);
         onRelease(file);
+        onOpenFilesChange();
         if (!workspace.root && !workspace.files.length) remove(workspace);
         return workspace;
     }
@@ -109,6 +112,7 @@ function workspaceModel({ fileSystem, onRelease }) {
         openFiles.delete(file.path);
         file.path = path;
         openFiles.set(path, file);
+        onOpenFilesChange();
     }
 
     // The open files inside `workspace`'s folder move into it; one in front keeps the front, with its request.

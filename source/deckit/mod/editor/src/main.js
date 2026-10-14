@@ -11,7 +11,7 @@ const { filePathBar, PATH_BAR_STYLE } = require('./file-path-bar.js');
 const { fileTree, TREE_STYLE } = require('./file-tree.js');
 const { findInFile } = require('./find-in-file.js');
 const { paletteCommands } = require('./palette-commands.js');
-const { nameOf, isInside, relativePath } = require('./path.js');
+const { nameOf, parentOf, isInside, relativePath } = require('./path.js');
 const { quickOpen, QUICK_OPEN_STYLE } = require('./quick-open.js');
 const { recentFolders } = require('./recent-folders.js');
 const { replaceMatches } = require('./replace.js');
@@ -24,8 +24,9 @@ const { unsavedDrafts, DRAFTS_STYLE } = require('./unsaved-drafts.js');
 const { workspaceModel } = require('./workspace-model.js');
 const { workspaceSearch, WORKSPACE_SEARCH_STYLE } = require('./workspace-search.js');
 
-// What stop() waits for: the unsaved text of every open file kept as a draft, typed until the run ends.
-let keepDrafts = null;
+// What stop() waits for: the unsaved text of every open file kept as a draft, typed until the run ends, and the
+// folders of the open files no longer watched.
+let endRun = null;
 
 module.exports = {
     keywords: [
@@ -80,7 +81,11 @@ module.exports = {
         const engine = EditorEngine;
         const fileSystem = await deck.mainProcess('main-process/file-system.js');
 
-        const workspaces = workspaceModel({ fileSystem, onRelease: (file) => code.destroy(file) });
+        const workspaces = workspaceModel({
+            fileSystem,
+            onRelease: (file) => code.destroy(file),
+            onOpenFilesChange: watchOpenFolders,
+        });
         const disk = fileDisk({ engine, fileSystem, onDiskStateChange: heardDiskState });
         const recent = recentFolders({ records, isOpen: (path) => !!workspaces.withRoot(path) });
         const drafts = unsavedDrafts({
@@ -100,7 +105,7 @@ module.exports = {
                 await open(path);
             },
         });
-        keepDrafts = () => drafts.keepNow();
+        endRun = () => Promise.all([drafts.keepNow(), fileSystem.watch([])]);
         const session = savedSession({ records, fileSystem, workspaces });
         const codeLook = codeTheme({ engine, theme, ui });
         const find = findInFile({ engine, ui });
@@ -264,6 +269,12 @@ module.exports = {
             for (const file of workspaces.files()) code.applySetting(file.view, key, value);
             if (key === 'minimap') placeMinimap();
         });
+        fileSystem.on('changed', (folder) => {
+            for (const file of workspaces.files())
+                if (folderHolding(file) === folder) disk.check(file).catch(() => false);
+        });
+        // Before any file opens, so a reloaded sandbox ends what the one before it watched.
+        watchOpenFolders();
         session.restore({ openFolder, openInBackground: (path) => tryOpen(path, { background: true }) }).then(paint);
 
         deck.view({
@@ -593,6 +604,14 @@ module.exports = {
             for (const path of await pick('file')) await open(path);
         }
 
+        function watchOpenFolders() {
+            fileSystem.watch([...new Set(workspaces.files().map(folderHolding))]);
+        }
+
+        function folderHolding(file) {
+            return parentOf(file.path) || '/';
+        }
+
         async function checkDisk() {
             for (const file of workspaces.files()) await disk.check(file).catch(() => false);
         }
@@ -614,6 +633,6 @@ module.exports = {
     },
 
     stop() {
-        return keepDrafts?.();
+        return endRun?.();
     },
 };

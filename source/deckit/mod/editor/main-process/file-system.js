@@ -1,6 +1,6 @@
 // The editor's main process module: reads, writes and searches the files the editor opens. Asynchronous throughout:
 // in the main process, a synchronous read stalls every window of the host app.
-module.exports = ({ window, files }) => {
+module.exports = ({ emit, window, files }) => {
     const fs = require('fs');
     const path = require('path');
     const { Worker } = require('worker_threads');
@@ -18,10 +18,12 @@ module.exports = ({ window, files }) => {
     const MATCH_TEXT_LIMIT = 400;
     const LISTING_TIME_LIMIT_MS = 30000;
     const HIDDEN_NAMES = new Set(['.git', '.DS_Store']);
+    const CHANGE_SETTLE_DELAY_MS = 250;
 
     const listingsUnderWay = new Map(); // root -> { listing, next }
     // The view only wants the newest answer, so a new search stops the one before it.
     const searches = new Map(); // root -> { stop() }
+    const watched = new Map(); // folder -> { watcher, timer }
 
     return {
         async read(given) {
@@ -131,6 +133,16 @@ module.exports = ({ window, files }) => {
             return startListing(root);
         },
 
+        // The folders of the open files, each heard as `changed` a moment after something in it changes. The whole set
+        // is replaced: this module stays loaded across a reload of the sandbox, and a reloaded sandbox never unwatches
+        // what the one before it watched.
+        watch(folders) {
+            const wanted = new Set(folders.map(absolute));
+            for (const folder of [...watched.keys()]) if (!wanted.has(folder)) stopWatching(folder);
+            for (const folder of wanted) if (!watched.has(folder)) startWatching(folder);
+            return [...watched.keys()];
+        },
+
         // Lines are 1-based, columns 0-based in characters.
         async search(given, query, options = {}) {
             const root = absolute(given);
@@ -158,6 +170,31 @@ module.exports = ({ window, files }) => {
         const text = String(given || '');
         if (!path.isAbsolute(text)) throw new Error('not an absolute path: ' + text);
         return text;
+    }
+
+    // A folder that cannot be watched is left to the view's check when it appears. One whose watch fails is heard as
+    // changed once, so the view checks its files then.
+    function startWatching(folder) {
+        const entry = { watcher: null, timer: null };
+        try {
+            entry.watcher = fs.watch(folder, () => {
+                clearTimeout(entry.timer);
+                entry.timer = setTimeout(() => emit('changed', folder), CHANGE_SETTLE_DELAY_MS);
+            });
+            entry.watcher.on('error', () => {
+                stopWatching(folder);
+                emit('changed', folder);
+            });
+            watched.set(folder, entry);
+        } catch {}
+    }
+
+    function stopWatching(folder) {
+        const entry = watched.get(folder);
+        if (!entry) return;
+        clearTimeout(entry.timer);
+        entry.watcher.close();
+        watched.delete(folder);
     }
 
     async function entryOf(folder, entry) {
