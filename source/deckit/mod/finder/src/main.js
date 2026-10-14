@@ -217,7 +217,7 @@ module.exports = {
         disk.places()
             .then((answer) => {
                 home = answer.home;
-                favorites.setLocations(answer.places);
+                favorites.setPlaces(answer.places);
                 return tabs.restore((path) => disk.exists(path));
             })
             .catch(area.failToStart);
@@ -257,12 +257,12 @@ module.exports = {
             filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
             goToFolder: { key: 'mod+l', label: 'Go to Folder', run: () => tabs.front() && goTo.show() },
             home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
-            desktop: { key: 'mod+shift+d', label: 'Go to Desktop', run: () => goToLocation('desktop') },
-            downloads: { key: 'mod+alt+l', label: 'Go to Downloads', run: () => goToLocation('downloads') },
+            desktop: { key: 'mod+shift+d', label: 'Go to Desktop', run: () => goToPlace('desktop') },
+            downloads: { key: 'mod+alt+l', label: 'Go to Downloads', run: () => goToPlace('downloads') },
             applications: {
                 key: 'mod+shift+a',
                 label: 'Go to Applications',
-                run: () => goToLocation('applications'),
+                run: () => goToPlace('applications'),
             },
             hidden: { key: 'mod+shift+.', label: 'Show hidden files', run: toggleHidden },
             newFolder: {
@@ -281,8 +281,8 @@ module.exports = {
         });
         deck.commands(() =>
             [
-                ...favorites.locations().map((location) => location.path),
-                ...favorites.paths().filter((path) => !favorites.locationOf(path)),
+                ...favorites.places().map((place) => place.path),
+                ...favorites.paths().filter((path) => !favorites.placeOf(path)),
             ].map((path) => ({
                 label: favorites.labelOf(path),
                 hint: util.tildify(path),
@@ -449,8 +449,8 @@ module.exports = {
             bar.setFavorite(!!location && favorites.has(location));
         }
 
-        function goToLocation(id) {
-            tabs.go(favorites.locationPath(id));
+        function goToPlace(id) {
+            tabs.go(favorites.placePath(id));
         }
 
         function toggleHidden() {
