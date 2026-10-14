@@ -8,7 +8,7 @@ DeckitModule.define(
             'deckit/service/deck/identity',
             'deckit/service/deck/catalog',
             'deckit/service/deck/runner',
-            'deckit/service/plugin/lifecycle',
+            'deckit/service/mod/lifecycle',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/feature/panel/protocol',
@@ -22,15 +22,15 @@ DeckitModule.define(
         // Main waits on a view only for an exit before it moves and a fade before it goes off screen; this guards a
         // view that is gone or stuck.
         const REPLY_TIMEOUT = 400;
-        const views = new Map(); // plugin id -> the view its page is in, while the plugin has something to show
-        const icons = new Map(); // plugin id -> the icon its latest run that started said it has
+        const views = new Map(); // mod id -> the view its page is in, while the mod has something to show
+        const icons = new Map(); // mod id -> the icon its latest run that started said it has
         const waiting = new Map(); // reply -> the wait in progress for it
         const heard = new Set(); // replies listened to
         const history = { list: [], at: -1 };
         let container = null;
         let shell = null;
         let current = null;
-        let returning = null; // the plugin that was on screen while its page runs again
+        let returning = null; // the mod that was on screen while its page runs again
         // The panel is glass: its colour laid at this strength over what is behind it, blurred through.
         const GLASS = 0.68;
         let shown = false;
@@ -41,7 +41,7 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // The plugins that have something to show, in a container the app's shell places; `shell` is the app's.
+        // The mods that have something to show, in a container the app's shell places; `shell` is the app's.
         function start({ shell: answers }) {
             shell = answers;
             frame = { ...frame, ...STORAGE.state.read(FRAME, {}) };
@@ -53,12 +53,12 @@ DeckitModule.define(
             listen();
             registerKeys();
             CATALOG.onChange(reconcile);
-            RUNNER.observe('didLaunch', ({ plugin, summary }) => icons.set(plugin.id, summary.icon));
+            RUNNER.observe('didLaunch', ({ mod, summary }) => icons.set(mod.id, summary.icon));
             for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, reconcile);
             reconcile();
         }
 
-        // A web page a plugin shows counts as its page; whether the page is what is on screen there is the shell's.
+        // A web page a mod shows counts as its page; whether the page is what is on screen there is the shell's.
         function showsPanel(webContents) {
             const page = WEB.pageFor(webContents);
             if (!page || !shown || page !== currentContents()) return false;
@@ -70,10 +70,10 @@ DeckitModule.define(
             return showsPanel(webContents) && look.dismissible;
         }
 
-        // A plugin on screen, asked by the plugin itself, the switcher or an address it opened. One with no view in the
+        // A mod on screen, asked by the mod itself, the switcher or an address it opened. One with no view in the
         // panel has nothing to show.
-        function reveal(pluginId) {
-            if (select(pluginId)) shell.reveal();
+        function reveal(modId) {
+            if (select(modId)) shell.reveal();
         }
 
         // Waits for a view's reply that carries this wait's token; a newer wait on the same reply runs `superseded`.
@@ -110,19 +110,19 @@ DeckitModule.define(
             PROTOCOL.setup.handle((_payload, sender) => ({
                 glass: GLASS,
                 look,
-                shown: shown && IDENTITY.pluginOf(sender)?.id === current,
+                shown: shown && IDENTITY.modOf(sender)?.id === current,
                 frame,
                 state: stateOf(),
             }));
-            PROTOCOL.pick.on(({ id }, sender) => IDENTITY.pluginFrom(sender) && select(id));
-            PROTOCOL.step.on(({ by }, sender) => IDENTITY.pluginFrom(sender) && step(by));
-            PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.pluginFrom(sender) && CATALOG.arrange(ids));
+            PROTOCOL.pick.on(({ id }, sender) => IDENTITY.modFrom(sender) && select(id));
+            PROTOCOL.step.on(({ by }, sender) => IDENTITY.modFrom(sender) && step(by));
+            PROTOCOL.reorder.on(({ ids }, sender) => IDENTITY.modFrom(sender) && CATALOG.arrange(ids));
             PROTOCOL.layout.on((change, sender) => {
-                IDENTITY.pluginFrom(sender);
+                IDENTITY.modFrom(sender);
                 setFrame(change);
             });
-            PROTOCOL.show.on((_payload, sender) => reveal(IDENTITY.pluginFrom(sender).id));
-            PROTOCOL.hide.on((_payload, sender) => IDENTITY.pluginFrom(sender).id === current && shell.dismiss());
+            PROTOCOL.show.on((_payload, sender) => reveal(IDENTITY.modFrom(sender).id));
+            PROTOCOL.hide.on((_payload, sender) => IDENTITY.modFrom(sender).id === current && shell.dismiss());
         }
 
         function registerKeys() {
@@ -135,30 +135,28 @@ DeckitModule.define(
             KEYMAP.register({
                 action: 'back',
                 key: 'ctrl+mod+[',
-                label: 'Back to the previous plugin',
+                label: 'Back to the previous mod',
                 run: () => step(-1),
             });
             KEYMAP.register({
                 action: 'forward',
                 key: 'ctrl+mod+]',
-                label: 'Forward to the next plugin',
+                label: 'Forward to the next mod',
                 run: () => step(1),
             });
         }
 
-        // The pages of the plugins that said they have something to show, as the plugins run. A page shown stays while
-        // its plugin terminates, and while it launches again in that page. The plugin on screen whose page is replaced
+        // The pages of the mods that said they have something to show, as the mods run. A page shown stays while
+        // its mod terminates, and while it launches again in that page. The mod on screen whose page is replaced
         // comes back on screen once the new page says it has something to show; until then, and when it has nothing,
         // the panel lands as it does at the start.
         function reconcile() {
             const showing = new Map(
                 RUNNER.runs()
                     .filter(({ run, view }) =>
-                        run.state === 'running'
-                            ? run.summary.view
-                            : views.get(run.plugin.id) === view && inTransition(run)
+                        run.state === 'running' ? run.summary.view : views.get(run.mod.id) === view && inTransition(run)
                     )
-                    .map(({ run, view }) => [run.plugin.id, view])
+                    .map(({ run, view }) => [run.mod.id, view])
             );
             for (const [id, view] of views) {
                 if (showing.get(id) === view) continue;
@@ -196,10 +194,10 @@ DeckitModule.define(
             return run.state !== 'notRunning' || run.relaunches;
         }
 
-        // In the person's order: the first plugin that has something to show, or may have once it has started. One
+        // In the person's order: the first mod that has something to show, or may have once it has started. One
         // still starting is waited for, so the panel lands where the order says and not on whoever started first.
         function firstShown() {
-            return CATALOG.plugins().find(({ id }) => mayShow(id))?.id;
+            return CATALOG.mods().find(({ id }) => mayShow(id))?.id;
         }
 
         function layout() {
@@ -208,11 +206,11 @@ DeckitModule.define(
         }
 
         function stateOf() {
-            const plugins = CATALOG.plugins()
+            const mods = CATALOG.mods()
                 .filter(({ id }) => views.has(id))
                 .map(({ id, name }) => ({ id, name, icon: icons.get(id) || '' }));
             return {
-                plugins,
+                mods,
                 current,
                 canBack: history.at > 0,
                 canForward: history.at < history.list.length - 1,
@@ -223,8 +221,8 @@ DeckitModule.define(
         function broadcast() {
             const state = stateOf();
             for (const view of views.values()) PROTOCOL.state.send(view.webContents, state);
-            const plugin = CATALOG.plugins().find(({ id }) => id === current);
-            const title = plugin?.name || CONFIG.name;
+            const mod = CATALOG.mods().find(({ id }) => id === current);
+            const title = mod?.name || CONFIG.name;
             if (title !== titled) shell.panelTitled((titled = title));
         }
 
@@ -239,12 +237,12 @@ DeckitModule.define(
             broadcast();
         }
 
-        // Which plugin is on screen. No fade: here it is a swap of views, on the most repeated action in the panel.
+        // Which mod is on screen. No fade: here it is a swap of views, on the most repeated action in the panel.
         // Answers whether it is on screen now.
         function select(id, { fromHistory = false } = {}) {
             const next = views.get(id);
             if (!next) return false;
-            // Another plugin put on screen meanwhile is where the panel stays.
+            // Another mod put on screen meanwhile is where the panel stays.
             if (id !== returning) returning = null;
             if (current === id) return true;
             if (!fromHistory) {
@@ -267,7 +265,7 @@ DeckitModule.define(
             return true;
         }
 
-        // A plugin no longer there, or with nothing to show, is passed over.
+        // A mod no longer there, or with nothing to show, is passed over.
         function step(by) {
             let at = history.at + by;
             while (at >= 0 && at < history.list.length && !isShown(history.list[at])) at += by;
@@ -277,7 +275,7 @@ DeckitModule.define(
             broadcast();
         }
 
-        // A plugin that is there and has something to show.
+        // A mod that is there and has something to show.
         function isShown(id) {
             return views.has(id);
         }

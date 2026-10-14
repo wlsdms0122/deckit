@@ -7,7 +7,7 @@ DeckitModule.define(
             'deckit/service/log/main',
             'deckit/service/deck/identity',
             'deckit/service/deck/catalog',
-            'deckit/service/plugin/model/permission',
+            'deckit/service/mod/model/permission',
             'deckit/service/open/model/scheme',
             'deckit/service/open/protocol',
         ],
@@ -20,40 +20,37 @@ DeckitModule.define(
         const CHOSEN = 'scheme-handlers';
         // A handler that has not answered by then passes, so one stuck page does not hold every link.
         const OFFER_MS = 3000;
-        // What deckit opens by itself, after every plugin that takes the scheme: the answer that is always last.
+        // What deckit opens by itself, after every mod that takes the scheme: the answer that is always last.
         const SYSTEM = new Map([
             ['http', 'browser'],
             ['https', 'browser'],
             ['file', 'file'],
         ]);
-        const answering = new Set(); // plugin ids whose page answers offers
+        const answering = new Set(); // mod ids whose page answers offers
 
         // MARK: - Initializer
         // MARK: - Public
         function start() {
             PROTOCOL.open.handle((request, sender) => {
-                IDENTITY.pluginFrom(sender);
+                IDENTITY.modFrom(sender);
                 return open(request.url, {
                     ...request,
                     userInitiated: request.userInitiated && spendsUserActivation(sender),
                 });
             });
             PROTOCOL.handles.on((_payload, sender) => {
-                const plugin = IDENTITY.pluginFrom(sender);
-                answering.add(plugin.id);
+                const mod = IDENTITY.modFrom(sender);
+                answering.add(mod.id);
                 // A page being replaced ends after its successor is up: only the page on duty stops answering.
-                IDENTITY.whenPageEnds(
-                    sender,
-                    () => IDENTITY.pageOf(plugin.id) === sender && answering.delete(plugin.id)
-                );
+                IDENTITY.whenPageEnds(sender, () => IDENTITY.pageOf(mod.id) === sender && answering.delete(mod.id));
             });
-            // Only on a person's click or key: otherwise any plugin could open Finder at will, or learn which paths exist.
+            // Only on a person's click or key: otherwise any mod could open Finder at will, or learn which paths exist.
             PROTOCOL.reveal.handle(({ file }, sender) => {
-                IDENTITY.pluginFrom(sender);
+                IDENTITY.modFrom(sender);
                 return spendsUserActivation(sender) && reveal(file);
             });
             PROTOCOL.handlerLists.handle((_payload, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.url-schemes');
+                IDENTITY.modFrom(sender, 'deckit.url-schemes');
                 return schemes().map((scheme) => ({
                     scheme,
                     system: scheme === SCHEME.EVERY ? null : SYSTEM.get(scheme) || null,
@@ -61,7 +58,7 @@ DeckitModule.define(
                 }));
             });
             PROTOCOL.setHandlers.handle(({ scheme, order, off }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.url-schemes');
+                IDENTITY.modFrom(sender, 'deckit.url-schemes');
                 return setHandlers(scheme, order, off);
             });
         }
@@ -80,11 +77,11 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // A plugin with system.main-process may run its own code in this process and could open the file itself, so its word is
+        // A mod with system.main-process may run its own code in this process and could open the file itself, so its word is
         // taken; any other has to show a person's press.
         function spendsUserActivation(sender) {
-            const plugin = IDENTITY.pluginFrom(sender);
-            if (plugin.permissions.some(({ id }) => id === PERMISSION.MAIN_PROCESS)) return true;
+            const mod = IDENTITY.modFrom(sender);
+            if (mod.permissions.some(({ id }) => id === PERMISSION.MAIN_PROCESS)) return true;
             return IDENTITY.consumeUserActivation(sender);
         }
 
@@ -98,9 +95,9 @@ DeckitModule.define(
             return STORAGE.state.read(CHOSEN, {});
         }
 
-        // Every scheme with a handler list: deckit's own, then each one a running plugin names, then every other.
+        // Every scheme with a handler list: deckit's own, then each one a running mod names, then every other.
         function schemes() {
-            const named = CATALOG.plugins()
+            const named = CATALOG.mods()
                 .filter(({ id }) => answering.has(id))
                 .flatMap(({ urlSchemes }) => urlSchemes);
             const own = named.filter((scheme) => scheme !== SCHEME.EVERY);
@@ -123,27 +120,27 @@ DeckitModule.define(
             return Object.hasOwn(chosen(), scheme) ? chosen()[scheme] : { order: [], off: [] };
         }
 
-        // In the scheme's order; a plugin no one placed keeps the place the plugins' order gives it.
+        // In the scheme's order; a mod no one placed keeps the place the mods' order gives it.
         function handlersOf(scheme) {
             const order = orderOf(scheme);
             const off = savedOf(scheme).off;
             const rank = (id) => (order.includes(id) ? order.indexOf(id) : order.length);
-            return CATALOG.plugins()
+            return CATALOG.mods()
                 .filter(
-                    (plugin) =>
-                        answering.has(plugin.id) &&
-                        plugin.urlSchemes.some((named) => named === SCHEME.EVERY || named === scheme)
+                    (mod) =>
+                        answering.has(mod.id) &&
+                        mod.urlSchemes.some((named) => named === SCHEME.EVERY || named === scheme)
                 )
-                .map((plugin, at) => ({ id: plugin.id, name: plugin.name, on: !off.includes(plugin.id), at }))
+                .map((mod, at) => ({ id: mod.id, name: mod.name, on: !off.includes(mod.id), at }))
                 .sort((a, b) => rank(a.id) - rank(b.id) || a.at - b.at)
                 .map(({ at, ...handler }) => handler);
         }
 
-        // The ids given take the places they held among themselves. A plugin missing from the list now (failed to
+        // The ids given take the places they held among themselves. A mod missing from the list now (failed to
         // load, or waiting on what it requires) keeps its place and switch: otherwise editing the list while it was
         // gone would give its place to the app's default.
         function setHandlers(scheme, order, off) {
-            if (!schemes().includes(scheme)) throw new Error('no plugin handles ' + scheme);
+            if (!schemes().includes(scheme)) throw new Error('no mod handles ' + scheme);
             const given = new Set(order);
             const next = [...order];
             const merged = orderOf(scheme).map((id) => (given.has(id) ? next.shift() : id));

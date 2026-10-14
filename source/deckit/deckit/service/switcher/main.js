@@ -14,26 +14,26 @@ DeckitModule.define(
         // MARK: - Property
         const USE = 'switcher-use';
         const USE_KEPT = 60;
-        // Taken round robin up to this, so a plugin with many rows loses its last ones rather than crowding others out.
+        // Taken round robin up to this, so a mod with many rows loses its last ones rather than crowding others out.
         const NOW_MAX = 3;
         // How long the list waits for slow Now rows before it opens; later ones arrive on their own.
         const NOW_WAIT_MS = 150;
-        // A plugin that has not answered by then answers nothing, so one stuck page does not hold the list.
+        // A mod that has not answered by then answers nothing, so one stuck page does not hold the list.
         const ANSWER_MS = 2000;
-        const sources = new Map(); // plugin id -> { icon, aliases, opens, resolves }
-        const entries = new Map(); // entry id -> { plugin, local, kind, group, label }
+        const sources = new Map(); // mod id -> { icon, aliases, opens, resolves }
+        const entries = new Map(); // entry id -> { mod, local, kind, group, label }
         let session = 0;
         let hooks = { list: () => null, reveal: () => {} };
 
         // MARK: - Initializer
         // MARK: - Public
-        // `list` is the switcher's webContents; `reveal` puts a plugin on screen.
+        // `list` is the switcher's webContents; `reveal` puts a mod on screen.
         function start({ list, reveal }) {
             hooks = { list, reveal };
             PROTOCOL.source.on((source, sender) => {
-                const plugin = IDENTITY.pluginFrom(sender);
-                sources.set(plugin.id, source);
-                IDENTITY.whenPageEnds(sender, () => sources.get(plugin.id) === source && sources.delete(plugin.id));
+                const mod = IDENTITY.modFrom(sender);
+                sources.set(mod.id, source);
+                IDENTITY.whenPageEnds(sender, () => sources.get(mod.id) === source && sources.delete(mod.id));
             });
             PROTOCOL.need.on((_payload, sender) => IDENTITY.isSwitcher(sender) && supply());
             PROTOCOL.query.on(
@@ -44,55 +44,55 @@ DeckitModule.define(
 
         // MARK: - Private
         function running() {
-            return CATALOG.plugins().filter((plugin) => sources.has(plugin.id) && IDENTITY.pageOf(plugin.id));
+            return CATALOG.mods().filter((mod) => sources.has(mod.id) && IDENTITY.pageOf(mod.id));
         }
 
-        function ownerOf(plugin) {
-            const { icon, aliases } = sources.get(plugin.id);
-            return { id: plugin.id, name: plugin.name, icon, aliases };
+        function ownerOf(mod) {
+            const { icon, aliases } = sources.get(mod.id);
+            return { id: mod.id, name: mod.name, icon, aliases };
         }
 
         // An entry crosses to the list as data, under an id this side keeps: picking it comes back by that id.
-        function wire(plugin, kind, entry) {
-            const id = `${plugin.id}:${entry.id}`;
-            entries.set(id, { plugin: plugin.id, local: entry.id, kind, group: entry.group, label: entry.label });
-            return { ...entry, id, kind, plugin: ownerOf(plugin) };
+        function wire(mod, kind, entry) {
+            const id = `${mod.id}:${entry.id}`;
+            entries.set(id, { mod: mod.id, local: entry.id, kind, group: entry.group, label: entry.label });
+            return { ...entry, id, kind, mod: ownerOf(mod) };
         }
 
         async function supply() {
             const mine = ++session;
             entries.clear();
-            const plugins = running();
-            const commands = await Promise.all(plugins.map((plugin) => ask(PROTOCOL.collect, plugin, {}, [])));
+            const mods = running();
+            const commands = await Promise.all(mods.map((mod) => ask(PROTOCOL.collect, mod, {}, [])));
             const used = STORAGE.state.read(USE, {});
-            const items = plugins.flatMap((plugin, index) => {
-                const owner = ownerOf(plugin);
-                // The plugin's names are aliases here, so a prefix of its name still finds it.
-                const open = sources.get(plugin.id).opens
+            const items = mods.flatMap((mod, index) => {
+                const owner = ownerOf(mod);
+                // The mod's names are aliases here, so a prefix of its name still finds it.
+                const open = sources.get(mod.id).opens
                     ? [
                           {
                               id: 'open',
-                              label: 'Open ' + plugin.name,
+                              label: 'Open ' + mod.name,
                               group: '',
                               hint: '',
                               icon: owner.icon,
                               keywords: '',
                               address: '',
-                              aliases: [plugin.name, ...owner.aliases],
+                              aliases: [mod.name, ...owner.aliases],
                               runnable: true,
                           },
                       ]
                     : [];
                 return [...open, ...commands[index]].map((entry) => {
-                    const wired = wire(plugin, 'command', entry);
+                    const wired = wire(mod, 'command', entry);
                     return { ...wired, used: frecency(used[keyOf(entries.get(wired.id))]) };
                 });
             });
-            const buckets = plugins.map(() => []);
+            const buckets = mods.map(() => []);
             let late = false;
-            const asked = plugins.map((plugin, index) =>
-                ask(PROTOCOL.collectNow, plugin, {}, []).then((rows) => {
-                    buckets[index] = rows.map((row) => wire(plugin, 'now', row));
+            const asked = mods.map((mod, index) =>
+                ask(PROTOCOL.collectNow, mod, {}, []).then((rows) => {
+                    buckets[index] = rows.map((row) => wire(mod, 'now', row));
                     if (mine === session && late) PROTOCOL.now.send(hooks.list(), { rows: roundRobin(buckets) });
                 })
             );
@@ -105,30 +105,30 @@ DeckitModule.define(
         // Each answer is sent as it lands, so a slow resolver holds back nobody. A query no one answers still gets one
         // empty reply: the list shows the last query's entries until it hears otherwise.
         function resolve(raw) {
-            const plugins = running().filter((plugin) => sources.get(plugin.id).resolves);
+            const mods = running().filter((mod) => sources.get(mod.id).resolves);
             const gathered = [];
-            let left = plugins.length;
+            let left = mods.length;
             const answer = () => PROTOCOL.resolved.send(hooks.list(), { raw, entries: gathered });
             if (!left) return answer();
-            for (const plugin of plugins) {
-                ask(PROTOCOL.resolve, plugin, { raw }, []).then((found) => {
+            for (const mod of mods) {
+                ask(PROTOCOL.resolve, mod, { raw }, []).then((found) => {
                     left--;
-                    gathered.push(...found.map((entry) => wire(plugin, 'resolved', entry)));
+                    gathered.push(...found.map((entry) => wire(mod, 'resolved', entry)));
                     if (found.length || !left) answer();
                 });
             }
         }
 
-        // A page of entries an entry opened, answered by its plugin.
+        // A page of entries an entry opened, answered by its mod.
         function search(raw, page) {
             const opener = entries.get(page);
             if (!opener) return;
-            const plugin = CATALOG.plugins().find(({ id }) => id === opener.plugin);
-            ask(PROTOCOL.search, plugin, { raw, page: opener.local }, null).then((found) => {
+            const mod = CATALOG.mods().find(({ id }) => id === opener.mod);
+            ask(PROTOCOL.search, mod, { raw, page: opener.local }, null).then((found) => {
                 if (found)
                     PROTOCOL.resolved.send(hooks.list(), {
                         raw,
-                        entries: found.map((entry) => wire(plugin, 'page', entry)),
+                        entries: found.map((entry) => wire(mod, 'page', entry)),
                         page,
                     });
             });
@@ -139,21 +139,21 @@ DeckitModule.define(
             if (!entry) return;
             // Only a command is remembered: a readout or a query's result is not something to run again.
             if (entry.kind === 'command') remember(entry);
-            if (entry.local === 'open') return hooks.reveal(entry.plugin);
-            const view = IDENTITY.pageOf(entry.plugin);
+            if (entry.local === 'open') return hooks.reveal(entry.mod);
+            const view = IDENTITY.pageOf(entry.mod);
             if (!view) return;
             IDENTITY.passUserActivation(view);
             PROTOCOL.run
                 .invoke(view, { id: entry.local })
-                .catch((error) => LOG.warn(`${entry.plugin}: a switcher entry failed`, error));
+                .catch((error) => LOG.warn(`${entry.mod}: a switcher entry failed`, error));
         }
 
-        // What a plugin's view answers; one that fails or went away answers `fallback`, recorded against it.
-        function ask(end, plugin, payload, fallback) {
-            const view = IDENTITY.pageOf(plugin.id);
+        // What a mod's view answers; one that fails or went away answers `fallback`, recorded against it.
+        function ask(end, mod, payload, fallback) {
+            const view = IDENTITY.pageOf(mod.id);
             if (!view) return Promise.resolve(fallback);
             return end.invoke(view, payload, { timeout: ANSWER_MS }).catch((error) => {
-                LOG.warn(`${plugin.id}: the switcher's question failed`, error);
+                LOG.warn(`${mod.id}: the switcher's question failed`, error);
                 return fallback;
             });
         }
@@ -168,9 +168,9 @@ DeckitModule.define(
             return out;
         }
 
-        // Keyed by plugin, group and label, not by an entry's id: commands are made fresh on every open.
-        function keyOf({ plugin, group, label }) {
-            return `${plugin}\u0000${group}\u0000${label}`;
+        // Keyed by mod, group and label, not by an entry's id: commands are made fresh on every open.
+        function keyOf({ mod, group, label }) {
+            return `${mod}\u0000${group}\u0000${label}`;
         }
 
         // Too small to outweigh a use, the time only breaks ties, the later first.

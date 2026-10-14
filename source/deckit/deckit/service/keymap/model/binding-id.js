@@ -7,7 +7,7 @@ DeckitModule.define(
     },
     () => {
         // MARK: - Property
-        // The owner of deckit's own keys; a plugin's keys are owned by its id, and no plugin id starts with @.
+        // The owner of deckit's own keys; a mod's keys are owned by its id, and no mod id starts with @.
         const DECKIT_OWNER = '@deckit';
 
         // MARK: - Initializer

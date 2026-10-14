@@ -7,14 +7,14 @@ DeckitModule.define(
     },
     () => {
         // MARK: - Property
-        // A plugin id holds no colon, so the first one ends it.
+        // A mod id holds no colon, so the first one ends it.
         const SEPARATOR = ':';
 
         // MARK: - Initializer
         // MARK: - Public
-        // How an event is named for whoever listens: after the plugin that sent it, `<plugin id>:<event name>`.
-        function nameOf(pluginId, name) {
-            return pluginId + SEPARATOR + name;
+        // How an event is named for whoever listens: after the mod that sent it, `<mod id>:<event name>`.
+        function nameOf(modId, name) {
+            return modId + SEPARATOR + name;
         }
 
         function isNamed(name) {

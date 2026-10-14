@@ -12,21 +12,21 @@ DeckitModule.define(
         const KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
         const COUNT_LIMIT = 1000;
 
-        // A plugin's records: JSON by key, kept by deckit apart from the folder its main process modules own.
+        // A mod's records: JSON by key, kept by deckit apart from the folder its main process modules own.
         const records = {
-            read: (pluginId, key) => STORE.read(recordFile(pluginId, key)),
-            write: (pluginId, key, value) => STORE.write(recordFile(pluginId, key), value),
-            remove: (pluginId, key) => STORE.remove(recordFile(pluginId, key)),
-            keys: (pluginId) => keysOf(path.join(HOME.records, pluginId)),
+            read: (modId, key) => STORE.read(recordFile(modId, key)),
+            write: (modId, key, value) => STORE.write(recordFile(modId, key), value),
+            remove: (modId, key) => STORE.remove(recordFile(modId, key)),
+            keys: (modId) => keysOf(path.join(HOME.records, modId)),
         };
 
-        // A plugin's settings are deckit's to keep, so they live outside the plugin's folder.
+        // A mod's settings are deckit's to keep, so they live outside the mod's folder.
         const settings = {
-            read: (pluginId) => STORE.read(path.join(HOME.settings, pluginId + '.json'), {}),
-            write: (pluginId, values) => STORE.write(path.join(HOME.settings, pluginId + '.json'), values),
+            read: (modId) => STORE.read(path.join(HOME.settings, modId + '.json'), {}),
+            write: (modId, values) => STORE.write(path.join(HOME.settings, modId + '.json'), values),
         };
 
-        // deckit's own state: the key map, each scheme's handlers, the plugin order, the panel's frame.
+        // deckit's own state: the key map, each scheme's handlers, the mod order, the panel's frame.
         const state = {
             read: (key, fallback) => STORE.read(path.join(HOME.state, key + '.json'), fallback),
             write: (key, value) => STORE.write(path.join(HOME.state, key + '.json'), value),
@@ -34,32 +34,32 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // Plugin ids are held to their rule before a plugin loads, so an id here is a folder name.
-        function folderOf(pluginId) {
-            return path.join(HOME.data, pluginId);
+        // Mod ids are held to their rule before a mod loads, so an id here is a folder name.
+        function folderOf(modId) {
+            return path.join(HOME.data, modId);
         }
 
         // Every file counts, its main process modules' included: forgetting takes them all.
-        async function count(pluginId) {
+        async function count(modId) {
             const seen = { count: 0, capped: false, hidden: false };
-            await walk(folderOf(pluginId), 0, seen);
-            await walk(path.join(HOME.records, pluginId), 0, seen);
+            await walk(folderOf(modId), 0, seen);
+            await walk(path.join(HOME.records, modId), 0, seen);
             return seen;
         }
 
-        // What deckit kept for a plugin. Its pages' storage and its web sessions are their sessions' to clear.
-        function forget(pluginId) {
-            fs.rmSync(folderOf(pluginId), { recursive: true, force: true });
-            fs.rmSync(path.join(HOME.records, pluginId), { recursive: true, force: true });
-            fs.rmSync(path.join(HOME.settings, pluginId + '.json'), { force: true });
+        // What deckit kept for a mod. Its pages' storage and its web sessions are their sessions' to clear.
+        function forget(modId) {
+            fs.rmSync(folderOf(modId), { recursive: true, force: true });
+            fs.rmSync(path.join(HOME.records, modId), { recursive: true, force: true });
+            fs.rmSync(path.join(HOME.settings, modId + '.json'), { force: true });
         }
 
         // MARK: - Private
-        function recordFile(pluginId, key) {
+        function recordFile(modId, key) {
             if (!KEY.test(String(key)) || String(key).includes('..')) {
                 throw Object.assign(new Error('not a record key: ' + key), { kind: 'KEY' });
             }
-            return path.join(HOME.records, pluginId, key + '.json');
+            return path.join(HOME.records, modId, key + '.json');
         }
 
         function keysOf(folder) {

@@ -12,7 +12,7 @@ DeckitModule.define(
         const WIDTH_MAX = 720;
         const NAV_MIN = 70;
         const SLOT_MIN = 120;
-        // Leaves the plugin room to draw beside the sidebar.
+        // Leaves the mod room to draw beside the sidebar.
         const CONTENT_MIN = 360;
         // The card's inset from the panel's edges, and how far the handle stands past it, over the content's edge.
         const INSET = 8;
@@ -106,7 +106,7 @@ DeckitModule.define(
             }
             .deckit-sidebar-handle:hover::before,
             .deckit-sidebar-handle[data-dragging]::before { width: 5px; height: 48px; background: var(--deckit-muted); }
-            .deckit-plugin-row {
+            .deckit-mod-row {
                 display: flex;
                 align-items: center;
                 gap: 8px;
@@ -124,15 +124,15 @@ DeckitModule.define(
                 cursor: pointer;
                 transition: background-color var(--deckit-fast) var(--deckit-easing);
             }
-            .deckit-plugin-row:hover { background: var(--deckit-hover); }
-            .deckit-plugin-row[aria-selected='true'] { background: var(--deckit-selected); }
-            .deckit-plugin-row:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
-            .deckit-plugin-icon { display: flex; flex: 0 0 auto; }
+            .deckit-mod-row:hover { background: var(--deckit-hover); }
+            .deckit-mod-row[aria-selected='true'] { background: var(--deckit-selected); }
+            .deckit-mod-row:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
+            .deckit-mod-icon { display: flex; flex: 0 0 auto; }
         `;
 
         // MARK: - Initializer
         // MARK: - Public
-        // The panel's sidebar card: the plugins' list over the plugin's own sidebar. What it shows is main's (`state`),
+        // The panel's sidebar card: the mods' list over the mod's own sidebar. What it shows is main's (`state`),
         // and what the person changes is told back: `onPick`, `onStep`, `onReorder`, `onLayout`. `onCollapsedChange`
         // hears the card collapse or open.
         function make({
@@ -150,7 +150,7 @@ DeckitModule.define(
         }) {
             KIT.addStyle(surfaceOf(theme) + STYLE);
             let layout = { width: WIDTH_MIN, collapsed: false, navHeight: null };
-            let plugins = [];
+            let mods = [];
             let current = null;
 
             // Two boxes: the card animates its width while the body keeps its own, so what is inside does not reflow
@@ -161,7 +161,7 @@ DeckitModule.define(
             const nav = element('div', 'deckit-sidebar-nav');
             SCROLL.edgeFade(nav);
             const section = ui.section({
-                label: 'Plugins',
+                label: 'Mods',
                 title: true,
                 actions: [
                     { icon: ICON.icon('chevronLeft', { size: 16 }), title: 'Back', run: () => onStep(-1) },
@@ -173,20 +173,20 @@ DeckitModule.define(
             nav.append(section.element);
             const rows = LIST.list({
                 element: section.body,
-                key: (plugin) => plugin.id,
+                key: (mod) => mod.id,
                 create: rowOf,
-                update: (row, plugin) => paintRow(row, plugin),
+                update: (row, mod) => paintRow(row, mod),
             });
             // The new order is drawn here at once, and main, hearing it, has every view follow.
             ui.sortable(rows, {
                 onReorder: (id, toId) => {
-                    const moved = plugins.find((plugin) => plugin.id === id);
-                    const to = plugins.findIndex((plugin) => plugin.id === toId);
+                    const moved = mods.find((mod) => mod.id === id);
+                    const to = mods.findIndex((mod) => mod.id === toId);
                     if (!moved || to < 0) return;
-                    const rest = plugins.filter((plugin) => plugin !== moved);
-                    plugins = [...rest.slice(0, to), moved, ...rest.slice(to)];
-                    rows.set(plugins);
-                    onReorder(plugins.map((plugin) => plugin.id));
+                    const rest = mods.filter((mod) => mod !== moved);
+                    mods = [...rest.slice(0, to), moved, ...rest.slice(to)];
+                    rows.set(mods);
+                    onReorder(mods.map((mod) => mod.id));
                 },
             });
 
@@ -206,7 +206,7 @@ DeckitModule.define(
                 onCommit: (px) => onLayout({ navHeight: Math.round(px) }),
             });
 
-            // The plugin's own sidebar: the slot scrolls when it is taller.
+            // The mod's own sidebar: the slot scrolls when it is taller.
             const slot = element('div', 'deckit-sidebar-slot');
             slot.hidden = !sidebar;
             SCROLL.edgeFade(slot);
@@ -239,7 +239,7 @@ DeckitModule.define(
             body.append(nav, splitter, slot);
             card.append(body, titleBarRoom);
 
-            // The smaller of the one allowed anywhere and what leaves the plugin room. Read, not kept: the window resizes.
+            // The smaller of the one allowed anywhere and what leaves the mod room. Read, not kept: the window resizes.
             function ceiling() {
                 return Math.max(WIDTH_MIN, Math.min(WIDTH_MAX, root.getBoundingClientRect().width - CONTENT_MIN));
             }
@@ -274,33 +274,33 @@ DeckitModule.define(
             }
 
             function show(state, animate) {
-                plugins = state.plugins;
+                mods = state.mods;
                 current = state.current;
-                rows.set(plugins);
+                rows.set(mods);
                 section.actions[0].setEnabled(state.canBack);
                 section.actions[1].setEnabled(state.canForward);
                 apply(state.frame, animate);
             }
 
-            function rowOf(plugin) {
-                const row = element('button', 'deckit-plugin-row');
+            function rowOf(mod) {
+                const row = element('button', 'deckit-mod-row');
                 row.type = 'button';
-                row.dataset.pluginId = plugin.id;
+                row.dataset.modId = mod.id;
                 row.setAttribute('role', 'tab');
-                row.addEventListener('click', () => onPick(plugin.id));
-                paintRow(row, plugin);
+                row.addEventListener('click', () => onPick(mod.id));
+                paintRow(row, mod);
                 return row;
             }
 
-            function paintRow(row, plugin) {
-                row.setAttribute('aria-selected', String(plugin.id === current));
-                const drawn = JSON.stringify([plugin.icon, plugin.name]);
+            function paintRow(row, mod) {
+                row.setAttribute('aria-selected', String(mod.id === current));
+                const drawn = JSON.stringify([mod.icon, mod.name]);
                 if (row.dataset.drawn === drawn) return;
                 row.dataset.drawn = drawn;
-                const glyph = element('span', 'deckit-plugin-icon');
-                glyph.append(ICON.sanitize(plugin.icon));
+                const glyph = element('span', 'deckit-mod-icon');
+                glyph.append(ICON.sanitize(mod.icon));
                 const name = element('span', '');
-                name.textContent = plugin.name;
+                name.textContent = mod.name;
                 row.replaceChildren(glyph, name);
             }
 

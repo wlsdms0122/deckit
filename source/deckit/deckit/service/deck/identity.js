@@ -7,8 +7,8 @@ DeckitModule.define(
             'whenPageEnds',
             'consumeUserActivation',
             'passUserActivation',
-            'pluginOf',
-            'pluginFrom',
+            'modOf',
+            'modFrom',
             'isSwitcher',
             'pageOf',
         ],
@@ -18,19 +18,19 @@ DeckitModule.define(
         // MARK: - Property
         // As long as Chromium lets a page act on a person's click or key.
         const ACTIVATION_MS = 5000;
-        const owners = new Map(); // webContents id -> { plugin } or { switcher: true }
-        const pages = new Map(); // plugin id -> its page's webContents
+        const owners = new Map(); // webContents id -> { mod } or { switcher: true }
+        const pages = new Map(); // mod id -> its page's webContents
         const ends = new Map(); // webContents id -> Set of what undoes what its page set up
         const activated = new Map(); // webContents id -> when a person last pressed a key or the mouse in it
 
         // MARK: - Initializer
         // MARK: - Public
-        // Only main makes the pages a plugin or the switcher runs in, so who sent a message is known by which
+        // Only main makes the pages a mod or the switcher runs in, so who sent a message is known by which
         // webContents it came from, and never by what the message says.
         function add(webContents, owner) {
             const id = webContents.id;
             owners.set(id, owner);
-            pin(webContents, owner.plugin ? ORIGIN.originOf(owner.plugin.id) : ORIGIN.SWITCHER_ORIGIN);
+            pin(webContents, owner.mod ? ORIGIN.originOf(owner.mod.id) : ORIGIN.SWITCHER_ORIGIN);
             // A key the key map takes never reaches the page, so keys are counted before it; a click after it.
             webContents.on(
                 'before-input-event',
@@ -40,7 +40,7 @@ DeckitModule.define(
                 'input-event',
                 (_event, input) => input.type === 'mouseDown' && activated.set(id, Date.now())
             );
-            if (owner.plugin) pages.set(owner.plugin.id, webContents);
+            if (owner.mod) pages.set(owner.mod.id, webContents);
             ends.set(id, new Set());
             const end = () => {
                 const undos = [...ends.get(id)];
@@ -56,7 +56,7 @@ DeckitModule.define(
                 ends.delete(id);
                 activated.delete(id);
                 owners.delete(id);
-                if (owner.plugin && pages.get(owner.plugin.id) === webContents) pages.delete(owner.plugin.id);
+                if (owner.mod && pages.get(owner.mod.id) === webContents) pages.delete(owner.mod.id);
             });
         }
 
@@ -76,40 +76,40 @@ DeckitModule.define(
             return fresh;
         }
 
-        // A press elsewhere that acts in this page: a pick in the switcher runs the plugin's command.
+        // A press elsewhere that acts in this page: a pick in the switcher runs the mod's command.
         function passUserActivation(webContents) {
             activated.set(webContents.id, Date.now());
         }
 
-        // The plugin a renderer runs, or null for one that is not a plugin's.
-        function pluginOf(webContents) {
-            return owners.get(webContents.id)?.plugin || null;
+        // The mod a renderer runs, or null for one that is not a mod's.
+        function modOf(webContents) {
+            return owners.get(webContents.id)?.mod || null;
         }
 
-        // The plugin that sent this, held to holding `permission` when one is named.
-        function pluginFrom(webContents, permission = null) {
-            const plugin = pluginOf(webContents);
-            if (!plugin) throw Object.assign(new Error('only a plugin asks this'), { kind: 'REFUSED' });
-            if (permission && !plugin.permissions.some(({ id }) => id === permission)) {
-                throw Object.assign(new Error(`${plugin.id} does not have the ${permission} permission`), {
+        // The mod that sent this, held to holding `permission` when one is named.
+        function modFrom(webContents, permission = null) {
+            const mod = modOf(webContents);
+            if (!mod) throw Object.assign(new Error('only a mod asks this'), { kind: 'REFUSED' });
+            if (permission && !mod.permissions.some(({ id }) => id === permission)) {
+                throw Object.assign(new Error(`${mod.id} does not have the ${permission} permission`), {
                     kind: 'REFUSED',
                 });
             }
-            return plugin;
+            return mod;
         }
 
         function isSwitcher(webContents) {
             return !!owners.get(webContents.id)?.switcher;
         }
 
-        function pageOf(pluginId) {
-            return pages.get(pluginId) || null;
+        function pageOf(modId) {
+            return pages.get(modId) || null;
         }
 
         // MARK: - Private
-        // A navigation keeps the webContents, so a page that left its origin would still be known as its plugin while
+        // A navigation keeps the webContents, so a page that left its origin would still be known as its mod while
         // it ran another's page with that one's storage, and one that went to another path of its own origin would
-        // start the plugin again beside the run still going. So a deckit page stays at its one address. Only main's
+        // start the mod again beside the run still going. So a deckit page stays at its one address. Only main's
         // own loadURL and reload pass without these events.
         function pin(webContents, origin) {
             const address = ORIGIN.addressOf(origin);
@@ -127,8 +127,8 @@ DeckitModule.define(
             whenPageEnds,
             consumeUserActivation,
             passUserActivation,
-            pluginOf,
-            pluginFrom,
+            modOf,
+            modFrom,
             isSwitcher,
             pageOf,
         };

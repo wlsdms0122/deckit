@@ -91,7 +91,7 @@ DeckitModule.define(
                 submit();
                 return true;
             };
-            // A plugin's own key listeners do not act on what is typed into a modal.
+            // A mod's own key listeners do not act on what is typed into a modal.
             scrim.addEventListener('keydown', (event) => event.stopPropagation());
             scrim.addEventListener('mousedown', (event) => event.target === scrim && close());
 

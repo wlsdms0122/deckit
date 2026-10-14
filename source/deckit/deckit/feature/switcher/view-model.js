@@ -261,7 +261,7 @@ DeckitModule.define(
                     .slice(0, NUMBERED);
             }
 
-            // Now, then Recent, then every plugin's section with its groups.
+            // Now, then Recent, then every mod's section with its groups.
             function layout() {
                 const list = [];
                 const at = new Map();
@@ -283,15 +283,14 @@ DeckitModule.define(
                 }
                 const sections = new Map();
                 for (const item of items) {
-                    const plugin = item.plugin?.id || '';
-                    if (!sections.has(plugin))
-                        sections.set(plugin, { plugin: item.plugin, groups: new Map([['', []]]) });
-                    const { groups } = sections.get(plugin);
+                    const mod = item.mod?.id || '';
+                    if (!sections.has(mod)) sections.set(mod, { mod: item.mod, groups: new Map([['', []]]) });
+                    const { groups } = sections.get(mod);
                     if (!groups.has(item.group || '')) groups.set(item.group || '', []);
                     groups.get(item.group || '').push(item);
                 }
-                for (const { plugin, groups } of sections.values()) {
-                    heading({ kind: 'section', label: plugin?.name || '', icon: plugin?.icon || '' });
+                for (const { mod, groups } of sections.values()) {
+                    heading({ kind: 'section', label: mod?.name || '', icon: mod?.icon || '' });
                     for (const [group, members] of groups) {
                         if (!members.length) continue;
                         if (group) heading({ kind: 'group', label: group });
@@ -324,7 +323,7 @@ DeckitModule.define(
         }
 
         function ownerOf(item) {
-            return [item.plugin?.name, item.group].filter(Boolean).join(' › ');
+            return [item.mod?.name, item.group].filter(Boolean).join(' › ');
         }
 
         // Each alias is its own field, so a short name scores as a whole name and not as the start of a longer label.
@@ -334,7 +333,7 @@ DeckitModule.define(
                 { text: item.label, name: true },
                 ...(item.aliases || []).map((text) => ({ text, name: true })),
                 {
-                    text: [item.plugin?.name, ...(item.plugin?.aliases || []), item.group].filter(Boolean).join(' '),
+                    text: [item.mod?.name, ...(item.mod?.aliases || []), item.group].filter(Boolean).join(' '),
                     weight: 0.9,
                     cap: TIER.WORD,
                 },

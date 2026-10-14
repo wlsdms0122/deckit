@@ -10,11 +10,12 @@ DeckitModule.define(
             'deckit/service/deck/remove',
             'deckit/service/deck/catalog',
             'deckit/service/deck/runner',
-            'deckit/service/plugin/manifest',
+            'deckit/service/mod/manifest',
             'deckit/service/deck/main-process',
             'deckit/service/deck/record',
             'deckit/service/deck/setting',
             'deckit/service/deck/export',
+            'deckit/service/deck/extension',
             'deckit/service/deck/protocol',
         ],
         provides: ['start'],
@@ -34,12 +35,13 @@ DeckitModule.define(
         RECORD,
         SETTING,
         EXPORT,
+        EXTENSION,
         PROTOCOL
     ) => {
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
-        // Plugins run in the views `makeView()` makes. What follows their runs starts before the runner launches any.
+        // Mods run in the views `makeView()` makes. What follows their runs starts before the runner launches any.
         function start({ makeView }) {
             forgetRemoved();
             CATALOG.start();
@@ -47,80 +49,87 @@ DeckitModule.define(
             RECORD.start();
             SETTING.start();
             EXPORT.start();
+            EXTENSION.start();
             listen();
             RUNNER.start({ makeView });
         }
 
         // MARK: - Private
         function listen() {
-            PROTOCOL.plugins.handle((_payload, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+            PROTOCOL.mods.handle((_payload, sender) => {
+                IDENTITY.modFrom(sender, 'deckit.mods');
                 return describe();
             });
             PROTOCOL.pick.handle((_payload, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                IDENTITY.modFrom(sender, 'deckit.mods');
                 return pick();
             });
             PROTOCOL.install.handle(({ from }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                IDENTITY.modFrom(sender, 'deckit.mods');
                 return install(from);
             });
             PROTOCOL.remove.handle(({ id, data }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                IDENTITY.modFrom(sender, 'deckit.mods');
                 return remove(id, data);
             });
             PROTOCOL.relaunch.handle(({ id }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                IDENTITY.modFrom(sender, 'deckit.mods');
                 RUNNER.relaunch(id);
             });
             PROTOCOL.reveal.handle(({ id }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
-                const plugin = CATALOG.found().find((candidate) => candidate.id === id);
-                if (!plugin) throw new Error('no plugin ' + id);
-                return require('electron').shell.openPath(plugin.folder);
+                IDENTITY.modFrom(sender, 'deckit.mods');
+                const mod = CATALOG.found().find((candidate) => candidate.id === id);
+                if (!mod) throw new Error('no mod ' + id);
+                return require('electron').shell.openPath(mod.folder);
             });
             PROTOCOL.count.handle(({ id }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                IDENTITY.modFrom(sender, 'deckit.mods');
                 return STORAGE.count(id);
             });
             PROTOCOL.restartPending.handle((_payload, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                IDENTITY.modFrom(sender, 'deckit.mods');
                 return MAIN_PROCESS.restartPending();
             });
         }
 
-        // What Settings shows about every plugin, loaded or not, and what each running one contributes. `state`: its
+        // What Settings shows about every mod, loaded or not, and what each running one contributes. `state`: its
         // latest run's, null for one with none. `starting`: it is launching. `hides`: folders of the same id that are
         // not read.
         function describe() {
             const running = (id) => RUNNER.runOf(id)?.state === 'running';
             return {
-                installed: CATALOG.found().map((plugin) => {
-                    const run = RUNNER.runOf(plugin.id);
+                installed: CATALOG.found().map((mod) => {
+                    const run = RUNNER.runOf(mod.id);
                     return {
-                        ...MANIFEST.of(plugin),
-                        folder: plugin.folder,
-                        installed: plugin.installed,
-                        shipped: plugin.shipped,
-                        hides: plugin.hides,
-                        problem: plugin.problem || run?.problem || null,
+                        ...MANIFEST.of(mod),
+                        folder: mod.folder,
+                        installed: mod.installed,
+                        shipped: mod.shipped,
+                        hides: mod.hides,
+                        problem: mod.problem || run?.problem || null,
                         state: run?.state || null,
                         starting: run?.state === 'launching',
                         mainProcess: {
-                            running: MAIN_PROCESS.started(plugin.id),
-                            failure: MAIN_PROCESS.failure(plugin.id),
+                            running: MAIN_PROCESS.started(mod.id),
+                            failure: MAIN_PROCESS.failure(mod.id),
                         },
-                        requirements: plugin.requirements.map((requirement) => ({
+                        requirements: mod.requirements.map((requirement) => ({
                             ...requirement,
                             ok: requirement.ok && running(requirement.id),
                         })),
                     };
                 }),
-                running: CATALOG.plugins()
-                    .filter((plugin) => running(plugin.id))
-                    .map((plugin) => {
-                        const { summary, problem } = RUNNER.runOf(plugin.id);
-                        return { id: plugin.id, name: plugin.name, ...summary, problem };
+                running: CATALOG.mods()
+                    .filter((mod) => running(mod.id))
+                    .map((mod) => {
+                        const { summary, problem } = RUNNER.runOf(mod.id);
+                        return {
+                            id: mod.id,
+                            name: mod.name,
+                            ...summary,
+                            extends: EXTENSION.pointsExtendedBy(mod.id),
+                            problem,
+                        };
                     }),
             };
         }
@@ -130,7 +139,7 @@ DeckitModule.define(
         async function pick() {
             const { dialog } = require('electron');
             const result = await dialog.showOpenDialog({
-                title: 'Choose a plugin folder',
+                title: 'Choose a mod folder',
                 buttonLabel: 'Choose',
                 properties: ['openDirectory'],
                 message: 'Pick the folder that has manifest.toml in it',
@@ -141,11 +150,11 @@ DeckitModule.define(
             return {
                 ...MANIFEST.of(manifest),
                 from,
-                replaces: CATALOG.found().some((plugin) => plugin.id === manifest.id && plugin.installed),
+                replaces: CATALOG.found().some((mod) => mod.id === manifest.id && mod.installed),
             };
         }
 
-        // Any folder, since a plugin may already run code in this process: restricting where it comes from guards
+        // Any folder, since a mod may already run code in this process: restricting where it comes from guards
         // nothing.
         async function install(from) {
             const manifest = INSTALL.install(from, shadowed);
@@ -160,16 +169,16 @@ DeckitModule.define(
 
         // A source folder of the same id would hide the installed copy.
         function shadowed(manifest) {
-            const source = CATALOG.found().find((plugin) => plugin.id === manifest.id && !plugin.installed);
+            const source = CATALOG.found().find((mod) => mod.id === manifest.id && !mod.installed);
             return source ? `${manifest.id} is read from ${source.folder}, which would hide the installed copy` : '';
         }
 
         // Its run has ended, stop() and all, and its page closed, before what it stored is taken, so nothing writes it
         // back.
         async function remove(id, data) {
-            const plugin = CATALOG.found().find((candidate) => candidate.id === id);
-            if (plugin && !plugin.installed)
-                throw new Error(`${id} is read from ${plugin.folder}, not installed, so it is removed there`);
+            const mod = CATALOG.found().find((candidate) => candidate.id === id);
+            if (mod && !mod.installed)
+                throw new Error(`${id} is read from ${mod.folder}, not installed, so it is removed there`);
             REMOVE.remove(id);
             MAIN_PROCESS.unload(id);
             CATALOG.refresh();
@@ -179,7 +188,7 @@ DeckitModule.define(
             return removed;
         }
 
-        // A plugin removed with its data, whose pages' storage and sessions were not cleared then: cleared here.
+        // A mod removed with its data, whose pages' storage and sessions were not cleared then: cleared here.
         function forgetRemoved() {
             for (const id of REMOVE.forgotten()) {
                 forget(id).catch((error) => LOG.warn(`could not clear the web storage of ${id}`, error));

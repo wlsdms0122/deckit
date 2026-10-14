@@ -4,14 +4,14 @@ HERE="$(cd "$(dirname "$0")/command" && pwd)"
 
 usage() {
   cat <<TEXT
-deckit: a panel of plugins, as a library an app embeds
+deckit: a panel of mods, as a library an app embeds
 
   build            the deckit archive, into .build/: what an app embeds
   app              Deckit.app, into .build/, from the archive the last build made
   check            hold the files to how they reach each other
   dev              Deckit.app from the sources, built again when one changes
   install          Deckit.app into /Applications, as deckit app last made it
-  engine <plugin>  build a plugin's editing engine again (editor, note)
+  engine <mod>     build a mod's editing engine again (editor, note)
 
 TEXT
 }

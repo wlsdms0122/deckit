@@ -1,4 +1,4 @@
-// Between a plugin's page and main. Main knows which plugin a message is from by the view it came from, and which run
+// Between a mod's page and main. Main knows which mod a message is from by the view it came from, and which run
 // of that page by the `run` that `load` answered, carried back by what tells main how the run went.
 DeckitModule.define(
     'deckit/service/deck/protocol',
@@ -14,6 +14,9 @@ DeckitModule.define(
             'requirements',
             'callExport',
             'exportCalled',
+            'callExtension',
+            'extensionCalled',
+            'extensionsChanged',
             'startMainProcess',
             'callMainProcess',
             'mainProcessEvent',
@@ -25,7 +28,7 @@ DeckitModule.define(
             'settingChanged',
             'settingOptions',
             'runSetting',
-            'plugins',
+            'mods',
             'pick',
             'install',
             'remove',
@@ -33,34 +36,48 @@ DeckitModule.define(
             'reveal',
             'count',
             'restartPending',
-            'pluginSettings',
-            'setPluginSetting',
-            'runPluginSetting',
+            'modSettings',
+            'setModSetting',
+            'runModSetting',
         ],
         runs: 'electron',
     },
     (IPC) => ({
-        // What the page runs: the plugin's manifest, its entry's source, its settings, and which run this is.
-        load: IPC.rendererToMain('deckit:plugin-load', {}, { reply: true, sync: true }),
+        // What the page runs: the mod's manifest, its entry's source, its settings, and which run this is.
+        load: IPC.rendererToMain('deckit:mod-load', {}, { reply: true, sync: true }),
         // Its settings, as soon as its entry is read: the declarations, without functions.
-        declare: IPC.rendererToMain('deckit:plugin-declare', { run: 'number', settings: 'object' }),
-        // Started, with what it contributes. `exports`: values copied, and the paths of its functions.
-        started: IPC.rendererToMain('deckit:plugin-started', { run: 'number', exports: 'object', summary: 'object' }),
-        // A problem recorded against the plugin, which Settings shows.
-        problem: IPC.rendererToMain('deckit:plugin-problem', { run: 'number?', problem: 'string' }),
-        // It did not start, and why: what the plugins that require it are told.
-        notStarted: IPC.rendererToMain('deckit:plugin-not-started', { run: 'number?', problem: 'string' }),
-        // Its run is ending: answered once the plugin's stop() has run.
-        stop: IPC.mainToRenderer('deckit:plugin-stop', { reply: true }),
-        // Answers once every plugin it requires has started or failed: { [id]: { values, functions } or { error } }.
-        requirements: IPC.rendererToMain('deckit:plugin-requirements', {}, { reply: true }),
+        declare: IPC.rendererToMain('deckit:mod-declare', { run: 'number', settings: 'object' }),
+        // Started, with what it contributes. `contributions`: `{ exports, extensionPoints, extensions, styles }`, exports
+        // and each extension as its values copied and the paths of its functions; `summary`, what Settings shows.
+        started: IPC.rendererToMain('deckit:mod-started', {
+            run: 'number',
+            contributions: 'object',
+            summary: 'object',
+        }),
+        // A problem recorded against the mod, which Settings shows.
+        problem: IPC.rendererToMain('deckit:mod-problem', { run: 'number?', problem: 'string' }),
+        // It did not start, and why: what the mods that require it are told.
+        notStarted: IPC.rendererToMain('deckit:mod-not-started', { run: 'number?', problem: 'string' }),
+        // Its run is ending: answered once the mod's stop() has run.
+        stop: IPC.mainToRenderer('deckit:mod-stop', { reply: true }),
+        // Answers once every mod it requires has started or failed: { [id]: { values, functions } or { error } }.
+        requirements: IPC.rendererToMain('deckit:mod-requirements', {}, { reply: true }),
         callExport: IPC.rendererToMain(
-            'deckit:plugin-call-export',
-            { run: 'number', plugin: 'string', path: 'array', args: 'array' },
+            'deckit:mod-call-export',
+            { run: 'number', mod: 'string', path: 'array', args: 'array' },
             { reply: true }
         ),
-        exportCalled: IPC.mainToRenderer('deckit:plugin-export-called', { reply: true }),
-        // A main process module of the plugin's, by its path in the plugin's folder: started once, answering
+        exportCalled: IPC.mainToRenderer('deckit:mod-export-called', { reply: true }),
+        // An extension point's mod calls a function of what another mod extends it with.
+        callExtension: IPC.rendererToMain(
+            'deckit:mod-call-extension',
+            { run: 'number', mod: 'string', point: 'string', path: 'array', args: 'array' },
+            { reply: true }
+        ),
+        extensionCalled: IPC.mainToRenderer('deckit:mod-extension-called', { reply: true }),
+        // The extensions of one of the mod's points now, by its name: { name, extensions: { [mod id]: { values, functions } } }.
+        extensionsChanged: IPC.mainToRenderer('deckit:mod-extensions-changed'),
+        // A main process module of the mod's, by its path in the mod's folder: started once, answering
         // { path, methods }, the paths of its functions.
         startMainProcess: IPC.rendererToMain('deckit:main-process-start', { path: 'string' }, { reply: true }),
         callMainProcess: IPC.rendererToMain(
@@ -81,27 +98,23 @@ DeckitModule.define(
         settingOptions: IPC.mainToRenderer('deckit:setting-options', { reply: true }),
         runSetting: IPC.mainToRenderer('deckit:setting-run', { reply: true }),
 
-        // deckit.plugins
-        plugins: IPC.rendererToMain('deckit:plugins', {}, { reply: true, sync: true }),
-        pick: IPC.rendererToMain('deckit:plugins-pick', {}, { reply: true }),
-        install: IPC.rendererToMain('deckit:plugins-install', { from: 'string' }, { reply: true }),
-        remove: IPC.rendererToMain('deckit:plugins-remove', { id: 'string', data: 'boolean' }, { reply: true }),
-        relaunch: IPC.rendererToMain('deckit:plugins-relaunch', { id: 'string' }, { reply: true }),
-        reveal: IPC.rendererToMain('deckit:plugins-reveal', { id: 'string' }, { reply: true }),
-        count: IPC.rendererToMain('deckit:plugins-count', { id: 'string' }, { reply: true }),
-        restartPending: IPC.rendererToMain('deckit:plugins-restart-pending', {}, { reply: true, sync: true }),
+        // deckit.mods
+        mods: IPC.rendererToMain('deckit:mods', {}, { reply: true, sync: true }),
+        pick: IPC.rendererToMain('deckit:mods-pick', {}, { reply: true }),
+        install: IPC.rendererToMain('deckit:mods-install', { from: 'string' }, { reply: true }),
+        remove: IPC.rendererToMain('deckit:mods-remove', { id: 'string', data: 'boolean' }, { reply: true }),
+        relaunch: IPC.rendererToMain('deckit:mods-relaunch', { id: 'string' }, { reply: true }),
+        reveal: IPC.rendererToMain('deckit:mods-reveal', { id: 'string' }, { reply: true }),
+        count: IPC.rendererToMain('deckit:mods-count', { id: 'string' }, { reply: true }),
+        restartPending: IPC.rendererToMain('deckit:mods-restart-pending', {}, { reply: true, sync: true }),
 
-        // deckit.plugin-settings
-        pluginSettings: IPC.rendererToMain('deckit:plugin-settings', {}, { reply: true }),
-        setPluginSetting: IPC.rendererToMain(
-            'deckit:plugin-settings-set',
-            { plugin: 'string', key: 'string', value: 'any' },
+        // deckit.mod-settings
+        modSettings: IPC.rendererToMain('deckit:mod-settings', {}, { reply: true }),
+        setModSetting: IPC.rendererToMain(
+            'deckit:mod-settings-set',
+            { mod: 'string', key: 'string', value: 'any' },
             { reply: true }
         ),
-        runPluginSetting: IPC.rendererToMain(
-            'deckit:plugin-settings-run',
-            { plugin: 'string', key: 'string' },
-            { reply: true }
-        ),
+        runModSetting: IPC.rendererToMain('deckit:mod-settings-run', { mod: 'string', key: 'string' }, { reply: true }),
     })
 );

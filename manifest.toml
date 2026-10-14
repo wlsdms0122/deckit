@@ -4,7 +4,7 @@ version = "1.0.0"
 [package]
 name = "deckit"
 version = "1.0.0"
-description = "A panel of plugins, as a library an app embeds, and Deckit.app, deckit on its own. Builds the archive an app carries; the app decides where it is shown."
+description = "A panel of mods, as a library an app embeds, and Deckit.app, deckit on its own. Builds the archive an app carries; the app decides where it is shown."
 requires = ["node", "npm", "npx", "shasum"]
 
 # Each line is what actually runs, from the package root, through one script.

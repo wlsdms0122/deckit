@@ -6,13 +6,14 @@ DeckitModule.define(
             'deckit/ui/icon',
             'deckit/ui/kit',
             'deckit/service/switcher/page',
+            'deckit/service/style/page',
             'deckit/service/switcher/model/tone',
             'deckit/feature/switcher/view-model',
             'deckit/feature/switcher/protocol',
         ],
         provides: ['boot'],
     },
-    (TOKEN, ICON, KIT, ENTRIES, TONE, VIEW_MODEL, PROTOCOL) => {
+    (TOKEN, ICON, KIT, ENTRIES, MOD_STYLE, TONE, VIEW_MODEL, PROTOCOL) => {
         // MARK: - Property
         // How each tone looks on a row of the Now strip: its mark, its glyph, the row's wash and the colour it breathes
         // when it asks for attention. Only `alert` tints the row and `info` has no colour, so a colour still means
@@ -165,6 +166,7 @@ DeckitModule.define(
         function boot(theme) {
             const ui = KIT.make(theme);
             KIT.addStyle(STYLE);
+            MOD_STYLE.wear();
             let switcher = null;
             // Reported from the close itself: Escape and a click away close here first and main hears afterwards. It
             // carries the token of the hide main waits on, and an exit overtaken by a reopen never reports, or it would
@@ -185,10 +187,10 @@ DeckitModule.define(
                     clearTimeout(exitTimer);
                     closing = false;
                     switcher = open(ui, {
-                        placeholder: 'Jump to a plugin, bookmark or view…',
+                        placeholder: 'Jump to a mod, bookmark or view…',
                         items: hydrate(items),
                         now: hydrate(now),
-                        // Resolvers and page searches live with the plugins, in the panel's page.
+                        // Resolvers and page searches live with the mods, in the panel's page.
                         onQuery: (raw, pageId) => entries.query(raw, pageId),
                         onPick: (item) => item.run(),
                         onClose: () => {

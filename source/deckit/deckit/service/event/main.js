@@ -11,23 +11,23 @@ DeckitModule.define(
     },
     (IDENTITY, RUNNER, PROTOCOL, NAME) => {
         // MARK: - Property
-        const listening = new Map(); // a plugin's page -> the event names it listens to
+        const listening = new Map(); // a mod's page -> the event names it listens to
 
         // MARK: - Initializer
         // MARK: - Public
-        // Plugins say what happened to them through deck, never to each other: an event is named after the plugin that
+        // Mods say what happened to them through deck, never to each other: an event is named after the mod that
         // sent it, which main knows by the page it came from, so none speaks for another. It goes to the pages that
-        // listen to it, and only from a plugin that is running.
+        // listen to it, and only from a mod that is running.
         function start() {
             PROTOCOL.listen.on(({ names }, sender) => {
-                IDENTITY.pluginFrom(sender);
+                IDENTITY.modFrom(sender);
                 if (!listening.has(sender)) IDENTITY.whenPageEnds(sender, () => listening.delete(sender));
                 listening.set(sender, new Set(names));
             });
             PROTOCOL.emit.on(({ name, args }, sender) => {
-                const plugin = IDENTITY.pluginFrom(sender);
-                if (RUNNER.runOf(plugin.id)?.state !== 'running') return;
-                const named = NAME.nameOf(plugin.id, name);
+                const mod = IDENTITY.modFrom(sender);
+                if (RUNNER.runOf(mod.id)?.state !== 'running') return;
+                const named = NAME.nameOf(mod.id, name);
                 for (const [page, names] of listening)
                     if (names.has(named)) PROTOCOL.event.send(page, { name: named, args });
             });

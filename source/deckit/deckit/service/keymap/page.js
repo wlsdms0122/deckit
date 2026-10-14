@@ -12,8 +12,8 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // A plugin's keys, checked once here: { action: { key, label, run, global } }. A global key is taken from every
-        // page, fields included, so it needs a modifier and must not be one that edits text. `onScreen`: the plugin has
+        // A mod's keys, checked once here: { action: { key, label, run, global } }. A global key is taken from every
+        // page, fields included, so it needs a modifier and must not be one that edits text. `onScreen`: the mod has
         // a view, where a key that is not global runs.
         function scope(keys, { invalid, global, onScreen }) {
             const declared = [];
@@ -29,7 +29,7 @@ DeckitModule.define(
                 }
                 if (!entry.global && !onScreen) {
                     invalid(
-                        `key "${action}" never runs: a plugin with no view is never on screen, so only a global key does`
+                        `key "${action}" never runs: a mod with no view is never on screen, so only a global key does`
                     );
                     continue;
                 }
@@ -49,7 +49,7 @@ DeckitModule.define(
             PROTOCOL.scope.send({ keys: declared });
         }
 
-        // `layers` is what floats in the page; `deliver` runs a plugin's function and records what it throws.
+        // `layers` is what floats in the page; `deliver` runs a mod's function and records what it throws.
         function connect({ layers, deliver, dismiss }) {
             layers.onChange((floating) => PROTOCOL.floating.send({ on: floating }));
             // A key waits while something floats, so it cannot act on what is behind a dialog.

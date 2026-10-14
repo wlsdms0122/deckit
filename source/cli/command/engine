@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# The output is checked in: a plugin's sandbox has no network or package manager, so the engine ships as one
-# CommonJS file of the plugin's, which deckit's build bundles with the rest of it.
+# The output is checked in: a mod's sandbox has no network or package manager, so the engine ships as one
+# CommonJS file of the mod's, which deckit's build bundles with the rest of it.
 set -euo pipefail
-plugin="${1:?usage: deckit engine <plugin> (a plugin with src/engine/: editor, note)}"
+mod="${1:?usage: deckit engine <mod> (a mod with src/engine/: editor, note)}"
 root="$(cd "$(dirname "$0")/../../.." && pwd)"
-here="$root/source/deckit/plugin/$plugin/src/engine"
-[ -f "$here/entry.mjs" ] || { echo "$plugin has no src/engine/entry.mjs" >&2; exit 1; }
-work="$root/.build/engine/$plugin"
-out="$root/source/deckit/plugin/$plugin/src/engine.js"
+here="$root/source/deckit/mod/$mod/src/engine"
+[ -f "$here/entry.mjs" ] || { echo "$mod has no src/engine/entry.mjs" >&2; exit 1; }
+work="$root/.build/engine/$mod"
+out="$root/source/deckit/mod/$mod/src/engine.js"
 # EditorEngine, NoteEngine: the name esbuild gives it inside the file.
-global="$(printf '%s' "$plugin" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')Engine"
+global="$(printf '%s' "$mod" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')Engine"
 
 mkdir -p "$work"
 cp "$here/package.json" "$here/entry.mjs" "$work/"
@@ -49,7 +49,7 @@ licences="$(cd "$work" && node -e '
 ')"
 
 {
-  echo "/*! The $plugin plugin's engine: CodeMirror 6 (https://codemirror.net) and what it is built from, bundled"
+  echo "/*! The $mod mod's engine: CodeMirror 6 (https://codemirror.net) and what it is built from, bundled"
   echo "   from src/engine/. Do not edit: change src/engine/entry.mjs or package.json and build it again."
   echo
   echo "   The licences of the packages in this file follow."

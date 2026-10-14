@@ -13,9 +13,9 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // A plugin as a source of the switcher's entries. What it returns is checked here, and an entry with no label
-        // is left out and told to `invalid` rather than taking every other plugin's search down. `open` is whether
-        // the plugin has a screen to open.
+        // A mod as a source of the switcher's entries. What it returns is checked here, and an entry with no label
+        // is left out and told to `invalid` rather than taking every other mod's search down. `open` is whether
+        // the mod has a screen to open.
         function source({ icon, aliases, open, commands, now, resolve, invalid }) {
             const strings = (list) =>
                 Array.isArray(list) ? list.filter((word) => typeof word === 'string' && word) : [];

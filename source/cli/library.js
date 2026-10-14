@@ -4,7 +4,7 @@ const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
 const LIBRARY = path.join(DECKIT, 'deckit');
-const PLUGINS = path.join(DECKIT, 'plugin');
+const MODS = path.join(DECKIT, 'mod');
 const APP = path.join(DECKIT, 'deckit-app');
 const REGISTRY = 'module/registry/index.js';
 const ENTRIES = {
@@ -134,7 +134,7 @@ function bundles() {
 module.exports = {
     DECKIT,
     LIBRARY,
-    PLUGINS,
+    MODS,
     APP,
     REGISTRY,
     ENTRIES,

@@ -81,7 +81,7 @@ DeckitModule.define(
             );
         }
 
-        // Another plugin's icon, drawn in this page. The text is that plugin's, so it is rebuilt from shapes alone:
+        // Another mod's icon, drawn in this page. The text is that mod's, so it is rebuilt from shapes alone:
         // nothing that runs, loads or styles crosses. What is not an SVG draws nothing.
         function sanitize(text) {
             // The HTML parser places <svg> in the SVG namespace without an xmlns, as icons are written. Its document is

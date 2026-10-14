@@ -1,6 +1,6 @@
 # The kit (`deck.ui`)
 
-Every page deckit draws, a plugin's and its own, draws with one kit, so the panel looks like one app. `deck.theme` is the look; `deck.ui` is the parts drawn in it.
+Every page deckit draws, a mod's and its own, draws with one kit, so the panel looks like one app. `deck.theme` is the look; `deck.ui` is the parts drawn in it.
 
 The kit's parts are of five kinds:
 
@@ -28,7 +28,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 | `motion` | `fast`, `base`, `slow` in ms (0 while the system asks for reduced motion), `easing`, and `entrance`, the transform a panel or a modal arrives from |
 | `syntax` | the code palette: `keyword`, `string`, `number`, `comment`, `function`, `type`, `property`, `operator`, `meta`, `invalid` |
 
-For CSS, the token is also custom properties on the page's root: each colour by its name in kebab case (`--deckit-muted`, `--deckit-on-accent`), `--deckit-type-*`, `--deckit-radius-*` in px, `--deckit-shadow-*`, `--deckit-fast`, `--deckit-base` and `--deckit-slow` in ms, `--deckit-easing`, `--deckit-font`, `--deckit-mono` and `--deckit-border`. `dark`, `syntax` and `entrance` are read from `theme`. A plugin adds rules of its own with `ui.addStyle(css)`; its class names start with its id.
+For CSS, the token is also custom properties on the page's root: each colour by its name in kebab case (`--deckit-muted`, `--deckit-on-accent`), `--deckit-type-*`, `--deckit-radius-*` in px, `--deckit-shadow-*`, `--deckit-fast`, `--deckit-base` and `--deckit-slow` in ms, `--deckit-easing`, `--deckit-font`, `--deckit-mono` and `--deckit-border`. `dark`, `syntax` and `entrance` are read from `theme`. A mod adds rules of its own with `ui.addStyle(css)`; its class names start with its id. A mod with `deckit.styles` styles other mods' pages with the same names (MOD.md, `deck.styles`).
 
 ## Buttons
 
@@ -95,8 +95,8 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 
 - `emptyState({ icon, title, hint, actions })` returns `{ element, set({ title, hint, actions }) }`.
 - `spinner({ size })` and `loading({ text })` return `{ element }`.
-- `icon(name, { size, fill, color, stroke })`: one of the kit's icons (Lucide), as SVG markup. A name it does not have throws. `iconOf(shapes, { size, stroke })` draws shapes of the plugin's own in the same frame.
+- `icon(name, { size, fill, color, stroke })`: one of the kit's icons (Lucide), as SVG markup. A name it does not have throws. `iconOf(shapes, { size, stroke })` draws shapes of the mod's own in the same frame. `sanitizeIcon(svg)` is an icon another mod gave, as an `<svg>` element rebuilt from its shapes alone, so nothing in the text runs, loads or styles the page: what a mod draws of another's icon goes through it.
 - `element(tag, { className, style, text })`.
-- `edgeFade(element, { size })`, `pressable(element)`, `selectable(element)`, `titleBar(element)` are decorators: the edges of what scrolls fade, something pressed is washed and ringed, text can be selected, and a bar along the top of the view lies in the window's title bar area (PLUGIN.md, `deck.view`): at least as tall as it, clear of the window's buttons, and dragging the window wherever nothing in it is pressed. Buttons, fields, links and anything with a `tabindex` in it take presses; another control there marks itself `-webkit-app-region: no-drag`.
+- `edgeFade(element, { size })`, `pressable(element)`, `selectable(element)`, `titleBar(element)` are decorators: the edges of what scrolls fade, something pressed is washed and ringed, text can be selected, and a bar along the top of the view lies in the window's title bar area (MOD.md, `deck.view`): at least as tall as it, clear of the window's buttons, and dragging the window wherever nothing in it is pressed. Buttons, fields, links and anything with a `tabindex` in it take presses; another control there marks itself `-webkit-app-region: no-drag`.
 - `isFullyVisible(element)`, `capturePointer(cursor)` (returns the release), `mix(foreground, background, amount)`, `alpha(color, amount)`.
 - `installedFonts(faces)`: the faces (`{ font }`) installed on this Mac.
