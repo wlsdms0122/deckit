@@ -11,7 +11,7 @@ deckit: a panel of mods, as a library an app embeds
   check            hold the files to how they reach each other
   dev              Deckit.app from the sources, built again when one changes
   install          Deckit.app into /Applications, as deckit app last made it
-  engine <mod>  build a mod's editing engine again (editor, note)
+  engine <mod>     build a mod's editing engine again (editor, note)
 
 TEXT
 }
