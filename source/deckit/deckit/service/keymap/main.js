@@ -96,7 +96,7 @@ DeckitModule.define(
         function register({ action, key, label, global = false, run }) {
             own.push({ action, key, label, scope: global ? 'global' : 'shell', run });
             announce();
-            return BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action);
+            return BINDING_ID.idOf(BINDING_ID.SHELL_OWNER, action);
         }
 
         // The chord bound now to an id, as a person reads it.
@@ -108,7 +108,7 @@ DeckitModule.define(
         // What a reader needs of the binding an issue is about.
         function factsOf(binding) {
             const { id, chord, label, owner, ownerName, scope } = binding;
-            return { id, chord, label, owner, ownerName, scope, deckit: owner === BINDING_ID.DECKIT_OWNER };
+            return { id, chord, label, owner, ownerName, scope, shell: owner === BINDING_ID.SHELL_OWNER };
         }
 
         function mark(set, sender, on) {
@@ -152,11 +152,11 @@ DeckitModule.define(
             return [
                 ...own
                     .filter((key) => key.scope === 'global')
-                    .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'global', key)),
+                    .map((key) => bindingOf(BINDING_ID.SHELL_OWNER, CONFIG.name, 'global', key)),
                 ...mods.flatMap((mod) => keysOf(mod, true).map((key) => bindingOf(mod.id, mod.name, 'global', key))),
                 ...own
                     .filter((key) => key.scope === 'shell')
-                    .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'shell', key)),
+                    .map((key) => bindingOf(BINDING_ID.SHELL_OWNER, CONFIG.name, 'shell', key)),
                 ...mods.flatMap((mod) => keysOf(mod, false).map((key) => bindingOf(mod.id, mod.name, 'mod', key))),
             ];
         }
@@ -277,7 +277,7 @@ DeckitModule.define(
         }
 
         function run(binding, webContents) {
-            if (binding.owner === BINDING_ID.DECKIT_OWNER) {
+            if (binding.owner === BINDING_ID.SHELL_OWNER) {
                 binding.run(webContents);
                 return true;
             }

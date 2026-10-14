@@ -1,0 +1,49 @@
+DeckitModule.define(
+    'deckit/service/mod-folder/main',
+    {
+        uses: [
+            'deck/service/deck/identity',
+            'deck/service/deck/catalog',
+            'deck/service/deck/main',
+            'deckit/service/mod-folder/protocol',
+        ],
+        provides: ['start'],
+        runs: 'main',
+    },
+    (IDENTITY, CATALOG, DECK, PROTOCOL) => {
+        // MARK: - Property
+        const PERMISSION = 'deckit.mods';
+
+        // MARK: - Initializer
+        // MARK: - Public
+        function start() {
+            PROTOCOL.pick.handle((_payload, sender) => {
+                IDENTITY.modFrom(sender, PERMISSION);
+                return pick();
+            });
+            PROTOCOL.reveal.handle(({ id }, sender) => {
+                IDENTITY.modFrom(sender, PERMISSION);
+                const mod = CATALOG.found().find((candidate) => candidate.id === id);
+                if (!mod) throw new Error('no mod ' + id);
+                return require('electron').shell.openPath(mod.folder);
+            });
+        }
+
+        // MARK: - Private
+        // Picking and installing are two calls because the person is asked in between. A refused folder is refused
+        // before they are asked about it.
+        async function pick() {
+            const { dialog } = require('electron');
+            const result = await dialog.showOpenDialog({
+                title: 'Choose a mod folder',
+                buttonLabel: 'Choose',
+                properties: ['openDirectory'],
+                message: 'Pick the folder that has manifest.toml in it',
+            });
+            if (result.canceled || !result.filePaths[0]) return null;
+            return DECK.installable(result.filePaths[0]);
+        }
+
+        return { start };
+    }
+);

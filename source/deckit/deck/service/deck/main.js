@@ -16,7 +16,7 @@ DeckitModule.define(
             'deck/service/deck/extension',
             'deck/service/deck/protocol',
         ],
-        provides: ['start'],
+        provides: ['start', 'installable'],
         runs: 'main',
     },
     (
@@ -62,10 +62,6 @@ DeckitModule.define(
                 IDENTITY.modFrom(sender, 'deckit.mods');
                 return describe();
             });
-            PROTOCOL.pick.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
-                return pick();
-            });
             PROTOCOL.install.handle(({ from }, sender) => {
                 IDENTITY.modFrom(sender, 'deckit.mods');
                 return install(from);
@@ -77,12 +73,6 @@ DeckitModule.define(
             PROTOCOL.relaunch.handle(({ id }, sender) => {
                 IDENTITY.modFrom(sender, 'deckit.mods');
                 RUNNER.relaunch(id);
-            });
-            PROTOCOL.reveal.handle(({ id }, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
-                const mod = CATALOG.found().find((candidate) => candidate.id === id);
-                if (!mod) throw new Error('no mod ' + id);
-                return require('electron').shell.openPath(mod.folder);
             });
             PROTOCOL.count.handle(({ id }, sender) => {
                 IDENTITY.modFrom(sender, 'deckit.mods');
@@ -129,18 +119,9 @@ DeckitModule.define(
             };
         }
 
-        // Picking and installing are two calls because the person is asked in between. A refused folder is refused
-        // before they are asked about it.
-        async function pick() {
-            const { dialog } = require('electron');
-            const result = await dialog.showOpenDialog({
-                title: 'Choose a mod folder',
-                buttonLabel: 'Choose',
-                properties: ['openDirectory'],
-                message: 'Pick the folder that has manifest.toml in it',
-            });
-            if (result.canceled || !result.filePaths[0]) return null;
-            const from = result.filePaths[0];
+        // What a folder would install, asked before the person is: its manifest, and whether it replaces an installed
+        // mod. Throws for a folder install refuses, with why.
+        function installable(from) {
             const manifest = INSTALL.installable(from, shadowed);
             return {
                 ...MANIFEST.of(manifest),
@@ -192,6 +173,6 @@ DeckitModule.define(
             REMOVE.clearForgotten(id);
         }
 
-        return { start };
+        return { start, installable };
     }
 );

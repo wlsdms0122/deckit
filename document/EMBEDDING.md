@@ -72,7 +72,7 @@ What the host app answers deckit's shell:
 |---|---|
 | `start(controls)` | once the host app is ready, before any mod launches, with what of the shell the host app drives: its views and their windows. A mod's `deck` is another object |
 | `showsPanel(webContents)` | whether the panel is what is in front where a keystroke landed |
-| `reveal()` | "show me": a mod's `deck.show()`, a switcher choice |
+| `show()` | "show me": a mod's `deck.show()`, a switcher choice |
 | `dismiss()` | "put it away": Escape with nothing else to close |
 | `summonSwitcher(webContents)` | the switcher's chord, pressed in that page |
 | `panelTitled(title)` | the panel's title changed: the name of the mod in front, or the host app's name when none is |

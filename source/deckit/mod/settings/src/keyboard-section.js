@@ -187,7 +187,7 @@ function keyboardSection({ ui, keymap }) {
 
 // What a keystroke does instead, in words, from an issue's facts.
 function issueText(shortcut, { kind, other }) {
-    const name = other.deckit || other.owner === shortcut.owner ? other.label : `${other.ownerName} ${other.label}`;
+    const name = other.shell || other.owner === shortcut.owner ? other.label : `${other.ownerName} ${other.label}`;
     if (kind === 'held') return `Not applied: ${other.chord} is already ${name}`;
     if (kind === 'shadowed') return `Never runs: ${other.chord} is ${name}`;
     if (kind === 'hides') return `Hides ${other.label} while ${shortcut.ownerName} is on screen`;

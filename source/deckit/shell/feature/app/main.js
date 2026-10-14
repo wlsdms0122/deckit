@@ -13,7 +13,7 @@ DeckitModule.define(
     (STYLE, STYLE_PERMISSION, PANEL, SWITCHER, PROTOCOL) => {
         // MARK: - Property
         // What the host app answers the shell: where it is shown is the app's.
-        const ANSWERS = ['start', 'showsPanel', 'reveal', 'dismiss', 'summonSwitcher', 'panelTitled'];
+        const ANSWERS = ['start', 'showsPanel', 'show', 'dismiss', 'summonSwitcher', 'panelTitled'];
         let deckit = null;
         let theme = null; // the app's, which every page the shell draws in derives its look from
 

@@ -223,7 +223,7 @@ DeckitModule.define(
             const entry = handed.get(id);
             if (!entry) return;
             if (entry.kind === 'command') remember(entry);
-            if (id.startsWith(OPEN)) return PANEL.reveal(entry.mod);
+            if (id.startsWith(OPEN)) return PANEL.bringToFront(entry.mod);
             session.run(id).catch((error) => deckit.log.warn(`${entry.mod}: a switcher entry failed`, error));
         }
 

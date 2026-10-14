@@ -11,7 +11,7 @@ DeckitModule.define(
         // MARK: - Public
         // Deckit on its own: the panel always in a window of its own, the switcher in front of it.
         function make({ restart }) {
-            const state = { window: null, opening: null, title: '' }; // `opening`: a second reveal waits on it
+            const state = { window: null, opening: null, title: '' }; // `opening`: a second show waits on it
             let controls = null; // what the host drives of the shell, handed as it starts
             let switcher = null;
 
@@ -21,7 +21,7 @@ DeckitModule.define(
 
             // The Dock can ask before the shell has started, which shows the panel itself as it starts. The
             // panel plays its exit as it leaves wherever it was and its entrance in the window.
-            function reveal() {
+            function show() {
                 if (!controls) return Promise.resolve(null);
                 const open = live(state.window);
                 if (open) {
@@ -92,14 +92,14 @@ DeckitModule.define(
             return {
                 start: (given) => {
                     controls = given;
-                    reveal();
+                    show();
                 },
                 showsPanel: (webContents) => {
                     if (webContents === switcher?.webContents) return false;
                     const window = windowOf(webContents);
                     return !!window && window === live(state.window) && !controls.switcher.shown();
                 },
-                reveal: () => void reveal(),
+                show: () => void show(),
                 // The panel is always presented as not dismissible here, so Escape never asks this.
                 dismiss: () => {},
                 summonSwitcher,
@@ -109,7 +109,7 @@ DeckitModule.define(
                     state.title = title;
                     if (live(state.window)) WINDOW.setTitle(state.window, title);
                 },
-                noticeClicked: () => void reveal(),
+                noticeClicked: () => void show(),
                 restart,
             };
         }

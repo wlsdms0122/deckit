@@ -13,6 +13,7 @@ DeckitModule.define(
             'deckit/service/keymap/page',
             'deckit/service/command/page',
             'deckit/service/main-process/page',
+            'deckit/service/mod-folder/page',
             'deckit/service/main-process/model/permission',
             'deckit/service/keymap/model/binding-id',
             'deck/service/deck/model/proxy',
@@ -32,6 +33,7 @@ DeckitModule.define(
         KEYMAP,
         COMMAND,
         MAIN_PROCESS,
+        MOD_FOLDER,
         MAIN_PROCESS_PERMISSION,
         BINDING_ID,
         PROXY,
@@ -40,6 +42,7 @@ DeckitModule.define(
         // MARK: - Property
         // What the shell gives a mod where none is on deckit: nothing.
         const NO_SHELL = Object.freeze({
+            members: [],
             deck: {},
             registrations: {},
             blocksKeys: () => false,
@@ -50,21 +53,22 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // What deckit gives a mod on deck (deck/service/deck/page): the web, opening addresses, the clipboard, notices,
-        // keys, commands, main process modules, and the shell's. `shellMod(context)` is what the shell on deckit, if
-        // one is, gives the mod: `deck`, the members it adds; `registrations`, the ones it adds, each by its check;
-        // `blocksKeys()`, whether a key pressed now is dropped; `keyProblem(key, parts)`, why a key would never run, or
-        // ''; and `contribute(parts)`, which answers what main is told of the mod beside deckit's own. Deckit's own
-        // members and registrations are never the shell's.
+        // keys, commands, main process modules, and the shell's. It reads how the mod is listed, its `icon` and
+        // `keywords`, which every shell reads in its run's summary. `shellMod(context)` is what the shell on deckit, if
+        // one is, gives the mod: `members`, what it reads of the entry; `deck`, the members it adds; `registrations`,
+        // the ones it adds, each by its check; `blocksKeys()`, whether a key pressed now is dropped;
+        // `keyProblem(key, parts)`, why a key would never run, or ''; and `contribute(parts, entry)`, which answers what
+        // main is told of the mod beside deckit's own. Deckit's own members and registrations are never the shell's.
         function layerOf(shellMod) {
             return ({ mod, deliver, fail }) => {
                 WEB.listen();
                 NOTIFY.listen(deliver);
-                const chordOf = (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action));
+                const chordOf = (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.SHELL_OWNER, action));
                 const given = shellMod ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail }) } : NO_SHELL;
                 const fn = (value) => (typeof value === 'function' ? '' : 'takes a function');
                 const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
                 return {
-                    members: ['icon', 'keywords'],
+                    members: ['icon', 'keywords', ...given.members],
                     deck: { ...given.deck, ...deckOf(mod, { deliver, fail }) },
                     registrations: {
                         ...given.registrations,
@@ -74,7 +78,12 @@ DeckitModule.define(
                         resolve: fn,
                         handleURL: fn,
                     },
-                    mods: { restartPending: MAIN_PROCESS.restartPending, restart: RUNTIME.restart },
+                    mods: {
+                        pick: MOD_FOLDER.pick,
+                        reveal: MOD_FOLDER.reveal,
+                        restartPending: MAIN_PROCESS.restartPending,
+                        restart: RUNTIME.restart,
+                    },
                     contribute: (parts, entry) => contribute(mod, parts, entry, { given, deliver, fail }),
                 };
             };
@@ -132,7 +141,7 @@ DeckitModule.define(
         // What deckit joins of what start() registered, and what main is told of it. The shell's goes first: a view it
         // cannot put up leaves the mod unstarted, with nothing of it joined.
         function contribute(mod, parts, entry, { given, deliver, fail }) {
-            const reported = given.contribute(parts) || {};
+            const reported = given.contribute(parts, entry) || {};
             const names = mod.urlSchemes;
             const opens = typeof parts.handleURL === 'function';
             if (names.length && !opens)

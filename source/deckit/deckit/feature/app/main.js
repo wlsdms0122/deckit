@@ -22,6 +22,7 @@ DeckitModule.define(
             'deck/service/event/main',
             'deckit/service/command/main',
             'deckit/service/main-process/main',
+            'deckit/service/mod-folder/main',
             'deckit/feature/api',
             'deckit/feature/app/protocol',
             'deckit/feature/app/model/permission',
@@ -51,6 +52,7 @@ DeckitModule.define(
         EVENT,
         COMMAND,
         MAIN_PROCESS,
+        MOD_FOLDER,
         API,
         PROTOCOL,
         PERMISSIONS,
@@ -127,6 +129,7 @@ DeckitModule.define(
             EVENT.start();
             COMMAND.start();
             MAIN_PROCESS.start();
+            MOD_FOLDER.start();
             RUNTIME.start({ restart: () => host.restart() });
             PROTOCOL.setup.handle((_payload, sender) => {
                 const page = IDENTITY.pageNameOf(sender);

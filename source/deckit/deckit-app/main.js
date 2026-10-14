@@ -29,8 +29,8 @@ if (!app.requestSingleInstanceLock()) {
         const deckit = DECKIT.connect({ preload: path.join(__dirname, 'preload.js'), host });
         SHELL.attach(deckit, { host });
         // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
-        app.on('activate', () => host.reveal());
-        app.on('second-instance', () => host.reveal());
+        app.on('activate', () => host.show());
+        app.on('second-instance', () => host.show());
         app.on('window-all-closed', () => {});
     });
 }

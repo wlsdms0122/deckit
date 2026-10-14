@@ -26,11 +26,9 @@ DeckitModule.define(
             'settingOptions',
             'runSetting',
             'mods',
-            'pick',
             'install',
             'remove',
             'relaunch',
-            'reveal',
             'count',
             'modSettings',
             'setModSetting',
@@ -88,11 +86,9 @@ DeckitModule.define(
 
         // deckit.mods
         mods: IPC.rendererToMain('deck:mods', {}, { reply: true, sync: true }),
-        pick: IPC.rendererToMain('deck:mods-pick', {}, { reply: true }),
         install: IPC.rendererToMain('deck:mods-install', { from: 'string' }, { reply: true }),
         remove: IPC.rendererToMain('deck:mods-remove', { id: 'string', data: 'boolean' }, { reply: true }),
         relaunch: IPC.rendererToMain('deck:mods-relaunch', { id: 'string' }, { reply: true }),
-        reveal: IPC.rendererToMain('deck:mods-reveal', { id: 'string' }, { reply: true }),
         count: IPC.rendererToMain('deck:mods-count', { id: 'string' }, { reply: true }),
 
         // deckit.mod-settings

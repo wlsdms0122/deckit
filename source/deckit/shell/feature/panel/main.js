@@ -2,7 +2,7 @@ DeckitModule.define(
     'shell/feature/panel/main',
     {
         uses: ['shell/service/reply', 'shell/feature/panel/protocol'],
-        provides: ['start', 'control', 'isActive', 'monitor', 'reveal'],
+        provides: ['start', 'control', 'isActive', 'monitor', 'bringToFront'],
     },
     (REPLY, PROTOCOL) => {
         // MARK: - Property
@@ -63,8 +63,8 @@ DeckitModule.define(
 
         // A mod on screen, asked by the mod itself, the switcher or an address it opened. One with no view in the
         // panel has nothing to show.
-        function reveal(modId) {
-            if (select(modId)) host.reveal();
+        function bringToFront(modId) {
+            if (select(modId)) host.show();
         }
 
         // MARK: - Private
@@ -82,7 +82,7 @@ DeckitModule.define(
             PROTOCOL.step.on(({ by }, sender) => modOf(sender) && step(by));
             PROTOCOL.reorder.on(({ ids }, sender) => modOf(sender) && deckit.mods.arrange(ids));
             PROTOCOL.layout.on((change, sender) => modOf(sender) && setFrame(change));
-            PROTOCOL.show.on((_payload, sender) => modOf(sender) && reveal(modOf(sender)));
+            PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
             PROTOCOL.hide.on((_payload, sender) => modOf(sender) && modOf(sender) === current && host.dismiss());
             PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
         }
@@ -357,7 +357,7 @@ DeckitModule.define(
             },
             isActive,
             monitor,
-            reveal,
+            bringToFront,
         };
     }
 );

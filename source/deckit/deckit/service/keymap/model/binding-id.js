@@ -2,13 +2,13 @@ DeckitModule.define(
     'deckit/service/keymap/model/binding-id',
     {
         uses: [],
-        provides: ['DECKIT_OWNER', 'idOf'],
+        provides: ['SHELL_OWNER', 'idOf'],
         runs: 'any',
     },
     () => {
         // MARK: - Property
-        // The owner of deckit's own keys; a mod's keys are owned by its id, and no mod id starts with @.
-        const DECKIT_OWNER = '@deckit';
+        // The owner of the keys the shell registers; a mod's keys are owned by its id, and no mod id starts with @.
+        const SHELL_OWNER = '@shell';
 
         // MARK: - Initializer
         // MARK: - Public
@@ -19,6 +19,6 @@ DeckitModule.define(
 
         // MARK: - Private
 
-        return { DECKIT_OWNER, idOf };
+        return { SHELL_OWNER, idOf };
     }
 );

@@ -22,7 +22,8 @@ This document is why deckit is split the way it is, and the rules that keep it s
 4. A check happens once, where trust changes: main receiving from a page, deck receiving from a mod's code, input from the disk or the network. Inside, each step trusts what the step before it made.
 5. A fact has one owner. Everyone else asks it.
 6. A layer adds to the one under it and is not known by it: what it gives a mod, what a mod registers with it, the permissions that grant it and the manifest fields it reads, it adds there.
-7. A folder is a module or a group. A name is the standard term of its field.
+7. A folder is a module or a group. A name is the standard term of its field, one name for one act: to reveal is to show in Finder, to show is to bring into view.
+8. The layers' names (deck, deckit, the shell) are the code's. Deckit is also the product's name, and what goes outside keeps it: the scheme `deckit://`, the `[deckit]` tag, the archive, the default id, and the `deckit.*` permissions, which reach inside the app as `system.*` ones reach past it.
 
 ## 2. The libraries, the mods, the host app
 
