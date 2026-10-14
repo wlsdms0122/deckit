@@ -22,7 +22,7 @@ export function createStorage({ HOME }) {
         write: (modId, values) => STORE.write(path.join(HOME.settings, modId + '.json'), values),
     };
 
-    // What the person arranged, one JSON file a key: the mod order, and what is on deck keeps.
+    // What the person arranged and what deck and the layers on it keep between runs, one JSON file a key.
     const state = {
         read: (key, fallback) => STORE.read(path.join(HOME.state, key + '.json'), fallback),
         write: (key, value) => STORE.write(path.join(HOME.state, key + '.json'), value),

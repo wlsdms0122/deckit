@@ -50,8 +50,10 @@ export function createCatalog({ CONFIG, HOME, STORAGE, LOG, FOLDER, INSTALL }) {
     }
 
     // Told when the mods or their order change.
+    // Answers its off.
     function onChange(listener) {
         listeners.add(listener);
+        return () => listeners.delete(listener);
     }
 
     // The text of the mod's entry, the one file deck runs in its sandbox.

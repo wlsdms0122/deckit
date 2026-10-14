@@ -54,6 +54,7 @@ export function createIdentity() {
     // or is gone. Calling what this returns drops `undo` uncalled.
     function whenPageEnds(webContents, undo) {
         const undos = ends.get(webContents.id);
+        if (!undos) throw new Error("whenEnds takes a page of deck's: a mod's, or one that runs none");
         undos.add(undo);
         return () => undos.delete(undo);
     }
