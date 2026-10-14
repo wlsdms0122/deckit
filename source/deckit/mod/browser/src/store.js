@@ -60,23 +60,26 @@ function store({ records, onBookmarksChange }) {
     };
 
     // Kept and replayed the same way.
-    const grants = {
-        all: () => records.get('permissions', []),
-        of: (origin) => grants.all().filter((grant) => grant.origin === origin),
+    const sitePermissions = {
+        all: () => records.get('site-permissions', []),
+        of: (origin) => sitePermissions.all().filter((sitePermission) => sitePermission.origin === origin),
         add(entries) {
-            const had = new Set(grants.all().map(grantKey));
-            records.set('permissions', [...grants.all(), ...entries.filter((grant) => !had.has(grantKey(grant)))]);
+            const had = new Set(sitePermissions.all().map(sitePermissionKey));
+            records.set('site-permissions', [
+                ...sitePermissions.all(),
+                ...entries.filter((sitePermission) => !had.has(sitePermissionKey(sitePermission))),
+            ]);
         },
         remove(entries) {
-            const gone = new Set(entries.map(grantKey));
+            const gone = new Set(entries.map(sitePermissionKey));
             records.set(
-                'permissions',
-                grants.all().filter((grant) => !gone.has(grantKey(grant)))
+                'site-permissions',
+                sitePermissions.all().filter((sitePermission) => !gone.has(sitePermissionKey(sitePermission)))
             );
         },
     };
 
-    return { bookmarks, certificates, grants };
+    return { bookmarks, certificates, sitePermissions };
 
     function saveBookmarks(list) {
         records.set('bookmarks', list);
@@ -85,8 +88,8 @@ function store({ records, onBookmarksChange }) {
 }
 
 // One permission of one site, as one string.
-function grantKey({ origin, permission }) {
+function sitePermissionKey({ origin, permission }) {
     return origin + '|' + permission;
 }
 
-module.exports = { store, grantKey };
+module.exports = { store, sitePermissionKey };

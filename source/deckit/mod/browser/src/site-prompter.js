@@ -1,10 +1,10 @@
 const { hostOf, originOf, isWeb } = require('./address.js');
-const { grantKey } = require('./store.js');
+const { sitePermissionKey } = require('./store.js');
 
 // The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open. And
 // the site permissions the person reviews. While the Browser is hidden a request waits until its tab is next in front;
 // a background tab that asks while the Browser is on screen is brought to the front.
-function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs, onAsk }) {
+function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, listTabs, onAsk }) {
     const PERMISSION_WORDS = {
         microphone: 'your microphone',
         camera: 'your camera',
@@ -23,7 +23,7 @@ function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs,
     // A refused load reports on every retry, so each certificate is asked once per attempt.
     const askedCertificates = new Set();
     const pending = new WeakMap(); // tab -> permission requests waiting for the Browser to be on screen
-    const refused = new WeakMap(); // tab -> the grant keys refused, for as long as the tab lasts
+    const refused = new WeakMap(); // tab -> the keys of the site permissions refused, for as long as the tab lasts
 
     return {
         askCertificate,
@@ -78,7 +78,7 @@ function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs,
     function editSitePermissions(url) {
         if (!isWeb(url)) return;
         const origin = originOf(url);
-        const had = new Set(grants.of(origin).map((grant) => grant.permission));
+        const had = new Set(sitePermissions.of(origin).map((sitePermission) => sitePermission.permission));
         const kinds = [...Object.keys(PERMISSION_WORDS), ...[...had].filter(opensApp)];
         ui.dialog({
             title: `Permissions for ${hostOf(origin) || origin}`,
@@ -92,16 +92,17 @@ function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs,
                     .filter((kind) => !values[kind] && had.has(kind))
                     .map((permission) => ({ origin, permission }));
                 if (added.length) {
-                    grants.add(added);
-                    for (const tab of listTabs()) for (const grant of added) refused.get(tab)?.delete(grantKey(grant));
+                    sitePermissions.add(added);
+                    for (const tab of listTabs())
+                        for (const sitePermission of added) refused.get(tab)?.delete(sitePermissionKey(sitePermission));
                     await webSession.allow(added);
                 }
                 if (removed.length) {
-                    grants.remove(removed);
+                    sitePermissions.remove(removed);
                     await webSession.revoke(removed);
                     // A page keeps a stream it already has and still believes it granted, so revoking reloads its
                     // tabs. An app's permission is asked at each opening and needs no reload.
-                    if (removed.some((grant) => !opensApp(grant.permission)))
+                    if (removed.some((sitePermission) => !opensApp(sitePermission.permission)))
                         for (const tab of listTabs()) if (originOf(tab.url) === origin) tab.page.reload();
                 }
             },
@@ -113,7 +114,7 @@ function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs,
         const refusals = refusalsOf(tab);
         if (
             !wanted.length ||
-            wanted.some((permission) => refusals.has(grantKey({ origin: request.origin, permission })))
+            wanted.some((permission) => refusals.has(sitePermissionKey({ origin: request.origin, permission })))
         )
             return request.answer(false);
         if (!isShown()) {
@@ -133,7 +134,7 @@ function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs,
             onConfirm: () => {
                 allowed = true;
                 const kept = wanted.map((permission) => ({ origin: request.origin, permission }));
-                grants.add(kept);
+                sitePermissions.add(kept);
                 webSession
                     .allow(kept)
                     .catch(() => {})
@@ -143,7 +144,8 @@ function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs,
             onClose: () =>
                 queueMicrotask(() => {
                     if (allowed) return;
-                    for (const permission of wanted) refusals.add(grantKey({ origin: request.origin, permission }));
+                    for (const permission of wanted)
+                        refusals.add(sitePermissionKey({ origin: request.origin, permission }));
                     request.answer(false);
                 }),
         });
@@ -162,7 +164,7 @@ function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs,
             onConfirm: ({ always }) => {
                 opened = true;
                 const kept = always ? wanted.map((permission) => ({ origin: request.origin, permission })) : [];
-                if (kept.length) grants.add(kept);
+                if (kept.length) sitePermissions.add(kept);
                 (kept.length ? webSession.allow(kept).catch(() => {}) : Promise.resolve()).then(() =>
                     request.answer(true)
                 );
@@ -171,7 +173,7 @@ function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs,
                 queueMicrotask(() => {
                     if (opened) return;
                     for (const permission of wanted)
-                        refusalsOf(tab).add(grantKey({ origin: request.origin, permission }));
+                        refusalsOf(tab).add(sitePermissionKey({ origin: request.origin, permission }));
                     request.answer(false);
                 }),
         });

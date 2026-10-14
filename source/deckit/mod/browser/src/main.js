@@ -56,7 +56,7 @@ module.exports = {
         // Files get a session of their own (system.files), so a file page never holds the web's cookies.
         const webSession = web.session('web');
         const filesSession = web.session('files');
-        const { bookmarks, certificates, grants } = store({ records, onBookmarksChange: showBookmarks });
+        const { bookmarks, certificates, sitePermissions } = store({ records, onBookmarksChange: showBookmarks });
         const content = ui.element('div', {
             style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' },
         });
@@ -64,7 +64,7 @@ module.exports = {
             ui,
             webSession,
             certificates,
-            grants,
+            sitePermissions,
             isShown: () => shown,
             listTabs: () => tabs.list(),
             onAsk: (tab) => {
@@ -146,7 +146,7 @@ module.exports = {
 
         content.append(find.element, bar.element);
         webSession.trust(certificates.all());
-        webSession.allow(grants.all());
+        webSession.allow(sitePermissions.all());
         tabs.restore();
         showBookmarks();
 
