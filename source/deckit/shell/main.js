@@ -19,12 +19,7 @@ function attach(deckit, { host } = {}) {
     const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;
-    deckit.permissions.define({
-        id: STYLE_PERMISSION.STYLES,
-        name: 'Styles',
-        icon: 'eye',
-        means: "It can change how every page in the app looks, other mods' among them, and so read what they show.",
-    });
+    for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
     const REGION = createRegion();
     const PANEL = createPanel({ REGION });
     const SWITCHER = createSwitcher({ PANEL });
