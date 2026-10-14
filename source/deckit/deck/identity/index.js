@@ -9,6 +9,7 @@ export function createIdentity() {
     const ends = new Map(); // webContents id -> Set of what undoes what its page set up
     const activated = new Map(); // webContents id -> when a person last pressed a key or the mouse in it
     const held = new Set(); // webContents ids with the mouse held down in them
+    const pointed = new Map(); // webContents id -> when a person last pressed or let go of the mouse in it
 
     // MARK: - Initializer
     // MARK: - Public
@@ -24,10 +25,16 @@ export function createIdentity() {
             (_event, input) => input.type === 'keyDown' && activated.set(id, Date.now())
         );
         webContents.on('input-event', (_event, input) => {
+            // A drag tells what it did as it is let go, however long it was held: the release is a press too.
             if (input.type === 'mouseDown') {
                 activated.set(id, Date.now());
+                pointed.set(id, Date.now());
                 held.add(id);
-            } else if (input.type === 'mouseUp') held.delete(id);
+            } else if (input.type === 'mouseUp') {
+                activated.set(id, Date.now());
+                pointed.set(id, Date.now());
+                held.delete(id);
+            }
         });
         if (owner.mod) pages.set(owner.mod.id, webContents);
         ends.set(id, new Set());
@@ -45,6 +52,7 @@ export function createIdentity() {
             ends.delete(id);
             activated.delete(id);
             held.delete(id);
+            pointed.delete(id);
             owners.delete(id);
             if (owner.mod && pages.get(owner.mod.id) === webContents) pages.delete(owner.mod.id);
         });
@@ -71,6 +79,11 @@ export function createIdentity() {
     // and not of the page's own code, and the press is not used up, so a drag tells as it goes.
     function isPressing(webContents) {
         return held.has(webContents.id) || Date.now() - (activated.get(webContents.id) || 0) < ACTIVATION_MS;
+    }
+
+    // The same, of the mouse alone: what a person points at in the page, not what they type into it.
+    function isPointing(webContents) {
+        return held.has(webContents.id) || Date.now() - (pointed.get(webContents.id) || 0) < ACTIVATION_MS;
     }
 
     // A press elsewhere that acts in this page, as a command picked in another page runs in the mod's.
@@ -125,6 +138,7 @@ export function createIdentity() {
         whenPageEnds,
         consumeUserActivation,
         isPressing,
+        isPointing,
         passUserActivation,
         modOf,
         modFrom,
