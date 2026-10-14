@@ -250,7 +250,7 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 |---|---|
 | `show()` | the shell's: puts the calling mod's view on screen; a mod with no view in the panel, or one still starting, has nothing to show. A child not in the mod list brings its parent on screen |
 | `region(element)` | the shell's: a place in the mod's view where its children are shown (Using what another mod does) |
-| `children` | the shell's: `list()`, `[{ id, name, icon }]` of the mods whose view names this one as its `parent`, in the person's order, and `onChange(listener)`, which hears them each time they change and returns its off |
+| `children` | the shell's: `list()`, `[{ id, name, icon }]` of the mods whose view names this one as its `parent` and that run or are launching again, each from its first launch, in the person's order, and `onChange(listener)`, which hears them each time they change and returns its off |
 | `caller()` | the mod that called one of this mod's exports, while the function runs to its first `await` (`deck.exports`); it throws otherwise |
 | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` | events, its own sent and any mod's heard (Using what another mod does) |
 | `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deckit's own answer; resolves to whether anything opened it |
