@@ -194,10 +194,13 @@ function workspaceSearch({ ui, fileSystem, root, folders, ranker, onOpen, onRepl
             setFolders([relative]);
             bar.focus();
         },
+        // Called before the workspace's root follows the move.
         follow(move) {
             const top = root();
-            if (!scope.folders.length || !top) return;
+            if (!top) return;
             const base = move(top) || top;
+            followResults(move, base);
+            if (!scope.folders.length) return;
             const moved = scope.folders.map((relative) => {
                 const at = move(top + '/' + relative);
                 return at && isInside(at, base) ? relativePath(at, base) : '';
@@ -267,19 +270,33 @@ function workspaceSearch({ ui, fileSystem, root, folders, ranker, onOpen, onRepl
         return chip;
     }
 
-    function relativeToRoot(path) {
-        const top = root();
+    // A file moved to the Trash takes its results with it.
+    function followResults(move, top) {
+        if (!last) return;
+        const files = last.files.map((file) => ({ ...file, path: move(file.path) })).filter((file) => file.path);
+        if (files.length === last.files.length && files.every((file, index) => file.path === last.files[index].path))
+            return;
+        for (const path of [...collapsed]) {
+            collapsed.delete(path);
+            if (move(path)) collapsed.add(move(path));
+        }
+        last = { ...last, files, total: files.reduce((total, file) => total + file.matches.length, 0) };
+        summarize(last);
+        draw(top);
+    }
+
+    function relativeToRoot(path, top) {
         return top && isInside(path, top) ? relativePath(path, top) : path;
     }
 
-    function draw() {
+    function draw(top = root()) {
         const items = [];
         for (const file of last?.files || []) {
             const isCollapsed = collapsed.has(file.path);
             items.push({
                 key: 'file\n' + file.path,
                 path: file.path,
-                folder: folderOf(relativeToRoot(file.path)),
+                folder: folderOf(relativeToRoot(file.path, top)),
                 count: file.matches.length,
                 collapsed: isCollapsed,
             });
@@ -373,16 +390,20 @@ function workspaceSearch({ ui, fileSystem, root, folders, ranker, onOpen, onRepl
         if (turn !== searchTurn) return;
         running = false;
         last = { ...answer, query: asked, options: { ...options } };
+        summarize(last);
+        warning.textContent = answer.warning || '';
+        warning.hidden = !answer.warning;
+        draw();
+    }
+
+    // Out of time with nothing found is told apart from "No results", which would read as "nothing uses this".
+    function summarize(answer) {
         const files = answer.files.length;
-        // Out of time with nothing found is told apart from "No results", which would read as "nothing uses this".
         summaryText.textContent = answer.total
             ? `${answer.total}${answer.truncated ? '+' : ''} result${answer.total === 1 ? '' : 's'} in ${files} file${files === 1 ? '' : 's'}`
             : answer.stoppedBy === 'time'
               ? 'Stopped before finding anything: it took too long. Narrow it with the files to include.'
               : 'No results';
-        warning.textContent = answer.warning || '';
-        warning.hidden = !answer.warning;
-        draw();
     }
 
     // Only on complete results for the field as it is: while a search is pending, `last` is the previous query's, and a
