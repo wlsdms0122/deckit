@@ -102,7 +102,7 @@ module.exports = {
 | `keywords` | optional; the switcher's aliases for the mod |
 | `settings` | optional; what the person can choose about the mod (below) |
 | `start(deck)` | starts the mod and registers what it contributes; may be async, and deck waits for it |
-| `stop()` | optional; the mod's run is ending: it terminates (removed, updated, the app quitting, a new theme), or `start` failed. It may be async, and deck waits for it a short while. A new theme launches the mod again, so what `stop()` ended, `start()` starts again. A `stop()` that throws is written to the log; the row in Settings shows the run that follows |
+| `stop()` | optional; the mod's run is ending: it terminates (removed, updated, the app quitting, restarted, a mod it requires ending), or `start` failed. It may be async, and deck waits for it a short while: what must not be lost is written here. A `stop()` that throws is written to the log; the row in Settings shows the run that follows |
 
 Any other member stops the mod. Everything the mod reaches is in `deck`.
 
@@ -201,7 +201,7 @@ With `deckit.styles`, styles other pages while the mod runs: a mod's page by its
 
 ### theme and ui
 
-`theme` is the look, derived from the host app's: `dark`, `font`, `mono`, `type`, `border`, `color`, `radius`, `shadow`, `motion` and `syntax`. `ui` is the kit, drawn in it. Both are in [UI.md](UI.md).
+`theme` is the look, derived from the host app's: `dark`, `font`, `mono`, `type`, `border`, `color`, `radius`, `shadow`, `motion` and `syntax`, each read as it is now, and `onChange(listener)` for a new one. `ui` is the kit, drawn in it. Both are in [UI.md](UI.md).
 
 ### settings
 
@@ -261,7 +261,7 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `clipboard.writeText(text)` | copies text |
 | `clipboard.readText()` | with `system.clipboard` |
 | `notify({ title, body, silent, onClick })` | with `system.notifications` |
-| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`, and the shell's `pinned()` (the children the person pinned to the mod list) and `setPinned(id, pinned)`; `list`, `restartPending` and `pinned` answer at once, the rest resolve. `relaunch(id)` terminates the mod and launches it again, or launches one not running, and rejects while a mod it requires is not running |
+| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`, and the shell's `pinned()` (the children the person pinned to the mod list) and `setPinned(id, pinned)`; `list`, `restartPending` and `pinned` answer at once, the rest resolve. `onChange(listener)` hears that what `list` answers may have changed (a mod found or gone, a run that moved), and answers its off. `relaunch(id)` terminates the mod and launches it again, or launches one not running, and rejects while a mod it requires is not running |
 | `modSettings` | with `deckit.mod-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
 | `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
@@ -293,10 +293,10 @@ Each launch of a mod's entry is a run, and a run is in one of four states:
 |---|---|
 | `launching` | its sandbox loads, the entry is evaluated and its settings declared; once what it requires is running, `start(deck)` registers, and starts main process modules if it needs them |
 | `running` | `start` has ended and deck has joined what it registered (keys, switcher, URL handler, exports); a view, if it registered one, is in the panel: didAppear and didDisappear |
-| `terminating` | `stop()` is asked: removed, updated, the app quitting, a new theme, restarted from Settings, a mod it requires ending, or `start` failed. A `stop()` asked while `start` is still going runs once it has ended |
+| `terminating` | `stop()` is asked: removed, updated, the app quitting, restarted from Settings, a mod it requires ending, or `start` failed. A `stop()` asked while `start` is still going runs once it has ended |
 | `notRunning` | it ended: `stop()` answered or its time ran out, or its page went away |
 
-A mod launches again in a new sandbox when it is installed again, and in the same one, loaded again, when the host app's theme changes, when it is restarted from Settings, and when a mod it requires launches again. A page that loads again by itself ends its run with the page it ran in, and launches a new one. A main process module is started once for each mod and path while the app runs: a new sandbox asking for the same path gets the one already running. One whose code changed is taken up at the app's next start; Settings asks for the restart.
+A mod launches again in a new sandbox when it is installed again, and in the same one, loaded again, when it is restarted from Settings, and when a mod it requires launches again. A new theme launches nothing again: the page takes it in place (`theme`, below). A page that loads again by itself ends its run with the page it ran in, and launches a new one. A main process module is started once for each mod and path while the app runs: a new sandbox asking for the same path gets the one already running. One whose code changed is taken up at the app's next start; Settings asks for the restart.
 
 Whatever deck calls after `start`, a call that throws or rejects costs that call alone: it is shown on the mod's row in Settings, and the mod goes on. What must outlive the sandbox is written when it changes: the sandbox can be made again at any of these times.
 

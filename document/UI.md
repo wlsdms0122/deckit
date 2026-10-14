@@ -14,7 +14,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 
 ## The theme
 
-`deck.theme` is derived once from the host app's colours:
+`deck.theme` is derived from the host app's colours, and changes when the host app gives new ones. Each key is read as it is now; `theme.onChange(listener)` hears a new theme and answers its off.
 
 | Key | What it holds |
 |---|---|
@@ -28,7 +28,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 | `motion` | `fast`, `base`, `slow` in ms (0 while the system asks for reduced motion), `easing`, and `entrance`, the transform a panel or a modal arrives from |
 | `syntax` | the code palette: `keyword`, `string`, `number`, `comment`, `function`, `type`, `property`, `operator`, `meta`, `invalid` |
 
-For CSS, the token is also custom properties on the page's root: each colour by its name in kebab case (`--deckit-muted`, `--deckit-on-accent`), `--deckit-type-*`, `--deckit-radius-*` in px, `--deckit-shadow-*`, `--deckit-fast`, `--deckit-base` and `--deckit-slow` in ms, `--deckit-easing`, `--deckit-font`, `--deckit-mono` and `--deckit-border`. `dark`, `syntax` and `entrance` are read from `theme`. A mod adds rules of its own with `ui.addStyle(css)`; its class names start with its id. A mod with `deckit.styles` styles other mods' pages with the same names (MOD.md, `deck.styles`).
+For CSS, the token is also custom properties on the page's root: each colour by its name in kebab case (`--deckit-muted`, `--deckit-on-accent`), `--deckit-type-*`, `--deckit-radius-*` in px, `--deckit-shadow-*`, `--deckit-fast`, `--deckit-base` and `--deckit-slow` in ms, `--deckit-easing`, `--deckit-font`, `--deckit-mono` and `--deckit-border`. `dark`, `syntax` and `entrance` are read from `theme`. A new theme changes the custom properties and the page's `color-scheme` in place, so whatever is drawn with them (and CSS `light-dark()`) follows by itself; what a mod worked out from `theme` in code it works out again in `onChange`. A mod adds rules of its own with `ui.addStyle(css)`; its class names start with its id. A mod with `deckit.styles` styles other mods' pages with the same names (MOD.md, `deck.styles`).
 
 ## Buttons
 
