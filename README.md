@@ -1,6 +1,6 @@
 # deckit
 
-A library a host app embeds to take mods, the way a game does. Its core, deck, runs mods and composes what they add to the app: views, commands, keys, URL scheme handlers, libraries for other mods and work in the app's main process. On deck it gives basic views (the panel, the quick switcher, the kit mods draw with) and its own mods (Editor, Finder, Notes, Browser, Settings, and Deckit, which offers what a person asks of deck itself in the switcher). Where the panel is shown is the host app's. Deckit.app is deckit embedded by itself.
+A library a host app embeds to take mods, the way a game does. Its core, deck, runs mods and composes what they add to the app: views, commands, keys, URL scheme handlers, libraries for other mods, extensions of what other mods do, new looks for their pages and work in the app's main process. On deck it gives basic views (the panel, the quick switcher, the kit mods draw with) and its own mods (Editor, Finder, Notes, Browser, Settings, and Deckit, which offers what a person asks of deck itself in the switcher). Where the panel is shown is the host app's. Deckit.app is deckit embedded by itself.
 
 Deckit is `source/deckit` and the documents it ships, whole by itself. This package around it, `manifest.toml` and `source/cli`, is the commands below, which check, build, run and ship it.
 

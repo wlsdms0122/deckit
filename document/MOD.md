@@ -1,6 +1,6 @@
 # Writing a mod
 
-A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, in any mix. A view is one of these abilities, and a mod with none is headless. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
+A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view is one of these abilities, and a mod with none is headless. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
 
 How the folder is laid out is the mod's own. The folder's name says nothing; the manifest says who the mod is, and its `main` names the entry:
 
@@ -74,6 +74,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `deckit.mod-settings` | every mod's settings | `deck.modSettings` |
 | `deckit.key-map` | every mod's shortcuts | `deck.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
+| `deckit.styles` | how other mods' pages look, and so what they show | `deck.styles` |
 
 An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deck: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another mod.
 
@@ -165,9 +166,35 @@ An entry of `commands` has a `run` or a `page`; one with neither is left out. In
 
 What a mod that requires this one receives as `deck.requires[id]`. Values are copied and frozen when the mod starts, and a value that cannot be copied (a Symbol, an object that holds itself) leaves the mod unstarted; functions are called through the main process and so return promises. Keep them working while the view is not on screen: the mod using them is not looking at it.
 
+### deck.extensionPoint(name)
+
+Opens an extension point: a place where other mods add what this one does, which they name `<this mod's id>:<name>`. What a point takes is the mod's own to say, in its documentation: an object of values and functions, such as an account provider's name, icon and `events()`. Called in `start`, once for each name, it returns the point:
+
+- `extensions()`: what extends the point now, `{ [mod id]: extension }`, values copied and frozen, functions called through the main process and so returning promises.
+- `onChange(listener)`: `listener(extensions)` each time a mod that extends it starts or ends. Returns the unsubscribe.
+
+Nothing extends a point while its mod starts: a mod that extends it requires this one, so it starts after. A point's mod never names what extends it, and runs the same with nothing there.
+
+```js
+const providers = deck.extensionPoint('accounts');
+providers.onChange((extensions) => draw(Object.values(extensions)));
+```
+
+### deck.extend({ '<mod id>:<point>': extension })
+
+Extends another mod's points, each with an object of values and functions. The mod names that one in `[requires]`, so it runs only while that one does: it starts after the point is open, and when that one ends, it ends first. Copied as exports are, and a value that cannot be copied leaves the mod unstarted. A point the mod does not require, or one that mod does not open, is shown on the row in Settings. What extends a point stays in its own mod's page, with its permissions and its web sessions: the point's mod calls it, and never holds what it holds.
+
+```js
+deck.extend({ 'calendar:accounts': { name: 'Google', icon, async events(account, calendar, from, to) { … } } });
+```
+
+### deck.styles({ '<mod id>' or '*': css })
+
+With `deckit.styles`, styles other pages while the mod runs: a mod's page by its id, and every page deckit draws, the switcher's too, by `*`. A page wears them as its last style sheets, in the mods' order, the later over the earlier, so a rule wins over the page's own at the same specificity; a style the page sets on an element itself still wins unless the rule is `!important`. What a page is drawn with is the kit's tokens, `--deckit-*` on its root, and each mod's classes, which start with its id (UI.md): a mod that sets the tokens is a theme. A page for a mod that is not there is never styled, and a mod's styles go when it ends.
+
 ## deck
 
-`start(deck)` receives `{ id, name, theme, ui, settings, storage, web, requires, util }`, what it registers with (above), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod.
+`start(deck)` receives `{ id, name, theme, ui, settings, storage, web, requires, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod.
 
 ### theme and ui
 
@@ -270,6 +297,10 @@ Two ways, and one question picks: could the host app do this if the other mod we
 **URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a mod makes up. A mod calls `deck.open(url)` and never names who answers. Each scheme has its handlers: the mods whose manifest names it, in the order the person set in Settings, then deck's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only when `userInitiated` says a person asked, during their click or key; otherwise it is shown in Finder. A scheme no mod takes and deck has no answer for ends unopened.
 
 **requires**, when it could not. The other mod registers `deck.exports`, and this one names it in `[requires]` and receives it as `deck.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the mod does not load, and Settings says why.
+
+**Extension points**, the same dependency the other way round: the other mod uses what this one does. That one opens a point (`deck.extensionPoint`), and this one requires it and extends the point (`deck.extend`): a calendar opens `accounts` and a mod adds Google accounts to it, an editor opens `languages` and a mod adds a language server. The dependency goes the one way requires does, so the calendar knows no provider by name, and a new provider is a new mod.
+
+How another mod's pages look is changed by **styles** (`deck.styles`), with the person's leave. What another mod does is changed only where it opens a point.
 
 Apart from both, a mod says what happened to it, for whoever cares, as **events**. `deck.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. `deck.on('<mod id>:<name>', listener)` hears one and returns its off. Values are copied. It takes no requirement: a mod's events go out while it is running, from when its `start` has finished until it terminates, and nothing arrives from one that is not running.
 

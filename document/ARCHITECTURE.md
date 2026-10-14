@@ -1,6 +1,6 @@
 # How deckit is built
 
-Deckit is a library a host app embeds. Its core is deck, which runs mods and composes them. A mod is what a person adds to the host app, as to a game: a view, a command, a few keys, a way to open an address, a library for other mods, or work done in the app's main process, in any mix. deck runs each mod from its entry and joins what it registers: its keys to the keymap, its commands to the switcher, its URL scheme handler to opening addresses, its exports to the mods that require it. On deck, deckit gives basic views: the panel that shows the mods with a view, the switcher, and the kit they draw with. They are built on deck and deck does not depend on them; a mod runs whether or not the panel is shown. Where the panel is shown is the host app's, and every host app brings a shell to say so.
+Deckit is a library a host app embeds. Its core is deck, which runs mods and composes them. A mod is what a person adds to the host app, as to a game: a view, a command, a few keys, a way to open an address, a library for other mods, more for another mod to do, a new look, or work done in the app's main process, in any mix. deck runs each mod from its entry and joins what it registers: its keys to the keymap, its commands to the switcher, its URL scheme handler to opening addresses, its exports to the mods that require it, its extensions to the points they extend, its styles to the pages they style. On deck, deckit gives basic views: the panel that shows the mods with a view, the switcher, and the kit they draw with. They are built on deck and deck does not depend on them; a mod runs whether or not the panel is shown. Where the panel is shown is the host app's, and every host app brings a shell to say so.
 
 This document is why deckit is split the way it is, and the rules that keep it so. The contract a mod is written against is [MOD.md](MOD.md); how a host app embeds deckit is [EMBEDDING.md](EMBEDDING.md); the kit mods draw with is [UI.md](UI.md).
 
@@ -47,6 +47,8 @@ The pages never speak to each other. Main carries everything between them, and e
 | which mods run, each in its sandbox, and where each run is in its lifecycle | `service/deck/runner.js` |
 | which mod is on screen, and back and forward | `feature/panel/main.js` |
 | what a mod exports, its settings, its main process modules | `service/deck/export.js`, `setting.js`, `main-process.js` |
+| which mods extend each extension point | `service/deck/extension.js` |
+| which styles each page wears, in what order | `service/style/main.js` |
 | which page is which mod | `service/deck/identity.js` |
 | what a keystroke means | `service/keymap/main.js`; a page only hears the chords it may act on |
 | who opens an address | `service/open/main.js`, in the order the person set |
@@ -76,12 +78,14 @@ A mod reaches deck only through `deck`, what its `start` is handed (MOD.md). Bef
 
 Between mods there are two ways, and one question picks: could the host app do this if the other mod were not there?
 
-- If it could not, it is a dependency. A mod names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. What the host app offers (`host/exports`) is handed to the host app's own mod, whose id is the host app's, and another mod reaches it by requiring that one.
+- If it could not, it is a dependency. A mod names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. The other way round, a mod opens an extension point and one that requires it extends the point: what extends it stays in the extending mod's page, and the point's mod calls it through main, never naming it. What the host app offers (`host/exports`) is handed to the host app's own mod, whose id is the host app's, and another mod reaches it by requiring that one.
 - If it could, it is a URL scheme handler. A mod asks for an address to be opened (`deck.open(url)`) without knowing who answers. The mods whose manifest names the scheme are its handlers and are asked in the order the person set, ahead of deck's own answer, which is always last.
 
 Apart from both, a mod says what happened to it through deck's events (`service/event`): `deck.emit(name)` is heard as `<its id>:<name>` by any mod that listens, and no mod speaks for another. Listening takes no dependency. The bus itself, listeners by name, is `module/event-bus`.
 
-What reaches past a mod's own sandbox (the clipboard, notices, any web address, another mod's settings, the keymap, a main process module) is asked for by name in `permissions`, with a reason the person reads when installing. Main checks each one where the mod asks, by the page it asks from.
+A mod changes how another's pages look with styles, which deck puts last on each page they style, and nothing else of another mod.
+
+What reaches past a mod's own sandbox (the clipboard, notices, any web address, another mod's settings, the keymap, other mods' looks, a main process module) is asked for by name in `permissions`, with a reason the person reads when installing. Main checks each one where the mod asks, by the page it asks from.
 
 ## 6. Modules
 
