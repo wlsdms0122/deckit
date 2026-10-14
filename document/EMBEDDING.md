@@ -120,7 +120,19 @@ What connect answers is all a host app, or the shell on deckit, reaches of decki
 | `window` | `place(view, window, { bounds, front, onClose })`, which puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
 | `log` | `info`, `warn`, `error`, `guard(emitter, event, listener)` |
 
-On a page, the shell is what the host app hands `boot` as `shell`: `page(name)` draws a page it made, and `mod(context)` is what it gives each mod as deckit runs it, answering `deck` (members it adds), `registrations` (each by its check), `mods` (what it adds to `deck.mods` for a mod with `deckit.mods`), `blocksKeys()`, `keyProblem(key, parts)` and `contribute(parts)`, which mounts what it shows and answers what main is told of the mod. That is how deckit's shell hands a mod `theme`, `ui`, `show`, `region`, `children`, the registrations `view` and `styles`, and the pins on `mods`, and how the panel's frame goes around a view. What deckit gives a mod is never replaced by what the shell gives.
+On a page, the shell is what the host app hands `boot` as `shell`: `page(name)` draws a page it made, and `mod(context)` is what it gives each mod as deckit runs it. `context` is `{ mod, chordOf, deliver, fail }`: the mod's manifest; `chordOf(action)`, the chord a key registered with `keymap.register` is bound to now, by its action; `deliver(what, listener, ...args)`, which calls a function of the mod's and records a throw or a rejection on the mod's row; and `fail(problem)`, which records a problem there. `mod(context)` answers:
+
+| | |
+|---|---|
+| `members` | the members of the entry it reads, besides deckit's `icon` and `keywords`; an entry with a member no layer reads does not start |
+| `deck` | the members it adds to `deck` |
+| `registrations` | the registrations it adds, by name, each a check that answers why a value is refused, or `''` |
+| `mods` | what it adds to `deck.mods` for a mod with `deckit.mods` |
+| `blocksKeys()` | whether a key pressed now is dropped, as while something floats over the page |
+| `keyProblem(key, parts)` | why a key would never run, or `''`, with `parts` what `start` registered |
+| `contribute(parts, entry)` | called once `start` has ended, with what it registered and the entry: mounts what the shell shows and answers `{ summary, contributions }`, what main is told of the mod, which a run carries as its `summary` and `contributions`. One that throws leaves the mod unstarted |
+
+That is how deckit's shell hands a mod `theme`, `ui`, `show`, `region`, `children`, the registrations `view` and `styles`, and the pins on `mods`, and how the panel's frame goes around a view. What deckit gives a mod is never replaced by what the shell gives.
 
 The host app and its shell reach deckit through these, and nothing else of deckit's: their own listeners and their own files are their own.
 
