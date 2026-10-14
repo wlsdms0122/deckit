@@ -83,12 +83,12 @@ function savedSession({ records, fileSystem, workspaces }) {
 
     function follow(move) {
         unrestoredWorkspaces = unrestoredWorkspaces
+            .filter((saved) => !saved.root || move(saved.root) !== null)
             .map((saved) => ({
                 ...saved,
                 root: saved.root && move(saved.root),
                 open: saved.open.map(move).filter(Boolean),
-            }))
-            .filter((saved) => saved.root !== null);
+            }));
         for (const [root, paths] of [...unrestoredTabs]) {
             unrestoredTabs.delete(root);
             const moved = root ? move(root) : root;
