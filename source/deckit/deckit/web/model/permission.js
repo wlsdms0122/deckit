@@ -1,12 +1,44 @@
 // MARK: - Property
-// The ids of the permissions this service checks; what each grants is in the app's list.
+// The permissions this service checks, as a person reads them before installing. `reach`: `system`, past the
+// app, or `app`, inside it.
 const FILES = 'system.files';
 const NETWORK = 'system.network';
 const CERTIFICATES = 'system.certificates';
 const SITE_PERMISSIONS = 'system.site-permissions';
 
+const PERMISSIONS = Object.freeze([
+    Object.freeze({
+        id: FILES,
+        name: 'Files',
+        icon: 'fileText',
+        means: 'It can open files on this Mac in its own pages, where it can read what they hold.',
+        reach: 'system',
+    }),
+    Object.freeze({
+        id: NETWORK,
+        name: 'Network',
+        icon: 'globe',
+        means: 'It can read any address on the web or your network, past the rules that keep one site from reading another.',
+        reach: 'system',
+    }),
+    Object.freeze({
+        id: CERTIFICATES,
+        name: 'Certificates',
+        icon: 'shieldCheck',
+        means: "It can accept a certificate this Mac cannot verify, for one site, so that site's pages load.",
+        reach: 'system',
+    }),
+    Object.freeze({
+        id: SITE_PERMISSIONS,
+        name: 'Site Permissions',
+        icon: 'mic',
+        means: "It can let a site's pages use the camera, the microphone, notifications, what you copied, your location and the apps links open in, and take that back.",
+        reach: 'system',
+    }),
+]);
+
 // MARK: - Initializer
 // MARK: - Public
 // MARK: - Private
 
-export { FILES, NETWORK, CERTIFICATES, SITE_PERMISSIONS };
+export { FILES, NETWORK, CERTIFICATES, SITE_PERMISSIONS, PERMISSIONS };

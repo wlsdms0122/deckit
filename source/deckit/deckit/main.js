@@ -1,5 +1,10 @@
 import * as PROTOCOL from './protocol.js';
-import * as PERMISSIONS from './model/permission.js';
+import * as MAIN_PROCESS_PERMISSION from './main-process/model/permission.js';
+import * as WEB_PERMISSION from './web/model/permission.js';
+import * as CLIPBOARD_PERMISSION from './clipboard/model/permission.js';
+import * as NOTIFICATION_PERMISSION from './notification/model/permission.js';
+import * as KEYMAP_PERMISSION from './keymap/model/permission.js';
+import * as OPEN_PERMISSION from './open/model/permission.js';
 import * as SCHEMES from './open/model/scheme.js';
 import * as DECK from '../deck/main.js';
 import { createWindow } from './window/index.js';
@@ -110,10 +115,16 @@ function make({ preload, host, config: CONFIG, folders }) {
     const starting = []; // what starts with deckit, before any mod launches: the shell on it
     let started = false;
 
-    for (const permission of PERMISSIONS.PERMISSIONS)
-        MOD_PERMISSION.define(permission, {
-            before: permission.id.startsWith('system.') ? PERMISSIONS.WIDER_THAN : null,
-        });
+    // What each of deckit's services grants, in the order a person reads them.
+    for (const model of [
+        MAIN_PROCESS_PERMISSION,
+        WEB_PERMISSION,
+        CLIPBOARD_PERMISSION,
+        NOTIFICATION_PERMISSION,
+        KEYMAP_PERMISSION,
+        OPEN_PERMISSION,
+    ])
+        for (const permission of model.PERMISSIONS) MOD_PERMISSION.define(permission);
     MANIFEST.define(SCHEMES.FIELD, SCHEMES.field());
     require('electron')
         .app.whenReady()
