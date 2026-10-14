@@ -46,13 +46,7 @@ DeckitModule.define(
             PANEL.start({ deckit, host });
             SWITCHER.start({ deckit, host });
             deckit.keymap.delegate({ isActive: PANEL.isActive, monitor: PANEL.monitor });
-            host.start({
-                setTheme,
-                panel: PANEL.control,
-                switcher: SWITCHER.control,
-                window: deckit.window,
-                keymap: { listen: deckit.keymap.listen },
-            });
+            host.start({ setTheme, panel: PANEL.control, switcher: SWITCHER.control });
         }
 
         // A new theme makes every page again, which draws in it from the start.

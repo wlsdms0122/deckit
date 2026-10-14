@@ -44,7 +44,7 @@ DeckitModule.define(
                             glass: controls.panel.glass,
                             fullSize: true,
                             key: 'panel',
-                            place: (window, { bounds }) => controls.window.place(view, window, { bounds, onClose }),
+                            place: (window, { bounds }) => controls.panel.place(window, { bounds, onClose }),
                             focus: focusPanel,
                         });
                         controls.panel.present({ floating: false, dismissible: false, titleBar: WINDOW.titleBar });
@@ -82,7 +82,7 @@ DeckitModule.define(
                 controls.switcher.close();
                 if (here || !window || window !== live(state.window)) return;
                 switcher = controls.switcher.view();
-                controls.window.place(switcher, window, {
+                controls.switcher.place(window, {
                     front: true,
                     onClose: () => controls.switcher.close(),
                 });

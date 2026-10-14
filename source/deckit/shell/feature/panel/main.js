@@ -503,6 +503,8 @@ DeckitModule.define(
             control: {
                 glass: GLASS,
                 view: () => container,
+                // Into one of the host app's windows, as deckit places a view (`bounds`, `onClose`).
+                place: (window, options) => deckit.window.place(container, window, options),
                 contains,
                 show,
                 hide,

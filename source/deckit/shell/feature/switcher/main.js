@@ -282,6 +282,8 @@ DeckitModule.define(
             // What the host drives of it.
             control: {
                 view: build,
+                // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`).
+                place: (window, options) => deckit.window.place(build(), window, options),
                 open,
                 close,
                 shown: () => state.on,
