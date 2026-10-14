@@ -1,4 +1,4 @@
-const { WEEKDAYS_KO, clockText } = require('./date.js');
+const { WEEKDAYS, clockText } = require('./date.js');
 const { nameOf, isSpanning } = require('./occurrence.js');
 const { paintPast, paintDot, paintText } = require('./paint.js');
 const { providerIcon } = require('./provider-icon.js');
@@ -227,10 +227,10 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
         row.appendChild(dot);
         if (showDate) {
             const date = document.createElement('span');
-            date.textContent = `${occurrence.start.getMonth() + 1}/${occurrence.start.getDate()} (${WEEKDAYS_KO[occurrence.start.getDay()]})`;
+            date.textContent = `${occurrence.start.getMonth() + 1}/${occurrence.start.getDate()} (${WEEKDAYS[occurrence.start.getDay()]})`;
             Object.assign(date.style, {
                 flex: '0 0 auto',
-                width: '62px',
+                width: '76px',
                 opacity: '.55',
                 font: '13px var(--deckit-font)',
             });

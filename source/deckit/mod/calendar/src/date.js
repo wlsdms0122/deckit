@@ -1,6 +1,5 @@
 const DAY_MS = 86400000;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const WEEKDAYS_KO = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTHS = [
     'January',
     'February',
@@ -52,7 +51,6 @@ function dayDelta(later, earlier) {
 module.exports = {
     DAY_MS,
     WEEKDAYS,
-    WEEKDAYS_KO,
     MONTHS,
     startOfDay,
     addDays,
