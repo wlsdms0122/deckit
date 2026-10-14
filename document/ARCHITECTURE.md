@@ -23,18 +23,19 @@ This document is why deckit is split the way it is, and the rules that keep it s
 5. A fact has one owner. Everyone else asks it.
 6. A layer adds to the one under it and is not known by it: what it gives a mod, what a mod registers with it, the permissions that grant it and the manifest fields it reads, it adds there.
 7. A folder is a module or a group. A name is the standard term of its field, one name for one act: to reveal is to make something visible where it lies (a file in Finder, an entry in a tree), to show is to bring a view to the front.
-8. The layers' names (deck, deckit, the shell) are the code's. Deckit is also the product's name, and what goes outside keeps it: the scheme `deckit://`, the `[deckit]` tag, the archive, the default id, and the `deckit.*` permissions, which reach inside the app as `system.*` ones reach past it.
+8. The packages' names (deck, deckit, deckit-shell) are the code's; the shell is the layer deckit-shell is. Deckit is also the product's name, and what goes outside keeps it: the scheme `deckit://`, the `[deckit]` tag, the archive, the default id, and the `deckit.*` permissions, which reach inside the app as `system.*` ones reach past it.
 
-## 2. The libraries, the mods, the host app
+## 2. The packages
 
 ```
-source/deckit/core         what deck, deckit and the shell are built from, with no deckit in it: IPC, the event bus, TOML, versions, ...
-source/deckit/deck         the engine. Names nothing of deckit
-source/deckit/deckit       the platform on deck, and connect. Names nothing of a shell
-source/deckit/shell        deckit's own shell: the panel, the switcher, the kit, styles. Reaches deckit through what connect answers
-source/deckit/mod          deckit's own mods, Settings among them
-source/deckit/deckit-app   Deckit.app: deckit embedded by itself, its own host answers framing every window
+source/deckit/deck           the engine. Names nothing of deckit
+source/deckit/deckit         the platform on deck, and connect. Names nothing of a shell
+source/deckit/deckit-shell   deckit's own shell: the panel, the switcher, the kit, styles. Reaches deckit through what connect answers
+source/deckit/deckit-app     Deckit.app: deckit embedded by itself, its own host answers framing every window
+source/deckit/mods           deckit's own mods, Settings among them, each a package of its own
 ```
+
+Each is a package of its own. One reaches another only through what that one hands out: its entries, or what it answers at run time.
 
 The package around deckit, `manifest.toml` and `source/cli`, is the commands that check, build, run and ship it (README.md). Deckit names none of it.
 
@@ -50,7 +51,7 @@ A new mod needs no change to deck. A new place to show the panel in needs no cha
 
 A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed; a mod with `deckit.styles` styles another's page, and that is all. Main knows which mod is asking by the page that asks (`deck/identity/index.js`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
-The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`core/ipc`), named for its library (`deck:`, `deckit:`, `shell:`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
+The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`deck/ipc.js`), named for its package (`deck:`, `deckit:`, `deckit-shell:`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
 ## 4. One owner for each fact
 
@@ -68,12 +69,12 @@ The pages never speak to each other. Main carries everything between them, and e
 | what a keystroke means | `deckit/keymap/main.js`; a page only hears the chords it may act on |
 | who opens an address | `deckit/open/main.js`, in the order the person set |
 | what mods offer to be run | `deckit/command/main.js`, from what each mod's page supplies, to each caller in a session of its own |
-| whether the panel is on screen, and where | the host app, asked through `shell/panel/main.js` |
-| which mod is in front, and back and forward | `shell/panel/main.js` |
-| which mod's view is whose child, which child a region shows, and where it lies | `shell/region/main.js` |
-| where each view is laid in the panel, and the children the person pinned to its list | `shell/panel/main.js`, the pins in `state/host/` |
-| what the switcher lists, and what was picked before | `shell/switcher/main.js` |
-| which styles each page wears, in what order | `shell/style/main.js` |
+| whether the panel is on screen, and where | the host app, asked through `deckit-shell/panel/main.js` |
+| which mod is in front, and back and forward | `deckit-shell/panel/main.js` |
+| which mod's view is whose child, which child a region shows, and where it lies | `deckit-shell/region/main.js` |
+| where each view is laid in the panel, and the children the person pinned to its list | `deckit-shell/panel/main.js`, the pins in `state/host/` |
+| what the switcher lists, and what was picked before | `deckit-shell/switcher/main.js` |
+| which styles each page wears, in what order | `deckit-shell/style/main.js` |
 | a mod's data, records and settings | main, under deckit's folder (below) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
 | what the person arranged (mod order, key overrides, each scheme's handlers), and what deck and deckit keep for themselves between runs (the web sessions each mod made, the mods whose sessions are still to clear) | `state/` |
@@ -106,7 +107,7 @@ Between mods there are two ways, and one question picks: could the host app do t
 - If it could not, it is a dependency. A mod names another in `requires` and calls what that one `exports`, through main. A dependency nobody wrote down cannot exist. A mod that runs without the other but does more with it names it in `optional`, an optional dependency: it neither waits for that one nor ends or launches again with it, and is told each time what that one exports to it changes. The other way round, a mod opens an extension point and one that requires it, or has it as an optional dependency, extends the point: what extends it stays in the extending mod's page, and the point's mod calls it through main, never naming it. What the host app offers (the `host` it hands `boot`) is handed to the host app's own mod, whose id is the host app's, and another mod reaches it by requiring that one.
 - If it could, it is a URL scheme handler. A mod asks for an address to be opened (`deck.open(url)`) without knowing who answers. The mods whose manifest names the scheme are its handlers and are asked in the order the person set, ahead of deckit's own answer, which is always last.
 
-Apart from both, a mod says what happened to it through deck's events (`deck/event`): `deck.emit(name)` is heard as `<its id>:<name>` by any mod that listens, and no mod speaks for another. Listening takes no dependency. The bus itself, listeners by name, is `core/event-bus`.
+Apart from both, a mod says what happened to it through deck's events (`deck/event`): `deck.emit(name)` is heard as `<its id>:<name>` by any mod that listens, and no mod speaks for another. Listening takes no dependency. The bus itself, listeners by name, is `deck/event/bus.js`.
 
 A mod changes how another's pages look with styles, which the shell puts last on each page they style, and nothing else of another mod.
 
@@ -114,22 +115,21 @@ What reaches past a mod's own sandbox (the clipboard, notifications, any web add
 
 ## 6. Modules
 
-Core, deck, deckit and the shell are each one module, and every file in them an ES module: it imports what it uses and exports what it is. Inside a unit, each folder is one of its concepts. A unit's root files are what the others reach it by, and put its main or its page together:
+Deck, deckit and deckit-shell are each one module, and every file in them an ES module: it imports what it uses and exports what it is. Inside a package, each folder is one of its concepts. A package's root files are its entries, what the others import of it, and put its main or its renderer together:
 
-| Unit | Its root | What may it import |
+| Package | Its root | What it imports of the others |
 |---|---|---|
-| `core/` | none: a group, each folder a module of its own | core |
-| `deck/` | `main.js`, `createDeck()` in main, and with it what the layers read of deck (its scheme and origins, a run's notifications, the permissions it checks); `page.js`, `createDeck()` in a mod's page | core and deck |
-| `deckit/` | `main.js`, `connect()` and `SCHEME`; `page.js`, `boot()`; `api.js`, what connect answers | core, deck's root, deckit |
-| `shell/` | `main.js`, `attach()`; `page.js`, `page()` and `mod()` | core and the shell |
+| `deck/` | `main.js`, `createDeck()` in main, and with it what the layers read of deck (its scheme and origins, a run's notifications, the permissions it checks); `renderer.js`, `createDeck()` in a mod's renderer, and the stand-in a layer hands a mod for what main holds (`proxyOf`); `ipc.js`, how a channel between main and a renderer is declared | nothing |
+| `deckit/` | `main.js`, `connect()` and `SCHEME`; `renderer.js`, `boot()`; `api.js`, what connect answers. `match/match.js` and `keymap/chord.js` are entries too: how text is matched, and how a key is written | deck's entries |
+| `deckit-shell/` | `main.js`, `attach()`; `renderer.js`, `page()` and `mod()` | `deck/ipc.js` and `deckit/match/match.js` |
 
-The shell reaches deckit through what connect answers, handed to `attach` in main and to its page side by `boot`.
+The shell reaches deckit through what connect answers, handed to `attach` in main and to its renderer side by `boot`.
 
-What holds state or reads the configuration is made by its concept's `create...()` and handed what it uses, at its unit's root: nothing is made by being imported, and nothing reaches a part another root made but through what that root hands it. The host app's configuration is `connect`'s input, and a page holds none of it: main answers what a page needs. What holds no state (a model, a pure function, a protocol's channels) is imported as it is. One exception, by name: what mirrors something a process or a page has only one of lives with that thing, as it does. `core/ipc` and `core/listener` stand beside Electron's IPC, one per bundle; in a page, the kit's parts that follow its one document (what floats over it, the pointer it captures, its lists, its motion and the kit's stylesheet, in `shell/ui`) and `core/ranker`'s one worker. A page runs one kit and one ranker.
+What holds state or reads the configuration is made by its concept's `create...()` and handed what it uses, at its package's root: nothing is made by being imported, and nothing reaches a part another root made but through what that root hands it. The host app's configuration is `connect`'s input, and a renderer holds none of it: main answers what a page needs. What holds no state (a model, a pure function, a protocol's channels) is imported as it is. One exception, by name: what mirrors something a process or a page has only one of lives with that thing, as it does. `deck/ipc.js` and `deck/log/listener.js` stand beside Electron's IPC, one per bundle; in a renderer, the kit's parts that follow its one document (what floats over it, the pointer it captures, its lists, its motion and the kit's stylesheet, in `deckit-shell/ui`) and `deckit/match/ranker.js`'s one worker. A page runs one kit and one ranker.
 
-A concept's sides are `main.js`, which runs only in main, and `page.js`, which runs only in a page. Any other file is a part of its concept and runs wherever what imports it runs; a concept not split in sides is usually reached by `index.js`. `protocol.js` is how its own sides reach each other and nobody else's, put together only by its unit's root, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only); a unit's root holds its root files beside its concepts.
+A concept's sides are named for Electron's processes: `main.js`, which runs only in main, and `renderer.js`, which runs only in a renderer. Any other file is a part of its concept and runs wherever what imports it runs; a concept not split in sides is usually reached by `index.js`. `protocol.js` is how its own sides reach each other and nobody else's, put together only by its package's root, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only); a package's root holds its root files beside its concepts.
 
-Each bundle is its entry and what it imports, through and through, bundled by esbuild: `main.js` and `shell-main.js` (CommonJS, for main) from `deckit/main.js` and `shell/main.js`, `page.js` and `shell-page.js` (one global each, for a page's preload) from `deckit/page.js` and `shell/page.js`, and `chord.js` from `core/chord`. `deckit check`, which the build runs first, holds every file of the libraries to the rules above: the units' direction and their roots, no package imported, no `Deckit` global reached, Electron's IPC reached only by `core/ipc`, no channel named outside its concept and every channel its unit's, written out as text and declared once, no cycle, what each bundle carries running where the bundle runs (`main.js` only in main, `page.js` only in a page, Node only in main, Electron nowhere in `chord.js`), every file in a bundle, every folder a module or a group.
+Each bundle is its entry and what it imports, through and through, bundled by esbuild: `main.js` and `shell-main.js` (CommonJS, for main) from `deckit/main.js` and `deckit-shell/main.js`, `renderer.js` and `shell-renderer.js` (one global each, for a page's preload) from `deckit/renderer.js` and `deckit-shell/renderer.js`, and `chord.js` from `deckit/keymap/chord.js`. A package's bundle carries its own copy of what it imports of another. `deckit check`, which the build runs first, holds every file of the packages to the rules above: what each imports of the others, no package of npm imported, no `Deckit` global reached, Electron's IPC reached only by `deck/ipc.js`, no channel named outside its concept and every channel its package's, written out as text and declared once, no cycle, what each bundle carries running where the bundle runs (`main.js` only in main, `renderer.js` only in a renderer, Node only in main, Electron nowhere in `chord.js`), every file in a bundle, every folder a module or a group.
 
 ## 7. One design system
 

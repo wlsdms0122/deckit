@@ -8,24 +8,24 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 
 | In the archive | |
 |---|---|
-| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a page's, the global it leaves, the mods |
+| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a renderer's, the global it leaves, the mods |
 | `main.js` | deck and deckit in main, a CommonJS module: `{ SCHEME, connect }` |
 | `shell-main.js` | deckit's shell in main, a CommonJS module: `{ attach }` |
-| `page.js` | deck and deckit in every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitPage`: `{ boot }` |
-| `shell-page.js` | deckit's shell in a page. It leaves one global, `DeckitShellPage`: `{ page, mod }` |
+| `renderer.js` | deck and deckit in the renderer of every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitRenderer`: `{ boot }` |
+| `shell-renderer.js` | deckit's shell in a renderer. It leaves one global, `DeckitShellRenderer`: `{ page, mod }` |
 | `chord.js` | how a chord is spelled and matched, for a page of the host app's that shows one of deckit's chords. It leaves one global, `DeckitChord` |
-| `mod/<id>/` | deckit's own mods, each with its entry bundled, a catalog the host app picks from |
+| `mods/<id>/` | deckit's own mods, each with its entry bundled, a catalog the host app picks from |
 | `document/` | this, MOD.md and UI.md |
 
 In main the host app requires `main.js` and, to put deckit's shell on deckit, `shell-main.js`. A deckit page loads, as its preload, a file the host app puts together:
 
 ```js
 const before = new Set(Object.keys(globalThis));
-// page.js, then shell-page.js, as they are
-DeckitPage.boot({ before, shell: DeckitShellPage, host });
+// renderer.js, then shell-renderer.js, as they are
+DeckitRenderer.boot({ before, shell: DeckitShellRenderer, host });
 ```
 
-`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. `host` is what the host app offers its own mod (section 5), left out when it offers nothing. A host app with a shell of its own puts its page side in place of `shell-page.js` and hands it to `boot` as `shell` (section 4); with no shell on deckit, it leaves `shell` out.
+`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. `host` is what the host app offers its own mod (section 5), left out when it offers nothing. A host app with a shell of its own puts its renderer side in place of `shell-renderer.js` and hands it to `boot` as `shell` (section 4); with no shell on deckit, it leaves `shell` out.
 
 ## 2. The configuration
 
@@ -112,7 +112,7 @@ What connect answers is all a host app, or the shell on deckit, reaches of decki
 | `onStart(listener)` | told once as deckit starts, before any mod launches; handed over before the host app is ready. One that throws is logged, and the mods run anyway |
 | `permissions` | `define({ id, name, icon, means, reach })`: a permission that grants what the shell adds, which a mod's manifest may then ask for. `reach` is `system` for what reaches past the app and `app` for what stays inside it; a person reads the first before the second. Defined before any manifest is read, which is before the host app is ready; after, it throws |
 | `mods` | `list()`, every loaded mod's manifest in the person's order, `onChange(listener)`, which answers its off, `arrange(ids)`; `runs()`, each mod's latest run with the view its page is in, `runOf(id)`; `listingOf(id)`, how a mod is listed (`{ icon, keywords }`) as its latest run that launched said, kept while it launches again, or null; `observe(name, observer)` for a lifecycle notification (`notifications` lists them) of every run, answering its off; `modOf(webContents)`, the id of the mod a page is, or null; `managerFrom(webContents)`, the id of that mod if it has `deckit.mods`, and otherwise it throws; `relaunchAll()`. A run is `{ mod, number, state, summary, contributions, problem, relaunches }` (MOD.md, Lifecycle) |
-| `pages` | `make(name)`, a view at `deckit://<name>/` for a page that runs no mod, which the shell draws (`page(name)` on its page side); `nameOf(webContents)`; `whenEnds(webContents, undo)`, `undo` called once as that page navigates away, crashes or goes, answering its off; it takes a deckit page's webContents (a mod's, or one `make` made), and throws for any other; `isPressing(webContents)`, whether a person is pressing in that page now or just pressed, so what it tells is theirs and not its code's; `isPointing(webContents)`, the same of the mouse alone |
+| `pages` | `make(name)`, a view at `deckit://<name>/` for a page that runs no mod, which the shell draws (`page(name)` on its renderer side); `nameOf(webContents)`; `whenEnds(webContents, undo)`, `undo` called once as that page navigates away, crashes or goes, answering its off; it takes a deckit page's webContents (a mod's, or one `make` made), and throws for any other; `isPressing(webContents)`, whether a person is pressing in that page now or just pressed, so what it tells is theirs and not its code's; `isPointing(webContents)`, the same of the mouse alone |
 | `keymap` | `register({ action, key, label, global, run })`, a key of the shell's own, answering its id; `chordOf(id)`; `listen(webContents, { keys })`; `delegate({ isActive, monitor })`: `isActive(page)`, whether a deckit page is the one in front, where a mod's own keys and the shell's run, and `monitor(page, input)`, which sees a keystroke in it before any key and takes it by answering true |
 | `commands` | what mods offer to be run. `session()` is one caller's: `list()`, `now()` and `resolve(raw)` (a promise for each mod, as each answers), `search(entryId, raw)` for the entries an entry opens, `run(entryId)`, and `end()`, after which its entries are gone; another session never touches them. `tones` is how a readout says its state |
 | `state` | `read(key, fallback)`, `write(key, value)`: what the host app and its shell keep of the person's, in `state/host/`, apart from deckit's own. A key is lower case letters, digits, `.`, `_` and `-`, starting with a letter or a digit, at most 64. The host app and its shell share the keys: deckit's shell keeps `panel-frame`, `panel-pinned` and `switcher-use`, so a host app with it keeps keys of other names |
