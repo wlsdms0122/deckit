@@ -12,10 +12,10 @@ DeckitModule.define(
         // The mod's children: the mods whose view names it as their parent. `list()` answers them in the person's
         // order, and `onChange(listener)` hears them each time they change, answering its off.
         const children = Object.freeze({
-            list: () => listed().slice(),
+            list: () => childrenNow().slice(),
             onChange(listener) {
                 if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
-                listed();
+                childrenNow();
                 listeners.add(listener);
                 return () => listeners.delete(listener);
             },
@@ -32,8 +32,12 @@ DeckitModule.define(
             const region = ++count;
             let sent = '';
             let entered = false; // a region made in start() has its element in the page only once the view is up
+            let ended = false;
             const follow = () => {
-                if (!element.isConnected && entered) return PROTOCOL.end.send({ region });
+                if (!element.isConnected && entered) {
+                    ended = true;
+                    return PROTOCOL.end.send({ region });
+                }
                 entered ||= element.isConnected;
                 const { x, y, width, height } = element.getBoundingClientRect();
                 const written = JSON.stringify([x, y, width, height]);
@@ -45,13 +49,17 @@ DeckitModule.define(
             };
             follow();
             return Object.freeze({
-                show: (id) => PROTOCOL.show.invoke({ region, id: String(id) }),
-                clear: () => PROTOCOL.show.invoke({ region, id: null }),
+                show: (id) => (ended ? refused() : PROTOCOL.show.invoke({ region, id: String(id) })),
+                clear: () => (ended ? refused() : PROTOCOL.show.invoke({ region, id: null })),
             });
         }
 
         // MARK: - Private
-        function listed() {
+        function refused() {
+            return Promise.reject(new Error('the region has ended: its element left the page'));
+        }
+
+        function childrenNow() {
             if (known === null) {
                 known = PROTOCOL.children.invoke();
                 PROTOCOL.childrenChanged.on(({ children: next }) => {

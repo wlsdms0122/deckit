@@ -46,7 +46,8 @@ DeckitModule.define(
             listen();
             registerKeys();
             deckit.mods.onChange(reconcile);
-            REGION.onChange(() => update() || broadcast());
+            // Who is whose child changes with the runs, which reconcile hears too: a region's change is only layout.
+            REGION.onChange(update);
             deckit.mods.observe('didLaunch', ({ mod, summary }) => icons.set(mod.id, summary.icon));
             for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
             reconcile();

@@ -1320,23 +1320,27 @@ const calendar = (deck, accountsPoint) => {
 
     /* The provider signs the account in, in a window of its own, and answers the address it signed
      in as, or nothing when it was cancelled. A cancelled or failed sign-in leaves nothing behind. */
-    const signingIn = new Map(); // provider mod id -> { name, asks }: a sign-in under way, and its open questions
+    // provider mod id -> { name, count, asks }: its sign-ins under way, and the questions they have open
+    const signingIn = new Map();
     const signIn = async (provider, account, title) => {
-        const signing = { name: provider.name, asks: new Set() };
+        const signing = signingIn.get(account.provider) || { name: provider.name, count: 0, asks: new Set() };
+        signing.count++;
         signingIn.set(account.provider, signing);
         render();
         try {
             return await provider.signIn(account, { title });
         } finally {
-            for (const close of signing.asks) close();
-            if (signingIn.get(account.provider) === signing) signingIn.delete(account.provider);
+            if (--signing.count === 0) {
+                signingIn.delete(account.provider);
+                for (const close of signing.asks) close();
+            }
             render();
         }
     };
 
     /* What the provider signing in asks the person on the way (README.md, Asking): Calendar comes on screen and
      asks in a dialog under the provider's name. Resolves whether the person confirmed, and false once the
-     sign-in has ended. A mod that is not signing in is refused. */
+     provider has no sign-in under way. A mod that is not signing in is refused. */
     const ask = ({ message, detail = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) => {
         const signing = signingIn.get(deck.caller());
         if (!signing) return Promise.reject(new Error('Calendar asks only for the provider signing in'));

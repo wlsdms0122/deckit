@@ -9,8 +9,8 @@ DeckitModule.define(
         // `${webContents id}:${number}` -> { parent, rect, child }: a place in a mod's page that shows a child's view
         const regions = new Map();
         // mod id -> { parent, icon }: the view its run that last started has, kept while the mod launches again
-        const views = new Map();
-        const sent = new Map(); // parent mod id -> its children as its page was last told them, written
+        const known = new Map();
+        const sentChildren = new Map(); // parent mod id -> its children as its page was last told them, written
         const listeners = new Set();
         let deckit = null;
 
@@ -23,8 +23,8 @@ DeckitModule.define(
             deckit = given;
             deckit.mods.observe('didLaunch', ({ mod, summary }) => {
                 const before = parentOf(mod.id);
-                if (summary.view) views.set(mod.id, { parent: summary.parent || null, icon: summary.icon || '' });
-                else views.delete(mod.id);
+                if (summary.view) known.set(mod.id, { parent: summary.parent || null, icon: summary.icon || '' });
+                else known.delete(mod.id);
                 if (parentOf(mod.id) !== before) leave(mod.id);
             });
             for (const name of deckit.mods.notifications) deckit.mods.observe(name, changed);
@@ -39,7 +39,7 @@ DeckitModule.define(
 
         // The mod whose regions the mod's view is shown in, or null.
         function parentOf(id) {
-            return views.get(id)?.parent || null;
+            return known.get(id)?.parent || null;
         }
 
         // child id -> its rect: the children `parent`'s regions show, of those `shown(id)` lets on screen, laid out.
@@ -99,14 +99,14 @@ DeckitModule.define(
         // A mod gone from the catalog is no one's child; each parent hears its children as they change.
         function changed() {
             const installed = new Set(deckit.mods.list().map(({ id }) => id));
-            for (const id of [...views.keys()]) if (!installed.has(id)) views.delete(id);
-            const parents = new Set([...sent.keys(), ...[...views.values()].map(({ parent }) => parent)]);
+            for (const id of [...known.keys()]) if (!installed.has(id)) known.delete(id);
+            const parents = new Set([...sentChildren.keys(), ...[...known.values()].map(({ parent }) => parent)]);
             for (const parent of parents) {
                 if (!parent) continue;
                 const children = childrenOf(parent);
                 const written = JSON.stringify(children);
-                if ((sent.get(parent) ?? '[]') === written) continue;
-                sent.set(parent, written);
+                if ((sentChildren.get(parent) ?? '[]') === written) continue;
+                sentChildren.set(parent, written);
                 const page = deckit.mods.runs().find(({ run }) => run.mod.id === parent)?.view?.webContents;
                 if (page) PROTOCOL.childrenChanged.send(page, { children });
             }
@@ -119,7 +119,7 @@ DeckitModule.define(
             return deckit.mods
                 .list()
                 .filter(({ id }) => parentOf(id) === parent && runs(id))
-                .map(({ id, name }) => ({ id, name, icon: views.get(id).icon }));
+                .map(({ id, name }) => ({ id, name, icon: known.get(id).icon }));
         }
 
         function runs(id) {
