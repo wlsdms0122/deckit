@@ -39,7 +39,7 @@ module.exports = {
     },
 
     start(deck) {
-        const { content, sidebar, didAppear, didDisappear, keys, now, commands } = calendar(
+        const { content, sidebar, ask, didAppear, didDisappear, keys, now, commands } = calendar(
             deck,
             deck.extensionPoint('accounts')
         );
@@ -47,5 +47,6 @@ module.exports = {
         deck.keys(keys);
         deck.now(now);
         deck.commands(commands);
+        deck.exports({ ask });
     },
 };

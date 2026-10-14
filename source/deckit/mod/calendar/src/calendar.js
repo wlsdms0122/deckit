@@ -1320,16 +1320,36 @@ const calendar = (deck, accountsPoint) => {
 
     /* The provider signs the account in, in a window of its own, and answers the address it signed
      in as, or nothing when it was cancelled. A cancelled or failed sign-in leaves nothing behind. */
-    let signingIn = 0;
+    const signingIn = []; // the names of the providers signing an account in now
     const signIn = async (provider, account, title) => {
-        signingIn++;
+        signingIn.push(provider.name);
         render();
         try {
             return await provider.signIn(account, { title });
         } finally {
-            signingIn--;
+            signingIn.splice(signingIn.indexOf(provider.name), 1);
             render();
         }
+    };
+
+    /* What a provider asks the person on the way through a sign-in (README.md, Asking): Calendar comes on
+     screen and asks in a dialog under the provider's name. Resolves whether the person confirmed. A sign-in
+     is Calendar's to run, so nothing is asked outside one. */
+    const ask = ({ message, detail = '', confirm = 'OK', cancel = 'Cancel' } = {}) => {
+        if (!signingIn.length) return Promise.reject(new Error('Calendar asks only while an account signs in'));
+        deck.show();
+        return new Promise((resolve) => {
+            let confirmed = false;
+            ui.dialog({
+                title: signingIn.length === 1 ? signingIn[0] : 'Sign in',
+                message: [String(message ?? ''), String(detail ?? '')],
+                confirmLabel: String(confirm),
+                cancelLabel: String(cancel),
+                onConfirm: () => (confirmed = true),
+                // The dialog closes before it confirms.
+                onClose: () => queueMicrotask(() => resolve(confirmed)),
+            });
+        });
     };
 
     content.append(head, body, firstLoad, empty);
@@ -1916,7 +1936,7 @@ const calendar = (deck, accountsPoint) => {
         const signedOut = accounts().filter((account) => accountStatus.get(account.id)?.signedOut).length;
         const broken = feeds().filter((feed) => reads.of(feed)?.error).length;
         const unprovided = accounts().filter((account) => !providerOf(account)).length;
-        status.textContent = signingIn
+        status.textContent = signingIn.length
             ? 'Signing in…'
             : loading
               ? 'Loading…'
@@ -2069,6 +2089,7 @@ const calendar = (deck, accountsPoint) => {
     return {
         content,
         sidebar,
+        ask,
         didAppear() {
             visible = true;
             refresh();

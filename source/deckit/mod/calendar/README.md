@@ -34,7 +34,7 @@ Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's i
 | Member | What it is |
 |---|---|
 | `name`, `hint`, `icon` | what the Add account sheet shows: the provider's name, a line under it, an inline SVG (drawn from its shapes alone) |
-| `signIn(account, { title })` | signs the account in and resolves to the address it signed in as, or to nothing when the person cancelled. The sign-in is the provider's to show, in a window of its own (`deck.web.window`, `title` its title), with whatever it asks on the way (a certificate, an app to open). Adding an account, a cancelled or failed sign-in leaves nothing behind; signing an account in again, what it had stays. Called to add an account and to sign one in again; signing in again as another address, compared exactly, is refused |
+| `signIn(account, { title })` | signs the account in and resolves to the address it signed in as, or to nothing when the person cancelled. The sign-in is the provider's to show, in a window of its own (`deck.web.window`, `title` its title), with whatever it asks the person on the way (a certificate, an app to open) asked through Calendar (Asking). Adding an account, a cancelled or failed sign-in leaves nothing behind; signing an account in again, what it had stays. Called to add an account and to sign one in again; signing in again as another address, compared exactly, is refused |
 | `calendars(account)` | `[{ id, name, primary, selected, owned }]`: the account's calendars. `primary` is the account's own, `selected` one its own calendar app shows (a new account starts with those), `owned` one the account owns, whose every event reminds, not only invitations |
 | `events(account, calendar, from, to)` | the occurrences of the calendar whose `id` is `calendar` between two Dates, as an array (below). Anything else is a failure, and an answer that takes more than a minute is one too. An occurrence is read in this shape, and a field of another type is read as empty |
 | `respond(account, eventId, status)` | answers an invitation (an occurrence with `invited`): `ACCEPTED`, `DECLINED` or `TENTATIVE` |
@@ -59,3 +59,18 @@ An occurrence, one for each time an event happens, in what every provider maps i
 A call that fails because the account has to sign in again throws an error whose `kind` is `SIGN_IN`: Calendar shows a Sign in button that calls `signIn` again. Any other error is shown as it is, and the read is tried again a minute later.
 
 While a provider's mod is not running its accounts stay, unread, with what was read before, and are read as soon as it starts.
+
+## Asking
+
+A provider asks the person through Calendar, which exports `ask`:
+
+```js
+const open = await deck.requires.calendar.ask({
+    message: 'Open the authenticator app?',
+    detail: 'It confirms the sign-in on this Mac.',
+    confirm: 'Open',
+    cancel: 'Cancel',
+});
+```
+
+Calendar comes on screen and asks in a dialog under the name of the provider signing in, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only while an account signs in: any other time the call is refused. `detail`, `confirm` and `cancel` are optional (`''`, `OK`, `Cancel`). The sign-in window is not moved: where it stands in front of the panel, the dialog is behind it.
