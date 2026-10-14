@@ -72,10 +72,21 @@ function providerClient({ deck, ui, records, accountsPoint, onSigningIn }) {
         });
     }
 
+    // The account's calendars in the shape README.md gives, the id a string: one without an id is left out.
     async function calendars(account) {
         const provider = providerOf(account);
         if (!provider) throw new Error(`${account.provider} is not running, so its calendars cannot be read.`);
-        return provider.calendars(account);
+        const answer = await provider.calendars(account);
+        if (!Array.isArray(answer)) throw new Error(`${provider.name} answered no list of calendars`);
+        return answer
+            .filter((entry) => entry && typeof entry === 'object' && entry.id != null)
+            .map((entry) => ({
+                id: String(entry.id),
+                name: typeof entry.name === 'string' ? entry.name : '',
+                primary: !!entry.primary,
+                selected: !!entry.selected,
+                owned: !!entry.owned,
+            }));
     }
 
     async function events(account, calendar, from, to) {
