@@ -18,15 +18,7 @@ function store({ records }) {
             if (!feeds.all().some((feed) => keyOf(feed) === key)) return;
             feeds.save(feeds.all().map((feed) => (keyOf(feed) === key ? { ...feed, ...patch } : feed)));
         },
-        // A feed without remindAll reminds for everything only when it is the account's own calendar.
-        remindsAll: (feed) =>
-            feed.remindAll ??
-            accounts
-                .all()
-                .some(
-                    (account) =>
-                        account.id === feed.account && account.email.toLowerCase() === feed.calendar.toLowerCase()
-                ),
+        remindsAll: (feed) => !!feed.remindAll,
     };
     return { accounts, feeds };
 }
