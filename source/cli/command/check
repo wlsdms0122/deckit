@@ -59,6 +59,11 @@ function checkFile(file) {
     const plain = LIBRARY.code(fs.readFileSync(path.join(LIBRARY.DECKIT, file), 'utf8'));
     if (!MAY_NAME[unitOf(file)]) return say(file, 'is in no unit: a file is in core/, deck/, deckit/ or shell/');
     if (/\bDeckit[A-Z]\w*\b/.test(plain)) say(file, 'reaches a Deckit global; import what it uses');
+    // Every file reaches another by a static import, which the bundler follows and this check reads.
+    if (/\brequire\(\s*["'`]\./.test(plain))
+        say(file, 'requires a file; import it, so the check and the bundle see it');
+    if (/\bimport\s*\(/.test(plain))
+        say(file, 'imports while it runs; import statically, so the check and the bundle see it');
     if (file !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
     const protocol = file.endsWith('/protocol.js');
@@ -84,7 +89,8 @@ function checkChannels(file, plain) {
 
 function checkImport(file, spec, target) {
     if (!target) return say(file, `imports ${spec}, a package: a library imports only its own files`);
-    if (!fs.existsSync(path.join(LIBRARY.DECKIT, target)))
+    const full = path.join(LIBRARY.DECKIT, target);
+    if (!fs.existsSync(full) || !fs.statSync(full).isFile())
         return say(file, `imports ${spec}, which is no file of the libraries`);
     const mine = unitOf(file);
     const theirs = unitOf(target);
@@ -93,9 +99,8 @@ function checkImport(file, spec, target) {
     // A unit is one module: another reaches it by its root files. Core is a group, each module of it its own.
     if (theirs !== mine && theirs !== 'core' && !isRoot(target))
         say(file, `imports ${target}, inside ${theirs}/: another unit reaches it by its root files`);
-    // A concept's channels are how its own sides reach each other, and its unit's root puts them together.
-    const own = conceptOf(target) === conceptOf(file) || (isRoot(file) && theirs === mine);
-    if (target.endsWith('/protocol.js') && !own)
+    // A concept's channels are how its own sides reach each other.
+    if (target.endsWith('/protocol.js') && conceptOf(target) !== conceptOf(file))
         say(file, `imports ${target}, how ${conceptOf(target)} is reached, which is ${conceptOf(target)}'s own`);
 }
 

@@ -82,11 +82,12 @@ function files() {
     return UNITS.flatMap(walk).sort();
 }
 
-// What a file imports: each `import ... from` and `export ... from`, with the file a relative path names, or null for
-// a package.
+// What a file imports: each `import ... from`, `export ... from` and bare `import '...'`, with the file a relative
+// path names, or null for a package.
 function importsOf(file) {
     const plain = code(fs.readFileSync(path.join(DECKIT, file), 'utf8'));
-    return [...plain.matchAll(/^\s*(?:import|export)\b[^;'"]*?\bfrom\s*(['"])([^'"]+)\1/gm)].map(([, , spec]) => ({
+    const statements = /^\s*(?:(?:import|export)\b[^;'"]*?\bfrom\s*|import\s*)(['"])([^'"]+)\1/gm;
+    return [...plain.matchAll(statements)].map(([, , spec]) => ({
         spec,
         file: spec.startsWith('.') ? path.posix.normalize(path.posix.join(path.posix.dirname(file), spec)) : null,
     }));
@@ -96,7 +97,8 @@ function importsOf(file) {
 function reach(entry) {
     const seen = new Set();
     const visit = (file) => {
-        if (seen.has(file) || !fs.existsSync(path.join(DECKIT, file))) return;
+        const full = path.join(DECKIT, file);
+        if (seen.has(file) || !fs.existsSync(full) || !fs.statSync(full).isFile()) return;
         seen.add(file);
         for (const imported of importsOf(file)) if (imported.file) visit(imported.file);
     };
