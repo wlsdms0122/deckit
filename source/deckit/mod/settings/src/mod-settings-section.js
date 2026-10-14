@@ -139,11 +139,13 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
             control = made;
         }
 
+        // The control shows what was kept: a number is kept within its bounds, and a refused value is not kept.
         async function change(value) {
             control.set(value);
             try {
-                await modSettings.set(modId, current.key, value);
+                control.set(await modSettings.set(modId, current.key, value));
             } catch (error) {
+                control.set(valueOf(current));
                 onFailure('Could not change the setting: ' + error.message);
             }
         }
