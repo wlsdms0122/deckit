@@ -20,9 +20,11 @@ DeckitModule.define(
             crash: { from: ['launching', 'running', 'terminating'], to: 'notRunning', tells: 'didTerminate' },
         };
         // Why a run terminates, weakest first: a stronger reason given while it terminates takes the place of a weaker
-        // one. `relaunches`: the mod launches again once the run has ended.
+        // one. `relaunches`: the mod launches again once the run has ended. `requirement`: a mod it requires ended; it
+        // launches again as that one does.
         const REASONS = {
             restart: { relaunches: true },
+            requirement: { relaunches: false },
             updated: { relaunches: true },
             removed: { relaunches: false },
             quit: { relaunches: false },

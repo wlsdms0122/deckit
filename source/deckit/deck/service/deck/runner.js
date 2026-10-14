@@ -104,17 +104,16 @@ DeckitModule.define(
         // is asked, and launches again as one of them launches. A run that crashed or did not launch ends with no
         // willTerminate.
         function follow() {
-            notifications.on('willTerminate', ({ mod }) => relaunchDependents(mod.id));
-            notifications.on('didTerminate', ({ mod, endReason }) => !endReason && relaunchDependents(mod.id));
+            notifications.on('willTerminate', ({ mod }) => terminateDependents(mod.id));
+            notifications.on('didTerminate', ({ mod, endReason }) => !endReason && terminateDependents(mod.id));
             notifications.on('willLaunch', ({ mod }) => {
                 for (const sandbox of dependentsOf(mod.id))
                     if (sandbox.run.state === 'notRunning' && !sandbox.closing && !quitting) launchAgain(sandbox);
             });
         }
 
-        function relaunchDependents(modId) {
-            for (const sandbox of dependentsOf(modId))
-                if (sandbox.run.state !== 'notRunning' && !sandbox.closing) relaunchSandbox(sandbox);
+        function terminateDependents(modId) {
+            for (const sandbox of dependentsOf(modId)) if (!sandbox.closing) terminate(sandbox, 'requirement');
         }
 
         function dependentsOf(modId) {
