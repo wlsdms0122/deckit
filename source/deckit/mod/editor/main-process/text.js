@@ -46,7 +46,8 @@ async function readText(file, limit) {
 }
 
 // A folder inside that cannot be read is passed over; the root itself refused (macOS privacy) is an error, not an
-// empty folder.
+// empty folder. A link to a file is walked as the file; a link to a folder is not followed, so a link back up never
+// walks a folder twice.
 async function* walk(root) {
     const folders = [root];
     while (folders.length) {
@@ -62,8 +63,16 @@ async function* walk(root) {
             if (SKIPPED_FOLDERS.has(entry.name) || entry.name === '.DS_Store') continue;
             const full = path.join(folder, entry.name);
             if (entry.isDirectory()) folders.push(full);
-            else if (entry.isFile()) yield full;
+            else if (entry.isFile() || (entry.isSymbolicLink() && (await isFileLink(full)))) yield full;
         }
+    }
+}
+
+async function isFileLink(link) {
+    try {
+        return (await stat(link)).isFile();
+    } catch {
+        return false;
     }
 }
 
