@@ -1,0 +1,11 @@
+id = "settings"
+name = "Settings"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"deckit.mods" = "Its Mods section installs a mod from a folder you pick and removes installed ones."
+"deckit.mod-settings" = "Its Mod Settings section shows and changes every mod's settings."
+"deckit.key-map" = "Its Keyboard section is where every mod's shortcuts are shown and changed."
+"deckit.url-schemes" = "Its URL Schemes section sets which mod is asked first to open an address, scheme by scheme."

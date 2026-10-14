@@ -11,12 +11,12 @@ for (const name of Object.keys(LIBRARY.bundles()))
     bundles[name] = { file: name + '.js', defines: definedIn(name + '.js') };
 // The contract it speaks and the scheme its pages load from, from their modules and what those name, run on the built
 // registry. The scheme is here as data for a host app that registers schemes before it loads a bundle.
-const MODULES = ['deckit/service/plugin/manifest', 'deckit/service/deck/model/origin'];
+const MODULES = ['deckit/service/mod/manifest', 'deckit/service/deck/model/origin'];
 require(path.resolve(folder, 'registry.js'));
 for (const file of LIBRARY.filesFrom(MODULES)) require(path.join(LIBRARY.LIBRARY, file));
 const [api, scheme] = DeckitModule.use(MODULES, (MANIFEST, ORIGIN) => [MANIFEST.API, ORIGIN.SCHEME]);
-const plugins = fs
-    .readdirSync(path.join(folder, 'plugin'))
+const mods = fs
+    .readdirSync(path.join(folder, 'mod'))
     .filter((name) => !name.startsWith('.'))
     .sort();
 const described = {
@@ -26,7 +26,7 @@ const described = {
     source,
     scheme,
     bundles,
-    plugins,
+    mods,
 };
 fs.writeFileSync(path.join(folder, 'deckit.json'), JSON.stringify(described, null, 2) + '\n');
 

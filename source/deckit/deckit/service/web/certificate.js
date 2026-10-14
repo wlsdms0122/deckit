@@ -19,7 +19,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // Electron shows no interstitial, only a failed load. A certificate the Mac cannot verify is refused, the
-        // page's tab is told, and the plugin hands back what it accepts. The event is the app's, and deckit answers
+        // page's tab is told, and the mod hands back what it accepts. The event is the app's, and deckit answers
         // it only for its own pages.
         function start() {
             LOG.guard(

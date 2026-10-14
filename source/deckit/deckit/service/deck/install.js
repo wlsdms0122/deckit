@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/deck/install',
     {
-        uses: ['deckit/config', 'deckit/service/home', 'deckit/service/plugin/folder'],
+        uses: ['deckit/config', 'deckit/service/home', 'deckit/service/mod/folder'],
         provides: ['installed', 'installable', 'install', 'shipped', 'installShipped', 'notInstalled'],
         runs: 'node',
     },
@@ -9,28 +9,28 @@ DeckitModule.define(
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
-        const notInstalledById = new Map(); // plugin id -> { folder, problem }: what the app ships that did not install
+        const notInstalledById = new Map(); // mod id -> { folder, problem }: what the app ships that did not install
 
         // MARK: - Initializer
         // MARK: - Public
-        // The installed copies of each plugin, by id, whatever their folders are named, in the order the catalog reads
+        // The installed copies of each mod, by id, whatever their folders are named, in the order the catalog reads
         // them: the first is the one read.
         function installed() {
             const copies = new Map();
-            for (const folder of FOLDER.pluginsIn(HOME.plugins)) {
+            for (const folder of FOLDER.modsIn(HOME.mods)) {
                 const id = FOLDER.idOf(folder);
                 copies.set(id, [...(copies.get(id) || []), folder]);
             }
             return copies;
         }
 
-        // The manifest of a folder that can be installed, or a throw that says why not: a plugin deckit would not
+        // The manifest of a folder that can be installed, or a throw that says why not: a mod deckit would not
         // load, or a folder that holds the installed copy or is held by it (copying would take the source with it).
         // `refuse(manifest)` adds the caller's own reason, or ''.
         function installable(from, refuse = () => '') {
             const { manifest, problem } = FOLDER.loadable(from);
             if (problem) throw new Error(problem);
-            const to = path.join(HOME.plugins, manifest.id);
+            const to = path.join(HOME.mods, manifest.id);
             const copies = installed().get(manifest.id) || [];
             if (copies.some((copy) => path.resolve(from) === path.resolve(copy)))
                 throw new Error('that folder is already the installed one');
@@ -43,7 +43,7 @@ DeckitModule.define(
             return manifest;
         }
 
-        // Installed as plugins/<id>, every copy before it taken away wherever it was, so a file the new version dropped
+        // Installed as mods/<id>, every copy before it taken away wherever it was, so a file the new version dropped
         // is not left to load. Only a whole staged copy takes the old one's place. Answers the manifest.
         function install(from, refuse) {
             const manifest = installable(from, refuse);
@@ -52,9 +52,9 @@ DeckitModule.define(
             fs.rmSync(staged, { recursive: true, force: true });
             fs.mkdirSync(HOME.staging, { recursive: true });
             fs.cpSync(from, staged, { recursive: true });
-            fs.mkdirSync(HOME.plugins, { recursive: true });
+            fs.mkdirSync(HOME.mods, { recursive: true });
             for (const copy of installed().get(id) || []) fs.rmSync(copy, { recursive: true, force: true });
-            fs.renameSync(staged, path.join(HOME.plugins, id));
+            fs.renameSync(staged, path.join(HOME.mods, id));
             fs.rmSync(HOME.staging, { recursive: true, force: true });
             return manifest;
         }
@@ -65,7 +65,7 @@ DeckitModule.define(
             return new Set(fs.readFileSync(HOME.shipped, 'utf8').split('\n').filter(Boolean));
         }
 
-        // What the app ships (CONFIG.ship) installed by one rule: a plugin it shipped before and that is not
+        // What the app ships (CONFIG.ship) installed by one rule: a mod it shipped before and that is not
         // installed now was removed by the person, and stays out; the rest is installed. Removals are recorded
         // nowhere else. `only` installs those ids whatever was decided before, and leaves the others as they are.
         //
@@ -79,7 +79,7 @@ DeckitModule.define(
                 if (!byId.has(id)) byId.set(id, folder);
                 else outcomes.push({ id, outcome: 'ignored', version: null, problem: `${folder} has its id too` });
             }
-            for (const id of only || []) if (!byId.has(id)) throw new Error(`not a plugin the app ships: ${id}`);
+            for (const id of only || []) if (!byId.has(id)) throw new Error(`not a mod the app ships: ${id}`);
 
             const before = shipped();
             const copies = installed();
@@ -112,13 +112,13 @@ DeckitModule.define(
             const list = (only ? [...new Set([...(before || []), ...only])].sort() : [...byId.keys()]).filter(
                 (id) => !notInstalledById.has(id) || now.has(id)
             );
-            fs.mkdirSync(HOME.plugins, { recursive: true });
+            fs.mkdirSync(HOME.mods, { recursive: true });
             fs.writeFileSync(HOME.shipped + '.new', list.map((id) => id + '\n').join(''));
             fs.renameSync(HOME.shipped + '.new', HOME.shipped);
             return outcomes;
         }
 
-        // What the app ships that did not install at this start, and why: { folder, problem } by plugin id.
+        // What the app ships that did not install at this start, and why: { folder, problem } by mod id.
         function notInstalled() {
             return notInstalledById;
         }

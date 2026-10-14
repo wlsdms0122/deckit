@@ -185,10 +185,10 @@ DeckitModule.define(
                     clearTimeout(exitTimer);
                     closing = false;
                     switcher = open(ui, {
-                        placeholder: 'Jump to a plugin, bookmark or view…',
+                        placeholder: 'Jump to a mod, bookmark or view…',
                         items: hydrate(items),
                         now: hydrate(now),
-                        // Resolvers and page searches live with the plugins, in the panel's page.
+                        // Resolvers and page searches live with the mods, in the panel's page.
                         onQuery: (raw, pageId) => entries.query(raw, pageId),
                         onPick: (item) => item.run(),
                         onClose: () => {

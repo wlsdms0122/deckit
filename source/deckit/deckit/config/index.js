@@ -8,10 +8,10 @@ DeckitModule.define(
     (config, folders) => {
         // MARK: - Property
         // From host/config, read in every process. id: what everything deckit keeps is named from. agent: names in
-        // the app's user agent, taken out of a web page's. schemeHandlers: by scheme, the plugins asked first to open an address.
+        // the app's user agent, taken out of a web page's. schemeHandlers: by scheme, the mods asked first to open an address.
         const CONFIG = { id: 'deckit', name: 'Deckit', agent: [], schemeHandlers: {} };
         // From host/folders, read where there is a disk. home: deckit's folder, ~/.config/<id> when unset.
-        // ship: the plugin folders the app ships. sources: plugin folders read in place, ahead of installed ones.
+        // ship: the mod folders the app ships. sources: mod folders read in place, ahead of installed ones.
         const FOLDERS = { home: null, ship: [], sources: [] };
 
         // MARK: - Initializer

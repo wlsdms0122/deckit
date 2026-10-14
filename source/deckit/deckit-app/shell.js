@@ -103,7 +103,7 @@ DeckitModule.define(
                 // The panel is always presented as not dismissible here, so Escape never asks this.
                 dismiss: () => {},
                 summonSwitcher,
-                // Deckit's own windows: a plugin's, a web page's, a popup's.
+                // Deckit's own windows: a mod's, a web page's, a popup's.
                 openWindow: (options) => WINDOW.open(options),
                 panelTitled: (title) => {
                     state.title = title;

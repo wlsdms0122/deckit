@@ -15,7 +15,7 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // The panel's frame around one plugin's parts, in its own page. `tell` calls a part of the plugin (didAppear,
+        // The panel's frame around one mod's parts, in its own page. `tell` calls a part of the mod (didAppear,
         // didDisappear).
         function mount({ theme, ui, parts, tell }) {
             const setup = PROTOCOL.setup.invoke();
@@ -48,7 +48,7 @@ DeckitModule.define(
             Object.assign(parts.content.style, { width: '100%', flex: '1 1 auto', minHeight: '0' });
             content.append(parts.content);
             // Where the window's buttons stand is the panel's, whatever is drawn there: it drags the window, so the
-            // window can be moved however the plugin on screen draws its top. Last, so a region the plugin keeps from dragging
+            // window can be moved however the mod on screen draws its top. Last, so a region the mod keeps from dragging
             // does not take it back.
             const buttonsRoom = element('div', {
                 position: 'absolute',
@@ -111,7 +111,7 @@ DeckitModule.define(
 
             // Floating over an app, the ring makes the panel read as on top and the rounding needs the page behind
             // to be clear. Filling a window, the frame is the OS's, and the panel may share the window's top with its
-            // title bar: the sidebar reaches up under it, and so does the content, whose title bar area is the plugin's
+            // title bar: the sidebar reaches up under it, and so does the content, whose title bar area is the mod's
             // (`ui.titleBar`): as tall as the bar, from past the window's buttons when the sidebar is collapsed.
             function dress() {
                 const bar = look.titleBar;

@@ -11,20 +11,20 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // A plugin's web session: under the app's id, so two apps in one profile stay apart, then the plugin's id
+        // A mod's web session: under the app's id, so two apps in one profile stay apart, then the mod's id
         // and the session's name. Neither id nor name holds a colon, so "mail" + "work-x" and "mail-work" + "x" differ.
-        function spell(pluginId, name) {
+        function spell(modId, name) {
             if (!NAME.test(String(name))) throw new Error('not a session name: ' + name);
-            return `persist:${CONFIG.id}:${pluginId}:${name}`;
+            return `persist:${CONFIG.id}:${modId}:${name}`;
         }
 
-        // { plugin, name } for a partition spelled as a plugin's session, or null.
+        // { mod, name } for a partition spelled as a mod's session, or null.
         function read(partition) {
             const prefix = `persist:${CONFIG.id}:`;
             if (!String(partition).startsWith(prefix)) return null;
-            const [plugin, name, ...rest] = String(partition).slice(prefix.length).split(':');
-            if (rest.length || !plugin || !NAME.test(name || '')) return null;
-            return { plugin, name };
+            const [mod, name, ...rest] = String(partition).slice(prefix.length).split(':');
+            if (rest.length || !mod || !NAME.test(name || '')) return null;
+            return { mod, name };
         }
 
         // MARK: - Private

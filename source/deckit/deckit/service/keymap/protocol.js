@@ -19,7 +19,7 @@ DeckitModule.define(
         runs: 'electron',
     },
     (IPC) => ({
-        // The sending plugin's keys: [{ action, key, label, global }].
+        // The sending mod's keys: [{ action, key, label, global }].
         scope: IPC.rendererToMain('deckit:keymap-scope', { keys: 'array' }),
         // A field has the keyboard, so a chord on a text editing key is the field's.
         typing: IPC.rendererToMain('deckit:keymap-typing', { on: 'boolean' }),
@@ -33,7 +33,7 @@ DeckitModule.define(
         bind: IPC.rendererToMain('deckit:keymap-bind', { id: 'string', spec: 'string' }, { reply: true }),
         reset: IPC.rendererToMain('deckit:keymap-reset', { id: 'string' }, { reply: true }),
 
-        // Run the sending plugin's key of that action.
+        // Run the sending mod's key of that action.
         key: IPC.mainToRenderer('deckit:keymap-key'),
         // `last`: Escape's last stop (putting the panel away) applies here.
         escape: IPC.mainToRenderer('deckit:keymap-escape'),

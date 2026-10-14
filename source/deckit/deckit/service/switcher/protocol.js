@@ -29,7 +29,7 @@ DeckitModule.define(
         resolved: IPC.mainToRenderer('deckit:switcher-resolved'),
         pick: IPC.rendererToMain('deckit:switcher-pick', { id: 'string' }),
 
-        // A plugin's view and main. `source`: what the sending plugin answers.
+        // A mod's view and main. `source`: what the sending mod answers.
         source: IPC.rendererToMain('deckit:switcher-source', {
             icon: 'string',
             aliases: 'array',

@@ -54,7 +54,7 @@ DeckitModule.define(
             up: '↑',
             down: '↓',
         };
-        // Keys a focused text field owns whatever a plugin binds them to: caret moves and deletion with any
+        // Keys a focused text field owns whatever a mod binds them to: caret moves and deletion with any
         // modifier (⌘← is the start of the line), and the ⌘ edit commands.
         const EDITING = new Set([
             'ArrowLeft',

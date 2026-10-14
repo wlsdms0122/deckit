@@ -36,7 +36,7 @@ DeckitModule.define(
         let installed = false;
         // MARK: - Initializer
         // MARK: - Public
-        // The `ui` a page draws with, for `token`. Frozen all the way down: a plugin is handed the very objects its page
+        // The `ui` a page draws with, for `token`. Frozen all the way down: a mod is handed the very objects its page
         // draws with. Components are made in the order of `uses`, as one may lend another something through `inner`.
         function make(token) {
             install(token);

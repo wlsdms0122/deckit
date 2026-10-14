@@ -14,7 +14,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // Small state that costs a click to lose (a fold, a width), in the view's own storage: its origin is the
-        // plugin's, so no other plugin reads it.
+        // mod's, so no other mod reads it.
         function values() {
             return {
                 get(key, fallback) {
@@ -30,7 +30,7 @@ DeckitModule.define(
             };
         }
 
-        // What must not be lost: JSON by key in the plugin's folder, written whole by main. `fail` hears a write
+        // What must not be lost: JSON by key in the mod's folder, written whole by main. `fail` hears a write
         // that did not land.
         function records(fail) {
             const write = (key, given, send) => {

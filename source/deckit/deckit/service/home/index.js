@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/home',
     {
         uses: ['deckit/config'],
-        provides: ['folder', 'plugins', 'staging', 'shipped', 'data', 'records', 'settings', 'state', 'logs'],
+        provides: ['folder', 'mods', 'staging', 'shipped', 'data', 'records', 'settings', 'state', 'logs'],
         runs: 'node',
     },
     (CONFIG) => {
@@ -11,7 +11,7 @@ DeckitModule.define(
         const path = require('path');
         // Not the app's userData: an app that updates can be reinstalled under it.
         const folder = CONFIG.home || path.join(os.homedir(), '.config', CONFIG.id);
-        const plugins = path.join(folder, 'plugins');
+        const mods = path.join(folder, 'mods');
 
         // MARK: - Initializer
         // MARK: - Public
@@ -19,13 +19,13 @@ DeckitModule.define(
 
         return {
             folder,
-            plugins,
-            // Beside the plugins, on the same disk so an install ends in a rename, and outside them so a copy
-            // half made is never read as a plugin.
-            staging: path.join(folder, '.plugins-installing'),
-            // Inside the plugins, so what removes them removes the record too.
-            shipped: path.join(plugins, '.shipped'),
-            // A plugin's main process modules own its data folder whole; what deckit keeps for a plugin is beside it.
+            mods,
+            // Beside the mods, on the same disk so an install ends in a rename, and outside them so a copy
+            // half made is never read as a mod.
+            staging: path.join(folder, '.mods-installing'),
+            // Inside the mods, so what removes them removes the record too.
+            shipped: path.join(mods, '.shipped'),
+            // A mod's main process modules own its data folder whole; what deckit keeps for a mod is beside it.
             data: path.join(folder, 'data'),
             records: path.join(folder, 'records'),
             settings: path.join(folder, 'settings'),

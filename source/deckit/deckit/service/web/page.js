@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/web/page',
     {
         uses: ['deckit/service/web/model/partition', 'deckit/service/web/protocol'],
-        provides: ['listen', 'forPlugin'],
+        provides: ['listen', 'forMod'],
     },
     (PARTITION, PROTOCOL) => {
         // MARK: - Property
@@ -12,7 +12,7 @@ DeckitModule.define(
         const pages = new Map(); // page id -> { apply, receive }
         // What main said about a page before this side knew which element it was, in order.
         const early = new Map(); // page id -> [[event, payload]]
-        // A session is named only by a handle the plugin was given, so it cannot name one it was not.
+        // A session is named only by a handle the mod was given, so it cannot name one it was not.
         const sessions = new WeakMap(); // session handle -> its name
 
         // MARK: - Initializer
@@ -50,15 +50,15 @@ DeckitModule.define(
             PROTOCOL.closed.on(({ id }) => deliver(id, 'closed'));
         }
 
-        // What a plugin is handed of the web: its sessions, pages in its view, and pages in windows. `owner` is
+        // What a mod is handed of the web: its sessions, pages in its view, and pages in windows. `owner` is
         // whoever hands it out ({ deliver, recordFailure }), `opener` what opens an address the page passes on, and
         // `permissions` decides which of the session's tools exist.
-        function forPlugin({ pluginId, permissions, owner, opener }) {
+        function forMod({ modId, permissions, owner, opener }) {
             const has = (permission) => permissions.includes(permission);
             const made = new Map();
             const session = (name) => {
                 if (made.has(name)) return made.get(name);
-                PARTITION.spell(pluginId, name);
+                PARTITION.spell(modId, name);
                 const handle = Object.freeze({
                     name,
                     clear: () => PROTOCOL.clear.invoke({ name }),
@@ -86,7 +86,7 @@ DeckitModule.define(
             return Object.freeze({
                 session,
                 page: ({ session: handle, url = '' } = {}) =>
-                    page(PARTITION.spell(pluginId, nameOf(handle)), url, owner, opener, handle),
+                    page(PARTITION.spell(modId, nameOf(handle)), url, owner, opener, handle),
                 window: ({ session: handle, url = '', title = '' } = {}) =>
                     windowPage(nameOf(handle), url, title, owner, opener, handle),
             });
@@ -103,7 +103,7 @@ DeckitModule.define(
             early.get(id).push([event, payload]);
         }
 
-        // The handle a plugin holds for a page, and the delegate it answers through.
+        // The handle a mod holds for a page, and the delegate it answers through.
         function handleOf(owner, opener, session, url) {
             let delegate = null;
             let id = null;
@@ -263,6 +263,6 @@ DeckitModule.define(
             return Object.assign(handle, { close });
         }
 
-        return { listen, forPlugin };
+        return { listen, forMod };
     }
 );

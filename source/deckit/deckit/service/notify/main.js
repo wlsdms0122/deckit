@@ -15,10 +15,10 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // `clicked` is the app's answer to a clicked notice, which brings it forward before the plugin hears of it.
+        // `clicked` is the app's answer to a clicked notice, which brings it forward before the mod hears of it.
         function start({ clicked }) {
             PROTOCOL.notify.handle(({ id, title, body, silent }, sender) => {
-                IDENTITY.pluginFrom(sender, 'system.notifications');
+                IDENTITY.modFrom(sender, 'system.notifications');
                 return show(sender, id, title, body, silent, clicked);
             });
         }

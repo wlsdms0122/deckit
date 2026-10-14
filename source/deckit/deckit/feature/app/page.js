@@ -19,10 +19,10 @@ DeckitModule.define(
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
-        // The entry of every page deckit makes: a plugin's, or the switcher's. `before` is the globals the page had
-        // before deckit's bundle ran: what the bundle added goes, the registry first, so a plugin reaches deckit only
+        // The entry of every page deckit makes: a mod's, or the switcher's. `before` is the globals the page had
+        // before deckit's bundle ran: what the bundle added goes, the registry first, so a mod reaches deckit only
         // through what it is handed. Nothing starts off deckit's scheme: the preload runs on an error page too, which
-        // is no plugin's.
+        // is no mod's.
         function boot(before) {
             for (const name of Object.keys(window)) if (!before.has(name)) delete window[name];
             if (location.protocol !== ORIGIN.SCHEME.scheme + ':') return;

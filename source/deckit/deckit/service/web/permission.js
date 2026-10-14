@@ -7,7 +7,7 @@ DeckitModule.define(
     },
     (SESSION, REGISTRY, PROTOCOL) => {
         // MARK: - Property
-        // partition|origin|permission. Allowances live until exit: the plugin hands them back through allow(). A
+        // partition|origin|permission. Allowances live until exit: the mod hands them back through allow(). A
         // refusal is not kept, so a page refused by mistake can ask again once reloaded.
         const GRANTED = new Set();
         const MEDIA = { audio: 'microphone', video: 'camera' };
@@ -113,7 +113,7 @@ DeckitModule.define(
             return change(partition, entries, (key) => GRANTED.add(key));
         }
 
-        // A page already holding a stream keeps it, and one told "granted" keeps believing it: the plugin reloads
+        // A page already holding a stream keeps it, and one told "granted" keeps believing it: the mod reloads
         // its pages of that origin.
         function revoke(partition, entries) {
             return change(partition, entries, (key) => GRANTED.delete(key));
@@ -150,7 +150,7 @@ DeckitModule.define(
             return GRANTED.size;
         }
 
-        // What a page asks is put to the plugin showing it. Anything deckit has no question for keeps Electron's
+        // What a page asks is put to the mod showing it. Anything deckit has no question for keeps Electron's
         // answer, which allows.
         function onRequest(page, permission, callback, details) {
             const at = REGISTRY.tabOf(page);

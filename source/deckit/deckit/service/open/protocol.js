@@ -18,7 +18,7 @@ DeckitModule.define(
             },
             { reply: true }
         ),
-        // The sending plugin answers the url-schemes its manifest names.
+        // The sending mod answers the url-schemes its manifest names.
         handles: IPC.rendererToMain('deckit:open-handles', {}),
         reveal: IPC.rendererToMain('deckit:open-reveal', { file: 'string' }, { reply: true }),
         // deckit.url-schemes: each scheme's handlers in order, and setting that order.
@@ -28,7 +28,7 @@ DeckitModule.define(
             { scheme: 'string', order: 'array', off: 'array' },
             { reply: true }
         ),
-        // Asks a plugin to open an address; it answers true when it took it.
+        // Asks a mod to open an address; it answers true when it took it.
         offer: IPC.mainToRenderer('deckit:open-offer', { reply: true }),
     })
 );

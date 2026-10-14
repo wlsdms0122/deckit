@@ -19,7 +19,7 @@ DeckitModule.define(
         function start({ restart }) {
             const { app } = require('electron');
             PROTOCOL.about.handle((_payload, sender) => {
-                IDENTITY.pluginFrom(sender);
+                IDENTITY.modFrom(sender);
                 return {
                     version: BUILD.VERSION,
                     source: BUILD.SOURCE,
@@ -28,13 +28,13 @@ DeckitModule.define(
                     app: `${app.getName()} ${app.getVersion()}`,
                     electron: process.versions.electron,
                     chrome: process.versions.chrome,
-                    plugins: HOME.plugins,
+                    mods: HOME.mods,
                     data: HOME.data,
                     log: LOG.file(),
                 };
             });
             PROTOCOL.restart.handle((_payload, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.plugins');
+                IDENTITY.modFrom(sender, 'deckit.mods');
                 restart();
                 return true;
             });

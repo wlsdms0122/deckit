@@ -18,8 +18,8 @@ DeckitModule.define(
         // session keeps them, so here it is given a lifetime.
         const SESSION_COOKIE_TTL = 60 * 60 * 24 * 14;
         const FETCH_LIMIT = 4 * 1024 * 1024;
-        const made = new Map(); // partition -> { session, plugin, name }
-        const created = new Set(); // listeners told of every plugin session as it is made
+        const made = new Map(); // partition -> { session, mod, name }
+        const created = new Set(); // listeners told of every mod session as it is made
 
         // MARK: - Initializer
         // MARK: - Public
@@ -28,20 +28,20 @@ DeckitModule.define(
             return require('electron').session.fromPartition(`persist:${CONFIG.id}`);
         }
 
-        // A plugin's web session by name, made on first use. Its partition is spelled from the plugin's id, so a
-        // plugin names its own sessions and no one else's.
-        function of(pluginId, name) {
-            const spelled = PARTITION.spell(pluginId, name);
+        // A mod's web session by name, made on first use. Its partition is spelled from the mod's id, so a
+        // mod names its own sessions and no one else's.
+        function of(modId, name) {
+            const spelled = PARTITION.spell(modId, name);
             if (made.has(spelled)) return made.get(spelled).session;
             const session = require('electron').session.fromPartition(spelled);
-            made.set(spelled, { session, plugin: pluginId, name });
+            made.set(spelled, { session, mod: modId, name });
             keepSessionCookies(session);
-            remember(pluginId, name);
-            for (const listener of created) listener(session, pluginId);
+            remember(modId, name);
+            for (const listener of created) listener(session, modId);
             return session;
         }
 
-        // The partition of a page in a plugin's session, or '' for one in any other.
+        // The partition of a page in a mod's session, or '' for one in any other.
         function partitionOf(webContents) {
             for (const [partition, { session }] of made) if (session === webContents.session) return partition;
             return '';
@@ -53,9 +53,9 @@ DeckitModule.define(
 
         // Read whole as bytes arrive, held to a limit: this is the app's process, and a huge answer would be held
         // whole first.
-        async function fetchText(pluginId, name, url) {
+        async function fetchText(modId, name, url) {
             if (!/^https?:\/\//i.test(url)) throw new Error('not a web address: ' + url);
-            const response = await of(pluginId, name).fetch(url, { redirect: 'follow' });
+            const response = await of(modId, name).fetch(url, { redirect: 'follow' });
             if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
             if (Number(response.headers.get('content-length')) > FETCH_LIMIT) {
                 response.body?.cancel();
@@ -78,28 +78,28 @@ DeckitModule.define(
             return new TextDecoder().decode(Buffer.concat(chunks));
         }
 
-        async function clear(pluginId, name) {
-            const session = of(pluginId, name);
+        async function clear(modId, name) {
+            const session = of(modId, name);
             await session.clearStorageData();
             await session.clearCache();
             await session.clearAuthCache();
         }
 
-        // What a plugin kept in sessions: its pages' storage in deckit's own session, and every session it made.
-        async function forget(pluginId) {
-            await own().clearStorageData({ origin: ORIGIN.originOf(pluginId) });
+        // What a mod kept in sessions: its pages' storage in deckit's own session, and every session it made.
+        async function forget(modId) {
+            await own().clearStorageData({ origin: ORIGIN.originOf(modId) });
             const sessions = STORAGE.state.read(SESSIONS, {});
-            for (const name of sessions[pluginId] || []) await clear(pluginId, name);
-            delete sessions[pluginId];
+            for (const name of sessions[modId] || []) await clear(modId, name);
+            delete sessions[modId];
             STORAGE.state.write(SESSIONS, sessions);
-            LOG.info(`forgot the web sessions of ${pluginId}`);
+            LOG.info(`forgot the web sessions of ${modId}`);
         }
 
         // MARK: - Private
-        function remember(pluginId, name) {
+        function remember(modId, name) {
             const sessions = STORAGE.state.read(SESSIONS, {});
-            if ((sessions[pluginId] || []).includes(name)) return;
-            sessions[pluginId] = [...(sessions[pluginId] || []), name];
+            if ((sessions[modId] || []).includes(name)) return;
+            sessions[modId] = [...(sessions[modId] || []), name];
             STORAGE.state.write(SESSIONS, sessions);
         }
 

@@ -18,7 +18,7 @@ DeckitModule.define(
         const OVERRIDES = 'keys';
         const RECORDING_MS = 20 * 1000;
         const own = []; // [{ action, key, label, scope: 'global' | 'panel', run(webContents) }]
-        const scopes = new Map(); // plugin id -> [{ action, key, label, global }]
+        const scopes = new Map(); // mod id -> [{ action, key, label, global }]
         const typing = new Set(); // webContents ids with a field focused
         const floating = new Set(); // webContents ids with something floating
         const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
@@ -31,30 +31,30 @@ DeckitModule.define(
         function start() {
             overrides = STORAGE.state.read(OVERRIDES, {});
             PROTOCOL.scope.on(({ keys }, sender) => {
-                const plugin = IDENTITY.pluginFrom(sender);
-                scopes.set(plugin.id, keys);
-                IDENTITY.whenPageEnds(sender, () => scopes.get(plugin.id) === keys && scopes.delete(plugin.id));
+                const mod = IDENTITY.modFrom(sender);
+                scopes.set(mod.id, keys);
+                IDENTITY.whenPageEnds(sender, () => scopes.get(mod.id) === keys && scopes.delete(mod.id));
                 announce();
             });
             PROTOCOL.typing.on(({ on }, sender) => mark(typing, sender, on));
             PROTOCOL.floating.on(({ on }, sender) => mark(floating, sender, on));
             PROTOCOL.record.on(({ on }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.key-map');
+                IDENTITY.modFrom(sender, 'deckit.key-map');
                 if (on) startRecording(sender);
                 else if (recording?.webContents === sender) stopRecording(false);
             });
             PROTOCOL.chord.handle(({ id }) => chordOf(id));
             PROTOCOL.bindings.handle((_payload, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.key-map');
+                IDENTITY.modFrom(sender, 'deckit.key-map');
                 return bindings().map(({ run, ...binding }) => binding);
             });
             PROTOCOL.bind.handle(({ id, spec }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.key-map');
+                IDENTITY.modFrom(sender, 'deckit.key-map');
                 bind(id, spec);
                 return true;
             });
             PROTOCOL.reset.handle(({ id }, sender) => {
-                IDENTITY.pluginFrom(sender, 'deckit.key-map');
+                IDENTITY.modFrom(sender, 'deckit.key-map');
                 reset(id);
                 return true;
             });
@@ -135,44 +135,40 @@ DeckitModule.define(
                 run,
                 chord: spec ? CHORD.label(spec) : '',
                 defaultChord: written ? CHORD.label(written) : '',
-                // Against today's default: a change a plugin update has since made its default is no longer a change.
+                // Against today's default: a change a mod update has since made its default is no longer a change.
                 changed: Object.hasOwn(overrides, id) && spec !== written,
             };
         }
 
         // Global first, in the order a keystroke tries them; bindings() relies on this order to pick winners. A
-        // plugin's key is global only with system.global-keys.
+        // mod's key is global only with system.global-keys.
         function catalog() {
-            const plugins = CATALOG.plugins().filter(({ id }) => scopes.has(id));
-            const global = (plugin) => plugin.permissions.some(({ id }) => id === 'system.global-keys');
-            const keysOf = (plugin, wantGlobal) =>
-                scopes.get(plugin.id).filter((key) => !!key.global === wantGlobal && (!wantGlobal || global(plugin)));
+            const mods = CATALOG.mods().filter(({ id }) => scopes.has(id));
+            const global = (mod) => mod.permissions.some(({ id }) => id === 'system.global-keys');
+            const keysOf = (mod, wantGlobal) =>
+                scopes.get(mod.id).filter((key) => !!key.global === wantGlobal && (!wantGlobal || global(mod)));
             return [
                 ...own
                     .filter((key) => key.scope === 'global')
                     .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'global', key)),
-                ...plugins.flatMap((plugin) =>
-                    keysOf(plugin, true).map((key) => bindingOf(plugin.id, plugin.name, 'global', key))
-                ),
+                ...mods.flatMap((mod) => keysOf(mod, true).map((key) => bindingOf(mod.id, mod.name, 'global', key))),
                 ...own
                     .filter((key) => key.scope === 'panel')
                     .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'panel', key)),
-                ...plugins.flatMap((plugin) =>
-                    keysOf(plugin, false).map((key) => bindingOf(plugin.id, plugin.name, 'plugin', key))
-                ),
+                ...mods.flatMap((mod) => keysOf(mod, false).map((key) => bindingOf(mod.id, mod.name, 'mod', key))),
             ];
         }
 
-        // Two plugins' own keys never meet: only one plugin is on screen.
+        // Two mods' own keys never meet: only one mod is on screen.
         function together(a, b) {
-            return !(a.scope === 'plugin' && b.scope === 'plugin' && a.owner !== b.owner);
+            return !(a.scope === 'mod' && b.scope === 'mod' && a.owner !== b.owner);
         }
 
         // Defaults first, then changes in the order they were made (the saved map's order), so a change landing on a
         // chord already taken is the one held back. Among defaults nothing is held back. A binding's `issues` say how a
         // keystroke is actually resolved, each { level, kind, other }: `held` (not applied, the chord is taken),
-        // `shadowed` (never runs, another takes the chord first), `hides` (it hides `other` while its plugin is on
-        // screen), `hidden` (not on `other`'s plugin, where the chord is `other`'s).
+        // `shadowed` (never runs, another takes the chord first), `hides` (it hides `other` while its mod is on
+        // screen), `hidden` (not on `other`'s mod, where the chord is `other`'s).
         function bindings() {
             const list = catalog();
             const order = Object.keys(overrides);
@@ -208,10 +204,8 @@ DeckitModule.define(
                         earlier
                     ) {
                         say(binding, 'error', 'shadowed', other);
-                    } else if (binding.scope === 'plugin' && other.scope === 'panel')
-                        say(binding, 'warn', 'hides', other);
-                    else if (binding.scope === 'panel' && other.scope === 'plugin')
-                        say(binding, 'warn', 'hidden', other);
+                    } else if (binding.scope === 'mod' && other.scope === 'panel') say(binding, 'warn', 'hides', other);
+                    else if (binding.scope === 'panel' && other.scope === 'mod') say(binding, 'warn', 'hidden', other);
                 }
             }
             return list.map((binding) => ({
@@ -247,8 +241,8 @@ DeckitModule.define(
         }
 
         function announce() {
-            for (const plugin of CATALOG.plugins()) {
-                const view = IDENTITY.pageOf(plugin.id);
+            for (const mod of CATALOG.mods()) {
+                const view = IDENTITY.pageOf(mod.id);
                 if (view) PROTOCOL.changed.send(view, {});
             }
         }
@@ -274,10 +268,10 @@ DeckitModule.define(
             if (global) return run(global, webContents);
             if (!view || !route.showsPanel(webContents)) return false;
             if (typing.has(view.id) && CHORD.editsText(input)) return false;
-            const plugin = IDENTITY.pluginOf(view);
-            // The plugin's own first, so it wins a chord it shares with the panel.
+            const mod = IDENTITY.modOf(view);
+            // The mod's own first, so it wins a chord it shares with the panel.
             const hit =
-                active.find((binding) => binding.scope === 'plugin' && binding.owner === plugin?.id) ||
+                active.find((binding) => binding.scope === 'mod' && binding.owner === mod?.id) ||
                 active.find((binding) => binding.scope === 'panel');
             return hit ? run(hit, webContents) : false;
         }

@@ -11,8 +11,8 @@ mkdir -p "$OUT"
 WORK="$(mktemp -d "$OUT/.building.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 LIB="$WORK/lib"
-mkdir -p "$LIB/document" "$LIB/plugin"
-SOURCE_HASH="$({ find source/deckit/deckit source/deckit/plugin source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+mkdir -p "$LIB/document" "$LIB/mod"
+SOURCE_HASH="$({ find source/deckit/deckit source/deckit/mod source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 # Read into an array first, where a node that fails stops the build. Which deckit this is goes into the bundles: the
 # build module's empty values are written over with the version and the source hash.
@@ -44,18 +44,18 @@ for b in registry chord page; do
     || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
 done
 
-cp document/EMBEDDING.md document/PLUGIN.md document/UI.md "$LIB/document/"
+cp document/EMBEDDING.md document/MOD.md document/UI.md "$LIB/document/"
 
-# deckit's own plugins keep their sandbox code as CommonJS files under src/, with src/main.js the entry; what the
+# deckit's own mods keep their sandbox code as CommonJS files under src/, with src/main.js the entry; what the
 # manifest's main names is that, bundled from src/ alone, with the licences it carries. The rest of the folder ships as
 # it is.
 ESBUILD=esbuild@0.28.2
-for dir in source/deckit/plugin/*/; do
+for dir in source/deckit/mod/*/; do
   dir="${dir%/}"
   [ -f "$dir/manifest.toml" ] || continue
-  rsync -a --exclude .DS_Store --exclude "/$(basename "$dir")/src" "$dir" "$LIB/plugin/"
+  rsync -a --exclude .DS_Store --exclude "/$(basename "$dir")/src" "$dir" "$LIB/mod/"
   MAIN="$(node -p "require('fs').readFileSync('$dir/manifest.toml','utf8').match(/^main\\s*=\\s*\"([^\"]+)\"/m)[1]")"
-  OUTFILE="$PWD/$LIB/plugin/$(basename "$dir")/$MAIN"
+  OUTFILE="$PWD/$LIB/mod/$(basename "$dir")/$MAIN"
   ( cd "$dir/src" && npx --yes "$ESBUILD" main.js --bundle --format=cjs --platform=browser --target=chrome120 \
       --legal-comments=eof --log-level=warning --metafile="$OLDPWD/$WORK/meta.json" --outfile="$OUTFILE" ) \
     || { echo "$dir could not be bundled: stopping" >&2; exit 1; }

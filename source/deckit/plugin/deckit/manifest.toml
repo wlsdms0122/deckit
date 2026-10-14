@@ -1,8 +1,0 @@
-id = "deckit"
-name = "Deckit"
-version = "1.0.0"
-api = "1.0.0"
-main = "main.js"
-
-[permissions]
-"deckit.plugins" = "Restarts a plugin you pick, or the whole app, from the switcher."
