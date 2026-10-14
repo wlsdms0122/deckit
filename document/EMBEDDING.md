@@ -22,10 +22,10 @@ In main the host app requires `main.js` and, to put deckit's shell on deckit, `s
 ```js
 const before = new Set(Object.keys(globalThis));
 // page.js, then shell-page.js, as they are
-DeckitPage.boot({ before, shell: DeckitShellPage, exports });
+DeckitPage.boot({ before, shell: DeckitShellPage, host });
 ```
 
-`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. `exports` is what the host app offers its own mod (section 5), left out when it offers nothing. A host app with a shell of its own puts its page side in place of `shell-page.js` and hands it to `boot` as `shell` (section 4); with no shell on deckit, it leaves `shell` out.
+`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. `host` is what the host app offers its own mod (section 5), left out when it offers nothing. A host app with a shell of its own puts its page side in place of `shell-page.js` and hands it to `boot` as `shell` (section 4); with no shell on deckit, it leaves `shell` out.
 
 ## 2. The configuration
 
@@ -100,7 +100,7 @@ What `controls` holds:
 
 Moving the panel is a re-parent: mods keep their sandboxes and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, whether Escape with nothing else to close puts it away, and, filling a window whose title bar lies over the panel's top, `titleBar: { height, controlsWidth }`: the bar's height and the width the window's buttons take at its start. The sidebar and the content then reach up under the bar: the sidebar's top drags the window, and the content's is the mod's title bar area (MOD.md, `deck.view`).
 
-`setTheme` gives the shell the host app's colours: `{ sidebarBg, sidebarColor, border, contentBg, contentColor, font }`. Every page the shell draws derives its look from it (UI.md), and every mod's page is made again when it changes, headless mods' included.
+`setTheme` gives the shell the host app's colours: `{ contentBg, contentColor, border, font }`. Every page the shell draws derives its look from it (UI.md) and takes a new one in place: no mod launches again and no page loads again. Deckit.app gives a light or a dark theme as the system's appearance is, and gives it again as that changes.
 
 ## 4. What connect answers
 
@@ -112,7 +112,7 @@ What connect answers is all a host app, or the shell on deckit, reaches of decki
 | `onStart(listener)` | told once as deckit starts, before any mod launches; handed over before the host app is ready. One that throws is logged, and the mods run anyway |
 | `permissions` | `define({ id, name, icon, means, reach })`: a permission that grants what the shell adds, which a mod's manifest may then ask for. `reach` is `system` for what reaches past the app and `app` for what stays inside it; a person reads the first before the second. Defined before any manifest is read, which is before the host app is ready; after, it throws |
 | `mods` | `list()`, every loaded mod's manifest in the person's order, `onChange(listener)`, which answers its off, `arrange(ids)`; `runs()`, each mod's latest run with the view its page is in, `runOf(id)`; `listingOf(id)`, how a mod is listed (`{ icon, keywords }`) as its latest run that launched said, kept while it launches again, or null; `observe(name, observer)` for a lifecycle notification (`notifications` lists them) of every run, answering its off; `modOf(webContents)`, the id of the mod a page is, or null; `managerFrom(webContents)`, the id of that mod if it has `deckit.mods`, and otherwise it throws; `relaunchAll()`. A run is `{ mod, number, state, summary, contributions, problem, relaunches }` (MOD.md, Lifecycle) |
-| `pages` | `make(name)`, a view at `deckit://<name>/` for a page that runs no mod, which the shell draws (`page(name)` on its page side); `nameOf(webContents)`; `whenEnds(webContents, undo)`, `undo` called once as that page navigates away, crashes or goes, answering its off; it takes a deckit page's webContents (a mod's, or one `make` made), and throws for any other; `isPressing(webContents)`, whether a person is pressing in that page now or just pressed, so what it tells is theirs and not its code's |
+| `pages` | `make(name)`, a view at `deckit://<name>/` for a page that runs no mod, which the shell draws (`page(name)` on its page side); `nameOf(webContents)`; `whenEnds(webContents, undo)`, `undo` called once as that page navigates away, crashes or goes, answering its off; it takes a deckit page's webContents (a mod's, or one `make` made), and throws for any other; `isPressing(webContents)`, whether a person is pressing in that page now or just pressed, so what it tells is theirs and not its code's; `isPointing(webContents)`, the same of the mouse alone |
 | `keymap` | `register({ action, key, label, global, run })`, a key of the shell's own, answering its id; `chordOf(id)`; `listen(webContents, { keys })`; `delegate({ isActive, monitor })`: `isActive(page)`, whether a deckit page is the one in front, where a mod's own keys and the shell's run, and `monitor(page, input)`, which sees a keystroke in it before any key and takes it by answering true |
 | `commands` | what mods offer to be run. `session()` is one caller's: `list()`, `now()` and `resolve(raw)` (a promise for each mod, as each answers), `search(entryId, raw)` for the entries an entry opens, `run(entryId)`, and `end()`, after which its entries are gone; another session never touches them. `tones` is how a readout says its state |
 | `state` | `read(key, fallback)`, `write(key, value)`: what the host app and its shell keep of the person's, in `state/host/`, apart from deckit's own. A key is lower case letters, digits, `.`, `_` and `-`, starting with a letter or a digit, at most 64. The host app and its shell share the keys: deckit's shell keeps `panel-frame`, `panel-pinned` and `switcher-use`, so a host app with it keeps keys of other names |
@@ -138,7 +138,7 @@ The host app and its shell reach deckit through these, and nothing else of decki
 
 ## 5. The host app's own mod, and what the host app offers
 
-What a person does with the host app from the panel is the host app's own mod: the one whose id is the host app's. It ships with the host app and can be removed like any other. That is all that sets it apart: it alone is handed what the host app offers, the `exports` it hands `boot`, as `deck.host`, and it may export that on. A mod that wants the host app requires that mod like any other. In another host app a mod with that id is handed nothing.
+What a person does with the host app from the panel is the host app's own mod: the one whose id is the host app's. It ships with the host app and can be removed like any other. That is all that sets it apart: it alone is handed what the host app offers, the `host` it hands `boot`, as `deck.host`, and it may export that on. A mod that wants the host app requires that mod like any other. In another host app a mod with that id is handed nothing.
 
 It may stand first among a scheme's handlers (`schemeHandlers`, and the scheme in its manifest's `url-schemes`): it opens the addresses it knows and passes the rest on. Deckit never asks whose an address is.
 
