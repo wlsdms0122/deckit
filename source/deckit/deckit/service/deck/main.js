@@ -127,7 +127,7 @@ DeckitModule.define(
                             id: mod.id,
                             name: mod.name,
                             ...summary,
-                            extends: EXTENSION.extendsOf(mod.id),
+                            extends: EXTENSION.pointsExtendedBy(mod.id),
                             problem,
                         };
                     }),

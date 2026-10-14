@@ -71,11 +71,11 @@ DeckitModule.define(
         // An extension point's mod calls a function of what another mod extends it with.
         callExtension: IPC.rendererToMain(
             'deckit:mod-call-extension',
-            { run: 'number', mod: 'string', target: 'string', path: 'array', args: 'array' },
+            { run: 'number', mod: 'string', point: 'string', path: 'array', args: 'array' },
             { reply: true }
         ),
         extensionCalled: IPC.mainToRenderer('deckit:mod-extension-called', { reply: true }),
-        // The extensions of one of the mod's points now: { point, extensions: { [mod id]: { values, functions } } }.
+        // The extensions of one of the mod's points now, by its name: { name, extensions: { [mod id]: { values, functions } } }.
         extensionsChanged: IPC.mainToRenderer('deckit:mod-extensions-changed'),
         // A main process module of the mod's, by its path in the mod's folder: started once, answering
         // { path, methods }, the paths of its functions.

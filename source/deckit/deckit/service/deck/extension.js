@@ -5,14 +5,14 @@ DeckitModule.define(
             'deckit/service/deck/identity',
             'deckit/service/deck/runner',
             'deckit/service/deck/protocol',
-            'deckit/service/deck/model/extension-target',
+            'deckit/service/deck/model/extension-point',
         ],
-        provides: ['start', 'extendsOf'],
+        provides: ['start', 'pointsExtendedBy'],
         runs: 'main',
     },
-    (IDENTITY, RUNNER, PROTOCOL, TARGET) => {
+    (IDENTITY, RUNNER, PROTOCOL, EXTENSION_POINT) => {
         // MARK: - Property
-        // `<mod id>:<point>` -> mod id -> { values, functions }: what each mod extends each open point with
+        // an open point's id -> mod id -> { values, functions }: what each mod extends it with
         const points = new Map();
 
         // MARK: - Initializer
@@ -22,55 +22,56 @@ DeckitModule.define(
         // and is called there through main; the point's mod is told each time what extends it changes.
         function start() {
             RUNNER.observe('didLaunch', (run) => {
-                for (const point of run.contributions.extensionPoints)
-                    points.set(TARGET.targetOf(run.mod.id, point), new Map());
-                for (const [target, extension] of Object.entries(run.contributions.extensions))
-                    extend(run, target, extension);
+                for (const name of run.contributions.extensionPoints)
+                    points.set(EXTENSION_POINT.idOf(run.mod.id, name), new Map());
+                for (const [point, extension] of Object.entries(run.contributions.extensions))
+                    extend(run, point, extension);
             });
             RUNNER.observe('didTerminate', ({ mod }) => {
-                for (const target of [...points.keys()]) {
-                    if (TARGET.modOf(target) === mod.id) points.delete(target);
-                    else if (points.get(target).delete(mod.id)) tell(target);
+                for (const point of [...points.keys()]) {
+                    if (EXTENSION_POINT.modOf(point) === mod.id) points.delete(point);
+                    else if (points.get(point).delete(mod.id)) tell(point);
                 }
             });
-            PROTOCOL.callExtension.handle(async ({ run: number, mod, target, path, args }, sender) => {
+            PROTOCOL.callExtension.handle(async ({ run: number, mod, point, path, args }, sender) => {
                 const caller = IDENTITY.modFrom(sender);
-                if (TARGET.modOf(target) !== caller.id) throw new Error(`${target} is not a point of ${caller.id}`);
+                if (EXTENSION_POINT.modOf(point) !== caller.id)
+                    throw new Error(`${point} is not a point of ${caller.id}`);
                 const run = RUNNER.currentRun(sender, number);
                 if (!run || run.state === 'notRunning') throw new Error(`${caller.id} is not running`);
-                const extension = points.get(target)?.get(mod);
-                if (!extension) throw new Error(`${mod} does not extend ${target}`);
+                const extension = points.get(point)?.get(mod);
+                if (!extension) throw new Error(`${mod} does not extend ${point}`);
                 if (!extension.functions.some((written) => written.join('.') === path.join('.')))
-                    throw new Error(`${mod} extends ${target} with no function ${path.join('.')}`);
-                return PROTOCOL.extensionCalled.invoke(IDENTITY.pageOf(mod), { target, path, args });
+                    throw new Error(`${mod} extends ${point} with no function ${path.join('.')}`);
+                return PROTOCOL.extensionCalled.invoke(IDENTITY.pageOf(mod), { point, path, args });
             });
         }
 
         // The points the mod extends now, as deck took them.
-        function extendsOf(modId) {
-            return [...points].filter(([, extensions]) => extensions.has(modId)).map(([target]) => target);
+        function pointsExtendedBy(modId) {
+            return [...points].filter(([, extensions]) => extensions.has(modId)).map(([point]) => point);
         }
 
         // MARK: - Private
         // A point it extends belongs to a mod it requires, which is running, so the point is open or never will be.
-        function extend(run, target, extension) {
-            const owner = TARGET.modOf(target);
+        function extend(run, point, extension) {
+            const owner = EXTENSION_POINT.modOf(point);
             if (!Object.hasOwn(run.mod.requires, owner))
-                return run.record(`deck.extend() names ${target}, but manifest.toml does not require ${owner}`);
-            if (!points.has(target)) return run.record(`deck.extend() names ${target}, which ${owner} does not open`);
-            points.get(target).set(run.mod.id, extension);
-            tell(target);
+                return run.record(`deck.extend() names ${point}, but manifest.toml does not require ${owner}`);
+            if (!points.has(point)) return run.record(`deck.extend() names ${point}, which ${owner} does not open`);
+            points.get(point).set(run.mod.id, extension);
+            tell(point);
         }
 
-        function tell(target) {
-            const page = IDENTITY.pageOf(TARGET.modOf(target));
+        function tell(point) {
+            const page = IDENTITY.pageOf(EXTENSION_POINT.modOf(point));
             if (!page) return;
             PROTOCOL.extensionsChanged.send(page, {
-                point: TARGET.pointOf(target),
-                extensions: Object.fromEntries(points.get(target)),
+                name: EXTENSION_POINT.nameOf(point),
+                extensions: Object.fromEntries(points.get(point)),
             });
         }
 
-        return { start, extendsOf };
+        return { start, pointsExtendedBy };
     }
 );

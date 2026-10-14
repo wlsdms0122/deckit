@@ -25,19 +25,20 @@ DeckitModule.define(
                 const modId = IDENTITY.isSwitcher(sender) ? null : IDENTITY.modFrom(sender).id;
                 if (!pages.has(sender)) IDENTITY.whenPageEnds(sender, () => pages.delete(sender));
                 pages.set(sender, modId);
-                return stylesOf(modId);
+                return stylesFor(modId);
             });
-            RUNNER.observe('didLaunch', (run) => styles(run) && tell());
-            RUNNER.observe('didTerminate', (run) => styles(run) && tell());
+            RUNNER.observe('didLaunch', (run) => stylesOf(run) && tell());
+            RUNNER.observe('didTerminate', (run) => stylesOf(run) && tell());
             CATALOG.onChange(tell);
         }
 
         // MARK: - Private
-        function stylesOf(modId) {
+        // What the page of `modId`, or the switcher's for null, wears.
+        function stylesFor(modId) {
             return CATALOG.mods()
                 .map(({ id }) => RUNNER.runOf(id))
                 .filter((run) => run?.state === 'running')
-                .map(styles)
+                .map(stylesOf)
                 .filter(Boolean)
                 .flatMap((given) =>
                     [given[EVERY_PAGE], modId && given[modId]].filter((css) => typeof css === 'string')
@@ -45,14 +46,14 @@ DeckitModule.define(
         }
 
         // What a run styles, held to the permission: main does not take a page's word for it.
-        function styles(run) {
+        function stylesOf(run) {
             const given = run.contributions?.styles;
             if (!given || !Object.keys(given).length) return null;
             return run.mod.permissions.some(({ id }) => id === PERMISSION) ? given : null;
         }
 
         function tell() {
-            for (const [page, modId] of pages) PROTOCOL.changed.send(page, { styles: stylesOf(modId) });
+            for (const [page, modId] of pages) PROTOCOL.changed.send(page, { styles: stylesFor(modId) });
         }
 
         return { start };

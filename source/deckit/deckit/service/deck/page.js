@@ -20,7 +20,7 @@ DeckitModule.define(
             'deckit/service/deck/page-settings',
             'deckit/service/deck/protocol',
             'deckit/service/deck/model/origin',
-            'deckit/service/deck/model/extension-target',
+            'deckit/service/deck/model/extension-point',
             'deckit/service/mod/entry',
             'deckit/service/keymap/model/binding-id',
             'host/exports?',
@@ -47,7 +47,7 @@ DeckitModule.define(
         SETTINGS,
         PROTOCOL,
         ORIGIN,
-        TARGET,
+        EXTENSION_POINT,
         ENTRY,
         BINDING_ID,
         HOST
@@ -263,7 +263,7 @@ DeckitModule.define(
             const extensions = (value) => {
                 if (!value || typeof value !== 'object') return 'takes { "<mod id>:<point>": extension }';
                 const wrong = Object.entries(value).find(
-                    ([target, extension]) => !TARGET.isTarget(target) || !extension || typeof extension !== 'object'
+                    ([point, extension]) => !EXTENSION_POINT.isId(point) || !extension || typeof extension !== 'object'
                 );
                 return wrong ? `takes { "<mod id>:<point>": extension }, not "${wrong[0]}"` : '';
             };
@@ -286,16 +286,16 @@ DeckitModule.define(
                 },
                 // A call it refuses is shown on the mod's row like any registration's, and answers a point nothing
                 // extends.
-                extensionPoint(name) {
-                    const point = String(name);
+                extensionPoint(asked) {
+                    const name = String(asked);
                     if (!open) fail('deck.extensionPoint() is called in start(), and start() has ended');
-                    else if (!point) fail('deck.extensionPoint() takes a name');
-                    else if (points.has(point)) fail(`deck.extensionPoint("${point}") is called once`);
+                    else if (!name) fail('deck.extensionPoint() takes a name');
+                    else if (points.has(name)) fail(`deck.extensionPoint("${name}") is called once`);
                     else {
-                        points.set(point, extensionPointOf(point));
-                        return points.get(point).handle;
+                        points.set(name, extensionPointOf(name));
+                        return points.get(name).handle;
                     }
-                    return extensionPointOf(point).handle;
+                    return extensionPointOf(name).handle;
                 },
                 // The parts deck contributes: the view's, its keys, its switcher answers, its URL handler, its exports, what
                 // it extends other mods' points with, its styles, and the points it opens.
@@ -308,7 +308,7 @@ DeckitModule.define(
         }
 
         function deckOf({ theme, ui, settings, requires, show, register, extensionPoint }) {
-            const { styles, ...registers } = register;
+            const { styles, ...registrations } = register;
             const has = (permission) => mod.permissions.some(({ id }) => id === permission);
             const opener = { open: (url, options) => OPEN.open(url, options) };
             return Object.freeze({
@@ -326,7 +326,7 @@ DeckitModule.define(
                 }),
                 requires,
                 util: Object.freeze({ match: MATCH.match, ranker: RANKER.ranker, movePath, tildify: tildifyOf() }),
-                ...registers,
+                ...registrations,
                 extensionPoint,
                 ...EVENT.forMod({ owner: { deliver, recordFailure: fail } }),
                 show,
@@ -427,8 +427,8 @@ DeckitModule.define(
         // One of the mod's extension points. `extensions()` is what extends it now, by the id of the mod that extends
         // it, each one's functions called through main; `onChange(listener)` hears what it is each time it changes, and
         // answers its off. Nothing extends it before start() has ended: a mod that does requires this one.
-        function extensionPointOf(point) {
-            const target = TARGET.targetOf(mod.id, point);
+        function extensionPointOf(name) {
+            const point = EXTENSION_POINT.idOf(mod.id, name);
             const listeners = new Set();
             let extensions = Object.freeze({});
             return {
@@ -440,14 +440,14 @@ DeckitModule.define(
                         return () => listeners.delete(listener);
                     },
                 }),
-                changed(given) {
+                set(given) {
                     extensions = Object.freeze(
                         Object.fromEntries(
                             Object.entries(given).map(([id, { values, functions }]) => [
                                 id,
                                 deepFreeze(
                                     proxyOf(functions, values, (path, args) =>
-                                        PROTOCOL.callExtension.invoke({ run: runNumber, mod: id, target, path, args })
+                                        PROTOCOL.callExtension.invoke({ run: runNumber, mod: id, point, path, args })
                                     )
                                 ),
                             ])
@@ -461,7 +461,7 @@ DeckitModule.define(
         // What deck joins of what start() registered: exports and each extension as its values copied and the paths of
         // its functions, the points it opens by name, its styles by what they style.
         function contributionsOf(parts) {
-            const copied = (what, value) => {
+            const copy = (what, value) => {
                 try {
                     return structuredClone(snapshotOf(value));
                 } catch (error) {
@@ -469,12 +469,12 @@ DeckitModule.define(
                 }
             };
             return {
-                exports: copied('deck.exports()', parts.exports || {}),
+                exports: copy('deck.exports()', parts.exports || {}),
                 extensionPoints: [...parts.points.keys()],
                 extensions: Object.fromEntries(
-                    Object.entries(parts.extend || {}).map(([target, extension]) => [
-                        target,
-                        copied('deck.extend()', extension),
+                    Object.entries(parts.extend || {}).map(([point, extension]) => [
+                        point,
+                        copy('deck.extend()', extension),
                     ])
                 ),
                 styles: { ...(parts.styles || {}) },
@@ -509,13 +509,13 @@ DeckitModule.define(
                 if (typeof exported !== 'function') throw new Error(`${mod.id} exports no function ${path.join('.')}`);
                 return exported(...args);
             });
-            PROTOCOL.extensionCalled.handle(({ target, path, args }) => {
-                const extension = path.reduce((at, key) => at?.[key], parts.extend?.[target]);
+            PROTOCOL.extensionCalled.handle(({ point, path, args }) => {
+                const extension = path.reduce((at, key) => at?.[key], parts.extend?.[point]);
                 if (typeof extension !== 'function')
-                    throw new Error(`${mod.id} extends ${target} with no function ${path.join('.')}`);
+                    throw new Error(`${mod.id} extends ${point} with no function ${path.join('.')}`);
                 return extension(...args);
             });
-            PROTOCOL.extensionsChanged.on(({ point, extensions }) => parts.points.get(point)?.changed(extensions));
+            PROTOCOL.extensionsChanged.on(({ name, extensions }) => parts.points.get(name)?.set(extensions));
             PROTOCOL.started.send({
                 run: runNumber,
                 contributions,
