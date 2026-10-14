@@ -1,12 +1,11 @@
 import * as IPC from '../../core/ipc/index.js';
 
-// Answers whether something took it. `userInitiated`: a person asked, so a file may be opened, not only shown.
+// Answers whether something took it.
 export const open = IPC.rendererToMain(
     'deckit:open',
     {
         url: 'string',
         activates: 'boolean',
-        userInitiated: 'boolean',
         usesDefaultApp: 'boolean',
         target: 'string',
     },

@@ -6,11 +6,11 @@ const EVERY = SCHEME.EVERY;
 
 // MARK: - Initializer
 // MARK: - Public
-function open(url, { activates = true, userInitiated = false, usesDefaultApp = false, target = '' } = {}) {
+// Whether a person asked is main's to know: it sees the page's input itself.
+function open(url, { activates = true, usesDefaultApp = false, target = '' } = {}) {
     return PROTOCOL.open.invoke({
         url: String(url),
         activates,
-        userInitiated,
         usesDefaultApp,
         target: String(target),
     });

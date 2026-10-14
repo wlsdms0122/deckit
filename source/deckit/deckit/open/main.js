@@ -25,7 +25,7 @@ export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) 
             IDENTITY.modFrom(sender);
             return open(request.url, {
                 ...request,
-                userInitiated: request.userInitiated && spendsUserActivation(sender),
+                userInitiated: spendsUserActivation(sender),
             });
         });
         PROTOCOL.handles.on((_payload, sender) => {
@@ -156,8 +156,9 @@ export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) 
         return false;
     }
 
-    // The web goes to the system browser, and a file to its app.
-    async function system(scheme, url, { activates }) {
+    // The web goes to the system browser, and a file to its app: outside the app, so only when a person asked.
+    async function system(scheme, url, { activates, userInitiated }) {
+        if (!userInitiated) return false;
         const { shell } = require('electron');
         if (SYSTEM.get(scheme) === 'browser') {
             await shell.openExternal(url, { activate: activates });
