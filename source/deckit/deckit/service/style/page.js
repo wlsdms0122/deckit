@@ -9,9 +9,9 @@ DeckitModule.define(
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
-        // The page wears the styles mods give it, as its last style sheets: a sheet the page adopts later goes before
-        // them, so a mod's style wins over the page's own at the same specificity. A style a page sets on an element
-        // itself still wins over a sheet, as in any page.
+        // The page wears the styles mods give it, as its last style sheets: a sheet the kit or the mod's entry adopts
+        // later goes before them, so a mod's style wins over those at the same specificity. A style a page sets on an
+        // element itself still wins over a sheet, as in any page, and so does a sheet the page's own world adopts.
         function wear() {
             const adopted = Object.getOwnPropertyDescriptor(Document.prototype, 'adoptedStyleSheets');
             let worn = [];

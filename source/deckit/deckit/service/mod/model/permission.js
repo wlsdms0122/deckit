@@ -86,7 +86,7 @@ DeckitModule.define(
                 id: 'deckit.styles',
                 name: 'Styles',
                 icon: 'eye',
-                means: "It can change how other mods' pages look, and so read what they show.",
+                means: "It can change how every page in the app looks, other mods', the switcher and Settings among them, and so read what they show.",
             },
         ];
         const MAIN_PROCESS = 'system.main-process';
