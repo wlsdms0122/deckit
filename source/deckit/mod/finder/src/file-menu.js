@@ -1,7 +1,7 @@
-// The menus of the file area: an entry's, several selected entries', and a folder's in the space around its entries.
-// `folderAt(element)` is the column under a press ({ folder, mark }); `workingFolder()` is the folder in front when the
-// press is on no column. A press on an entry outside the selection selects it alone.
-function fileMenus({
+// The file area's context menu: its items for an entry, for several selected entries, and for a folder in the space
+// around its entries. `folderAt(element)` is the column under a press ({ folder, mark }); `workingFolder()` is the
+// folder in front when the press is on no column. A press on an entry outside the selection selects it alone.
+function fileMenu({
     ui,
     chordOf,
     reveal,
@@ -107,4 +107,4 @@ function fileMenus({
     }
 }
 
-module.exports = { fileMenus };
+module.exports = { fileMenu };

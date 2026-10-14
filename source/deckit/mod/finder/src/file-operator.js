@@ -6,7 +6,7 @@ const { nameOf, parentOf } = require('./path.js');
 // `labelOf(path)` finds the name an entry shows, which a rename types over. `onMade(path)` shows a folder just made and
 // answers whether it is in sight, to be named. `onMoved(from, to)` hears a path go elsewhere, `to` null when it went to
 // the Trash; `onChanged(folder)` hears a folder whose contents changed.
-function fileOperations({
+function fileOperator({
     ui,
     openURL,
     fileURL,
@@ -166,4 +166,4 @@ function fileOperations({
     }
 }
 
-module.exports = { fileOperations };
+module.exports = { fileOperator };

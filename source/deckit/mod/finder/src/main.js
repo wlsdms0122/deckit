@@ -1,8 +1,8 @@
 const { columnView } = require('./column-view.js');
 const { favoriteList } = require('./favorite-list.js');
 const { fileArea } = require('./file-area.js');
-const { fileMenus } = require('./file-menus.js');
-const { fileOperations } = require('./file-operations.js');
+const { fileMenu } = require('./file-menu.js');
+const { fileOperator } = require('./file-operator.js');
 const { folderStatus } = require('./folder-status.js');
 const { goToFolder } = require('./go-to-folder.js');
 const { iconCache } = require('./icon-cache.js');
@@ -104,7 +104,7 @@ module.exports = {
             setFilterText: (text) => bar.setFilter(text),
             onDraw: drawToolbar,
         });
-        const operations = fileOperations({
+        const operator = fileOperator({
             ui,
             openURL: deck.open,
             fileURL: deck.fileURL,
@@ -164,11 +164,11 @@ module.exports = {
             toggle,
             extend,
             selectAll,
-            open: operations.open,
+            open: operator.open,
             openInNewTab: (path) => tabs.open(path),
-            quickLook: operations.quickLook,
+            quickLook: operator.quickLook,
         });
-        fileMenus({
+        fileMenu({
             ui,
             chordOf: deck.chordOf,
             reveal: deck.reveal,
@@ -184,12 +184,12 @@ module.exports = {
             isFavorite: favorites.has,
             onAddFavorite: favorites.add,
             onRemoveFavorite: favorites.remove,
-            open: operations.open,
+            open: operator.open,
             openInNewTab: (path) => tabs.open(path),
-            quickLook: operations.quickLook,
-            rename: operations.rename,
-            trash: operations.trash,
-            newFolder: operations.newFolder,
+            quickLook: operator.quickLook,
+            rename: operator.rename,
+            trash: operator.trash,
+            newFolder: operator.newFolder,
             showsHidden,
             onToggleHidden: toggleHidden,
             onGoToFolder: () => goTo.show(),
@@ -210,7 +210,7 @@ module.exports = {
         new ResizeObserver(() => {
             if (list.fit(content.clientWidth)) area.draw();
         }).observe(content);
-        for (const part of [area, bar, tabs, favorites]) operations.acceptDrops(part.element, part.folderAt);
+        for (const part of [area, bar, tabs, favorites]) operator.acceptDrops(part.element, part.folderAt);
         settings.on((key) => {
             if (key === 'showHidden' || key === 'foldersFirst') area.draw();
         });
@@ -253,7 +253,7 @@ module.exports = {
             back: { key: 'mod+[', label: 'Back', run: () => tabs.back() },
             forward: { key: 'mod+]', label: 'Forward', run: () => tabs.forward() },
             enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
-            open: { key: 'mod+down', label: 'Open', run: () => operations.open(selectedEntries()) },
+            open: { key: 'mod+down', label: 'Open', run: () => operator.open(selectedEntries()) },
             filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
             goToFolder: { key: 'mod+l', label: 'Go to Folder', run: () => tabs.front() && goTo.show() },
             home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
@@ -268,7 +268,7 @@ module.exports = {
             newFolder: {
                 key: 'mod+shift+n',
                 label: 'New folder',
-                run: () => operations.newFolder(area.workingFolder()),
+                run: () => operator.newFolder(area.workingFolder()),
             },
             // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
             columnView: { key: 'ctrl+mod+1', label: 'As columns', run: () => setView('columns') },
@@ -276,7 +276,7 @@ module.exports = {
             trash: {
                 key: 'mod+backspace',
                 label: 'Move to Trash',
-                run: () => operations.trash(selectedEntries()),
+                run: () => operator.trash(selectedEntries()),
             },
         });
         deck.commands(() =>
