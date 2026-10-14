@@ -25,7 +25,13 @@ export function createRegion() {
         });
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, changed);
         deckit.mods.onChange(changed);
-        PROTOCOL.children.handle((_payload, sender) => childrenOf(deckit.mods.modOf(sender)));
+        // What a page is answered is what it knows: a parent's new page hears every change from there.
+        PROTOCOL.children.handle((_payload, sender) => {
+            const parent = deckit.mods.modOf(sender);
+            const children = childrenOf(parent);
+            if (parent) sentChildren.set(parent, JSON.stringify(children));
+            return children;
+        });
         PROTOCOL.rect.on(({ region, ...rect }, sender) => deckit.mods.modOf(sender) && setRect(sender, region, rect));
         PROTOCOL.place.handle(({ region, id }, sender) => place(sender, region, id ?? null));
         PROTOCOL.end.on(({ region }, sender) => end(sender.id + ':' + region));
