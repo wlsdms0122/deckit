@@ -240,7 +240,7 @@ page.delegate = {
 };
 ```
 
-A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers. Answer `false` when the mod opened it itself.
+A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers. Answer `false` when the mod opened it itself. A page opens a window only during a person's click or key in it, as a browser blocks a popup otherwise; one it opens at any other time is refused before the delegate hears of it.
 
 A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notifications, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. Anything else a site asks for is refused.
 
@@ -258,10 +258,10 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `reveal(path)` | shows a file in the system's Finder, during a person's click or key; otherwise resolves `false` |
 | `chordOf(action)` | the chord one of the mod's keys is bound to now, or `''` |
 | `about()` | `{ name, app, version, source, electron, chrome, home, mods, data, log }`: the host app's name and version, deckit's version and the hash of its sources, the engines, the person's home folder, and the folders of deckit's mods, data and log |
-| `clipboard.writeText(text)` | copies text |
+| `clipboard.writeText(text)` | copies text, during a person's click or key in the mod's page or a command they ran; otherwise it resolves `false` and copies nothing |
 | `clipboard.readText()` | with `system.clipboard` |
 | `notify({ title, body, silent, onClick })` | with `system.notifications` |
-| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`, and the shell's `pinned()` (the children the person pinned to the mod list) and `setPinned(id, pinned)`; `list`, `restartPending` and `pinned` answer at once, the rest resolve. `onChange(listener)` hears that what `list` answers may have changed (a mod found or gone, a run that moved), and answers its off. `relaunch(id)` terminates the mod and launches it again, or launches one not running, and rejects while a mod it requires is not running |
+| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`, and the shell's `pinned()` (the children the person pinned to the mod list) and `setPinned(id, pinned)`; `list`, `restartPending` and `pinned` answer at once, the rest resolve. `onChange(listener)` hears that what `list` answers may have changed (a mod found or gone, a run that moved), and answers its off. `install(from)` is refused but during a person's click or key in the page, since what the mod installed asks for is granted as it installs. `relaunch(id)` terminates the mod and launches it again, or launches one not running, and rejects while a mod it requires is not running |
 | `modSettings` | with `deckit.mod-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
 | `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
