@@ -74,7 +74,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `deckit.mod-settings` | every mod's settings | `deck.modSettings` |
 | `deckit.key-map` | every mod's shortcuts | `deck.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
-| `deckit.styles` | how other mods' pages look, and so what they show | `deck.styles` |
+| `deckit.styles` | how every page looks, other mods', the switcher and Settings among them, and so what they show | `deck.styles` |
 
 An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deck: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another mod.
 
@@ -190,7 +190,7 @@ deck.extend({ 'calendar:accounts': { name: 'Google', icon, async events(account,
 
 ### deck.styles({ '<mod id>' or '*': css })
 
-With `deckit.styles`, styles other pages while the mod runs: a mod's page by its id, and every page deckit draws, the switcher's too, by `*`. A page wears them as its last style sheets, in the mods' order, the later over the earlier, so a rule wins over the page's own at the same specificity; a style the page sets on an element itself still wins unless the rule is `!important`. What a page is drawn with is the kit's tokens, `--deckit-*` on its root, and each mod's classes, which start with its id (UI.md): a mod that sets the tokens is a theme. A page for a mod that is not there is never styled, and a mod's styles go when it ends.
+With `deckit.styles`, styles other pages while the mod runs: a mod's page by its id, and every page deckit draws, the switcher's too, by `*`. A page wears them as its last style sheets, in the mods' order, the later over the earlier: a rule wins at the same specificity over the sheets the kit and the page's mod adopt, and over its `<style>` elements. A style the page sets on an element itself still wins unless the rule is `!important`, and so does a sheet a script of the page's own world adopts, or one pushed onto `adoptedStyleSheets`. What the kit draws reads its tokens, `--deckit-*` on the page's root, and each mod's classes start with its id (UI.md): a mod that sets the tokens recolours what is drawn with them, and what a page colours from `theme` in its code stays as it is. A page for a mod that is not there is never styled, and a mod's styles go when it ends.
 
 ## deck
 

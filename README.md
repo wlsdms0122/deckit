@@ -26,8 +26,7 @@ source/cli/deckit app              Deckit.app, into .build/, from the archive th
 source/cli/deckit check            hold every file to how the library is laid out
 source/cli/deckit dev              Deckit.app from the sources, its data in .dev/, built again when one changes
 source/cli/deckit install          Deckit.app into /Applications, as the last app command made it
-source/cli/deckit mods <id>…    a mod Deckit ships, brought back after it was removed
-source/cli/deckit engine <mod>  build the Editor's or the Notes' editing engine again, from its src/engine/
+source/cli/deckit engine <mod>     build the Editor's or the Notes' editing engine again, from its src/engine/
 ```
 
 `manifest.toml` lists the same commands for open-package.

@@ -33,7 +33,7 @@ A new mod needs no change to deck. A new shell to show the panel in needs no cha
 | a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; a mod with a view has the panel's frame around it there |
 | the switcher's page | the quick switcher's list, at `deckit://switcher` |
 
-A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed. Main knows which mod is asking by the page that asks (`service/deck/identity.js`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
+A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed; a mod with `deckit.styles` styles another's page, and that is all. Main knows which mod is asking by the page that asks (`service/deck/identity.js`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
 The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`module/ipc`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
@@ -57,7 +57,7 @@ The pages never speak to each other. Main carries everything between them, and e
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
 | what the person arranged (mod order, key overrides, each scheme's handlers) | `state/` |
 
-What a mod is, `service/mod` says: its manifest, its folder, its permissions, its entry and its lifecycle. deck, `service/deck`, runs mods by it, and `service/mod` names nothing of deck. The runner tells each transition of a run (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`); what follows a mod's run (its exports, its settings, its main process modules, its events, its place in the panel) listens to those, or asks the run, and changes none of it.
+What a mod is, `service/mod` says: its manifest, its folder, its permissions, its entry and its lifecycle. deck, `service/deck`, runs mods by it, and `service/mod` names nothing of deck. The runner tells each transition of a run (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`); what follows a mod's run (its exports, its extensions, its styles, its settings, its main process modules, its events, its place in the panel) listens to those, or asks the run, and changes none of it but to record a problem.
 
 Deckit's folder is `host/folders`' `home`, or `~/.config/<id>`:
 
