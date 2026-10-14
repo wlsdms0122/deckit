@@ -49,10 +49,10 @@ export function createExport({ IDENTITY, RUNNER }) {
             if (!exports) {
                 if (run.state === 'terminating') throw new Error(`${mod} is not running`);
                 const provider = providers.get(mod);
-                await provider?.settled;
+                await provider.settled;
                 if (ended()) throw new Error(`${caller.id} is not running`);
-                if (provider?.error) throw new Error(`${mod} is not running: ${provider.error}`);
-                exports = provider?.exports;
+                if (provider.error) throw new Error(`${mod} is not running: ${provider.error}`);
+                exports = provider.exports;
             }
             if (!exports?.functions.some((written) => written.join('.') === path.join('.'))) {
                 throw new Error(`${mod} exports no function ${path.join('.')}`);
@@ -86,7 +86,6 @@ export function createExport({ IDENTITY, RUNNER }) {
     // A wait ends failed; what a provider had exported, if anything, is no longer there to call.
     function fail(modId, problem) {
         const provider = providers.get(modId);
-        if (!provider) return;
         if (provider.done) {
             providers.set(modId, { settled: Promise.resolve(), done: true, exports: null, error: problem });
             return;

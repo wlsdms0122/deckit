@@ -8,8 +8,8 @@ export function createRecord() {
 
     // MARK: - Initializer
     // MARK: - Public
-    // Small state that costs a click to lose (a fold, a width), in the view's own storage: its origin is the
-    // mod's, so no other mod reads it.
+    // Small state that costs little to lose, in the page's own storage: its origin is the mod's, so no other mod
+    // reads it.
     function values() {
         return {
             get(key, fallback) {
