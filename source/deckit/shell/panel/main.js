@@ -74,7 +74,7 @@ export function createPanel({ REGION }) {
 
     // Whether bringToFront has a mod to put on screen for it.
     function canBringToFront(modId) {
-        return hasView(frontOf(modId));
+        return shownInList(frontOf(modId));
     }
 
     // MARK: - Private
@@ -325,7 +325,7 @@ export function createPanel({ REGION }) {
     function stateOf() {
         const mods = deckit.mods
             .list()
-            .filter(({ id }) => hasView(id))
+            .filter(({ id }) => shownInList(id))
             .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));
         return {
             mods,
@@ -356,7 +356,7 @@ export function createPanel({ REGION }) {
     // Which mod is on screen. No fade: here it is a swap of views, on the most repeated action in the panel.
     // Answers whether it is on screen now.
     function select(id, { fromHistory = false } = {}) {
-        if (!hasView(id)) return false;
+        if (!shownInList(id)) return false;
         // Another mod put on screen meanwhile is where the panel stays.
         if (id !== returning) returning = null;
         if (current === id) return true;
@@ -375,7 +375,7 @@ export function createPanel({ REGION }) {
     // A mod no longer there, or with nothing to show, is passed over.
     function step(by) {
         let at = history.at + by;
-        while (at >= 0 && at < history.list.length && !hasView(history.list[at])) at += by;
+        while (at >= 0 && at < history.list.length && !shownInList(history.list[at])) at += by;
         if (at < 0 || at >= history.list.length) return;
         if (!select(history.list[at], { fromHistory: true })) return;
         history.at = at;
@@ -383,7 +383,7 @@ export function createPanel({ REGION }) {
     }
 
     // A mod that is there, has something to show, and is in the panel's list.
-    function hasView(id) {
+    function shownInList(id) {
         return views.has(id) && listed(id);
     }
 

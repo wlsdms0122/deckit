@@ -1,15 +1,9 @@
 // MARK: - Property
-const STYLE = '';
 // Letters whose widths differ from face to face.
 const PROBE = 'mmmmmmmmmmlli1|WW@#';
 
 // MARK: - Initializer
 // MARK: - Public
-function make() {
-    return { installedFonts };
-}
-
-// MARK: - Private
 // The faces ({ font }) installed here. A face that is not installed falls back and measures like the fallback, so a
 // width unlike both generic fallbacks means it is there. A face with no font is the system's and always is.
 function installedFonts(faces) {
@@ -25,4 +19,6 @@ function installedFonts(faces) {
     );
 }
 
-export { STYLE, make };
+// MARK: - Private
+
+export { installedFonts };

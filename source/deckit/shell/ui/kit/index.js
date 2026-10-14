@@ -18,7 +18,7 @@ import * as FILETREE_COMPONENT from '../component/file-tree.js';
 import * as RESIZER_COMPONENT from '../component/resizer.js';
 import * as EMPTYSTATE_COMPONENT from '../component/empty-state.js';
 import * as LOADING_COMPONENT from '../component/loading.js';
-import * as FONTS_COMPONENT from '../component/fonts.js';
+import * as FONTS from '../fonts/index.js';
 import * as MODAL_COMPONENT from '../component/modal.js';
 import * as QUICKPICK_COMPONENT from '../component/quick-pick.js';
 import * as COLORPICKER_COMPONENT from '../component/color-picker.js';
@@ -38,7 +38,6 @@ const components = [
     RESIZER_COMPONENT,
     EMPTYSTATE_COMPONENT,
     LOADING_COMPONENT,
-    FONTS_COMPONENT,
     MODAL_COMPONENT,
     QUICKPICK_COMPONENT,
     COLORPICKER_COMPONENT,
@@ -66,6 +65,7 @@ function make(theme) {
         mix: COLOR.mix,
         capturePointer: POINTER.capture,
         edgeFade: SCROLL.edgeFade,
+        installedFonts: FONTS.installedFonts,
         isFullyVisible: SCROLL.isFullyVisible,
         pressable: PART.pressable,
         selectable: PART.selectable,
