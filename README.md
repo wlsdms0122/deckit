@@ -1,6 +1,6 @@
 # deckit
 
-A library a host app embeds to take mods, the way a game does. Its core, deck, runs mods and composes what they add to the app: views, commands, keys, URL scheme handlers, libraries for other mods, extensions of what other mods do, new looks for their pages and work in the app's main process. Deck knows nothing of a screen; on it, deckit's UI gives basic views (the panel, the quick switcher, the kit mods draw with), and a host app may draw its own instead. Deckit has its own mods too (Editor, Finder, Notes, Browser, Calendar, Settings, and Deckit, which offers what a person asks of deck itself in the switcher). Where the panel is shown is the host app's. Deckit.app is deckit embedded by itself.
+A library a host app embeds to take mods, the way a game does. Its core, deck, runs mods and composes what they add to the app: views, commands, keys, URL scheme handlers, libraries for other mods, extensions of what other mods do, new looks for their pages and work in the app's main process. It is three layers: deck, the engine, which knows nothing of a screen; deckit, the platform on deck (the web, windows, keys, commands, opening addresses, main process modules); and a shell, the surface a person uses. Deckit's own shell is the panel, the quick switcher and the kit mods draw with, and a host app may put its own on deckit instead. Deckit has its own mods too (Editor, Finder, Notes, Browser, Calendar, Settings, and Deckit, which offers what a person asks of deck itself in the switcher). Where the panel is shown is the host app's. Deckit.app is deckit embedded by itself.
 
 Deckit is `source/deckit` and the documents it ships, whole by itself. This package around it, `manifest.toml` and `source/cli`, is the commands below, which check, build, run and ship it.
 
@@ -10,7 +10,7 @@ Deckit is `source/deckit` and the documents it ships, whole by itself. This pack
 source/cli/deckit build
 ```
 
-writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the bundles of deck and of its UI, `deckit.json`, the documents a host app reads, and deckit's own mods, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
+writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the bundles of deck and deckit and of the shell, `deckit.json`, the documents a host app reads, and deckit's own mods, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
 
 ```
 source/cli/deckit app

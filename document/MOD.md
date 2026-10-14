@@ -1,6 +1,6 @@
 # Writing a mod
 
-A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view is one of these abilities, and a mod with none is headless. The view, styles, `theme`, `ui` and `show()` are given by the UI the host app puts on deck; deckit's own UI (the panel, the switcher and the kit) gives them as this document says, and with no UI on deck a mod has none of them and runs headless. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
+A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view is one of these abilities, and a mod with none is headless. `deck` is put together by deck, deckit on it, and the shell on deckit (ARCHITECTURE.md). The view, styles, `theme`, `ui` and `show()` are the shell's; deckit's own shell (the panel, the switcher and the kit) gives them as this document says. A host app with no shell gives none of them, and a mod that registers a view there does not start: a mod that runs on any host app tests `deck.view` first. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
 
 How the folder is laid out is the mod's own. The folder's name says nothing; the manifest says who the mod is, and its `main` names the entry:
 
@@ -97,7 +97,7 @@ module.exports = {
 
 | Member | What it is |
 |---|---|
-| `icon` | an inline SVG string, about 18px, which deck draws rebuilt from its shapes |
+| `icon` | an inline SVG string, about 18px, which the shell draws rebuilt from its shapes |
 | `keywords` | optional; the switcher's aliases for the mod |
 | `settings` | optional; what the person can choose about the mod (below) |
 | `start(deck)` | starts the mod and registers what it contributes; may be async, and deck waits for it |
@@ -190,11 +190,11 @@ deck.extend({ 'calendar:accounts': { name: 'Google', icon, async events(account,
 
 ### deck.styles({ '<mod id>' or '*': css })
 
-With `deckit.styles`, styles other pages while the mod runs: a mod's page by its id, and every page deckit draws, the switcher's too, by `*`. A page wears them as its last style sheets, in the mods' order, the later over the earlier: a rule wins at the same specificity over the sheets the kit and the page's mod adopt, and over its `<style>` elements. A style the page sets on an element itself still wins unless the rule is `!important`. A sheet a script of the page's own world adopts, or one pushed onto `adoptedStyleSheets`, goes after them until the styles next change: which wins there is not settled, so a style does not lean on it. What the kit draws reads its tokens, `--deckit-*` on the page's root, and each mod's classes start with its id (UI.md): a mod that sets the tokens recolours what is drawn with them, and what a page colours from `theme` in its code stays as it is. A page for a mod that is not there is never styled, and a mod's styles go when it ends.
+With `deckit.styles`, styles other pages while the mod runs: a mod's page by its id, and every page the shell draws, the switcher's too, by `*`. A page wears them as its last style sheets, in the mods' order, the later over the earlier: a rule wins at the same specificity over the sheets the kit and the page's mod adopt, and over its `<style>` elements. A style the page sets on an element itself still wins unless the rule is `!important`. A sheet a script of the page's own world adopts, or one pushed onto `adoptedStyleSheets`, goes after them until the styles next change: which wins there is not settled, so a style does not lean on it. What the kit draws reads its tokens, `--deckit-*` on the page's root, and each mod's classes start with its id (UI.md): a mod that sets the tokens recolours what is drawn with them, and what a page colours from `theme` in its code stays as it is. A page for a mod that is not there is never styled, and a mod's styles go when it ends.
 
 ## deck
 
-`start(deck)` receives `{ id, name, settings, storage, web, requires, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod. The UI on deck adds `theme` and `ui`, and `view`, `styles` and `show` (the beginning of this document).
+`start(deck)` receives `{ id, name, settings, storage, web, requires, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod. The shell adds `theme` and `ui`, and `view`, `styles` and `show` (the beginning of this document).
 
 ### theme and ui
 
