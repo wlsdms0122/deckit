@@ -64,9 +64,9 @@ module.exports = {
         // load, one stopping, one whose required mod is not running. A refusal all the same is told in a notice.
         function modEntries() {
             const STATES = { launching: 'Starting', running: 'Running', notRunning: 'Not running' };
-            const { installed, running } = deck.mods.list();
+            const { found, running } = deck.mods.list();
             const icons = new Map(running.map((mod) => [mod.id, mod.icon]));
-            return installed.map((mod) => {
+            return found.map((mod) => {
                 const entry = { label: mod.name, icon: icons.get(mod.id) || icon('puzzle') };
                 const missing = mod.dependencies
                     .filter((dependency) => !dependency.optional && !dependency.ok)
