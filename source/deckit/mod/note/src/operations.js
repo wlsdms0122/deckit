@@ -5,7 +5,9 @@ const { nameOf, parentOf, noteNameOf, isWithin } = require('./path.js');
 // changes is what was on screen. `onChanged()` hears that the notes folder changed.
 function operations({
     ui,
-    deck,
+    show,
+    clipboard,
+    reveal,
     notesFolder,
     relocations,
     settle,
@@ -74,7 +76,7 @@ function operations({
     }
 
     async function newNote(into) {
-        deck.show();
+        show();
         if (!(await settle())) return;
         // Another would discard this blank one and take the next free name on every press.
         if (isBlank() && parentOf(openPath()) === into) return onFocusTitle();
@@ -103,7 +105,7 @@ function operations({
 
     async function copyText(path) {
         const copied = path === openPath() ? openText() : (await notesFolder.read(path).catch(() => null))?.text;
-        if (copied != null) deck.clipboard.writeText(copied).catch(() => {});
+        if (copied != null) clipboard.writeText(copied).catch(() => {});
     }
 
     async function showInFinder(path) {
@@ -112,7 +114,7 @@ function operations({
             .then((answer) => answer.root)
             .catch(() => null);
         const root = await rootAsked;
-        if (root) deck.reveal(path ? root + '/' + path : root);
+        if (root) reveal(path ? root + '/' + path : root);
     }
 
     // Saved first, so what goes to the Trash is what was on screen.

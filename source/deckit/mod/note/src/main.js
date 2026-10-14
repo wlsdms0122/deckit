@@ -121,7 +121,9 @@ module.exports = {
         });
         const fileOperations = operations({
             ui,
-            deck,
+            show: deck.show,
+            clipboard: deck.clipboard,
+            reveal: deck.reveal,
             notesFolder,
             relocations,
             settle: noteSession.settle,
