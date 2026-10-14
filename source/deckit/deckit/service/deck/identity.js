@@ -18,14 +18,14 @@ DeckitModule.define(
         // MARK: - Property
         // As long as Chromium lets a page act on a person's click or key.
         const ACTIVATION_MS = 5000;
-        const owners = new Map(); // webContents id -> { mod } or { page }, the name of a page the UI made
+        const owners = new Map(); // webContents id -> { mod } or { page }, the name of a page the shell made
         const pages = new Map(); // mod id -> its page's webContents
         const ends = new Map(); // webContents id -> Set of what undoes what its page set up
         const activated = new Map(); // webContents id -> when a person last pressed a key or the mouse in it
 
         // MARK: - Initializer
         // MARK: - Public
-        // Only main makes the pages a mod runs in and the pages the UI draws in, so who sent a message is known by
+        // Only main makes the pages a mod runs in and the pages the shell draws in, so who sent a message is known by
         // which webContents it came from, and never by what the message says.
         function add(webContents, owner) {
             const id = webContents.id;
@@ -76,7 +76,7 @@ DeckitModule.define(
             return fresh;
         }
 
-        // A press elsewhere that acts in this page: a command picked in the UI runs in the mod's page.
+        // A press elsewhere that acts in this page: a command picked in the shell runs in the mod's page.
         function passUserActivation(webContents) {
             activated.set(webContents.id, Date.now());
         }
@@ -98,7 +98,7 @@ DeckitModule.define(
             return mod;
         }
 
-        // The name of the UI's page a renderer is, or null for one that is not.
+        // The name of the shell's page a renderer is, or null for one that is not.
         function pageNameOf(webContents) {
             return owners.get(webContents.id)?.page || null;
         }

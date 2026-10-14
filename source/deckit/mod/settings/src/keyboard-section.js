@@ -9,7 +9,7 @@ function keyboardSection({ ui, keymap }) {
         'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Mods may share a ' +
         'chord, since only one is on screen at a time. A change onto a chord already in use is not ' +
         'applied until that chord is free.';
-    const SCOPE_NAMES = { global: 'Everywhere', ui: 'On any mod' };
+    const SCOPE_NAMES = { global: 'Everywhere', shell: 'On any mod' };
 
     let endRecording = null;
     const cardFills = new WeakMap(); // card -> its fill(group)

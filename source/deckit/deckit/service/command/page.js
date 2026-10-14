@@ -6,8 +6,8 @@ DeckitModule.define(
     },
     (TONE, PROTOCOL) => {
         // MARK: - Property
-        // The functions behind the entries handed out since the last collect: the list holds only their ids.
-        const local = new Map(); // id -> { run, page }
+        // The functions behind the entries each session was handed, which holds only their ids, until it ends.
+        const sessions = new Map(); // session -> Map of id -> { run, page }
         const searching = new Map(); // page id -> the AbortController of its query in flight
         let sequence = 0;
 
@@ -15,23 +15,20 @@ DeckitModule.define(
         // MARK: - Public
         // A mod as a source of commands. What it returns is checked here, and an entry with no label is left out and
         // told to `invalid` rather than taking every other mod's search down.
-        function source({ icon, aliases, commands, now, resolve, invalid }) {
+        // `icon` is the mod's, which an entry with none of its own is drawn with.
+        function source({ icon, commands, now, resolve, invalid }) {
             const strings = (list) =>
                 Array.isArray(list) ? list.filter((word) => typeof word === 'string' && word) : [];
-            PROTOCOL.source.send({
-                icon: String(icon || ''),
-                aliases: strings(aliases),
-                resolves: typeof resolve === 'function',
-            });
+            PROTOCOL.source.send({ resolves: typeof resolve === 'function' });
 
-            const entryOf = (command, kind) => {
+            const entryOf = (session, command, kind) => {
                 if (typeof command?.label !== 'string' || !command.label) {
                     invalid(`a command needs a label (${kind})`);
                     return null;
                 }
                 const id = 'entry-' + ++sequence;
                 const page = isPage(command.page) ? command.page : null;
-                local.set(id, { run: typeof command.run === 'function' ? command.run : null, page });
+                localOf(session).set(id, { run: typeof command.run === 'function' ? command.run : null, page });
                 return {
                     id,
                     group: typeof command.group === 'string' ? command.group : '',
@@ -52,19 +49,18 @@ DeckitModule.define(
                 };
             };
 
-            PROTOCOL.collect.handle(() => {
-                local.clear();
+            PROTOCOL.collect.handle(({ session }) => {
                 const offered = commands?.();
                 return (Array.isArray(offered) ? offered : [])
                     .filter((command) => command && (typeof command.run === 'function' || isPage(command.page)))
-                    .map((command) => entryOf(command, 'command'))
+                    .map((command) => entryOf(session, command, 'command'))
                     .filter(Boolean);
             });
-            PROTOCOL.collectNow.handle(async () => {
+            PROTOCOL.collectNow.handle(async ({ session }) => {
                 const rows = await now?.();
                 return (Array.isArray(rows) ? rows : [])
                     .map((row) => {
-                        const entry = entryOf(row, 'now');
+                        const entry = entryOf(session, row, 'now');
                         // An intent, not a style: the list decides how it is drawn, and that it stops.
                         return (
                             entry && {
@@ -76,18 +72,18 @@ DeckitModule.define(
                     })
                     .filter(Boolean);
             });
-            PROTOCOL.resolve.handle(async ({ raw }) => {
+            PROTOCOL.resolve.handle(async ({ session, raw }) => {
                 const found = await resolve(raw);
                 return (Array.isArray(found) ? found : [])
                     .map((command) => {
-                        const entry = entryOf(command, 'resolved');
+                        const entry = entryOf(session, command, 'resolved');
                         return entry && { ...entry, fallback: !!command.fallback };
                     })
                     .filter(Boolean);
             });
             // A search a newer one replaced is aborted and answers null, so its answer never stands for a query.
-            PROTOCOL.search.handle(async ({ raw, page: id }) => {
-                const page = local.get(id)?.page;
+            PROTOCOL.search.handle(async ({ session, raw, page: id }) => {
+                const page = sessions.get(session)?.get(id)?.page;
                 if (!page) return null;
                 searching.get(id)?.abort();
                 const asked = new AbortController();
@@ -98,15 +94,23 @@ DeckitModule.define(
                         : await page.entries();
                 if (asked.signal.aborted) return null;
                 searching.delete(id);
-                return (Array.isArray(found) ? found : []).map((command) => entryOf(command, 'page')).filter(Boolean);
+                return (Array.isArray(found) ? found : [])
+                    .map((command) => entryOf(session, command, 'page'))
+                    .filter(Boolean);
             });
             // What a command's run returns stays in the page: only that it ran crosses back.
-            PROTOCOL.run.handle(async ({ id }) => {
-                await local.get(id)?.run?.();
+            PROTOCOL.run.handle(async ({ session, id }) => {
+                await sessions.get(session)?.get(id)?.run?.();
             });
+            PROTOCOL.end.on(({ session }) => sessions.delete(session));
         }
 
         // MARK: - Private
+        function localOf(session) {
+            if (!sessions.has(session)) sessions.set(session, new Map());
+            return sessions.get(session);
+        }
+
         function isPage(page) {
             return !!page && (typeof page.search === 'function' || typeof page.entries === 'function');
         }

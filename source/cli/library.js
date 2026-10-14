@@ -1,10 +1,10 @@
-// The libraries as the build reads them: deck, and the UI on it. Their files, what each declares, and each bundle
+// The libraries as the build reads them: deckit, and the shell on it. Their files, what each declares, and each bundle
 // worked out from its entry. A file is named by its path under source/deckit, its library first.
 const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
-const LIBRARIES = ['deckit', 'deckit-ui'];
+const LIBRARIES = ['deckit', 'shell'];
 const MODS = path.join(DECKIT, 'mod');
 const APP = path.join(DECKIT, 'deckit-app');
 const REGISTRY = 'deckit/module/registry/index.js';
@@ -12,11 +12,11 @@ const ENTRIES = {
     chord: () => ['deckit/module/chord'],
     main: () => ['deckit/feature/app/main'],
     page: () => ['deckit/feature/app/page'],
-    'ui-main': () => ['deckit-ui/feature/app/main'],
-    'ui-page': () => ['deckit-ui/feature/app/page'],
+    'shell-main': () => ['shell/feature/app/main'],
+    'shell-page': () => ['shell/feature/app/page'],
 };
-// The UI's bundles load after deck's of the same process, so they carry nothing deck's already do.
-const LOADS_AFTER = { 'ui-main': 'main', 'ui-page': 'page' };
+// The shell's bundles load after deckit's of the same process, so they carry nothing deckit's already do.
+const LOADS_AFTER = { 'shell-main': 'main', 'shell-page': 'page' };
 // A "/" starts a regular expression where a value is expected: after one of these, or at the start.
 const VALUE_BEFORE = '(,=:[!&|?{};+-*%<>~^';
 

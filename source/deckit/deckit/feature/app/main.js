@@ -19,7 +19,7 @@ DeckitModule.define(
             'deckit/service/runtime/main',
             'deckit/service/event/main',
             'deckit/service/command/main',
-            'deckit/feature/host/main',
+            'deckit/feature/api',
             'deckit/feature/app/protocol',
             'deckit/service/deck/model/origin',
         ],
@@ -43,7 +43,7 @@ DeckitModule.define(
         RUNTIME,
         EVENT,
         COMMAND,
-        HOST,
+        API,
         PROTOCOL,
         ORIGIN
     ) => {
@@ -53,75 +53,79 @@ DeckitModule.define(
         const SCHEME = ORIGIN.SCHEME;
         // Every deckit page. deckit and a mod's entry run in the preload's isolated world, whose code the policy
         // leaves alone; the page's own world runs only scripts from its origin, a mod's own files. What the isolated
-        // world loads the policy still holds, so the ranker's blob worker is named. Transparent: the view is a
-        // rectangle, and what is rounded is drawn inside it. No drag selection: text meant to be copied opts in.
+        // world loads the policy still holds, so the ranker's blob worker is named. How the page looks is the shell's.
         const PAGE = [
             '<!doctype html>',
             '<meta charset="utf-8">',
             '<title></title>',
             `<meta http-equiv="Content-Security-Policy" content="script-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">`,
-            '<style>',
-            '  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }',
-            '  body { -webkit-user-select: none; user-select: none; }',
-            '</style>',
             '',
         ].join('\n');
-        // What a shell answers deck: the windows and the process are the app's.
+        // What the host app answers deckit: the windows and the process are its own.
         const ANSWERS = ['openWindow', 'noticeClicked', 'restart'];
-        const starting = []; // what starts with deck, before any mod launches: the UI on it
+        const starting = []; // what starts with deckit, before any mod launches: the shell on it
         let connected = false;
         let started = false;
 
         // MARK: - Initializer
         // MARK: - Public
-        // How an app starts deck, once, before it is ready: `preload` is the file it put together around deckit's page
-        // bundles, and `shell` answers what of deck is the app's. Answers what the app reaches of deck (feature/host).
-        function connect({ preload, shell } = {}) {
+        // How a host app starts deckit, once, before it is ready: `preload` is the file it put together around deckit's
+        // page bundles, and `host` answers what of deckit is the app's. Answers what the app and its shell reach of
+        // deckit (feature/api).
+        function connect({ preload, host } = {}) {
             if (connected) throw new Error('[deckit] connect is called once');
-            const missing = ANSWERS.filter((name) => typeof shell?.[name] !== 'function');
-            if (missing.length) throw new Error(`[deckit] the shell does not answer ${missing.join(', ')}`);
+            const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
+            if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
             if (!preload) throw new Error('[deckit] connect needs the preload deckit pages load with');
             connected = true;
             LOG.start();
             require('electron')
                 .app.whenReady()
-                .then(() => start(preload, shell));
-            return HOST.make({
+                .then(() => start(preload, host));
+            return API.make({
                 makeView: ({ webview }) => pageView(preload, { webview }),
                 onStart,
             });
         }
 
         // MARK: - Private
-        // A listener is told once, as deck starts: before the app is ready.
+        // `listener` is told once, as deckit starts once the app is ready, before any mod launches. It is handed over
+        // before then.
         function onStart(listener) {
-            if (started) throw new Error('[deckit] what starts with deck is told before the app is ready');
+            if (started) throw new Error('[deckit] what starts with deckit is handed over before the app is ready');
             starting.push(listener);
         }
 
-        function start(preload, shell) {
+        function start(preload, host) {
             serve();
             if (CONFIG.ship.length) {
                 for (const { id, outcome, problem } of INSTALL.installShipped())
                     if (problem) LOG.warn(`${outcome} ${id}: ${problem}`);
                     else LOG.info(`${outcome} ${id}`);
             }
-            WINDOW.start({ openWindow: (options) => shell.openWindow(options) });
+            WINDOW.start({ openWindow: (options) => host.openWindow(options) });
             WEB.start();
             KEYMAP.start();
             OPEN.start();
-            NOTIFY.start({ clicked: () => shell.noticeClicked() });
+            NOTIFY.start({ clicked: () => host.noticeClicked() });
             CLIPBOARD.start();
             EVENT.start();
             COMMAND.start();
-            RUNTIME.start({ restart: () => shell.restart() });
+            RUNTIME.start({ restart: () => host.restart() });
             PROTOCOL.setup.handle((_payload, sender) => {
                 const page = IDENTITY.pageNameOf(sender);
                 return page ? { page } : {};
             });
             KEYMAP.connect({ pageFor: WEB.pageFor });
             started = true;
-            for (const listener of starting) listener();
+            // What fails to start with deckit fails alone: the mods run whatever it did.
+            for (const listener of starting) {
+                try {
+                    listener();
+                } catch (error) {
+                    LOG.error('what starts with deckit did not start', error);
+                }
+            }
             DECK.start({ makeView: () => pageView(preload, { webview: true }) });
         }
 

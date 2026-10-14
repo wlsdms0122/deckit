@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/storage',
     {
         uses: ['deckit/service/home', 'deckit/module/store'],
-        provides: ['folderOf', 'records', 'settings', 'state', 'count', 'forget'],
+        provides: ['folderOf', 'records', 'settings', 'state', 'hostState', 'count', 'forget'],
         runs: 'node',
     },
     (HOME, STORE) => {
@@ -26,10 +26,17 @@ DeckitModule.define(
             write: (modId, values) => STORE.write(path.join(HOME.settings, modId + '.json'), values),
         };
 
-        // What the person arranged: the key map, each scheme's handlers, the mod order, and what the UI keeps.
+        // What the person arranged: the key map, each scheme's handlers, the mod order.
         const state = {
             read: (key, fallback) => STORE.read(path.join(HOME.state, key + '.json'), fallback),
             write: (key, value) => STORE.write(path.join(HOME.state, key + '.json'), value),
+        };
+
+        // What the host app and its shell keep of the person's, in a folder of their own: deckit's state is not theirs
+        // to write.
+        const hostState = {
+            read: (key, fallback) => STORE.read(hostStateFile(key), fallback),
+            write: (key, value) => STORE.write(hostStateFile(key), value),
         };
 
         // MARK: - Initializer
@@ -55,6 +62,11 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        function hostStateFile(key) {
+            if (!KEY.test(String(key)) || String(key).includes('..')) throw new Error('not a state key: ' + key);
+            return path.join(HOME.state, 'host', key + '.json');
+        }
+
         function recordFile(modId, key) {
             if (!KEY.test(String(key)) || String(key).includes('..')) {
                 throw Object.assign(new Error('not a record key: ' + key), { kind: 'KEY' });
@@ -81,6 +93,6 @@ DeckitModule.define(
             }
         }
 
-        return { folderOf, records, settings, state, count, forget };
+        return { folderOf, records, settings, state, hostState, count, forget };
     }
 );

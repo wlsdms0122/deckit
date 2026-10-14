@@ -11,35 +11,36 @@ const IPC = 'deckit/module/ipc';
 const ENTRIES = new Set([
     'deckit/feature/app/main',
     'deckit/feature/app/page',
-    'deckit-ui/feature/app/main',
-    'deckit-ui/feature/app/page',
+    'shell/feature/app/main',
+    'shell/feature/app/page',
 ]);
 // What a host app hands deckit, which it may not: named as optional.
 const HOST_INPUTS = new Set(['host/config', 'host/folders', 'host/exports']);
-// Deck names nothing of the UI. The UI reaches deck through what connect answers (feature/host), so of deck's files it
-// names only the parts with no deckit in them.
+// Deckit names nothing of the shell. The shell reaches deckit through what connect answers (feature/api), so of
+// deckit's files it names only the parts with no deckit in them.
 const MAY_NAME = {
     'deckit/config': new Set(),
     'deckit/feature': new Set(['deckit/config', 'deckit/feature', 'deckit/service', 'deckit/module']),
     'deckit/service': new Set(['deckit/config', 'deckit/service', 'deckit/module']),
     'deckit/module': new Set(['deckit/module']),
-    'deckit-ui/feature': new Set(['deckit-ui/feature', 'deckit-ui/service', 'deckit-ui/ui', 'deckit/module']),
-    'deckit-ui/service': new Set(['deckit-ui/service', 'deckit/module']),
-    'deckit-ui/ui': new Set(['deckit-ui/ui']),
+    'shell/feature': new Set(['shell/feature', 'shell/service', 'shell/ui', 'deckit/module']),
+    'shell/service': new Set(['shell/service', 'deckit/module']),
+    'shell/ui': new Set(['shell/ui']),
 };
 const RUNS = new Set(['main', 'page', 'node', 'electron', 'any']);
 const FITS = {
     page: ['page', 'electron', 'any'],
     main: ['main', 'node', 'electron', 'any'],
     chord: ['any'],
-    'ui-page': ['page', 'electron', 'any'],
-    'ui-main': ['main', 'node', 'electron', 'any'],
+    'shell-page': ['page', 'electron', 'any'],
+    'shell-main': ['main', 'node', 'electron', 'any'],
 };
 const NODE =
     /\brequire\(\s*["'](?:node:)?(fs|fs\/promises|path|os|child_process|net|crypto|util|worker_threads)["']\s*\)/;
 const ELECTRON = /\brequire\(\s*["']electron["']\s*\)/;
 
 const problems = [];
+const channels = new Map(); // channel -> the protocol that declares it
 const all = new Map(); // module name -> { file, uses, provides, runs, plain }
 
 for (const file of LIBRARY.files()) {
@@ -88,9 +89,22 @@ function checkFile(file, { name, provides, plain, uses }) {
     if (name !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
     const protocol = file.endsWith('/protocol.js');
-    if (!protocol && /["'`]deckit:(?!\/\/)/.test(plain))
+    if (!protocol && /["'`](deckit|shell):(?!\/\/)/.test(plain))
         say(file, 'writes a channel; channels are declared in a protocol.js');
+    if (protocol) checkChannels(file, plain);
     if (!protocol && uses.some((use) => use.name === IPC)) say(file, `names ${IPC}, which only a protocol names`);
+}
+
+// A library's channels are its own: each starts with its library's name, and one channel has one declaration, so no
+// library reaches another's around what that one answers.
+function checkChannels(file, plain) {
+    const library = file.split('/')[0];
+    for (const [, channel] of plain.matchAll(/\bIPC\.(?:rendererToMain|mainToRenderer)\(\s*["'`]([^"'`]+)["'`]/g)) {
+        if (!channel.startsWith(library + ':')) say(file, `declares the channel ${channel}, which is not ${library}'s`);
+        if (channels.has(channel))
+            say(file, `declares the channel ${channel}, which ${channels.get(channel)} declares`);
+        channels.set(channel, file);
+    }
 }
 
 function checkUses(name, { file, uses }) {
@@ -98,7 +112,7 @@ function checkUses(name, { file, uses }) {
     if (!mine)
         return say(
             file,
-            'is in no layer: a module of deck is in config/, feature/, service/ or module/, and of the UI in feature/, service/ or ui/'
+            'is in no layer: a module of deckit is in config/, feature/, service/ or module/, and of the shell in feature/, service/ or ui/'
         );
     for (const use of uses) {
         if (HOST_INPUTS.has(use.name)) {
@@ -148,7 +162,7 @@ function checkBundles() {
         if (!bundled.has(file)) say(file, 'is in no bundle: nothing a bundle starts from names it');
         const named = /(^|\/)main\.js$/.test(file)
             ? 'main'
-            : /(^|\/)page\.js$/.test(file) || file.startsWith('deckit-ui/ui/')
+            : /(^|\/)page\.js$/.test(file) || file.startsWith('shell/ui/')
               ? 'page'
               : null;
         if (runs && !RUNS.has(runs)) say(file, `runs "${runs}", which is none of ${[...RUNS].join(', ')}`);

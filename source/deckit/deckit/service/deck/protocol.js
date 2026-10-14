@@ -48,14 +48,14 @@ DeckitModule.define(
         // Its settings, as soon as its entry is read: the declarations, without functions.
         declare: IPC.rendererToMain('deckit:mod-declare', { run: 'number', settings: 'object' }),
         // Started, with what it contributes. `contributions`: `{ exports, extensionPoints, extensions }`, exports and
-        // each extension as its values copied and the paths of its functions, beside what the UI added; `summary`, what
-        // Settings shows.
+        // each extension as its values copied and the paths of its functions, beside what the shell added; `summary`, what it
+        // contributes as a person reads it.
         started: IPC.rendererToMain('deckit:mod-started', {
             run: 'number',
             contributions: 'object',
             summary: 'object',
         }),
-        // A problem recorded against the mod, which Settings shows.
+        // A problem recorded against the mod, which a person reads on its row.
         problem: IPC.rendererToMain('deckit:mod-problem', { run: 'number?', problem: 'string' }),
         // It did not start, and why: what the mods that require it are told.
         notStarted: IPC.rendererToMain('deckit:mod-not-started', { run: 'number?', problem: 'string' }),

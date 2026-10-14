@@ -12,7 +12,7 @@ WORK="$(mktemp -d "$OUT/.building.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 LIB="$WORK/lib"
 mkdir -p "$LIB/document" "$LIB/mod"
-SOURCE_HASH="$({ find source/deckit/deckit source/deckit/deckit-ui source/deckit/mod source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+SOURCE_HASH="$({ find source/deckit/deckit source/deckit/shell source/deckit/mod source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 # Read into an array first, where a node that fails stops the build. Which deckit this is goes into the bundles: the
 # build module's empty values are written over with the version and the source hash.
@@ -38,10 +38,10 @@ for b in "${BUNDLES[@]}"; do
 done
 
 # Main's run as CommonJS; the pages' as a function body.
-for b in main ui-main; do
+for b in main shell-main; do
   node --check "$LIB/$b.js" || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
 done
-for b in registry chord page ui-page; do
+for b in registry chord page shell-page; do
   node -e "new Function(require('fs').readFileSync('$LIB/$b.js','utf8'))" \
     || { echo "$b.js has a syntax error: stopping" >&2; exit 1; }
 done

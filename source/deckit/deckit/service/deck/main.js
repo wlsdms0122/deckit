@@ -92,7 +92,7 @@ DeckitModule.define(
             });
         }
 
-        // What Settings shows about every mod, loaded or not, and what each running one contributes. `state`: its
+        // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `state`: its
         // latest run's, null for one with none. `starting`: it is launching. `hides`: folders of the same id that are
         // not read.
         function describe() {

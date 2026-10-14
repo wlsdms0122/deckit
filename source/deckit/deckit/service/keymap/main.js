@@ -11,20 +11,20 @@ DeckitModule.define(
             'deckit/service/keymap/protocol',
             'deckit/service/keymap/model/binding-id',
         ],
-        provides: ['start', 'connect', 'route', 'listen', 'register', 'chordOf'],
+        provides: ['start', 'connect', 'delegate', 'listen', 'register', 'chordOf'],
     },
     (CONFIG, STORAGE, LOG, CHORD, IDENTITY, CATALOG, PROTOCOL, BINDING_ID) => {
         // MARK: - Property
         const OVERRIDES = 'keys';
         const RECORDING_MS = 20 * 1000;
-        const own = []; // [{ action, key, label, scope: 'global' | 'ui', run(webContents) }]
+        const own = []; // [{ action, key, label, scope: 'global' | 'shell', run(webContents) }]
         const scopes = new Map(); // mod id -> [{ action, key, label, global }]
         const typing = new Set(); // webContents ids with a field focused
         const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
         let overrides = {};
         let recording = null; // { webContents, timer }
         let pageFor = () => null;
-        let ui = { shown: () => false, monitor: () => false };
+        let shell = { isActive: () => false, monitor: () => false };
 
         // MARK: - Initializer
         // MARK: - Public
@@ -64,11 +64,11 @@ DeckitModule.define(
             pageFor = of;
         }
 
-        // The UI's answers about a deckit page a keystroke landed in: `shown(page)`, whether the person sees it, where
-        // the mod's own keys and the UI's run; `monitor(page, input)`, the UI's look at the keystroke before any
-        // binding, taking it by answering true.
-        function route({ shown, monitor }) {
-            ui = { shown, monitor };
+        // What the key map asks the shell of a deckit page a keystroke landed in: `isActive(page)`, whether it is the
+        // page in front, where the mod's own keys and the shell's run; `monitor(page, input)`, the shell's look at the
+        // keystroke before any binding, taking it by answering true.
+        function delegate({ isActive, monitor }) {
+            shell = { isActive, monitor };
         }
 
         // Keystrokes in this webContents go through the key map. deckit listens on its own; an app hands its own
@@ -91,10 +91,10 @@ DeckitModule.define(
             webContents.once('destroyed', forget);
         }
 
-        // A key the UI runs itself. `global` ones work anywhere a webContents is listened to; the rest only in a page
-        // the UI shows. Answers its id, for chordOf.
+        // A key the shell runs itself. `global` ones work anywhere a webContents is listened to; the rest only in the
+        // page in front. Answers its id, for chordOf.
         function register({ action, key, label, global = false, run }) {
-            own.push({ action, key, label, scope: global ? 'global' : 'ui', run });
+            own.push({ action, key, label, scope: global ? 'global' : 'shell', run });
             announce();
             return BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action);
         }
@@ -155,8 +155,8 @@ DeckitModule.define(
                     .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'global', key)),
                 ...mods.flatMap((mod) => keysOf(mod, true).map((key) => bindingOf(mod.id, mod.name, 'global', key))),
                 ...own
-                    .filter((key) => key.scope === 'ui')
-                    .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'ui', key)),
+                    .filter((key) => key.scope === 'shell')
+                    .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'shell', key)),
                 ...mods.flatMap((mod) => keysOf(mod, false).map((key) => bindingOf(mod.id, mod.name, 'mod', key))),
             ];
         }
@@ -206,8 +206,8 @@ DeckitModule.define(
                         earlier
                     ) {
                         say(binding, 'error', 'shadowed', other);
-                    } else if (binding.scope === 'mod' && other.scope === 'ui') say(binding, 'warn', 'hides', other);
-                    else if (binding.scope === 'ui' && other.scope === 'mod') say(binding, 'warn', 'hidden', other);
+                    } else if (binding.scope === 'mod' && other.scope === 'shell') say(binding, 'warn', 'hides', other);
+                    else if (binding.scope === 'shell' && other.scope === 'mod') say(binding, 'warn', 'hidden', other);
                 }
             }
             return list.map((binding) => ({
@@ -259,19 +259,19 @@ DeckitModule.define(
                 return true;
             }
             const page = pageFor(webContents);
-            if (page && ui.monitor(page, input)) return true;
+            if (page && shell.monitor(page, input)) return true;
             const active = bindings().filter(
                 (binding) => binding.active && CHORD.matches(CHORD.parse(binding.spec), input)
             );
             const global = active.find((binding) => binding.scope === 'global');
             if (global) return run(global, webContents);
-            if (!page || !ui.shown(page)) return false;
+            if (!page || !shell.isActive(page)) return false;
             if (typing.has(page.id) && CHORD.editsText(input)) return false;
             const mod = IDENTITY.modOf(page);
-            // The mod's own first, so it wins a chord it shares with the UI.
+            // The mod's own first, so it wins a chord it shares with the shell.
             const hit =
                 active.find((binding) => binding.scope === 'mod' && binding.owner === mod?.id) ||
-                active.find((binding) => binding.scope === 'ui');
+                active.find((binding) => binding.scope === 'shell');
             return hit ? run(hit, webContents) : false;
         }
 
@@ -319,6 +319,6 @@ DeckitModule.define(
             return true;
         }
 
-        return { start, connect, route, listen, register, chordOf };
+        return { start, connect, delegate, listen, register, chordOf };
     }
 );

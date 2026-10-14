@@ -12,7 +12,7 @@ DeckitModule.define(
             scheme: 'deckit',
             privileges: Object.freeze({ standard: true, secure: true, supportFetchAPI: true }),
         });
-        // Every mod host ends in .mod, so a page the UI makes never shares an origin with one.
+        // Every mod host ends in .mod, so a page the shell makes never shares an origin with one.
         const MOD_HOST_SUFFIX = '.mod';
 
         // MARK: - Initializer
@@ -22,7 +22,7 @@ DeckitModule.define(
             return `${SCHEME.scheme}://${modId}${MOD_HOST_SUFFIX}`;
         }
 
-        // Where a page the UI makes loads from, by its name, which has no dot in it.
+        // Where a page the shell makes loads from, by its name, which has no dot in it.
         function pageOriginOf(name) {
             return `${SCHEME.scheme}://${name}`;
         }

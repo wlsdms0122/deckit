@@ -72,7 +72,7 @@ DeckitModule.define(
             return entry?.inPage && entry.tab === page.id ? entry.host : null;
         }
 
-        // The deckit page a webContents answers to: a mod's or one the UI made, or the mod page that shows it as a
+        // The deckit page a webContents answers to: a mod's or one the shell made, or the mod page that shows it as a
         // web page.
         function pageFor(webContents) {
             if (IDENTITY.modOf(webContents) || IDENTITY.pageNameOf(webContents)) return webContents;

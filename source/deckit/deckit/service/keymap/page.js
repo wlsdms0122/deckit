@@ -13,8 +13,9 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // A mod's keys, checked once here: { action: { key, label, run, global } }. A global key is taken from every
-        // page, fields included, so it needs a modifier and must not be one that edits text.
-        function scope(keys, { invalid, global }) {
+        // page, fields included, so it needs a modifier and must not be one that edits text. `problemOf(entry)` is the
+        // shell's reason a key would never run, or ''.
+        function scope(keys, { invalid, global, problemOf }) {
             const declared = [];
             for (const [action, entry] of Object.entries(keys || {})) {
                 const key = entry && CHORD.normalize(entry.key);
@@ -24,6 +25,11 @@ DeckitModule.define(
                 }
                 if (entry.global && !global) {
                     invalid(`key "${action}" cannot be global: that takes the system.global-keys permission`);
+                    continue;
+                }
+                const never = problemOf(entry);
+                if (never) {
+                    invalid(`key "${action}" never runs: ${never}`);
                     continue;
                 }
                 const chord = CHORD.parse(key);
@@ -42,11 +48,11 @@ DeckitModule.define(
             PROTOCOL.scope.send({ keys: declared });
         }
 
-        // `deliver` runs a mod's function and records what it throws. A key waits while `holdsKeys()`, as while the
-        // UI floats something over the page, so it cannot act on what is behind a dialog.
-        function connect({ deliver, holdsKeys }) {
+        // `deliver` runs a mod's function and records what it throws. A key pressed while `blocksKeys()` is dropped,
+        // so it cannot act on what is behind a dialog.
+        function connect({ deliver, blocksKeys }) {
             PROTOCOL.key.on(({ action }) => {
-                if (!holdsKeys() && runs.has(action)) deliver(`key ${action}`, runs.get(action));
+                if (!blocksKeys() && runs.has(action)) deliver(`key ${action}`, runs.get(action));
             });
             PROTOCOL.changed.on(() => {
                 for (const listener of listeners) listener();

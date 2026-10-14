@@ -106,7 +106,7 @@ DeckitModule.define(
             }
         }
 
-        // Options worked out when Settings draws them (the fonts on this Mac) are the mod's to answer.
+        // Options worked out as they are read (the fonts on this Mac) are the mod's to answer.
         async function optionsOf(modId, key, declaration) {
             if (!declaration.computed) return declaration.options || [];
             const webContents = IDENTITY.pageOf(modId);

@@ -7,8 +7,8 @@ DeckitModule.define(
     },
     () => {
         // MARK: - Property
-        // In the order Settings lists them, the widest first. `name` and `means` are what a person reads before
-        // installing; `icon` names the glyph it is shown with.
+        // The widest first. `name` and `means` are what a person reads before installing; `icon` is the kit's glyph
+        // for it.
         const PERMISSIONS = [
             {
                 id: 'system.main-process',

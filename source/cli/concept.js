@@ -3,7 +3,7 @@ const path = require('path');
 
 const LAYERS = {
     deckit: new Set(['config', 'feature', 'service', 'module']),
-    'deckit-ui': new Set(['feature', 'service', 'ui']),
+    shell: new Set(['feature', 'service', 'ui']),
 };
 
 // `file` is the path under source/deckit, as library.files() lists it.
