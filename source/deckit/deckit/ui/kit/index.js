@@ -46,6 +46,7 @@ DeckitModule.define(
             Object.assign(ui, {
                 icon: ICON.icon,
                 iconOf: ICON.iconOf,
+                sanitizeIcon: ICON.sanitize,
                 element: PART.element,
                 addStyle,
                 listbox: LISTBOX.listbox,
