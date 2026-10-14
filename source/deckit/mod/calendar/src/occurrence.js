@@ -14,7 +14,7 @@ function occurrencesOf(events) {
             end: new Date(event.end),
             allDay: !!event.allDay,
             call:
-                event.call && typeof event.call.url === 'string'
+                event.call && isWebAddress(event.call.url)
                     ? { name: textOf(event.call.name), url: event.call.url }
                     : null,
             rooms: Array.isArray(event.rooms) ? event.rooms.filter((room) => typeof room === 'string') : [],
@@ -24,6 +24,10 @@ function occurrencesOf(events) {
             invited: !!event.invited,
         }))
         .filter((event) => !isNaN(event.start) && !isNaN(event.end));
+}
+
+function isWebAddress(value) {
+    return typeof value === 'string' && /^https?:\/\//i.test(value);
 }
 
 function textOf(value) {
