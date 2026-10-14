@@ -34,6 +34,7 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
     const EDGE_REACH = 24;
     const LINGER_MS = 1200;
 
+    let highlighter = colorHighlighter;
     let mode = 'scroll';
     let view = null;
     let shown = false;
@@ -94,7 +95,14 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
         setMode,
         showNear,
         update: redraw,
+        setHighlighter,
     };
+
+    // The theme's colours changed: the map is painted again in them.
+    function setHighlighter(next) {
+        highlighter = next;
+        redraw();
+    }
 
     function attach(next) {
         if (next === view) return;
@@ -261,7 +269,7 @@ function codeMinimap({ engine, theme, ui, colorHighlighter }) {
             const colored = []; // [from, to, colour], in document order
             engine.highlightTree(
                 engine.syntaxTree(state),
-                colorHighlighter,
+                highlighter,
                 (start, end, colors) => colored.push([start, end, colors.split(' ').pop()]),
                 from,
                 to

@@ -15,8 +15,11 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
     const typeface = new engine.Compartment();
     // A compartment, so a file renamed to another type is coloured as that type.
     const language = new engine.Compartment();
+    // A compartment, so a new theme recolours the open files in place.
+    const look = new engine.Compartment();
+    let lookExtensions = themeExtensions;
 
-    return { create, destroy, applySetting, setLanguage, scrollEffect };
+    return { create, destroy, applySetting, setLanguage, setTheme, scrollEffect };
 
     // A box of its own: the engine insists its element is position: relative, so it cannot be laid over the others.
     function create(text, path, { inset }) {
@@ -50,6 +53,12 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
             view.dispatch({ effects: wrapping.reconfigure(value ? engine.EditorView.lineWrapping : []) });
         else if (key === 'fontSize' || key === 'font') view.dispatch({ effects: typeface.reconfigure(typefaceNow()) });
         clipGutter(view);
+    }
+
+    // `views`: the open files', which take it at once; a file opened later takes it as it is made.
+    function setTheme(extensions, views) {
+        lookExtensions = extensions;
+        for (const view of views) view.dispatch({ effects: look.reconfigure(extensions) });
     }
 
     function setLanguage(view, path) {
@@ -100,7 +109,7 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
                 ]),
                 separatorExtension(text),
                 language.of(languageOf(path)),
-                themeExtensions,
+                look.of(lookExtensions),
                 wrapping.of(settings.get('wrap') ? engine.EditorView.lineWrapping : []),
                 typeface.of(typefaceNow()),
                 engine.EditorView.updateListener.of((update) => {

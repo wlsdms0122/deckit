@@ -102,19 +102,27 @@ module.exports = {
         });
         keepDrafts = () => drafts.keepNow();
         const session = savedSession({ records, fileSystem, workspaces });
-        const { extensions: themeExtensions, colorHighlighter } = codeTheme({ engine, theme, ui });
+        const codeLook = codeTheme({ engine, theme, ui });
         const find = findInFile({ engine, ui });
         const code = codeView({
             engine,
             theme,
             ui,
             settings,
-            themeExtensions,
+            themeExtensions: codeLook.extensions,
             separatorExtension: disk.separatorExtension,
             createFindPanel: find.createPanel,
             onUpdate: heardUpdate,
         });
-        const minimap = codeMinimap({ engine, theme, ui, colorHighlighter });
+        const minimap = codeMinimap({ engine, theme, ui, colorHighlighter: codeLook.colorHighlighter });
+        theme.onChange(() => {
+            const next = codeTheme({ engine, theme, ui });
+            code.setTheme(
+                next.extensions,
+                workspaces.files().map((file) => file.view)
+            );
+            minimap.setHighlighter(next.colorHighlighter);
+        });
         // Its own stacking context: the engine lifts its panels (the find bar) to z-index 300, which would otherwise put
         // them over anything laid over the editor (the minimap).
         const stage = ui.element('div', {
@@ -127,8 +135,8 @@ module.exports = {
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                color: theme.color.text,
-                font: '14px ' + theme.font,
+                color: 'var(--deckit-text)',
+                font: '14px var(--deckit-font)',
                 overflow: 'hidden',
             },
         });
