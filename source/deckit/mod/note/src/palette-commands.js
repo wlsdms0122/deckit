@@ -4,7 +4,7 @@ const { COMPOSE_SHAPES } = require('./icons.js');
 const { parentOf } = require('./path.js');
 
 // What the command palette offers: a new note, a search of every note, and each folder.
-function paletteCommands({ ui, show, notesFolder, allNotes, onNewNote, onOpenNote, onShowFolder }) {
+function paletteCommands({ ui, show, searchNotes, allNotes, onNewNote, onOpenNote, onShowFolder }) {
     const SHOWN_LIMIT = 50;
 
     return [
@@ -34,10 +34,10 @@ function paletteCommands({ ui, show, notesFolder, allNotes, onNewNote, onOpenNot
     ];
 
     // What a search finds, or with nothing typed, the notes edited last.
-    async function searchEntries(query) {
+    async function searchEntries(query, { signal }) {
         const words = String(query || '').trim();
         const found = words
-            ? await notesFolder.search(words).catch(() => ({ hits: [], partial: false }))
+            ? await searchNotes(words, { signal }).catch(() => ({ hits: [], partial: false }))
             : { hits: notesIn(allNotes).sort((one, other) => other.mtime - one.mtime), partial: false };
         const shown = found.hits.slice(0, SHOWN_LIMIT);
         const notice =

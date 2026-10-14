@@ -85,6 +85,7 @@ module.exports = {
         let place = store.get('at', { kind: 'folder', path: '' });
         let hadFocus = false;
         let changeTimer = 0;
+        let searchesAsked = 0;
 
         ui.addStyle(STYLE);
         const content = ui.element('div', { className: 'note' });
@@ -169,6 +170,7 @@ module.exports = {
             ui,
             chordOf: deck.chordOf,
             notesFolder,
+            searchNotes,
             settings,
             relocations,
             navigation: galleryNavigation,
@@ -247,13 +249,25 @@ module.exports = {
             paletteCommands({
                 ui,
                 show: deck.show,
-                notesFolder,
+                searchNotes,
                 allNotes,
                 onNewNote: browsing.onNewNote,
                 onOpenNote: openNote,
                 onShowFolder: showFolder,
             })
         );
+
+        // Stopped in the main process when `signal` aborts.
+        async function searchNotes(query, { signal }) {
+            const id = ++searchesAsked;
+            const stop = () => notesFolder.stopSearch(id).catch(() => {});
+            signal.addEventListener('abort', stop);
+            try {
+                return await notesFolder.search(query, id);
+            } finally {
+                signal.removeEventListener('abort', stop);
+            }
+        }
 
         async function reachSavedPlace() {
             await notesFolder.root().catch(() => {});

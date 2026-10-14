@@ -10,6 +10,7 @@ function gallery({
     ui,
     chordOf,
     notesFolder,
+    searchNotes,
     settings,
     relocations,
     navigation,
@@ -85,7 +86,7 @@ function gallery({
     let query = '';
     let queryHits = null;
     let partial = false;
-    let searches = 0;
+    let searching = null; // the AbortController of the search asked last
     let loads = 0;
 
     ui.addStyle(STYLE);
@@ -265,22 +266,24 @@ function gallery({
         draw();
     }
 
-    // An answer to a search that was overtaken, by another search or by a folder reached, is dropped.
+    // A search overtaken, by another search or by a folder reached, is stopped and its answer dropped.
     function search(value) {
         query = value.trim();
-        const attempt = ++searches;
+        searching?.abort();
+        const asked = new AbortController();
+        searching = asked;
         queryHits = null;
         if (!query) partial = false;
         draw();
         if (!query) return;
         setTimeout(async () => {
-            if (attempt !== searches) return;
+            if (asked.signal.aborted) return;
             let found = { hits: [], partial: false };
             const since = relocations.since();
             try {
-                found = await notesFolder.search(query);
+                found = await searchNotes(query, { signal: asked.signal });
             } catch {}
-            if (attempt !== searches) return;
+            if (asked.signal.aborted) return;
             queryHits = found.hits.map((hit) => ({ ...hit, since }));
             partial = found.partial;
             draw();
@@ -300,7 +303,7 @@ function gallery({
             query = '';
             queryHits = null;
             partial = false;
-            searches++;
+            searching?.abort();
         }
         if (isNewFolder) body.scrollTop = 0;
     }

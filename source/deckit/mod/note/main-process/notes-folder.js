@@ -18,6 +18,7 @@ module.exports = ({ folder, emit, files }) => {
     let flushTimer = null;
     // The last request wins across the await in notesRoot().
     let watchRequests = 0;
+    const searches = new Map(); // id -> { stopped }
 
     return {
         root: async () => ({ root: await notesRoot() }),
@@ -181,49 +182,20 @@ module.exports = ({ folder, emit, files }) => {
             return true;
         },
 
-        search: async (query) => {
-            const root = await notesRoot();
-            const words = String(query ?? '')
-                .toLowerCase()
-                .split(/\s+/)
-                .filter(Boolean);
-            if (!words.length) return { hits: [], partial: false };
-            const hits = [];
-            let seen = 0;
-            let partial = false;
-            await walk(root, 0, async (full, entry, kind) => {
-                if (kind !== 'note') return;
-                if (++seen > SEARCH_LIMIT) {
-                    partial = true;
-                    return 'stop';
-                }
-                const name = entry.name.slice(0, -EXTENSION.length);
-                let read;
-                try {
-                    read = await readText(full);
-                } catch {
-                    return;
-                }
-                const lowerName = name.toLowerCase();
-                const lowerText = read.text.toLowerCase();
-                if (!words.every((word) => lowerName.includes(word) || lowerText.includes(word))) return;
-                const flat = read.text.replace(/\s+/g, ' ');
-                const at = Math.min(
-                    ...words.map((word) => flat.toLowerCase().indexOf(word)).filter((index) => index >= 0),
-                    Infinity
-                );
-                const snippet =
-                    !Number.isFinite(at) || at < 40 ? previewOf(read.text, name) : '…' + flat.slice(at - 30, at + 130);
-                hits.push({
-                    path: relativePath(root, full),
-                    name,
-                    mtime: read.mtime,
-                    inName: words.every((word) => lowerName.includes(word)),
-                    snippet,
-                });
-            });
-            hits.sort((one, other) => other.inName - one.inName || other.mtime - one.mtime);
-            return { hits: hits.slice(0, HITS_LIMIT), partial: partial || hits.length > HITS_LIMIT };
+        // `id` is the asker's own for this search, by which `stopSearch(id)` stops it where it is.
+        search: async (query, id) => {
+            const search = { stopped: false };
+            searches.set(id, search);
+            try {
+                return await searchNotes(query, search);
+            } finally {
+                searches.delete(id);
+            }
+        },
+
+        stopSearch: (id) => {
+            const search = searches.get(id);
+            if (search) search.stopped = true;
         },
 
         // Asked as a state, on or off, so a sandbox reloaded without turning it off leaves no second watcher.
@@ -256,6 +228,52 @@ module.exports = ({ folder, emit, files }) => {
             return !!watcher;
         },
     };
+
+    async function searchNotes(query, search) {
+        const root = await notesRoot();
+        const words = String(query ?? '')
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean);
+        if (!words.length) return { hits: [], partial: false };
+        const hits = [];
+        let seen = 0;
+        let partial = false;
+        await walk(root, 0, async (full, entry, kind) => {
+            if (search.stopped) return 'stop';
+            if (kind !== 'note') return;
+            if (++seen > SEARCH_LIMIT) {
+                partial = true;
+                return 'stop';
+            }
+            const name = entry.name.slice(0, -EXTENSION.length);
+            let read;
+            try {
+                read = await readText(full);
+            } catch {
+                return;
+            }
+            const lowerName = name.toLowerCase();
+            const lowerText = read.text.toLowerCase();
+            if (!words.every((word) => lowerName.includes(word) || lowerText.includes(word))) return;
+            const flat = read.text.replace(/\s+/g, ' ');
+            const at = Math.min(
+                ...words.map((word) => flat.toLowerCase().indexOf(word)).filter((index) => index >= 0),
+                Infinity
+            );
+            const snippet =
+                !Number.isFinite(at) || at < 40 ? previewOf(read.text, name) : '…' + flat.slice(at - 30, at + 130);
+            hits.push({
+                path: relativePath(root, full),
+                name,
+                mtime: read.mtime,
+                inName: words.every((word) => lowerName.includes(word)),
+                snippet,
+            });
+        });
+        hits.sort((one, other) => other.inName - one.inName || other.mtime - one.mtime);
+        return { hits: hits.slice(0, HITS_LIMIT), partial: partial || hits.length > HITS_LIMIT };
+    }
 
     // Made again on every call: the folder may be deleted in Finder while this module runs.
     async function notesRoot() {
