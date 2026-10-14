@@ -73,6 +73,7 @@ function modDetails({ ui, mods, urlSchemes, util, onPinnedChange }) {
     let mod = null;
     let open = false;
     let counted = false;
+    let drawn = ''; // what was last drawn, as `set` was handed it
     let mainFailure = '';
     let statusLine = null;
 
@@ -85,9 +86,12 @@ function modDetails({ ui, mods, urlSchemes, util, onPinnedChange }) {
     element.append(clip);
     return { element, set, setOpen };
 
-    // A mod set again is counted again when it is open.
+    // Drawn again only when what it shows changed, and then counted again when it is open.
     function set(next, handlerLists) {
+        const facts = JSON.stringify([next, handlerLists]);
         mod = next;
+        if (facts === drawn) return;
+        drawn = facts;
         counted = false;
         // A main process module starts when the mod asks for it, so none running is no fault: only a start that
         // failed is told.

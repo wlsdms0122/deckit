@@ -15,9 +15,7 @@ module.exports = {
         const APP_NAME = deck.about().name;
 
         const modIcons = new Map(); // mod id -> its icon, as the list was last drawn
-        const STARTING_LOOK_MS = 1000;
         let shown = false;
-        let again = null; // the next look at a mod still starting or stopping
 
         // In every rule of this mod, `line-height` comes after `font`: the shorthand resets it.
         ui.addStyle(`
@@ -78,13 +76,13 @@ module.exports = {
             },
             didDisappear: () => {
                 shown = false;
-                clearTimeout(again);
                 keyboard.stopRecording();
             },
         });
         deck.commands(commands);
+        deck.mods.onChange(() => shown && redraw());
 
-        // A mod still starting or stopping is looked at again while Settings is on screen, until it has settled.
+        // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         function redraw() {
             const { installed: onDisk, running } = deck.mods.list();
             for (const mod of running) modIcons.set(mod.id, mod.icon);
@@ -92,9 +90,6 @@ module.exports = {
             modSettings.draw();
             urlSchemes.draw();
             keyboard.draw();
-            clearTimeout(again);
-            const moving = onDisk.some((mod) => mod.starting || mod.state === 'terminating');
-            if (shown && moving) again = setTimeout(redraw, STARTING_LOOK_MS);
         }
 
         function commands() {

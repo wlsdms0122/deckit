@@ -126,8 +126,10 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
             hint.hidden = !item.hint;
             const declared = shapeOf(item);
             if (declared === shape) {
-                // An action has no value: everything it shows is in its shape.
-                if (item.type !== 'action') control.set(valueOf(item));
+                // An action has no value: everything it shows is in its shape. A control being typed in keeps what is
+                // typed.
+                if (item.type !== 'action' && !control.element.contains(document.activeElement))
+                    control.set(valueOf(item));
                 return;
             }
             shape = declared;

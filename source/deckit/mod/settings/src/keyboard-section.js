@@ -12,6 +12,7 @@ function keyboardSection({ ui, keymap }) {
     const SCOPE_NAMES = { global: 'Everywhere', shell: 'On any mod' };
 
     let endRecording = null;
+    let drawAfterRecording = false;
     const cardFills = new WeakMap(); // card -> its fill(group)
     const cellFills = new WeakMap(); // shortcut cell -> its fill(shortcut)
 
@@ -74,8 +75,13 @@ function keyboardSection({ ui, keymap }) {
     body.append(cards.element);
     return { element, title: TITLE, keywords: KEYWORDS, draw, stopRecording };
 
+    // While a key is recorded the cards wait, and are drawn once it ends.
     function draw() {
-        stopRecording();
+        if (endRecording) {
+            drawAfterRecording = true;
+            return;
+        }
+        drawAfterRecording = false;
         const shortcuts = keymap.list();
         const errors = shortcuts.filter((shortcut) => shortcut.issues.some(isError)).length;
         conflicts.element.textContent = `${errors} conflict${errors === 1 ? '' : 's'}`;
@@ -92,6 +98,7 @@ function keyboardSection({ ui, keymap }) {
     function stopRecording() {
         endRecording?.();
         endRecording = null;
+        if (drawAfterRecording) draw();
     }
 
     function shortcutCard(group) {
@@ -145,6 +152,7 @@ function keyboardSection({ ui, keymap }) {
                     return;
                 }
                 endRecording = null;
+                drawAfterRecording = false;
                 if (recorded.spec) keymap.set(current.id, recorded.spec);
                 else if (recorded.clear) keymap.set(current.id, '');
                 draw();
