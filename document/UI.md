@@ -5,12 +5,12 @@ Every page deckit's shell draws, a mod's and its own, draws with one kit, so the
 The kit's parts are of five kinds:
 
 - A maker takes one options object and returns `{ element, ...its controls }`. Put `element` where it goes; call the controls to change it.
-- A layer takes one options object, floats on the page's one stack and returns `{ close }`: `modal`, `dialog`, `confirmTrash`, `colorPicker`. `menu` and `popover` are layers too, with a few more controls.
+- A layer takes one options object, floats on the page's one stack and returns `{ close }`: `modal`, `dialog`, `confirmTrash`, `colorPicker`. `menu`, `popover` and `quickPick` are layers too, with more controls.
 - A float its owner places stays out of the stack, so the keyboard stays with the text it acts on: `floatingToolbar`, `autocomplete`.
 - A decorator takes `(element, options)` and returns its dispose. `listbox` decorates an element and returns its controls with `dispose` among them; `inlineEdit` is one edit and resolves when it ends.
-- A helper returns a value: markup, an element, a function, a number.
+- A helper returns a value: markup, an element, a colour, a boolean, a function or a list.
 
-A control draws the value it is set to and reports what was asked (`onChange(next)`); its owner keeps the value and calls `set(next)`. Callbacks are `on` and a verb. A control's size is `'small'` or `'medium'`; a glyph's size (`icon`, `spinner`, `folderIcon`) is in px.
+A control draws the value it is set to and reports what was asked (`onChange(next)`); its owner keeps the value and calls `set(next)`. A callback that reports what happened is `on` and a verb (`onChange`, `onPick`); one the kit asks for something is named for what it gives (`create`, `placeAt`, `describe`) or does (`run`). A control's size is `'small'` or `'medium'`; a glyph's size (`icon`, `spinner`, `folderIcon`) is in px.
 
 ## The theme
 
