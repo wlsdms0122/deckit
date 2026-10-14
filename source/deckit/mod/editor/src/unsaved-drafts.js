@@ -31,7 +31,7 @@ function unsavedDrafts({ ui, records, isOpen, openDrafts, pick, saveCopy, onOpen
     list.element.classList.add('editor-drafts');
     list.element.hidden = true;
 
-    return { element: list.element, get, keepSoon, forget, follow, show };
+    return { element: list.element, get, keepSoon, keepNow, forget, follow, show };
 
     function all() {
         return records.get('drafts', {});
@@ -43,12 +43,15 @@ function unsavedDrafts({ ui, records, isOpen, openDrafts, pick, saveCopy, onOpen
 
     function keepSoon() {
         clearTimeout(keepTimer);
-        keepTimer = setTimeout(() => {
-            const next = Object.fromEntries(openDrafts());
-            // Drafts of files not open now are kept: they were not dealt with, only not reopened.
-            for (const [path, draft] of Object.entries(all())) if (!isOpen(path)) next[path] = draft;
-            records.set('drafts', next);
-        }, KEEP_DELAY_MS);
+        keepTimer = setTimeout(keepNow, KEEP_DELAY_MS);
+    }
+
+    function keepNow() {
+        clearTimeout(keepTimer);
+        const next = Object.fromEntries(openDrafts());
+        // Drafts of files not open now are kept: they were not dealt with, only not reopened.
+        for (const [path, draft] of Object.entries(all())) if (!isOpen(path)) next[path] = draft;
+        return records.set('drafts', next);
     }
 
     function forget(path) {

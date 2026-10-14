@@ -24,6 +24,9 @@ const { unsavedDrafts, DRAFTS_STYLE } = require('./unsaved-drafts.js');
 const { workspaceModel } = require('./workspace-model.js');
 const { workspaceSearch, WORKSPACE_SEARCH_STYLE } = require('./workspace-search.js');
 
+// What stop() waits for: the unsaved text of every open file kept as a draft, typed until the run ends.
+let keepDrafts = null;
+
 module.exports = {
     keywords: [
         'editor',
@@ -97,6 +100,7 @@ module.exports = {
                 await open(path);
             },
         });
+        keepDrafts = () => drafts.keepNow();
         const session = savedSession({ records, fileSystem, workspaces });
         const { extensions: themeExtensions, colorHighlighter } = codeTheme({ engine, theme, ui });
         const find = findInFile({ engine, ui });
@@ -599,5 +603,9 @@ module.exports = {
             paint();
             return done;
         }
+    },
+
+    stop() {
+        return keepDrafts?.();
     },
 };
