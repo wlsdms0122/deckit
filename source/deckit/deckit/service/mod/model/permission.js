@@ -82,6 +82,12 @@ DeckitModule.define(
                 icon: 'layers',
                 means: 'It can choose which mod is asked first to open an address of each scheme, and switch them off.',
             },
+            {
+                id: 'deckit.styles',
+                name: 'Styles',
+                icon: 'eye',
+                means: "It can change how other mods' pages look, and so read what they show.",
+            },
         ];
         const MAIN_PROCESS = 'system.main-process';
 

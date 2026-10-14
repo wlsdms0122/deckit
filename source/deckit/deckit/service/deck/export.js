@@ -20,9 +20,9 @@ DeckitModule.define(
         // A call reaches a terminating run until it has ended: the mods that require it end first.
         function start() {
             RUNNER.observe('willLaunch', ({ mod }) => expect(mod.id));
-            RUNNER.observe('didLaunch', ({ mod, exports }) => {
-                answering.set(mod.id, exports);
-                provide(mod.id, exports);
+            RUNNER.observe('didLaunch', ({ mod, contributions }) => {
+                answering.set(mod.id, contributions.exports);
+                provide(mod.id, contributions.exports);
             });
             RUNNER.observe('didFailToLaunch', ({ mod, problem }) => fail(mod.id, problem));
             RUNNER.observe('willTerminate', ({ mod }) => expect(mod.id));

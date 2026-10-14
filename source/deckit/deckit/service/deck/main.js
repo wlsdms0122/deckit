@@ -15,6 +15,7 @@ DeckitModule.define(
             'deckit/service/deck/record',
             'deckit/service/deck/setting',
             'deckit/service/deck/export',
+            'deckit/service/deck/extension',
             'deckit/service/deck/protocol',
         ],
         provides: ['start'],
@@ -34,6 +35,7 @@ DeckitModule.define(
         RECORD,
         SETTING,
         EXPORT,
+        EXTENSION,
         PROTOCOL
     ) => {
         // MARK: - Property
@@ -47,6 +49,7 @@ DeckitModule.define(
             RECORD.start();
             SETTING.start();
             EXPORT.start();
+            EXTENSION.start();
             listen();
             RUNNER.start({ makeView });
         }

@@ -34,10 +34,10 @@ DeckitModule.define(
         // One run of `mod`'s entry, the `number`th, launching: `notify(name, run)` is told willLaunch, and then each
         // transition. A transition from a state it does not leave, or a reason the lifecycle does not have, throws.
         //
-        // `summary` and `exports` are what it contributes once running; `problem`, the first one recorded against it
-        // while it launches or runs, or why it failed or crashed; `endReason`, the reason it terminated for.
+        // `summary` is what it contributes once running, as Settings shows it, and `contributions` what deck joins of
+        // it; `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed; `endReason`, the reason it terminated for.
         function launch({ mod, number, notify }) {
-            const facts = { state: 'launching', summary: null, exports: null, problem: null, endReason: null };
+            const facts = { state: 'launching', summary: null, contributions: null, problem: null, endReason: null };
             const move = (transition, change) => {
                 const { from, to, tells } = TRANSITIONS[transition];
                 if (!from.includes(facts.state))
@@ -55,8 +55,8 @@ DeckitModule.define(
                 get summary() {
                     return facts.summary;
                 },
-                get exports() {
-                    return facts.exports;
+                get contributions() {
+                    return facts.contributions;
                 },
                 get problem() {
                     return facts.problem;
@@ -67,7 +67,7 @@ DeckitModule.define(
                 get relaunches() {
                     return REASONS[facts.endReason]?.relaunches ?? false;
                 },
-                didLaunch: ({ summary, exports }) => move('didLaunch', { summary, exports }),
+                didLaunch: ({ summary, contributions }) => move('didLaunch', { summary, contributions }),
                 didFailToLaunch: (problem) => move('didFailToLaunch', failed(problem)),
                 terminate(reason) {
                     if (!Object.hasOwn(REASONS, reason)) throw new Error(`no terminate reason ${reason}`);

@@ -14,6 +14,9 @@ DeckitModule.define(
             'requirements',
             'callExport',
             'exportCalled',
+            'callExtension',
+            'extensionCalled',
+            'extensionsChanged',
             'startMainProcess',
             'callMainProcess',
             'mainProcessEvent',
@@ -44,8 +47,13 @@ DeckitModule.define(
         load: IPC.rendererToMain('deckit:mod-load', {}, { reply: true, sync: true }),
         // Its settings, as soon as its entry is read: the declarations, without functions.
         declare: IPC.rendererToMain('deckit:mod-declare', { run: 'number', settings: 'object' }),
-        // Started, with what it contributes. `exports`: values copied, and the paths of its functions.
-        started: IPC.rendererToMain('deckit:mod-started', { run: 'number', exports: 'object', summary: 'object' }),
+        // Started, with what it contributes. `contributions`: `{ exports, extensionPoints, extensions, styles }`, exports
+        // and each extension as its values copied and the paths of its functions; `summary`, what Settings shows.
+        started: IPC.rendererToMain('deckit:mod-started', {
+            run: 'number',
+            contributions: 'object',
+            summary: 'object',
+        }),
         // A problem recorded against the mod, which Settings shows.
         problem: IPC.rendererToMain('deckit:mod-problem', { run: 'number?', problem: 'string' }),
         // It did not start, and why: what the mods that require it are told.
@@ -60,6 +68,15 @@ DeckitModule.define(
             { reply: true }
         ),
         exportCalled: IPC.mainToRenderer('deckit:mod-export-called', { reply: true }),
+        // An extension point's mod calls a function of what another mod extends it with.
+        callExtension: IPC.rendererToMain(
+            'deckit:mod-call-extension',
+            { run: 'number', mod: 'string', target: 'string', path: 'array', args: 'array' },
+            { reply: true }
+        ),
+        extensionCalled: IPC.mainToRenderer('deckit:mod-extension-called', { reply: true }),
+        // The extensions of one of the mod's points now: { point, extensions: { [mod id]: { values, functions } } }.
+        extensionsChanged: IPC.mainToRenderer('deckit:mod-extensions-changed'),
         // A main process module of the mod's, by its path in the mod's folder: started once, answering
         // { path, methods }, the paths of its functions.
         startMainProcess: IPC.rendererToMain('deckit:main-process-start', { path: 'string' }, { reply: true }),

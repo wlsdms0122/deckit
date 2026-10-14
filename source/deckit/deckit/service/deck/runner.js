@@ -292,9 +292,9 @@ DeckitModule.define(
                     run: run.number,
                 };
             });
-            PROTOCOL.started.on(({ run: number, exports, summary }, sender) => {
+            PROTOCOL.started.on(({ run: number, contributions, summary }, sender) => {
                 const run = currentRun(sender, number);
-                if (run?.state === 'launching') run.didLaunch({ summary, exports });
+                if (run?.state === 'launching') run.didLaunch({ summary, contributions });
             });
             PROTOCOL.problem.on(({ run: number, problem }, sender) => currentRun(sender, number)?.record(problem));
             PROTOCOL.notStarted.on(({ run: number, problem }, sender) => {

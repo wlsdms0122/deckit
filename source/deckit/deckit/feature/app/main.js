@@ -19,6 +19,7 @@ DeckitModule.define(
             'deckit/service/clipboard/main',
             'deckit/service/runtime/main',
             'deckit/service/event/main',
+            'deckit/service/style/main',
             'deckit/feature/panel/main',
             'deckit/feature/switcher/main',
             'deckit/feature/app/protocol',
@@ -44,6 +45,7 @@ DeckitModule.define(
         CLIPBOARD,
         RUNTIME,
         EVENT,
+        STYLE,
         PANEL,
         SWITCHER,
         PROTOCOL,
@@ -115,6 +117,7 @@ DeckitModule.define(
             NOTIFY.start({ clicked: () => shell.noticeClicked() });
             CLIPBOARD.start();
             EVENT.start();
+            STYLE.start();
             RUNTIME.start({ restart: () => shell.restart() });
             PROTOCOL.setup.handle((_payload, sender) => ({
                 role: IDENTITY.isSwitcher(sender) ? 'switcher' : 'mod',
