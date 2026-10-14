@@ -8,6 +8,7 @@ export function createIdentity() {
     const pages = new Map(); // mod id -> its page's webContents
     const ends = new Map(); // webContents id -> Set of what undoes what its page set up
     const activated = new Map(); // webContents id -> when a person last pressed a key or the mouse in it
+    const held = new Set(); // webContents ids with the mouse held down in them
 
     // MARK: - Initializer
     // MARK: - Public
@@ -22,7 +23,12 @@ export function createIdentity() {
             'before-input-event',
             (_event, input) => input.type === 'keyDown' && activated.set(id, Date.now())
         );
-        webContents.on('input-event', (_event, input) => input.type === 'mouseDown' && activated.set(id, Date.now()));
+        webContents.on('input-event', (_event, input) => {
+            if (input.type === 'mouseDown') {
+                activated.set(id, Date.now());
+                held.add(id);
+            } else if (input.type === 'mouseUp') held.delete(id);
+        });
         if (owner.mod) pages.set(owner.mod.id, webContents);
         ends.set(id, new Set());
         const end = () => {
@@ -38,6 +44,7 @@ export function createIdentity() {
             end();
             ends.delete(id);
             activated.delete(id);
+            held.delete(id);
             owners.delete(id);
             if (owner.mod && pages.get(owner.mod.id) === webContents) pages.delete(owner.mod.id);
         });
@@ -57,6 +64,12 @@ export function createIdentity() {
         const fresh = Date.now() - (activated.get(webContents.id) || 0) < ACTIVATION_MS;
         activated.delete(webContents.id);
         return fresh;
+    }
+
+    // Whether a person is pressing in this page now, or just pressed: what the page tells main comes of their act
+    // and not of the page's own code, and the press is not used up, so a drag tells as it goes.
+    function isPressing(webContents) {
+        return held.has(webContents.id) || Date.now() - (activated.get(webContents.id) || 0) < ACTIVATION_MS;
     }
 
     // A press elsewhere that acts in this page, as a command picked in another page runs in the mod's.
@@ -110,6 +123,7 @@ export function createIdentity() {
         add,
         whenPageEnds,
         consumeUserActivation,
+        isPressing,
         passUserActivation,
         modOf,
         modFrom,

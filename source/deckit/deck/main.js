@@ -85,8 +85,13 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return describe();
         });
+        // What a mod installed may do is granted as it installs, so the person installs it: during their click or key.
         PROTOCOL.install.handle(({ from }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
+            if (!IDENTITY.consumeUserActivation(sender))
+                throw Object.assign(new Error('a mod is installed during a click or a key of the person'), {
+                    kind: 'REFUSED',
+                });
             return install(from);
         });
         PROTOCOL.remove.handle(({ id, data }, sender) => {
