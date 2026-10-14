@@ -30,7 +30,7 @@ function providerClient({ deck, ui, records, accountsPoint, onSigningIn }) {
     }
 
     // The provider signs the account in, in a window of its own, and answers the address it signed in as, or nothing
-    // when it was cancelled. A cancelled or failed sign-in leaves nothing behind.
+    // when it was cancelled. Calendar keeps nothing of a cancelled or failed sign-in: the provider drops what it kept.
     async function signIn(provider, account, title) {
         const signing = signingIn.get(account.provider) || { name: provider.name, count: 0, asks: new Set() };
         signing.count++;
