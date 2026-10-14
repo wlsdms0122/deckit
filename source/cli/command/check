@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Holds the library's files to how they reach each other. Exits 1 with a line for each problem.
+// Holds the libraries' files to how they reach each other. Exits 1 with a line for each problem.
 const fs = require('fs');
 const path = require('path');
 
@@ -8,21 +8,32 @@ const { conceptOf } = require(path.join(__dirname, '..', 'concept.js'));
 
 const IPC = 'deckit/module/ipc';
 // The entries a host app starts, which put a page or main together and so may name any concept's protocol.
-const ENTRIES = new Set(['deckit/feature/app/main', 'deckit/feature/app/page']);
+const ENTRIES = new Set([
+    'deckit/feature/app/main',
+    'deckit/feature/app/page',
+    'deckit-ui/feature/app/main',
+    'deckit-ui/feature/app/page',
+]);
 // What a host app hands deckit, which it may not: named as optional.
 const HOST_INPUTS = new Set(['host/config', 'host/folders', 'host/exports']);
+// Deck names nothing of the UI. The UI reaches deck through what connect answers (feature/host), so of deck's files it
+// names only the parts with no deckit in them.
 const MAY_NAME = {
-    config: new Set(),
-    feature: new Set(['config', 'feature', 'service', 'module', 'ui']),
-    service: new Set(['config', 'service', 'module']),
-    module: new Set(['module']),
-    ui: new Set(['ui']),
+    'deckit/config': new Set(),
+    'deckit/feature': new Set(['deckit/config', 'deckit/feature', 'deckit/service', 'deckit/module']),
+    'deckit/service': new Set(['deckit/config', 'deckit/service', 'deckit/module']),
+    'deckit/module': new Set(['deckit/module']),
+    'deckit-ui/feature': new Set(['deckit-ui/feature', 'deckit-ui/service', 'deckit-ui/ui', 'deckit/module']),
+    'deckit-ui/service': new Set(['deckit-ui/service', 'deckit/module']),
+    'deckit-ui/ui': new Set(['deckit-ui/ui']),
 };
 const RUNS = new Set(['main', 'page', 'node', 'electron', 'any']);
 const FITS = {
     page: ['page', 'electron', 'any'],
     main: ['main', 'node', 'electron', 'any'],
     chord: ['any'],
+    'ui-page': ['page', 'electron', 'any'],
+    'ui-main': ['main', 'node', 'electron', 'any'],
 };
 const NODE =
     /\brequire\(\s*["'](?:node:)?(fs|fs\/promises|path|os|child_process|net|crypto|util|worker_threads)["']\s*\)/;
@@ -56,7 +67,7 @@ if (problems.length) {
 console.log(`ok: ${all.size} modules, each in its layer, naming what it uses`);
 
 function say(file, what) {
-    problems.push(`deckit/deckit/${file}: ${what}`);
+    problems.push(`deckit/${file}: ${what}`);
 }
 
 function checkFile(file, { name, provides, plain, uses }) {
@@ -85,7 +96,10 @@ function checkFile(file, { name, provides, plain, uses }) {
 function checkUses(name, { file, uses }) {
     const mine = conceptOf(file);
     if (!mine)
-        return say(file, 'is in no layer: a module of the library is in config/, feature/, service/, module/ or ui/');
+        return say(
+            file,
+            'is in no layer: a module of deck is in config/, feature/, service/ or module/, and of the UI in feature/, service/ or ui/'
+        );
     for (const use of uses) {
         if (HOST_INPUTS.has(use.name)) {
             if (!use.optional)
@@ -134,7 +148,7 @@ function checkBundles() {
         if (!bundled.has(file)) say(file, 'is in no bundle: nothing a bundle starts from names it');
         const named = /(^|\/)main\.js$/.test(file)
             ? 'main'
-            : /(^|\/)page\.js$/.test(file) || file.startsWith('ui/')
+            : /(^|\/)page\.js$/.test(file) || file.startsWith('deckit-ui/ui/')
               ? 'page'
               : null;
         if (runs && !RUNS.has(runs)) say(file, `runs "${runs}", which is none of ${[...RUNS].join(', ')}`);
@@ -169,23 +183,23 @@ function checkBundles() {
 function checkFolders() {
     const walk = (folder) => {
         const entries = fs
-            .readdirSync(path.join(LIBRARY.LIBRARY, folder), { withFileTypes: true })
+            .readdirSync(path.join(LIBRARY.DECKIT, folder), { withFileTypes: true })
             .filter(({ name }) => !name.startsWith('.'));
         const files = entries.filter((entry) => entry.isFile());
         const folders = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
         const below = folders.filter((name) => name !== 'model');
-        if (folder && files.length && below.length) {
+        if (!LIBRARY.LIBRARIES.includes(folder) && files.length && below.length) {
             say(
                 folder,
                 `holds files and the folders ${below.join(', ')}: a folder is a module (files, and model/) or a group (folders only)`
             );
         }
-        for (const name of folders) walk(folder ? `${folder}/${name}` : name);
+        for (const name of folders) walk(`${folder}/${name}`);
     };
-    walk('');
+    for (const library of LIBRARY.LIBRARIES) walk(library);
 }
 
-// Every file of the library is reachable as deckit/<path>: a file outside the layers is no module's.
+// Every file of a library is reachable by its path: a file outside the layers is no module's.
 function checkPlaces() {
     for (const { file } of all.values()) if (!conceptOf(file)) say(file, 'is in no layer');
 }

@@ -47,8 +47,9 @@ DeckitModule.define(
         load: IPC.rendererToMain('deckit:mod-load', {}, { reply: true, sync: true }),
         // Its settings, as soon as its entry is read: the declarations, without functions.
         declare: IPC.rendererToMain('deckit:mod-declare', { run: 'number', settings: 'object' }),
-        // Started, with what it contributes. `contributions`: `{ exports, extensionPoints, extensions, styles }`, exports
-        // and each extension as its values copied and the paths of its functions; `summary`, what Settings shows.
+        // Started, with what it contributes. `contributions`: `{ exports, extensionPoints, extensions }`, exports and
+        // each extension as its values copied and the paths of its functions, beside what the UI added; `summary`, what
+        // Settings shows.
         started: IPC.rendererToMain('deckit:mod-started', {
             run: 'number',
             contributions: 'object',

@@ -83,7 +83,7 @@ DeckitModule.define(
             return sandboxes.get(modId)?.closing || Promise.resolve();
         }
 
-        // Every mod terminates and launches again, as a new theme asks, and a mod whose sandbox closed for a quit
+        // Every mod terminates and launches again, as a new look asks, and a mod whose sandbox closed for a quit
         // the host app called off opens again.
         function restart() {
             for (const sandbox of sandboxes.values()) if (!sandbox.closing) relaunchSandbox(sandbox);

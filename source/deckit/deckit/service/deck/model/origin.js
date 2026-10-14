@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/deck/model/origin',
     {
         uses: [],
-        provides: ['SCHEME', 'SWITCHER_ORIGIN', 'originOf', 'modOfHost', 'addressOf'],
+        provides: ['SCHEME', 'originOf', 'pageOriginOf', 'modOfHost', 'addressOf'],
         runs: 'any',
     },
     () => {
@@ -12,15 +12,19 @@ DeckitModule.define(
             scheme: 'deckit',
             privileges: Object.freeze({ standard: true, secure: true, supportFetchAPI: true }),
         });
-        // Every mod host ends in .mod, so deckit's own pages (the switcher's) never share an origin with one.
+        // Every mod host ends in .mod, so a page the UI makes never shares an origin with one.
         const MOD_HOST_SUFFIX = '.mod';
-        const SWITCHER_ORIGIN = `${SCHEME.scheme}://switcher`;
 
         // MARK: - Initializer
         // MARK: - Public
         // Where a mod's page loads from: an origin of its own, so its page storage is no one else's.
         function originOf(modId) {
             return `${SCHEME.scheme}://${modId}${MOD_HOST_SUFFIX}`;
+        }
+
+        // Where a page the UI makes loads from, by its name, which has no dot in it.
+        function pageOriginOf(name) {
+            return `${SCHEME.scheme}://${name}`;
         }
 
         // The mod whose origin a host is, or null.
@@ -35,6 +39,6 @@ DeckitModule.define(
 
         // MARK: - Private
 
-        return { SCHEME, SWITCHER_ORIGIN, originOf, modOfHost, addressOf };
+        return { SCHEME, originOf, pageOriginOf, modOfHost, addressOf };
     }
 );

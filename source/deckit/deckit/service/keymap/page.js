@@ -13,9 +13,8 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // A mod's keys, checked once here: { action: { key, label, run, global } }. A global key is taken from every
-        // page, fields included, so it needs a modifier and must not be one that edits text. `onScreen`: the mod has
-        // a view, where a key that is not global runs.
-        function scope(keys, { invalid, global, onScreen }) {
+        // page, fields included, so it needs a modifier and must not be one that edits text.
+        function scope(keys, { invalid, global }) {
             const declared = [];
             for (const [action, entry] of Object.entries(keys || {})) {
                 const key = entry && CHORD.normalize(entry.key);
@@ -25,12 +24,6 @@ DeckitModule.define(
                 }
                 if (entry.global && !global) {
                     invalid(`key "${action}" cannot be global: that takes the system.global-keys permission`);
-                    continue;
-                }
-                if (!entry.global && !onScreen) {
-                    invalid(
-                        `key "${action}" never runs: a mod with no view is never on screen, so only a global key does`
-                    );
                     continue;
                 }
                 const chord = CHORD.parse(key);
@@ -49,27 +42,11 @@ DeckitModule.define(
             PROTOCOL.scope.send({ keys: declared });
         }
 
-        // `layers` is what floats in the page; `deliver` runs a mod's function and records what it throws.
-        function connect({ layers, deliver, dismiss }) {
-            layers.onChange((floating) => PROTOCOL.floating.send({ on: floating }));
-            // A key waits while something floats, so it cannot act on what is behind a dialog.
+        // `deliver` runs a mod's function and records what it throws. A key waits while `holdsKeys()`, as while the
+        // UI floats something over the page, so it cannot act on what is behind a dialog.
+        function connect({ deliver, holdsKeys }) {
             PROTOCOL.key.on(({ action }) => {
-                if (!layers.count() && runs.has(action)) deliver(`key ${action}`, runs.get(action));
-            });
-            // Main took this Escape, so the field never saw it: it is played again as a keydown. A field that handles
-            // it keeps the caret; one that does not is left, as a browser would, so the next Escape reaches the page.
-            PROTOCOL.escape.on(({ last }) => {
-                const top = layers.top();
-                if (top) return top.dismiss();
-                const field = document.activeElement;
-                if (isField(field)) {
-                    const handled = !field.dispatchEvent(
-                        new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
-                    );
-                    if (!handled && document.activeElement === field) field.blur();
-                    return;
-                }
-                if (last) dismiss();
+                if (!holdsKeys() && runs.has(action)) deliver(`key ${action}`, runs.get(action));
             });
             PROTOCOL.changed.on(() => {
                 for (const listener of listeners) listener();

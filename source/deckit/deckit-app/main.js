@@ -17,7 +17,7 @@ if (!app.requestSingleInstanceLock()) {
     app.quit();
 } else {
     for (const file of require('./load.json').main) require(path.join(__dirname, file));
-    DeckitModule.use(['deckit/feature/app/main', 'host/shell'], (DECKIT, SHELL) => {
+    DeckitModule.use(['deckit/feature/app/main', 'deckit-ui/feature/app/main', 'host/shell'], (DECKIT, UI, SHELL) => {
         protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
         // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
         const restart = () => {
@@ -26,7 +26,8 @@ if (!app.requestSingleInstanceLock()) {
             app.quit();
         };
         const shell = SHELL.make({ restart });
-        DECKIT.connect({ preload: path.join(__dirname, 'preload.js'), shell });
+        const deckit = DECKIT.connect({ preload: path.join(__dirname, 'preload.js'), shell });
+        UI.attach(deckit, { shell });
         // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
         app.on('activate', () => shell.reveal());
         app.on('second-instance', () => shell.reveal());

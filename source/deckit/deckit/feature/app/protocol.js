@@ -7,7 +7,7 @@ DeckitModule.define(
         runs: 'electron',
     },
     (IPC) => ({
-        // Answers { role: 'mod' | 'switcher', theme } at once: a page is built in one pass.
+        // Answers { page } at once, the name of a page the UI made, or {} for a mod's: a page is built in one pass.
         setup: IPC.rendererToMain('deckit:app-setup', {}, { reply: true, sync: true }),
     })
 );

@@ -74,7 +74,7 @@ DeckitModule.define(
             return placed.get(view)?.window || null;
         }
 
-        // The window a page is in, through whichever placed view holds it: the panel's pages are in its container.
+        // The window a page is in, through whichever placed view holds it, the page's own or one it is inside.
         function windowShowing(webContents) {
             for (const view of roots) if (holds(view, webContents)) return placed.get(view).window;
             return null;

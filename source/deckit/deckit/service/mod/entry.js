@@ -7,7 +7,8 @@ DeckitModule.define(
     },
     () => {
         // MARK: - Property
-        // What an entry's module.exports may hold: how the switcher shows it, what it declares, and its hooks.
+        // What an entry's module.exports may hold: how it is listed (its icon and keywords), what it declares, and its
+        // hooks.
         const MEMBERS = ['icon', 'keywords', 'settings', 'start', 'stop'];
 
         // MARK: - Initializer

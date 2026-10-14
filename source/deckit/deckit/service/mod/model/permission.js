@@ -8,13 +8,13 @@ DeckitModule.define(
     () => {
         // MARK: - Property
         // In the order Settings lists them, the widest first. `name` and `means` are what a person reads before
-        // installing; `icon` is the kit's glyph for it.
+        // installing; `icon` names the glyph it is shown with.
         const PERMISSIONS = [
             {
                 id: 'system.main-process',
                 name: 'Main Process',
                 icon: 'server',
-                means: "It starts code in the app's main process, outside the panel, where code can read and write your files, reach the network and start programs.",
+                means: "It starts code in the app's main process, outside its own pages, where code can read and write your files, reach the network and start programs.",
             },
             {
                 id: 'system.files',
@@ -56,7 +56,7 @@ DeckitModule.define(
                 id: 'system.global-keys',
                 name: 'Keys Everywhere',
                 icon: 'monitor',
-                means: 'Its keys work wherever you are in the app, with the panel closed too, and are taken from every page there.',
+                means: 'Its keys work wherever you are in the app, whatever is in front, and are taken from every page there.',
             },
             {
                 id: 'deckit.mods',
@@ -86,7 +86,7 @@ DeckitModule.define(
                 id: 'deckit.styles',
                 name: 'Styles',
                 icon: 'eye',
-                means: "It can change how every page in the app looks, other mods', the switcher and Settings among them, and so read what they show.",
+                means: "It can change how every page in the app looks, other mods' among them, and so read what they show.",
             },
         ];
         const MAIN_PROCESS = 'system.main-process';

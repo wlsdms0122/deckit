@@ -223,7 +223,7 @@ DeckitModule.define(
             // Without it a <webview> refuses every window.open before main is asked.
             element.setAttribute('allowpopups', '');
             // White under the page, as a browser has: a <webview> is see-through, and a site that leaves its own
-            // background unset would show the panel through its text.
+            // background unset would show what is under it through its text.
             Object.assign(element.style, {
                 position: 'absolute',
                 inset: '0',

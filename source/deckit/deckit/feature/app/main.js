@@ -10,7 +10,6 @@ DeckitModule.define(
             'deckit/service/deck/identity',
             'deckit/service/deck/main',
             'deckit/service/deck/catalog',
-            'deckit/service/deck/runner',
             'deckit/service/web/session',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
@@ -19,9 +18,8 @@ DeckitModule.define(
             'deckit/service/clipboard/main',
             'deckit/service/runtime/main',
             'deckit/service/event/main',
-            'deckit/service/style/main',
-            'deckit/feature/panel/main',
-            'deckit/feature/switcher/main',
+            'deckit/service/command/main',
+            'deckit/feature/host/main',
             'deckit/feature/app/protocol',
             'deckit/service/deck/model/origin',
         ],
@@ -36,7 +34,6 @@ DeckitModule.define(
         IDENTITY,
         DECK,
         CATALOG,
-        RUNNER,
         SESSION,
         WEB,
         KEYMAP,
@@ -45,9 +42,8 @@ DeckitModule.define(
         CLIPBOARD,
         RUNTIME,
         EVENT,
-        STYLE,
-        PANEL,
-        SWITCHER,
+        COMMAND,
+        HOST,
         PROTOCOL,
         ORIGIN
     ) => {
@@ -58,8 +54,7 @@ DeckitModule.define(
         // Every deckit page. deckit and a mod's entry run in the preload's isolated world, whose code the policy
         // leaves alone; the page's own world runs only scripts from its origin, a mod's own files. What the isolated
         // world loads the policy still holds, so the ranker's blob worker is named. Transparent: the view is a
-        // rectangle, and what is rounded is drawn inside it. No drag selection: text meant to be copied opts in
-        // (ui.selectable).
+        // rectangle, and what is rounded is drawn inside it. No drag selection: text meant to be copied opts in.
         const PAGE = [
             '<!doctype html>',
             '<meta charset="utf-8">',
@@ -71,25 +66,16 @@ DeckitModule.define(
             '</style>',
             '',
         ].join('\n');
-        // What a shell answers: where deckit is shown is the app's.
-        const ANSWERS = [
-            'start',
-            'showsPanel',
-            'reveal',
-            'dismiss',
-            'summonSwitcher',
-            'openWindow',
-            'panelTitled',
-            'noticeClicked',
-            'restart',
-        ];
+        // What a shell answers deck: the windows and the process are the app's.
+        const ANSWERS = ['openWindow', 'noticeClicked', 'restart'];
+        const starting = []; // what starts with deck, before any mod launches: the UI on it
         let connected = false;
-        let theme = null; // the app's, which every deckit page derives its look from
+        let started = false;
 
         // MARK: - Initializer
         // MARK: - Public
-        // How an app starts deckit, once, before it is ready: `preload` is the file it put together around deckit's
-        // page bundle, and `shell` answers where deckit is shown.
+        // How an app starts deck, once, before it is ready: `preload` is the file it put together around deckit's page
+        // bundles, and `shell` answers what of deck is the app's. Answers what the app reaches of deck (feature/host).
         function connect({ preload, shell } = {}) {
             if (connected) throw new Error('[deckit] connect is called once');
             const missing = ANSWERS.filter((name) => typeof shell?.[name] !== 'function');
@@ -100,9 +86,19 @@ DeckitModule.define(
             require('electron')
                 .app.whenReady()
                 .then(() => start(preload, shell));
+            return HOST.make({
+                makeView: ({ webview }) => pageView(preload, { webview }),
+                onStart,
+            });
         }
 
         // MARK: - Private
+        // A listener is told once, as deck starts: before the app is ready.
+        function onStart(listener) {
+            if (started) throw new Error('[deckit] what starts with deck is told before the app is ready');
+            starting.push(listener);
+        }
+
         function start(preload, shell) {
             serve();
             if (CONFIG.ship.length) {
@@ -117,31 +113,16 @@ DeckitModule.define(
             NOTIFY.start({ clicked: () => shell.noticeClicked() });
             CLIPBOARD.start();
             EVENT.start();
-            STYLE.start();
+            COMMAND.start();
             RUNTIME.start({ restart: () => shell.restart() });
-            PROTOCOL.setup.handle((_payload, sender) => ({
-                role: IDENTITY.isSwitcher(sender) ? 'switcher' : 'mod',
-                theme,
-            }));
-            PANEL.start({ shell });
-            SWITCHER.start({ makeView: () => pageView(preload, { mod: false }), shell });
-            KEYMAP.connect({ pageFor: WEB.pageFor, showsPanel: PANEL.showsPanel, dismisses: PANEL.dismisses });
-            DECK.start({ makeView: () => pageView(preload, { mod: true }) });
-            shell.start({
-                setTheme,
-                panel: PANEL.control,
-                switcher: SWITCHER.control,
-                window: { place: WINDOW.place },
-                keymap: { listen: KEYMAP.listen },
+            PROTOCOL.setup.handle((_payload, sender) => {
+                const page = IDENTITY.pageNameOf(sender);
+                return page ? { page } : {};
             });
-        }
-
-        // A new theme makes every page again, which draws in it from the start.
-        function setTheme(next) {
-            if (JSON.stringify(next) === JSON.stringify(theme)) return;
-            theme = next;
-            RUNNER.restart();
-            SWITCHER.reload();
+            KEYMAP.connect({ pageFor: WEB.pageFor });
+            started = true;
+            for (const listener of starting) listener();
+            DECK.start({ makeView: () => pageView(preload, { webview: true }) });
         }
 
         // Every page of deckit's is the same PAGE, whichever origin it is loaded under: what it becomes is asked of
@@ -177,9 +158,9 @@ DeckitModule.define(
             }
         }
 
-        // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so the glass under it shows. A
-        // mod's page may show the web.
-        function pageView(preload, { mod }) {
+        // A deckit view: sandboxed, isolated, in deckit's own session, and clear, so what is under it shows. A mod's
+        // page may show the web.
+        function pageView(preload, { webview }) {
             const { WebContentsView } = require('electron');
             const view = new WebContentsView({
                 webPreferences: {
@@ -187,7 +168,7 @@ DeckitModule.define(
                     session: SESSION.own(),
                     sandbox: true,
                     contextIsolation: true,
-                    webviewTag: mod,
+                    webviewTag: webview,
                     transparent: true,
                 },
             });

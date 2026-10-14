@@ -13,7 +13,7 @@ for (const name of Object.keys(LIBRARY.bundles()))
 // registry. The scheme is here as data for a host app that registers schemes before it loads a bundle.
 const MODULES = ['deckit/service/mod/manifest', 'deckit/service/deck/model/origin'];
 require(path.resolve(folder, 'registry.js'));
-for (const file of LIBRARY.filesFrom(MODULES)) require(path.join(LIBRARY.LIBRARY, file));
+for (const file of LIBRARY.filesFrom(MODULES)) require(path.join(LIBRARY.DECKIT, file));
 const [api, scheme] = DeckitModule.use(MODULES, (MANIFEST, ORIGIN) => [MANIFEST.API, ORIGIN.SCHEME]);
 const mods = fs
     .readdirSync(path.join(folder, 'mod'))

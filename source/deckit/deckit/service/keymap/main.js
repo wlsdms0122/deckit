@@ -11,20 +11,20 @@ DeckitModule.define(
             'deckit/service/keymap/protocol',
             'deckit/service/keymap/model/binding-id',
         ],
-        provides: ['start', 'connect', 'listen', 'register', 'chordOf'],
+        provides: ['start', 'connect', 'route', 'listen', 'register', 'chordOf'],
     },
     (CONFIG, STORAGE, LOG, CHORD, IDENTITY, CATALOG, PROTOCOL, BINDING_ID) => {
         // MARK: - Property
         const OVERRIDES = 'keys';
         const RECORDING_MS = 20 * 1000;
-        const own = []; // [{ action, key, label, scope: 'global' | 'panel', run(webContents) }]
+        const own = []; // [{ action, key, label, scope: 'global' | 'ui', run(webContents) }]
         const scopes = new Map(); // mod id -> [{ action, key, label, global }]
         const typing = new Set(); // webContents ids with a field focused
-        const floating = new Set(); // webContents ids with something floating
         const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
         let overrides = {};
         let recording = null; // { webContents, timer }
-        let route = { pageFor: () => null, showsPanel: () => false, dismisses: () => false };
+        let pageFor = () => null;
+        let ui = { shown: () => false, monitor: () => false };
 
         // MARK: - Initializer
         // MARK: - Public
@@ -37,7 +37,6 @@ DeckitModule.define(
                 announce();
             });
             PROTOCOL.typing.on(({ on }, sender) => mark(typing, sender, on));
-            PROTOCOL.floating.on(({ on }, sender) => mark(floating, sender, on));
             PROTOCOL.record.on(({ on }, sender) => {
                 IDENTITY.modFrom(sender, 'deckit.key-map');
                 if (on) startRecording(sender);
@@ -60,10 +59,16 @@ DeckitModule.define(
             });
         }
 
-        // Which deckit page a keystroke in a webContents belongs to, and the panel's answers: whether that page is the
-        // panel on screen, and whether Escape there puts the panel away.
-        function connect({ pageFor, showsPanel, dismisses }) {
-            route = { pageFor, showsPanel, dismisses };
+        // Which deckit page a keystroke in a webContents belongs to.
+        function connect({ pageFor: of }) {
+            pageFor = of;
+        }
+
+        // The UI's answers about a deckit page a keystroke landed in: `shown(page)`, whether the person sees it, where
+        // the mod's own keys and the UI's run; `monitor(page, input)`, the UI's look at the keystroke before any
+        // binding, taking it by answering true.
+        function route({ shown, monitor }) {
+            ui = { shown, monitor };
         }
 
         // Keystrokes in this webContents go through the key map. deckit listens on its own; an app hands its own
@@ -78,10 +83,7 @@ DeckitModule.define(
             LOG.guard(webContents, 'before-input-event', (event, input) => {
                 if (handle(webContents, input)) event.preventDefault();
             });
-            const forget = () => {
-                typing.delete(webContents.id);
-                floating.delete(webContents.id);
-            };
+            const forget = () => typing.delete(webContents.id);
             webContents.once('destroyed', () => local.delete(webContents.id));
             // A reload or a crashed renderer keeps the webContents and its id, but the page's state is gone.
             LOG.guard(webContents, 'did-navigate', forget);
@@ -89,10 +91,10 @@ DeckitModule.define(
             webContents.once('destroyed', forget);
         }
 
-        // A key deckit runs itself. `global` ones work anywhere a webContents is listened to; the rest only where the
-        // panel is on screen. Answers its id, for chordOf.
+        // A key the UI runs itself. `global` ones work anywhere a webContents is listened to; the rest only in a page
+        // the UI shows. Answers its id, for chordOf.
         function register({ action, key, label, global = false, run }) {
-            own.push({ action, key, label, scope: global ? 'global' : 'panel', run });
+            own.push({ action, key, label, scope: global ? 'global' : 'ui', run });
             announce();
             return BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action);
         }
@@ -153,13 +155,13 @@ DeckitModule.define(
                     .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'global', key)),
                 ...mods.flatMap((mod) => keysOf(mod, true).map((key) => bindingOf(mod.id, mod.name, 'global', key))),
                 ...own
-                    .filter((key) => key.scope === 'panel')
-                    .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'panel', key)),
+                    .filter((key) => key.scope === 'ui')
+                    .map((key) => bindingOf(BINDING_ID.DECKIT_OWNER, CONFIG.name, 'ui', key)),
                 ...mods.flatMap((mod) => keysOf(mod, false).map((key) => bindingOf(mod.id, mod.name, 'mod', key))),
             ];
         }
 
-        // Two mods' own keys never meet: only one mod is on screen.
+        // Two mods' own keys never meet: each runs only in its own mod's page.
         function together(a, b) {
             return !(a.scope === 'mod' && b.scope === 'mod' && a.owner !== b.owner);
         }
@@ -167,8 +169,8 @@ DeckitModule.define(
         // Defaults first, then changes in the order they were made (the saved map's order), so a change landing on a
         // chord already taken is the one held back. Among defaults nothing is held back. A binding's `issues` say how a
         // keystroke is actually resolved, each { level, kind, other }: `held` (not applied, the chord is taken),
-        // `shadowed` (never runs, another takes the chord first), `hides` (it hides `other` while its mod is on
-        // screen), `hidden` (not on `other`'s mod, where the chord is `other`'s).
+        // `shadowed` (never runs, another takes the chord first), `hides` (it hides `other` in its mod's page),
+        // `hidden` (not in `other`'s mod's page, where the chord is `other`'s).
         function bindings() {
             const list = catalog();
             const order = Object.keys(overrides);
@@ -204,8 +206,8 @@ DeckitModule.define(
                         earlier
                     ) {
                         say(binding, 'error', 'shadowed', other);
-                    } else if (binding.scope === 'mod' && other.scope === 'panel') say(binding, 'warn', 'hides', other);
-                    else if (binding.scope === 'panel' && other.scope === 'mod') say(binding, 'warn', 'hidden', other);
+                    } else if (binding.scope === 'mod' && other.scope === 'ui') say(binding, 'warn', 'hides', other);
+                    else if (binding.scope === 'ui' && other.scope === 'mod') say(binding, 'warn', 'hidden', other);
                 }
             }
             return list.map((binding) => ({
@@ -256,23 +258,20 @@ DeckitModule.define(
                 own.run();
                 return true;
             }
-            const view = route.pageFor(webContents);
-            if (isEscape(input) && view && (floating.has(view.id) || route.dismisses(webContents))) {
-                PROTOCOL.escape.send(view, { last: route.dismisses(webContents) });
-                return true;
-            }
+            const page = pageFor(webContents);
+            if (page && ui.monitor(page, input)) return true;
             const active = bindings().filter(
                 (binding) => binding.active && CHORD.matches(CHORD.parse(binding.spec), input)
             );
             const global = active.find((binding) => binding.scope === 'global');
             if (global) return run(global, webContents);
-            if (!view || !route.showsPanel(webContents)) return false;
-            if (typing.has(view.id) && CHORD.editsText(input)) return false;
-            const mod = IDENTITY.modOf(view);
-            // The mod's own first, so it wins a chord it shares with the panel.
+            if (!page || !ui.shown(page)) return false;
+            if (typing.has(page.id) && CHORD.editsText(input)) return false;
+            const mod = IDENTITY.modOf(page);
+            // The mod's own first, so it wins a chord it shares with the UI.
             const hit =
                 active.find((binding) => binding.scope === 'mod' && binding.owner === mod?.id) ||
-                active.find((binding) => binding.scope === 'panel');
+                active.find((binding) => binding.scope === 'ui');
             return hit ? run(hit, webContents) : false;
         }
 
@@ -285,10 +284,6 @@ DeckitModule.define(
             if (!view) return false;
             PROTOCOL.key.send(view, { action: binding.action });
             return true;
-        }
-
-        function isEscape(input) {
-            return input.code === 'Escape' && !input.meta && !input.control && !input.alt && !input.shift;
         }
 
         // Recording happens here: a page never hears a chord already bound, and the app menu would act on
@@ -324,6 +319,6 @@ DeckitModule.define(
             return true;
         }
 
-        return { start, connect, listen, register, chordOf };
+        return { start, connect, route, listen, register, chordOf };
     }
 );

@@ -1,17 +1,22 @@
-// The library as the build reads it: its files, what each declares, and each bundle worked out from its entry.
+// The libraries as the build reads them: deck, and the UI on it. Their files, what each declares, and each bundle
+// worked out from its entry. A file is named by its path under source/deckit, its library first.
 const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
-const LIBRARY = path.join(DECKIT, 'deckit');
+const LIBRARIES = ['deckit', 'deckit-ui'];
 const MODS = path.join(DECKIT, 'mod');
 const APP = path.join(DECKIT, 'deckit-app');
-const REGISTRY = 'module/registry/index.js';
+const REGISTRY = 'deckit/module/registry/index.js';
 const ENTRIES = {
     chord: () => ['deckit/module/chord'],
     main: () => ['deckit/feature/app/main'],
     page: () => ['deckit/feature/app/page'],
+    'ui-main': () => ['deckit-ui/feature/app/main'],
+    'ui-page': () => ['deckit-ui/feature/app/page'],
 };
+// The UI's bundles load after deck's of the same process, so they carry nothing deck's already do.
+const LOADS_AFTER = { 'ui-main': 'main', 'ui-page': 'page' };
 // A "/" starts a regular expression where a value is expected: after one of these, or at the start.
 const VALUE_BEFORE = '(,=:[!&|?{};+-*%<>~^';
 
@@ -53,21 +58,20 @@ function code(text) {
     return out;
 }
 
-// Every script of the library, by its path under it.
-function files(folder = '') {
-    return fs
-        .readdirSync(path.join(LIBRARY, folder), { withFileTypes: true })
-        .flatMap((entry) => {
+// Every script of the libraries, by its path under source/deckit.
+function files() {
+    const walk = (folder) =>
+        fs.readdirSync(path.join(DECKIT, folder), { withFileTypes: true }).flatMap((entry) => {
             const relative = path.posix.join(folder, entry.name);
-            if (entry.isDirectory()) return files(relative);
+            if (entry.isDirectory()) return walk(relative);
             return entry.name.endsWith('.js') ? [relative] : [];
-        })
-        .sort();
+        });
+    return LIBRARIES.flatMap(walk).sort();
 }
 
 // A file's declaration, read by running it against a registry that records define() and makes nothing.
 function moduleOf(file) {
-    const text = fs.readFileSync(path.resolve(LIBRARY, file), 'utf8');
+    const text = fs.readFileSync(path.resolve(DECKIT, file), 'utf8');
     const plain = code(text);
     const defines = [];
     const recorder = { define: (name, declared) => defines.push({ name, ...declared }), use: () => {} };
@@ -92,9 +96,9 @@ function moduleOf(file) {
     };
 }
 
-// A file's module name: deckit/ and its path, with index.js standing for its folder.
+// A file's module name: its path, with index.js standing for its folder.
 function nameOf(file) {
-    return 'deckit/' + file.replace(/(\/index)?\.js$/, '');
+    return file.replace(/(\/index)?\.js$/, '');
 }
 
 // The registry defines the modules but is not one.
@@ -108,11 +112,11 @@ function modules() {
     return all;
 }
 
-// Each file after what it names, starting at the entries. A name the library does not define is one the app hands
-// it, loaded before the bundle.
-function filesFrom(entries, all = modules()) {
+// Each file after what it names, starting at the entries, but those `loaded` already. A name no library defines is
+// one the app hands it, loaded before the bundle.
+function filesFrom(entries, all = modules(), loaded = []) {
     const order = [];
-    const seen = new Set();
+    const seen = new Set(loaded.map(nameOf));
     const visit = (module) => {
         if (seen.has(module) || !all.has(module)) return;
         seen.add(module);
@@ -125,15 +129,15 @@ function filesFrom(entries, all = modules()) {
 
 function bundles() {
     const all = modules();
-    return {
-        registry: [REGISTRY],
-        ...Object.fromEntries(Object.keys(ENTRIES).map((name) => [name, filesFrom(ENTRIES[name](), all)])),
-    };
+    const made = { registry: [REGISTRY] };
+    for (const name of Object.keys(ENTRIES))
+        made[name] = filesFrom(ENTRIES[name](), all, made[LOADS_AFTER[name]] || []);
+    return made;
 }
 
 module.exports = {
     DECKIT,
-    LIBRARY,
+    LIBRARIES,
     MODS,
     APP,
     REGISTRY,

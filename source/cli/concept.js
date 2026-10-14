@@ -1,13 +1,16 @@
-// Which concept and layer a file of the library is. A concept is a module folder, its core files and its model/.
+// Which library, concept and layer a file is. A concept is a module folder, its core files and its model/.
 const path = require('path');
 
-const LAYERS = new Set(['config', 'feature', 'service', 'module', 'ui']);
+const LAYERS = {
+    deckit: new Set(['config', 'feature', 'service', 'module']),
+    'deckit-ui': new Set(['feature', 'service', 'ui']),
+};
 
-// `file` is the path under the library, as library.files() lists it.
+// `file` is the path under source/deckit, as library.files() lists it.
 function conceptOf(file) {
-    const layer = file.split('/')[0];
-    if (!LAYERS.has(layer)) return null;
-    return { concept: path.posix.dirname(file).replace(/\/model$/, ''), layer };
+    const [library, layer] = file.split('/');
+    if (!LAYERS[library]?.has(layer)) return null;
+    return { library, concept: path.posix.dirname(file).replace(/\/model$/, ''), layer: `${library}/${layer}` };
 }
 
 module.exports = { conceptOf, LAYERS };

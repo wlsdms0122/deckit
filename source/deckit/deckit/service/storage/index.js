@@ -26,7 +26,7 @@ DeckitModule.define(
             write: (modId, values) => STORE.write(path.join(HOME.settings, modId + '.json'), values),
         };
 
-        // deckit's own state: the key map, each scheme's handlers, the mod order, the panel's frame.
+        // What the person arranged: the key map, each scheme's handlers, the mod order, and what the UI keeps.
         const state = {
             read: (key, fallback) => STORE.read(path.join(HOME.state, key + '.json'), fallback),
             write: (key, value) => STORE.write(path.join(HOME.state, key + '.json'), value),

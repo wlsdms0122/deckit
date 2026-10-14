@@ -12,9 +12,8 @@ DeckitModule.define(
             'deckit/service/runtime/page',
             'deckit/service/open/page',
             'deckit/service/keymap/page',
-            'deckit/service/switcher/page',
+            'deckit/service/command/page',
             'deckit/service/event/page',
-            'deckit/service/style/page',
             'deckit/module/event-bus',
             'deckit/service/deck/page-storage',
             'deckit/service/deck/page-settings',
@@ -39,9 +38,8 @@ DeckitModule.define(
         RUNTIME,
         OPEN,
         KEYMAP,
-        SWITCHER,
+        COMMAND,
         EVENT,
-        MOD_STYLE,
         EVENT_BUS,
         STORAGE,
         SETTINGS,
@@ -53,27 +51,35 @@ DeckitModule.define(
         HOST
     ) => {
         // MARK: - Property
+        // What a page with no UI on it is given by the UI: nothing.
+        const NO_UI = Object.freeze({
+            deck: {},
+            kinds: {},
+            holdsKeys: () => false,
+            started: () => ({}),
+        });
         const failures = [];
         let mod = null;
         let runNumber = null; // which run of the mod main counts this one as
 
         // MARK: - Initializer
         // MARK: - Public
-        // The mod this page runs, started and contributed. `show` puts it on screen and `dismiss` puts the panel
-        // away; `layers` is what floats in the page. Resolves { mod, entry, parts, tell }, parts null when it
-        // did not start; `tell(name)` calls one of its view's parts (didAppear, didDisappear) the way every call into
-        // it is made.
-        async function start(options) {
+        // The mod this page runs, started and contributed. `ui` is the UI on deck, if one is: called with the mod
+        // before its entry runs, it answers what it gives the mod (`deck`, the members it adds; `kinds`, the
+        // registrations it adds, each by its check), whether the page holds keys back now (`holdsKeys`), and
+        // `started(parts)`, called with all start() registered once it has ended, which answers what of it main is
+        // told: `summary` and `contributions`, which deck carries and does not read.
+        async function start({ ui = null } = {}) {
             try {
-                return await run(options);
+                await run(ui);
             } catch (error) {
                 fail(`deckit could not start it: ${error.message || error}`);
-                return notStarted(null);
+                notStarted();
             }
         }
 
         // MARK: - Private
-        async function run({ theme, ui, layers, show, dismiss }) {
+        async function run(ui) {
             // Answered from the first, so a page whose mod never started does not keep main waiting. stop() runs
             // once, after a start() still going has ended; a mod asked to stop before its start() is not started.
             let startedEntry = null; // the entry, once its start() is called
@@ -91,9 +97,9 @@ DeckitModule.define(
             runNumber = loaded.run;
             WEB.listen();
             NOTIFY.listen(deliver);
-            MOD_STYLE.wear();
+            const given = ui ? ui({ mod, chordOf, deliver, fail }) : NO_UI;
             const entry = evaluate(loaded.source);
-            if (!entry) return notStarted(null);
+            if (!entry) return notStarted();
             // Declared before anything waits, so a setting is there to set from start(); what Settings asks of the
             // mod waits for its deck.
             let made = null;
@@ -110,16 +116,14 @@ DeckitModule.define(
             const requires = await requirementsOf();
             if (!requires) {
                 made.reject(new Error(`${mod.id} did not start`));
-                return notStarted(entry);
+                return notStarted();
             }
-            if (stopping) return notContributed(entry);
-            const registry = registryOf();
+            if (stopping) return;
+            const registry = registryOf(given.kinds);
             const deck = deckOf({
-                theme,
-                ui,
+                given: given.deck,
                 settings,
                 requires,
-                show,
                 register: registry.register,
                 extensionPoint: registry.extensionPoint,
             });
@@ -132,25 +136,20 @@ DeckitModule.define(
             } catch (error) {
                 registry.close();
                 fail(`start() threw: ${error.message || error}`);
-                return notStarted(entry);
+                return notStarted();
             }
             const parts = registry.close();
-            if (stopping) return notContributed(entry);
+            if (stopping) return;
             let contributions;
+            let shown;
             try {
                 contributions = contributionsOf(parts);
+                shown = given.started(parts) || {};
             } catch (error) {
-                fail(error.message);
-                return notStarted(entry);
+                fail(error.message || String(error));
+                return notStarted();
             }
-            contribute(entry, parts, { contributions, layers, dismiss });
-            const tell = (name) => typeof parts[name] === 'function' && deliver(`${name}()`, () => parts[name]());
-            return { mod, entry, parts, tell };
-        }
-
-        // Its run terminated before it started: nothing it registered is contributed.
-        function notContributed(entry) {
-            return { mod, entry, parts: null, tell: () => {} };
+            contribute(entry, parts, { contributions, shown, holdsKeys: given.holdsKeys });
         }
 
         // A stop() that throws is recorded like any call into the mod; the run ends either way.
@@ -163,9 +162,13 @@ DeckitModule.define(
         }
 
         // It did not start, and why: what the mods that require it are told.
-        function notStarted(entry) {
+        function notStarted() {
             PROTOCOL.notStarted.send({ run: runNumber, problem: String(failures.at(-1) || 'it did not start') });
-            return { mod, entry, parts: null, tell: () => {} };
+        }
+
+        // The chord bound now to one of the UI's own keys, by its action.
+        function chordOf(action) {
+            return KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action));
         }
 
         // A throw, or a promise that rejects, is recorded against the mod, never only a console line.
@@ -241,9 +244,9 @@ DeckitModule.define(
             return out;
         }
 
-        // What start() registers, each once and only while it runs: deck contributes it all when start() ends. An
-        // extension point is opened once by its name.
-        function registryOf() {
+        // What start() registers, each once and only while it runs: deck contributes it all when start() ends, and
+        // hands the UI what was registered of the kinds it added. An extension point is opened once by its name.
+        function registryOf(kinds) {
             const registered = {};
             const points = new Map(); // a point's name -> its handle's own side
             let open = true;
@@ -256,10 +259,6 @@ DeckitModule.define(
             };
             const fn = (value) => (typeof value === 'function' ? '' : 'takes a function');
             const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
-            const view = (value) =>
-                value?.content?.nodeType === Node.ELEMENT_NODE
-                    ? ''
-                    : 'takes { content, sidebar, didAppear, didDisappear }, content an element';
             const extensions = (value) => {
                 if (!value || typeof value !== 'object') return 'takes { "<mod id>:<point>": extension }';
                 const wrong = Object.entries(value).find(
@@ -267,14 +266,9 @@ DeckitModule.define(
                 );
                 return wrong ? `takes { "<mod id>:<point>": extension }, not "${wrong[0]}"` : '';
             };
-            const styles = (value) => {
-                if (!value || typeof value !== 'object') return 'takes { "<mod id>" or "*": css }';
-                const wrong = Object.entries(value).find(([, css]) => typeof css !== 'string');
-                return wrong ? `takes css text for "${wrong[0]}"` : '';
-            };
             return {
                 register: {
-                    view: once('view', view),
+                    ...Object.fromEntries(Object.entries(kinds).map(([name, check]) => [name, once(name, check)])),
                     keys: once('keys', table),
                     commands: once('commands', fn),
                     now: once('now', fn),
@@ -282,7 +276,6 @@ DeckitModule.define(
                     handleURL: once('handleURL', fn),
                     exports: once('exports', table),
                     extend: once('extend', extensions),
-                    styles: once('styles', styles),
                 },
                 // A call it refuses is shown on the mod's row like any registration's, and answers a point nothing
                 // extends.
@@ -297,25 +290,21 @@ DeckitModule.define(
                     }
                     return extensionPointOf(name).handle;
                 },
-                // The parts deck contributes: the view's, its keys, its switcher answers, its URL handler, its exports, what
-                // it extends other mods' points with, its styles, and the points it opens.
+                // What it registered, by kind, and the points it opens.
                 close() {
                     open = false;
-                    const { view: shown = {}, ...rest } = registered;
-                    return { ...rest, ...shown, points };
+                    return { ...registered, points };
                 },
             };
         }
 
-        function deckOf({ theme, ui, settings, requires, show, register, extensionPoint }) {
-            const { styles, ...registrations } = register;
+        function deckOf({ given, settings, requires, register, extensionPoint }) {
             const has = (permission) => mod.permissions.some(({ id }) => id === permission);
             const opener = { open: (url, options) => OPEN.open(url, options) };
             return Object.freeze({
+                ...given,
                 id: mod.id,
                 name: mod.name,
-                theme,
-                ui,
                 settings,
                 storage: Object.freeze({ values: STORAGE.values(), records: STORAGE.records(fail) }),
                 web: WEB.forMod({
@@ -326,10 +315,9 @@ DeckitModule.define(
                 }),
                 requires,
                 util: Object.freeze({ match: MATCH.match, ranker: RANKER.ranker, movePath, tildify: tildifyOf() }),
-                ...registrations,
+                ...register,
                 extensionPoint,
                 ...EVENT.forMod({ owner: { deliver, recordFailure: fail } }),
-                show,
                 open: (url, options) => OPEN.open(url, options),
                 reveal: OPEN.reveal,
                 fileURL: OPEN.fileURL,
@@ -345,7 +333,6 @@ DeckitModule.define(
                 ...(has('system.main-process') ? { mainProcess: mainProcessOf() } : {}),
                 ...(has('deckit.mods') ? { mods: modsTool() } : {}),
                 ...(has('deckit.mod-settings') ? { modSettings: modSettingsTool() } : {}),
-                ...(has('deckit.styles') ? { styles } : {}),
                 ...(has('deckit.key-map')
                     ? {
                           keymap: Object.freeze({
@@ -459,7 +446,7 @@ DeckitModule.define(
         }
 
         // What deck joins of what start() registered: exports and each extension as its values copied and the paths of
-        // its functions, the points it opens by name, its styles by what they style.
+        // its functions, and the points it opens by name.
         function contributionsOf(parts) {
             const copy = (what, value) => {
                 try {
@@ -477,11 +464,11 @@ DeckitModule.define(
                         copy('deck.extend()', extension),
                     ])
                 ),
-                styles: { ...(parts.styles || {}) },
             };
         }
 
-        function contribute(entry, parts, { contributions, layers, dismiss }) {
+        // `shown` is what the UI tells main of it, under deck's own: deck carries it and does not read it.
+        function contribute(entry, parts, { contributions, shown, holdsKeys }) {
             const names = mod.urlSchemes;
             const opens = typeof parts.handleURL === 'function';
             if (names.length && !opens)
@@ -489,10 +476,9 @@ DeckitModule.define(
             if (opens && !names.length)
                 fail('start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it');
             if (names.length && opens) OPEN.answer((url, options) => parts.handleURL(url, options));
-            SWITCHER.source({
+            COMMAND.source({
                 icon: entry.icon,
                 aliases: entry.keywords,
-                open: !!parts.content,
                 commands: guarded('commands', parts.commands),
                 now: guarded('now', parts.now),
                 resolve: typeof parts.resolve === 'function' ? (query) => parts.resolve(query) : null,
@@ -501,9 +487,8 @@ DeckitModule.define(
             KEYMAP.scope(parts.keys, {
                 invalid: fail,
                 global: mod.permissions.some(({ id }) => id === 'system.global-keys'),
-                onScreen: !!parts.content,
             });
-            KEYMAP.connect({ layers, deliver, dismiss });
+            KEYMAP.connect({ deliver, holdsKeys });
             PROTOCOL.exportCalled.handle(({ path, args }) => {
                 const exported = path.reduce((at, key) => at?.[key], parts.exports);
                 if (typeof exported !== 'function') throw new Error(`${mod.id} exports no function ${path.join('.')}`);
@@ -518,18 +503,16 @@ DeckitModule.define(
             PROTOCOL.extensionsChanged.on(({ name, extensions }) => parts.points.get(name)?.set(extensions));
             PROTOCOL.started.send({
                 run: runNumber,
-                contributions,
+                contributions: { ...shown.contributions, ...contributions },
                 summary: {
+                    ...shown.summary,
                     icon: String(entry.icon || ''),
-                    view: !!parts.content,
-                    sidebar: !!parts.sidebar,
                     commands: typeof parts.commands === 'function',
                     now: typeof parts.now === 'function',
                     resolver: typeof parts.resolve === 'function',
                     urlSchemes: opens ? names : [],
                     exports: !!parts.exports,
                     extensionPoints: contributions.extensionPoints,
-                    styles: Object.keys(contributions.styles),
                     requires: Object.keys(mod.requires),
                 },
             });
