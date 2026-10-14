@@ -413,7 +413,7 @@ function workspaceSearch({ ui, fileSystem, root, folders, ranker, onOpen, onRepl
             destructive: true,
             onConfirm: async () => {
                 const done = await onReplaceAll(answer.files, {
-                    query: answer.query,
+                    pattern: answer.pattern,
                     replacement,
                     options: answer.options,
                 });

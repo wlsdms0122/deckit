@@ -597,10 +597,10 @@ module.exports = {
             for (const file of workspaces.files()) await disk.check(file).catch(() => false);
         }
 
-        async function replaceAll(results, { query, replacement, options }) {
+        async function replaceAll(results, { pattern, replacement, options }) {
             const done = await replaceMatches({
                 results,
-                query,
+                pattern,
                 replacement,
                 options,
                 fileAt: workspaces.fileAt,

@@ -12,9 +12,10 @@ function expandReplacement(replacement, match) {
 
 // The edits that replace `matches`, with `lineOf(number)` giving a line's { from, text }. Only the matches the search
 // reported are replaced, at their line and column, and only if the text there is unchanged.
-function planReplace(lineOf, matches, { query, replacement, options = {} }) {
+// `pattern`: the search's own, as it answered it, held at a column to read its groups.
+function planReplace(lineOf, matches, { pattern, replacement, options = {} }) {
     const usesGroups = options.regex && replacement.includes('$');
-    const stickyPattern = usesGroups ? stickyPatternOf(query, options) : null;
+    const stickyPattern = usesGroups ? new RegExp(pattern.source, pattern.flags + 'y') : null;
     const edits = [];
     let skipped = 0;
     let reason = '';
@@ -43,13 +44,6 @@ function planReplace(lineOf, matches, { query, replacement, options = {} }) {
     return { edits, skipped, reason };
 }
 
-// The search's own pattern, word bounds included, held at a column.
-function stickyPatternOf(query, { regex = false, caseSensitive = false, word = false }) {
-    let source = regex ? query : query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (word) source = `\\b(?:${source})\\b`;
-    return new RegExp(source, caseSensitive ? 'uy' : 'iuy');
-}
-
 function linesOfText(text) {
     const starts = [0];
     for (let index = 0; index < text.length; index++) if (text.charCodeAt(index) === 10) starts.push(index + 1);
@@ -70,7 +64,7 @@ function applyEdits(text, edits) {
 // Replaces the search's `results`. An open file is changed in its editor and saved, and left out while it has unsaved
 // changes: its lines may not be the ones the search read. A replacement counts once it is on disk, which is what the
 // count tells the person.
-async function replaceMatches({ results, query, replacement, options, fileAt, isDirty, save, writeUnopened }) {
+async function replaceMatches({ results, pattern, replacement, options, fileAt, isDirty, save, writeUnopened }) {
     let replaced = 0;
     let skipped = 0;
     let reason = '';
@@ -96,7 +90,7 @@ async function replaceMatches({ results, query, replacement, options, fileAt, is
             }
             const content = file.view.state.doc;
             const lineOf = (number) => (number >= 1 && number <= content.lines ? content.line(number) : null);
-            const plan = planReplace(lineOf, matches, { query, replacement, options });
+            const plan = planReplace(lineOf, matches, { pattern, replacement, options });
             if (!plan.edits.length) {
                 count(plan);
                 continue;
@@ -109,7 +103,7 @@ async function replaceMatches({ results, query, replacement, options, fileAt, is
         try {
             let plan = null;
             await writeUnopened(path, mtime, (text) => {
-                plan = planReplace(linesOfText(text), matches, { query, replacement, options });
+                plan = planReplace(linesOfText(text), matches, { pattern, replacement, options });
                 return plan.edits.length ? applyEdits(text, plan.edits) : null;
             });
             count(plan);

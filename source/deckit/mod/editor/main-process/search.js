@@ -5,12 +5,12 @@ const path = require('path');
 const { parentPort, workerData } = require('worker_threads');
 const { readText, walk } = require('./text.js');
 
-const { tops, query, options, limits } = workerData;
+const { tops, pattern: read, options, limits } = workerData;
 
 search().catch((error) => parentPort.postMessage({ type: 'error', message: error.message || String(error) }));
 
 async function search() {
-    const pattern = patternOf(query, options);
+    const pattern = new RegExp(read.source, read.flags + 'g');
     const includes = globsOf(options.include).map(globPattern);
     const excludes = globsOf(options.exclude).map(globPattern);
     const unreadable = [];
@@ -66,13 +66,6 @@ function* matchesIn(pattern, line) {
         if (match[0].length) yield match;
         else pattern.lastIndex += line.codePointAt(pattern.lastIndex) > 0xffff ? 2 : 1;
     }
-}
-
-// Unicode, as the editor's find in a file reads a pattern.
-function patternOf(text, { regex = false, caseSensitive = false, word = false } = {}) {
-    let source = regex ? String(text) : String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (word) source = `\\b(?:${source})\\b`;
-    return new RegExp(source, caseSensitive ? 'gu' : 'giu');
 }
 
 // A plain name matches anywhere, a path with a slash from the top, and anything with * ? [ { is a glob as written.

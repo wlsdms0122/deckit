@@ -5,6 +5,7 @@ module.exports = ({ window, files }) => {
     const path = require('path');
     const { Worker } = require('worker_threads');
     const { dialog } = require('electron');
+    const { patternOf } = require('./pattern.js');
     const { decodeText, walk } = require('./text.js');
     const { stat, readFile, writeFile, readdir, mkdir } = fs.promises;
 
@@ -225,10 +226,11 @@ module.exports = ({ window, files }) => {
     function searchIn(tops, query, options, search) {
         const found = [];
         let total = 0;
+        const pattern = patternOf(query, options);
         const worker = new Worker(path.join(__dirname, 'search.js'), {
             workerData: {
                 tops,
-                query: String(query),
+                pattern,
                 options,
                 limits: { fileSize: SEARCHED_LIMIT, matches: MATCH_LIMIT, text: MATCH_TEXT_LIMIT },
             },
@@ -238,7 +240,7 @@ module.exports = ({ window, files }) => {
                 clearTimeout(timer);
                 worker.terminate();
                 found.sort((left, right) => left.path.localeCompare(right.path));
-                resolve({ files: found, total, truncated: !!stoppedBy, stoppedBy, warning });
+                resolve({ files: found, total, truncated: !!stoppedBy, stoppedBy, warning, pattern });
             };
             const timer = setTimeout(() => end('time'), SEARCH_TIME_LIMIT_MS);
             search.stop = () => end('stopped');
