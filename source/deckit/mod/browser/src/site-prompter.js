@@ -2,8 +2,9 @@ const { hostOf, originOf, isWeb } = require('./address.js');
 const { sitePermissionKey } = require('./store.js');
 
 // The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open. And
-// the site permissions the person reviews. While the Browser is hidden a request waits until its tab is next in front;
-// a background tab that asks while the Browser is on screen is brought to the front.
+// the site permissions the person reviews. A certificate is asked at once. A permission or an app waits while the
+// Browser is hidden, until its tab is next in front; a background tab that asks one while the Browser is on screen is
+// brought to the front.
 function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, listTabs, onAsk }) {
     const PERMISSION_WORDS = {
         microphone: 'your microphone',
