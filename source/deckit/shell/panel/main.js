@@ -89,13 +89,16 @@ export function createPanel({ REGION }) {
             state: stateOf(),
         }));
         // The panel's frame is drawn in each mod's page, so what it tells is taken only while a person presses there:
-        // otherwise a mod's own code could reorder the mods, and with them who opens an address first.
+        // otherwise a mod's own code could change the mod on screen or how the person arranged the panel. Its rows and
+        // Back and Forward are buttons, pressed with a key as well; a drag is the mouse's alone, so a key typed in a
+        // field does not let the mod's code reorder the mods or size the panel.
         const pressed = (sender) => !!modOf(sender) && deckit.pages.isPressing(sender);
+        const pointed = (sender) => !!modOf(sender) && deckit.pages.isPointing(sender);
         PROTOCOL.pick.on(({ id }, sender) => pressed(sender) && select(id));
         PROTOCOL.step.on(({ by }, sender) => pressed(sender) && step(by));
         // A reorder not taken puts the list the page drew back as it is.
-        PROTOCOL.reorder.on(({ ids }, sender) => (pressed(sender) ? deckit.mods.arrange(ids) : broadcast()));
-        PROTOCOL.layout.on((change, sender) => pressed(sender) && setFrame(change));
+        PROTOCOL.reorder.on(({ ids }, sender) => (pointed(sender) ? deckit.mods.arrange(ids) : broadcast()));
+        PROTOCOL.layout.on((change, sender) => pointed(sender) && setFrame(change));
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
         PROTOCOL.dismiss.on((_payload, sender) => pressed(sender) && onScreen().includes(sender) && host.dismiss());
         PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
