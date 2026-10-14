@@ -65,7 +65,7 @@ const calendar = (deck, accountsPoint) => {
     // How long a provider may take to answer a read before it counts as failed, so one that never answers does not
     // hold every account's refresh.
     const ANSWER_LIMIT_MS = 60 * 1000;
-    const answered = (provider, asking) => {
+    const withinLimit = (provider, asking) => {
         let timer = null;
         const limit = new Promise((_, reject) => {
             timer = setTimeout(() => reject(new Error(`${provider.name} did not answer`)), ANSWER_LIMIT_MS);
@@ -250,7 +250,7 @@ const calendar = (deck, accountsPoint) => {
             viewRange = viewWindow();
         state.signedOut = false;
         const read = async (feed, [from, to]) => {
-            const events = await answered(
+            const events = await withinLimit(
                 provider,
                 provider.events(account, feed.calendar, new Date(from), new Date(to))
             );
