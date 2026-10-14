@@ -23,7 +23,7 @@ then makes `.build/Deckit.app` from that archive, the way any host app embeds it
 ```
 source/cli/deckit build            the deckit archive, into .build/
 source/cli/deckit app              Deckit.app, into .build/, from the archive the last build made
-source/cli/deckit check            hold every file to how the libraries are laid out
+source/cli/deckit check            hold the libraries' files to how they are laid out
 source/cli/deckit dev              Deckit.app from the sources, its data in .dev/, built again when one changes
 source/cli/deckit install          Deckit.app into /Applications, as the last app command made it
 source/cli/deckit engine <mod>     build the Editor's or the Notes' editing engine again, from its src/engine/
