@@ -21,7 +21,7 @@ module.exports = ({ window, files }) => {
 
     // Listing a big repository takes a moment, so a listing is kept until the view asks for it `fresh`.
     const listings = new Map(); // root -> promise of { files, truncated }
-    const listingsUnderWay = new Map(); // root -> the listing under way
+    const listingsUnderWay = new Map(); // root -> { listing, next }
     // The view only wants the newest answer, so a new search stops the one before it.
     const searches = new Map(); // root -> { stop() }
 
@@ -120,22 +120,18 @@ module.exports = ({ window, files }) => {
             );
         },
 
-        // A fresh ask joins a listing under way: it started after whatever made the ask fresh.
+        // A fresh ask while a listing runs gets the next one, started when that one ends: the walk under way may have
+        // passed a folder changed since. Fresh asks made in the meantime share that next listing.
         files(given, { fresh = false } = {}) {
             const root = absolute(given);
-            if (listingsUnderWay.has(root)) return listingsUnderWay.get(root);
+            const underWay = listingsUnderWay.get(root);
+            if (underWay && !fresh) return underWay.listing;
+            if (underWay) {
+                underWay.next ??= underWay.listing.catch(() => {}).then(() => startListing(root));
+                return underWay.next;
+            }
             if (!fresh && listings.has(root)) return listings.get(root);
-            const listing = listFiles(root);
-            listings.set(root, listing);
-            listingsUnderWay.set(root, listing);
-            listing.then(
-                () => listingsUnderWay.delete(root),
-                () => {
-                    listingsUnderWay.delete(root);
-                    if (listings.get(root) === listing) listings.delete(root);
-                }
-            );
-            return listing;
+            return startListing(root);
         },
 
         // Lines are 1-based, columns 0-based in characters.
@@ -177,6 +173,22 @@ module.exports = ({ window, files }) => {
             }
         }
         return { name: entry.name, path: path.join(folder, entry.name), folder: isFolder };
+    }
+
+    function startListing(root) {
+        const underWay = { listing: listFiles(root), next: null };
+        listings.set(root, underWay.listing);
+        listingsUnderWay.set(root, underWay);
+        underWay.listing.then(
+            () => {
+                if (!underWay.next) listingsUnderWay.delete(root);
+            },
+            () => {
+                if (!underWay.next) listingsUnderWay.delete(root);
+                if (listings.get(root) === underWay.listing) listings.delete(root);
+            }
+        );
+        return underWay.listing;
     }
 
     async function listFiles(root) {
