@@ -64,4 +64,18 @@ function declarationsOf(declared, invalid) {
 
 // MARK: - Private
 
-export { of, declarationsOf };
+// `deck.modSettings` for a mod with deckit.mod-settings: every mod's settings.
+function modSettingsTool() {
+    return Object.freeze({
+        list: () => PROTOCOL.modSettings.invoke(),
+        set: (id, key, value) => PROTOCOL.setModSetting.invoke({ mod: id, key, value }),
+        run: (id, key) => PROTOCOL.runModSetting.invoke({ mod: id, key }),
+    });
+}
+
+// Main is told what a run declares as soon as its entry is read: the declarations, without functions.
+function declare(run, declared, invalid) {
+    PROTOCOL.declare.send({ run, settings: declarationsOf(declared, invalid) });
+}
+
+export { of, declare, modSettingsTool };

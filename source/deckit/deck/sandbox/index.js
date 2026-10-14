@@ -1,6 +1,6 @@
 import * as ORIGIN from './model/origin.js';
 
-export function createSandbox({ CONFIG, CATALOG, FOLDER }) {
+export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER }) {
     // MARK: - Property
     // Electron takes privileged schemes in one call to registerSchemesAsPrivileged, before the app is ready, and a
     // later call replaces an earlier one; the host app makes it, with deck's scheme beside its own.
@@ -15,6 +15,8 @@ export function createSandbox({ CONFIG, CATALOG, FOLDER }) {
         `<meta http-equiv="Content-Security-Policy" content="script-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">`,
         '',
     ].join('\n');
+    // A page that runs no mod is named as a host is, with no dot, so its origin is never a mod's.
+    const PAGE_NAME = /^[a-z][a-z0-9-]*$/;
     let preload = null;
 
     // MARK: - Initializer
@@ -42,6 +44,17 @@ export function createSandbox({ CONFIG, CATALOG, FOLDER }) {
         });
         made.setBackgroundColor('#00000000');
         made.setVisible(false);
+        return made;
+    }
+
+    // A page that runs no mod, made for a layer on deck: at its own origin, it loads as every page of deck's does
+    // and then asks main what it is.
+    function page(name) {
+        if (!PAGE_NAME.test(String(name)))
+            throw new Error(`"${name}" is not a page name: a lower case letter, then letters, digits and -`);
+        const made = view({ webview: false });
+        IDENTITY.add(made.webContents, { page: name });
+        made.webContents.loadURL(ORIGIN.addressOf(ORIGIN.pageOriginOf(name)));
         return made;
     }
 
@@ -90,5 +103,5 @@ export function createSandbox({ CONFIG, CATALOG, FOLDER }) {
         }
     }
 
-    return { SCHEME, start, view, clearSessions };
+    return { SCHEME, start, view, page, clearSessions };
 }
