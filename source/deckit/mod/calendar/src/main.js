@@ -1,4 +1,5 @@
-const { calendar, REMINDER_LEADS, DEFAULT_LEAD, leadText } = require('./calendar.js');
+const { calendar } = require('./calendar.js');
+const { REMINDER_LEADS, DEFAULT_LEAD, leadText } = require('./reminder.js');
 
 module.exports = {
     keywords: ['캘린더', '일정', '달력', 'calendar', 'schedule'],
@@ -39,10 +40,10 @@ module.exports = {
     },
 
     start(deck) {
-        const { content, sidebar, ask, didAppear, didDisappear, keys, now, commands } = calendar(
+        const { content, sidebar, ask, didAppear, didDisappear, keys, now, commands } = calendar({
             deck,
-            deck.extensionPoint('accounts')
-        );
+            accountsPoint: deck.extensionPoint('accounts'),
+        });
         deck.view({ content, sidebar, didAppear, didDisappear });
         deck.keys(keys);
         deck.now(now);
