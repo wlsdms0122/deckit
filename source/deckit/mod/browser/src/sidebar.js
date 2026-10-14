@@ -47,7 +47,7 @@ function sidebar({
 
     let shownTabs = [];
     let shownRows = [];
-    let activeTab = null;
+    let frontTab = null;
     let groupOf = () => null;
     const tabRows = new WeakMap(); // row element -> { tab, row, icon, label, captures, mute }
     const groupRows = new WeakMap(); // row element -> { group, row, label, count }
@@ -132,9 +132,9 @@ function sidebar({
 
     return {
         element,
-        showTabs(tabs, active, groupOfTab) {
+        showTabs(tabs, front, groupOfTab) {
             shownTabs = tabs;
-            activeTab = active;
+            frontTab = front;
             groupOf = groupOfTab;
             shownRows = rowsOf(tabs);
             tabList.set(shownRows);
@@ -223,7 +223,7 @@ function sidebar({
         return row.element;
     }
 
-    // A collapsed group holding the active tab is marked as the tab would be.
+    // A collapsed group holding the tab in front is marked as the tab would be.
     function updateGroupRow(rowElement, { group, size, end }) {
         const { row, label, count } = groupRows.get(rowElement);
         paintGroup(rowElement, group, end);
@@ -231,7 +231,7 @@ function sidebar({
         rowElement.title = group.collapsed ? 'Expand group' : 'Collapse group';
         label.textContent = group.title || (size === 1 ? '1 tab' : `${size} tabs`);
         count.textContent = group.title && group.collapsed ? String(size) : '';
-        row.setActive(group.collapsed && groupOf(activeTab) === group);
+        row.setActive(group.collapsed && groupOf(frontTab) === group);
     }
 
     // An empty name leaves the group untitled.
@@ -304,7 +304,7 @@ function sidebar({
         mute.element.hidden = !tab.audible && !tab.muted;
         mute.element.title = tab.muted ? 'Unmute tab' : 'Mute tab';
         mute.setIcon(ui.icon(tab.muted ? 'volumeOff' : 'volume', { size: 13 }));
-        row.setActive(tab === activeTab);
+        row.setActive(tab === frontTab);
     }
 
     function bookmarkRow(bookmark) {
@@ -422,7 +422,7 @@ function sidebar({
             title: 'Add bookmark',
             fields: [
                 { key: 'label', label: 'Name', placeholder: 'optional' },
-                { key: 'url', label: 'Address', value: activeTab.url },
+                { key: 'url', label: 'Address', value: frontTab.url },
             ],
             confirmLabel: 'Add',
             onConfirm: ({ label, url }) => {

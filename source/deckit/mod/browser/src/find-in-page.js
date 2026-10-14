@@ -1,5 +1,5 @@
-// Find in the page of the active tab, in a bar floating over the top of the page.
-function findInPage({ theme, ui, activeTab }) {
+// Find in the page of the tab in front, in a bar floating over the top of the page.
+function findInPage({ theme, ui, frontTab }) {
     let searchedTab = null;
     let state = { query: '', caseSensitive: false };
     // Apart from the style, which mid-fade still says open while the bar is already invisible.
@@ -83,7 +83,7 @@ function findInPage({ theme, ui, activeTab }) {
 
     function change(next) {
         state = next;
-        const tab = activeTab();
+        const tab = frontTab();
         if (!state.query) {
             tab.page.stopFind();
             searchedTab = null;
@@ -96,7 +96,7 @@ function findInPage({ theme, ui, activeTab }) {
 
     function step(back) {
         if (!state.query) return;
-        const tab = activeTab();
+        const tab = frontTab();
         tab.page.find(state.query, { back, start: searchedTab !== tab, matchCase: state.caseSensitive });
         searchedTab = tab;
     }

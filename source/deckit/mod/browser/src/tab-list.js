@@ -26,19 +26,19 @@ function tabList({
 }) {
     const KEPT_CLOSED = 20;
 
-    const saved = records.get('session', { tabs: [], active: 0, closed: [], groups: [] });
+    const saved = records.get('session', { tabs: [], front: 0, closed: [], groups: [] });
     const list = [];
     const closed = [...saved.closed];
     // id -> { id, title, color, collapsed }: `color` is one of GROUP_COLORS, or a hex the person picked
     const groups = new Map((saved.groups || []).map((group) => [group.id, { ...group }]));
-    let current = null;
+    let front = null;
     let lastId = 0;
     // Past every id a closed tab still names, so reopening one never finds its group in a newer one.
     let lastGroupId = Math.max(0, ...groups.keys(), ...closed.map((tab) => tab.group || 0));
 
     return {
         list: () => list,
-        active: () => current,
+        front: () => front,
         lastClosed: () => closed.at(-1),
         groupOf,
         add,
@@ -58,14 +58,14 @@ function tabList({
         closeGroup,
     };
 
-    // Choosing a tab opens its group: the folds are given back once the tabs are in and the active one is chosen.
+    // Choosing a tab opens its group: the folds are given back once the tabs are in and the one in front is chosen.
     function restore() {
         if (!saved.tabs.length) return add();
         const folds = [...groups.values()].map((group) => [group, group.collapsed]);
         const restored = saved.tabs.map(({ url, title, icon, group }) =>
             add(url, { title, icon, group: groups.get(group) })
         );
-        select(restored[saved.active]);
+        select(restored[saved.front]);
         for (const [group, collapsed] of folds) group.collapsed = collapsed;
         changed();
     }
@@ -105,8 +105,8 @@ function tabList({
 
     // A tab chosen in a collapsed group opens the group.
     function select(tab) {
-        const previous = current;
-        current = tab;
+        const previous = front;
+        front = tab;
         const group = groupOf(tab);
         if (group) group.collapsed = false;
         showCurrent();
@@ -138,14 +138,14 @@ function tabList({
         if (index < 0) return;
         retire(tab);
         if (!list.length) return add();
-        if (tab === current) select(list[Math.max(0, index - 1)]);
+        if (tab === front) select(list[Math.max(0, index - 1)]);
         else changed();
     }
 
     // Retired together: closed one at a time, each close would bring its neighbour forward on the way.
     function closeOthers(keep) {
         for (const tab of list.filter((each) => each !== keep)) retire(tab);
-        if (keep !== current) select(keep);
+        if (keep !== front) select(keep);
         else changed();
     }
 
@@ -231,7 +231,7 @@ function tabList({
         const index = list.indexOf(gone[0]);
         for (const tab of gone) retire(tab);
         if (!list.length) return add();
-        if (gone.includes(current)) select(list[Math.max(0, index - 1)]);
+        if (gone.includes(front)) select(list[Math.max(0, index - 1)]);
         else changed();
     }
 
@@ -318,7 +318,7 @@ function tabList({
     // Pages out of sight are hidden by visibility: a page element with nothing to draw into (display: none) comes
     // back blank or at the wrong size.
     function showCurrent() {
-        for (const tab of list) tab.page.element.style.visibility = tab === current ? 'visible' : 'hidden';
+        for (const tab of list) tab.page.element.style.visibility = tab === front ? 'visible' : 'hidden';
     }
 
     function changed() {
@@ -329,7 +329,7 @@ function tabList({
     function persist() {
         records.set('session', {
             tabs: list.map(({ url, title, icon, group }) => ({ url, title, icon, group })),
-            active: Math.max(0, list.indexOf(current)),
+            front: Math.max(0, list.indexOf(front)),
             closed,
             groups: [...groups.values()],
         });

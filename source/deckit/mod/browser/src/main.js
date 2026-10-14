@@ -68,7 +68,7 @@ module.exports = {
             isShown: () => shown,
             listTabs: () => tabs.list(),
             onAsk: (tab) => {
-                if (tab !== tabs.active()) tabs.select(tab);
+                if (tab !== tabs.front()) tabs.select(tab);
             },
         });
         const bar = addressBar({
@@ -79,15 +79,15 @@ module.exports = {
             onBack: goBack,
             onForward: goForward,
             onReload: reload,
-            onSitePermissions: () => prompter.editSitePermissions(tabs.active().url),
-            onBookmark: () => bookmarks.toggle(tabs.active()),
+            onSitePermissions: () => prompter.editSitePermissions(tabs.front().url),
+            onBookmark: () => bookmarks.toggle(tabs.front()),
             onSubmit: (text) =>
                 tabs.navigate(
-                    tabs.active(),
+                    tabs.front(),
                     parseAddress(text) || settings.get('searchEngine') + encodeURIComponent(text)
                 ),
         });
-        const find = findInPage({ theme, ui, activeTab: () => tabs.active() });
+        const find = findInPage({ theme, ui, frontTab: () => tabs.front() });
         const tabs = tabList({
             web,
             records,
@@ -131,7 +131,7 @@ module.exports = {
             onChangeGroup: (group, change) => tabs.changeGroup(group, change),
             onUngroup: (group) => tabs.ungroup(group),
             onCloseGroup: (group) => tabs.closeGroup(group),
-            onOpenBookmark: (bookmark) => tabs.navigate(tabs.active(), bookmark.url),
+            onOpenBookmark: (bookmark) => tabs.navigate(tabs.front(), bookmark.url),
         });
         const { resolve, commands } = switcher({
             ui,
@@ -155,7 +155,7 @@ module.exports = {
             sidebar: sidePanel.element,
             didAppear() {
                 shown = true;
-                prompter.askPending(tabs.active());
+                prompter.askPending(tabs.front());
             },
             didDisappear() {
                 shown = false;
@@ -166,7 +166,7 @@ module.exports = {
             newTab: { key: 'mod+t', label: 'New tab', run: () => tabs.add() },
             reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => tabs.reopen() },
             find: { key: 'mod+f', label: 'Find in page', run: openFind },
-            closeTab: { key: 'mod+w', label: 'Close tab', run: () => tabs.close(tabs.active()) },
+            closeTab: { key: 'mod+w', label: 'Close tab', run: () => tabs.close(tabs.front()) },
             address: { key: 'mod+l', label: 'Address', run: () => bar.edit() },
             reload: { key: 'mod+r', label: 'Reload', run: reload },
             back: { key: 'mod+[', label: 'Back', run: goBack },
@@ -204,7 +204,7 @@ module.exports = {
         }
 
         function showTabs() {
-            sidePanel.showTabs(tabs.list(), tabs.active(), tabs.groupOf);
+            sidePanel.showTabs(tabs.list(), tabs.front(), tabs.groupOf);
             showBar();
         }
 
@@ -214,22 +214,22 @@ module.exports = {
         }
 
         function showBar() {
-            const tab = tabs.active();
+            const tab = tabs.front();
             bar.show(tab, { bookmarked: bookmarks.has(tab.url) });
         }
 
         function goBack() {
-            tabs.active().page.back();
+            tabs.front().page.back();
         }
 
         function goForward() {
-            tabs.active().page.forward();
+            tabs.front().page.forward();
         }
 
         // A deliberate retry asks about a certificate again.
         function reload() {
             prompter.clearAskedCertificates();
-            tabs.active().page.reload();
+            tabs.front().page.reload();
         }
 
         // The find bar takes the top right corner, or the top left when the address bar is there.
