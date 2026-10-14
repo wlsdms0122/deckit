@@ -295,10 +295,31 @@ DeckitModule.define(
             });
         }
 
-        // `added` is what is on deck adds.
+        // `added` is what is on deck adds. `onChange(listener)` hears that what `list()` answers may have changed, once
+        // for each change main tells in one go, and answers its off.
         function modsTool(added) {
+            const listeners = new Set();
+            let watched = false;
+            let telling = false;
+            const onChange = (listener) => {
+                if (!watched) {
+                    watched = true;
+                    PROTOCOL.modsChanged.on(() => {
+                        if (telling) return;
+                        telling = true;
+                        setTimeout(() => {
+                            telling = false;
+                            for (const each of listeners) deliver('mods.onChange listener', each);
+                        });
+                    });
+                    PROTOCOL.watchMods.send();
+                }
+                listeners.add(listener);
+                return () => listeners.delete(listener);
+            };
             return Object.freeze({
                 ...added,
+                onChange,
                 list: () => PROTOCOL.mods.invoke(),
                 install: (from) => PROTOCOL.install.invoke({ from: String(from) }),
                 remove: (id, data) => PROTOCOL.remove.invoke({ id: String(id), data: !!data }),

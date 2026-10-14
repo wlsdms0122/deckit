@@ -16,6 +16,7 @@ DeckitModule.define(
             'deck/service/deck/extension',
             'deck/service/deck/protocol',
             'deck/service/mod/permission',
+            'deck/service/mod/lifecycle',
         ],
         provides: ['start', 'wouldInstall'],
         runs: 'main',
@@ -34,10 +35,12 @@ DeckitModule.define(
         EXPORT,
         EXTENSION,
         PROTOCOL,
-        MOD_PERMISSION
+        MOD_PERMISSION,
+        LIFECYCLE
     ) => {
         // MARK: - Property
         let layer = null;
+        const watching = new Set(); // the pages told when what `mods` answers may have changed
 
         // MARK: - Initializer
         // MARK: - Public
@@ -80,6 +83,17 @@ DeckitModule.define(
                 IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 return STORAGE.count(id);
             });
+            PROTOCOL.watchMods.on((_payload, sender) => {
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
+                if (watching.has(sender)) return;
+                watching.add(sender);
+                IDENTITY.whenPageEnds(sender, () => watching.delete(sender));
+            });
+            const tell = () => {
+                for (const page of watching) PROTOCOL.modsChanged.send(page);
+            };
+            CATALOG.onChange(tell);
+            for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, tell);
         }
 
         // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.
