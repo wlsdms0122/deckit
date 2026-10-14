@@ -4,7 +4,7 @@ const { grantKey } = require('./store.js');
 // The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open. And
 // the site permissions the person reviews. While the Browser is hidden a request waits until its tab is next in front;
 // a background tab that asks while the Browser is on screen is brought to the front.
-function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAsk }) {
+function sitePrompter({ ui, webSession, certificates, grants, isShown, listTabs, onAsk }) {
     const PERMISSION_WORDS = {
         microphone: 'your microphone',
         camera: 'your camera',
@@ -199,4 +199,4 @@ function prompts({ ui, webSession, certificates, grants, isShown, listTabs, onAs
     }
 }
 
-module.exports = { prompts };
+module.exports = { sitePrompter };

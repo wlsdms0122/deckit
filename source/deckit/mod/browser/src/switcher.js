@@ -1,5 +1,5 @@
 const { parseAddress, isWrittenAddress, placeOf } = require('./address.js');
-const { tabLabel } = require('./tabs.js');
+const { tabLabel } = require('./tab-list.js');
 
 // What the Browser offers the switcher: an address typed there, and its commands. Bookmarks and tabs are pages of
 // their own, so a long list does not bury every other mod.

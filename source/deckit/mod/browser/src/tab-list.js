@@ -7,7 +7,7 @@ const GROUP_COLORS = ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan'
 // session and a file in the files session.
 //
 // A tab is in one group or none. A group's tabs stand together in the list, and a group goes with its last tab.
-function tabs({
+function tabList({
     web,
     records,
     area,
@@ -341,4 +341,4 @@ function tabLabel(tab) {
     return tab.title || placeOf(tab.url) || 'New tab';
 }
 
-module.exports = { GROUP_COLORS, tabs, tabLabel };
+module.exports = { GROUP_COLORS, tabList, tabLabel };

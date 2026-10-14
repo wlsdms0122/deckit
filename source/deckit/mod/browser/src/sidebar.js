@@ -1,6 +1,6 @@
 const { parseAddress } = require('./address.js');
 const { favicon } = require('./favicon.js');
-const { GROUP_COLORS, tabLabel } = require('./tabs.js');
+const { GROUP_COLORS, tabLabel } = require('./tab-list.js');
 
 // The sidebar: the open tabs, in their groups, and the bookmarks, each a section that folds.
 function sidebar({

@@ -1,11 +1,11 @@
 const { addressBar } = require('./address-bar.js');
 const { parseAddress, hostOf } = require('./address.js');
 const { findInPage } = require('./find-in-page.js');
-const { prompts } = require('./prompts.js');
+const { sitePrompter } = require('./site-prompter.js');
 const { sidebar } = require('./sidebar.js');
 const { store } = require('./store.js');
 const { switcher } = require('./switcher.js');
-const { tabs } = require('./tabs.js');
+const { tabList } = require('./tab-list.js');
 
 module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`,
@@ -60,15 +60,15 @@ module.exports = {
         const content = ui.element('div', {
             style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' },
         });
-        const sitePrompts = prompts({
+        const prompter = sitePrompter({
             ui,
             webSession,
             certificates,
             grants,
             isShown: () => shown,
-            listTabs: () => openTabs.list(),
+            listTabs: () => tabs.list(),
             onAsk: (tab) => {
-                if (tab !== openTabs.active()) openTabs.select(tab);
+                if (tab !== tabs.active()) tabs.select(tab);
             },
         });
         const bar = addressBar({
@@ -79,16 +79,16 @@ module.exports = {
             onBack: goBack,
             onForward: goForward,
             onReload: reload,
-            onSitePermissions: () => sitePrompts.editSitePermissions(openTabs.active().url),
-            onBookmark: () => bookmarks.toggle(openTabs.active()),
+            onSitePermissions: () => prompter.editSitePermissions(tabs.active().url),
+            onBookmark: () => bookmarks.toggle(tabs.active()),
             onSubmit: (text) =>
-                openTabs.navigate(
-                    openTabs.active(),
+                tabs.navigate(
+                    tabs.active(),
                     parseAddress(text) || settings.get('searchEngine') + encodeURIComponent(text)
                 ),
         });
-        const find = findInPage({ theme, ui, activeTab: () => openTabs.active() });
-        const openTabs = tabs({
+        const find = findInPage({ theme, ui, activeTab: () => tabs.active() });
+        const tabs = tabList({
             web,
             records,
             area: content,
@@ -98,17 +98,17 @@ module.exports = {
             onChange: showTabs,
             onSelect: (tab, previous) => {
                 if (tab !== previous) find.hide();
-                sitePrompts.askPending(tab);
+                prompter.askPending(tab);
             },
-            onNavigate: () => sitePrompts.clearAskedCertificates(),
+            onNavigate: () => prompter.clearAskedCertificates(),
             onRelease: (tab) => {
-                sitePrompts.release(tab);
+                prompter.release(tab);
                 find.release(tab);
             },
             // A press in a page reaches this document only as the page taking the focus.
             onFocus: () => bar.close(),
-            onCertificateRefused: (info) => sitePrompts.askCertificate(info),
-            decidePermission: (tab, request) => sitePrompts.askPermission(tab, request),
+            onCertificateRefused: (info) => prompter.askCertificate(info),
+            decidePermission: (tab, request) => prompter.askPermission(tab, request),
             onNotification: notify,
             onFound: (tab, result) => find.showCount(tab, result),
         });
@@ -119,35 +119,35 @@ module.exports = {
             values,
             bookmarks,
             notAnAddress,
-            onNewTab: (url, options) => openTabs.add(url, options),
-            onSelectTab: (tab) => openTabs.select(tab),
-            onCloseTab: (tab) => openTabs.close(tab),
-            onPlaceTab: (tab, target, after) => openTabs.placeTab(tab, target, after),
-            onPlaceGroup: (group, target, after) => openTabs.placeGroup(group, target, after),
-            onCloseOtherTabs: (tab) => openTabs.closeOthers(tab),
-            onNewGroup: (tab) => sidePanel.renameGroup(openTabs.newGroup(tab)),
-            onJoinGroup: (tab, group) => openTabs.join(tab, group),
-            onLeaveGroup: (tab) => openTabs.leave(tab),
-            onChangeGroup: (group, change) => openTabs.changeGroup(group, change),
-            onUngroup: (group) => openTabs.ungroup(group),
-            onCloseGroup: (group) => openTabs.closeGroup(group),
-            onOpenBookmark: (bookmark) => openTabs.navigate(openTabs.active(), bookmark.url),
+            onNewTab: (url, options) => tabs.add(url, options),
+            onSelectTab: (tab) => tabs.select(tab),
+            onCloseTab: (tab) => tabs.close(tab),
+            onPlaceTab: (tab, target, after) => tabs.placeTab(tab, target, after),
+            onPlaceGroup: (group, target, after) => tabs.placeGroup(group, target, after),
+            onCloseOtherTabs: (tab) => tabs.closeOthers(tab),
+            onNewGroup: (tab) => sidePanel.renameGroup(tabs.newGroup(tab)),
+            onJoinGroup: (tab, group) => tabs.join(tab, group),
+            onLeaveGroup: (tab) => tabs.leave(tab),
+            onChangeGroup: (group, change) => tabs.changeGroup(group, change),
+            onUngroup: (group) => tabs.ungroup(group),
+            onCloseGroup: (group) => tabs.closeGroup(group),
+            onOpenBookmark: (bookmark) => tabs.navigate(tabs.active(), bookmark.url),
         });
         const { resolve, commands } = switcher({
             ui,
             show: deck.show,
             bookmarks,
-            listTabs: () => openTabs.list(),
-            lastClosedTab: () => openTabs.lastClosed(),
-            onNewTab: (url) => openTabs.add(url),
-            onReopenTab: () => openTabs.reopen(),
-            onSelectTab: (tab) => openTabs.select(tab),
+            listTabs: () => tabs.list(),
+            lastClosedTab: () => tabs.lastClosed(),
+            onNewTab: (url) => tabs.add(url),
+            onReopenTab: () => tabs.reopen(),
+            onSelectTab: (tab) => tabs.select(tab),
         });
 
         content.append(find.element, bar.element);
         webSession.trust(certificates.all());
         webSession.allow(grants.all());
-        openTabs.restore();
+        tabs.restore();
         showBookmarks();
 
         deck.view({
@@ -155,7 +155,7 @@ module.exports = {
             sidebar: sidePanel.element,
             didAppear() {
                 shown = true;
-                sitePrompts.askPending(openTabs.active());
+                prompter.askPending(tabs.active());
             },
             didDisappear() {
                 shown = false;
@@ -163,10 +163,10 @@ module.exports = {
         });
 
         deck.keys({
-            newTab: { key: 'mod+t', label: 'New tab', run: () => openTabs.add() },
-            reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => openTabs.reopen() },
+            newTab: { key: 'mod+t', label: 'New tab', run: () => tabs.add() },
+            reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => tabs.reopen() },
             find: { key: 'mod+f', label: 'Find in page', run: openFind },
-            closeTab: { key: 'mod+w', label: 'Close tab', run: () => openTabs.close(openTabs.active()) },
+            closeTab: { key: 'mod+w', label: 'Close tab', run: () => tabs.close(tabs.active()) },
             address: { key: 'mod+l', label: 'Address', run: () => bar.edit() },
             reload: { key: 'mod+r', label: 'Reload', run: reload },
             back: { key: 'mod+[', label: 'Back', run: goBack },
@@ -177,7 +177,7 @@ module.exports = {
                     { key: `mod+${number}`, label: `Tab ${number}`, run: () => selectTab(number - 1) },
                 ])
             ),
-            lastTab: { key: 'mod+9', label: 'Last tab', run: () => selectTab(openTabs.list().length - 1) },
+            lastTab: { key: 'mod+9', label: 'Last tab', run: () => selectTab(tabs.list().length - 1) },
         });
 
         // `target` is the window the page named: a second request for it reuses the tab that answered the first.
@@ -185,14 +185,14 @@ module.exports = {
             const address = parseAddress(url);
             if (!address) return false;
             const name = String(target || '');
-            const named = name && openTabs.list().find((tab) => tab.target === name);
+            const named = name && tabs.list().find((tab) => tab.target === name);
             if (activates) deck.show();
             if (named) {
-                openTabs.navigate(named, address);
-                if (activates) openTabs.select(named);
+                tabs.navigate(named, address);
+                if (activates) tabs.select(named);
                 return true;
             }
-            openTabs.add(address, { background: !activates }).target = name;
+            tabs.add(address, { background: !activates }).target = name;
             return true;
         });
 
@@ -204,7 +204,7 @@ module.exports = {
         }
 
         function showTabs() {
-            sidePanel.showTabs(openTabs.list(), openTabs.active(), openTabs.groupOf);
+            sidePanel.showTabs(tabs.list(), tabs.active(), tabs.groupOf);
             showBar();
         }
 
@@ -214,22 +214,22 @@ module.exports = {
         }
 
         function showBar() {
-            const tab = openTabs.active();
+            const tab = tabs.active();
             bar.show(tab, { bookmarked: bookmarks.has(tab.url) });
         }
 
         function goBack() {
-            openTabs.active().page.back();
+            tabs.active().page.back();
         }
 
         function goForward() {
-            openTabs.active().page.forward();
+            tabs.active().page.forward();
         }
 
         // A deliberate retry asks about a certificate again.
         function reload() {
-            sitePrompts.clearAskedCertificates();
-            openTabs.active().page.reload();
+            prompter.clearAskedCertificates();
+            tabs.active().page.reload();
         }
 
         // The find bar takes the top right corner, or the top left when the address bar is there.
@@ -238,8 +238,8 @@ module.exports = {
         }
 
         function selectTab(index) {
-            const tab = openTabs.list()[index];
-            if (tab) openTabs.select(tab);
+            const tab = tabs.list()[index];
+            if (tab) tabs.select(tab);
         }
 
         function notify(tab, notification) {
@@ -249,9 +249,9 @@ module.exports = {
                 body: notification.body ? notification.body + ' · ' + site : site,
                 silent: notification.silent,
                 onClick: () => {
-                    if (!openTabs.list().includes(tab)) return;
+                    if (!tabs.list().includes(tab)) return;
                     deck.show();
-                    openTabs.select(tab);
+                    tabs.select(tab);
                     notification.click();
                 },
             });
