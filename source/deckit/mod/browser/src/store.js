@@ -51,10 +51,13 @@ function store({ records, onBookmarksChange }) {
     // accepted ones are kept here and replayed at startup. Kept with the fingerprint, so a swapped certificate asks
     // again.
     const certificates = {
-        all: () => records.get('trusted', []),
+        all: () => records.get('certificates', []),
         add(host, fingerprint) {
             const entry = { host, fingerprint };
-            records.set('trusted', [...certificates.all().filter((certificate) => certificate.host !== host), entry]);
+            records.set('certificates', [
+                ...certificates.all().filter((certificate) => certificate.host !== host),
+                entry,
+            ]);
             return entry;
         },
     };
