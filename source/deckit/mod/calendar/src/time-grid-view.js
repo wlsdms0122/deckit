@@ -1,5 +1,5 @@
 const { assignLanes, rowItems, bar, laneGrid, laneCell } = require('./bar.js');
-const { WEEKDAYS, sameDay, clockText } = require('./date.js');
+const { WEEKDAYS, addDays, sameDay, clockText } = require('./date.js');
 const { nameOf, isSpanning } = require('./occurrence.js');
 const { paintPast, paintSolid } = require('./paint.js');
 
@@ -136,12 +136,18 @@ function timeGridView({ detail }) {
             borderLeft: 'var(--deckit-border)',
             background: `repeating-linear-gradient(to bottom, transparent 0 ${HOUR_HEIGHT - 1}px, rgba(128,128,128,.18) ${HOUR_HEIGHT - 1}px ${HOUR_HEIGHT}px)`,
         });
+        // Each occurrence that overlaps the day, cut to it: one over midnight shows on both its days.
+        const dayStart = +day,
+            dayEnd = +addDays(day, 1);
         const items = layoutOverlaps(
-            timed.filter((occurrence) => sameDay(occurrence.start, day)).map((occurrence) => ({ ...occurrence }))
+            timed
+                .filter((occurrence) => +occurrence.end > dayStart && +occurrence.start < dayEnd)
+                .map((occurrence) => ({ ...occurrence }))
         );
         for (const item of items) {
-            const startMinute = item.start.getHours() * 60 + item.start.getMinutes();
-            const endMinute = Math.min(24 * 60, startMinute + Math.max(20, (+item.end - +item.start) / 60000));
+            const startMinute = +item.start <= dayStart ? 0 : item.start.getHours() * 60 + item.start.getMinutes();
+            const length = (Math.min(+item.end, dayEnd) - Math.max(+item.start, dayStart)) / 60000;
+            const endMinute = Math.min(24 * 60, startMinute + Math.max(20, length));
             column.appendChild(block(item, startMinute, endMinute));
         }
         if (sameDay(day, now)) {
