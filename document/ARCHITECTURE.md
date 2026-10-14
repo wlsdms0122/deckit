@@ -1,6 +1,6 @@
 # How deckit is built
 
-Deckit is a library a host app embeds. Its core is deck, which runs mods and composes them. A mod is what a person adds to the host app, as to a game: a view, a command, a few keys, a way to open an address, a library for other mods, more for another mod to do, a new look, or work done in the app's main process, in any mix. deck runs each mod from its entry and joins what it registers: its keys to the keymap, its commands to the switcher, its URL scheme handler to opening addresses, its exports to the mods that require it, its extensions to the points they extend, its styles to the pages they style. On deck, deckit gives basic views: the panel that shows the mods with a view, the switcher, and the kit they draw with. They are built on deck and deck does not depend on them; a mod runs whether or not the panel is shown. Where the panel is shown is the host app's, and every host app brings a shell to say so.
+Deckit is a library a host app embeds. Its core is deck, which runs mods and composes them. A mod is what a person adds to the host app, as to a game: a view, a command, a few keys, a way to open an address, a library for other mods, more for another mod to do, a new look, or work done in the app's main process, in any mix. deck runs each mod from its entry and joins what it registers: its keys to the keymap, its commands to what is offered to be run, its URL scheme handler to opening addresses, its exports to the mods that require it, its extensions to the points they extend, and what the UI on it adds to the UI. Deck knows nothing of a screen: to deck a mod's page is where the mod runs. On deck, deckit's UI gives basic views: the panel that shows the mods with a view, the switcher, the kit they draw with, and styles. The UI is built on what connect answers, as a host app's own UI would be, and deck does not know it; a mod runs whether or not the panel is shown. Where the panel is shown is the host app's, and every host app brings a shell to say so.
 
 This document is why deckit is split the way it is, and the rules that keep it so. The contract a mod is written against is [MOD.md](MOD.md); how a host app embeds deckit is [EMBEDDING.md](EMBEDDING.md); the kit mods draw with is [UI.md](UI.md).
 
@@ -16,22 +16,23 @@ This document is why deckit is split the way it is, and the rules that keep it s
 ## 2. The library, the mods, the host app
 
 ```
-source/deckit/deckit       the library: deck, its views and the kit. Names no host app, not even its own
-source/deckit/mod       deckit's own mods, Settings among them
+source/deckit/deckit       deck: runs mods and composes them. Names no screen, no UI and no host app
+source/deckit/deckit-ui    deckit's UI on deck: the panel, the switcher, the kit, styles. Names deck only through what connect answers
+source/deckit/mod          deckit's own mods, Settings among them
 source/deckit/deckit-app   Deckit.app: deckit embedded by itself, its shell framing every window
 ```
 
 The package around deckit, `manifest.toml` and `source/cli`, is the commands that check, build, run and ship it (README.md). Deckit names none of it.
 
-A new mod needs no change to deck. A new shell to show the panel in needs no change to deckit.
+A new mod needs no change to deck. A new shell to show the panel in needs no change to deckit, and a UI of the host app's own needs no change to deck.
 
 ## 3. Processes and pages
 
 | Where | What runs there |
 |---|---|
-| main | deck: mod folders and their main process modules, storage, the keymap, open, the switcher's relay, the views it puts in the host app's windows, every check of what a page asks |
-| a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; a mod with a view has the panel's frame around it there |
-| the switcher's page | the quick switcher's list, at `deckit://switcher` |
+| main | deck: mod folders and their main process modules, storage, the keymap, open, commands, every check of what a page asks. The UI: the panel and the switcher, the views it puts in the host app's windows |
+| a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; with deckit's UI on deck, a mod with a view has the panel's frame around it there |
+| a page the UI makes | at `deckit://<name>/`: the quick switcher's list, at `deckit://switcher/` |
 
 A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed; a mod with `deckit.styles` styles another's page, and that is all. Main knows which mod is asking by the page that asks (`service/deck/identity.js`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
@@ -41,23 +42,24 @@ The pages never speak to each other. Main carries everything between them, and e
 
 | Fact | Owner |
 |---|---|
-| whether the panel is on screen, and where | the app's shell, asked through `feature/panel/main.js` |
+| whether the panel is on screen, and where | the app's shell, asked through the UI's `feature/panel/main.js` |
 | what a mod's run is: its states, its transitions and what each tells | `service/mod/lifecycle.js` |
 | the mods found, and their order | `service/deck/catalog.js` |
 | which mods run, each in its sandbox, and where each run is in its lifecycle | `service/deck/runner.js` |
-| which mod is on screen, and back and forward | `feature/panel/main.js` |
+| which mod is on screen, and back and forward | the UI's `feature/panel/main.js` |
 | what a mod exports, its settings, its main process modules | `service/deck/export.js`, `setting.js`, `main-process.js` |
 | which mods extend each extension point | `service/deck/extension.js` |
-| which styles each page wears, in what order | `service/style/main.js` |
-| which page is which mod | `service/deck/identity.js` |
+| which styles each page wears, in what order | the UI's `service/style/main.js` |
+| which page is which mod, or which of the UI's | `service/deck/identity.js` |
 | what a keystroke means | `service/keymap/main.js`; a page only hears the chords it may act on |
 | who opens an address | `service/open/main.js`, in the order the person set |
-| what the switcher lists | `service/switcher/main.js`, from what each mod's page supplies |
+| what mods offer to be run | `service/command/main.js`, from what each mod's page supplies |
+| what the switcher lists, and what was picked before | the UI's `feature/switcher/main.js` |
 | a mod's data, records and settings | main, under deckit's folder (below) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
 | what the person arranged (mod order, key overrides, each scheme's handlers) | `state/` |
 
-What a mod is, `service/mod` says: its manifest, its folder, its permissions, its entry and its lifecycle. deck, `service/deck`, runs mods by it, and `service/mod` names nothing of deck. The runner tells each transition of a run (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`); what follows a mod's run (its exports, its extensions, its styles, its settings, its main process modules, its events, its place in the panel) listens to those, or asks the run, and changes none of it but to record a problem.
+What a mod is, `service/mod` says: its manifest, its folder, its permissions, its entry and its lifecycle. deck, `service/deck`, runs mods by it, and `service/mod` names nothing of deck. The runner tells each transition of a run (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`); what follows a mod's run (its exports, its extensions, its settings, its main process modules, its events, and in the UI its styles and its place in the panel) listens to those, or asks the run, and changes none of it but to record a problem.
 
 Deckit's folder is `host/folders`' `home`, or `~/.config/<id>`:
 
@@ -74,7 +76,7 @@ Everything deckit keeps is named from its configured id, so two host apps that e
 
 ## 5. What a mod is handed
 
-A mod reaches deck only through `deck`, what its `start` is handed (MOD.md). Before a mod runs, its sandbox's boot takes away every global the bundle added, and its entry runs with only `module` and `exports` in reach.
+A mod reaches deck only through `deck`, what its `start` is handed (MOD.md). Before a mod runs, its sandbox's boot takes away every global the bundle added, and its entry runs with only `module` and `exports` in reach. What `deck` holds of the UI (the theme, the kit, `show`, and the registrations `view` and `styles`), the UI on deck adds as deck runs the mod: deck's registrations take kinds it does not know, and what the UI says of a mod deck carries to main and does not read.
 
 Between mods there are two ways, and one question picks: could the host app do this if the other mod were not there?
 
@@ -89,26 +91,28 @@ What reaches past a mod's own sandbox (the clipboard, notices, any web address, 
 
 ## 6. Modules
 
-Every file of the library is one module: `DeckitModule.define(name, { uses, provides, runs }, make)`. Its name is `deckit/` and its path. It names what it uses and what it provides; the registry hands each module a view of its uses that throws on any other name, and refuses a `make` that returns other names than it provides. A module does nothing until whoever starts it calls `start`.
+Every file of the two libraries is one module: `DeckitModule.define(name, { uses, provides, runs }, make)`. Its name is its path under `source/deckit`, `deckit/` or `deckit-ui/` first. It names what it uses and what it provides; the registry hands each module a view of its uses that throws on any other name, and refuses a `make` that returns other names than it provides. A module does nothing until whoever starts it calls `start`.
 
-The library is in four layers, and names go one way:
+Each library is in layers, and names go one way:
 
 | Layer | What it is | May name |
 |---|---|---|
-| `feature/` | what the outside meets: the host app's entries, the panel, the switcher | feature, service, module, ui, config |
-| `service/` | what deckit does | service, module, config |
-| `module/` | what it is built from, with no deckit in it | module |
-| `ui/` | how it draws | ui |
+| `deckit/feature/` | what the outside meets: the host app's entries, what connect answers (`feature/host`) | feature, service, module, config |
+| `deckit/service/` | what deck does | service, module, config |
+| `deckit/module/` | what it is built from, with no deckit in it | module |
+| `deckit-ui/feature/` | the UI's entries, the panel, the switcher | its feature, service and ui, and deck's module |
+| `deckit-ui/service/` | what the UI does: styles | its service, and deck's module |
+| `deckit-ui/ui/` | how it draws: the kit | ui |
 
-`config/` is the host app's configuration (EMBEDDING.md), which `feature/` and `service/` read.
+`deckit/config/` is the host app's configuration (EMBEDDING.md), which deck's `feature/` and `service/` read. Deck names nothing of the UI. The UI names nothing of deck's but the parts with no deckit in them; the rest of deck it reaches through what connect answers, handed to `attach` in main and to its page side by `boot`.
 
 A concept's sides are `main.js` and `page.js`; a one-sided concept is `index.js`; `protocol.js` is how its own sides reach each other and nobody else's, and what its sides share otherwise is `model/`. A folder is a module (its files and `model/`) or a group (folders only).
 
-Bundles are worked out from their entries: the main bundle from `feature/app/main`, the page bundle from `feature/app/page`, the chord bundle. A bundle carries what its entry names and what those name, each after what it names. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept, where each file runs, every folder a module or a group.
+Bundles are worked out from their entries: deck's main bundle from `deckit/feature/app/main`, its page bundle from `deckit/feature/app/page`, the chord bundle, and the UI's `ui-main` and `ui-page` from `deckit-ui/feature/app/main` and `deckit-ui/feature/app/page`. A bundle carries what its entry names and what those name, each after what it names; a UI bundle leaves out what deck's bundle of the same process carries. `deckit check`, which the build runs first, holds every file to the rules above: one module a file, named for its path, the layers' direction, no channel named outside its concept, where each file runs, every folder a module or a group.
 
 ## 7. One design system
 
-The kit is the one way things look and behave in every page (UI.md):
+The kit is the UI's, and the one way things look and behave in every page it draws (UI.md):
 
 - One token, derived from the host app's theme: colours, type, radius, shadow, motion, and a code palette. The kit's stylesheet and every mod read it.
 - One stylesheet: hover, press, focus and selection are the platform's states, drawn by rules.

@@ -1,6 +1,6 @@
 # Writing a mod
 
-A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view is one of these abilities, and a mod with none is headless. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
+A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view is one of these abilities, and a mod with none is headless. The view, styles, `theme`, `ui` and `show()` are given by the UI the host app puts on deck; deckit's own UI (the panel, the switcher and the kit) gives them as this document says, and with no UI on deck a mod has none of them and runs headless. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
 
 How the folder is laid out is the mod's own. The folder's name says nothing; the manifest says who the mod is, and its `main` names the entry:
 
@@ -74,7 +74,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `deckit.mod-settings` | every mod's settings | `deck.modSettings` |
 | `deckit.key-map` | every mod's shortcuts | `deck.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
-| `deckit.styles` | how every page looks, other mods', the switcher and Settings among them, and so what they show | `deck.styles` |
+| `deckit.styles` | how every page looks, other mods' among them, and so what they show | `deck.styles` |
 
 An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deck: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another mod.
 
@@ -194,7 +194,7 @@ With `deckit.styles`, styles other pages while the mod runs: a mod's page by its
 
 ## deck
 
-`start(deck)` receives `{ id, name, theme, ui, settings, storage, web, requires, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod.
+`start(deck)` receives `{ id, name, settings, storage, web, requires, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod. The UI on deck adds `theme` and `ui`, and `view`, `styles` and `show` (the beginning of this document).
 
 ### theme and ui
 
