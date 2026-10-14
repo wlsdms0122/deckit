@@ -20,8 +20,10 @@ plutil -replace CFBundleDisplayName -string Deckit "$PLIST"
 plutil -replace CFBundleIdentifier -string dev.deckit.app "$PLIST"
 plutil -replace CFBundleShortVersionString -string "$DECKIT_VERSION" "$PLIST"
 plutil -replace CFBundleVersion -string "$DECKIT_VERSION" "$PLIST"
-codesign --force --deep --sign - "$NEW" 2>/dev/null
-codesign --verify --deep "$NEW" || { echo "Deckit.app does not verify: the last one stays" >&2; exit 1; }
+# codesign says it replaces Electron's signature each time: what it says is shown only when it fails.
+SIGNED="$(codesign --force --deep --sign - "$NEW" 2>&1)" ||
+  { echo "$SIGNED" >&2; echo "Deckit.app could not be signed: the last one stays" >&2; rm -rf "$NEW"; exit 1; }
+codesign --verify --deep "$NEW" || { echo "Deckit.app does not verify: the last one stays" >&2; rm -rf "$NEW"; exit 1; }
 
 rm -rf "$APP"
 mv "$NEW" "$APP"
