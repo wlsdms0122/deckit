@@ -4,7 +4,6 @@ const { GROUP_COLORS, tabLabel } = require('./tabs.js');
 
 // The sidebar: the open tabs, in their groups, and the bookmarks, each a section that folds.
 function sidebar({
-    theme,
     ui,
     chordOf,
     clipboard,
@@ -245,9 +244,11 @@ function sidebar({
         });
     }
 
+    // Each by the page's color scheme, so a new theme repaints it in place.
     function inkOf(color) {
         if (/^#[0-9a-f]{6}$/i.test(color)) return color;
-        return (GROUP_INKS[color] || GROUP_INKS.grey)[theme.dark ? 0 : 1];
+        const [dark, light] = GROUP_INKS[color] || GROUP_INKS.grey;
+        return `light-dark(${light}, ${dark})`;
     }
 
     // A row of a group's block: in the group's colour, and rounded below when it ends the block.
@@ -256,7 +257,7 @@ function sidebar({
         rowElement.style.setProperty('--browser-group-ink', ink);
         rowElement.style.setProperty(
             '--browser-group-tint',
-            `color-mix(in srgb, ${ink} ${theme.dark ? 18 : 14}%, transparent)`
+            `light-dark(color-mix(in srgb, ${ink} 14%, transparent), color-mix(in srgb, ${ink} 18%, transparent))`
         );
         rowElement.toggleAttribute('data-group-end', end);
     }

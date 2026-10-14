@@ -113,7 +113,6 @@ module.exports = {
             onFound: (tab, result) => find.showCount(tab, result),
         });
         const sidePanel = sidebar({
-            theme,
             ui,
             chordOf: deck.chordOf,
             clipboard: deck.clipboard,
