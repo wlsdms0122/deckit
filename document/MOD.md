@@ -253,7 +253,7 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `children` | the shell's: `list()`, `[{ id, name, icon }]` of the mods whose view names this one as its `parent`, in the person's order, and `onChange(listener)`, which hears them each time they change and returns its off |
 | `caller()` | the mod that called one of this mod's exports, while the function runs to its first `await` (`deck.exports`); it throws otherwise |
 | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` | events, its own sent and any mod's heard (Using what another mod does) |
-| `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deck's own answer; resolves to whether anything opened it |
+| `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deckit's own answer; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | shows a file in the system's Finder, during a person's click or key; otherwise resolves `false` |
 | `chordOf(action)` | the chord one of the mod's keys is bound to now, or `''` |
@@ -304,7 +304,7 @@ Whatever deck calls after `start`, a call that throws or rejects costs that call
 
 Two ways, and one question picks: could the host app do this if the other mod were not there?
 
-**URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a mod makes up. A mod calls `deck.open(url)` and never names who answers. Each scheme has its handlers: the mods whose manifest names it, in the order the person set in Settings, then deck's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only during a person's click or key: otherwise `deck.open` answers `false` and no handler is asked, as `reveal` does. A scheme no mod takes and deck has no answer for ends unopened.
+**URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a mod makes up. A mod calls `deck.open(url)` and never names who answers. Each scheme has its handlers: the mods whose manifest names it, in the order the person set in Settings, then deckit's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened only during a person's click or key: otherwise `deck.open` answers `false` and no handler is asked, as `reveal` does. A scheme no mod takes and deckit has no answer for ends unopened.
 
 **requires**, when it could not. The other mod registers `deck.exports`, and this one names it in `[requires]` and receives it as `deck.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the mod does not load, and Settings says why.
 
