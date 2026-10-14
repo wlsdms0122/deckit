@@ -90,7 +90,7 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
                     this.decorations = decorationsOf(update.view);
             }
         },
-        { decorations: (mod) => mod.decorations }
+        { decorations: (plugin) => plugin.decorations }
     );
     const press = engine.EditorView.domEventHandlers({
         mousedown(event, editorView) {
@@ -924,7 +924,7 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
             return false;
         };
         const decorations = [];
-        // The engine rejects an empty mark and a mod replacement that spans a line break, which would take the
+        // The engine rejects an empty mark and a plugin replacement that spans a line break, which would take the
         // whole preview down. Every decoration goes through these two.
         const mark = (from, to, decoration) => {
             if (to > from) decorations.push(decoration.range(from, to));
