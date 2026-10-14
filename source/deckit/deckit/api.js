@@ -8,6 +8,7 @@ export function createApi({
     LOG,
     WINDOW,
     IDENTITY,
+    PAGES,
     CATALOG,
     RUNNER,
     MANIFEST,
@@ -18,8 +19,6 @@ export function createApi({
 }) {
     // MARK: - Property
     const path = require('path');
-    // A page the shell makes is named as a host is, with no dot, so its origin is never a mod's.
-    const PAGE_NAME = /^[a-z][a-z0-9-]*$/;
     // A key names a file, and a Mac's disk is blind to case: lower case only.
     const STATE_KEY = /^[a-z0-9][a-z0-9._-]{0,63}$/;
     const NOTIFICATIONS = Object.freeze([...DECK.NOTIFICATIONS]);
@@ -40,9 +39,9 @@ export function createApi({
     // MARK: - Public
     // What a host app and the shell it puts on deckit reach of deckit, in main: the mods and their runs, pages of
     // the shell's own, keys, commands, permissions for what the shell adds, their own state, and windows. No more
-    // of deckit is theirs. Every fact it hands out is a frozen copy. `makeView({ webview })` makes a view for a
-    // deckit page; `onStart(listener)` is how deckit is told what starts with it.
-    function make({ makeView, onStart }) {
+    // of deckit is theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what
+    // starts with it.
+    function make({ onStart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
             onStart,
@@ -62,10 +61,11 @@ export function createApi({
                 relaunchAll: RUNNER.relaunchAll,
             }),
             pages: Object.freeze({
-                make: (name) => makePage(makeView, name),
+                make: PAGES.make,
                 nameOf: IDENTITY.pageNameOf,
                 whenEnds: IDENTITY.whenPageEnds,
                 isPressing: IDENTITY.isPressing,
+                isPointing: IDENTITY.isPointing,
             }),
             keymap: Object.freeze({
                 register: KEYMAP.register,
@@ -87,17 +87,6 @@ export function createApi({
     }
 
     // MARK: - Private
-    // A page of the shell's, at its own origin, which loads as every deckit page does and then asks the shell to
-    // draw it.
-    function makePage(makeView, name) {
-        if (!PAGE_NAME.test(String(name)))
-            throw new Error(`"${name}" is not a page name: a lower case letter, then letters, digits and -`);
-        const view = makeView({ webview: false });
-        IDENTITY.add(view.webContents, { page: name });
-        view.webContents.loadURL(DECK.addressOf(DECK.pageOriginOf(name)));
-        return view;
-    }
-
     function stateFile(key) {
         if (!STATE_KEY.test(String(key)) || String(key).includes('..')) throw new Error('not a state key: ' + key);
         return path.join(HOME.state, 'host', key + '.json');

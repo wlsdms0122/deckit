@@ -104,6 +104,7 @@ function make({ preload, host, config: CONFIG, folders }) {
         LOG,
         WINDOW,
         IDENTITY,
+        PAGES: deck.pages,
         CATALOG,
         RUNNER,
         MANIFEST,
@@ -129,7 +130,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     require('electron')
         .app.whenReady()
         .then(() => start(preload, host));
-    return API.make({ makeView: deck.view, onStart });
+    return API.make({ onStart });
 
     // `listener` is told once, as deckit starts once the app is ready, before any mod launches. It is handed over
     // before then.
