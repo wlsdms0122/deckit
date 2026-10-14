@@ -96,11 +96,21 @@ function createWindow({ CONFIG }) {
         window.webContents.executeJavaScript(`setTitle(${JSON.stringify(title)})`, true).catch(() => {});
     }
 
-    // A page in the window names it. The page can outlive the window, so it stops being heard then.
+    // A page in the window names it, and a site's page says which site it is, so a page cannot pass for another. The
+    // page can outlive the window, so it stops being heard then.
     function followPage(window, page) {
-        const titled = (_event, text) => setTitle(window, text);
+        const titled = (_event, text) => setTitle(window, labelOf(page, text));
         page.on('page-title-updated', titled);
         window.once('closed', () => page.isDestroyed() || page.removeListener('page-title-updated', titled));
+    }
+
+    function labelOf(page, title) {
+        let site = '';
+        try {
+            const url = new URL(page.getURL());
+            if (url.protocol === 'http:' || url.protocol === 'https:') site = url.host;
+        } catch {}
+        return site && title !== site ? `${title} (${site})` : title;
     }
 
     // Kept as it moves, and as it closes in case that came first.
