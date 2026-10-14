@@ -14,10 +14,25 @@ DeckitModule.define(
             'deckit/service/web/certificate',
             'deckit/service/web/script',
             'deckit/service/web/protocol',
+            'deckit/service/web/model/permission',
         ],
         provides: ['start', 'host', 'hostOf', 'pageFor', 'holdsKeyboard', 'windowOptions'],
     },
-    (WINDOW, LOG, KEYMAP, IDENTITY, SESSION, REGISTRY, PARTITION, AGENT, PERMISSION, CERTIFICATE, SCRIPT, PROTOCOL) => {
+    (
+        WINDOW,
+        LOG,
+        KEYMAP,
+        IDENTITY,
+        SESSION,
+        REGISTRY,
+        PARTITION,
+        AGENT,
+        PERMISSION,
+        CERTIFICATE,
+        SCRIPT,
+        PROTOCOL,
+        MOD_PERMISSION
+    ) => {
         // MARK: - Property
         const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
         const icons = new Map(); // page id -> the icon it last announced
@@ -96,17 +111,17 @@ DeckitModule.define(
                 openWindow(sender, IDENTITY.modFrom(sender), name, url, title)
             );
             PROTOCOL.fetchText.handle(({ name, url }, sender) =>
-                SESSION.fetchText(IDENTITY.modFrom(sender, 'system.network').id, name, url)
+                SESSION.fetchText(IDENTITY.modFrom(sender, MOD_PERMISSION.NETWORK).id, name, url)
             );
             PROTOCOL.clear.handle(({ name }, sender) => SESSION.clear(IDENTITY.modFrom(sender).id, name));
             PROTOCOL.trust.handle(({ name, entries }, sender) =>
-                CERTIFICATE.trust(partitionFor(sender, 'system.certificates', name), entries)
+                CERTIFICATE.trust(partitionFor(sender, MOD_PERMISSION.CERTIFICATES, name), entries)
             );
             PROTOCOL.allow.handle(({ name, entries }, sender) =>
-                PERMISSION.allow(partitionFor(sender, 'system.site-permissions', name), entries)
+                PERMISSION.allow(partitionFor(sender, MOD_PERMISSION.SITE_PERMISSIONS, name), entries)
             );
             PROTOCOL.revoke.handle(({ name, entries }, sender) =>
-                PERMISSION.revoke(partitionFor(sender, 'system.site-permissions', name), entries)
+                PERMISSION.revoke(partitionFor(sender, MOD_PERMISSION.SITE_PERMISSIONS, name), entries)
             );
 
             PROTOCOL.load.on(({ id, url }, sender) =>
@@ -166,7 +181,7 @@ DeckitModule.define(
         function mayShow(modPage, url, { inPage }) {
             if (/^https?:\/\//i.test(url)) return true;
             if (!inPage || !/^file:\/\//i.test(url)) return false;
-            return !!IDENTITY.modOf(modPage)?.permissions.some(({ id }) => id === 'system.files');
+            return !!IDENTITY.modOf(modPage)?.permissions.some(({ id }) => id === MOD_PERMISSION.FILES);
         }
 
         // A file document never becomes a web one in its page: the session given to show files would keep the web's

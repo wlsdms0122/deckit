@@ -6,23 +6,22 @@ DeckitModule.define(
             'deck/service/deck/catalog',
             'deck/service/deck/main',
             'deckit/service/mod-folder/protocol',
+            'deck/service/mod/permission',
         ],
         provides: ['start'],
         runs: 'main',
     },
-    (IDENTITY, CATALOG, DECK, PROTOCOL) => {
+    (IDENTITY, CATALOG, DECK, PROTOCOL, PERMISSION) => {
         // MARK: - Property
-        const PERMISSION = 'deckit.mods';
-
         // MARK: - Initializer
         // MARK: - Public
         function start() {
             PROTOCOL.pick.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION);
+                IDENTITY.modFrom(sender, PERMISSION.MODS);
                 return pick();
             });
             PROTOCOL.reveal.handle(({ id }, sender) => {
-                IDENTITY.modFrom(sender, PERMISSION);
+                IDENTITY.modFrom(sender, PERMISSION.MODS);
                 const mod = CATALOG.found().find((candidate) => candidate.id === id);
                 if (!mod) throw new Error('no mod ' + id);
                 require('electron').shell.showItemInFolder(mod.folder);

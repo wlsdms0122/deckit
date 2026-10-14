@@ -8,10 +8,11 @@ DeckitModule.define(
             'deck/service/deck/identity',
             'deckit/service/runtime/protocol',
             'deckit/service/build',
+            'deck/service/mod/permission',
         ],
         provides: ['start'],
     },
-    (CONFIG, HOME, LOG, IDENTITY, PROTOCOL, BUILD) => {
+    (CONFIG, HOME, LOG, IDENTITY, PROTOCOL, BUILD, MOD_PERMISSION) => {
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
@@ -34,7 +35,7 @@ DeckitModule.define(
                 };
             });
             PROTOCOL.restart.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 restart();
                 return true;
             });

@@ -1,10 +1,14 @@
 DeckitModule.define(
     'deckit/service/web/page',
     {
-        uses: ['deckit/service/web/model/partition', 'deckit/service/web/protocol'],
+        uses: [
+            'deckit/service/web/model/partition',
+            'deckit/service/web/protocol',
+            'deckit/service/web/model/permission',
+        ],
         provides: ['listen', 'forMod'],
     },
-    (PARTITION, PROTOCOL) => {
+    (PARTITION, PROTOCOL, MOD_PERMISSION) => {
         // MARK: - Property
         // Unique across reloads of this document, since main may still be closing the last one's pages.
         const boot = Date.now().toString(36);
@@ -62,13 +66,13 @@ DeckitModule.define(
                 const handle = Object.freeze({
                     name,
                     clear: () => PROTOCOL.clear.invoke({ name }),
-                    ...(has('system.network')
+                    ...(has(MOD_PERMISSION.NETWORK)
                         ? { fetchText: (url) => PROTOCOL.fetchText.invoke({ name, url: String(url) }) }
                         : {}),
-                    ...(has('system.certificates')
+                    ...(has(MOD_PERMISSION.CERTIFICATES)
                         ? { trust: (entries) => PROTOCOL.trust.invoke({ name, entries: [].concat(entries) }) }
                         : {}),
-                    ...(has('system.site-permissions')
+                    ...(has(MOD_PERMISSION.SITE_PERMISSIONS)
                         ? {
                               allow: (entries) => PROTOCOL.allow.invoke({ name, entries: [].concat(entries) }),
                               revoke: (entries) => PROTOCOL.revoke.invoke({ name, entries: [].concat(entries) }),

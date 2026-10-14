@@ -18,6 +18,10 @@ DeckitModule.define(
             'deckit/service/keymap/model/binding-id',
             'deck/service/deck/model/proxy',
             'host/exports?',
+            'deckit/service/clipboard/model/permission',
+            'deckit/service/notify/model/permission',
+            'deckit/service/keymap/model/permission',
+            'deckit/service/open/model/permission',
         ],
         provides: ['layerOf'],
     },
@@ -37,7 +41,11 @@ DeckitModule.define(
         MAIN_PROCESS_PERMISSION,
         BINDING_ID,
         PROXY,
-        HOST
+        HOST,
+        CLIPBOARD_PERMISSION,
+        NOTIFY_PERMISSION,
+        KEYMAP_PERMISSION,
+        OPEN_PERMISSION
     ) => {
         // MARK: - Property
         // What the shell gives a mod where none is on deckit: nothing.
@@ -111,13 +119,13 @@ DeckitModule.define(
                 about: RUNTIME.about,
                 chordOf: (action) => KEYMAP.chord(BINDING_ID.idOf(mod.id, action)),
                 clipboard: Object.freeze(
-                    has('system.clipboard')
+                    has(CLIPBOARD_PERMISSION.PERMISSION)
                         ? { readText: CLIPBOARD.readText, writeText: CLIPBOARD.writeText }
                         : { writeText: CLIPBOARD.writeText }
                 ),
-                ...(has('system.notifications') ? { notify: NOTIFY.notify } : {}),
+                ...(has(NOTIFY_PERMISSION.PERMISSION) ? { notify: NOTIFY.notify } : {}),
                 ...(has(MAIN_PROCESS_PERMISSION.PERMISSION) ? { mainProcess: MAIN_PROCESS.forMod({ deliver }) } : {}),
-                ...(has('deckit.key-map')
+                ...(has(KEYMAP_PERMISSION.KEY_MAP)
                     ? {
                           keymap: Object.freeze({
                               list: KEYMAP.bindings,
@@ -128,7 +136,7 @@ DeckitModule.define(
                           }),
                       }
                     : {}),
-                ...(has('deckit.url-schemes')
+                ...(has(OPEN_PERMISSION.URL_SCHEMES)
                     ? {
                           urlSchemes: Object.freeze({
                               list: OPEN.handlerLists,
@@ -161,7 +169,7 @@ DeckitModule.define(
             });
             KEYMAP.scope(parts.keys, {
                 invalid: fail,
-                global: mod.permissions.some(({ id }) => id === 'system.global-keys'),
+                global: mod.permissions.some(({ id }) => id === KEYMAP_PERMISSION.GLOBAL_KEYS),
                 problemOf: (key) => given.keyProblem(key, parts),
             });
             KEYMAP.connect({ deliver, blocksKeys: given.blocksKeys });

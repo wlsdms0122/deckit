@@ -11,11 +11,12 @@ DeckitModule.define(
             'deck/service/deck/model/extension-point',
             'deck/service/deck/model/proxy',
             'deck/service/mod/entry',
+            'deck/service/mod/permission',
         ],
         provides: ['start'],
         runs: 'page',
     },
-    (LOG, EVENT, STORAGE, SETTINGS, PROTOCOL, ORIGIN, EXTENSION_POINT, PROXY, ENTRY) => {
+    (LOG, EVENT, STORAGE, SETTINGS, PROTOCOL, ORIGIN, EXTENSION_POINT, PROXY, ENTRY, PERMISSION) => {
         // MARK: - Property
         // What is on deck gives a mod when nothing is: nothing.
         const NOTHING = Object.freeze({
@@ -287,8 +288,8 @@ DeckitModule.define(
                 ...register,
                 extensionPoint,
                 ...EVENT.forMod({ owner: { deliver, recordFailure: fail } }),
-                ...(has('deckit.mods') ? { mods: modsTool(given.mods) } : {}),
-                ...(has('deckit.mod-settings') ? { modSettings: modSettingsTool() } : {}),
+                ...(has(PERMISSION.MODS) ? { mods: modsTool(given.mods) } : {}),
+                ...(has(PERMISSION.MOD_SETTINGS) ? { modSettings: modSettingsTool() } : {}),
             });
         }
 

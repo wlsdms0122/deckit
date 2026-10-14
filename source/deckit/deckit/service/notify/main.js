@@ -1,10 +1,15 @@
 DeckitModule.define(
     'deckit/service/notify/main',
     {
-        uses: ['deck/service/log/main', 'deck/service/deck/identity', 'deckit/service/notify/protocol'],
+        uses: [
+            'deck/service/log/main',
+            'deck/service/deck/identity',
+            'deckit/service/notify/protocol',
+            'deckit/service/notify/model/permission',
+        ],
         provides: ['start'],
     },
-    (LOG, IDENTITY, PROTOCOL) => {
+    (LOG, IDENTITY, PROTOCOL, NOTIFY_PERMISSION) => {
         // MARK: - Property
         // A Notification nothing refers to is garbage collected, and macOS then withdraws it or never delivers it.
         // The cap covers a close that never comes.
@@ -18,7 +23,7 @@ DeckitModule.define(
         // `clicked` is the app's answer to a clicked notice, which brings it forward before the mod hears of it.
         function start({ clicked }) {
             PROTOCOL.notify.handle(({ id, title, body, silent }, sender) => {
-                IDENTITY.modFrom(sender, 'system.notifications');
+                IDENTITY.modFrom(sender, NOTIFY_PERMISSION.PERMISSION);
                 return show(sender, id, title, body, silent, clicked);
             });
         }

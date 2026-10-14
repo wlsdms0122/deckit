@@ -11,11 +11,12 @@ DeckitModule.define(
             'deck/service/mod/folder',
             'deckit/service/main-process/model/permission',
             'deckit/service/main-process/protocol',
+            'deck/service/mod/permission',
         ],
         provides: ['start', 'unload', 'started', 'failure', 'restartPending', 'restartFor'],
         runs: 'main',
     },
-    (FILE, STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER, PERMISSION, PROTOCOL) => {
+    (FILE, STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER, PERMISSION, PROTOCOL, MOD_PERMISSION) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -41,7 +42,7 @@ DeckitModule.define(
                 call(IDENTITY.modFrom(sender, PERMISSION.PERMISSION), given, method, args)
             );
             PROTOCOL.restartPending.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
+                IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
                 return restartPending();
             });
         }

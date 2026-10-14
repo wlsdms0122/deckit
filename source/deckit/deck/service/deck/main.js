@@ -15,6 +15,7 @@ DeckitModule.define(
             'deck/service/deck/export',
             'deck/service/deck/extension',
             'deck/service/deck/protocol',
+            'deck/service/mod/permission',
         ],
         provides: ['start', 'wouldInstall'],
         runs: 'main',
@@ -32,7 +33,8 @@ DeckitModule.define(
         SETTING,
         EXPORT,
         EXTENSION,
-        PROTOCOL
+        PROTOCOL,
+        PERMISSION
     ) => {
         // MARK: - Property
         let layer = null;
@@ -59,23 +61,23 @@ DeckitModule.define(
         // MARK: - Private
         function listen() {
             PROTOCOL.mods.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
+                IDENTITY.modFrom(sender, PERMISSION.MODS);
                 return describe();
             });
             PROTOCOL.install.handle(({ from }, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
+                IDENTITY.modFrom(sender, PERMISSION.MODS);
                 return install(from);
             });
             PROTOCOL.remove.handle(({ id, data }, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
+                IDENTITY.modFrom(sender, PERMISSION.MODS);
                 return remove(id, data);
             });
             PROTOCOL.relaunch.handle(({ id }, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
+                IDENTITY.modFrom(sender, PERMISSION.MODS);
                 RUNNER.relaunch(id);
             });
             PROTOCOL.count.handle(({ id }, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.mods');
+                IDENTITY.modFrom(sender, PERMISSION.MODS);
                 return STORAGE.count(id);
             });
         }

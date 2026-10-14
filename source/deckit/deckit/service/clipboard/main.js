@@ -1,10 +1,14 @@
 DeckitModule.define(
     'deckit/service/clipboard/main',
     {
-        uses: ['deck/service/deck/identity', 'deckit/service/clipboard/protocol'],
+        uses: [
+            'deck/service/deck/identity',
+            'deckit/service/clipboard/protocol',
+            'deckit/service/clipboard/model/permission',
+        ],
         provides: ['start'],
     },
-    (IDENTITY, PROTOCOL) => {
+    (IDENTITY, PROTOCOL, CLIPBOARD_PERMISSION) => {
         // MARK: - Property
         // MARK: - Initializer
         // MARK: - Public
@@ -14,7 +18,7 @@ DeckitModule.define(
         function start() {
             const { clipboard } = require('electron');
             PROTOCOL.readText.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, 'system.clipboard');
+                IDENTITY.modFrom(sender, CLIPBOARD_PERMISSION.PERMISSION);
                 return clipboard.readText();
             });
             PROTOCOL.writeText.handle(({ text }, sender) => {

@@ -10,10 +10,11 @@ DeckitModule.define(
             'deckit/service/main-process/model/permission',
             'deckit/service/open/model/scheme',
             'deckit/service/open/protocol',
+            'deckit/service/open/model/permission',
         ],
         provides: ['start', 'open'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, MAIN_PROCESS, SCHEME, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, MAIN_PROCESS, SCHEME, PROTOCOL, PERMISSION) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -50,7 +51,7 @@ DeckitModule.define(
                 return spendsUserActivation(sender) && reveal(file);
             });
             PROTOCOL.handlerLists.handle((_payload, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.url-schemes');
+                IDENTITY.modFrom(sender, PERMISSION.URL_SCHEMES);
                 return schemes().map((scheme) => ({
                     scheme,
                     system: scheme === SCHEME.EVERY ? null : SYSTEM.get(scheme) || null,
@@ -58,7 +59,7 @@ DeckitModule.define(
                 }));
             });
             PROTOCOL.setHandlers.handle(({ scheme, order, off }, sender) => {
-                IDENTITY.modFrom(sender, 'deckit.url-schemes');
+                IDENTITY.modFrom(sender, PERMISSION.URL_SCHEMES);
                 return setHandlers(scheme, order, off);
             });
         }
