@@ -171,14 +171,16 @@ DeckitModule.define(
                     }
                 }
             }
-            for (const mod of read) {
-                mod.requirements = Object.entries(mod.requires).map(([id, want]) => ({
+            // What it uses when it is there is listed too, and stops nothing.
+            const rowsOf = (table, optional) =>
+                Object.entries(table).map(([id, want]) => ({
                     id,
                     want,
                     name: byId.get(id)?.name || id,
                     ok: !requirementProblem(id, want, byId.get(id)),
+                    optional,
                 }));
-            }
+            for (const mod of read) mod.requirements = [...rowsOf(mod.requires, false), ...rowsOf(mod.optional, true)];
             return read;
         }
 

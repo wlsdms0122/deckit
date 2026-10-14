@@ -92,17 +92,21 @@ function modDetails({ ui, mods, urlSchemes, util }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
-        if (mod.requirements?.length)
-            addPart(
-                'Requires',
-                chipRow(
-                    mod.requirements.map(
-                        (requirement) =>
-                            statusChip({ ui, text: `${requirement.name} ${requirement.want}`, ok: requirement.ok })
-                                .element
-                    )
-                )
-            );
+        const requirementChips = (optional) =>
+            (mod.requirements || [])
+                .filter((requirement) => !!requirement.optional === optional)
+                .map(
+                    (requirement) =>
+                        statusChip({ ui, text: `${requirement.name} ${requirement.want}`, ok: requirement.ok }).element
+                );
+        // What it uses when it is there is told apart: one missing stops nothing.
+        for (const [label, optional] of [
+            ['Requires', false],
+            ['Optional', true],
+        ]) {
+            const chips = requirementChips(optional);
+            if (chips.length) addPart(label, chipRow(chips));
+        }
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
         if (mod.live?.urlSchemes.length) addPart('Opens', chipRow(openingChips(handlerLists)));

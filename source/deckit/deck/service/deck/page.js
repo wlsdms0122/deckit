@@ -80,7 +80,8 @@ DeckitModule.define(
                 fail,
             });
             PROTOCOL.declare.send({ run: runNumber, settings: SETTINGS.declarationsOf(entry.settings, fail) });
-            const requires = await requirementsOf();
+            const optional = optionalOf();
+            const requires = await requirementsOf(optional);
             if (!requires) {
                 made.reject(new Error(`${mod.id} did not start`));
                 return notStarted();
@@ -91,6 +92,7 @@ DeckitModule.define(
                 given,
                 settings,
                 requires,
+                optional: optional.handles,
                 register: registry.register,
                 extensionPoint: registry.extensionPoint,
             });
@@ -170,22 +172,58 @@ DeckitModule.define(
             return module.exports;
         }
 
-        // What each mod it requires exports: values copied and frozen, functions called through main.
-        async function requirementsOf() {
+        // What each mod it requires exports: values copied and frozen, functions called through main. What it uses
+        // optionally is set on `optional` as it is now.
+        async function requirementsOf(optional) {
             const given = await PROTOCOL.requirements.invoke();
+            for (const [id, exported] of Object.entries(given.optional)) optional.set(id, exported);
             const out = {};
-            for (const [id, exported] of Object.entries(given)) {
+            for (const [id, exported] of Object.entries(given.requires)) {
                 if (exported.error) {
                     fail(exported.error);
                     return null;
                 }
-                out[id] = PROXY.deepFreeze(
-                    PROXY.proxyOf(exported.functions, structuredClone(exported.values), (path, args) =>
-                        PROTOCOL.callExport.invoke({ run: runNumber, mod: id, path, args })
-                    )
-                );
+                out[id] = exportsOf(id, exported);
             }
             return Object.freeze(out);
+        }
+
+        function exportsOf(id, exported) {
+            return PROXY.deepFreeze(
+                PROXY.proxyOf(exported.functions, structuredClone(exported.values), (path, args) =>
+                    PROTOCOL.callExport.invoke({ run: runNumber, mod: id, path, args })
+                )
+            );
+        }
+
+        // Each mod it uses optionally, as a handle: `exports()` is what that one exports while it runs, or null;
+        // `onChange(listener)` hears it each time that one launches or ends, and answers its off. Listening starts
+        // before what it is now is asked, so no change falls between.
+        function optionalOf() {
+            const handles = {};
+            const sides = new Map(); // id -> { set, listeners }
+            for (const id of Object.keys(mod.optional)) {
+                const listeners = new Set();
+                let current = null;
+                sides.set(id, {
+                    set(exported) {
+                        const next = exported ? exportsOf(id, exported) : null;
+                        if (!next && !current) return;
+                        current = next;
+                        for (const listener of listeners) deliver('onChange()', listener, current);
+                    },
+                });
+                handles[id] = Object.freeze({
+                    exports: () => current,
+                    onChange(listener) {
+                        if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
+                        listeners.add(listener);
+                        return () => listeners.delete(listener);
+                    },
+                });
+            }
+            PROTOCOL.optionalChanged.on(({ id, exports }) => sides.get(id)?.set(exports));
+            return { handles: Object.freeze(handles), set: (id, exported) => sides.get(id)?.set(exported) };
         }
 
         // What start() registers, each once and only while it runs: deck contributes it all when start() ends, and
@@ -236,7 +274,7 @@ DeckitModule.define(
             };
         }
 
-        function deckOf({ given, settings, requires, register, extensionPoint }) {
+        function deckOf({ given, settings, requires, optional, register, extensionPoint }) {
             const has = (permission) => mod.permissions.some(({ id }) => id === permission);
             return Object.freeze({
                 ...given.deck,
@@ -245,6 +283,7 @@ DeckitModule.define(
                 settings,
                 storage: Object.freeze({ values: STORAGE.values(), records: STORAGE.records(fail) }),
                 requires,
+                optional,
                 ...register,
                 extensionPoint,
                 ...EVENT.forMod({ owner: { deliver, recordFailure: fail } }),

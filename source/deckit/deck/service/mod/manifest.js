@@ -10,7 +10,7 @@ DeckitModule.define(
         const FILE = 'manifest.toml';
         // The version of the mod contract, which a manifest's `api` is written against.
         const API = '1.0.0';
-        const FIELDS = new Set(['id', 'name', 'version', 'api', 'main', 'requires', 'permissions']);
+        const FIELDS = new Set(['id', 'name', 'version', 'api', 'main', 'requires', 'optional', 'permissions']);
         const added = new Map(); // a field a layer reads -> { key, read, problemOf }
         let reading = false; // a manifest has been read
 
@@ -41,9 +41,9 @@ DeckitModule.define(
 
         // What a manifest says, from a mod as deck found it, which carries its manifest among other things.
         function of(mod) {
-            const { id, name, version, api, main, requires, permissions } = mod;
+            const { id, name, version, api, main, requires, optional, permissions } = mod;
             const fields = Object.fromEntries([...added.values()].map(({ key }) => [key, mod[key]]));
-            return { id, name, version, api, main, requires, permissions, ...fields };
+            return { id, name, version, api, main, requires, optional, permissions, ...fields };
         }
 
         // Each mod keeps its data in a folder named by its id, and macOS disks ignore case: "Note" and "note"
@@ -68,6 +68,7 @@ DeckitModule.define(
                 api: typeof raw.api === 'string' ? raw.api : null,
                 main: typeof raw.main === 'string' ? raw.main : null,
                 requires: isTable(raw.requires) ? { ...raw.requires } : {},
+                optional: isTable(raw.optional) ? { ...raw.optional } : {},
                 permissions: PERMISSION.all()
                     .filter(({ id }) => Object.hasOwn(permissions, id))
                     .map((permission) => ({ ...permission, reason: String(permissions[permission.id]).trim() })),
@@ -91,7 +92,14 @@ DeckitModule.define(
             if (!VERSION.parse(raw.api))
                 return `api must be written as "MAJOR.MINOR.PATCH" (this deck speaks ${API}), not ${JSON.stringify(raw.api)}`;
             if (!VERSION.satisfies(API, raw.api)) return `needs api ${raw.api}, this deck speaks ${API}`;
-            return mainProblem(raw) || requiresProblem(raw) || permissionsProblem(raw) || addedProblem(raw, manifest);
+            return (
+                mainProblem(raw) ||
+                dependencyProblem(raw, 'requires') ||
+                dependencyProblem(raw, 'optional') ||
+                bothProblem(raw) ||
+                permissionsProblem(raw) ||
+                addedProblem(raw, manifest)
+            );
         }
 
         // A path inside the mod's folder, "/" separated; whether a file is there is the folder's to say.
@@ -105,16 +113,24 @@ DeckitModule.define(
             return '';
         }
 
-        function requiresProblem(raw) {
-            if (!Object.hasOwn(raw, 'requires')) return '';
-            if (!isTable(raw.requires)) return 'requires must be a [requires] table of mod id = version';
-            for (const [other, want] of Object.entries(raw.requires)) {
+        // `requires`: what it runs only with. `optional`: what it uses when it is there, and runs without.
+        function dependencyProblem(raw, field) {
+            if (!Object.hasOwn(raw, field)) return '';
+            if (!isTable(raw[field])) return `${field} must be a [${field}] table of mod id = version`;
+            for (const [other, want] of Object.entries(raw[field])) {
                 const wrong = idProblem(other);
-                if (wrong) return `requires ${other}: ${wrong}`;
+                if (wrong) return `${field} ${other}: ${wrong}`;
                 if (!VERSION.parse(want))
-                    return `requires ${other} must be written as "MAJOR.MINOR.PATCH", not ${JSON.stringify(want)}`;
+                    return `${field} ${other} must be written as "MAJOR.MINOR.PATCH", not ${JSON.stringify(want)}`;
             }
             return '';
+        }
+
+        function bothProblem(raw) {
+            const both = Object.keys(isTable(raw.optional) ? raw.optional : {}).filter(
+                (id) => isTable(raw.requires) && Object.hasOwn(raw.requires, id)
+            );
+            return both.length ? `${both.join(', ')} is in both [requires] and [optional]` : '';
         }
 
         function permissionsProblem(raw) {

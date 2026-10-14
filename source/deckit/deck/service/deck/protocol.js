@@ -17,6 +17,7 @@ DeckitModule.define(
             'callExtension',
             'extensionCalled',
             'extensionsChanged',
+            'optionalChanged',
             'readRecord',
             'writeRecord',
             'removeRecord',
@@ -55,7 +56,8 @@ DeckitModule.define(
         notStarted: IPC.rendererToMain('deck:mod-not-started', { run: 'number?', problem: 'string' }),
         // Its run is ending: answered once the mod's stop() has run.
         stop: IPC.mainToRenderer('deck:mod-stop', { reply: true }),
-        // Answers once every mod it requires has started or failed: { [id]: { values, functions } or { error } }.
+        // Answers once every mod it requires has started or failed: { requires: { [id]: { values, functions } or
+        // { error } }, optional: { [id]: { values, functions } or null } }.
         requirements: IPC.rendererToMain('deck:mod-requirements', {}, { reply: true }),
         callExport: IPC.rendererToMain(
             'deck:mod-call-export',
@@ -73,6 +75,8 @@ DeckitModule.define(
         // The extensions of one of the mod's points now, by its name: { name, extensions: { [mod id]: { values,
         // functions } } }.
         extensionsChanged: IPC.mainToRenderer('deck:mod-extensions-changed'),
+        // What a mod it uses optionally exports now, launched or ended: { id, exports: { values, functions } or null }.
+        optionalChanged: IPC.mainToRenderer('deck:mod-optional-changed'),
 
         readRecord: IPC.rendererToMain('deck:record-read', { key: 'string' }, { reply: true, sync: true }),
         writeRecord: IPC.rendererToMain('deck:record-write', { key: 'string', value: 'any' }, { reply: true }),

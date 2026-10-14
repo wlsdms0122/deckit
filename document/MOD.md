@@ -42,6 +42,7 @@ bot = "1.0.0"
 | `main` | yes | the entry, a path inside the folder, `/` separated |
 | `url-schemes` | no | the schemes of the addresses it opens: it is one of their handlers (below) |
 | `requires` | no | mod id = the lowest version it needs |
+| `optional` | no | mod id = the lowest version it uses when that one is there; a mod in both is refused |
 | `permissions` | no | permission = why it is needed, in words the person reads |
 
 Any other field stops the mod loading, and so does a `main` that names no file inside the folder. The manifest is read by the main process before a line of the mod runs.
@@ -173,7 +174,7 @@ Opens an extension point: a place where other mods add what this one does, which
 - `extensions()`: what extends the point now, `{ [mod id]: extension }`, values copied and frozen, functions called through the main process and so returning promises.
 - `onChange(listener)`: `listener(extensions)` each time a mod that extends it starts or ends. Returns the unsubscribe.
 
-Nothing extends a point while its mod starts: a mod that extends it requires this one, so it starts after. A point's mod never names what extends it, and runs the same with nothing there.
+Nothing extends a point while its mod starts: what extends it is added once its mod has started. A point's mod never names what extends it, and runs the same with nothing there.
 
 ```js
 const providers = deck.extensionPoint('accounts');
@@ -182,7 +183,7 @@ providers.onChange((extensions) => draw(Object.values(extensions)));
 
 ### deck.extend({ '<mod id>:<point>': extension })
 
-Extends another mod's points, each with an object of values and functions. The mod names that one in `[requires]`, so it runs only while that one does: it starts after the point is open, and when that one ends, it ends first. Copied as exports are, and a value that cannot be copied leaves the mod unstarted. A point the mod does not require, or one that mod does not open, is shown on the row in Settings. What extends a point stays in its own mod's page, with its permissions and its web sessions: the point's mod calls it, and never holds what it holds.
+Extends another mod's points, each with an object of values and functions. The mod names that one in `[requires]`, so it runs only while that one does: it starts after the point is open, and when that one ends, it ends first. Or it names that one in `[optional]`: then deck holds the extension and the point has it while that one runs, handed again each time that one launches, and the mod runs on either way. Copied as exports are, and a value that cannot be copied leaves the mod unstarted. A point of a mod it neither requires nor uses, or one a required mod does not open, is shown on the row in Settings. What extends a point stays in its own mod's page, with its permissions and its web sessions: the point's mod calls it, and never holds what it holds.
 
 ```js
 deck.extend({ 'calendar:accounts': { name: 'Google', icon, async events(account, calendar, from, to) { … } } });
@@ -194,7 +195,7 @@ With `deckit.styles`, styles other pages while the mod runs: a mod's page by its
 
 ## deck
 
-`start(deck)` receives `{ id, name, settings, storage, web, requires, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod. The shell adds `theme` and `ui`, and `view`, `styles` and `show` (the beginning of this document).
+`start(deck)` receives `{ id, name, settings, storage, web, requires, optional, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod. The shell adds `theme` and `ui`, and `view`, `styles` and `show` (the beginning of this document).
 
 ### theme and ui
 
@@ -267,11 +268,13 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 | `movePath(path, from, to)` | a path after `from` moved to `to`, or null when it went with it |
 | `tildify(path)` | a path as it is shown, from `~` under the home folder |
 
-### mainProcess, requires, host
+### mainProcess, requires, optional, host
 
 `mainProcess(path)` starts a main process module of the mod's (below) and resolves to its methods, each called through the main process and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe. A path outside the mod's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for.
 
 `requires` is what each mod named in `[requires]` exports. A mod runs only while everything it requires runs, so these are there: when one of them terminates or crashes, the mod terminates too, before that one's `stop()` is asked, and it launches again, with what that one exports now, once that one launches again. Calls made in `stop()` still reach it.
+
+`optional` is a handle for each mod named in `[optional]`: `exports()` is what that one exports while it runs at a version this one uses, or null; `onChange(listener)` hears it, the same or null, each time that one launches or ends, and returns its off. The mod runs whether or not that one does, and goes on running when that one ends or launches again: it neither waits for it nor launches again with it. A call to one that is not running rejects.
 
 `host` is what the host app offers, handed to the host app's own mod only.
 
@@ -298,7 +301,9 @@ Two ways, and one question picks: could the host app do this if the other mod we
 
 **requires**, when it could not. The other mod registers `deck.exports`, and this one names it in `[requires]` and receives it as `deck.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the mod does not load, and Settings says why.
 
-**Extension points**, the same dependency the other way round: the other mod uses what this one does. That one opens a point (`deck.extensionPoint`), and this one requires it and extends the point (`deck.extend`): a calendar opens `accounts` and a mod adds Google accounts to it, an editor opens `languages` and a mod adds a language server. The dependency goes the one way requires does, so the calendar knows no provider by name, and a new provider is a new mod.
+**optional**, when it could, but does more with the other there. This one names it in `[optional]` and reaches it through `deck.optional[id]` while it runs. Nothing stops for its absence: what is missing is not shown, and nothing breaks.
+
+**Extension points**, the same dependency the other way round: the other mod uses what this one does. That one opens a point (`deck.extensionPoint`), and this one requires it, or uses it optionally, and extends the point (`deck.extend`): a calendar opens `accounts` and a mod adds Google accounts to it, an editor opens `languages` and a mod adds a language server. The dependency goes the one way requires does, so the calendar knows no provider by name, and a new provider is a new mod.
 
 How another mod's pages look is changed by **styles** (`deck.styles`), with the person's leave. What another mod does is changed only where it opens a point.
 
