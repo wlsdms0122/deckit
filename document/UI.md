@@ -82,14 +82,15 @@ Two floats are placed by their owner and are not layers: the keyboard stays with
 - `treeRow({ depth, folder, folds, open, glyph, name, size })` returns `{ element, setActive(on), setActionsShown(on), setOpen(open) }`. Its name is marked `data-name`, what a rename types over.
 - `inlineEdit(label, { selectStem, onCommit })` renames a label in place; `onCommit(text)` answers nothing or why it refused. Resolves whether it renamed.
 - `movesInto(from, folder)`: whether a move changes anything and is possible.
-- `treeFolderAt({ row, markOf, top, topMark })` and `folderDrop(zone, { kind, paths, folderAt, onDrop })`: a tree as a drop target of moves into folders.
+- `folderDrop(zone, { kind, paths, folderAt, onDrop })` makes a tree a drop target of moves into folders, as `dropTarget` does: `paths(payload)` is a function that answers where the dragged things are, all in one folder, and `folderAt(element)` answers the folder under the pointer, `{ folder, mark }`, or null. A drop into a dragged folder, or into what it holds, is refused, and one into the folder they are already in stays.
+- `treeFolderAt({ row, markOf, top, topMark })` makes a `folderAt` for a tree: `row(element)` answers the row an element is in, `{ path, folder, element }` with `folder` whether it is a folder's, or null; `markOf(folder)` is the element that lights for a folder; `top` is the folder a drop on no row goes into, and `topMark` what lights for it.
 
 ## Dragging and sizing
 
 - `sortable(list, { onReorder, depth })` decorates a keyed list and returns its dispose: the rows put in a new order by a drag. `onReorder(key, toKey)` hears that the item `key` goes where `toKey` is, and the owner draws the new order. With `depth: { indent, project(key, toKey, levels) }` the rows nest: a sideways move asks for a level deeper or shallower for each `indent` px, to the nearest, `project` answers the depth the row would take there, the held row stands that far in, and `onReorder(key, toKey, depth)` hears a move to the same place at another depth too.
 - `dragSource(area, { itemAt, describe })` is a decorator: `describe(item)` is `{ kind, payload, text, icon }`.
-- `dropTarget(zone, { kind, placeAt, onDrop })` is a decorator.
-- `resizer(handle, { axis, grow, size, min, max, onResize, onCommit, onClick, onDrag, resizable })` is a decorator: `size()` reads the size, `onResize(px)` draws one, `onCommit(px)` keeps the one let go of. Past a limit the edge gives and springs back; a press that does not travel is a click.
+- `dropTarget(zone, { kind, placeAt, onDrop })` is a decorator: `placeAt(element, payload)` answers the place under the pointer, `{ mark, stays }`, or null where nothing lands. `mark` is the element that lights while the thing is over it, and a place that `stays` is where the thing already is, so a drop there drops nothing. `onDrop(payload, place)` takes any other.
+- `resizer(handle, { axis, grow, size, min, max, onResize, onCommit, onClick, onDrag, resizable })` is a decorator: `axis` is `x` or `y`, and `grow` is how much the size changes for each px the pointer moves along it, `1` by default and `-1` for a handle at the start of what it sizes. `size()` reads the size, `onResize(px)` draws one, `onCommit(px)` keeps the one let go of. `min` and `max` are numbers, or functions read at the press. Past a limit the edge gives and springs back; a press that does not travel is a click, `onClick`. `onDrag(on)` hears a drag start and end, and `resizable()`, read at the press, says whether a drag sizes at all.
 
 ## Everything else
 
