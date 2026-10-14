@@ -2,10 +2,16 @@ DeckitModule.define(
     'shell/feature/panel/page',
     {
         uses: ['shell/ui/color', 'shell/feature/panel/sidebar', 'shell/feature/panel/protocol'],
-        provides: ['mount', 'show', 'viewProblem', 'keyProblem'],
+        provides: ['mount', 'show', 'listing', 'viewProblem', 'keyProblem'],
     },
     (COLOR, SIDEBAR, PROTOCOL) => {
         // MARK: - Property
+        // What a mod with deckit.mods reads and changes of the panel's list, on deck.mods: `listed()`, the children the
+        // person put in it, and `setListed(id, listed)`.
+        const listing = Object.freeze({
+            listed: () => PROTOCOL.listed.invoke(),
+            setListed: (id, listed) => PROTOCOL.setListed.invoke({ id: String(id), listed: !!listed }),
+        });
 
         // MARK: - Initializer
         // MARK: - Public
@@ -122,22 +128,36 @@ DeckitModule.define(
             // Floating over an app, the ring makes the panel read as on top and the rounding needs the page behind
             // to be clear. Filling a window, the frame is the OS's, and the panel may share the window's top with its
             // title bar: the sidebar reaches up under it, and so does the content, whose title bar area is the mod's
-            // (`ui.titleBar`): as tall as the bar, from past the window's buttons when the sidebar is collapsed.
+            // (`ui.titleBar`): as tall as the bar, from past the window's buttons when the sidebar is collapsed. In a
+            // region of another mod's, the frame is the region: no list of mods and no surface of its own, the parent's
+            // showing through, and as much of the bar as lies over the region, from past the buttons that do.
             function dress() {
                 const bar = look.titleBar;
                 document.documentElement.toggleAttribute('data-deckit-title-bar', !!bar);
                 Object.assign(buttonsRoom.style, {
-                    display: bar ? 'block' : 'none',
+                    display: bar && !look.region ? 'block' : 'none',
                     width: (bar?.controlsWidth || 0) + 'px',
                     height: (bar?.height || 0) + 'px',
                 });
+                sidebar.place(!!look.region);
                 const page = document.documentElement.style;
                 page.setProperty('--deckit-title-bar-area-height', (bar?.height || 0) + 'px');
                 page.setProperty(
                     '--deckit-title-bar-area-x',
-                    (bar && sidebar.collapsed() ? bar.controlsWidth : 0) + 'px'
+                    (bar && (look.region || sidebar.collapsed()) ? bar.controlsWidth : 0) + 'px'
                 );
                 sidebar.setTitleBarHeight(bar?.height || 0);
+                if (look.region) {
+                    Object.assign(root.style, {
+                        background: 'transparent',
+                        boxShadow: 'none',
+                        border: '0',
+                        borderRadius: '0',
+                        transform: 'none',
+                        transition: `opacity ${MOTION.fast}ms ${MOTION.easing}`,
+                    });
+                    return;
+                }
                 Object.assign(
                     root.style,
                     { background: COLOR.alpha(theme.color.background, setup.glass), boxShadow: 'none' },
@@ -158,7 +178,7 @@ DeckitModule.define(
                 leaving = null;
                 root.style.transition = 'none';
                 root.style.opacity = '0';
-                root.style.transform = MOTION.entrance;
+                root.style.transform = entrance();
                 requestAnimationFrame(() => {
                     root.style.transition = `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`;
                     root.style.opacity = '1';
@@ -175,10 +195,15 @@ DeckitModule.define(
                 root.style.transform = 'none';
             }
 
+            // A region's page fades in place: the parent around it does not grow or shrink with it.
+            function entrance() {
+                return look.region ? 'none' : MOTION.entrance;
+            }
+
             function fadeOut(then) {
                 root.style.transition = `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`;
                 root.style.opacity = '0';
-                root.style.transform = MOTION.entrance;
+                root.style.transform = entrance();
                 clearTimeout(leaving);
                 const duration = MOTION.base;
                 if (!duration) return then();
@@ -194,11 +219,17 @@ DeckitModule.define(
             PROTOCOL.show.send();
         }
 
-        // Why what `deck.view` was handed is not a view, or ''.
-        function viewProblem(value) {
-            return value?.content?.nodeType === Node.ELEMENT_NODE
-                ? ''
-                : 'takes { content, sidebar, didAppear, didDisappear }, content an element';
+        // Why what `deck.view` was handed is not a view, or ''. A view's parent is a mod it uses: one in its
+        // [requires] or [optional].
+        function viewProblem(value, mod) {
+            if (value?.content?.nodeType !== Node.ELEMENT_NODE)
+                return 'takes { content, sidebar, parent, didAppear, didDisappear }, content an element';
+            const parent = value.parent;
+            if (parent === undefined || parent === null) return '';
+            if (typeof parent !== 'string') return "takes a parent that is a mod's id";
+            if (!Object.hasOwn(mod.requires, parent) && !Object.hasOwn(mod.optional, parent))
+                return `names the parent ${parent}, which is in neither [requires] nor [optional]`;
+            return '';
         }
 
         // A mod's own key runs only in its page in front, so one with no view has only its global keys.
@@ -217,6 +248,6 @@ DeckitModule.define(
             return made;
         }
 
-        return { mount, show, viewProblem, keyProblem };
+        return { mount, show, listing, viewProblem, keyProblem };
     }
 );

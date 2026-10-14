@@ -44,7 +44,7 @@ A new mod needs no change to deck. A new place to show the panel in needs no cha
 | Where | What runs there |
 |---|---|
 | main | deck: mod folders, storage, and what a page asks of deck. Deckit: main process modules, the keymap, opening addresses, commands, windows. The shell: the panel and the switcher, the views it puts in the host app's windows |
-| a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; with deckit's shell on deckit, a mod with a view has the panel's frame around it there |
+| a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; with deckit's shell on deckit, a mod with a view has the panel's frame around it there, or a region's where it is another's child |
 | a page that runs no mod | made for the shell, at `deckit://<name>/`: the quick switcher's list, at `deckit://switcher/` |
 
 A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed; a mod with `deckit.styles` styles another's page, and that is all. Main knows which mod is asking by the page that asks (`deck/service/deck/identity.js`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
@@ -68,6 +68,7 @@ The pages never speak to each other. Main carries everything between them, and e
 | what mods offer to be run | `deckit/service/command/main.js`, from what each mod's page supplies, to each caller in a session of its own |
 | whether the panel is on screen, and where | the host app, asked through `shell/feature/panel/main.js` |
 | which mod is in front, and back and forward | `shell/feature/panel/main.js` |
+| which children a region shows, where each view is laid, and the children the person listed | `shell/feature/panel/main.js`, the list in `state/host/` |
 | what the switcher lists, and what was picked before | `shell/feature/switcher/main.js` |
 | which styles each page wears, in what order | `shell/service/style/main.js` |
 | a mod's data, records and settings | main, under deckit's folder (below) |

@@ -66,6 +66,8 @@ DeckitModule.define(
                     runOf: (id) => factsOf(RUNNER.runOf(id)),
                     observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
                     modOf: (webContents) => IDENTITY.modOf(webContents)?.id || null,
+                    // The mod in the page, which may drive mods, or a refusal.
+                    managerOf: (webContents) => IDENTITY.modFrom(webContents, PERMISSION.MODS).id,
                     relaunchAll: RUNNER.restart,
                 }),
                 pages: Object.freeze({

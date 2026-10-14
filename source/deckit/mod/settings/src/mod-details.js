@@ -60,12 +60,14 @@ const MOD_DETAILS_STYLE = `
     .settings-details-location { display: flex; flex-direction: column; gap: 2px; }
     .settings-details-line { overflow-wrap: anywhere; font: 12.5px var(--deckit-font); opacity: 0.85; }
     .settings-details-line[data-muted] { font: var(--deckit-type-small); opacity: 0.45; }
+    .settings-details-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 `;
 
-// What an opened mod row shows: what it requires, its permissions, the addresses it opens, its keys and where it
-// lives. It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over
-// the base duration: over the fast one a tall row reads as a jump.
-function modDetails({ ui, mods, urlSchemes, util }) {
+// What an opened mod row shows: what it requires, where its view is shown, its permissions, the addresses it opens,
+// its keys and where it lives. `onListedChange` hears the person put a mod in the sidebar's list or take it out. It
+// opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the base
+// duration: over the fast one a tall row reads as a jump.
+function modDetails({ ui, mods, urlSchemes, util, onListedChange }) {
     const everyScheme = urlSchemes.everyScheme;
 
     let mod = null;
@@ -108,6 +110,7 @@ function modDetails({ ui, mods, urlSchemes, util }) {
             const chips = dependencyChips(optional);
             if (chips.length) addPart(label, chipRow(chips));
         }
+        if (mod.live?.parent) addPart('Sidebar', sidebarListing());
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
         if (mod.live?.urlSchemes.length) addPart('Opens', chipRow(openingChips(handlerLists)));
@@ -142,6 +145,25 @@ function modDetails({ ui, mods, urlSchemes, util }) {
             },
             () => {}
         );
+    }
+
+    // A child's view is shown in its parent's, and in the sidebar's list as well once the person puts it there.
+    function sidebarListing() {
+        const parent = (mod.dependencies || []).find((dependency) => dependency.id === mod.live.parent);
+        const { id } = mod;
+        const listing = ui.element('div', { className: 'settings-details-switch' });
+        const toggle = ui.toggle({
+            value: !!mod.listed,
+            onChange: (on) => {
+                toggle.set(on);
+                mods.setListed(id, on).then(onListedChange, () => toggle.set(!on));
+            },
+        });
+        listing.append(
+            detailsLine(`Shown in ${parent?.name || mod.live.parent}. Listed in the sidebar too`),
+            toggle.element
+        );
+        return listing;
     }
 
     function addPart(title, body) {

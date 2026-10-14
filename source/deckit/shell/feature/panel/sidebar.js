@@ -152,6 +152,7 @@ DeckitModule.define(
             let layout = { width: WIDTH_MIN, collapsed: false, navHeight: null };
             let mods = [];
             let current = null;
+            let inRegion = false;
 
             // Two boxes: the card animates its width while the body keeps its own, so what is inside does not reflow
             // against its minimum widths every frame.
@@ -253,6 +254,8 @@ DeckitModule.define(
             function apply(next, animate) {
                 const collapsedChanged = next.collapsed !== layout.collapsed;
                 layout = next;
+                // The panel's folding is the panel's: in a region the mod's own sidebar stays.
+                next = inRegion ? { ...next, collapsed: false } : next;
                 const width = clamp(next.width);
                 const { base } = theme.motion;
                 card.style.transition = animate
@@ -312,7 +315,16 @@ DeckitModule.define(
                 titleBarRoom.style.height = room + 'px';
             }
 
-            return { element: card, show, setTitleBarHeight, collapsed: () => layout.collapsed };
+            // In a region of another mod's the card holds the mod's own sidebar alone, and none at all without one.
+            function place(region) {
+                if (region === inRegion) return;
+                inRegion = region;
+                for (const part of [nav, splitter, handle]) part.style.display = region ? 'none' : '';
+                card.style.display = region && !sidebar ? 'none' : '';
+                apply(layout, false);
+            }
+
+            return { element: card, show, place, setTitleBarHeight, collapsed: () => layout.collapsed && !inRegion };
         }
 
         // MARK: - Private

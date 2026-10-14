@@ -1,6 +1,6 @@
 # Writing a mod
 
-A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view is one of these abilities, and a mod with none is headless. `deck` is put together by deck, deckit on it, and the shell on deckit (ARCHITECTURE.md). The view, styles, `theme`, `ui` and `show()` are the shell's; deckit's own shell (the panel, the switcher and the kit) gives them as this document says. A host app with no shell gives none of them, and a mod that registers a view there does not start: a mod that runs on any host app tests `deck.view` first. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
+A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view is one of these abilities, and a mod with none is headless. `deck` is put together by deck, deckit on it, and the shell on deckit (ARCHITECTURE.md). The view, styles, `theme`, `ui`, `show()` and `region()` are the shell's; deckit's own shell (the panel, the switcher and the kit) gives them as this document says. A host app with no shell gives none of them, and a mod that registers a view there does not start: a mod that runs on any host app tests `deck.view` first. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
 
 How the folder is laid out is the mod's own. The folder's name says nothing; the manifest says who the mod is, and its `main` names the entry:
 
@@ -124,9 +124,11 @@ What the person can choose about the mod is declared. Settings draws and lists e
 
 Each registration is a call on `deck`, made once, before `start` ends; deck contributes them all when it does. Leaving one out is how a mod opts out of it. A call made twice, or after `start` ended, is shown on the mod's row in Settings. A `start` that throws or rejects leaves the mod unstarted, with the reason on its row.
 
-### deck.view({ content, sidebar, didAppear, didDisappear })
+### deck.view({ content, sidebar, parent, didAppear, didDisappear })
 
 `content` is the element shown in the panel, to the panel's top. Where a window's title bar lies over that top, the top of the view is its title bar area, as tall as the page's `--deckit-title-bar-area-height` and starting `--deckit-title-bar-area-x` from the left, past the window's buttons; both are `0px` where there is none. A mod lays its own bar there with `ui.titleBar(element)`, or uses the two values itself. Left of `--deckit-title-bar-area-x`, where the window's buttons stand, the panel takes presses to drag the window, whatever the mod draws there. Registering a view gives the mod a row in the mod list and lets it be on screen. A mod with no view is headless: it exists through whatever else it registers (keys, commands, opening addresses, exports, its main process modules) from when it starts until it stops, and a `start` that registers nothing is a headless mod that does nothing yet. `sidebar` is an element shown in the sidebar under the mod list while the view is on screen.
+
+`parent` is the id of a mod whose view this one is shown in: a child's view goes where a region of its parent's shows it (`deck.region`, Using what another mod does), and has no row in the mod list until the person lists it in Settings. The parent is a mod it uses, so it is in its `[requires]` or `[optional]`; a view that names any other does not start. In a region the view's frame is the region's: no mod list, the parent showing through around it, its `sidebar` beside it, and as much of the title bar area as lies over the region.
 
 ### didAppear() and didDisappear()
 
@@ -244,7 +246,8 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 
 | Member | What it does |
 |---|---|
-| `show()` | the shell's: puts the calling mod's view on screen; a mod with no view in the panel, or one still starting, has nothing to show |
+| `show()` | the shell's: puts the calling mod's view on screen; a mod with no view in the panel, or one still starting, has nothing to show. A child not in the mod list brings its parent on screen |
+| `region(element)` | the shell's: a place in the mod's view where its children are shown (Using what another mod does) |
 | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` | events, its own sent and any mod's heard (Using what another mod does) |
 | `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deck's own answer; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
@@ -254,7 +257,7 @@ A `should…` left out, or answered with anything but `false`, lets the default 
 | `clipboard.writeText(text)` | copies text |
 | `clipboard.readText()` | with `system.clipboard` |
 | `notify({ title, body, silent, onClick })` | with `system.notifications` |
-| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`; `list` and `restartPending` answer at once, the rest resolve. `relaunch(id)` terminates the mod and launches it again, or launches one not running, and rejects while a mod it requires is not running |
+| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `reveal`, `count`, `restartPending`, `restart`, and the shell's `listed()` (the children the person put in the mod list) and `setListed(id, listed)`; `list` and `restartPending` answer at once, the rest resolve. `relaunch(id)` terminates the mod and launches it again, or launches one not running, and rejects while a mod it requires is not running |
 | `modSettings` | with `deckit.mod-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
 | `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
@@ -304,6 +307,8 @@ Two ways, and one question picks: could the host app do this if the other mod we
 **optional**, when it could, but does more with the other there. This one names it in `[optional]` and reaches it through `deck.optional[id]` while it runs. Nothing stops for its absence: what is missing is not shown, and nothing breaks.
 
 **Extension points**, the same dependency the other way round: the other mod uses what this one does. That one opens a point (`deck.extensionPoint`), and this one requires it, or uses it optionally, and extends the point (`deck.extend`): a calendar opens `accounts` and a mod adds Google accounts to it, an editor opens `languages` and a mod adds a language server. The dependency goes the one way requires does, so the calendar knows no provider by name, and a new provider is a new mod.
+
+**Regions**, when this mod's view is shown in the other's. The other gives a place in its view (`deck.region(element)`) and this one names it as its view's `parent`, requiring it or using it optionally: a dashboard shows its boards, each a mod, beside its own list of them. The region answers `children()`, `[{ id, name, icon }]` of the mods whose view names it as their parent, in the person's order, `onChange(listener)` with the same each time it changes, `show(id)`, which puts that child's view in the region and out of any other, and `clear()`. The child keeps running in its own page, which the shell lays over the element's rect, following it frame by frame: nothing the parent draws, its menus too, comes over a region, and a region in a scrolling area follows it. Regions are shown while their mod is the one on screen, and a child comes and goes with it (didAppear, didDisappear, its keys). A child listed in the mod list is in the panel while it is on screen there, and back in its region after.
 
 How another mod's pages look is changed by **styles** (`deck.styles`), with the person's leave. What another mod does is changed only where it opens a point.
 

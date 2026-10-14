@@ -2,23 +2,25 @@ DeckitModule.define(
     'deck/service/mod/permission',
     {
         uses: [],
-        provides: ['define', 'all'],
+        provides: ['MODS', 'MOD_SETTINGS', 'define', 'all'],
         runs: 'any',
     },
     () => {
         // MARK: - Property
+        const MODS = 'deckit.mods';
+        const MOD_SETTINGS = 'deckit.mod-settings';
         // What a mod may ask for, the widest first: deck's own, and each layer's that adds what they grant, where it
         // placed them. `name` and `means` are what a person reads before installing; `icon` names the glyph it is
         // shown with.
         const permissions = [
             {
-                id: 'deckit.mods',
+                id: MODS,
                 name: 'Mods',
                 icon: 'puzzle',
                 means: 'It can see every installed mod, add one from a folder and delete installed ones, with what they stored.',
             },
             {
-                id: 'deckit.mod-settings',
+                id: MOD_SETTINGS,
                 name: 'Mod Settings',
                 icon: 'sliders',
                 means: 'It can read and change the settings of every mod, not only its own.',
@@ -44,6 +46,6 @@ DeckitModule.define(
 
         // MARK: - Private
 
-        return { define, all };
+        return { MODS, MOD_SETTINGS, define, all };
     }
 );

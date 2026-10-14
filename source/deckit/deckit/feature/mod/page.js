@@ -45,6 +45,7 @@ DeckitModule.define(
             members: [],
             deck: {},
             registrations: {},
+            mods: {},
             blocksKeys: () => false,
             keyProblem: () => '',
             contribute: () => ({}),
@@ -57,8 +58,9 @@ DeckitModule.define(
         // `keywords`, which every shell reads in its run's summary. `shellMod(context)` is what the shell on deckit, if
         // one is, gives the mod: `members`, what it reads of the entry; `deck`, the members it adds; `registrations`,
         // the ones it adds, each by its check; `blocksKeys()`, whether a key pressed now is dropped;
-        // `keyProblem(key, parts)`, why a key would never run, or ''; and `contribute(parts, entry)`, which answers what
-        // main is told of the mod beside deckit's own. Deckit's own members and registrations are never the shell's.
+        // `keyProblem(key, parts)`, why a key would never run, or ''; `mods`, what it adds to `deck.mods` for a mod with
+        // deckit.mods; and `contribute(parts, entry)`, which answers what main is told of the mod beside deckit's own.
+        // Deckit's own members and registrations are never the shell's.
         function layerOf(shellMod) {
             return ({ mod, deliver, fail }) => {
                 WEB.listen();
@@ -79,6 +81,7 @@ DeckitModule.define(
                         handleURL: fn,
                     },
                     mods: {
+                        ...given.mods,
                         pick: MOD_FOLDER.pick,
                         reveal: MOD_FOLDER.reveal,
                         restartPending: MAIN_PROCESS.restartPending,
