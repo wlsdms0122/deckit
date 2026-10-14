@@ -7,14 +7,16 @@ function folderStatus({ ui, chordOf, onShowHidden, onReveal, onPrivacySettings }
     `;
 
     const element = ui.element('div');
+    const loadingScreen = ui.loading({ text: 'Loading…' }).element;
 
     ui.addStyle(STYLE);
+    loadingScreen.classList.add('finder-status-screen');
 
     return { element, draw };
 
     // `failure` is { title, hint, permission }; `hasHidden` says an empty folder holds hidden entries.
     function draw({ folder, loading, failure, isEmpty, filtering, hasHidden }) {
-        if (loading) element.replaceChildren(message('Loading…'));
+        if (loading) element.replaceChildren(loadingScreen);
         else if (failure) element.replaceChildren(failureScreen(failure));
         else if (isEmpty && filtering) element.replaceChildren(message('Nothing here matches'));
         else if (isEmpty && folder) element.replaceChildren(emptyScreen(folder, hasHidden));

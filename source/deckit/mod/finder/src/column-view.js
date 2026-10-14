@@ -49,7 +49,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
         .finder-preview-detail { color: var(--deckit-muted); }
         .finder-thumbnail { max-width: 100%; max-height: min(240px, 50%); object-fit: contain; border-radius: 4px; }
     `;
-    const columnParts = new WeakMap(); // column element -> { rows, message }
+    const columnParts = new WeakMap(); // column element -> { rows, message, loading }
     const cellParts = new WeakMap(); // cell element -> its row
     let drawn = { tab: null, widths: {}, folders: new Map(), selected: null, selection: [] };
     // The column being resized and its tab: a redraw meanwhile leaves its width alone, and the width is saved to that
@@ -121,9 +121,10 @@ function columnView({ ui, icons, entryAt, onResize }) {
         const body = ui.element('div', { className: 'finder-column-body' });
         const rows = ui.list({ key: (entry) => entry.path, create: createCell, update: updateCell });
         const message = ui.element('div', { className: 'finder-column-message' });
+        const loading = ui.loading({ text: 'Loading…' }).element;
         body.append(rows.element, message);
         column.append(body, edgeOf(column, folder));
-        columnParts.set(column, { rows, message });
+        columnParts.set(column, { rows, message, loading });
         fillColumn(column, folder);
         return column;
     }
@@ -136,9 +137,9 @@ function columnView({ ui, icons, entryAt, onResize }) {
 
     function fillColumn(column, folder) {
         const { listing, entries, filtering } = drawn.folders.get(folder);
-        const { rows, message } = columnParts.get(column);
+        const { rows, message, loading } = columnParts.get(column);
         rows.set(listing && !listing.failure ? entries : []);
-        if (!listing) message.textContent = 'Loading…';
+        if (!listing) message.replaceChildren(loading);
         else if (listing.failure) message.textContent = listing.failure.title;
         else if (!entries.length) message.textContent = filtering ? 'Nothing here matches' : 'Empty';
         else message.textContent = '';
