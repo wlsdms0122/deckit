@@ -43,8 +43,7 @@ module.exports = {
         const mods = modsSection({
             ui,
             mods: deck.mods,
-            keymap: deck.keymap,
-            urlSchemes: deck.urlSchemes,
+            everyScheme: deck.urlSchemes.everyScheme,
             util,
             appName: APP_NAME,
             onChange: redraw,
@@ -85,11 +84,13 @@ module.exports = {
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         function redraw() {
             const { installed: onDisk, running } = deck.mods.list();
+            const shortcuts = deck.keymap.list();
+            const handlerLists = deck.urlSchemes.list();
             for (const mod of running) modIcons.set(mod.id, mod.icon);
-            mods.draw({ onDisk, running });
+            mods.draw({ onDisk, running, shortcuts, handlerLists });
             modSettings.draw();
-            urlSchemes.draw();
-            keyboard.draw();
+            urlSchemes.draw(handlerLists);
+            keyboard.draw(shortcuts);
         }
 
         function commands() {

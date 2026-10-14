@@ -76,13 +76,12 @@ function keyboardSection({ ui, keymap }) {
     return { element, title: TITLE, keywords: KEYWORDS, draw, stopRecording };
 
     // While a key is recorded the cards wait, and are drawn once it ends.
-    function draw() {
+    function draw(shortcuts) {
         if (endRecording) {
             drawAfterRecording = true;
             return;
         }
         drawAfterRecording = false;
-        const shortcuts = keymap.list();
         const errors = shortcuts.filter((shortcut) => shortcut.issues.some(isError)).length;
         conflicts.element.textContent = `${errors} conflict${errors === 1 ? '' : 's'}`;
         conflicts.element.hidden = !errors;
@@ -98,7 +97,7 @@ function keyboardSection({ ui, keymap }) {
     function stopRecording() {
         endRecording?.();
         endRecording = null;
-        if (drawAfterRecording) draw();
+        if (drawAfterRecording) draw(keymap.list());
     }
 
     function shortcutCard(group) {
@@ -136,7 +135,7 @@ function keyboardSection({ ui, keymap }) {
             title: '',
             onClick: () => {
                 keymap.reset(current.id);
-                draw();
+                draw(keymap.list());
             },
         });
 
@@ -155,7 +154,7 @@ function keyboardSection({ ui, keymap }) {
                 drawAfterRecording = false;
                 if (recorded.spec) keymap.set(current.id, recorded.spec);
                 else if (recorded.clear) keymap.set(current.id, '');
-                draw();
+                draw(keymap.list());
             });
         });
         reset.element.classList.add('settings-reset');

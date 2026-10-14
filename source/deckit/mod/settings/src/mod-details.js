@@ -67,9 +67,7 @@ const MOD_DETAILS_STYLE = `
 // its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it. It
 // opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the base
 // duration: over the fast one a tall row reads as a jump.
-function modDetails({ ui, mods, urlSchemes, util, onPinnedChange }) {
-    const everyScheme = urlSchemes.everyScheme;
-
+function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
     let mod = null;
     let open = false;
     let counted = false;
@@ -87,8 +85,8 @@ function modDetails({ ui, mods, urlSchemes, util, onPinnedChange }) {
     return { element, set, setOpen };
 
     // Drawn again only when what it shows changed, and then counted again when it is open.
-    function set(next, handlerLists) {
-        const facts = JSON.stringify([next, handlerLists]);
+    function set(next) {
+        const facts = JSON.stringify(next);
         mod = next;
         if (facts === drawn) return;
         drawn = facts;
@@ -117,7 +115,7 @@ function modDetails({ ui, mods, urlSchemes, util, onPinnedChange }) {
         if (mod.live?.parent && mods.setPinned) addPart('Sidebar', sidebarPin());
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
-        if (mod.live?.urlSchemes.length) addPart('Opens', chipRow(openingChips(handlerLists)));
+        if (mod.live?.urlSchemes.length) addPart('Opens', chipRow(openingChips(mod.handlerLists)));
         if (mod.keys.length) addPart('Keys', keyGrid());
         const location = ui.element('div', { className: 'settings-details-location' });
         if (mod.folder) location.append(detailsLine(util.tildify(mod.folder)));

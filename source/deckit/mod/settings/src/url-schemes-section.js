@@ -75,8 +75,8 @@ function urlSchemesSection({ ui, urlSchemes, appName }) {
     body.append(cards.element);
     return { element, title: TITLE, keywords: KEYWORDS, draw };
 
-    function draw() {
-        cards.set(urlSchemes.list());
+    function draw(handlerLists) {
+        cards.set(handlerLists);
     }
 
     function schemeCard(handlerList) {
@@ -110,7 +110,7 @@ function urlSchemesSection({ ui, urlSchemes, appName }) {
                 if (from < 0 || to < 0) return;
                 next.splice(to, 0, next.splice(from, 1)[0]);
                 save(current.scheme, next);
-                draw();
+                draw(urlSchemes.list());
             },
         });
         cardFills.set(card, fill);
@@ -143,7 +143,7 @@ function urlSchemesSection({ ui, urlSchemes, appName }) {
                             candidate.id === handler.id ? { ...handler, on } : candidate
                         )
                     );
-                    draw();
+                    draw(urlSchemes.list());
                 },
             });
             const row = handlerRow({ trailing: toggle.element, draggable: true });

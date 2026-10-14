@@ -7,7 +7,7 @@ const { section } = require('./section.js');
 
 // The Mods section: every mod found, what each contributes, and installing and removing them. `onChange` hears
 // that a mod was installed or removed. Failures and what was done are told in the notice under the list.
-function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) {
+function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
     const STARTING = 'starting: its start() has not finished';
@@ -18,7 +18,6 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
         'needs and where its files are.';
     const COLUMNS = ['NAME', 'VERSION', 'CONTRIBUTES', ''];
 
-    let handlerLists = [];
     const rowFills = new WeakMap(); // row element -> its fill(mod)
 
     ui.addStyle(`
@@ -110,12 +109,10 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
     return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
 
     // The panel's pins are the shell's: under a shell that has none, no child is pinned.
-    function draw({ onDisk, running }) {
-        const shortcuts = keymap.list();
-        handlerLists = urlSchemes.list();
+    function draw({ onDisk, running, shortcuts, handlerLists }) {
         restart.draw(onDisk);
         const pinned = new Set(mods.pinned ? mods.pinned() : []);
-        rows.set(modRowsOf({ onDisk, running, shortcuts, pinned }));
+        rows.set(modRowsOf({ onDisk, running, shortcuts, handlerLists, pinned }));
     }
 
     function showNotice(text) {
@@ -153,7 +150,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
         });
         const source = chip({ ui, text: 'source', muted: true });
         const failure = ui.element('div', { className: 'settings-mod-failure' });
-        const details = modDetails({ ui, mods, urlSchemes, util, onPinnedChange: onChange });
+        const details = modDetails({ ui, mods, everyScheme, util, onPinnedChange: onChange });
 
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
@@ -174,7 +171,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
 
         function fill(mod) {
             current = mod;
-            const labels = contributionsOf(mod.live, mod.keys.length, urlSchemes.everyScheme);
+            const labels = contributionsOf(mod.live, mod.keys.length, everyScheme);
             name.textContent = name.title = mod.name;
             name.toggleAttribute('data-not-loaded', !!mod.notLoaded);
             version.textContent = mod.version || NO_VALUE;
@@ -197,7 +194,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
                 .join('\n');
             failure.hidden = !failure.textContent;
             failure.toggleAttribute('data-starting', failure.textContent === STARTING);
-            details.set(mod, handlerLists);
+            details.set(mod);
         }
 
         function showOpen(animate) {
@@ -314,7 +311,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
     // the ones found on disk that did not load or are still starting. `notLoaded` is why one is not running, `problem`
     // what went wrong with one that is. Permissions are read from the folder, so one that did not load still shows the
     // permissions it asks for.
-    function modRowsOf({ onDisk, running, shortcuts, pinned }) {
+    function modRowsOf({ onDisk, running, shortcuts, handlerLists, pinned }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (mod) => ({
             version: mod?.version,
@@ -336,6 +333,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
                 live,
                 pinned: pinned.has(live.id),
                 keys: keysOf(live.id),
+                handlerLists,
                 problem: found?.mainProcess.failure
                     ? 'a main process module did not start: ' + found.mainProcess.failure
                     : live.problem,
@@ -349,6 +347,7 @@ function modsSection({ ui, mods, keymap, urlSchemes, util, appName, onChange }) 
                 name: mod.name,
                 ...fromDisk(mod),
                 keys: keysOf(mod.id),
+                handlerLists,
                 notLoaded: mod.problem || STATE_WORDS[mod.state] || 'did not load',
             }));
         return [...loaded, ...notLoaded];
