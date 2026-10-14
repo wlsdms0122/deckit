@@ -42,7 +42,7 @@ export function createMod({ CONFIG, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) 
             NOTIFICATION.listen(deliver);
             const chordOf = (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.APP_OWNER, action));
             const given = shellMod ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail }) } : NO_SHELL;
-            const fn = (value) => (typeof value === 'function' ? '' : 'takes a function');
+            const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
             const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
             return {
                 members: ['icon', 'keywords', ...given.members],
@@ -50,10 +50,10 @@ export function createMod({ CONFIG, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) 
                 registrations: {
                     ...given.registrations,
                     keys: table,
-                    commands: fn,
-                    now: fn,
-                    resolve: fn,
-                    handleURL: fn,
+                    commands: functionProblem,
+                    now: functionProblem,
+                    resolve: functionProblem,
+                    handleURL: functionProblem,
                 },
                 mods: {
                     ...given.mods,

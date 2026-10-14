@@ -150,7 +150,7 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
 
     // Global first, in the order a keystroke tries them; bindings() relies on this order to pick winners. A
     // mod's key is global only with system.global-keys.
-    function catalog() {
+    function ordered() {
         const mods = CATALOG.mods().filter(({ id }) => scopes.has(id));
         const global = (mod) => mod.permissions.some(({ id }) => id === KEYMAP_PERMISSION.GLOBAL_KEYS);
         const keysOf = (mod, wantGlobal) =>
@@ -178,7 +178,7 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     // `shadowed` (never runs, another takes the chord first), `hides` (it hides `other` in its mod's page),
     // `hidden` (not in `other`'s mod's page, where the chord is `other`'s).
     function bindings() {
-        const list = catalog();
+        const list = ordered();
         const order = Object.keys(overrides);
         const rank = (binding) => (binding.changed ? order.indexOf(binding.id) : -1);
         const at = new Map(list.map((binding, index) => [binding.id, index]));
@@ -249,8 +249,8 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
 
     function announce() {
         for (const mod of CATALOG.mods()) {
-            const view = IDENTITY.pageOf(mod.id);
-            if (view) PROTOCOL.changed.send(view, {});
+            const page = IDENTITY.pageOf(mod.id);
+            if (page) PROTOCOL.changed.send(page, {});
         }
     }
 
@@ -259,9 +259,9 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     function handle(webContents, input) {
         if (recording) return take(input);
         if (input.type !== 'keyDown') return false;
-        const own = local.get(webContents.id)?.find(({ chord }) => CHORD.matches(chord, input));
-        if (own) {
-            own.run();
+        const taken = local.get(webContents.id)?.find(({ chord }) => CHORD.matches(chord, input));
+        if (taken) {
+            taken.run();
             return true;
         }
         const page = pageFor(webContents);
@@ -274,7 +274,7 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         if (!page || !delegated.isActive(page)) return false;
         if (typing.has(page.id) && CHORD.editsText(input)) return false;
         const mod = IDENTITY.modOf(page);
-        // The mod's own first, so it wins a chord it shares with the shell.
+        // The mod's own first, so it wins a chord it shares with the app's.
         const hit =
             active.find((binding) => binding.scope === 'mod' && binding.owner === mod?.id) ||
             active.find((binding) => binding.scope === 'app');
@@ -286,9 +286,9 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
             binding.run(webContents);
             return true;
         }
-        const view = IDENTITY.pageOf(binding.owner);
-        if (!view) return false;
-        PROTOCOL.key.send(view, { action: binding.action });
+        const page = IDENTITY.pageOf(binding.owner);
+        if (!page) return false;
+        PROTOCOL.key.send(page, { action: binding.action });
         return true;
     }
 

@@ -1,4 +1,5 @@
 import * as STORE from '../core/store/index.js';
+import * as PROXY from '../core/proxy/index.js';
 import * as DECK from '../deck/main.js';
 
 export function createApi({
@@ -141,14 +142,7 @@ export function createApi({
     }
 
     function frozen(value) {
-        const copy = structuredClone(value);
-        const freeze = (inner) => {
-            if (!inner || typeof inner !== 'object' || Object.isFrozen(inner)) return inner;
-            Object.freeze(inner);
-            for (const each of Object.values(inner)) freeze(each);
-            return inner;
-        };
-        return freeze(copy);
+        return PROXY.deepFreeze(structuredClone(value));
     }
 
     return { make };
