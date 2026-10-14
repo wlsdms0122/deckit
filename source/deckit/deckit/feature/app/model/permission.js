@@ -55,7 +55,7 @@ DeckitModule.define(
                 id: WEB_PERMISSION.SITE_PERMISSIONS,
                 name: 'Site Permissions',
                 icon: 'mic',
-                means: "It can let a site's pages use the camera, the microphone, notices and the rest a page asks for, and take that back.",
+                means: "It can let a site's pages use the camera, the microphone, notices, what you copied, your location and the apps links open in, and take that back.",
             },
             {
                 id: CLIPBOARD_PERMISSION.CLIPBOARD,

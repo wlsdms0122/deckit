@@ -1,16 +1,36 @@
 DeckitModule.define(
     'deckit/service/web/site-permission',
     {
-        uses: ['deckit/service/web/session', 'deckit/service/web/registry', 'deckit/service/web/protocol'],
+        uses: [
+            'deck/service/deck/identity',
+            'deckit/service/web/session',
+            'deckit/service/web/registry',
+            'deckit/service/web/protocol',
+            'deckit/service/web/model/permission',
+        ],
         provides: ['start', 'granted', 'ask', 'mayOpenApp', 'originOf', 'onChange', 'notices', 'allow', 'revoke'],
         runs: 'main',
     },
-    (SESSION, REGISTRY, PROTOCOL) => {
+    (IDENTITY, SESSION, REGISTRY, PROTOCOL, WEB_PERMISSION) => {
         // MARK: - Property
         // partition|origin|permission. Allowances live until exit: the mod hands them back through allow(). A
         // refusal is not kept, so a page refused by mistake can ask again once reloaded.
         const GRANTED = new Set();
         const MEDIA = { audio: 'microphone', video: 'camera' };
+        // What a site may have only once it is asked, as a browser asks the person: put to the mod showing it.
+        const ASKED = {
+            notifications: 'notifications',
+            'clipboard-read': 'clipboard-read',
+            geolocation: 'geolocation',
+        };
+        // What a browser lets a site have without asking. Anything neither here nor asked is refused.
+        const UNASKED = new Set([
+            'fullscreen',
+            'clipboard-sanitized-write',
+            'pointerLock',
+            'keyboardLock',
+            'mediaKeySystem',
+        ]);
         // Asked per scheme, so a site allowed one app is not allowed every app.
         const NEVER_OUT = new Set([
             'javascript',
@@ -52,10 +72,10 @@ DeckitModule.define(
         }
 
         // One question per page, site and set of permissions: a page asking again before it is answered joins the
-        // question already up.
+        // question already up. Only a mod holding system.site-permissions is asked; for any other the site is refused.
         function ask(host, tab, origin, permissions, about = {}) {
             return new Promise((resolve) => {
-                if (!origin || !permissions.length) return resolve(false);
+                if (!origin || !permissions.length || !decides(host)) return resolve(false);
                 const partition = SESSION.partitionOf(tab);
                 if (permissions.every((permission) => granted(partition, origin, permission))) return resolve(true);
                 const key = [tab.id, origin, ...[...permissions].sort()].join('|');
@@ -120,6 +140,11 @@ DeckitModule.define(
         }
 
         // MARK: - Private
+        function decides(host) {
+            const mod = IDENTITY.modOf(host);
+            return !!mod && mod.permissions.some(({ id }) => id === WEB_PERMISSION.SITE_PERMISSIONS);
+        }
+
         function keyOf(partition, origin, permission) {
             return `${partition}|${origin}|${permission}`;
         }
@@ -150,11 +175,11 @@ DeckitModule.define(
             return GRANTED.size;
         }
 
-        // What a page asks is put to the mod showing it. Anything deckit has no question for keeps Electron's
-        // answer, which allows.
+        // What a page asks that a browser would ask the person is put to the mod showing it.
         function onRequest(page, permission, callback, details) {
             const at = REGISTRY.tabOf(page);
             if (!at) return callback(false);
+            if (UNASKED.has(permission)) return callback(true);
             const origin = originOf(details?.securityOrigin || details?.requestingUrl || page.getURL());
             if (permission === 'openExternal') {
                 mayOpenApp(at.host, at.tab, details?.externalURL, page).then(callback);
@@ -163,22 +188,22 @@ DeckitModule.define(
             const permissions =
                 permission === 'media'
                     ? [...new Set((details?.mediaTypes || []).map((type) => MEDIA[type]).filter(Boolean))]
-                    : permission === 'notifications'
-                      ? ['notifications']
-                      : null;
-            if (!permissions) return callback(true);
+                    : Object.hasOwn(ASKED, permission)
+                      ? [ASKED[permission]]
+                      : [];
+            if (!permissions.length) return callback(false);
             ask(at.host, at.tab, origin, permissions).then(callback);
         }
 
         // A check has no way to ask, and a page told no stops before it ever asks, so media says yes and the
-        // request that follows asks.
+        // request that follows asks. What is asked answers whether it was allowed.
         function onCheck(page, permission, requestingOrigin, details) {
-            if (LOCAL_NETWORK.has(permission) || permission === 'media') return true;
-            if (permission !== 'notifications' || !page) return true;
+            if (LOCAL_NETWORK.has(permission) || UNASKED.has(permission) || permission === 'media') return true;
+            if (!Object.hasOwn(ASKED, permission) || !page) return false;
             return granted(
                 SESSION.partitionOf(page),
                 originOf(details?.securityOrigin || requestingOrigin),
-                'notifications'
+                ASKED[permission]
             );
         }
 
