@@ -18,7 +18,7 @@ export function createWeb({
     const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
     const icons = new Map(); // page id -> the icon it last announced
     const WINDOW_SIZE = { width: 520, height: 700 };
-    const windows = new Map(); // window page id -> { window, host }
+    const windows = new Map(); // window page id -> { window, embedder }
 
     // MARK: - Initializer
     // MARK: - Public
@@ -31,7 +31,7 @@ export function createWeb({
 
     // A mod's page that shows web pages. Only that mod's sessions attach there, and only the web, or a
     // file for a mod with system.files, loads in them.
-    function host(modPage) {
+    function prepareEmbedder(modPage) {
         const mod = IDENTITY.modOf(modPage);
         LOG.guard(modPage, 'will-attach-webview', (event, preferences, params) => {
             // A page keeps only what an element may choose; the rules between sites and the sandbox are deckit's.
@@ -56,23 +56,23 @@ export function createWeb({
         LOG.guard(modPage, 'did-attach-webview', (_event, page) => adopt(modPage, page, { inPage: true }));
         // A window page answers to the document that asked for it; a new document has no delegate for it.
         const closeWindows = () => {
-            for (const entry of windows.values()) if (entry.host === modPage) entry.window.close();
+            for (const entry of windows.values()) if (entry.embedder === modPage) entry.window.close();
         };
         LOG.guard(modPage, 'did-navigate', closeWindows);
         modPage.once('destroyed', closeWindows);
     }
 
     // The mod's page a web page shown in it answers to, so a keystroke in the web page is the mod page's.
-    function hostOf(page) {
+    function embedderOf(page) {
         const entry = REGISTRY.get(page.id);
-        return entry?.inPage && entry.tab === page.id ? entry.host : null;
+        return entry?.inPage && entry.tab === page.id ? entry.embedder : null;
     }
 
     // The deckit page a webContents answers to: a mod's or one the shell made, or the mod page that shows it as a
     // web page.
     function pageFor(webContents) {
         if (IDENTITY.modOf(webContents) || IDENTITY.pageNameOf(webContents)) return webContents;
-        return hostOf(webContents);
+        return embedderOf(webContents);
     }
 
     function holdsKeyboard(modPage) {
@@ -106,12 +106,12 @@ export function createWeb({
         );
 
         PROTOCOL.load.on(({ id, url }, sender) =>
-            pageOf(sender, id)
+            guestOf(sender, id)
                 ?.loadURL(url)
                 .catch(() => {})
         );
         PROTOCOL.navigate.on(({ id, to }, sender) => {
-            const page = pageOf(sender, id);
+            const page = guestOf(sender, id);
             if (!page) return;
             const history = page.navigationHistory;
             if (to === 'back' && history.canGoBack()) history.goBack();
@@ -120,27 +120,27 @@ export function createWeb({
             else if (to === 'stop') page.stop();
         });
         PROTOCOL.state.on(({ id }, sender) => {
-            const page = pageOf(sender, id);
+            const page = guestOf(sender, id);
             if (page) report(sender, page);
         });
         PROTOCOL.mute.on(({ id, on }, sender) => {
-            const page = pageOf(sender, id);
+            const page = guestOf(sender, id);
             if (!page) return;
             page.setAudioMuted(on);
             report(sender, page);
         });
         // Electron's findNext is true for a new search, false to move to the next match.
         PROTOCOL.find.on(({ id, text, start, back, matchCase }, sender) => {
-            if (text) pageOf(sender, id)?.findInPage(text, { forward: !back, findNext: start, matchCase });
+            if (text) guestOf(sender, id)?.findInPage(text, { forward: !back, findNext: start, matchCase });
         });
         PROTOCOL.stopFind.on(({ id, keepSelection }, sender) => {
-            pageOf(sender, id)?.stopFindInPage(keepSelection ? 'keepSelection' : 'clearSelection');
+            guestOf(sender, id)?.stopFindInPage(keepSelection ? 'keepSelection' : 'clearSelection');
         });
         PROTOCOL.close.on(({ id }, sender) => {
-            if (pageOf(sender, id)) windows.get(id)?.window.close();
+            if (guestOf(sender, id)) windows.get(id)?.window.close();
         });
         PROTOCOL.clickNotification.on(({ id, notification }, sender) => {
-            const page = pageOf(sender, id);
+            const page = guestOf(sender, id);
             if (page) SCRIPT.clickNotification(page, notification);
         });
     }
@@ -150,9 +150,9 @@ export function createWeb({
     }
 
     // A page the sender holds: one of its tabs, never another mod's.
-    function pageOf(sender, id) {
+    function guestOf(sender, id) {
         const entry = REGISTRY.get(id);
-        if (!entry || entry.host !== sender || !REGISTRY.isTab(id)) return null;
+        if (!entry || entry.embedder !== sender || !REGISTRY.isTab(id)) return null;
         const page = require('electron').webContents.fromId(id);
         return page && !page.isDestroyed() ? page : null;
     }
@@ -192,7 +192,7 @@ export function createWeb({
 
     function adopt(modPage, page, { inPage }) {
         const id = page.id;
-        REGISTRY.add(page, { host: modPage, mod: IDENTITY.modOf(modPage).id, tab: id, inPage });
+        REGISTRY.add(page, { embedder: modPage, mod: IDENTITY.modOf(modPage).id, tab: id, inPage });
         // A page is a webContents of its own: its keystrokes reach the key map only when it is listened to.
         KEYMAP.listen(page);
         AGENT.presentAsBrowser(page);
@@ -294,7 +294,7 @@ export function createWeb({
         });
         const page = pageView.webContents;
         const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
-        REGISTRY.add(page, { host: modPage, mod: IDENTITY.modOf(modPage).id, tab });
+        REGISTRY.add(page, { embedder: modPage, mod: IDENTITY.modOf(modPage).id, tab });
         KEYMAP.listen(page);
         holdWindowOpen(modPage, page, { inPage: false });
         const size = options.width && options.height ? { width: options.width, height: options.height } : null;
@@ -316,7 +316,7 @@ export function createWeb({
         const page = pageView.webContents;
         const id = page.id;
         const window = showInWindow(pageView, { title, size: WINDOW_SIZE });
-        windows.set(id, { window, host: modPage });
+        windows.set(id, { window, embedder: modPage });
         LOG.guard(window, 'closed', () => {
             windows.delete(id);
             PROTOCOL.closed.send(modPage, { id });
@@ -344,5 +344,5 @@ export function createWeb({
         return window;
     }
 
-    return { start, host, hostOf, pageFor, holdsKeyboard, windowOptions };
+    return { start, prepareEmbedder, embedderOf, pageFor, holdsKeyboard, windowOptions };
 }

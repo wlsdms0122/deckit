@@ -40,7 +40,7 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
     ]);
     // Nothing follows a local network check to ask, and Electron does not block the connection either.
     const LOCAL_NETWORK = new Set(['local-network-access', 'local-network', 'loopback-network']);
-    const questions = new Map(); // ask id -> { host, key, tab, gone, waiting: [resolve] }
+    const questions = new Map(); // ask id -> { embedder, key, tab, gone, waiting: [resolve] }
     const questionFor = new Map(); // tab|origin|permissions -> ask id
     const listeners = new Set();
     let sequence = 0;
@@ -53,7 +53,7 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
             session.setPermissionCheckHandler(onCheck);
         });
         PROTOCOL.permit.on(({ ask: id, allow }, sender) => {
-            if (questions.get(id)?.host === sender) settle(id, allow);
+            if (questions.get(id)?.embedder === sender) settle(id, allow);
         });
     }
 
@@ -63,9 +63,9 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
 
     // One question per page, site and set of permissions: a page asking again before it is answered joins the
     // question already up. Only a mod holding system.site-permissions is asked; for any other the site is refused.
-    function ask(host, tab, origin, permissions, about = {}) {
+    function ask(embedder, tab, origin, permissions, about = {}) {
         return new Promise((resolve) => {
-            if (!origin || !permissions.length || !decides(host)) return resolve(false);
+            if (!origin || !permissions.length || !decides(embedder)) return resolve(false);
             const partition = SESSION.partitionOf(tab);
             if (permissions.every((permission) => granted(partition, origin, permission))) return resolve(true);
             const key = [tab.id, origin, ...[...permissions].sort()].join('|');
@@ -76,21 +76,21 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
             }
             const id = ++sequence;
             const gone = () => settle(id, false);
-            questions.set(id, { host, key, tab, gone, waiting: [resolve] });
+            questions.set(id, { embedder, key, tab, gone, waiting: [resolve] });
             questionFor.set(key, id);
             tab.once('destroyed', gone);
-            PROTOCOL.asking.send(host, { id: tab.id, ask: id, origin, permissions, ...about });
+            PROTOCOL.asking.send(embedder, { id: tab.id, ask: id, origin, permissions, ...about });
         });
     }
 
     // Asked of the top document's site whichever frame wants the app: that is the site the person sees.
-    function mayOpenApp(host, tab, url, asking = tab) {
+    function mayOpenApp(embedder, tab, url, asking = tab) {
         const { app } = require('electron');
         const scheme = schemeOf(url);
         if (!scheme || NEVER_OUT.has(scheme)) return Promise.resolve(false);
         const name = app.getApplicationNameForProtocol(String(url));
         if (!name) return Promise.resolve(false);
-        return ask(host, tab, originOf(asking.getURL()), ['open:' + scheme], {
+        return ask(embedder, tab, originOf(asking.getURL()), ['open:' + scheme], {
             app: name.replace(/\.app$/i, ''),
             url: String(url),
         });
@@ -109,8 +109,8 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
         listeners.add(listener);
     }
 
-    // The origins a session allows notices, as the page script reads them.
-    function notices(partition) {
+    // The origins a session allows notifications, as the page script reads them.
+    function notifications(partition) {
         const table = {};
         for (const key of GRANTED) {
             const [keyPartition, origin, permission] = key.split('|');
@@ -130,8 +130,8 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
     }
 
     // MARK: - Private
-    function decides(host) {
-        const mod = IDENTITY.modOf(host);
+    function decides(embedder) {
+        const mod = IDENTITY.modOf(embedder);
         return !!mod && mod.permissions.some(({ id }) => id === WEB_PERMISSION.SITE_PERMISSIONS);
     }
 
@@ -172,7 +172,7 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
         if (UNASKED.has(permission)) return callback(true);
         const origin = originOf(details?.securityOrigin || details?.requestingUrl || page.getURL());
         if (permission === 'openExternal') {
-            mayOpenApp(at.host, at.tab, details?.externalURL, page).then(callback);
+            mayOpenApp(at.embedder, at.tab, details?.externalURL, page).then(callback);
             return;
         }
         const permissions =
@@ -182,7 +182,7 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
                   ? [ASKED[permission]]
                   : [];
         if (!permissions.length) return callback(false);
-        ask(at.host, at.tab, origin, permissions).then(callback);
+        ask(at.embedder, at.tab, origin, permissions).then(callback);
     }
 
     // A check has no way to ask, and a page told no stops before it ever asks, so media says yes and the
@@ -197,5 +197,5 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
         );
     }
 
-    return { start, granted, ask, mayOpenApp, originOf, onChange, notices, allow, revoke };
+    return { start, granted, ask, mayOpenApp, originOf, onChange, notifications, allow, revoke };
 }

@@ -68,7 +68,7 @@ export function createSession({ STORAGE, LOG, PARTITION }) {
     }
 
     // What a mod kept in the web sessions it made.
-    async function forget(modId) {
+    async function clearSessions(modId) {
         const sessions = STORAGE.state.read(SESSIONS, {});
         for (const name of sessions[modId] || []) await clear(modId, name);
         delete sessions[modId];
@@ -106,5 +106,5 @@ export function createSession({ STORAGE, LOG, PARTITION }) {
         return new Error(`response too large: more than ${FETCH_LIMIT} bytes (${bytes})`);
     }
 
-    return { of, partitionOf, onCreate, fetchText, clear, forget };
+    return { of, partitionOf, onCreate, fetchText, clear, clearSessions };
 }

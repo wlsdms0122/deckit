@@ -2,7 +2,7 @@ import * as PROTOCOL from './protocol.js';
 import * as DECK from '../deck/page.js';
 import { createPartition } from './web/model/partition.js';
 import { createWeb } from './web/page.js';
-import { createNotify } from './notify/page.js';
+import { createNotification } from './notification/page.js';
 import { createKeymap } from './keymap/page.js';
 import { createCommand } from './command/page.js';
 import { createMod } from './mod/page.js';
@@ -30,7 +30,7 @@ function start(shell, exports) {
     const MOD = createMod({
         CONFIG,
         WEB: createWeb({ PARTITION: createPartition({ CONFIG }) }),
-        NOTIFY: createNotify(),
+        NOTIFICATION: createNotification(),
         KEYMAP: createKeymap(),
         COMMAND: createCommand(),
         HOST: exports,

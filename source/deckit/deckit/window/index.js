@@ -4,16 +4,16 @@ export function createWindow({ LOG }) {
     const placed = new WeakMap(); // view -> { window, bounds, onClose }
     const inWindow = new WeakMap(); // window -> Set of the views placed in it
     const roots = new Set(); // every view placed in a window
-    let shell = null;
+    let host = null;
 
     // MARK: - Initializer
-    // `openWindow` is the shell's: the window, its bar and where in it the view goes are the app's.
+    // MARK: - Public
+    // `openWindow` is the host app's: the window, its bar and where in it the view goes are the app's.
     function start({ openWindow }) {
-        shell = { openWindow };
+        host = { openWindow };
     }
 
-    // MARK: - Public
-    // A window of the app's holding `view`, of `size`, made by the shell, which puts the view in it with the
+    // A window of the app's holding `view`, of `size`, made by the host app, which puts the view in it with the
     // `place` it is handed. One open under `key` is brought forward instead. `onClose` runs once the view is out
     // of the window.
     function open({ key = null, view, title = '', size = null, onClose = null } = {}) {
@@ -24,7 +24,7 @@ export function createWindow({ LOG }) {
             already.focus();
             return already;
         }
-        const window = shell.openWindow({
+        const window = host.openWindow({
             view,
             title,
             size,

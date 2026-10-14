@@ -25,7 +25,7 @@ export function createCertificate({ LOG, SESSION, REGISTRY }) {
             }
             callback(false);
             remember(key, page, url);
-            PROTOCOL.refused.send(at.host, {
+            PROTOCOL.refused.send(at.embedder, {
                 id: at.tab.id,
                 certificate: {
                     url,

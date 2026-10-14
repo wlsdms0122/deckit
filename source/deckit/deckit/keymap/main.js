@@ -7,7 +7,7 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     // MARK: - Property
     const OVERRIDES = 'keys';
     const RECORDING_MS = 20 * 1000;
-    const own = []; // [{ action, key, label, scope: 'global' | 'shell', run(webContents) }]
+    const own = []; // [{ action, key, label, scope: 'global' | 'app', run(webContents) }]
     const scopes = new Map(); // mod id -> [{ action, key, label, global }]
     const typing = new Set(); // webContents ids with a field focused
     const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
@@ -84,12 +84,12 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         webContents.once('destroyed', forget);
     }
 
-    // A key the shell runs itself. `global` ones work anywhere a webContents is listened to; the rest only in the
-    // page in front. Answers its id, for chordOf.
+    // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
+    // on deckit. `global` ones work anywhere a webContents is listened to; the rest only in the page in front. Answers its id, for chordOf.
     function register({ action, key, label, global = false, run }) {
-        own.push({ action, key, label, scope: global ? 'global' : 'shell', run });
+        own.push({ action, key, label, scope: global ? 'global' : 'app', run });
         announce();
-        return BINDING_ID.idOf(BINDING_ID.SHELL_OWNER, action);
+        return BINDING_ID.idOf(BINDING_ID.APP_OWNER, action);
     }
 
     // The chord bound now to an id, as a person reads it.
@@ -114,7 +114,7 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     // What a reader needs of the binding an issue is about.
     function factsOf(binding) {
         const { id, chord, label, owner, ownerName, scope } = binding;
-        return { id, chord, label, owner, ownerName, scope, shell: owner === BINDING_ID.SHELL_OWNER };
+        return { id, chord, label, owner, ownerName, scope, app: owner === BINDING_ID.APP_OWNER };
     }
 
     function mark(set, sender, on) {
@@ -158,11 +158,11 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         return [
             ...own
                 .filter((key) => key.scope === 'global')
-                .map((key) => bindingOf(BINDING_ID.SHELL_OWNER, CONFIG.name, 'global', key)),
+                .map((key) => bindingOf(BINDING_ID.APP_OWNER, CONFIG.name, 'global', key)),
             ...mods.flatMap((mod) => keysOf(mod, true).map((key) => bindingOf(mod.id, mod.name, 'global', key))),
             ...own
-                .filter((key) => key.scope === 'shell')
-                .map((key) => bindingOf(BINDING_ID.SHELL_OWNER, CONFIG.name, 'shell', key)),
+                .filter((key) => key.scope === 'app')
+                .map((key) => bindingOf(BINDING_ID.APP_OWNER, CONFIG.name, 'app', key)),
             ...mods.flatMap((mod) => keysOf(mod, false).map((key) => bindingOf(mod.id, mod.name, 'mod', key))),
         ];
     }
@@ -211,8 +211,8 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
                     earlier
                 ) {
                     say(binding, 'error', 'shadowed', other);
-                } else if (binding.scope === 'mod' && other.scope === 'shell') say(binding, 'warn', 'hides', other);
-                else if (binding.scope === 'shell' && other.scope === 'mod') say(binding, 'warn', 'hidden', other);
+                } else if (binding.scope === 'mod' && other.scope === 'app') say(binding, 'warn', 'hides', other);
+                else if (binding.scope === 'app' && other.scope === 'mod') say(binding, 'warn', 'hidden', other);
             }
         }
         return list.map((binding) => ({
@@ -277,12 +277,12 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         // The mod's own first, so it wins a chord it shares with the shell.
         const hit =
             active.find((binding) => binding.scope === 'mod' && binding.owner === mod?.id) ||
-            active.find((binding) => binding.scope === 'shell');
+            active.find((binding) => binding.scope === 'app');
         return hit ? run(hit, webContents) : false;
     }
 
     function run(binding, webContents) {
-        if (binding.owner === BINDING_ID.SHELL_OWNER) {
+        if (binding.owner === BINDING_ID.APP_OWNER) {
             binding.run(webContents);
             return true;
         }

@@ -2,7 +2,7 @@ import * as PROTOCOL from './protocol.js';
 
 export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
     // MARK: - Property
-    // Electron's own notice knows nothing of the page, so the page's Notification is replaced by a content
+    // Electron's own notification knows nothing of the page, so the page's Notification is replaced by a content
     // script, which reports through a binding only the DevTools session hears. Chromium does not tell an
     // embedder what a page captures, so its capture calls are watched there too. Neither covers a service
     // worker or a frame inside the page.
@@ -19,7 +19,7 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
         });
     }
 
-    function attach(host, page, changed) {
+    function attach(embedder, page, changed) {
         const partition = SESSION.partitionOf(page);
         const allowed = (origin) => SITE_PERMISSION.granted(partition, origin, 'notifications');
         const evaluate = (expression) =>
@@ -28,7 +28,7 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
         // Also run in the document already there: it is usually under way before the session is. The script
         // does nothing the second time.
         const install = () => {
-            const source = `(${inPage})(${JSON.stringify(BINDING)}, ${JSON.stringify(SITE_PERMISSION.notices(partition))})`;
+            const source = `(${inPage})(${JSON.stringify(BINDING)}, ${JSON.stringify(SITE_PERMISSION.notifications(partition))})`;
             const dropped = script
                 ? DEBUGGER.send(page, 'Page.removeScriptToEvaluateOnNewDocument', { identifier: script })
                 : Promise.resolve();
@@ -61,7 +61,7 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
                 });
                 changed();
             } else if (message.op === 'show' && allowed(origin)) {
-                PROTOCOL.notified.send(host, {
+                PROTOCOL.notified.send(embedder, {
                     id: page.id,
                     notification: id,
                     title: String(message.title).slice(0, 200),
@@ -69,7 +69,7 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
                     silent: !!message.silent,
                 });
             } else if (message.op === 'request') {
-                SITE_PERMISSION.ask(host, page, origin, ['notifications']).then((ok) =>
+                SITE_PERMISSION.ask(embedder, page, origin, ['notifications']).then((ok) =>
                     evaluate(`window.__deckitNotification?.permission(${id}, "${ok ? 'granted' : 'denied'}")`)
                 );
             }
@@ -87,7 +87,7 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
             DEBUGGER.send(page, 'Page.enable')
                 .then(bind)
                 .then(install)
-                .catch((error) => LOG.error("a page's notices and capture stay the page's own", error));
+                .catch((error) => LOG.error("a page's notifications and capture stay the page's own", error));
         if (page.getURL() || page.isLoading()) arm();
         else page.once('did-start-loading', arm);
     }

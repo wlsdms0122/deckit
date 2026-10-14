@@ -1,5 +1,6 @@
 import * as PROTOCOL from './protocol.js';
 import * as TONE from './model/tone.js';
+import * as DECK from '../../deck/main.js';
 
 export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
@@ -30,7 +31,7 @@ export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
 
         // An entry crosses as data, under an id this side keeps: running it comes back by that id.
         const wire = (mod, kind, entry) => {
-            const id = `${mod.id}:${entry.id}`;
+            const id = DECK.scopedName(mod.id, entry.id);
             entries.set(id, { mod: mod.id, local: entry.id });
             return { ...entry, id, kind, mod: { id: mod.id, name: mod.name } };
         };

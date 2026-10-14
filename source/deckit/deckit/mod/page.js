@@ -9,11 +9,11 @@ import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as BINDING_ID from '../keymap/model/binding-id.js';
 import * as PROXY from '../../core/proxy/index.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
-import * as NOTIFY_PERMISSION from '../notify/model/permission.js';
+import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 
-export function createMod({ CONFIG, WEB, NOTIFY, KEYMAP, COMMAND, HOST }) {
+export function createMod({ CONFIG, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) {
     // MARK: - Property
     // What the shell gives a mod where none is on deckit: nothing.
     const NO_SHELL = Object.freeze({
@@ -28,7 +28,7 @@ export function createMod({ CONFIG, WEB, NOTIFY, KEYMAP, COMMAND, HOST }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // What deckit gives a mod on deck (deck/page): the web, opening addresses, the clipboard, notices,
+    // What deckit gives a mod on deck (deck/page): the web, opening addresses, the clipboard, notifications,
     // keys, commands, main process modules, and the shell's. It reads how the mod is listed, its `icon` and
     // `keywords`, which every shell reads in its run's summary. `shellMod(context)` is what the shell on deckit, if
     // one is, gives the mod: `members`, what it reads of the entry; `deck`, the members it adds; `registrations`,
@@ -39,8 +39,8 @@ export function createMod({ CONFIG, WEB, NOTIFY, KEYMAP, COMMAND, HOST }) {
     function layerOf(shellMod) {
         return ({ mod, deliver, fail }) => {
             WEB.listen();
-            NOTIFY.listen(deliver);
-            const chordOf = (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.SHELL_OWNER, action));
+            NOTIFICATION.listen(deliver);
+            const chordOf = (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.APP_OWNER, action));
             const given = shellMod ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail }) } : NO_SHELL;
             const fn = (value) => (typeof value === 'function' ? '' : 'takes a function');
             const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
@@ -90,7 +90,7 @@ export function createMod({ CONFIG, WEB, NOTIFY, KEYMAP, COMMAND, HOST }) {
                     ? { readText: CLIPBOARD.readText, writeText: CLIPBOARD.writeText }
                     : { writeText: CLIPBOARD.writeText }
             ),
-            ...(has(NOTIFY_PERMISSION.NOTIFICATIONS) ? { notify: NOTIFY.notify } : {}),
+            ...(has(NOTIFICATION_PERMISSION.NOTIFICATIONS) ? { notify: NOTIFICATION.notify } : {}),
             ...(has(MAIN_PROCESS_PERMISSION.MAIN_PROCESS) ? { mainProcess: MAIN_PROCESS.forMod({ deliver }) } : {}),
             ...(has(KEYMAP_PERMISSION.KEY_MAP)
                 ? {

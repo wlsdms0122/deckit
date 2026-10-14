@@ -14,7 +14,7 @@ import { createScript } from './web/script.js';
 import { createWeb } from './web/main.js';
 import { createKeymap } from './keymap/main.js';
 import { createOpen } from './open/main.js';
-import { createNotify } from './notify/main.js';
+import { createNotification } from './notification/main.js';
 import { createClipboard } from './clipboard/main.js';
 import { createCommand } from './command/main.js';
 import { createMainProcess } from './main-process/main.js';
@@ -33,7 +33,7 @@ const SCHEME = DECK.SCHEME;
 const CONFIG = { id: 'deckit', name: 'Deckit', agent: [], schemeHandlers: {} };
 const FOLDERS = ['home', 'ship', 'sources'];
 // What the host app answers deckit: the windows and the process are its own.
-const ANSWERS = ['openWindow', 'noticeClicked', 'restart'];
+const ANSWERS = ['openWindow', 'notificationClicked', 'restart'];
 // Main's channels and its sessions' protocols are the process's: deckit connects once.
 let connected = false;
 
@@ -87,7 +87,7 @@ function make({ preload, host, config: CONFIG, folders }) {
         SCRIPT,
     });
     const OPEN = createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER });
-    const NOTIFY = createNotify({ LOG, IDENTITY });
+    const NOTIFICATION = createNotification({ LOG, IDENTITY });
     const CLIPBOARD = createClipboard({ IDENTITY });
     const COMMAND = createCommand({ LOG, IDENTITY, CATALOG, RUNNER });
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
@@ -115,7 +115,6 @@ function make({ preload, host, config: CONFIG, folders }) {
             before: permission.id.startsWith('system.') ? PERMISSIONS.WIDER_THAN : null,
         });
     MANIFEST.define(SCHEMES.FIELD, SCHEMES.field());
-    LOG.start();
     require('electron')
         .app.whenReady()
         .then(() => start(preload, host));
@@ -134,7 +133,7 @@ function make({ preload, host, config: CONFIG, folders }) {
         WEB.start();
         KEYMAP.start();
         OPEN.start();
-        NOTIFY.start({ clicked: () => host.noticeClicked() });
+        NOTIFICATION.start({ clicked: () => host.notificationClicked() });
         CLIPBOARD.start();
         COMMAND.start();
         MAIN_PROCESS.start();
@@ -164,14 +163,14 @@ function make({ preload, host, config: CONFIG, folders }) {
                 return { restart: MAIN_PROCESS.restartPending().some((pending) => pending.id === id) };
             },
             removed: MAIN_PROCESS.unload,
-            forget: SESSION.forget,
+            clearSessions: SESSION.clearSessions,
         });
     }
 
     // A mod's page shows the web, hears the key map, and offers what it opens to the scheme's handlers: a window it
     // asks for, and a link that leaves its origin, which deck holds it to.
     function preparePage(webContents, mod) {
-        WEB.host(webContents);
+        WEB.prepareEmbedder(webContents);
         KEYMAP.listen(webContents);
         const pressed = () => ({ userInitiated: IDENTITY.consumeUserActivation(webContents) });
         webContents.setWindowOpenHandler((details) => {

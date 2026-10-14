@@ -19,7 +19,8 @@ export function createApi({
     const path = require('path');
     // A page the shell makes is named as a host is, with no dot, so its origin is never a mod's.
     const PAGE_NAME = /^[a-z][a-z0-9-]*$/;
-    const STATE_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+    // A key names a file, and a Mac's disk is blind to case: lower case only.
+    const STATE_KEY = /^[a-z0-9][a-z0-9._-]{0,63}$/;
     const NOTIFICATIONS = Object.freeze([...DECK.NOTIFICATIONS]);
     const facts = new WeakMap(); // a run -> what the host app reads of it
 
@@ -45,7 +46,7 @@ export function createApi({
                 modOf: (webContents) => IDENTITY.modOf(webContents)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
                 managerFrom: (webContents) => IDENTITY.modFrom(webContents, DECK.MODS).id,
-                relaunchAll: RUNNER.restart,
+                relaunchAll: RUNNER.relaunchAll,
             }),
             pages: Object.freeze({
                 make: (name) => makePage(makeView, name),

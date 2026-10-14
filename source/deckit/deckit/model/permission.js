@@ -2,7 +2,7 @@ import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as DECK from '../../deck/main.js';
 import * as WEB_PERMISSION from '../web/model/permission.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
-import * as NOTIFY_PERMISSION from '../notify/model/permission.js';
+import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 
@@ -39,7 +39,7 @@ const PERMISSIONS = [
         id: WEB_PERMISSION.SITE_PERMISSIONS,
         name: 'Site Permissions',
         icon: 'mic',
-        means: "It can let a site's pages use the camera, the microphone, notices, what you copied, your location and the apps links open in, and take that back.",
+        means: "It can let a site's pages use the camera, the microphone, notifications, what you copied, your location and the apps links open in, and take that back.",
     },
     {
         id: CLIPBOARD_PERMISSION.CLIPBOARD,
@@ -48,10 +48,10 @@ const PERMISSIONS = [
         means: 'It can read what you copied, from any app. Copying text needs no permission.',
     },
     {
-        id: NOTIFY_PERMISSION.NOTIFICATIONS,
+        id: NOTIFICATION_PERMISSION.NOTIFICATIONS,
         name: 'Notifications',
         icon: 'bell',
-        means: 'It can show notices in the corner of the screen, while you are looking at something else.',
+        means: 'It can show notifications in the corner of the screen, while you are looking at something else.',
     },
     {
         id: KEYMAP_PERMISSION.GLOBAL_KEYS,

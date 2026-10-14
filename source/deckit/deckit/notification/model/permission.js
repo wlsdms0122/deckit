@@ -1,5 +1,5 @@
 // MARK: - Property
-// What a mod holds to show notices.
+// What a mod holds to show notifications.
 const NOTIFICATIONS = 'system.notifications';
 
 // MARK: - Initializer
