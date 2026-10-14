@@ -76,7 +76,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
 | `deckit.styles` | how every page looks, other mods' among them, and so what they show | `deck.styles` |
 
-An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deck: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another mod.
+An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deckit and its shell: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another mod.
 
 ## The entry
 
@@ -137,7 +137,7 @@ The view came on screen, and went. They come in turn, never twice running.
 deck.keys({ newTab: { key: 'mod+t', label: 'New tab', run() { … } } });
 ```
 
-`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. A key is live only while its mod is on screen, in its view and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app, its mod off screen and the panel closed included; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses. A headless mod is never on screen, so its keys are global ones, and one that is not is refused and shown on its row; what it offers to be reached from anywhere without one is a command.
+`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. A key is live only while its mod is on screen, in its view and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app, its mod off screen and the panel closed included; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses. With deckit's shell a headless mod is never on screen, so its keys are global ones, and one that is not is refused and shown on its row; what it offers to be reached from anywhere without one is a command.
 
 ### deck.commands(fn)
 
@@ -239,11 +239,11 @@ page.delegate = {
 
 A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers. Answer `false` when the mod opened it itself.
 
-### What the mod asks of deck
+### What the mod asks
 
 | Member | What it does |
 |---|---|
-| `show()` | puts the calling mod's view on screen; a mod with no view in the panel, or one still starting, has nothing to show |
+| `show()` | the shell's: puts the calling mod's view on screen; a mod with no view in the panel, or one still starting, has nothing to show |
 | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` | events, its own sent and any mod's heard (Using what another mod does) |
 | `open(url, { activates, userInitiated, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deck's own answer; resolves to whether anything opened it |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |

@@ -49,18 +49,18 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // What deckit gives a mod on deck (deck/service/deck/page): the web, opening addresses, the clipboard,
-        // notices, keys, commands, main process modules, and the shell's. `shell(context)` is what the shell on deckit,
-        // if one is, gives the mod: `deck`, the members it adds; `registrations`, the ones it adds, each by its check;
+        // What deckit gives a mod on deck (deck/service/deck/page): the web, opening addresses, the clipboard, notices,
+        // keys, commands, main process modules, and the shell's. `shellMod(context)` is what the shell on deckit, if
+        // one is, gives the mod: `deck`, the members it adds; `registrations`, the ones it adds, each by its check;
         // `blocksKeys()`, whether a key pressed now is dropped; `keyProblem(key, parts)`, why a key would never run, or
         // ''; and `contribute(parts)`, which answers what main is told of the mod beside deckit's own. Deckit's own
         // members and registrations are never the shell's.
-        function layerOf(shell) {
+        function layerOf(shellMod) {
             return ({ mod, deliver, fail }) => {
                 WEB.listen();
                 NOTIFY.listen(deliver);
                 const chordOf = (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.DECKIT_OWNER, action));
-                const given = shell ? { ...NO_SHELL, ...shell({ mod, chordOf, deliver, fail }) } : NO_SHELL;
+                const given = shellMod ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail }) } : NO_SHELL;
                 const fn = (value) => (typeof value === 'function' ? '' : 'takes a function');
                 const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
                 return {
@@ -129,8 +129,10 @@ DeckitModule.define(
             };
         }
 
-        // What deckit joins of what start() registered, and what main is told of it.
+        // What deckit joins of what start() registered, and what main is told of it. The shell's goes first: a view it
+        // cannot put up leaves the mod unstarted, with nothing of it joined.
         function contribute(mod, parts, entry, { given, deliver, fail }) {
+            const reported = given.contribute(parts) || {};
             const names = mod.urlSchemes;
             const opens = typeof parts.handleURL === 'function';
             if (names.length && !opens)
@@ -151,7 +153,6 @@ DeckitModule.define(
                 problemOf: (key) => given.keyProblem(key, parts),
             });
             KEYMAP.connect({ deliver, blocksKeys: given.blocksKeys });
-            const reported = given.contribute(parts) || {};
             return {
                 contributions: { ...reported.contributions },
                 summary: {

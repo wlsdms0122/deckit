@@ -183,7 +183,15 @@ DeckitModule.define(
                 query: (raw, page) => PROTOCOL.query.send({ raw, page: page || null }),
                 pick: (id) => PROTOCOL.pick.send({ id }),
             };
-            PROTOCOL.supply.on(({ items, now }) => {
+            let toned = false;
+            PROTOCOL.supply.on(({ items, now, tones }) => {
+                // A readout's tone with no look here is drawn as info: said once, in the log.
+                if (!toned) {
+                    toned = true;
+                    const missing = tones.filter((tone) => !Object.hasOwn(TONE_LOOK, tone));
+                    if (missing.length)
+                        console.error(`[deckit] the switcher has no look for the tone ${missing.join(', ')}`);
+                }
                 clearTimeout(giveUpTimer);
                 if (switcher) return;
                 clearTimeout(exitTimer);

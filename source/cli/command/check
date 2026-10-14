@@ -104,6 +104,8 @@ function checkFile(file, { name, provides, plain, uses }) {
 // library reaches another's around what that one answers.
 function checkChannels(file, plain) {
     const library = file.split('/')[0];
+    if (/\bIPC\.(?:rendererToMain|mainToRenderer)\(\s*(?=\S)(?!["'`][^"'`$]*["'`])/.test(plain))
+        say(file, 'declares a channel not written out as text, so whose it is cannot be read');
     for (const [, channel] of plain.matchAll(/\bIPC\.(?:rendererToMain|mainToRenderer)\(\s*["'`]([^"'`]+)["'`]/g)) {
         if (!channel.startsWith(library + ':')) say(file, `declares the channel ${channel}, which is not ${library}'s`);
         if (channels.has(channel))

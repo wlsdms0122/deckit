@@ -88,7 +88,8 @@ DeckitModule.define(
         }
 
         // MARK: - Private
-        // Made the first time it is asked for. A page that reloads (a theme change reloads it) cannot hold an open list.
+        // Made the first time it is asked for. A page that reloads (a theme change reloads it) cannot hold an open
+        // list.
         function build() {
             if (state.view) return state.view;
             const view = deckit.pages.make(PAGE.PAGE_NAME);
@@ -168,7 +169,7 @@ DeckitModule.define(
             await Promise.race([Promise.all(landed), new Promise((done) => setTimeout(done, NOW_WAIT_MS))]);
             late = true;
             if (mine !== supplies || !list()) return;
-            PROTOCOL.supply.send(list(), { items, now: roundRobin(buckets) });
+            PROTOCOL.supply.send(list(), { items, now: roundRobin(buckets), tones: deckit.commands.tones });
         }
 
         // The mod's names are aliases here, so a prefix of its name still finds it.

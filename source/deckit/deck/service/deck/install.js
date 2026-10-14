@@ -24,7 +24,7 @@ DeckitModule.define(
             return copies;
         }
 
-        // The manifest of a folder that can be installed, or a throw that says why not: a mod deckit would not
+        // The manifest of a folder that can be installed, or a throw that says why not: a mod deck would not
         // load, or a folder that holds the installed copy or is held by it (copying would take the source with it).
         // `refuse(manifest)` adds the caller's own reason, or ''.
         function installable(from, refuse = () => '') {

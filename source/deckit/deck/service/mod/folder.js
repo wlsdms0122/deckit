@@ -14,7 +14,7 @@ DeckitModule.define(
         // MARK: - Public
         // The mod folders in `root`, in the order of their names exactly as on disk: on a disk that ignores case, a
         // name matching only in another case is no mod's. A folder with no manifest is not a broken mod but no
-        // mod, and a dot name (.shipped) is deckit's own.
+        // mod, and a dot name (.shipped) is deck's own.
         function modsIn(root) {
             if (!fs.existsSync(root)) return [];
             return fs
@@ -30,7 +30,7 @@ DeckitModule.define(
             return loadable(folder).manifest.id;
         }
 
-        // Whether a folder is a mod deckit loads: { manifest, problem }, the manifest given back with a problem too.
+        // Whether a folder is a mod deck loads: { manifest, problem }, the manifest given back with a problem too.
         // A manifest that names no id is shown by the folder's name.
         function loadable(folder) {
             const name = path.basename(path.resolve(folder));

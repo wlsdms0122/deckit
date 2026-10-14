@@ -12,12 +12,14 @@ DeckitModule.define(
         const API = '1.0.0';
         const FIELDS = new Set(['id', 'name', 'version', 'api', 'main', 'requires', 'permissions']);
         const added = new Map(); // a field a layer reads -> { key, read, problemOf }
+        let reading = false; // a manifest has been read
 
         // MARK: - Initializer
         // MARK: - Public
-        // A field a layer reads, defined before the app is ready: the manifest holds `read(raw)` under `key`, and
+        // A field a layer reads, defined before any manifest is read: the manifest holds `read(raw)` under `key`, and
         // `problemOf(raw, value)` says what is wrong with one the mod wrote, or ''.
         function define(field, { key, read: readField, problemOf: problemOfField }) {
+            if (reading) throw new Error(`[deckit] the manifest field ${field} is defined after manifests were read`);
             if (FIELDS.has(field) || added.has(field))
                 throw new Error(`[deckit] the manifest field ${field} is defined`);
             added.set(field, { key, read: readField, problemOf: problemOfField });
@@ -26,6 +28,7 @@ DeckitModule.define(
         // Returns { manifest, problem }. The manifest comes back with a problem too, so the row that says what is
         // wrong can still carry the mod's name; `fallback` stands for its id where the manifest gives none.
         function read(text, fallback) {
+            reading = true;
             let raw;
             try {
                 raw = TOML.parse(text);
@@ -95,7 +98,7 @@ DeckitModule.define(
         function mainProblem(raw) {
             const example = 'main = "dist/main.js"';
             if (typeof raw.main !== 'string' || !raw.main.trim())
-                return `${FILE} needs main, the file deckit runs, as ${example}`;
+                return `${FILE} needs main, the file deck runs, as ${example}`;
             const parts = raw.main.split('/');
             if (raw.main.startsWith('/') || raw.main.includes('\\') || parts.includes('..'))
                 return `main must be a path inside the mod's folder, as ${example}, not ${JSON.stringify(raw.main)}`;

@@ -19,7 +19,7 @@ DeckitModule.define(
         const ORDER = 'mod-order';
         let catalogued = []; // every mod read, loading or not
         let shipOrder = []; // the ids of what the app ships, in its order
-        const installs = new Map(); // mod id -> how many times it was installed while deckit ran
+        const installs = new Map(); // mod id -> how many times it was installed while deck ran
         const listeners = new Set();
 
         // MARK: - Initializer
@@ -30,7 +30,7 @@ DeckitModule.define(
             for (const mod of catalogued) if (mod.problem) LOG.warn(`mod ${mod.id} not loaded: ${mod.problem}`);
         }
 
-        // Every mod deckit reads, a source before an installed one of the same id, each with whether it loads
+        // Every mod deck reads, a source before an installed one of the same id, each with whether it loads
         // and why not, and the folders of the same id it hides.
         function found() {
             return catalogued;
@@ -67,7 +67,7 @@ DeckitModule.define(
             listeners.add(listener);
         }
 
-        // The text of the mod's entry, the one file deckit runs in its sandbox.
+        // The text of the mod's entry, the one file deck runs in its sandbox.
         function sourceOf(mod) {
             const file = FOLDER.entryOf(mod.folder, mod);
             if (!file) throw new Error(`main = "${mod.main}" names no file in the mod's folder`);
@@ -117,7 +117,7 @@ DeckitModule.define(
             for (const listener of listeners) listener();
         }
 
-        // A mod's place is the person's, kept in deckit's state. One never placed goes where the app ships it,
+        // A mod's place is the person's, kept in deck's state. One never placed goes where the app ships it,
         // and one the app does not ship goes last, by id.
         function arranged(list) {
             const placed = order();

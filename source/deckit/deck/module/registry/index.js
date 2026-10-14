@@ -1,4 +1,4 @@
-// How every file of deckit names what it uses and what it provides. The one global a bundle adds.
+// How every module names what it uses and what it provides. The one global a bundle adds.
 (() => {
     // MARK: - Property
     const made = new Map();

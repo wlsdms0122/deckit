@@ -7,7 +7,7 @@ DeckitModule.define(
     },
     () => {
         // MARK: - Property
-        // The scheme deckit's pages load from, as Electron's registerSchemesAsPrivileged takes it.
+        // The scheme the pages deck makes load from, as Electron's registerSchemesAsPrivileged takes it.
         const SCHEME = Object.freeze({
             scheme: 'deckit',
             privileges: Object.freeze({ standard: true, secure: true, supportFetchAPI: true }),
@@ -32,7 +32,7 @@ DeckitModule.define(
             return host.endsWith(MOD_HOST_SUFFIX) ? host.slice(0, -MOD_HOST_SUFFIX.length) : null;
         }
 
-        // The one address a deckit page has: its origin's root. Everything else of the origin is a file it uses.
+        // The one address a page has: its origin's root. Everything else of the origin is a file it uses.
         function addressOf(origin) {
             return origin + '/';
         }

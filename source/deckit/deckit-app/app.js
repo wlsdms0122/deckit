@@ -12,7 +12,7 @@ DeckitModule.define(
         // Deckit on its own: the panel always in a window of its own, the switcher in front of it.
         function make({ restart }) {
             const state = { window: null, opening: null, title: '' }; // `opening`: a second reveal waits on it
-            let shell = null; // what the shell hands the host as it starts
+            let controls = null; // what the host drives of the shell, handed as it starts
             let switcher = null;
 
             function live(window) {
@@ -22,33 +22,33 @@ DeckitModule.define(
             // The Dock can ask before the shell has started, which shows the panel itself as it starts. The
             // panel plays its exit as it leaves wherever it was and its entrance in the window.
             function reveal() {
-                if (!shell) return Promise.resolve(null);
+                if (!controls) return Promise.resolve(null);
                 const open = live(state.window);
                 if (open) {
                     raise(open);
                     return Promise.resolve(open);
                 }
                 if (state.opening) return state.opening;
-                state.opening = shell.panel
+                state.opening = controls.panel
                     .leave()
                     .then((left) => {
                         if (!left) return null;
-                        const view = shell.panel.view();
+                        const view = controls.panel.view();
                         const onClose = () => {
                             state.window = null;
-                            shell.panel.hide();
+                            controls.panel.hide();
                         };
                         state.window = WINDOW.open({
                             view,
                             title: state.title,
-                            glass: shell.panel.glass,
+                            glass: controls.panel.glass,
                             fullSize: true,
                             key: 'panel',
-                            place: (window, { bounds }) => shell.window.place(view, window, { bounds, onClose }),
+                            place: (window, { bounds }) => controls.window.place(view, window, { bounds, onClose }),
                             focus: focusPanel,
                         });
-                        shell.panel.present({ floating: false, dismissible: false, titleBar: WINDOW.titleBar });
-                        shell.panel.arrive();
+                        controls.panel.present({ floating: false, dismissible: false, titleBar: WINDOW.titleBar });
+                        controls.panel.arrive();
                         return state.window;
                     })
                     .finally(() => (state.opening = null));
@@ -57,8 +57,8 @@ DeckitModule.define(
 
             // What has the keyboard in the panel's window: the switcher while it is open, or else the panel.
             function focusPanel() {
-                if (shell.switcher.shown()) switcher?.webContents.focus();
-                else if (shell.panel.shown()) shell.panel.focus();
+                if (controls.switcher.shown()) switcher?.webContents.focus();
+                else if (controls.panel.shown()) controls.panel.focus();
             }
 
             function raise(window) {
@@ -69,7 +69,7 @@ DeckitModule.define(
 
             // The panel's views and the switcher's are in the panel's window, which only this host knows.
             function windowOf(webContents) {
-                if (shell.panel.contains(webContents) || webContents === switcher?.webContents)
+                if (controls.panel.contains(webContents) || webContents === switcher?.webContents)
                     return live(state.window);
                 return require('electron').BrowserWindow.fromWebContents(webContents);
             }
@@ -78,26 +78,26 @@ DeckitModule.define(
             // whole window, the bar too, so its scrim dims all of it.
             function summonSwitcher(webContents) {
                 const window = windowOf(webContents);
-                const here = shell.switcher.shown();
-                shell.switcher.close();
+                const here = controls.switcher.shown();
+                controls.switcher.close();
                 if (here || !window || window !== live(state.window)) return;
-                switcher = shell.switcher.view();
-                shell.window.place(switcher, window, {
+                switcher = controls.switcher.view();
+                controls.window.place(switcher, window, {
                     front: true,
-                    onClose: () => shell.switcher.close(),
+                    onClose: () => controls.switcher.close(),
                 });
-                shell.switcher.open().then((closed) => closed && shell.panel.shown() && shell.panel.focus());
+                controls.switcher.open().then((closed) => closed && controls.panel.shown() && controls.panel.focus());
             }
 
             return {
                 start: (given) => {
-                    shell = given;
+                    controls = given;
                     reveal();
                 },
                 showsPanel: (webContents) => {
                     if (webContents === switcher?.webContents) return false;
                     const window = windowOf(webContents);
-                    return !!window && window === live(state.window) && !shell.switcher.shown();
+                    return !!window && window === live(state.window) && !controls.switcher.shown();
                 },
                 reveal: () => void reveal(),
                 // The panel is always presented as not dismissible here, so Escape never asks this.

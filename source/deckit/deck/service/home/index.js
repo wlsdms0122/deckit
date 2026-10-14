@@ -25,7 +25,8 @@ DeckitModule.define(
             staging: path.join(folder, '.mods-installing'),
             // Inside the mods, so what removes them removes the record too.
             shipped: path.join(mods, '.shipped'),
-            // A mod's data folder is the mod's own, whatever of it writes there; what deck keeps for a mod is beside it.
+            // A mod's data folder is the mod's own, whatever of it writes there; what deck keeps for a mod is beside
+            // it.
             data: path.join(folder, 'data'),
             records: path.join(folder, 'records'),
             settings: path.join(folder, 'settings'),

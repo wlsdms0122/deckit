@@ -12,7 +12,7 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // A mod's settings as it reads them: what was saved, over what it declared by default. Changed by main,
-        // which checks and keeps them, and tells this sandbox, so a change made in Settings arrives here as on().
+        // which checks and keeps them, and tells this sandbox, so a change another mod made arrives here as on().
         // `deck` is a promise of the mod's deck, rejected when it does not start.
         function of({ declared, saved, deck, deliver, fail }) {
             const values = { ...saved };
@@ -21,7 +21,7 @@ DeckitModule.define(
                 values[key] = value;
                 for (const listener of listeners) deliver('settings.on', listener, key, value);
             });
-            // Options worked out when Settings draws them, and actions Settings runs, are asked of this view.
+            // Options worked out as they are read, and actions run from another mod, are asked of this page.
             // Worked-out options and actions are the mod's to answer once it has its deck.
             PROTOCOL.settingOptions.handle(async ({ key }) => {
                 const options = declared[key]?.options;
@@ -49,13 +49,13 @@ DeckitModule.define(
             };
         }
 
-        // What main is told of the declarations: their data, without functions. A type deckit does not know is
+        // What main is told of the declarations: their data, without functions. A type deck does not know is
         // left out and told to `invalid`.
         function declarationsOf(declared, invalid) {
             const out = {};
             for (const [key, declaration] of Object.entries(declared || {})) {
                 if (!TYPES.has(declaration?.type)) {
-                    invalid(`setting "${key}" has no type deckit knows: ${declaration?.type}`);
+                    invalid(`setting "${key}" has no type deck knows: ${declaration?.type}`);
                     continue;
                 }
                 const { run, options, ...data } = declaration;

@@ -11,8 +11,8 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // An exception nobody catches in main ends the app with no dialog, and deckit does not own the process
-        // to catch it there. So every listener deckit adds goes through here, and a throw is reported instead.
+        // An exception nobody catches in main ends the app with no dialog, and a library does not own the process
+        // to catch it there. So every listener it adds goes through here, and a throw is reported instead.
         function guard(emitter, event, listener, { once = false } = {}) {
             const guarded = wrap(listener, event);
             emitter[once ? 'once' : 'on'](event, guarded);

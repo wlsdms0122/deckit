@@ -40,9 +40,10 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // Mods run in the views `makeView()` makes. What follows their runs starts before the runner launches any.
-        // What is on deck is told of a mod's page as it is made (`preparePage(webContents, mod)`), of a mod installed
-        // and removed (`installed(id)`, `removed(id)`), and asked what it knows of a mod (`describe(mod)`) and to clear
-        // what it keeps of a mod removed with its data (`forget(id)`, a promise).
+        // What is on deck is told of a mod's page as it is made (`preparePage(webContents, mod)`), of a mod installed,
+        // once what runs in its place has launched, and answers what it adds to what install answers
+        // (`installed(id)`), and of one removed (`removed(id)`); it is asked what it knows of a mod (`describe(mod)`)
+        // and to clear what it keeps of a mod removed with its data (`forget(id)`, a promise).
         function start({ makeView, preparePage, describe: facts, installed, removed, forget: clear }) {
             layer = { facts, installed, removed, clear };
             forgetRemoved();
@@ -89,9 +90,9 @@ DeckitModule.define(
             });
         }
 
-        // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `state`: its
-        // latest run's, null for one with none. `starting`: it is launching. `hides`: folders of the same id that are
-        // not read.
+        // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.
+        // `state`: its latest run's, null for one with none. `starting`: it is launching. `hides`: folders of the same
+        // id that are not read.
         function describe() {
             const running = (id) => RUNNER.runOf(id)?.state === 'running';
             return {
@@ -152,10 +153,9 @@ DeckitModule.define(
         // nothing.
         async function install(from) {
             const manifest = INSTALL.install(from, shadowed);
-            const told = layer.installed(manifest.id);
             CATALOG.refresh({ installed: manifest.id });
             await RUNNER.whenClosed(manifest.id);
-            return { ...told, ...MANIFEST.of(manifest) };
+            return { ...layer.installed(manifest.id), ...MANIFEST.of(manifest) };
         }
 
         // A source folder of the same id would hide the installed copy.

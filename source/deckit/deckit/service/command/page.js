@@ -8,6 +8,7 @@ DeckitModule.define(
         // MARK: - Property
         // The functions behind the entries each session was handed, which holds only their ids, until it ends.
         const sessions = new Map(); // session -> Map of id -> { run, page }
+        const ended = new Set(); // sessions whose late answers keep nothing
         const searching = new Map(); // page id -> the AbortController of its query in flight
         let sequence = 0;
 
@@ -37,7 +38,6 @@ DeckitModule.define(
                     icon: command.icon || icon || '',
                     keywords: strings(command.keywords).join(' '),
                     address: typeof command.address === 'string' ? command.address : '',
-                    aliases: [],
                     runnable: typeof command.run === 'function' || !!page,
                     page: page
                         ? {
@@ -102,11 +102,16 @@ DeckitModule.define(
             PROTOCOL.run.handle(async ({ session, id }) => {
                 await sessions.get(session)?.get(id)?.run?.();
             });
-            PROTOCOL.end.on(({ session }) => sessions.delete(session));
+            PROTOCOL.end.on(({ session }) => {
+                sessions.delete(session);
+                ended.add(session);
+            });
         }
 
         // MARK: - Private
+        // A session that ended keeps nothing an answer still on its way hands out.
         function localOf(session) {
+            if (ended.has(session)) return new Map();
             if (!sessions.has(session)) sessions.set(session, new Map());
             return sessions.get(session);
         }

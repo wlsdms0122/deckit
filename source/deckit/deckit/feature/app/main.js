@@ -88,7 +88,10 @@ DeckitModule.define(
             if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
             if (!preload) throw new Error('[deckit] connect needs the preload deckit pages load with');
             connected = true;
-            for (const permission of PERMISSIONS.PERMISSIONS) PERMISSION.define(permission);
+            for (const permission of PERMISSIONS.PERMISSIONS)
+                PERMISSION.define(permission, {
+                    before: permission.id.startsWith('system.') ? PERMISSIONS.WIDER_THAN : null,
+                });
             MANIFEST.define(SCHEMES.FIELD, SCHEMES.field());
             LOG.start();
             require('electron')
@@ -186,8 +189,8 @@ DeckitModule.define(
                 const file = folder && servedFile(folder, pathname);
                 return file ? net.fetch(pathToFileURL(file).toString()).catch(missing) : missing();
             });
-            // Electron grants every permission a session has no handler for. A mod reaches the camera, the
-            // clipboard or a notice through deckit's API, which holds it to its permissions, and never through the web's.
+            // Electron grants every permission a session has no handler for. A mod reaches the camera, the clipboard or
+            // a notice through deckit's API, which holds it to its permissions, and never through the web's.
             own.setPermissionRequestHandler((_webContents, _permission, answer) => answer(false));
             own.setPermissionCheckHandler(() => false);
         }

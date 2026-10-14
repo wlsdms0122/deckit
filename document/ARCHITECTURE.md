@@ -42,7 +42,7 @@ A new mod needs no change to deck. A new place to show the panel in needs no cha
 
 | Where | What runs there |
 |---|---|
-| main | deck: mod folders, storage, every check of what a page asks. Deckit: main process modules, the keymap, opening addresses, commands, windows. The shell: the panel and the switcher, the views it puts in the host app's windows |
+| main | deck: mod folders, storage, and what a page asks of deck. Deckit: main process modules, the keymap, opening addresses, commands, windows. The shell: the panel and the switcher, the views it puts in the host app's windows |
 | a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; with deckit's shell on deckit, a mod with a view has the panel's frame around it there |
 | a page that runs no mod | made for the shell, at `deckit://<name>/`: the quick switcher's list, at `deckit://switcher/` |
 

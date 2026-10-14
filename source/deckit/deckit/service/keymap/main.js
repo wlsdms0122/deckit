@@ -24,7 +24,7 @@ DeckitModule.define(
         let overrides = {};
         let recording = null; // { webContents, timer }
         let pageFor = () => null;
-        let shell = { isActive: () => false, monitor: () => false };
+        let delegated = { isActive: () => false, monitor: () => false };
 
         // MARK: - Initializer
         // MARK: - Public
@@ -68,7 +68,7 @@ DeckitModule.define(
         // page in front, where the mod's own keys and the shell's run; `monitor(page, input)`, the shell's look at the
         // keystroke before any binding, taking it by answering true.
         function delegate({ isActive, monitor }) {
-            shell = { isActive, monitor };
+            delegated = { isActive, monitor };
         }
 
         // Keystrokes in this webContents go through the key map. deckit listens on its own; an app hands its own
@@ -249,7 +249,8 @@ DeckitModule.define(
             }
         }
 
-        // First match wins, in the order bindings() lists them, resolved on every keystroke so a change applies at once.
+        // First match wins, in the order bindings() lists them, resolved on every keystroke so a change applies at
+        // once.
         function handle(webContents, input) {
             if (recording) return take(input);
             if (input.type !== 'keyDown') return false;
@@ -259,13 +260,13 @@ DeckitModule.define(
                 return true;
             }
             const page = pageFor(webContents);
-            if (page && shell.monitor(page, input)) return true;
+            if (page && delegated.monitor(page, input)) return true;
             const active = bindings().filter(
                 (binding) => binding.active && CHORD.matches(CHORD.parse(binding.spec), input)
             );
             const global = active.find((binding) => binding.scope === 'global');
             if (global) return run(global, webContents);
-            if (!page || !shell.isActive(page)) return false;
+            if (!page || !delegated.isActive(page)) return false;
             if (typing.has(page.id) && CHORD.editsText(input)) return false;
             const mod = IDENTITY.modOf(page);
             // The mod's own first, so it wins a chord it shares with the shell.

@@ -42,7 +42,7 @@ DeckitModule.define(
             try {
                 await run(layer);
             } catch (error) {
-                fail(`deckit could not start it: ${error.message || error}`);
+                fail(`deck could not start it: ${error.message || error}`);
                 notStarted();
             }
         }

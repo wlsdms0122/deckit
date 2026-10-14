@@ -44,8 +44,8 @@ DeckitModule.define(
         // Its settings, as soon as its entry is read: the declarations, without functions.
         declare: IPC.rendererToMain('deck:mod-declare', { run: 'number', settings: 'object' }),
         // Started, with what it contributes. `contributions`: `{ exports, extensionPoints, extensions }`, exports and
-        // each extension as its values copied and the paths of its functions, beside what is on deck added; `summary`, what it
-        // contributes as a person reads it.
+        // each extension as its values copied and the paths of its functions, beside what is on deck added; `summary`,
+        // what it contributes as a person reads it.
         started: IPC.rendererToMain('deck:mod-started', {
             run: 'number',
             contributions: 'object',
@@ -72,7 +72,8 @@ DeckitModule.define(
             { reply: true }
         ),
         extensionCalled: IPC.mainToRenderer('deck:mod-extension-called', { reply: true }),
-        // The extensions of one of the mod's points now, by its name: { name, extensions: { [mod id]: { values, functions } } }.
+        // The extensions of one of the mod's points now, by its name: { name, extensions: { [mod id]: { values,
+        // functions } } }.
         extensionsChanged: IPC.mainToRenderer('deck:mod-extensions-changed'),
 
         readRecord: IPC.rendererToMain('deck:record-read', { key: 'string' }, { reply: true, sync: true }),

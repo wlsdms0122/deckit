@@ -12,8 +12,8 @@ DeckitModule.define(
 
         // MARK: - Initializer
         // MARK: - Public
-        // What is wrong with what an entry set module.exports to, or null when it is an entry. `added` is what the layers
-        // on deck read of it besides.
+        // What is wrong with what an entry set module.exports to, or null when it is an entry. `added` is what the
+        // layers on deck read of it besides.
         function problemOf(exported, added = []) {
             if (!exported || typeof exported !== 'object') return 'module.exports is no object';
             const members = [...added, ...MEMBERS];

@@ -70,26 +70,26 @@ What the host app answers deckit's shell:
 
 | | |
 |---|---|
-| `start(shell)` | once the host app is ready, before any mod launches, with what of the shell the host app drives: its views and their windows. A mod's `deck` is another object |
+| `start(controls)` | once the host app is ready, before any mod launches, with what of the shell the host app drives: its views and their windows. A mod's `deck` is another object |
 | `showsPanel(webContents)` | whether the panel is what is in front where a keystroke landed |
 | `reveal()` | "show me": a mod's `deck.show()`, a switcher choice |
 | `dismiss()` | "put it away": Escape with nothing else to close |
 | `summonSwitcher(webContents)` | the switcher's chord, pressed in that page |
 | `panelTitled(title)` | the panel's title changed: the name of the mod in front, or the host app's name when none is |
 
-When the host app quits, once every window has closed, deck holds the quit at `will-quit` until every mod's `stop()` has answered, two seconds at most each, and then asks for the quit again: it goes on as any quit does, `quit` and all. The host app's `before-quit` and `will-quit` listeners hear both. While a mod runs, the first `will-quit` is deck's hold: the host app calls the quit off at the first `before-quit` or at the second pass, and with no mod running there is one pass. A quit the host app calls off leaves the mods that stopped for it stopped, and the next quit stops the runs that started since. A restart the host app makes is a quit too, `app.relaunch()` and then `app.quit()`; `app.exit()` skips every `stop()`. The process ends with code 0; a host app that ends it with another calls `app.exit(code)` from its `quit` listener. `openWindow` and `panelTitled` can be asked as mods load.
+When the host app quits, once every window has closed, deck holds the quit at `will-quit` until every mod's `stop()` has answered, two seconds at most each, and then asks for the quit again: it goes on as any quit does, `quit` and all. The host app's `before-quit` and `will-quit` listeners hear both. While a mod runs, the first `will-quit` is deck's hold: the host app calls the quit off at the first `before-quit` or at the second pass, and with no mod running there is one pass. A quit the host app calls off leaves the mods that stopped for it stopped, and the next quit stops the runs that started since. A restart the host app makes is a quit too, `app.relaunch()` and then `app.quit()`; `app.exit()` skips every `stop()`. The process ends with code 0; a host app that ends it with another calls `app.exit(code)` from its `quit` listener. `openWindow` can be asked as mods load, and `panelTitled` before `start`.
 
-The keyboard in a window is the host app's to give. macOS hands it to a window's own page each time the window comes forward, so a host app whose views are not that page gives it to the view: the switcher's page while it is open, else `shell.panel.focus()` for the panel, and the view's page for a window it opened.
+The keyboard in a window is the host app's to give. macOS hands it to a window's own page each time the window comes forward, so a host app whose views are not that page gives it to the view: the switcher's page while it is open, else `controls.panel.focus()` for the panel, and the view's page for a window it opened.
 
-What `shell` holds:
+What `controls` holds:
 
 | | |
 |---|---|
-| `shell.panel` | `glass`, the strength the panel lays its colour over the blur at, for a surface beside it to match; `view()`, the panel's container, which the host app places in a window with `shell.window.place` (so a mod's main process module can find the window its view is in); `contains(webContents)`, whether a webContents is a page the panel shows or a web page in one; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the host app makes; `present({ floating, dismissible, titleBar })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
-| `shell.setTheme(theme)` | the host app's colours, for every page the shell draws |
-| `shell.switcher` | `view()`, which the host app puts in front where it was summoned; `open()`, resolving true when it was put away; `close()`, `shown()`; `chord()`, the chord that summons it now as a person reads it, or `''` |
-| `shell.window` | deckit's `window` (section 4) |
-| `shell.keymap` | `listen(webContents)`, deckit's: a page of the host app's own that should hear deckit's global keys |
+| `controls.panel` | `glass`, the strength the panel lays its colour over the blur at, for a surface beside it to match; `view()`, the panel's container, which the host app places in a window with `controls.window.place` (so a mod's main process module can find the window its view is in); `contains(webContents)`, whether a webContents is a page the panel shows or a web page in one; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the host app makes; `present({ floating, dismissible, titleBar })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
+| `controls.setTheme(theme)` | the host app's colours, for every page the shell draws |
+| `controls.switcher` | `view()`, which the host app puts in front where it was summoned; `open()`, resolving true when it was put away; `close()`, `shown()`; `chord()`, the chord that summons it now as a person reads it, or `''` |
+| `controls.window` | deckit's `window` (section 4) |
+| `controls.keymap` | `listen(webContents)`, deckit's: a page of the host app's own that should hear deckit's global keys |
 
 Moving the panel is a re-parent: mods keep their sandboxes and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, whether Escape with nothing else to close puts it away, and, filling a window whose title bar lies over the panel's top, `titleBar: { height, controlsWidth }`: the bar's height and the width the window's buttons take at its start. The sidebar and the content then reach up under the bar: the sidebar's top drags the window, and the content's is the mod's title bar area (MOD.md, `deck.view`).
 
@@ -97,13 +97,13 @@ Moving the panel is a re-parent: mods keep their sandboxes and what they hold, a
 
 ## 4. What connect answers
 
-What connect answers is all a host app, or the shell on deckit, reaches of deckit in main; deckit's shell is built with nothing else. It is the same object for a host app with a shell of its own. Everything it hands out is a frozen copy.
+What connect answers is all a host app, or the shell on deckit, reaches of deckit in main; deckit's shell is built with nothing else. It is the same object for a host app with a shell of its own. Every fact it hands out (a manifest, a run, its summary) is a frozen copy.
 
 | | |
 |---|---|
 | `config` | `{ id, name }` |
 | `onStart(listener)` | told once as deckit starts, before any mod launches; handed over before the host app is ready. One that throws is logged, and the mods run anyway |
-| `permissions` | `define({ id, name, icon, means })`, before the host app is ready: a permission that grants what the shell adds, which a mod's manifest may then ask for |
+| `permissions` | `define({ id, name, icon, means })`: a permission that grants what the shell adds, which a mod's manifest may then ask for. Defined before any manifest is read, which is before the host app is ready; after, it throws |
 | `mods` | `list()`, every loaded mod's manifest in the person's order, `onChange(listener)`, `arrange(ids)`; `runs()`, each mod's latest run with the view its page is in, `runOf(id)`, `observe(name, observer)` for a lifecycle notice (`notifications` lists them) of every run; `modOf(webContents)`, the id of the mod a page is, or null; `relaunchAll()`. A run is `{ mod, number, state, summary, contributions, problem, relaunches }` (MOD.md, Lifecycle) |
 | `pages` | `make(name)`, a view at `deckit://<name>/` for a page that runs no mod, which the shell draws (`page(name)` on its page side); `nameOf(webContents)`; `whenEnds(webContents, undo)`, `undo` called once as that page navigates away, crashes or goes |
 | `keymap` | `register({ action, key, label, global, run })`, a key of the shell's own, answering its id; `chordOf(id)`; `listen(webContents, { keys })`; `delegate({ isActive, monitor })`: `isActive(page)`, whether a deckit page is the one in front, where a mod's own keys and the shell's run, and `monitor(page, input)`, which sees a keystroke in it before any key and takes it by answering true |

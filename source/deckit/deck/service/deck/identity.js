@@ -110,7 +110,7 @@ DeckitModule.define(
         // MARK: - Private
         // A navigation keeps the webContents, so a page that left its origin would still be known as its mod while
         // it ran another's page with that one's storage, and one that went to another path of its own origin would
-        // start the mod again beside the run still going. So a deckit page stays at its one address. Only main's
+        // start the mod again beside the run still going. So a page stays at its one address. Only main's
         // own loadURL and reload pass without these events.
         function pin(webContents, origin) {
             const address = ORIGIN.addressOf(origin);

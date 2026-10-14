@@ -2,12 +2,14 @@ DeckitModule.define(
     'deckit/feature/app/model/permission',
     {
         uses: ['deckit/service/main-process/model/permission'],
-        provides: ['PERMISSIONS'],
+        provides: ['PERMISSIONS', 'WIDER_THAN'],
         runs: 'any',
     },
     (MAIN_PROCESS) => {
         // MARK: - Property
-        // What deckit's capabilities are granted by, the widest first.
+        // What deckit's capabilities are granted by, the widest first. Those that reach past the app (system.*) go
+        // before deck's own, which reach other mods.
+        const WIDER_THAN = 'deckit.mods';
         const PERMISSIONS = [
             {
                 id: MAIN_PROCESS.PERMISSION,
@@ -75,6 +77,6 @@ DeckitModule.define(
         // MARK: - Public
         // MARK: - Private
 
-        return { PERMISSIONS };
+        return { PERMISSIONS, WIDER_THAN };
     }
 );

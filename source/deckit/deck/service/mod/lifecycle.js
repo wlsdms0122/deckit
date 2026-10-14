@@ -35,7 +35,8 @@ DeckitModule.define(
         // transition. A transition from a state it does not leave, or a reason the lifecycle does not have, throws.
         //
         // `summary` is what it contributes once running, as a person reads it, and `contributions` what deck joins of
-        // it; `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed; `endReason`, the reason it terminated for.
+        // it; `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed;
+        // `endReason`, the reason it terminated for.
         function launch({ mod, number, notify }) {
             const facts = { state: 'launching', summary: null, contributions: null, problem: null, endReason: null };
             const move = (transition, change) => {

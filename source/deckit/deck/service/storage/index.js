@@ -20,7 +20,7 @@ DeckitModule.define(
             keys: (modId) => keysOf(path.join(HOME.records, modId)),
         };
 
-        // A mod's settings are deckit's to keep, so they live outside the mod's folder.
+        // A mod's settings are deck's to keep, so they live outside the mod's folder.
         const settings = {
             read: (modId) => STORE.read(path.join(HOME.settings, modId + '.json'), {}),
             write: (modId, values) => STORE.write(path.join(HOME.settings, modId + '.json'), values),
@@ -47,7 +47,7 @@ DeckitModule.define(
             return seen;
         }
 
-        // What deckit kept for a mod. Its pages' storage and its web sessions are their sessions' to clear.
+        // What deck kept for a mod. Its pages' storage and its web sessions are their sessions' to clear.
         function forget(modId) {
             fs.rmSync(folderOf(modId), { recursive: true, force: true });
             fs.rmSync(path.join(HOME.records, modId), { recursive: true, force: true });

@@ -49,9 +49,9 @@ DeckitModule.define(
         // MARK: - Initializer
         // MARK: - Public
         // What a host app and the shell it puts on deckit reach of deckit, in main: the mods and their runs, pages of
-        // the shell's own, keys, commands, permissions for what the shell adds, their own state, and windows. No more of deckit is theirs. Every value it
-        // hands out is a frozen copy. `makeView({ webview })` makes a view for a deckit page; `onStart(listener)` is how
-        // deckit is told what starts with it.
+        // the shell's own, keys, commands, permissions for what the shell adds, their own state, and windows. No more
+        // of deckit is theirs. Every fact it hands out is a frozen copy. `makeView({ webview })` makes a view for a
+        // deckit page; `onStart(listener)` is how deckit is told what starts with it.
         function make({ makeView, onStart }) {
             return Object.freeze({
                 config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
