@@ -83,11 +83,28 @@ const calendar = (deck, accountsPoint) => {
         for (const account of waiting) if (providerOf(account)) forget(providerOf(account), account);
         keep(FORGOTTEN, left);
     };
-    // Occurrences as the cache and providers give them: anything else is left out, and the dates made Dates.
+    // Occurrences as the cache and providers give them, in the shape the rest reads (README.md): one without an id or
+    // a date is left out.
     const occurrencesOf = (events) =>
         events
-            .filter((event) => event && typeof event === 'object')
-            .map((event) => ({ ...event, start: new Date(event.start), end: new Date(event.end) }))
+            .filter((event) => event && typeof event === 'object' && event.id != null)
+            .map((event) => ({
+                id: String(event.id),
+                uid: String(event.uid ?? event.id),
+                summary: String(event.summary ?? ''),
+                start: new Date(event.start),
+                end: new Date(event.end),
+                allDay: !!event.allDay,
+                call:
+                    event.call && typeof event.call.url === 'string'
+                        ? { name: String(event.call.name ?? ''), url: event.call.url }
+                        : null,
+                rooms: Array.isArray(event.rooms) ? event.rooms.map(String) : [],
+                location: String(event.location ?? ''),
+                description: String(event.description ?? ''),
+                rsvp: typeof event.rsvp === 'string' ? event.rsvp : '',
+                invited: !!event.invited,
+            }))
             .filter((event) => !isNaN(event.start) && !isNaN(event.end));
 
     // Records rather than values, so a reset profile keeps them.

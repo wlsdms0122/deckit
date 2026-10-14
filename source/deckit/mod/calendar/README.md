@@ -36,7 +36,7 @@ Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's i
 | `name`, `hint`, `icon` | what the Add account sheet shows: the provider's name, a line under it, an inline SVG (drawn from its shapes alone) |
 | `signIn(account, { title })` | signs the account in and resolves to the address it signed in as, or to nothing when the person cancelled. The sign-in is the provider's to show, in a window of its own (`deck.web.window`, `title` its title), with whatever it asks on the way (a certificate, an app to open). A cancelled or failed sign-in leaves nothing behind. Called to add an account and to sign one in again; signing in again as another address, compared exactly, is refused |
 | `calendars(account)` | `[{ id, name, primary, selected, owned }]`: the account's calendars. `primary` is the account's own, `selected` one its own calendar app shows (a new account starts with those), `owned` one the account owns, whose every event reminds, not only invitations |
-| `events(account, calendar, from, to)` | the occurrences of the calendar whose `id` is `calendar` between two Dates, as an array (below). Anything else is a failure, and an answer that takes more than a minute is one too |
+| `events(account, calendar, from, to)` | the occurrences of the calendar whose `id` is `calendar` between two Dates, as an array (below). Anything else is a failure, and an answer that takes more than a minute is one too. An occurrence is read in this shape, and a field of another type is read as empty |
 | `respond(account, eventId, status)` | answers an invitation (an occurrence with `invited`): `ACCEPTED`, `DECLINED` or `TENTATIVE` |
 | `forget(account)` | optional: drop what the provider keeps for `account.id`, so it is signed out. Called when the account is removed (once the provider runs, if it did not then), when a sign-in for a new account turns out to be one already there, and when signing in again lands on another address |
 
@@ -44,7 +44,7 @@ An occurrence, one for each time an event happens, in what every provider maps i
 
 | Field | What it is |
 |---|---|
-| `id` | the provider's id for this occurrence, what `respond` is given |
+| `id` | the provider's id for this occurrence, one of its own in the calendar, what `respond` is given; an occurrence without one is left out |
 | `uid` | the same meeting across occurrences and calendars; keys the reminders |
 | `summary` | its title |
 | `start`, `end` | Dates, or what `new Date()` reads; local midnights for an all-day event |
