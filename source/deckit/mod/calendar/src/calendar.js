@@ -458,8 +458,8 @@ const calendar = (deck, accountsPoint) => {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        color: theme.color.text,
-        font: '14px ' + theme.font,
+        color: 'var(--deckit-text)',
+        font: '14px var(--deckit-font)',
         position: 'relative',
         overflow: 'hidden',
     });
@@ -475,13 +475,18 @@ const calendar = (deck, accountsPoint) => {
         alignItems: 'center',
         gap: '4px',
         padding: '9px 12px',
-        borderBottom: theme.border,
+        borderBottom: 'var(--deckit-border)',
     });
     ui.titleBar(head);
     const title = document.createElement('div');
-    Object.assign(title.style, { font: '700 16px ' + theme.font, padding: '0 8px', whiteSpace: 'nowrap' });
+    Object.assign(title.style, { font: '700 16px var(--deckit-font)', padding: '0 8px', whiteSpace: 'nowrap' });
     const status = document.createElement('span');
-    Object.assign(status.style, { flex: '1 1 auto', opacity: '.55', font: '12.5px ' + theme.font, paddingLeft: '6px' });
+    Object.assign(status.style, {
+        flex: '1 1 auto',
+        opacity: '.55',
+        font: '12.5px var(--deckit-font)',
+        paddingLeft: '6px',
+    });
 
     const modeBar = ui.segmented({
         items: MODES.map(([key, label]) => ({ key, label, title: label + ' view' })),
@@ -540,7 +545,7 @@ const calendar = (deck, accountsPoint) => {
             link.target = '_blank';
             link.rel = 'noreferrer';
             link.textContent = url.length > 48 ? url.slice(0, 48) + '…' : url;
-            Object.assign(link.style, { color: theme.color.accent, wordBreak: 'break-all' });
+            Object.assign(link.style, { color: 'var(--deckit-accent)', wordBreak: 'break-all' });
             box.appendChild(link);
             last = match.index + url.length;
             pattern.lastIndex = last;
@@ -571,7 +576,7 @@ const calendar = (deck, accountsPoint) => {
         detail.element.textContent = '';
         const name = document.createElement('div');
         name.textContent = nameOf(occurrence);
-        Object.assign(name.style, { font: '700 14.5px ' + theme.font, marginBottom: '4px' });
+        Object.assign(name.style, { font: '700 14.5px var(--deckit-font)', marginBottom: '4px' });
         const when = document.createElement('div');
         when.textContent = occurrence.allDay
             ? dayDelta(new Date(+occurrence.end - 1), occurrence.start) > 0
@@ -590,7 +595,7 @@ const calendar = (deck, accountsPoint) => {
                 marginTop: '6px',
                 padding: '1px 8px',
                 borderRadius: '10px',
-                font: '11.5px ' + theme.font,
+                font: '11.5px var(--deckit-font)',
                 border: '1px solid ' + occurrence.color,
                 color: occurrence.color,
             });
@@ -608,10 +613,10 @@ const calendar = (deck, accountsPoint) => {
                 display: 'inline-block',
                 padding: '3px 10px',
                 borderRadius: '7px',
-                background: theme.color.accent,
+                background: 'var(--deckit-accent)',
                 color: '#fff',
                 textDecoration: 'none',
-                font: '600 12.5px ' + theme.font,
+                font: '600 12.5px var(--deckit-font)',
             });
             detail.element.appendChild(detailLine('video', join));
         }
@@ -632,7 +637,11 @@ const calendar = (deck, accountsPoint) => {
 
         if (occurrence.invited) {
             const foot = rsvpBar(occurrence);
-            Object.assign(foot.style, { margin: '12px -14px -12px', padding: '10px 14px', borderTop: theme.border });
+            Object.assign(foot.style, {
+                margin: '12px -14px -12px',
+                padding: '10px 14px',
+                borderTop: 'var(--deckit-border)',
+            });
             detail.element.appendChild(foot);
         }
         detail.show(anchor);
@@ -643,7 +652,7 @@ const calendar = (deck, accountsPoint) => {
         detail.element.textContent = '';
         const name = document.createElement('div');
         name.textContent = `${MONTHS[day.getMonth()]} ${day.getDate()}`;
-        Object.assign(name.style, { font: '700 14.5px ' + theme.font, marginBottom: '8px' });
+        Object.assign(name.style, { font: '700 14.5px var(--deckit-font)', marginBottom: '8px' });
         detail.element.appendChild(name);
         for (const occurrence of occurrences) {
             const line = document.createElement('div');
@@ -668,7 +677,7 @@ const calendar = (deck, accountsPoint) => {
                 flex: '0 0 auto',
                 minWidth: '50px',
                 opacity: '.55',
-                font: '12px ' + theme.font,
+                font: '12px var(--deckit-font)',
             });
             paintDot(dot, occurrence);
             const text = document.createElement('span');
@@ -701,13 +710,13 @@ const calendar = (deck, accountsPoint) => {
         Object.assign(row.style, { display: 'flex', alignItems: 'center', gap: '8px' });
         const ask = document.createElement('span');
         ask.textContent = 'Going?';
-        Object.assign(ask.style, { opacity: '.65', font: '12.5px ' + theme.font });
+        Object.assign(ask.style, { opacity: '.65', font: '12.5px var(--deckit-font)' });
         const note = document.createElement('div');
         Object.assign(note.style, {
             display: 'none',
             marginTop: '6px',
-            color: theme.color.alert,
-            font: '12px ' + theme.font,
+            color: 'var(--deckit-alert)',
+            font: '12px var(--deckit-font)',
         });
         let answering = false;
         const answers = ui.segmented({
@@ -830,7 +839,7 @@ const calendar = (deck, accountsPoint) => {
             padding: '0 5px',
             borderRadius: '4px',
             boxSizing: 'border-box',
-            font: '12px ' + theme.font,
+            font: '12px var(--deckit-font)',
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -921,9 +930,9 @@ const calendar = (deck, accountsPoint) => {
             flex: '0 0 auto',
             display: 'grid',
             gridTemplateColumns: 'repeat(7, 1fr)',
-            borderBottom: theme.border,
+            borderBottom: 'var(--deckit-border)',
             opacity: '.6',
-            font: '700 11.5px ' + theme.font,
+            font: '700 11.5px var(--deckit-font)',
         });
         for (const weekday of WEEKDAYS) {
             const cell = document.createElement('div');
@@ -967,7 +976,7 @@ const calendar = (deck, accountsPoint) => {
                 flexDirection: 'column',
                 minHeight: '0',
                 overflow: 'hidden',
-                borderBottom: weekIndex === 5 ? '0' : theme.border,
+                borderBottom: weekIndex === 5 ? '0' : 'var(--deckit-border)',
             });
 
             const numbers = document.createElement('div');
@@ -979,7 +988,7 @@ const calendar = (deck, accountsPoint) => {
                     display: 'flex',
                     justifyContent: 'center',
                     padding: '3px 0 2px',
-                    borderRight: dayIndex === 6 ? '0' : theme.border,
+                    borderRight: dayIndex === 6 ? '0' : 'var(--deckit-border)',
                 });
                 const number = document.createElement('button');
                 number.type = 'button';
@@ -990,15 +999,15 @@ const calendar = (deck, accountsPoint) => {
                 Object.assign(number.style, {
                     color:
                         day.getMonth() === cursor.getMonth()
-                            ? theme.color.text
-                            : ui.mix(theme.color.text, theme.color.background, 0.38),
-                    font: '12.5px ' + theme.font,
+                            ? 'var(--deckit-text)'
+                            : 'color-mix(in srgb, var(--deckit-text) 38%, var(--deckit-background))',
+                    font: '12.5px var(--deckit-font)',
                     padding: '1px 7px',
                     borderRadius: '10px',
                     transition: `background-color ${ease(theme.motion.fast)}`,
                 });
                 if (sameDay(day, now)) {
-                    number.style.background = theme.color.accent;
+                    number.style.background = 'var(--deckit-accent)';
                     number.style.color = '#fff';
                     number.style.fontWeight = '700';
                 } else {
@@ -1022,7 +1031,7 @@ const calendar = (deck, accountsPoint) => {
             });
             for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
                 const rule = document.createElement('div');
-                rule.style.borderRight = dayIndex === 6 ? '0' : theme.border;
+                rule.style.borderRight = dayIndex === 6 ? '0' : 'var(--deckit-border)';
                 rules.appendChild(rule);
             }
             lanes.appendChild(rules);
@@ -1054,8 +1063,8 @@ const calendar = (deck, accountsPoint) => {
                             width: 'calc(100% - 4px)',
                             margin: '0 2px',
                             height: LANE_HEIGHT - 3 + 'px',
-                            color: ui.mix(theme.color.text, theme.color.background, 0.65),
-                            font: '11.5px ' + theme.font,
+                            color: 'color-mix(in srgb, var(--deckit-text) 65%, var(--deckit-background))',
+                            font: '11.5px var(--deckit-font)',
                             textAlign: 'left',
                             padding: '0 5px',
                             borderRadius: '4px',
@@ -1131,19 +1140,23 @@ const calendar = (deck, accountsPoint) => {
             flex: '0 0 auto',
             display: 'grid',
             gridTemplateColumns: columns,
-            borderBottom: theme.border,
+            borderBottom: 'var(--deckit-border)',
         });
         dayHead.appendChild(document.createElement('div'));
         for (const day of days) {
             const cell = document.createElement('div');
-            Object.assign(cell.style, { padding: '6px 4px', textAlign: 'center', borderLeft: theme.border });
+            Object.assign(cell.style, { padding: '6px 4px', textAlign: 'center', borderLeft: 'var(--deckit-border)' });
             const weekday = document.createElement('div');
             weekday.textContent = WEEKDAYS[day.getDay()].toUpperCase();
-            Object.assign(weekday.style, { font: '700 11px ' + theme.font, opacity: '.55', letterSpacing: '.04em' });
+            Object.assign(weekday.style, {
+                font: '700 11px var(--deckit-font)',
+                opacity: '.55',
+                letterSpacing: '.04em',
+            });
             const number = document.createElement('div');
             number.textContent = String(day.getDate());
             Object.assign(number.style, {
-                font: '600 15px ' + theme.font,
+                font: '600 15px var(--deckit-font)',
                 marginTop: '2px',
                 display: 'inline-block',
                 padding: '0 7px',
@@ -1151,7 +1164,7 @@ const calendar = (deck, accountsPoint) => {
                 lineHeight: '22px',
             });
             if (sameDay(day, now)) {
-                number.style.background = theme.color.accent;
+                number.style.background = 'var(--deckit-accent)';
                 number.style.color = '#fff';
             }
             cell.append(weekday, number);
@@ -1165,13 +1178,13 @@ const calendar = (deck, accountsPoint) => {
                 flex: '0 0 auto',
                 display: 'grid',
                 gridTemplateColumns: columns,
-                borderBottom: theme.border,
+                borderBottom: 'var(--deckit-border)',
                 padding: '3px 0',
             });
             const label = document.createElement('div');
             label.textContent = 'All day';
             Object.assign(label.style, {
-                font: '11px ' + theme.font,
+                font: '11px var(--deckit-font)',
                 opacity: '.5',
                 padding: '2px 8px',
                 textAlign: 'right',
@@ -1208,7 +1221,7 @@ const calendar = (deck, accountsPoint) => {
                 position: 'absolute',
                 right: '8px',
                 top: hour * HOUR_HEIGHT - 7 + 'px',
-                font: '11px ' + theme.font,
+                font: '11px var(--deckit-font)',
                 opacity: '.45',
             });
             gutter.appendChild(label);
@@ -1219,7 +1232,7 @@ const calendar = (deck, accountsPoint) => {
             const dayColumn = document.createElement('div');
             Object.assign(dayColumn.style, {
                 position: 'relative',
-                borderLeft: theme.border,
+                borderLeft: 'var(--deckit-border)',
                 background: `repeating-linear-gradient(to bottom, transparent 0 ${HOUR_HEIGHT - 1}px, rgba(128,128,128,.18) ${HOUR_HEIGHT - 1}px ${HOUR_HEIGHT}px)`,
             });
             const items = layoutOverlaps(
@@ -1239,7 +1252,7 @@ const calendar = (deck, accountsPoint) => {
                     color: '#fff',
                     borderRadius: '5px',
                     padding: '2px 6px',
-                    font: '12px ' + theme.font,
+                    font: '12px var(--deckit-font)',
                     overflow: 'hidden',
                     cursor: 'pointer',
                     boxSizing: 'border-box',
@@ -1257,7 +1270,7 @@ const calendar = (deck, accountsPoint) => {
                 paintPast(element, item);
                 const time = document.createElement('div');
                 time.textContent = clockText(item.start) + '–' + clockText(item.end);
-                Object.assign(time.style, { opacity: '.85', font: '11px ' + theme.font });
+                Object.assign(time.style, { opacity: '.85', font: '11px var(--deckit-font)' });
                 const name = document.createElement('div');
                 name.textContent = nameOf(item);
                 Object.assign(name.style, { fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis' });
@@ -1276,7 +1289,7 @@ const calendar = (deck, accountsPoint) => {
                     left: '0',
                     right: '0',
                     height: '2px',
-                    background: theme.color.alert,
+                    background: 'var(--deckit-alert)',
                     top: ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_HEIGHT + 'px',
                     pointerEvents: 'none',
                 });
@@ -1392,7 +1405,7 @@ const calendar = (deck, accountsPoint) => {
     const sheetText = (text, style = {}) => {
         const element = document.createElement('div');
         element.textContent = text;
-        Object.assign(element.style, { font: '13px ' + theme.font, ...style });
+        Object.assign(element.style, { font: '13px var(--deckit-font)', ...style });
         return element;
     };
 
@@ -1419,13 +1432,13 @@ const calendar = (deck, accountsPoint) => {
                         minHeight: '44px',
                         gap: '12px',
                         marginBottom: '6px',
-                        border: theme.border,
+                        border: 'var(--deckit-border)',
                     });
                     const words = document.createElement('div');
                     words.style.flex = '1 1 auto';
                     words.append(
-                        sheetText(provider.name, { font: '600 14px ' + theme.font }),
-                        sheetText(provider.hint, { opacity: '.6', font: '12px ' + theme.font })
+                        sheetText(provider.name, { font: '600 14px var(--deckit-font)' }),
+                        sheetText(provider.hint, { opacity: '.6', font: '12px var(--deckit-font)' })
                     );
                     row.append(glyph(provider.icon, 22), words);
                     row.addEventListener('click', () => {
@@ -1513,7 +1526,7 @@ const calendar = (deck, accountsPoint) => {
                 Object.assign(who.style, { display: 'flex', alignItems: 'center', gap: '8px', margin: '-6px 0 14px' });
                 who.append(glyph(provider.icon, 16), sheetText(provider.name, { opacity: '.6' }));
                 const heading = sheetText('Calendars', {
-                    font: '700 12px ' + theme.font,
+                    font: '700 12px var(--deckit-font)',
                     opacity: '.55',
                     letterSpacing: '.02em',
                     marginBottom: '6px',
@@ -1535,7 +1548,11 @@ const calendar = (deck, accountsPoint) => {
                         });
                     },
                 }).element;
-                Object.assign(remove.style, { display: 'inline-flex', margin: '14px 0 6px', color: theme.color.alert });
+                Object.assign(remove.style, {
+                    display: 'inline-flex',
+                    margin: '14px 0 6px',
+                    color: 'var(--deckit-alert)',
+                });
                 card.append(who, heading, list, remove);
 
                 const load = () =>
@@ -1564,7 +1581,7 @@ const calendar = (deck, accountsPoint) => {
                                 });
                                 const name = sheetText(entry.name + (entry.primary ? ' (you)' : ''), {
                                     flex: '1 1 auto',
-                                    font: '14px ' + theme.font,
+                                    font: '14px var(--deckit-font)',
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap',
@@ -1587,7 +1604,7 @@ const calendar = (deck, accountsPoint) => {
                             list.textContent = '';
                             list.appendChild(
                                 sheetText(String(error.message || error), {
-                                    color: theme.color.alert,
+                                    color: 'var(--deckit-alert)',
                                     marginBottom: '8px',
                                 })
                             );
@@ -1675,7 +1692,7 @@ const calendar = (deck, accountsPoint) => {
     const accountRow = (account) => {
         const state = statusOf(account.id);
         const row = ui.row().element;
-        Object.assign(row.style, { minHeight: '24px', font: '12.5px ' + theme.font });
+        Object.assign(row.style, { minHeight: '24px', font: '12.5px var(--deckit-font)' });
         const who = document.createElement('span');
         who.textContent = account.email;
         const provider = providerOf(account);
@@ -1700,7 +1717,7 @@ const calendar = (deck, accountsPoint) => {
                     reconnect(account);
                 },
             }).element;
-            Object.assign(signInButton.style, { color: theme.color.alert, borderColor: theme.color.alert });
+            Object.assign(signInButton.style, { color: 'var(--deckit-alert)', borderColor: 'var(--deckit-alert)' });
             row.appendChild(signInButton);
         }
         row.appendChild(
@@ -1733,7 +1750,7 @@ const calendar = (deck, accountsPoint) => {
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
             opacity: feed.hidden ? '.45' : '1',
-            color: feed.error ? theme.color.alert : 'inherit',
+            color: feed.error ? 'var(--deckit-alert)' : 'inherit',
         });
         row.append(
             swatch,
@@ -1847,7 +1864,12 @@ const calendar = (deck, accountsPoint) => {
         if (showDate) {
             const date = document.createElement('span');
             date.textContent = `${occurrence.start.getMonth() + 1}/${occurrence.start.getDate()} (${WEEKDAYS_KO[occurrence.start.getDay()]})`;
-            Object.assign(date.style, { flex: '0 0 auto', width: '62px', opacity: '.55', font: '13px ' + theme.font });
+            Object.assign(date.style, {
+                flex: '0 0 auto',
+                width: '62px',
+                opacity: '.55',
+                font: '13px var(--deckit-font)',
+            });
             row.appendChild(date);
         }
         const time = document.createElement('span');
@@ -1857,7 +1879,7 @@ const calendar = (deck, accountsPoint) => {
             flex: '0 0 auto',
             width: '52px',
             opacity: spanning ? '.45' : '.6',
-            font: (spanning ? '12px ' : '13px ') + theme.font,
+            font: (spanning ? '12px' : '13px') + ' var(--deckit-font)',
         });
         const name = document.createElement('span');
         name.textContent = nameOf(occurrence);
@@ -1878,7 +1900,7 @@ const calendar = (deck, accountsPoint) => {
     const emptyRow = (text) => {
         const row = ui.row().element;
         row.textContent = text;
-        Object.assign(row.style, { opacity: '.45', cursor: 'default', font: '13px ' + theme.font });
+        Object.assign(row.style, { opacity: '.45', cursor: 'default', font: '13px var(--deckit-font)' });
         return row;
     };
 
