@@ -16,6 +16,9 @@ const { session } = require('./session.js');
 const { tree } = require('./tree.js');
 const { FONTS, typefaceOf } = require('./typeface.js');
 
+// What stop() waits for: the open note written, so what was typed just before the run ends is kept.
+let saveUnsaved = null;
+
 module.exports = {
     keywords: [
         'notes',
@@ -107,6 +110,7 @@ module.exports = {
             onRenamed: changed,
             onMenu: (path, anchor) => ui.menu({ items: noteMenus.noteItems(path), anchor }),
         });
+        saveUnsaved = () => noteSession.saveIfUnsaved();
         const placeHistory = navigationHistory({
             movePath: util.movePath,
             current: () => place,
@@ -410,5 +414,9 @@ module.exports = {
             editor.setTypeface(typeface);
             noteSession.setFont(typeface.font);
         }
+    },
+
+    stop() {
+        return saveUnsaved?.();
     },
 };

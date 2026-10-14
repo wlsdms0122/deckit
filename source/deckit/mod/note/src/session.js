@@ -209,9 +209,7 @@ function session({ theme, ui, notesFolder, editor, movePath, onLeave, onRelocate
         enqueue,
         edited,
         save,
-        saveIfUnsaved: () => {
-            if (note.unsaved) save();
-        },
+        saveIfUnsaved: () => (note.unsaved ? save() : Promise.resolve(true)),
         reconcile,
         relocate: (from, to) => {
             if (!note.path) return;
