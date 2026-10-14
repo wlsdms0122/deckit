@@ -19,7 +19,7 @@ module.exports = ({ emit, window, files }) => {
         'photoslibrary',
         'bundle',
         'prefpane',
-        'mod',
+        'plugin',
         'kext',
         'qlgenerator',
         'mdimporter',
