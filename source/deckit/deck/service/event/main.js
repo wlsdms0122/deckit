@@ -24,6 +24,8 @@ DeckitModule.define(
                 if (!listening.has(sender)) IDENTITY.whenPageEnds(sender, () => listening.delete(sender));
                 listening.set(sender, new Set(names));
             });
+            // A run that has ended hears nothing, though its page may stay until the mod launches again.
+            RUNNER.observe('didTerminate', ({ mod }) => listening.delete(IDENTITY.pageOf(mod.id)));
             PROTOCOL.emit.on(({ name, args }, sender) => {
                 const mod = IDENTITY.modFrom(sender);
                 if (RUNNER.runOf(mod.id)?.state !== 'running') return;
