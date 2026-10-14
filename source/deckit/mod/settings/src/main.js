@@ -83,11 +83,11 @@ module.exports = {
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         function redraw() {
-            const { installed: onDisk, running } = deck.mods.list();
+            const { found, running } = deck.mods.list();
             const shortcuts = deck.keymap.list();
             const handlerLists = deck.urlSchemes.list();
             for (const mod of running) modIcons.set(mod.id, mod.icon);
-            mods.draw({ onDisk, running, shortcuts, handlerLists });
+            mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();
             urlSchemes.draw(handlerLists);
             keyboard.draw(shortcuts);

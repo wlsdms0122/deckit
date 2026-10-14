@@ -8,7 +8,7 @@ function keyboardSection({ ui, keymap }) {
     const DESCRIPTION =
         'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Mods may share a chord. A change onto ' +
         'a chord already in use is not applied until that chord is free.';
-    const SCOPE_NAMES = { global: 'Everywhere', shell: 'On any mod' };
+    const SCOPE_NAMES = { global: 'Everywhere', app: 'On any mod' };
 
     let endRecording = null;
     let drawAfterRecording = false;
@@ -193,7 +193,7 @@ function keyboardSection({ ui, keymap }) {
 
 // What a keystroke does instead, in words, from an issue's facts.
 function issueText(shortcut, { kind, other }) {
-    const name = other.shell || other.owner === shortcut.owner ? other.label : `${other.ownerName} ${other.label}`;
+    const name = other.app || other.owner === shortcut.owner ? other.label : `${other.ownerName} ${other.label}`;
     if (kind === 'held') return `Not applied: ${other.chord} is already ${name}`;
     if (kind === 'shadowed') return `Never runs: ${other.chord} is ${name}`;
     if (kind === 'hides') return `Hides ${other.label} while ${shortcut.ownerName} is on screen`;

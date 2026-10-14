@@ -110,10 +110,10 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
 
     // The panel's pins are the shell's: under a shell that has none, no child is pinned.
-    function draw({ onDisk, running, shortcuts, handlerLists }) {
-        restart.draw(onDisk);
+    function draw({ found, running, shortcuts, handlerLists }) {
+        restart.draw(found);
         const pinned = new Set(mods.pinned ? mods.pinned() : []);
-        rows.set(modRowsOf({ onDisk, running, shortcuts, handlerLists, pinned }));
+        rows.set(modRowsOf({ found, running, shortcuts, handlerLists, pinned }));
     }
 
     function showNotice(text) {
@@ -264,7 +264,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         const hasData = stored.count > 0 || stored.hidden;
         const requiring = mods
             .list()
-            .installed.filter((other) => other.requires && other.requires[mod.id])
+            .found.filter((other) => other.requires && other.requires[mod.id])
             .map((other) => other.name);
         const breaks = requiring.length
             ? `${requiring.join(', ')} ${requiring.length === 1 ? 'requires' : 'require'} it and will stop loading.`
@@ -311,7 +311,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     // One row per mod: the running ones first, in the person's order, then the ones found on disk that did not load
     // or are still starting. `notLoaded` is why one is not running, `problem` what went wrong with one that is.
     // Permissions are read from the folder, so one that did not load still shows the permissions it asks for.
-    function modRowsOf({ onDisk, running, shortcuts, handlerLists, pinned }) {
+    function modRowsOf({ found, running, shortcuts, handlerLists, pinned }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (mod) => ({
             version: mod?.version,
@@ -325,22 +325,22 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             hides: mod?.hides,
         });
         const loaded = running.map((live) => {
-            const found = onDisk.find((mod) => mod.id === live.id);
+            const listed = found.find((mod) => mod.id === live.id);
             return {
                 id: live.id,
                 name: live.name,
-                ...fromDisk(found),
+                ...fromDisk(listed),
                 live,
                 pinned: pinned.has(live.id),
                 keys: keysOf(live.id),
                 handlerLists,
-                problem: found?.mainProcess.failure
-                    ? 'a main process module did not start: ' + found.mainProcess.failure
+                problem: listed?.mainProcess.failure
+                    ? 'a main process module did not start: ' + listed.mainProcess.failure
                     : live.problem,
             };
         });
         const loadedIds = new Set(running.map((live) => live.id));
-        const notLoaded = onDisk
+        const notLoaded = found
             .filter((mod) => !loadedIds.has(mod.id))
             .map((mod) => ({
                 id: mod.id,

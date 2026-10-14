@@ -25,11 +25,11 @@ function restartNotice({ ui, mods, appName, onFailure }) {
     element.append(text, restart.element);
     return { element, draw };
 
-    function draw(onDisk) {
+    function draw(found) {
         const pending = mods.restartPending();
         element.hidden = !pending.length;
         if (!pending.length) return;
-        const nameOf = (id) => onDisk.find((mod) => mod.id === id)?.name || id;
+        const nameOf = (id) => found.find((mod) => mod.id === id)?.name || id;
         const named = (why) => pending.filter((entry) => entry.why === why).map((entry) => nameOf(entry.id));
         const updated = named('updated');
         const removed = named('removed');
