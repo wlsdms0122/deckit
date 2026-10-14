@@ -28,6 +28,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     const STORAGE = createStorage({ HOME });
     const LOG = createLog({ CONFIG, HOME });
     const PERMISSION = createPermission();
+    for (const permission of MOD_PERMISSION.PERMISSIONS) PERMISSION.define(permission);
     const MANIFEST = createManifest({ MOD_PERMISSION: PERMISSION });
     const FOLDER = createFolder({ MANIFEST });
     const INSTALL = createInstall({ CONFIG, HOME, FOLDER });
