@@ -14,8 +14,10 @@ export function createClipboard({ IDENTITY }) {
             IDENTITY.modFrom(sender, CLIPBOARD_PERMISSION.CLIPBOARD);
             return clipboard.readText();
         });
+        // Copying replaces what the person copied, so it is their act: during their click or key in the page.
         PROTOCOL.writeText.handle(({ text }, sender) => {
             IDENTITY.modFrom(sender);
+            if (!IDENTITY.consumeUserActivation(sender)) return false;
             clipboard.writeText(text);
             return true;
         });

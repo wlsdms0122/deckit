@@ -23,8 +23,19 @@ export function createApi({
     const STATE_KEY = /^[a-z0-9][a-z0-9._-]{0,63}$/;
     const NOTIFICATIONS = Object.freeze([...DECK.NOTIFICATIONS]);
     const facts = new WeakMap(); // a run -> what the host app reads of it
+    // mod id -> how it is listed, { icon, keywords }, as its latest run that launched said: kept while it launches
+    // again, so whatever lists the mods does not lose it then.
+    const listings = new Map();
 
     // MARK: - Initializer
+    RUNNER.observe('didLaunch', ({ mod, summary }) =>
+        listings.set(mod.id, Object.freeze({ icon: summary.icon, keywords: Object.freeze([...summary.keywords]) }))
+    );
+    CATALOG.onChange(() => {
+        const found = new Set(CATALOG.mods().map(({ id }) => id));
+        for (const id of [...listings.keys()]) if (!found.has(id)) listings.delete(id);
+    });
+
     // MARK: - Public
     // What a host app and the shell it puts on deckit reach of deckit, in main: the mods and their runs, pages of
     // the shell's own, keys, commands, permissions for what the shell adds, their own state, and windows. No more
@@ -42,6 +53,7 @@ export function createApi({
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, view }) => Object.freeze({ run: factsOf(run), view }))),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),
+                listingOf: (id) => listings.get(id) || null,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
                 modOf: (webContents) => IDENTITY.modOf(webContents)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
@@ -52,6 +64,7 @@ export function createApi({
                 make: (name) => makePage(makeView, name),
                 nameOf: IDENTITY.pageNameOf,
                 whenEnds: IDENTITY.whenPageEnds,
+                isPressing: IDENTITY.isPressing,
             }),
             keymap: Object.freeze({
                 register: KEYMAP.register,

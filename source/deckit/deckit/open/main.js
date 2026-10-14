@@ -112,7 +112,8 @@ export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) 
         return Object.hasOwn(chosen(), scheme) ? chosen()[scheme] : { order: [], off: [] };
     }
 
-    // In the scheme's order; a mod no one placed keeps the place the mods' order gives it.
+    // In the scheme's order; a mod no one placed comes after, by its id: the mods' order in the panel says nothing of
+    // who opens what.
     function handlersOf(scheme) {
         const order = orderOf(scheme);
         const off = savedOf(scheme).off;
@@ -122,9 +123,8 @@ export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) 
                 (mod) =>
                     answering.has(mod.id) && mod.urlSchemes.some((named) => named === SCHEME.EVERY || named === scheme)
             )
-            .map((mod, at) => ({ id: mod.id, name: mod.name, on: !off.includes(mod.id), at }))
-            .sort((a, b) => rank(a.id) - rank(b.id) || a.at - b.at)
-            .map(({ at, ...handler }) => handler);
+            .map((mod) => ({ id: mod.id, name: mod.name, on: !off.includes(mod.id) }))
+            .sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
     }
 
     // The ids given take the places they held among themselves. A mod missing from the list now (failed to
