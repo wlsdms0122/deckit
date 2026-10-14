@@ -197,7 +197,7 @@ With `deckit.styles`, styles other pages while the mod runs: a mod's page by its
 
 ## deck
 
-`start(deck)` receives `{ id, name, settings, storage, web, requires, optional, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod. The shell adds `theme` and `ui`, and `view`, `styles` and `show` (the beginning of this document).
+`start(deck)` receives `{ id, name, settings, storage, web, requires, optional, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod. The shell adds `theme`, `ui`, `show()`, `region()` and `children`, the registrations `view` and `styles`, and the pins on `mods` (the beginning of this document).
 
 ### theme and ui
 
