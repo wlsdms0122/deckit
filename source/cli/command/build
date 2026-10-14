@@ -12,7 +12,7 @@ WORK="$(mktemp -d "$OUT/.building.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 LIB="$WORK/lib"
 mkdir -p "$LIB/document" "$LIB/mod"
-SOURCE_HASH="$({ find source/deckit/deckit source/deckit/shell source/deckit/mod source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+SOURCE_HASH="$({ find source/deckit/deck source/deckit/deckit source/deckit/shell source/deckit/mod source/cli/library.js source/cli/concept.js source/cli/describe.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 # Read into an array first, where a node that fails stops the build. Which deckit this is goes into the bundles: the
 # build module's empty values are written over with the version and the source hash.

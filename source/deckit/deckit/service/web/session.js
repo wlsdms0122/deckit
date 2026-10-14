@@ -3,10 +3,10 @@ DeckitModule.define(
     {
         uses: [
             'deckit/config',
-            'deckit/service/storage',
-            'deckit/service/log/main',
+            'deck/service/storage',
+            'deck/service/log/main',
             'deckit/service/web/model/partition',
-            'deckit/service/deck/model/origin',
+            'deck/service/deck/model/origin',
         ],
         provides: ['own', 'of', 'partitionOf', 'onCreate', 'fetchText', 'clear', 'forget'],
         runs: 'main',

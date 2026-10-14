@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/web/debugger',
     {
-        uses: ['deckit/service/log/main'],
+        uses: ['deck/service/log/main'],
         provides: ['attach', 'send', 'on'],
         runs: 'main',
     },

@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/web/certificate',
     {
         uses: [
-            'deckit/service/log/main',
+            'deck/service/log/main',
             'deckit/service/web/session',
             'deckit/service/web/registry',
             'deckit/service/web/protocol',

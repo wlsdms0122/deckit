@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/command/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: ['source', 'collect', 'collectNow', 'resolve', 'search', 'run', 'end'],
         runs: 'electron',
     },

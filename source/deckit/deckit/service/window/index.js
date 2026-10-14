@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/window',
     {
-        uses: ['deckit/service/log/main'],
+        uses: ['deck/service/log/main'],
         provides: ['start', 'open', 'get', 'close', 'place', 'windowOf', 'windowShowing'],
         runs: 'main',
     },

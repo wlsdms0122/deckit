@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/open/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: ['open', 'handles', 'reveal', 'handlerLists', 'setHandlers', 'offer'],
         runs: 'electron',
     },

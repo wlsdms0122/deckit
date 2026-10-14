@@ -3,7 +3,7 @@
 DeckitModule.define(
     'deckit/service/web/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: [
             'window',
             'fetchText',

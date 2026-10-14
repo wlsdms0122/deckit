@@ -1,7 +1,7 @@
 DeckitModule.define(
     'shell/feature/switcher/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: [
             'ready',
             'open',

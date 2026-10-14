@@ -2,6 +2,7 @@
 const path = require('path');
 
 const LAYERS = {
+    deck: new Set(['config', 'service', 'module']),
     deckit: new Set(['config', 'feature', 'service', 'module']),
     shell: new Set(['feature', 'service', 'ui']),
 };

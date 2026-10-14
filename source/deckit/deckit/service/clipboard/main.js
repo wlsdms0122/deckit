@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/clipboard/main',
     {
-        uses: ['deckit/service/deck/identity', 'deckit/service/clipboard/protocol'],
+        uses: ['deck/service/deck/identity', 'deckit/service/clipboard/protocol'],
         provides: ['start'],
     },
     (IDENTITY, PROTOCOL) => {

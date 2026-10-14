@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/keymap/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: ['scope', 'typing', 'record', 'chord', 'bindings', 'bind', 'reset', 'key', 'recorded', 'changed'],
         runs: 'electron',
     },

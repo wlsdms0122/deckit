@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/clipboard/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: ['readText', 'writeText'],
         runs: 'electron',
     },

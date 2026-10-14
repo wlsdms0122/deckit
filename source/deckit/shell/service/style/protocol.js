@@ -1,7 +1,7 @@
 DeckitModule.define(
     'shell/service/style/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: ['current', 'changed'],
         runs: 'electron',
     },

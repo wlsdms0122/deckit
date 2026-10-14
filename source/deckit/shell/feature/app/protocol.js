@@ -2,7 +2,7 @@
 DeckitModule.define(
     'shell/feature/app/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: ['setup'],
         runs: 'electron',
     },

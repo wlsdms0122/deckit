@@ -3,17 +3,17 @@ DeckitModule.define(
     {
         uses: [
             'deckit/config',
-            'deckit/service/storage',
-            'deckit/service/log/main',
-            'deckit/service/deck/identity',
-            'deckit/service/deck/catalog',
-            'deckit/service/mod/model/permission',
+            'deck/service/storage',
+            'deck/service/log/main',
+            'deck/service/deck/identity',
+            'deck/service/deck/catalog',
+            'deckit/service/main-process/model/permission',
             'deckit/service/open/model/scheme',
             'deckit/service/open/protocol',
         ],
         provides: ['start', 'open'],
     },
-    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, PERMISSION, SCHEME, PROTOCOL) => {
+    (CONFIG, STORAGE, LOG, IDENTITY, CATALOG, MAIN_PROCESS, SCHEME, PROTOCOL) => {
         // MARK: - Property
         const fs = require('fs');
         const path = require('path');
@@ -81,7 +81,7 @@ DeckitModule.define(
         // taken; any other has to show a person's press.
         function spendsUserActivation(sender) {
             const mod = IDENTITY.modFrom(sender);
-            if (mod.permissions.some(({ id }) => id === PERMISSION.MAIN_PROCESS)) return true;
+            if (mod.permissions.some(({ id }) => id === MAIN_PROCESS.PERMISSION)) return true;
             return IDENTITY.consumeUserActivation(sender);
         }
 

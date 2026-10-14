@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/notify/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: ['notify', 'clicked'],
         runs: 'electron',
     },

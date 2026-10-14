@@ -3,9 +3,9 @@ DeckitModule.define(
     {
         uses: [
             'deckit/service/window',
-            'deckit/service/log/main',
+            'deck/service/log/main',
             'deckit/service/keymap/main',
-            'deckit/service/deck/identity',
+            'deck/service/deck/identity',
             'deckit/service/web/session',
             'deckit/service/web/registry',
             'deckit/service/web/model/partition',

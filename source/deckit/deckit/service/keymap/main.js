@@ -3,11 +3,11 @@ DeckitModule.define(
     {
         uses: [
             'deckit/config',
-            'deckit/service/storage',
-            'deckit/service/log/main',
+            'deck/service/storage',
+            'deck/service/log/main',
             'deckit/module/chord',
-            'deckit/service/deck/identity',
-            'deckit/service/deck/catalog',
+            'deck/service/deck/identity',
+            'deck/service/deck/catalog',
             'deckit/service/keymap/protocol',
             'deckit/service/keymap/model/binding-id',
         ],

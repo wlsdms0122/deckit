@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/runtime/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: ['about', 'restart'],
         runs: 'electron',
     },

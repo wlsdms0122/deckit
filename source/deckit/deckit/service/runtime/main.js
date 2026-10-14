@@ -3,9 +3,9 @@ DeckitModule.define(
     {
         uses: [
             'deckit/config',
-            'deckit/service/home',
-            'deckit/service/log/main',
-            'deckit/service/deck/identity',
+            'deck/service/home',
+            'deck/service/log/main',
+            'deck/service/deck/identity',
             'deckit/service/runtime/protocol',
             'deckit/service/build',
         ],

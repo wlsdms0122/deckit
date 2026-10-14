@@ -2,7 +2,7 @@
 DeckitModule.define(
     'shell/feature/panel/protocol',
     {
-        uses: ['deckit/module/ipc'],
+        uses: ['deck/module/ipc'],
         provides: [
             'setup',
             'pick',

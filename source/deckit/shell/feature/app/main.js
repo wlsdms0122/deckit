@@ -3,13 +3,14 @@ DeckitModule.define(
     {
         uses: [
             'shell/service/style/main',
+            'shell/service/style/model/permission',
             'shell/feature/panel/main',
             'shell/feature/switcher/main',
             'shell/feature/app/protocol',
         ],
         provides: ['attach'],
     },
-    (STYLE, PANEL, SWITCHER, PROTOCOL) => {
+    (STYLE, STYLE_PERMISSION, PANEL, SWITCHER, PROTOCOL) => {
         // MARK: - Property
         // What the host app answers the shell: where it is shown is the app's.
         const ANSWERS = ['start', 'showsPanel', 'reveal', 'dismiss', 'summonSwitcher', 'panelTitled'];
@@ -25,6 +26,12 @@ DeckitModule.define(
             const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
             if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
             deckit = given;
+            deckit.permissions.define({
+                id: STYLE_PERMISSION.PERMISSION,
+                name: 'Styles',
+                icon: 'eye',
+                means: "It can change how every page in the app looks, other mods' among them, and so read what they show.",
+            });
             deckit.onStart(() => start(host));
         }
 

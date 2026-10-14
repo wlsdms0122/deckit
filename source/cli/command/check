@@ -6,7 +6,7 @@ const path = require('path');
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 const { conceptOf } = require(path.join(__dirname, '..', 'concept.js'));
 
-const IPC = 'deckit/module/ipc';
+const IPC = 'deck/module/ipc';
 // The entries a host app starts, which put a page or main together and so may name any concept's protocol.
 const ENTRIES = new Set([
     'deckit/feature/app/main',
@@ -16,15 +16,20 @@ const ENTRIES = new Set([
 ]);
 // What a host app hands deckit, which it may not: named as optional.
 const HOST_INPUTS = new Set(['host/config', 'host/folders', 'host/exports']);
-// Deckit names nothing of the shell. The shell reaches deckit through what connect answers (feature/api), so of
-// deckit's files it names only the parts with no deckit in them.
+// Deck names nothing of deckit, and deckit nothing of the shell. Deckit is built on deck. The shell reaches deckit
+// through what connect answers (deckit/feature/api), so of the libraries under it it names only the parts with no
+// deckit in them, their modules.
+const DECK = ['deck/config', 'deck/service', 'deck/module'];
 const MAY_NAME = {
-    'deckit/config': new Set(),
-    'deckit/feature': new Set(['deckit/config', 'deckit/feature', 'deckit/service', 'deckit/module']),
-    'deckit/service': new Set(['deckit/config', 'deckit/service', 'deckit/module']),
-    'deckit/module': new Set(['deckit/module']),
-    'shell/feature': new Set(['shell/feature', 'shell/service', 'shell/ui', 'deckit/module']),
-    'shell/service': new Set(['shell/service', 'deckit/module']),
+    'deck/config': new Set(),
+    'deck/service': new Set(DECK),
+    'deck/module': new Set(['deck/module']),
+    'deckit/config': new Set(['deck/config']),
+    'deckit/feature': new Set([...DECK, 'deckit/config', 'deckit/feature', 'deckit/service', 'deckit/module']),
+    'deckit/service': new Set([...DECK, 'deckit/config', 'deckit/service', 'deckit/module']),
+    'deckit/module': new Set(['deck/module', 'deckit/module']),
+    'shell/feature': new Set(['shell/feature', 'shell/service', 'shell/ui', 'deck/module', 'deckit/module']),
+    'shell/service': new Set(['shell/service', 'deck/module', 'deckit/module']),
     'shell/ui': new Set(['shell/ui']),
 };
 const RUNS = new Set(['main', 'page', 'node', 'electron', 'any']);
@@ -89,7 +94,7 @@ function checkFile(file, { name, provides, plain, uses }) {
     if (name !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
     const protocol = file.endsWith('/protocol.js');
-    if (!protocol && /["'`](deckit|shell):(?!\/\/)/.test(plain))
+    if (!protocol && /["'`](deck|deckit|shell):(?!\/\/)/.test(plain))
         say(file, 'writes a channel; channels are declared in a protocol.js');
     if (protocol) checkChannels(file, plain);
     if (!protocol && uses.some((use) => use.name === IPC)) say(file, `names ${IPC}, which only a protocol names`);
@@ -112,7 +117,7 @@ function checkUses(name, { file, uses }) {
     if (!mine)
         return say(
             file,
-            'is in no layer: a module of deckit is in config/, feature/, service/ or module/, and of the shell in feature/, service/ or ui/'
+            'is in no layer: a module of deck is in config/, service/ or module/, of deckit in config/, feature/, service/ or module/, and of the shell in feature/, service/ or ui/'
         );
     for (const use of uses) {
         if (HOST_INPUTS.has(use.name)) {

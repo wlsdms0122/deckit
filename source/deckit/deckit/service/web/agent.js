@@ -1,7 +1,7 @@
 DeckitModule.define(
     'deckit/service/web/agent',
     {
-        uses: ['deckit/config', 'deckit/service/web/debugger', 'deckit/service/log/main'],
+        uses: ['deckit/config', 'deckit/service/web/debugger', 'deck/service/log/main'],
         provides: ['presentAsBrowser'],
         runs: 'main',
     },

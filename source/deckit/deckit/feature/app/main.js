@@ -2,14 +2,16 @@ DeckitModule.define(
     'deckit/feature/app/main',
     {
         uses: [
-            'deckit/config',
-            'deckit/service/log/main',
+            'deck/config',
+            'deck/service/log/main',
+            'deck/service/mod/manifest',
+            'deck/service/mod/permission',
             'deckit/service/window',
-            'deckit/service/deck/install',
-            'deckit/service/mod/folder',
-            'deckit/service/deck/identity',
-            'deckit/service/deck/main',
-            'deckit/service/deck/catalog',
+            'deck/service/deck/install',
+            'deck/service/mod/folder',
+            'deck/service/deck/identity',
+            'deck/service/deck/main',
+            'deck/service/deck/catalog',
             'deckit/service/web/session',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
@@ -17,17 +19,22 @@ DeckitModule.define(
             'deckit/service/notify/main',
             'deckit/service/clipboard/main',
             'deckit/service/runtime/main',
-            'deckit/service/event/main',
+            'deck/service/event/main',
             'deckit/service/command/main',
+            'deckit/service/main-process/main',
             'deckit/feature/api',
             'deckit/feature/app/protocol',
-            'deckit/service/deck/model/origin',
+            'deckit/feature/app/model/permission',
+            'deckit/service/open/model/scheme',
+            'deck/service/deck/model/origin',
         ],
         provides: ['SCHEME', 'connect'],
     },
     (
-        CONFIG,
+        DECK_CONFIG,
         LOG,
+        MANIFEST,
+        PERMISSION,
         WINDOW,
         INSTALL,
         FOLDER,
@@ -43,8 +50,11 @@ DeckitModule.define(
         RUNTIME,
         EVENT,
         COMMAND,
+        MAIN_PROCESS,
         API,
         PROTOCOL,
+        PERMISSIONS,
+        SCHEMES,
         ORIGIN
     ) => {
         // MARK: - Property
@@ -78,6 +88,8 @@ DeckitModule.define(
             if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
             if (!preload) throw new Error('[deckit] connect needs the preload deckit pages load with');
             connected = true;
+            for (const permission of PERMISSIONS.PERMISSIONS) PERMISSION.define(permission);
+            MANIFEST.define(SCHEMES.FIELD, SCHEMES.field());
             LOG.start();
             require('electron')
                 .app.whenReady()
@@ -98,7 +110,7 @@ DeckitModule.define(
 
         function start(preload, host) {
             serve();
-            if (CONFIG.ship.length) {
+            if (DECK_CONFIG.ship.length) {
                 for (const { id, outcome, problem } of INSTALL.installShipped())
                     if (problem) LOG.warn(`${outcome} ${id}: ${problem}`);
                     else LOG.info(`${outcome} ${id}`);
@@ -111,6 +123,7 @@ DeckitModule.define(
             CLIPBOARD.start();
             EVENT.start();
             COMMAND.start();
+            MAIN_PROCESS.start();
             RUNTIME.start({ restart: () => host.restart() });
             PROTOCOL.setup.handle((_payload, sender) => {
                 const page = IDENTITY.pageNameOf(sender);
@@ -126,7 +139,34 @@ DeckitModule.define(
                     LOG.error('what starts with deckit did not start', error);
                 }
             }
-            DECK.start({ makeView: () => pageView(preload, { webview: true }) });
+            DECK.start({
+                makeView: () => pageView(preload, { webview: true }),
+                preparePage,
+                describe: (mod) => ({
+                    mainProcess: { running: MAIN_PROCESS.started(mod.id), failure: MAIN_PROCESS.failure(mod.id) },
+                }),
+                installed: (id) => {
+                    MAIN_PROCESS.restartFor(id);
+                    return { restart: MAIN_PROCESS.restartPending().some((pending) => pending.id === id) };
+                },
+                removed: MAIN_PROCESS.unload,
+                forget: SESSION.forget,
+            });
+        }
+
+        // A mod's page shows the web, hears the key map, and offers what it opens to the scheme's handlers: a window it
+        // asks for, and a link that leaves its origin, which deck holds it to.
+        function preparePage(webContents, mod) {
+            WEB.host(webContents);
+            KEYMAP.listen(webContents);
+            webContents.setWindowOpenHandler((details) => {
+                OPEN.open(details.url, WEB.windowOptions(details));
+                return { action: 'deny' };
+            });
+            const origin = ORIGIN.originOf(mod.id);
+            LOG.guard(webContents, 'will-frame-navigate', (details) => {
+                if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.open(details.url, {});
+            });
         }
 
         // Every page of deckit's is the same PAGE, whichever origin it is loaded under: what it becomes is asked of

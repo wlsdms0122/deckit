@@ -3,33 +3,53 @@ DeckitModule.define(
     {
         uses: [
             'deckit/config',
-            'deckit/service/storage',
-            'deckit/service/log/main',
+            'deck/module/store',
+            'deck/service/home',
+            'deck/service/log/main',
             'deckit/service/window',
-            'deckit/service/deck/identity',
-            'deckit/service/deck/catalog',
-            'deckit/service/deck/runner',
-            'deckit/service/mod/manifest',
-            'deckit/service/mod/lifecycle',
+            'deck/service/deck/identity',
+            'deck/service/deck/catalog',
+            'deck/service/deck/runner',
+            'deck/service/mod/manifest',
+            'deck/service/mod/permission',
+            'deck/service/mod/lifecycle',
             'deckit/service/web/main',
             'deckit/service/keymap/main',
             'deckit/service/command/main',
-            'deckit/service/deck/model/origin',
+            'deck/service/deck/model/origin',
         ],
         provides: ['make'],
         runs: 'main',
     },
-    (CONFIG, STORAGE, LOG, WINDOW, IDENTITY, CATALOG, RUNNER, MANIFEST, LIFECYCLE, WEB, KEYMAP, COMMAND, ORIGIN) => {
+    (
+        CONFIG,
+        STORE,
+        HOME,
+        LOG,
+        WINDOW,
+        IDENTITY,
+        CATALOG,
+        RUNNER,
+        MANIFEST,
+        PERMISSION,
+        LIFECYCLE,
+        WEB,
+        KEYMAP,
+        COMMAND,
+        ORIGIN
+    ) => {
         // MARK: - Property
+        const path = require('path');
         // A page the shell makes is named as a host is, with no dot, so its origin is never a mod's.
         const PAGE_NAME = /^[a-z][a-z0-9-]*$/;
+        const STATE_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
         const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
         const facts = new WeakMap(); // a run -> what the host app reads of it
 
         // MARK: - Initializer
         // MARK: - Public
         // What a host app and the shell it puts on deckit reach of deckit, in main: the mods and their runs, pages of
-        // the shell's own, keys, commands, their own state, and windows. No more of deckit is theirs. Every value it
+        // the shell's own, keys, commands, permissions for what the shell adds, their own state, and windows. No more of deckit is theirs. Every value it
         // hands out is a frozen copy. `makeView({ webview })` makes a view for a deckit page; `onStart(listener)` is how
         // deckit is told what starts with it.
         function make({ makeView, onStart }) {
@@ -60,7 +80,12 @@ DeckitModule.define(
                     delegate: KEYMAP.delegate,
                 }),
                 commands: Object.freeze({ tones: COMMAND.TONES, session: COMMAND.session }),
-                state: Object.freeze({ read: STORAGE.hostState.read, write: STORAGE.hostState.write }),
+                permissions: Object.freeze({ define: PERMISSION.define }),
+                // What the host app and its shell keep of the person's, in a folder of their own beside deck's state.
+                state: Object.freeze({
+                    read: (key, fallback) => STORE.read(stateFile(key), fallback),
+                    write: (key, value) => STORE.write(stateFile(key), value),
+                }),
                 web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
                 window: Object.freeze({ place: WINDOW.place }),
                 log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, guard: LOG.guard }),
@@ -77,6 +102,11 @@ DeckitModule.define(
             IDENTITY.add(view.webContents, { page: name });
             view.webContents.loadURL(ORIGIN.addressOf(ORIGIN.pageOriginOf(name)));
             return view;
+        }
+
+        function stateFile(key) {
+            if (!STATE_KEY.test(String(key)) || String(key).includes('..')) throw new Error('not a state key: ' + key);
+            return path.join(HOME.state, 'host', key + '.json');
         }
 
         function manifestOf(mod) {

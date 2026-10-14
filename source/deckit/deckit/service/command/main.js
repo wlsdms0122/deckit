@@ -2,9 +2,9 @@ DeckitModule.define(
     'deckit/service/command/main',
     {
         uses: [
-            'deckit/service/log/main',
-            'deckit/service/deck/identity',
-            'deckit/service/deck/catalog',
+            'deck/service/log/main',
+            'deck/service/deck/identity',
+            'deck/service/deck/catalog',
             'deckit/service/command/protocol',
             'deckit/service/command/model/tone',
         ],

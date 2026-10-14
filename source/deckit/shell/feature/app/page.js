@@ -32,7 +32,7 @@ DeckitModule.define(
             SWITCHER.boot(start());
         }
 
-        // What the shell gives a mod's page, as deckit runs it (deckit/service/deck/page): the theme, the kit, `show()`,
+        // What the shell gives a mod's page, as deckit runs it (deck/service/deck/page): the theme, the kit, `show()`,
         // and the registrations `view` and, with deckit.styles, `styles`. Once start() has ended, a view goes in the
         // panel's frame.
         function mod({ mod: running, chordOf, deliver }) {

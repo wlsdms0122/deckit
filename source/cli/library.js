@@ -1,13 +1,13 @@
-// The libraries as the build reads them: deckit, and the shell on it. Their files, what each declares, and each bundle
-// worked out from its entry. A file is named by its path under source/deckit, its library first.
+// The libraries as the build reads them: deck, deckit on it, and the shell on deckit. Their files, what each declares,
+// and each bundle worked out from its entry. A file is named by its path under source/deckit, its library first.
 const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
-const LIBRARIES = ['deckit', 'shell'];
+const LIBRARIES = ['deck', 'deckit', 'shell'];
 const MODS = path.join(DECKIT, 'mod');
 const APP = path.join(DECKIT, 'deckit-app');
-const REGISTRY = 'deckit/module/registry/index.js';
+const REGISTRY = 'deck/module/registry/index.js';
 const ENTRIES = {
     chord: () => ['deckit/module/chord'],
     main: () => ['deckit/feature/app/main'],

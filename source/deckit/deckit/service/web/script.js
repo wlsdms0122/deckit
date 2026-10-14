@@ -2,7 +2,7 @@ DeckitModule.define(
     'deckit/service/web/script',
     {
         uses: [
-            'deckit/service/log/main',
+            'deck/service/log/main',
             'deckit/service/web/debugger',
             'deckit/service/web/session',
             'deckit/service/web/permission',
@@ -33,13 +33,16 @@ DeckitModule.define(
         function attach(host, page, changed) {
             const partition = SESSION.partitionOf(page);
             const allowed = (origin) => PERMISSION.granted(partition, origin, 'notifications');
-            const evaluate = (expression) => DEBUGGER.send(page, 'Runtime.evaluate', { expression, userGesture: true }).catch(() => {});
+            const evaluate = (expression) =>
+                DEBUGGER.send(page, 'Runtime.evaluate', { expression, userGesture: true }).catch(() => {});
             let script = null;
             // Also run in the document already there: it is usually under way before the session is. The script
             // does nothing the second time.
             const install = () => {
                 const source = `(${inPage})(${JSON.stringify(BINDING)}, ${JSON.stringify(PERMISSION.notices(partition))})`;
-                const dropped = script ? DEBUGGER.send(page, 'Page.removeScriptToEvaluateOnNewDocument', { identifier: script }) : Promise.resolve();
+                const dropped = script
+                    ? DEBUGGER.send(page, 'Page.removeScriptToEvaluateOnNewDocument', { identifier: script })
+                    : Promise.resolve();
                 return dropped
                     .then(() => DEBUGGER.send(page, 'Page.addScriptToEvaluateOnNewDocument', { source }))
                     .then((added) => (script = added.identifier))
@@ -48,7 +51,8 @@ DeckitModule.define(
             };
             scripts.set(page.id, () => {
                 install();
-                if (allowed(PERMISSION.originOf(page.getURL()))) evaluate('window.__deckitNotification?.permission(0, "granted")');
+                if (allowed(PERMISSION.originOf(page.getURL())))
+                    evaluate('window.__deckitNotification?.permission(0, "granted")');
             });
             page.once('destroyed', () => {
                 scripts.delete(page.id);
@@ -61,7 +65,11 @@ DeckitModule.define(
                 const id = Number(message.id) || 0;
                 const origin = PERMISSION.originOf(page.getURL());
                 if (message.op === 'capture') {
-                    capturing.set(page.id, { microphone: !!message.microphone, camera: !!message.camera, screen: !!message.screen });
+                    capturing.set(page.id, {
+                        microphone: !!message.microphone,
+                        camera: !!message.camera,
+                        screen: !!message.screen,
+                    });
                     changed();
                 } else if (message.op === 'show' && allowed(origin)) {
                     PROTOCOL.notified.send(host, {
