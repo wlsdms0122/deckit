@@ -107,7 +107,7 @@ function sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, o
 
     function blockOf(account) {
         if (blocks.has(account.id)) return blocks.get(account.id);
-        const list = ui.list({ key: (item) => item.key, create: feedRow, exit: true });
+        const list = ui.list({ key: (item) => item.key, create: feedRow, animated: true });
         ui.sortable(list, {
             onReorder: (key, toKey) => {
                 const mine = feeds.all().filter((feed) => feed.account === account.id);
