@@ -8,8 +8,6 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
     const DESCRIPTION =
         'Choices each mod offers. A mod declares them; they are kept with its data, so an update keeps them.';
     const HIGHLIGHT_LENGTH = 1200;
-    // A setting of a type this section does not know draws nothing.
-    const TYPES = ['toggle', 'choice', 'number', 'text', 'action'];
 
     // As last drawn, for the commands, which cannot wait for a drawing.
     let groups = [];
@@ -96,7 +94,7 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
 
         function fill(group) {
             title.textContent = group.name;
-            rows.set(group.items.filter((item) => TYPES.includes(item.type)));
+            rows.set(group.items);
         }
     }
 
