@@ -220,7 +220,6 @@ function accountEditor({ ui, accounts, feeds, reads, client, onChange, onRefresh
                 let list = feeds.all();
                 for (const entry of calendars) {
                     const has = list.some((feed) => feed.account === account.id && feed.calendar === entry.id);
-                    // The palette rather than the provider's colours, which are pastels made for white pages, not for white text.
                     if (chosen.get(entry.id) && !has) {
                         list.push({
                             account: account.id,

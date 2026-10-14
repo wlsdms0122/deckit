@@ -207,7 +207,7 @@ function calendar({ deck, accountsPoint }) {
         emptyState.set({
             title: noAccount ? 'No accounts yet' : 'No calendars shown',
             hint: noAccount
-                ? 'Add an account, then choose which of its calendars to show. Subscribed calendars are there too.'
+                ? 'Add an account, then choose which of its calendars to show.'
                 : 'Choose which calendars of your account to show.',
         });
         emptyAction.setLabel(noAccount ? 'Add account' : 'Choose calendars');

@@ -6,9 +6,8 @@ const { keyOf } = require('./store.js');
 const CACHE_KEY = 'cache';
 const REFRESH_INTERVAL = 10 * 60 * 1000;
 const RETRY_MS = 60 * 1000;
-// Two windows, because the API answers with occurrences rather than rules: `now` is today and the fortnight the
-// sidebar and the reminders need, always read; `view` is the screen with a margin, read only when `now` does not reach
-// it.
+// Two windows, as a provider answers the occurrences of a range: `now` is today and the fortnight the sidebar and the
+// reminders need, always read; `view` is the screen with a margin, read only when `now` does not reach it.
 const NOW_BEFORE = DAY_MS;
 const NOW_AFTER = 17 * DAY_MS;
 const VIEW_MARGIN = 35 * DAY_MS;
