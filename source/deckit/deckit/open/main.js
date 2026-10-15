@@ -1,8 +1,9 @@
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as SCHEME from './model/scheme.js';
+import * as PROTOCOL from './protocol.js';
 import * as OPEN_PERMISSION from './model/permission.js';
 
-export function createOpen({ PROTOCOL, CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) {
+export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const fs = require('fs');
     const path = require('path');

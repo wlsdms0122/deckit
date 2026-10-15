@@ -1,4 +1,6 @@
-export function createCertificate({ PROTOCOL, LOG, SESSION, REGISTRY }) {
+import * as PROTOCOL from './protocol.js';
+
+export function createCertificate({ LOG, SESSION, REGISTRY }) {
     // MARK: - Property
     // partition|host|fingerprint
     const TRUSTED = new Set();

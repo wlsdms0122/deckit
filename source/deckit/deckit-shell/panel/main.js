@@ -1,4 +1,6 @@
-export function createPanel({ PROTOCOL, REGION }) {
+import * as PROTOCOL from './protocol.js';
+
+export function createPanel({ REGION }) {
     // MARK: - Property
     const FRAME = 'panel-frame';
     const PINNED = 'panel-pinned';

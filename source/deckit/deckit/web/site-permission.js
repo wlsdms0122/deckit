@@ -1,6 +1,7 @@
+import * as PROTOCOL from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 
-export function createSitePermission({ PROTOCOL, IDENTITY, SESSION, REGISTRY }) {
+export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
     // MARK: - Property
     // partition|origin|permission. Allowances live until exit: the mod hands them back through allow(). A
     // refusal is not kept, so a page refused by mistake can ask again once reloaded.

@@ -1,7 +1,7 @@
+import * as PROTOCOL from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 
 export function createWeb({
-    PROTOCOL,
     WINDOW,
     LOG,
     KEYMAP,

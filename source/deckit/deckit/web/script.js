@@ -1,4 +1,6 @@
-export function createScript({ PROTOCOL, LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
+import * as PROTOCOL from './protocol.js';
+
+export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
     // MARK: - Property
     // Electron's own notification knows nothing of the page, so the page's Notification is replaced by a content
     // script, which reports through a binding only the DevTools session hears. Chromium does not tell an

@@ -1,4 +1,6 @@
-export function createNotification({ PROTOCOL }) {
+import * as PROTOCOL from './protocol.js';
+
+export function createNotification() {
     // MARK: - Property
     // macOS keeps a notification in Notification Centre well past the banner, so a click can come late.
     const TTL = 10 * 60 * 1000;

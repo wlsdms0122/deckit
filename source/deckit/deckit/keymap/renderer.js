@@ -1,6 +1,7 @@
 import * as CHORD from './chord.js';
+import * as PROTOCOL from './protocol.js';
 
-export function createKeymap({ PROTOCOL }) {
+export function createKeymap() {
     // MARK: - Property
     const runs = new Map(); // action -> run
     const listeners = new Set();

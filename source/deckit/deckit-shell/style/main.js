@@ -1,6 +1,7 @@
+import * as PROTOCOL from './protocol.js';
 import * as STYLE_PERMISSION from './model/permission.js';
 
-export function createStyle({ PROTOCOL }) {
+export function createStyle() {
     // MARK: - Property
     const EVERY_PAGE = '*';
     const pages = new Map(); // a page that wears styles -> the mod it runs, or null for a page the shell made

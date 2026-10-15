@@ -1,6 +1,7 @@
+import * as PROTOCOL from './protocol.js';
 import * as CLIPBOARD_PERMISSION from './model/permission.js';
 
-export function createClipboard({ PROTOCOL, IDENTITY }) {
+export function createClipboard({ IDENTITY }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public

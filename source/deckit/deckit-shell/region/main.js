@@ -1,4 +1,6 @@
-export function createRegion({ PROTOCOL }) {
+import * as PROTOCOL from './protocol.js';
+
+export function createRegion() {
     // MARK: - Property
     // `${webContents id}:${number}` -> { parent, rect, child }: a place in a mod's page that shows a child's view
     const regions = new Map();

@@ -1,6 +1,7 @@
+import * as PROTOCOL from './protocol.js';
 import * as PAGE from './model/page-name.js';
 
-export function createSwitcher({ PROTOCOL, PANEL }) {
+export function createSwitcher({ PANEL }) {
     // MARK: - Property
     const USE = 'switcher-use';
     const USE_KEPT = 60;

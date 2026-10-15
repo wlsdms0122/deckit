@@ -1,26 +1,19 @@
 import * as MATCH from '../match/match.js';
 import * as RANKER from '../match/ranker.js';
+import * as CLIPBOARD from '../clipboard/renderer.js';
+import * as RUNTIME from '../runtime/renderer.js';
+import * as OPEN from '../open/renderer.js';
+import * as MAIN_PROCESS from '../main-process/renderer.js';
+import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as BINDING_ID from '../keymap/model/binding-id.js';
+import * as DECK from '../../deck/renderer.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 
-export function createMod({
-    CONFIG,
-    WEB,
-    NOTIFICATION,
-    KEYMAP,
-    COMMAND,
-    CLIPBOARD,
-    RUNTIME,
-    OPEN,
-    MAIN_PROCESS,
-    MOD_FOLDER,
-    HOST,
-    deepFreeze,
-}) {
+export function createMod({ CONFIG, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) {
     // MARK: - Property
     // What the shell gives a mod where none is on deckit: nothing.
     const NO_SHELL = Object.freeze({
@@ -119,7 +112,7 @@ export function createMod({
                       }),
                   }
                 : {}),
-            ...(mod.id === CONFIG.id && HOST ? { host: deepFreeze({ ...HOST }) } : {}),
+            ...(mod.id === CONFIG.id && HOST ? { host: DECK.deepFreeze({ ...HOST }) } : {}),
         };
     }
 

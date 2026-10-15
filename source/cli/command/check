@@ -6,11 +6,17 @@ const path = require('path');
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
 const IPC = 'deck/ipc/index.js';
-// The packages each names, the ones under it: deck none, deckit deck, the shell both.
-const NAMES = {
-    deck: new Set(['deck']),
-    deckit: new Set(['deck', 'deckit']),
-    'deckit-shell': new Set(['deck', 'deckit', 'deckit-shell']),
+// Each package's public surface, what a package that depends on it imports of it: its entries.
+const PUBLIC = {
+    deck: new Set(['deck/main.js', 'deck/renderer.js', 'deck/ipc/index.js']),
+    deckit: new Set(['deckit/main.js', 'deckit/renderer.js', 'deckit/match/match.js', 'deckit/keymap/chord.js']),
+    'deckit-shell': new Set(['deckit-shell/main.js', 'deckit-shell/renderer.js']),
+};
+// The packages each depends on: deck none, deckit deck, the shell both.
+const DEPENDS = {
+    deck: new Set(),
+    deckit: new Set(['deck']),
+    'deckit-shell': new Set(['deck', 'deckit']),
 };
 // Where each bundle runs: main, a renderer, or anywhere (the chord, for a page of the host app's).
 const PLACES = {
@@ -60,7 +66,7 @@ function conceptOf(file) {
 
 function checkFile(file) {
     const plain = LIBRARY.code(fs.readFileSync(path.join(LIBRARY.DECKIT, file), 'utf8'));
-    if (!NAMES[packageOf(file)]) return say(file, 'is in no package: a file is in deck/, deckit/ or deckit-shell/');
+    if (!DEPENDS[packageOf(file)]) return say(file, 'is in no package: a file is in deck/, deckit/ or deckit-shell/');
     if (/\bDeckit[A-Z]\w*\b/.test(plain)) say(file, 'reaches a Deckit global; import what it uses');
     // Every file reaches another by a static import, which the bundler follows and this check reads.
     if (/\brequire\(\s*["'`]\./.test(plain))
@@ -97,18 +103,23 @@ function checkImport(file, spec, target) {
         return say(file, `imports ${spec}, which is no file of the libraries`);
     const mine = packageOf(file);
     const theirs = packageOf(target);
-    if (!NAMES[theirs]) return say(file, `imports ${target}, which is in no package`);
-    if (!NAMES[mine].has(theirs)) say(file, `imports ${target}, in ${theirs}/, which ${mine}/ does not name`);
-    // A folder is a module: it reaches what is inside its parent, and never its parent or what is above it. So a
-    // package's own folders know nothing of another package; its root files hand them what they use of one.
+    if (!DEPENDS[theirs]) return say(file, `imports ${target}, which is in no package`);
+    if (theirs !== mine) {
+        if (!DEPENDS[mine].has(theirs))
+            say(file, `imports ${target}, in ${theirs}/, which ${mine}/ does not depend on`);
+        else if (!PUBLIC[theirs].has(target)) say(file, `imports ${target}, which is not ${theirs}/'s public surface`);
+        return;
+    }
+    // Inside a package, a folder is a module: it uses its own folders and the folders beside it, with theirs, and
+    // never its parent or anything above it.
     const from = moduleOf(file);
     const to = moduleOf(target);
     const parent = path.posix.dirname(from);
-    const inside = to === from || to.startsWith(from + '/') || parent === '.' || to.startsWith(parent + '/');
-    if (!inside || from.startsWith(to + '/'))
-        say(file, `imports ${target}, outside ${parent === '.' ? from : parent}/ or above ${from}/`);
-    // A concept's channels are how its own sides reach each other, made by its package's root.
-    if (target.endsWith('/protocol.js') && conceptOf(target) !== conceptOf(file) && moduleOf(file) !== mine)
+    if (from.startsWith(to + '/')) say(file, `imports ${target}, in ${to}/, which holds it`);
+    else if (to !== from && !to.startsWith(from + '/') && !to.startsWith(parent + '/'))
+        say(file, `imports ${target}, outside ${parent}/`);
+    // A concept's channels are how its own sides reach each other.
+    if (target.endsWith('/protocol.js') && conceptOf(target) !== conceptOf(file))
         say(file, `imports ${target}, how ${conceptOf(target)} is reached, which is ${conceptOf(target)}'s own`);
 }
 

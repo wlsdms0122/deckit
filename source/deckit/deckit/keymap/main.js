@@ -1,8 +1,9 @@
 import * as CHORD from './chord.js';
+import * as PROTOCOL from './protocol.js';
 import * as BINDING_ID from './model/binding-id.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
 
-export function createKeymap({ PROTOCOL, CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) {
+export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const OVERRIDES = 'keys';
     const RECORDING_MS = 20 * 1000;

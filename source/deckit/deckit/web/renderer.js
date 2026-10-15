@@ -1,6 +1,7 @@
+import * as PROTOCOL from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 
-export function createWeb({ PROTOCOL, PARTITION }) {
+export function createWeb({ PARTITION }) {
     // MARK: - Property
     // Unique across reloads of this document, since main may still be closing the last one's pages.
     const boot = Date.now().toString(36);

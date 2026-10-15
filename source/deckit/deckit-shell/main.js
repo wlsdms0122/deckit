@@ -1,15 +1,10 @@
 import * as STYLE_PERMISSION from './style/model/permission.js';
 import * as IPC from '../deck/ipc/index.js';
 import { createRegion } from './region/main.js';
-import { createProtocol as createRegionProtocol } from './region/protocol.js';
 import { createPanel } from './panel/main.js';
-import { createProtocol as createPanelProtocol } from './panel/protocol.js';
 import { createSwitcher } from './switcher/main.js';
-import { createProtocol as createSwitcherProtocol } from './switcher/protocol.js';
 import { createStyle } from './style/main.js';
-import { createProtocol as createStyleProtocol } from './style/protocol.js';
 import { createTheme } from './theme/main.js';
-import { createProtocol as createThemeProtocol } from './theme/protocol.js';
 
 // MARK: - Property
 // What the host app answers the shell: where it is shown is the app's.
@@ -28,11 +23,11 @@ function attach(deckit, { host } = {}) {
     // This bundle's listeners report to deckit's log, as deckit's own do.
     IPC.reportTo((label, failure) => deckit.log.error(`${label} failed`, failure));
     for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
-    const REGION = createRegion({ PROTOCOL: createRegionProtocol({ IPC }) });
-    const PANEL = createPanel({ PROTOCOL: createPanelProtocol({ IPC }), REGION });
-    const SWITCHER = createSwitcher({ PROTOCOL: createSwitcherProtocol({ IPC }), PANEL });
-    const STYLE = createStyle({ PROTOCOL: createStyleProtocol({ IPC }) });
-    const THEME = createTheme({ PROTOCOL: createThemeProtocol({ IPC }) });
+    const REGION = createRegion();
+    const PANEL = createPanel({ REGION });
+    const SWITCHER = createSwitcher({ PANEL });
+    const STYLE = createStyle();
+    const THEME = createTheme();
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         STYLE.start({ deckit });

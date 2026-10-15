@@ -1,25 +1,10 @@
 import * as PROTOCOL from './protocol.js';
-import * as IPC from '../deck/ipc/index.js';
 import * as DECK from '../deck/renderer.js';
 import { createPartition } from './web/model/partition.js';
 import { createWeb } from './web/renderer.js';
-import { createProtocol as createWebProtocol } from './web/protocol.js';
 import { createNotification } from './notification/renderer.js';
-import { createProtocol as createNotificationProtocol } from './notification/protocol.js';
 import { createKeymap } from './keymap/renderer.js';
-import { createProtocol as createKeymapProtocol } from './keymap/protocol.js';
 import { createCommand } from './command/renderer.js';
-import { createProtocol as createCommandProtocol } from './command/protocol.js';
-import { createClipboard } from './clipboard/renderer.js';
-import { createProtocol as createClipboardProtocol } from './clipboard/protocol.js';
-import { createRuntime } from './runtime/renderer.js';
-import { createProtocol as createRuntimeProtocol } from './runtime/protocol.js';
-import { createOpen } from './open/renderer.js';
-import { createProtocol as createOpenProtocol } from './open/protocol.js';
-import { createMainProcess } from './main-process/renderer.js';
-import { createProtocol as createMainProcessProtocol } from './main-process/protocol.js';
-import { createModFolder } from './mod-folder/renderer.js';
-import { createProtocol as createModFolderProtocol } from './mod-folder/protocol.js';
 import { createMod } from './mod/renderer.js';
 
 // MARK: - Public
@@ -44,21 +29,11 @@ function start(shell, host) {
     const CONFIG = Object.freeze({ id });
     const MOD = createMod({
         CONFIG,
-        WEB: createWeb({ PROTOCOL: createWebProtocol({ IPC }), PARTITION: createPartition({ CONFIG }) }),
-        NOTIFICATION: createNotification({ PROTOCOL: createNotificationProtocol({ IPC }) }),
-        KEYMAP: createKeymap({ PROTOCOL: createKeymapProtocol({ IPC }) }),
-        COMMAND: createCommand({ PROTOCOL: createCommandProtocol({ IPC }) }),
-        CLIPBOARD: createClipboard({ PROTOCOL: createClipboardProtocol({ IPC }) }),
-        RUNTIME: createRuntime({ PROTOCOL: createRuntimeProtocol({ IPC }) }),
-        OPEN: createOpen({ PROTOCOL: createOpenProtocol({ IPC }) }),
-        MAIN_PROCESS: createMainProcess({
-            PROTOCOL: createMainProcessProtocol({ IPC }),
-            proxyOf: DECK.proxyOf,
-            deepFreeze: DECK.deepFreeze,
-        }),
-        MOD_FOLDER: createModFolder({ PROTOCOL: createModFolderProtocol({ IPC }) }),
+        WEB: createWeb({ PARTITION: createPartition({ CONFIG }) }),
+        NOTIFICATION: createNotification(),
+        KEYMAP: createKeymap(),
+        COMMAND: createCommand(),
         HOST: host,
-        deepFreeze: DECK.deepFreeze,
     });
     DECK.createDeck().start({ layer: MOD.layerOf(shell?.mod || null) });
 }

@@ -1,4 +1,6 @@
-export function createTheme({ PROTOCOL }) {
+import * as PROTOCOL from './protocol.js';
+
+export function createTheme() {
     // MARK: - Property
     let theme = null; // the host app's, or null until it gives one
     const pages = new Set(); // the pages that drew in it, each told when it changes
