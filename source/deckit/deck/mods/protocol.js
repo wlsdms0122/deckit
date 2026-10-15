@@ -1,5 +1,5 @@
 // Between a page of a mod with deckit.mods and main, about the mods.
-import * as IPC from '../ipc.js';
+import * as IPC from '../ipc/index.js';
 
 export const mods = IPC.rendererToMain('deck:mods', {}, { reply: true, sync: true });
 export const install = IPC.rendererToMain('deck:mods-install', { from: 'string' }, { reply: true });

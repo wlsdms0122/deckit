@@ -1,6 +1,4 @@
-import * as PROTOCOL from './protocol.js';
-
-export function createRegion() {
+export function createRegion({ PROTOCOL }) {
     // MARK: - Property
     const listeners = new Set();
     let known = null; // [{ id, name, icon }]: asked for once, then told

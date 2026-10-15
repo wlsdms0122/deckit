@@ -1,8 +1,6 @@
-import * as PROTOCOL from './protocol.js';
 import * as TONE from './model/tone.js';
-import * as DECK from '../../deck/main.js';
 
-export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
+export function createCommand({ PROTOCOL, scopedName, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     // A mod that has not answered by then answers nothing, so one stuck page does not hold the others.
     const ANSWER_MS = 2000;
@@ -31,7 +29,7 @@ export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
 
         // An entry crosses as data, under an id this side keeps: running it comes back by that id.
         const wire = (mod, kind, entry) => {
-            const id = DECK.scopedName(mod.id, entry.id);
+            const id = scopedName(mod.id, entry.id);
             entries.set(id, { mod: mod.id, local: entry.id });
             return { ...entry, id, kind, mod: { id: mod.id, name: mod.name } };
         };

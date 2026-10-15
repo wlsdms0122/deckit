@@ -1,5 +1,5 @@
 // Between a mod's page and main, about settings: a mod's own, and with deckit.mod-settings every mod's.
-import * as IPC from '../ipc.js';
+import * as IPC from '../ipc/index.js';
 
 // Its settings, as soon as its entry is read: the declarations, without functions.
 export const declare = IPC.rendererToMain('deck:mod-declare', { run: 'number', settings: 'object' });

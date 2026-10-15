@@ -7,6 +7,7 @@ import * as KEYMAP_PERMISSION from './keymap/model/permission.js';
 import * as OPEN_PERMISSION from './open/model/permission.js';
 import * as SCHEMES from './open/model/scheme.js';
 import * as DECK from '../deck/main.js';
+import * as IPC from '../deck/ipc/index.js';
 import { createWindow } from './window/index.js';
 import { createPartition } from './web/model/partition.js';
 import { createSession } from './web/session.js';
@@ -17,14 +18,23 @@ import { createSitePermission } from './web/site-permission.js';
 import { createCertificate } from './web/certificate.js';
 import { createScript } from './web/script.js';
 import { createWeb } from './web/main.js';
+import { createProtocol as createWebProtocol } from './web/protocol.js';
 import { createKeymap } from './keymap/main.js';
+import { createProtocol as createKeymapProtocol } from './keymap/protocol.js';
 import { createOpen } from './open/main.js';
+import { createProtocol as createOpenProtocol } from './open/protocol.js';
 import { createNotification } from './notification/main.js';
+import { createProtocol as createNotificationProtocol } from './notification/protocol.js';
 import { createClipboard } from './clipboard/main.js';
+import { createProtocol as createClipboardProtocol } from './clipboard/protocol.js';
 import { createCommand } from './command/main.js';
+import { createProtocol as createCommandProtocol } from './command/protocol.js';
 import { createMainProcess } from './main-process/main.js';
+import { createProtocol as createMainProcessProtocol } from './main-process/protocol.js';
 import { createModFolder } from './mod-folder/main.js';
+import { createProtocol as createModFolderProtocol } from './mod-folder/protocol.js';
 import { createRuntime } from './runtime/main.js';
+import { createProtocol as createRuntimeProtocol } from './runtime/protocol.js';
 import { createApi } from './api.js';
 
 // MARK: - Property
@@ -69,16 +79,26 @@ function make({ preload, host, config: CONFIG, folders }) {
     const { log: LOG, home: HOME, storage: STORAGE, identity: IDENTITY, catalog: CATALOG, runner: RUNNER } = deck;
     const { manifest: MANIFEST, permission: MOD_PERMISSION, folder: FOLDER } = deck;
     const WINDOW = createWindow({ LOG });
+    const WEB_PROTOCOL = createWebProtocol({ IPC });
     const PARTITION = createPartition({ CONFIG });
     const SESSION = createSession({ STORAGE, LOG, PARTITION });
     const REGISTRY = createRegistry();
     const DEBUGGER = createDebugger({ LOG });
     const AGENT = createAgent({ CONFIG, DEBUGGER, LOG });
-    const SITE_PERMISSION = createSitePermission({ IDENTITY, SESSION, REGISTRY });
-    const CERTIFICATE = createCertificate({ LOG, SESSION, REGISTRY });
-    const SCRIPT = createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION });
-    const KEYMAP = createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER });
+    const SITE_PERMISSION = createSitePermission({ PROTOCOL: WEB_PROTOCOL, IDENTITY, SESSION, REGISTRY });
+    const CERTIFICATE = createCertificate({ PROTOCOL: WEB_PROTOCOL, LOG, SESSION, REGISTRY });
+    const SCRIPT = createScript({ PROTOCOL: WEB_PROTOCOL, LOG, DEBUGGER, SESSION, SITE_PERMISSION });
+    const KEYMAP = createKeymap({
+        PROTOCOL: createKeymapProtocol({ IPC }),
+        CONFIG,
+        STORAGE,
+        LOG,
+        IDENTITY,
+        CATALOG,
+        RUNNER,
+    });
     const WEB = createWeb({
+        PROTOCOL: WEB_PROTOCOL,
         WINDOW,
         LOG,
         KEYMAP,
@@ -91,13 +111,42 @@ function make({ preload, host, config: CONFIG, folders }) {
         CERTIFICATE,
         SCRIPT,
     });
-    const OPEN = createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER });
-    const NOTIFICATION = createNotification({ LOG, IDENTITY });
-    const CLIPBOARD = createClipboard({ IDENTITY });
-    const COMMAND = createCommand({ LOG, IDENTITY, CATALOG, RUNNER });
-    const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
-    const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, deck });
-    const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY });
+    const OPEN = createOpen({ PROTOCOL: createOpenProtocol({ IPC }), CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER });
+    const NOTIFICATION = createNotification({ PROTOCOL: createNotificationProtocol({ IPC }), LOG, IDENTITY });
+    const CLIPBOARD = createClipboard({ PROTOCOL: createClipboardProtocol({ IPC }), IDENTITY });
+    const COMMAND = createCommand({
+        PROTOCOL: createCommandProtocol({ IPC }),
+        scopedName: DECK.scopedName,
+        LOG,
+        IDENTITY,
+        CATALOG,
+        RUNNER,
+    });
+    const MAIN_PROCESS = createMainProcess({
+        PROTOCOL: createMainProcessProtocol({ IPC }),
+        MODS_PERMISSION: DECK.MODS,
+        STORAGE,
+        WINDOW,
+        LOG,
+        IDENTITY,
+        RUNNER,
+        FOLDER,
+    });
+    const MOD_FOLDER = createModFolder({
+        PROTOCOL: createModFolderProtocol({ IPC }),
+        MODS_PERMISSION: DECK.MODS,
+        IDENTITY,
+        CATALOG,
+        deck,
+    });
+    const RUNTIME = createRuntime({
+        PROTOCOL: createRuntimeProtocol({ IPC }),
+        MODS_PERMISSION: DECK.MODS,
+        CONFIG,
+        HOME,
+        LOG,
+        IDENTITY,
+    });
     const API = createApi({
         CONFIG,
         STORAGE,

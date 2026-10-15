@@ -1,7 +1,6 @@
-import * as PROTOCOL from './protocol.js';
 import * as NOTIFICATION_PERMISSION from './model/permission.js';
 
-export function createNotification({ LOG, IDENTITY }) {
+export function createNotification({ PROTOCOL, LOG, IDENTITY }) {
     // MARK: - Property
     // A Notification nothing refers to is garbage collected, and macOS then withdraws it or never delivers it.
     // The cap covers a close that never comes.

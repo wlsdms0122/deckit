@@ -1,6 +1,6 @@
 // Between a mod's page and the runner. Main knows which mod a message is from by the page it came from, and which run
 // of that page by the `run` that `load` answered, carried back by what tells main how the run went.
-import * as IPC from '../ipc.js';
+import * as IPC from '../ipc/index.js';
 
 // What the page runs: the mod's manifest, its entry's source, its settings, and which run this is.
 export const load = IPC.rendererToMain('deck:mod-load', {}, { reply: true, sync: true });

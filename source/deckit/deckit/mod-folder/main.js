@@ -1,17 +1,14 @@
-import * as PROTOCOL from './protocol.js';
-import * as DECK from '../../deck/main.js';
-
-export function createModFolder({ IDENTITY, CATALOG, deck }) {
+export function createModFolder({ PROTOCOL, MODS_PERMISSION, IDENTITY, CATALOG, deck }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
     function start() {
         PROTOCOL.pick.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, DECK.MODS);
+            IDENTITY.modFrom(sender, MODS_PERMISSION);
             return pick();
         });
         PROTOCOL.reveal.handle(({ id }, sender) => {
-            IDENTITY.modFrom(sender, DECK.MODS);
+            IDENTITY.modFrom(sender, MODS_PERMISSION);
             const mod = CATALOG.found().find((candidate) => candidate.id === id);
             if (!mod) throw new Error('no mod ' + id);
             require('electron').shell.showItemInFolder(mod.folder);

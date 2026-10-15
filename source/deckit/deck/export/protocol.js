@@ -1,5 +1,5 @@
 // Between a mod's page and main, about what mods export to each other.
-import * as IPC from '../ipc.js';
+import * as IPC from '../ipc/index.js';
 
 // Answers once every mod it requires has started or failed: { requires: { [id]: { values, functions } or
 // { error } }, optional: { [id]: { values, functions } or null } }.

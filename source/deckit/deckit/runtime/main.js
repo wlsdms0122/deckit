@@ -1,8 +1,6 @@
-import * as PROTOCOL from './protocol.js';
 import * as BUILD from '../build/index.js';
-import * as DECK from '../../deck/main.js';
 
-export function createRuntime({ CONFIG, HOME, LOG, IDENTITY }) {
+export function createRuntime({ PROTOCOL, MODS_PERMISSION, CONFIG, HOME, LOG, IDENTITY }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -25,7 +23,7 @@ export function createRuntime({ CONFIG, HOME, LOG, IDENTITY }) {
             };
         });
         PROTOCOL.restart.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, DECK.MODS);
+            IDENTITY.modFrom(sender, MODS_PERMISSION);
             restart();
             return true;
         });

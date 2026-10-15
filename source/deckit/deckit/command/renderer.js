@@ -1,7 +1,6 @@
 import * as TONE from './model/tone.js';
-import * as PROTOCOL from './protocol.js';
 
-export function createCommand() {
+export function createCommand({ PROTOCOL }) {
     // MARK: - Property
     // The functions behind the entries each session was handed, which holds only their ids, until it ends.
     const sessions = new Map(); // session -> Map of id -> { run, page }
