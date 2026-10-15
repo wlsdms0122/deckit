@@ -1,210 +1,182 @@
 #!/usr/bin/env node
-// Holds the library's files to how they reach each other. Exits 1 with a line for each problem.
+// Holds the libraries' files to how they reach each other. Exits 1 with a line for each problem.
 const fs = require('fs');
 const path = require('path');
 
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
-const { conceptOf } = require(path.join(__dirname, '..', 'concept.js'));
 
-const IPC = 'deckit/module/ipc';
-// The entries a host app starts, which put a page or main together and so may name any concept's protocol.
-const ENTRIES = new Set(['deckit/feature/app/main', 'deckit/feature/app/page']);
-// What a host app hands deckit, which it may not: named as optional.
-const HOST_INPUTS = new Set(['host/config', 'host/folders', 'host/exports']);
-const MAY_NAME = {
-    config: new Set(),
-    feature: new Set(['config', 'feature', 'service', 'module', 'ui']),
-    service: new Set(['config', 'service', 'module']),
-    module: new Set(['module']),
-    ui: new Set(['ui']),
+const IPC = 'deck/ipc/index.js';
+// Each package's public surface, what a package that depends on it imports of it: its entries.
+const PUBLIC = {
+    deck: new Set(['deck/main.js', 'deck/renderer.js', 'deck/ipc/index.js']),
+    deckit: new Set(['deckit/main.js', 'deckit/renderer.js', 'deckit/match/match.js', 'deckit/keymap/chord.js']),
+    'deckit-shell': new Set(['deckit-shell/main.js', 'deckit-shell/renderer.js']),
 };
-const RUNS = new Set(['main', 'page', 'node', 'electron', 'any']);
-const FITS = {
-    page: ['page', 'electron', 'any'],
-    main: ['main', 'node', 'electron', 'any'],
-    chord: ['any'],
+// The packages each depends on: deck none, deckit deck, the shell both.
+const DEPENDS = {
+    deck: new Set(),
+    deckit: new Set(['deck']),
+    'deckit-shell': new Set(['deck', 'deckit']),
+};
+// Where each bundle runs: main, a renderer, or anywhere (the chord, for a page of the host app's).
+const PLACES = {
+    main: 'main',
+    'shell-main': 'main',
+    renderer: 'renderer',
+    'shell-renderer': 'renderer',
+    chord: 'anywhere',
 };
 const NODE =
-    /\brequire\(\s*["'](?:node:)?(fs|fs\/promises|path|os|child_process|net|crypto|util|worker_threads)["']\s*\)/;
+    /\brequire\(\s*["'](?:node:)?(fs|fs\/promises|path|os|child_process|net|crypto|util|url|worker_threads)["']\s*\)/;
 const ELECTRON = /\brequire\(\s*["']electron["']\s*\)/;
 
 const problems = [];
-const all = new Map(); // module name -> { file, uses, provides, runs, plain }
+const channels = new Map(); // channel -> the protocol that declares it
+const files = LIBRARY.files();
+const imports = new Map(files.map((file) => [file, LIBRARY.importsOf(file)]));
 
-for (const file of LIBRARY.files()) {
-    if (file === LIBRARY.REGISTRY) continue;
-    const declared = LIBRARY.moduleOf(file);
-    if (declared.problem) {
-        say(file, declared.problem);
-        continue;
-    }
-    checkFile(file, declared);
-    all.set(declared.name, { file, ...declared });
-}
-for (const [name, module] of all) checkUses(name, module);
+for (const file of files) checkFile(file);
 checkCycles();
-checkBundles();
-checkFolders();
 checkPlaces();
-checkOutside();
+checkFolders();
 
 if (problems.length) {
     for (const line of problems) console.error(line);
     console.error(`${problems.length} problem${problems.length === 1 ? '' : 's'}`);
     process.exit(1);
 }
-console.log(`ok: ${all.size} modules, each in its layer, naming what it uses`);
+console.log(`ok: ${files.length} modules, each in its package, importing what it uses`);
 
 function say(file, what) {
-    problems.push(`deckit/deckit/${file}: ${what}`);
+    problems.push(`deckit/${file}: ${what}`);
 }
 
-function checkFile(file, { name, provides, plain, uses }) {
-    if (name !== LIBRARY.nameOf(file)) say(file, `defines "${name}", but its name is "${LIBRARY.nameOf(file)}"`);
-    if (all.has(name)) say(file, `defines ${name}, which ${all.get(name).file} defines too`);
-    if (!provides.length)
-        say(file, 'provides nothing: a module that starts something provides start, and whoever starts it calls it');
-    for (const bad of provides.filter(
-        (name, index) => !/^[A-Za-z_$][\w$]*$/.test(name) || provides.indexOf(name) !== index
-    )) {
-        say(file, `provides "${bad}", which is not a name, or is there twice`);
-    }
-    if (/\bDeckitModule\.(?!define\b)\w+/.test(plain))
-        say(file, 'calls the registry for something other than define(); name what it uses in its define()');
-    for (const [, global] of plain.matchAll(/\b(Deckit[A-Z]\w*)\b/g)) {
-        if (global !== 'DeckitModule') say(file, `reaches the global ${global}; name what it uses in its define()`);
-    }
-    if (name !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
+function packageOf(file) {
+    return file.split('/')[0];
+}
+
+// The module a file is of: its folder, where model/ is its folder's.
+function moduleOf(file) {
+    return path.posix.dirname(file).replace(/\/model$/, '');
+}
+
+function conceptOf(file) {
+    return path.posix.dirname(file).replace(/\/model$/, '');
+}
+
+function checkFile(file) {
+    const plain = LIBRARY.code(fs.readFileSync(path.join(LIBRARY.DECKIT, file), 'utf8'));
+    if (!DEPENDS[packageOf(file)]) return say(file, 'is in no package: a file is in deck/, deckit/ or deckit-shell/');
+    if (/\bDeckit[A-Z]\w*\b/.test(plain)) say(file, 'reaches a Deckit global; import what it uses');
+    // Every file reaches another by a static import, which the bundler follows and this check reads.
+    if (/\brequire\(\s*["'`]\./.test(plain))
+        say(file, 'requires a file; import it, so the check and the bundle see it');
+    if (/\bimport\s*\(/.test(plain))
+        say(file, 'imports while it runs; import statically, so the check and the bundle see it');
+    if (file !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
     const protocol = file.endsWith('/protocol.js');
-    if (!protocol && /["'`]deckit:(?!\/\/)/.test(plain))
+    if (!protocol && /["'`](deck|deckit|deckit-shell):(?!\/\/)/.test(plain))
         say(file, 'writes a channel; channels are declared in a protocol.js');
-    if (!protocol && uses.some((use) => use.name === IPC)) say(file, `names ${IPC}, which only a protocol names`);
+    if (protocol) checkChannels(file, plain);
+    for (const { spec, file: target } of imports.get(file)) checkImport(file, spec, target);
 }
 
-function checkUses(name, { file, uses }) {
-    const mine = conceptOf(file);
-    if (!mine)
-        return say(file, 'is in no layer: a module of the library is in config/, feature/, service/, module/ or ui/');
-    for (const use of uses) {
-        if (HOST_INPUTS.has(use.name)) {
-            if (!use.optional)
-                say(
-                    file,
-                    `names ${use.name} as something it cannot do without; a host app may not hand it, so write "${use.name}?"`
-                );
-            continue;
-        }
-        const theirs = all.get(use.name);
-        if (!theirs) {
-            say(file, `names ${use.name}, which is neither deckit's nor something a host app hands it`);
-            continue;
-        }
-        if (ENTRIES.has(use.name)) say(file, `names ${use.name}, an entry, which only a host app starts`);
-        const other = conceptOf(theirs.file);
-        if (!MAY_NAME[mine.layer].has(other.layer))
-            say(file, `names ${use.name}, in ${other.layer}/, which ${mine.layer}/ does not name`);
-        // A concept's channels are how its own sides reach each other.
-        if (theirs.file.endsWith('/protocol.js') && other.concept !== mine.concept && !ENTRIES.has(name)) {
-            say(file, `names ${use.name}, how ${other.concept} is reached, which is ${other.concept}'s own`);
-        }
+// A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no
+// package reaches another's around what that one answers.
+function checkChannels(file, plain) {
+    const owner = packageOf(file);
+    if (/\bIPC\.(?:rendererToMain|mainToRenderer)\(\s*(?=\S)(?!["'`][^"'`$]*["'`])/.test(plain))
+        say(file, 'declares a channel not written out as text, so whose it is cannot be read');
+    for (const [, channel] of plain.matchAll(/\bIPC\.(?:rendererToMain|mainToRenderer)\(\s*["'`]([^"'`]+)["'`]/g)) {
+        if (!channel.startsWith(owner + ':')) say(file, `declares the channel ${channel}, which is not ${owner}'s`);
+        if (channels.has(channel))
+            say(file, `declares the channel ${channel}, which ${channels.get(channel)} declares`);
+        channels.set(channel, file);
     }
+}
+
+function checkImport(file, spec, target) {
+    if (!target) return say(file, `imports ${spec}, a package: a library imports only its own files`);
+    const full = path.join(LIBRARY.DECKIT, target);
+    if (!fs.existsSync(full) || !fs.statSync(full).isFile())
+        return say(file, `imports ${spec}, which is no file of the libraries`);
+    const mine = packageOf(file);
+    const theirs = packageOf(target);
+    if (!DEPENDS[theirs]) return say(file, `imports ${target}, which is in no package`);
+    if (theirs !== mine) {
+        if (!DEPENDS[mine].has(theirs))
+            say(file, `imports ${target}, in ${theirs}/, which ${mine}/ does not depend on`);
+        else if (!PUBLIC[theirs].has(target)) say(file, `imports ${target}, which is not ${theirs}/'s public surface`);
+        return;
+    }
+    // Inside a package, a folder is a module: it uses its own folders and the folders beside it, with theirs, and
+    // never its parent or anything above it.
+    const from = moduleOf(file);
+    const to = moduleOf(target);
+    const parent = path.posix.dirname(from);
+    if (from.startsWith(to + '/')) say(file, `imports ${target}, in ${to}/, which holds it`);
+    else if (to !== from && !to.startsWith(from + '/') && !to.startsWith(parent + '/'))
+        say(file, `imports ${target}, outside ${parent}/`);
+    // A concept's channels are how its own sides reach each other.
+    if (target.endsWith('/protocol.js') && conceptOf(target) !== conceptOf(file))
+        say(file, `imports ${target}, how ${conceptOf(target)} is reached, which is ${conceptOf(target)}'s own`);
 }
 
 function checkCycles() {
     const state = new Map();
-    const visit = (name, trail) => {
-        if (state.get(name) === 'done' || !all.has(name)) return;
-        if (state.get(name) === 'visiting')
-            return say(all.get(name).file, `names itself through ${trail.slice(trail.indexOf(name) + 1).join(' -> ')}`);
-        state.set(name, 'visiting');
-        for (const use of all.get(name).uses) visit(use.name, [...trail, name]);
-        state.set(name, 'done');
+    const visit = (file, trail) => {
+        if (state.get(file) === 'done' || !imports.has(file)) return;
+        if (state.get(file) === 'visiting')
+            return say(file, `imports itself through ${trail.slice(trail.indexOf(file) + 1).join(' -> ')}`);
+        state.set(file, 'visiting');
+        for (const { file: target } of imports.get(file)) if (target) visit(target, [...trail, file]);
+        state.set(file, 'done');
     };
-    for (const name of all.keys()) visit(name, []);
+    for (const file of files) visit(file, []);
 }
 
-// Where a file runs follows from its name where its name says it (main.js, page.js, the kit); anywhere else its
-// define declares it. Each bundle carries only what runs where it does.
-function checkBundles() {
-    const bundles = LIBRARY.bundles();
-    const bundled = new Set(Object.values(bundles).flat());
-    const placeOf = new Map();
-    for (const { file, runs } of all.values()) {
-        if (!bundled.has(file)) say(file, 'is in no bundle: nothing a bundle starts from names it');
-        const named = /(^|\/)main\.js$/.test(file)
-            ? 'main'
-            : /(^|\/)page\.js$/.test(file) || file.startsWith('ui/')
-              ? 'page'
-              : null;
-        if (runs && !RUNS.has(runs)) say(file, `runs "${runs}", which is none of ${[...RUNS].join(', ')}`);
-        else if (named && runs && runs !== named)
-            say(file, `is named for ${named === 'main' ? 'main' : 'a page'}, but declares it runs "${runs}"`);
-        else if (!named && !runs)
-            say(
-                file,
-                `says nowhere where it runs: its name does not, so its define declares it (runs: ${[...RUNS].join(' | ')})`
-            );
-        placeOf.set(file, named || runs);
-    }
-    for (const [bundle, fits] of Object.entries(FITS)) {
-        for (const file of bundles[bundle]) {
-            if (!fits.includes(placeOf.get(file)))
-                say(
-                    file,
-                    `runs "${placeOf.get(file)}", but the ${bundle} bundle carries it: something it starts from names it`
-                );
+// Each bundle carries its entry and what that imports, and runs where its place says: main.js never in a renderer,
+// renderer.js never in main, and nothing a renderer or anywhere carries requires Node; what runs anywhere requires no
+// Electron either. Every file is in a bundle.
+function checkPlaces() {
+    const carried = new Set();
+    for (const [name, { entry }] of Object.entries(LIBRARY.BUNDLES)) {
+        const place = PLACES[name];
+        for (const file of LIBRARY.reach(entry)) {
+            carried.add(file);
+            const plain = LIBRARY.code(fs.readFileSync(path.join(LIBRARY.DECKIT, file), 'utf8'));
+            if (place !== 'main' && /(^|\/)main\.js$/.test(file))
+                say(file, `runs in main, but the ${name} bundle carries it`);
+            if (place !== 'renderer' && /(^|\/)renderer\.js$/.test(file))
+                say(file, `runs in a renderer, but the ${name} bundle carries it`);
+            if (place !== 'main' && NODE.test(plain))
+                say(file, `requires a Node module, but the ${name} bundle carries it`);
+            if (place === 'anywhere' && ELECTRON.test(plain))
+                say(file, `requires Electron, but the ${name} bundle carries it`);
         }
     }
-    for (const { file, plain } of all.values()) {
-        const runs = placeOf.get(file);
-        if ((runs === 'page' || runs === 'any') && NODE.test(plain))
-            say(file, `runs "${runs}", but requires a Node module`);
-        if ((runs === 'node' || runs === 'any') && ELECTRON.test(plain))
-            say(file, `runs "${runs}", but requires Electron`);
-    }
+    for (const file of files)
+        if (!carried.has(file)) say(file, 'is in no bundle: nothing a bundle starts from imports it');
 }
 
-// A folder is a module (its files, and model/ for what supports them) or a group (folders only).
+// A folder is a module (its files, and model/ for what supports them) or a group (folders only). A package's root
+// holds its root files beside its concepts.
 function checkFolders() {
     const walk = (folder) => {
         const entries = fs
-            .readdirSync(path.join(LIBRARY.LIBRARY, folder), { withFileTypes: true })
+            .readdirSync(path.join(LIBRARY.DECKIT, folder), { withFileTypes: true })
             .filter(({ name }) => !name.startsWith('.'));
-        const files = entries.filter((entry) => entry.isFile());
+        const held = entries.filter((entry) => entry.isFile());
         const folders = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
         const below = folders.filter((name) => name !== 'model');
-        if (folder && files.length && below.length) {
+        if (!LIBRARY.PACKAGES.includes(folder) && held.length && below.length) {
             say(
                 folder,
                 `holds files and the folders ${below.join(', ')}: a folder is a module (files, and model/) or a group (folders only)`
             );
         }
-        for (const name of folders) walk(folder ? `${folder}/${name}` : name);
+        for (const name of folders) walk(`${folder}/${name}`);
     };
-    walk('');
-}
-
-// Every file of the library is reachable as deckit/<path>: a file outside the layers is no module's.
-function checkPlaces() {
-    for (const { file } of all.values()) if (!conceptOf(file)) say(file, 'is in no layer');
-}
-
-function checkOutside() {
-    const walk = (folder) =>
-        fs.readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
-            const full = path.join(folder, entry.name);
-            if (entry.isDirectory()) return walk(full);
-            return entry.name.endsWith('.js') ? [full] : [];
-        });
-    for (const file of walk(LIBRARY.DECKIT)) {
-        const plain = LIBRARY.code(fs.readFileSync(file, 'utf8'));
-        for (const [, wanted] of plain.matchAll(/require\(\s*["'](\.{1,2}\/[^"']+)["']\s*\)/g)) {
-            const to = path.resolve(path.dirname(file), wanted);
-            if (!to.startsWith(LIBRARY.DECKIT + path.sep))
-                problems.push(
-                    `${path.relative(LIBRARY.DECKIT, file)}: requires ${wanted}, which is outside source/deckit/`
-                );
-        }
-    }
+    for (const name of LIBRARY.PACKAGES) walk(name);
 }

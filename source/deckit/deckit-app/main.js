@@ -1,4 +1,4 @@
-// Deckit.app's Electron entry: deckit's main bundle around the app's own files, then connect.
+// Deckit.app's Electron entry: deckit's main bundles, the app's own files, then connect.
 const path = require('path');
 const { app, protocol } = require('electron');
 
@@ -16,20 +16,25 @@ if (UNPACKAGED) {
 if (!app.requestSingleInstanceLock()) {
     app.quit();
 } else {
-    for (const file of require('./load.json').main) require(path.join(__dirname, file));
-    DeckitModule.use(['deckit/feature/app/main', 'host/shell'], (DECKIT, SHELL) => {
-        protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
-        // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
-        const restart = () => {
-            if (UNPACKAGED) app.once('quit', () => app.exit(RESTART));
-            else app.relaunch();
-            app.quit();
-        };
-        const shell = SHELL.make({ restart });
-        DECKIT.connect({ preload: path.join(__dirname, 'preload.js'), shell });
-        // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
-        app.on('activate', () => shell.reveal());
-        app.on('second-instance', () => shell.reveal());
-        app.on('window-all-closed', () => {});
-    });
+    const DECKIT = require('./deckit/main.js');
+    const SHELL = require('./deckit/shell-main.js');
+    const { config, folders } = require('./config.js');
+    const { createWindow } = require('./window.js');
+    const { createApp } = require('./app.js');
+    const { createTheme } = require('./theme.js');
+    protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
+    // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
+    const restart = () => {
+        if (UNPACKAGED) app.once('quit', () => app.exit(RESTART));
+        else app.relaunch();
+        app.quit();
+    };
+    const THEME = createTheme();
+    const host = createApp({ WINDOW: createWindow({ CONFIG: config, THEME }), THEME }).make({ restart });
+    const deckit = DECKIT.connect({ preload: path.join(__dirname, 'preload.js'), host, config, folders });
+    SHELL.attach(deckit, { host });
+    // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
+    app.on('activate', () => host.show());
+    app.on('second-instance', () => host.show());
+    app.on('window-all-closed', () => {});
 }

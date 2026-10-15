@@ -4,10 +4,10 @@
 set -euo pipefail
 mod="${1:?usage: deckit engine <mod> (a mod with src/engine/: editor, note)}"
 root="$(cd "$(dirname "$0")/../../.." && pwd)"
-here="$root/source/deckit/mod/$mod/src/engine"
+here="$root/source/deckit/mods/$mod/src/engine"
 [ -f "$here/entry.mjs" ] || { echo "$mod has no src/engine/entry.mjs" >&2; exit 1; }
 work="$root/.build/engine/$mod"
-out="$root/source/deckit/mod/$mod/src/engine.js"
+out="$root/source/deckit/mods/$mod/src/engine.js"
 # EditorEngine, NoteEngine: the name esbuild gives it inside the file.
 global="$(printf '%s' "$mod" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')Engine"
 

@@ -1,17 +1,41 @@
-// The library as the build reads it: its files, what each declares, and each bundle worked out from its entry.
+// The libraries as the build reads them: deck, deckit on it, and deckit-shell on deckit, each a package of ES modules
+// under source/deckit, and the bundles they are carried in. A file is named by its path under source/deckit.
 const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
-const LIBRARY = path.join(DECKIT, 'deckit');
-const MODS = path.join(DECKIT, 'mod');
+const PACKAGES = ['deck', 'deckit', 'deckit-shell'];
+const MODS = path.join(DECKIT, 'mods');
 const APP = path.join(DECKIT, 'deckit-app');
-const REGISTRY = 'module/registry/index.js';
-const ENTRIES = {
-    chord: () => ['deckit/module/chord'],
-    main: () => ['deckit/feature/app/main'],
-    page: () => ['deckit/feature/app/page'],
+const ESBUILD = 'esbuild@0.28.2';
+// Each bundle: the file it starts from, how it loads, and for a renderer's, the global the preload starts it by. Main's
+// bundles are CommonJS modules a host app requires; a renderer's run as they are in the preload.
+const BUNDLES = {
+    main: { entry: 'deckit/main.js', format: 'cjs', platform: 'node', target: 'node22' },
+    'shell-main': { entry: 'deckit-shell/main.js', format: 'cjs', platform: 'node', target: 'node22' },
+    renderer: {
+        entry: 'deckit/renderer.js',
+        format: 'iife',
+        platform: 'browser',
+        target: 'chrome120',
+        global: 'DeckitRenderer',
+    },
+    'shell-renderer': {
+        entry: 'deckit-shell/renderer.js',
+        format: 'iife',
+        platform: 'browser',
+        target: 'chrome120',
+        global: 'DeckitShellRenderer',
+    },
+    chord: {
+        entry: 'deckit/keymap/chord.js',
+        format: 'iife',
+        platform: 'browser',
+        target: 'chrome120',
+        global: 'DeckitChord',
+    },
 };
+
 // A "/" starts a regular expression where a value is expected: after one of these, or at the start.
 const VALUE_BEFORE = '(,=:[!&|?{};+-*%<>~^';
 
@@ -53,96 +77,39 @@ function code(text) {
     return out;
 }
 
-// Every script of the library, by its path under it.
-function files(folder = '') {
-    return fs
-        .readdirSync(path.join(LIBRARY, folder), { withFileTypes: true })
-        .flatMap((entry) => {
+// Every script of the libraries, by its path under source/deckit.
+function files() {
+    const walk = (folder) =>
+        fs.readdirSync(path.join(DECKIT, folder), { withFileTypes: true }).flatMap((entry) => {
             const relative = path.posix.join(folder, entry.name);
-            if (entry.isDirectory()) return files(relative);
+            if (entry.isDirectory()) return walk(relative);
             return entry.name.endsWith('.js') ? [relative] : [];
-        })
-        .sort();
+        });
+    return PACKAGES.flatMap(walk).sort();
 }
 
-// A file's declaration, read by running it against a registry that records define() and makes nothing.
-function moduleOf(file) {
-    const text = fs.readFileSync(path.resolve(LIBRARY, file), 'utf8');
-    const plain = code(text);
-    const defines = [];
-    const recorder = { define: (name, declared) => defines.push({ name, ...declared }), use: () => {} };
-    try {
-        new Function('DeckitModule', text)(recorder);
-    } catch (error) {
-        return { problem: `does not load: ${error.message}`, plain };
-    }
-    if (defines.length !== 1) {
-        return {
-            problem: `defines ${defines.length} modules, not one, each as define('<name>', { uses, provides, runs }, make)`,
-            plain,
-        };
-    }
-    const [{ name, uses = [], provides = [], runs = null }] = defines;
-    return {
-        name,
-        runs,
-        uses: uses.map((written) => ({ name: written.replace(/\?$/, ''), optional: written.endsWith('?') })),
-        provides,
-        plain,
-    };
+// What a file imports: each `import ... from`, `export ... from` and bare `import '...'`, with the file a relative
+// path names, or null for a package.
+function importsOf(file) {
+    const plain = code(fs.readFileSync(path.join(DECKIT, file), 'utf8'));
+    const statements = /^\s*(?:(?:import|export)\b[^;'"]*?\bfrom\s*|import\s*)(['"])([^'"]+)\1/gm;
+    return [...plain.matchAll(statements)].map(([, , spec]) => ({
+        spec,
+        file: spec.startsWith('.') ? path.posix.normalize(path.posix.join(path.posix.dirname(file), spec)) : null,
+    }));
 }
 
-// A file's module name: deckit/ and its path, with index.js standing for its folder.
-function nameOf(file) {
-    return 'deckit/' + file.replace(/(\/index)?\.js$/, '');
-}
-
-// The registry defines the modules but is not one.
-function modules() {
-    const all = new Map();
-    for (const file of files()) {
-        if (file === REGISTRY) continue;
-        const declared = moduleOf(file);
-        if (declared.name) all.set(declared.name, { file, uses: declared.uses, provides: declared.provides });
-    }
-    return all;
-}
-
-// Each file after what it names, starting at the entries. A name the library does not define is one the app hands
-// it, loaded before the bundle.
-function filesFrom(entries, all = modules()) {
-    const order = [];
+// The files a bundle carries: the one it starts from and every file that one imports, through and through.
+function reach(entry) {
     const seen = new Set();
-    const visit = (module) => {
-        if (seen.has(module) || !all.has(module)) return;
-        seen.add(module);
-        for (const use of all.get(module).uses) visit(use.name);
-        order.push(all.get(module).file);
+    const visit = (file) => {
+        const full = path.join(DECKIT, file);
+        if (seen.has(file) || !fs.existsSync(full) || !fs.statSync(full).isFile()) return;
+        seen.add(file);
+        for (const imported of importsOf(file)) if (imported.file) visit(imported.file);
     };
-    for (const entry of entries) visit(entry);
-    return order;
+    visit(entry);
+    return seen;
 }
 
-function bundles() {
-    const all = modules();
-    return {
-        registry: [REGISTRY],
-        ...Object.fromEntries(Object.keys(ENTRIES).map((name) => [name, filesFrom(ENTRIES[name](), all)])),
-    };
-}
-
-module.exports = {
-    DECKIT,
-    LIBRARY,
-    MODS,
-    APP,
-    REGISTRY,
-    ENTRIES,
-    code,
-    files,
-    moduleOf,
-    nameOf,
-    modules,
-    filesFrom,
-    bundles,
-};
+module.exports = { DECKIT, PACKAGES, MODS, APP, ESBUILD, BUNDLES, code, files, importsOf, reach };

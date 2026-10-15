@@ -1,0 +1,130 @@
+import * as MOD_PERMISSION from './mod/permission.js';
+import { createHome } from './storage/home.js';
+import { createStorage } from './storage/index.js';
+import { createLog } from './log/main.js';
+import { createPermission } from './mod/permission.js';
+import { createManifest } from './mod/manifest.js';
+import { createFolder } from './mod/folder.js';
+import { createInstall } from './install/index.js';
+import { createRemove } from './install/remove.js';
+import { createCatalog } from './catalog/index.js';
+import { createIdentity } from './identity/index.js';
+import { createSandbox } from './sandbox/index.js';
+import { createRunner } from './runner/main.js';
+import { createRecord } from './record/main.js';
+import { createSetting } from './setting/main.js';
+import { createExport } from './export/main.js';
+import { createExtension } from './extension/main.js';
+import { createEvent } from './event/main.js';
+import { createMods } from './mods/main.js';
+
+// Deck in main, made of its parts, each handed what it uses. `id` names everything deck keeps; `home` is its folder,
+// ~/.config/<id> when none is given; `ship` the mod folders the host app ships, installed at every start; `sources`
+// folders of mods read in place, ahead of installed ones. Answers what the layers on deck reach of it.
+export function createDeck({ id = 'deckit', home = null, ship = [], sources = [] } = {}) {
+    const CONFIG = Object.freeze({ id, home, ship, sources });
+    const HOME = createHome({ CONFIG });
+    const STORAGE = createStorage({ HOME });
+    const LOG = createLog({ CONFIG, HOME });
+    const PERMISSION = createPermission();
+    for (const permission of MOD_PERMISSION.PERMISSIONS) PERMISSION.define(permission);
+    const MANIFEST = createManifest({ MOD_PERMISSION: PERMISSION });
+    const FOLDER = createFolder({ MANIFEST });
+    const INSTALL = createInstall({ CONFIG, HOME, FOLDER });
+    const REMOVE = createRemove({ STORAGE, MANIFEST, INSTALL });
+    const CATALOG = createCatalog({ CONFIG, HOME, STORAGE, LOG, FOLDER, INSTALL });
+    const IDENTITY = createIdentity();
+    const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
+    const RUNNER = createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFEST });
+    const RECORD = createRecord({ STORAGE, IDENTITY });
+    const SETTING = createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER });
+    const EXPORT = createExport({ IDENTITY, RUNNER });
+    const EXTENSION = createExtension({ IDENTITY, RUNNER, EXPORT });
+    const EVENT = createEvent({ IDENTITY, RUNNER });
+    const MODS = createMods({
+        LOG,
+        IDENTITY,
+        INSTALL,
+        REMOVE,
+        CATALOG,
+        RUNNER,
+        SANDBOX,
+        MANIFEST,
+        STORAGE,
+        EXTENSION,
+    });
+
+    // MARK: - Initializer
+    // MARK: - Public
+    // Before any page of deck's loads, once the app is ready: `preload` is the file every page loads with. The log
+    // starts then, and what the host app ships is installed, before anything reads the mods.
+    function prepare({ preload }) {
+        LOG.start({
+            nameOf: (webContents) => IDENTITY.modOf(webContents)?.id || IDENTITY.pageNameOf(webContents) || 'page',
+        });
+        SANDBOX.start({ preload });
+        if (!CONFIG.ship.length) return;
+        for (const { id, outcome, problem } of INSTALL.installShipped())
+            if (problem) LOG.warn(`${outcome} ${id}: ${problem}`);
+            else LOG.info(`${outcome} ${id}`);
+    }
+
+    // What follows the mods' runs starts before the runner launches any. What is on deck is told of a mod's page as
+    // it is made (`preparePage(webContents, mod)`); the rest it is told and asked is the mods' (mods/main.js).
+    function start({ preparePage, describe: facts, installed, removed, clearSessions }) {
+        CATALOG.start();
+        RECORD.start();
+        SETTING.start();
+        EXPORT.start();
+        EXTENSION.start();
+        EVENT.start();
+        MODS.start({ facts, installed, removed, clearSessions });
+        RUNNER.start({ preparePage });
+    }
+
+    // What the layers on deck reach of it, and no more: who a page is, the mods and their runs, what a layer defines,
+    // where a mod's files and deck's state are, and the log.
+    return Object.freeze({
+        SCHEME: SANDBOX.SCHEME,
+        prepare,
+        start,
+        wouldInstall: MODS.wouldInstall,
+        pages: Object.freeze({ make: SANDBOX.page }),
+        identity: Object.freeze({
+            modFrom: IDENTITY.modFrom,
+            modOf: IDENTITY.modOf,
+            pageOf: IDENTITY.pageOf,
+            pageNameOf: IDENTITY.pageNameOf,
+            whenPageEnds: IDENTITY.whenPageEnds,
+            consumeUserActivation: IDENTITY.consumeUserActivation,
+            passUserActivation: IDENTITY.passUserActivation,
+            isPressing: IDENTITY.isPressing,
+            isPointing: IDENTITY.isPointing,
+        }),
+        catalog: Object.freeze({
+            mods: CATALOG.mods,
+            found: CATALOG.found,
+            onChange: CATALOG.onChange,
+            arrange: CATALOG.arrange,
+        }),
+        runner: Object.freeze({
+            observe: RUNNER.observe,
+            runs: RUNNER.runs,
+            runOf: RUNNER.runOf,
+            relaunchAll: RUNNER.relaunchAll,
+        }),
+        manifest: Object.freeze({ of: MANIFEST.of, define: MANIFEST.define }),
+        permission: Object.freeze({ define: PERMISSION.define }),
+        folder: Object.freeze({ fileIn: FOLDER.fileIn, entryOf: FOLDER.entryOf }),
+        storage: Object.freeze({ state: STORAGE.state, stateIn: STORAGE.stateIn, folderOf: STORAGE.folderOf }),
+        home: Object.freeze({ data: HOME.data, mods: HOME.mods, state: HOME.state }),
+        log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, file: LOG.file, guard: LOG.guard }),
+    });
+}
+
+// What the layers on deck read of it: the scheme its pages load from and their origins, a run's notifications, the
+// permissions deck checks itself, and how a name of a mod's is scoped by it.
+export { SCHEME, originOf, pageOriginOf, addressOf } from './sandbox/model/origin.js';
+export { NOTIFICATIONS } from './mod/lifecycle.js';
+export { MODS, MOD_SETTINGS } from './mod/permission.js';
+export { scopedName } from './mod/model/scoped-name.js';

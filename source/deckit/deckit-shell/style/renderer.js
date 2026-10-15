@@ -1,0 +1,41 @@
+import * as PROTOCOL from './protocol.js';
+
+// MARK: - Property
+// MARK: - Initializer
+// MARK: - Public
+// The page wears the styles mods give it, as its last style sheets: a sheet the kit or the mod's entry adopts
+// later goes before them, so a mod's style wins over those at the same specificity. A style a page sets on an
+// element itself still wins over a sheet, as in any page. A sheet the page's own world adopts goes after them
+// until the styles next change.
+function wear() {
+    const adopted = Object.getOwnPropertyDescriptor(Document.prototype, 'adoptedStyleSheets');
+    let worn = [];
+    const others = () => adopted.get.call(document).filter((sheet) => !worn.includes(sheet));
+    Object.defineProperty(document, 'adoptedStyleSheets', {
+        configurable: true,
+        get: () => adopted.get.call(document),
+        set: (sheets) => adopted.set.call(document, [...sheets.filter((sheet) => !worn.includes(sheet)), ...worn]),
+    });
+    const apply = (styles) => {
+        const kept = others();
+        worn = styles.map((css) => {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(css);
+            return sheet;
+        });
+        adopted.set.call(document, [...kept, ...worn]);
+    };
+    apply(PROTOCOL.current.invoke());
+    PROTOCOL.changed.on(({ styles }) => apply(styles));
+}
+
+// Why what `deck.styles` was handed is not styles, or ''.
+function problemOf(value) {
+    if (!value || typeof value !== 'object') return 'takes { "<mod id>" or "*": css }';
+    const wrong = Object.entries(value).find(([, css]) => typeof css !== 'string');
+    return wrong ? `takes css text for "${wrong[0]}"` : '';
+}
+
+// MARK: - Private
+
+export { wear, problemOf };
