@@ -32,8 +32,8 @@ function make(theme) {
 // With `movesInto(key, toKey)`, a row held over the middle of a row it answers true for goes into that row
 // rather than beside it: the row lights, and `onMoveInto(key, toKey)` hears the drop.
 //
-// With `describe(key)`, `{ kind, payload, text, icon }` as a drag source has it, a row drawn above or below the
-// list is carried as a drag source carries it, to a drop target of that kind, and sorted again when it comes back.
+// With `describe(key)`, `{ kind, payload, text, icon }` as a drag source has it, a row held over a drop target of
+// that kind is carried as a drag source carries it, and sorted again when it leaves the target.
 function sortable(theme, list, { onReorder, depth = null, movesInto = null, onMoveInto = null, describe = null }) {
     const { element } = list;
     return GESTURE.drag(element, {
@@ -54,8 +54,8 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     const { base, easing } = TOKEN.MOTION;
     const { element: list, keyOf } = keyed;
     const key = keyOf(row);
-    // Put away before anything is measured, so the places are the ones left without them. Carried out of the list,
-    // the row leaves the list as it was, so what lies under it does not move.
+    // Put away before anything is measured, so the places are the ones left without them, and kept away until the
+    // row is let go, carried or not: the list keeps one height while it is held, and what lies under it stays put.
     const carried = (depth?.descendants?.(key) || []).map((name) => keyed.elementOf(name)).filter(Boolean);
     const keptDisplay = carried.map((child) => child.style.display);
     const putAway = (away) =>
@@ -130,26 +130,22 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         into = index;
         rows[into]?.setAttribute('data-deckit-target', '');
     };
-    // Out of the list, the row is carried: `out` is that drag, and `afterOut` what runs once it has played out.
+    // Over a drop target that takes it, the row is carried: `out` is that drag, and `afterOut` what runs once it has
+    // played out. Anywhere else it is sorted, so past the list's ends it goes first or last.
     let out = null;
     let afterOut = null;
-    const isOut = (y) => {
-        const box = list.getBoundingClientRect();
-        return !!described && (y < box.top || y > box.bottom);
-    };
+    const overTarget = (x, y) => !!described && !!DRAG.landing(x, y, described.kind, described.payload);
     const leave = (x, y) => {
         light(-1);
         to = from;
         projected = startDepth;
         rows.forEach((child, index) => (child.style.transform = kept[index].transform));
         Object.assign(row.style, { boxShadow: keptHeld.boxShadow, opacity: keptHeld.opacity });
-        putAway(false);
         out = DRAG.carry(row, described, { clientX: x, clientY: y }, () => afterOut?.());
     };
     const comeBack = () => {
         out.settleNow();
         out = null;
-        putAway(true);
         row.style.boxShadow = liftedShadow;
     };
     const endOut = (how) => {
@@ -160,7 +156,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         how(out);
     };
     const follow = (x, y) => {
-        if (isOut(y)) {
+        if (overTarget(x, y)) {
             if (!out) leave(x, y);
             return out.follow(x, y);
         }
