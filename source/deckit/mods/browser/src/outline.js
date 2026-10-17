@@ -20,10 +20,10 @@ const FOLDER_INKS = {
 // list, a row is carried as `describe(node)` says. A folder's row is drawn here and an item's by `createItem` and
 // `updateItem`; both are painted here with their depth and the colours of the folders they are in.
 //
-// The keys walk the rows as macOS walks an outline (the kit's `tree`). The row they stand on is the lead: an item
-// `choose(item)` makes the chosen one (a tab brought to the front) follows the chosen item, and any other row is
-// marked as chosen while it leads. `nameOf(item)` is what type-ahead matches; `onRename(node)` and `onOpen(node)` are
-// what Return and Command-Down do to the lead, an open folder's being to unfold.
+// The keys walk the rows as macOS walks an outline (the kit's `tree`). The row they stand on is the lead. With
+// `choose(item)`, leading an item chooses it (a tab brought to the front), so the lead is the chosen item; any other
+// row is marked as chosen while it leads. `nameOf(item)` is what type-ahead matches; `onRename(node)` and
+// `onOpen(node)` are what Return and Command-Down do to the lead, but Command-Down on a folded folder unfolds it.
 function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, onRename, onOpen, onPlace, onToggle }) {
     // How far a folder's children stand in from it, which puts a child's icon under the folder's: a drag sideways by
     // as much moves a row a level in or out.
