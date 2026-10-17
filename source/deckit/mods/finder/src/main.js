@@ -437,8 +437,9 @@ module.exports = {
             favorites.relocate(follow);
         }
 
-        // The path runs to the lead in columns, or else to the tab's folder.
+        // The path runs to the lead in columns, or else to the tab's folder. The tab is named for the folder in front.
         function drawToolbar() {
+            tabs.setFolder(area.workingFolder());
             const selected = area.view() === 'columns' ? tabs.selectedPath() : null;
             const shown = selected && area.columnFolders().includes(parentOf(selected)) ? selected : tabs.location();
             bar.setPath(shown);
