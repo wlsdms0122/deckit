@@ -55,7 +55,11 @@ function fileMenu({
             },
             folder
                 ? { label: 'Open in New Tab', icon: 'window', hint: '⌘', run: () => openInNewTab(entry.path) }
-                : { label: 'Open with Default App', hint: '⌥', run: () => open([entry], { usesDefaultApp: true }) },
+                : {
+                      label: 'Open with Default App',
+                      hint: chordOf('openWithDefaultApp'),
+                      run: () => open([entry], { usesDefaultApp: true }),
+                  },
             { label: 'Quick Look', icon: 'eye', hint: 'Space', run: () => quickLook(entry) },
             '-',
             { label: 'Rename…', icon: 'pencil', run: () => rename(entry) },
