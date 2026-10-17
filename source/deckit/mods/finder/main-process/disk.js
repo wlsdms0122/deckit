@@ -110,8 +110,7 @@ module.exports = ({ emit, window, files }) => {
             }
         },
 
-        // The whole set is replaced: this module stays loaded across a reload of the sandbox, and a reloaded sandbox
-        // never unwatches the folders the one before it watched.
+        // The whole set is replaced.
         watch(folders) {
             const wanted = new Set(
                 []
@@ -139,6 +138,12 @@ module.exports = ({ emit, window, files }) => {
         closeQuickLook() {
             window.ofPage()?.closeFilePreview();
             return true;
+        },
+
+        // As the run that started it ends: its watchers, and a preview it showed.
+        dispose() {
+            for (const folder of [...watched.keys()]) stopWatching(folder);
+            window.ofPage()?.closeFilePreview();
         },
     };
 
