@@ -37,7 +37,7 @@ for dir in source/deckit/mods/*/; do
   " || { echo "$dir does not bundle from its src/ alone into an entry: stopping" >&2; exit 1; }
 done
 
-# The libraries' bundles, each from its entry, and deckit.json, which says what they are.
+# The packages' bundles, each from its entry, and deckit.json, which says what they are.
 node source/cli/bundle.js "$LIB" "$VERSION" "$SOURCE_HASH" || { echo "deckit could not be bundled: stopping" >&2; exit 1; }
 
 # Byte for byte the same from the same sources, wherever built: the archive's hash is which deckit it is.

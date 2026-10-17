@@ -1,0 +1,11 @@
+{
+    "name": "deck",
+    "private": true,
+    "exports": {
+        "./main.js": "./main.js",
+        "./renderer.js": "./renderer.js",
+        "./ipc/index.js": "./ipc/index.js",
+        "./listener/index.js": "./listener/index.js"
+    },
+    "dependencies": {}
+}

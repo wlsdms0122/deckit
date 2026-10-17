@@ -1,0 +1,12 @@
+{
+    "name": "deckit-shell",
+    "private": true,
+    "exports": {
+        "./main.js": "./main.js",
+        "./renderer.js": "./renderer.js"
+    },
+    "dependencies": {
+        "deck": "file:../deck",
+        "deckit": "file:../deckit"
+    }
+}

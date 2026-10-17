@@ -1,4 +1,4 @@
-// The libraries as the build reads them: deck, deckit on it, and deckit-shell on deckit, each a package of ES modules
+// The packages as the build reads them: deck, deckit on it, and deckit-shell on deckit, each a package of ES modules
 // under source/deckit, and the bundles they are carried in. A file is named by its path under source/deckit.
 const fs = require('fs');
 const path = require('path');
@@ -77,7 +77,17 @@ function code(text) {
     return out;
 }
 
-// Every script of the libraries, by its path under source/deckit.
+// What a package says of itself in its package.json: its entries, what a package that depends on it imports of it,
+// by their paths under source/deckit, and the packages it depends on.
+function surfaceOf(name) {
+    const described = JSON.parse(fs.readFileSync(path.join(DECKIT, name, 'package.json'), 'utf8'));
+    return {
+        entries: new Set(Object.values(described.exports || {}).map((entry) => path.posix.join(name, entry))),
+        depends: new Set(Object.keys(described.dependencies || {})),
+    };
+}
+
+// Every script of the packages, by its path under source/deckit.
 function files() {
     const walk = (folder) =>
         fs.readdirSync(path.join(DECKIT, folder), { withFileTypes: true }).flatMap((entry) => {
@@ -112,4 +122,4 @@ function reach(entry) {
     return seen;
 }
 
-module.exports = { DECKIT, PACKAGES, MODS, APP, ESBUILD, BUNDLES, code, files, importsOf, reach };
+module.exports = { DECKIT, PACKAGES, MODS, APP, ESBUILD, BUNDLES, code, surfaceOf, files, importsOf, reach };
