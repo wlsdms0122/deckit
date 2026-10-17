@@ -19,13 +19,20 @@ const FOLDER_INKS = {
 // sideways to, or into a folded or empty folder it is let go on; a folder takes its rows with it. Drawn out of the
 // list, a row is carried as `describe(node)` says. A folder's row is drawn here and an item's by `createItem` and
 // `updateItem`; both are painted here with their depth and the colours of the folders they are in.
-function outline({ ui, describe, createItem, updateItem, onPlace, onToggle }) {
+//
+// The keys walk the rows as macOS walks an outline (the kit's `tree`). The row they stand on is the lead: an item
+// `choose(item)` makes the chosen one (a tab brought to the front) follows the chosen item, and any other row is
+// marked as chosen while it leads. `nameOf(item)` is what type-ahead matches; `onRename(node)` and `onOpen(node)` are
+// what Return and Command-Down do to the lead, an open folder's being to unfold.
+function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, onRename, onOpen, onPlace, onToggle }) {
     // How far a folder's children stand in from it, which puts a child's icon under the folder's: a drag sideways by
     // as much moves a row a level in or out.
     const INDENT = 22;
 
     let shownTree = null;
     let shownRows = [];
+    let chosen = null; // the item chosen, as the owner last set it
+    let leadKey = null; // the row the keys stand on, when it is not the chosen item's
     const folderRows = new WeakMap(); // row element -> { row, glyph, label, count }
 
     // A folder and what it holds are one block in its colour, and a folder in a folder a block in that one: each
@@ -92,14 +99,59 @@ function outline({ ui, describe, createItem, updateItem, onPlace, onToggle }) {
         },
         describe: (key) => describe(rowOf(key).node),
     });
+    ui.tree(list.element, {
+        items: () => shownRows.map(keyOf),
+        lead: () => {
+            const marked = shownRows.find((row) => row.active);
+            return marked ? keyOf(marked) : null;
+        },
+        nameOf: (key) => {
+            const { node } = rowOf(key);
+            return isFolder(node) ? folderLabel(node) : nameOf(node);
+        },
+        expanded: (key) => {
+            const { node } = rowOf(key);
+            return isFolder(node) && node.children.length ? !node.collapsed : null;
+        },
+        parentOf: (key) => {
+            const folder = rowOf(key).ancestors.at(-1);
+            return folder ? keyOf({ node: folder }) : null;
+        },
+        childrenOf: (key) => rowOf(key).node.children.map((node) => keyOf({ node })),
+        onSelect: lead,
+        onToggle: (key, open) => {
+            const folder = rowOf(key).node;
+            if (folder.collapsed === open) onToggle(folder);
+        },
+        onRename: (key) => onRename(rowOf(key).node),
+        onOpen: (key) => {
+            const { node } = rowOf(key);
+            if (!isFolder(node)) return onOpen(node);
+            if (node.collapsed && node.children.length) onToggle(node);
+        },
+    });
+    // The lead is marked while the keys are here: with the focus gone, the chosen item is marked again.
+    list.element.addEventListener('focusout', (event) => {
+        if (!leadKey || list.element.contains(event.relatedTarget)) return;
+        leadKey = null;
+        draw();
+    });
+    // A press leads from its row, as the keys do.
+    list.element.addEventListener('click', (event) => {
+        const element = event.target.closest('.browser-outline-row');
+        const key = element && list.keyOf(element);
+        if (key && rowOf(key)) lead(key, { pressed: true });
+    });
 
     return {
         element: list.element,
         // `active` is the item chosen: its row is marked, or the row of the folded folder it is in.
+        // A new chosen item is where the keys stand from then on.
         set(tree, active = null) {
+            if (active !== chosen) leadKey = null;
             shownTree = tree;
-            shownRows = rowsOf(tree, active);
-            list.set(shownRows);
+            chosen = active;
+            draw();
         },
         // The node of the row `target` is in, or null.
         nodeAt(target) {
@@ -121,20 +173,46 @@ function outline({ ui, describe, createItem, updateItem, onPlace, onToggle }) {
         },
     };
 
+    // A lead whose row is no longer shown (taken away, or in a folder folded) gives way to the chosen item.
+    function draw() {
+        shownRows = rowsOf(shownTree, chosen);
+        if (leadKey && !shownRows.some((row) => keyOf(row) === leadKey)) {
+            leadKey = null;
+            shownRows = rowsOf(shownTree, chosen);
+        }
+        list.set(shownRows);
+    }
+
+    // The keys stand on `key`. An item the owner chooses becomes the chosen one, which the owner draws; a press has
+    // already chosen what it pressed.
+    function lead(key, { pressed = false } = {}) {
+        const { node } = rowOf(key);
+        if (choose && !isFolder(node)) {
+            leadKey = null;
+            if (!pressed) choose(node);
+            return;
+        }
+        leadKey = key;
+        draw();
+    }
+
     // Each row's depth, the folders it is in (outermost first), the items a folder holds at any depth, and whether it
-    // starts or ends a block of colour.
+    // starts or ends a block of colour. The lead, when it is not the chosen item, is marked as chosen instead.
     function rowsOf(tree, active) {
         const rows = [];
         const visit = (children, ancestors) => {
             for (const node of children) {
                 const folded = isFolder(node) && node.collapsed;
-                rows.push({
+                const row = {
                     node,
                     depth: ancestors.length,
                     ancestors,
                     size: isFolder(node) ? tree.items(node).length : 0,
-                    active: node === active || (folded && !!active && tree.contains(node, active)),
-                });
+                };
+                row.active = leadKey
+                    ? keyOf(row) === leadKey
+                    : node === active || (folded && !!active && tree.contains(node, active));
+                rows.push(row);
                 if (isFolder(node) && !node.collapsed) visit(node.children, [...ancestors, node]);
             }
         };

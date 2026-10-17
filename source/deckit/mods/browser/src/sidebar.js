@@ -37,7 +37,7 @@ function sidebar({
     let tabTree = null;
     let frontTab = null;
     const tabRows = new WeakMap(); // row element -> { row, icon, label, captures, mute }
-    const bookmarkRows = new WeakMap(); // row element -> { label }
+    const bookmarkRows = new WeakMap(); // row element -> { row, label }
 
     ui.addStyle(`
         .browser-sidebar { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
@@ -57,6 +57,11 @@ function sidebar({
         }),
         createItem: tabRow,
         updateItem: updateTabRow,
+        nameOf: tabLabel,
+        choose: onSelectTab,
+        // A tab has no name of its own to change: it is its page's title.
+        onRename: (node) => isFolder(node) && renameFolder(node, onChangeTabFolder),
+        onOpen: onSelectTab,
         onPlace: onPlaceTab,
         onToggle: (folder) => onChangeTabFolder(folder, { collapsed: !folder.collapsed }),
     });
@@ -70,6 +75,9 @@ function sidebar({
         }),
         createItem: bookmarkRow,
         updateItem: updateBookmarkRow,
+        nameOf: (bookmark) => bookmark.title,
+        onRename: (node) => (isFolder(node) ? renameFolder(node, bookmarks.changeFolder) : edit(node)),
+        onOpen: onOpenBookmark,
         onPlace: bookmarks.place,
         onToggle: (folder) => bookmarks.changeFolder(folder, { collapsed: !folder.collapsed }),
     });
@@ -213,13 +221,15 @@ function sidebar({
         });
         row.element.append(favicon({ ui, page: bookmark }).element, label, editAction.element, removeAction.element);
         row.element.addEventListener('click', () => onOpenBookmark(bookmark));
-        bookmarkRows.set(row.element, { label });
+        bookmarkRows.set(row.element, { row, label });
         updateBookmarkRow(row.element, shown);
         return row.element;
     }
 
-    function updateBookmarkRow(rowElement, { node: bookmark }) {
-        const { label } = bookmarkRows.get(rowElement);
+    // Marked while the keys stand on it.
+    function updateBookmarkRow(rowElement, { node: bookmark, active }) {
+        const { row, label } = bookmarkRows.get(rowElement);
+        row.setActive(active);
         label.textContent = bookmark.title;
         label.title = bookmark.url;
     }
