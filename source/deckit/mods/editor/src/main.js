@@ -537,6 +537,7 @@ module.exports = {
                 onOpen: (path, options) => open(path, options),
                 onFindIn: (relative) => findIn(workspace, relative),
                 onMove: (entry, folder) => entryActions.move(workspace, entry, folder),
+                onRename: (entry) => entryActions.rename(workspace, entry),
                 menu: entryActions.menuOf(workspace),
             });
             workspace.search = workspaceSearch({
