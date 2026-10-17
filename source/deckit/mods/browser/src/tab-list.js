@@ -42,6 +42,7 @@ function tabList({
         lastClosed: () => closed.at(-1),
         groupOf,
         add,
+        open,
         select,
         navigate,
         close,
@@ -74,8 +75,8 @@ function tabList({
         return groups.get(tab.group) || null;
     }
 
-    // In `group`, the tab goes after its last one.
-    function add(url = home(), { title = '', icon = '', background = false, group = null } = {}) {
+    // After `after`, in its group; else in `group`, after its last tab; else last.
+    function add(url = home(), { title = '', icon = '', background = false, group = null, after = null } = {}) {
         const page = pageFor(url);
         page.element.style.visibility = 'hidden';
         area.prepend(page.element);
@@ -85,22 +86,38 @@ function tabList({
             url: canonical(url),
             title,
             icon,
-            group: group?.id ?? null,
+            group: after ? after.group : (group?.id ?? null),
             loading: true,
             canGoBack: false,
             canGoForward: false,
             // The window name the page asked for, which a later request for the same name reuses.
             target: '',
+            // The tab whose page opened this one.
+            opener: null,
             audible: false,
             muted: false,
             capture: { microphone: false, camera: false, screen: false },
         };
-        const last = group && tabsOf(group).at(-1);
+        const last = after || (group && tabsOf(group).at(-1));
         list.splice(last ? list.indexOf(last) + 1 : list.length, 0, tab);
         listen(tab);
         if (background) changed();
         else select(tab);
         return tab;
+    }
+
+    // `target` is the window the page named: a second request for it reuses the tab that answered the first. A tab
+    // opened by another goes after it, and after the tabs it opened just before, in its group.
+    function open(url, { activates = true, target = '', opener = null } = {}) {
+        const named = target && list.find((tab) => tab.target === target);
+        if (named) {
+            navigate(named, url);
+            if (activates) select(named);
+            return;
+        }
+        let after = opener;
+        while (after && list[list.indexOf(after) + 1]?.opener === opener) after = list[list.indexOf(after) + 1];
+        Object.assign(add(url, { background: !activates, after }), { target, opener });
     }
 
     // A tab chosen in a collapsed group opens the group.
@@ -262,6 +279,10 @@ function tabList({
             // A file page following a link to the web: reopened here in the web session.
             shouldLeave: (url) => {
                 if (isCurrentPage()) navigate(tab, url);
+                return false;
+            },
+            shouldOpenWindow: (url, { activates, target }) => {
+                if (isCurrentPage()) open(url, { activates, target, opener: tab });
                 return false;
             },
             didRequestClose: () => {

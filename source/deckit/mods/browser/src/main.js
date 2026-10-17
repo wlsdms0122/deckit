@@ -180,19 +180,11 @@ module.exports = {
             lastTab: { key: 'mod+9', label: 'Last tab', run: () => selectTab(tabs.list().length - 1) },
         });
 
-        // `target` is the window the page named: a second request for it reuses the tab that answered the first.
         deck.handleURL((url, { activates = true, target = '' } = {}) => {
             const address = parseAddress(url);
             if (!address) return false;
-            const name = String(target || '');
-            const named = name && tabs.list().find((tab) => tab.target === name);
             if (activates) deck.show();
-            if (named) {
-                tabs.navigate(named, address);
-                if (activates) tabs.select(named);
-                return true;
-            }
-            tabs.add(address, { background: !activates }).target = name;
+            tabs.open(address, { activates, target: String(target || '') });
             return true;
         });
 
