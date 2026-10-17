@@ -6,6 +6,7 @@ module.exports = ({ emit, window, files }) => {
     const os = require('os');
     const path = require('path');
     const { app, shell, nativeImage } = require('electron');
+    const { imageSize } = require('./image-size.js');
     // macOS shows a folder with one of these extensions as one item, opened and not walked into.
     const PACKAGE_EXTENSIONS = new Set([
         'app',
@@ -89,10 +90,20 @@ module.exports = ({ emit, window, files }) => {
             return answer;
         },
 
+        // Electron draws the thumbnail into the box asked, whatever the file's shape, so the box is a picture's own
+        // shape where its header tells it, and square for anything else.
         async thumbnail(file, size) {
             const side = Math.max(16, Math.min(1024, Math.round(Number(size) || 0)));
+            const shape = await imageSize(absolute(file)).catch(() => null);
+            const scale = shape?.width && shape.height ? side / Math.max(shape.width, shape.height) : 0;
+            const box = scale
+                ? {
+                      width: Math.max(1, Math.round(shape.width * scale)),
+                      height: Math.max(1, Math.round(shape.height * scale)),
+                  }
+                : { width: side, height: side };
             try {
-                const image = await nativeImage.createThumbnailFromPath(absolute(file), { width: side, height: side });
+                const image = await nativeImage.createThumbnailFromPath(absolute(file), box);
                 return image.isEmpty() ? null : image.toDataURL();
             } catch {
                 return null;
