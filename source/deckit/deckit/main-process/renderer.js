@@ -13,7 +13,7 @@ function forMod({ deliver }) {
         if (!buses.has(path))
             buses.set(
                 path,
-                DECK.makeBus({ call: (listener, args, name) => deliver(`on("${name}")`, listener, ...args) })
+                DECK.BUS.make({ call: (listener, args, name) => deliver(`on("${name}")`, listener, ...args) })
             );
         return buses.get(path);
     };

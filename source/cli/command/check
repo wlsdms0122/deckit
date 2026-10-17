@@ -38,6 +38,11 @@ const channels = new Map(); // channel -> the protocol that declares it
 const files = LIBRARY.files();
 const imports = new Map(files.map((file) => [file, LIBRARY.importsOf(file)]));
 
+// The packages stand in layers, each on those before it (library.js): one depends only on what is below it.
+for (const [name, { depends }] of SURFACES)
+    for (const below of depends)
+        if (!LIBRARY.PACKAGES.slice(0, LIBRARY.PACKAGES.indexOf(name)).includes(below))
+            problems.push(`deckit/${name}/package.json: depends on ${below}, which is not a package below it`);
 for (const [name, { entries }] of SURFACES)
     for (const entry of entries)
         if (!files.includes(entry))
@@ -172,7 +177,7 @@ function checkFolders() {
     const walk = (folder) => {
         const entries = fs
             .readdirSync(path.join(LIBRARY.DECKIT, folder), { withFileTypes: true })
-            .filter(({ name }) => !name.startsWith('.'));
+            .filter(({ name }) => name !== '.DS_Store');
         const folders = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
         const below = folders.filter((name) => name !== 'model');
         const root = LIBRARY.PACKAGES.includes(folder);

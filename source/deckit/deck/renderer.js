@@ -19,7 +19,7 @@ export function createDeck() {
 export { proxyOf, deepFreeze } from './export/proxy.js';
 
 // Listeners by event name, for a layer that tells a mod's listeners what happens.
-export { make as makeBus } from './event/bus.js';
+export * as BUS from './event/bus.js';
 
 // The scheme deck's pages load from, for a layer's page to know one of them.
 export { SCHEME } from './sandbox/model/origin.js';

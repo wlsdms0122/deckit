@@ -57,7 +57,7 @@ const PERMISSION_ICONS = {
     'deckit.url-schemes': 'layers',
     'deckit.styles': 'eye',
 };
-const PERMISSION_ICON = 'shieldCheck';
+const PERMISSION_ICON = 'info';
 
 // The permissions a mod asks for: each one's name, id, the mod's reason and what it lets the mod do.
 function permissionList({ ui, permissions }) {

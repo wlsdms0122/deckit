@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
+// In layers: each stands on those before it.
 const PACKAGES = ['deck', 'deckit', 'deckit-shell'];
 const MODS = path.join(DECKIT, 'mods');
 const APP = path.join(DECKIT, 'deckit-app');
