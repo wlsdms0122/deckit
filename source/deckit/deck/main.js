@@ -112,6 +112,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
             observe: RUNNER.observe,
             runs: RUNNER.runs,
             runOf: RUNNER.runOf,
+            launchedOf: RUNNER.launchedOf,
             relaunchAll: RUNNER.relaunchAll,
         }),
         manifest: Object.freeze({ of: MANIFEST.of, define: MANIFEST.define }),

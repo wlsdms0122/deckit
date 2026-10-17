@@ -19,18 +19,9 @@ export function createApi({
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...DECK.NOTIFICATIONS]);
     const facts = new WeakMap(); // a run -> what the host app reads of it
-    // mod id -> how it is listed, { icon, keywords }, as its latest run that launched said: kept while it launches
-    // again, so whatever lists the mods does not lose it then.
-    const listings = new Map();
+    const listings = new WeakMap(); // a run that launched -> how it listed its mod, { icon, keywords }
 
     // MARK: - Initializer
-    RUNNER.observe('didLaunch', ({ mod, summary }) =>
-        listings.set(mod.id, Object.freeze({ icon: summary.icon, keywords: Object.freeze([...summary.keywords]) }))
-    );
-    CATALOG.onChange(() => {
-        const found = new Set(CATALOG.mods().map(({ id }) => id));
-        for (const id of [...listings.keys()]) if (!found.has(id)) listings.delete(id);
-    });
 
     // MARK: - Public
     // What a host app and the shell it puts on deckit reach of deckit, in main: the mods and their runs, pages of
@@ -53,7 +44,7 @@ export function createApi({
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, view }) => Object.freeze({ run: factsOf(run), view }))),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),
-                listingOf: (id) => listings.get(id) || null,
+                listingOf,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
                 modOf: (webContents) => IDENTITY.modOf(webContents)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
@@ -86,6 +77,19 @@ export function createApi({
     }
 
     // MARK: - Private
+    // How a mod is listed, as its latest run that launched said: kept while it launches again, so whatever lists
+    // the mods does not lose it then.
+    function listingOf(id) {
+        const run = RUNNER.launchedOf(id);
+        if (!run) return null;
+        if (!listings.has(run))
+            listings.set(
+                run,
+                Object.freeze({ icon: run.summary.icon, keywords: Object.freeze([...run.summary.keywords]) })
+            );
+        return listings.get(run);
+    }
+
     function manifestOf(mod) {
         return frozen(MANIFEST.of(mod));
     }

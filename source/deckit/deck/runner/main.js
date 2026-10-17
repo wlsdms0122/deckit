@@ -13,6 +13,8 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
     // answered; `closing`, once the view has closed for good.
     const sandboxes = new Map();
     const numbers = new Map(); // mod id -> the number of its latest run, counted from 1
+    // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
+    const lastLaunched = new Map();
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
     let preparePage = null;
     let webPreferences = {};
@@ -53,6 +55,10 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
 
     function runOf(modId) {
         return sandboxes.get(modId)?.run || null;
+    }
+
+    function launchedOf(modId) {
+        return lastLaunched.get(modId) || null;
     }
 
     // The run a page's message is from, while it is that mod's latest: what an older run sent before it was
@@ -198,6 +204,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
         sandbox.closing = terminate(sandbox, reason).then(() => {
             if (!sandbox.view.webContents.isDestroyed()) sandbox.view.webContents.close();
             sandboxes.delete(sandbox.mod.id);
+            if (reason === 'removed') lastLaunched.delete(sandbox.mod.id);
             reconcile();
         });
     }
@@ -212,6 +219,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
             number,
             notify: (name, run) => {
                 sandbox.run = run;
+                if (name === 'didLaunch') lastLaunched.set(modId, run);
                 notifications.emit(name, run);
             },
         });
@@ -295,5 +303,5 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
         });
     }
 
-    return { start, runs, runOf, currentRun, observe, whenClosed, relaunchAll, relaunch };
+    return { start, runs, runOf, launchedOf, currentRun, observe, whenClosed, relaunchAll, relaunch };
 }

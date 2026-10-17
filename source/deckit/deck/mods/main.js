@@ -9,8 +9,6 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
     const watching = new Set(); // the pages told when what `mods` answers may have changed
-    // mod id -> its latest run that launched, kept while the mod starts or stops again
-    const launched = new Map();
 
     // MARK: - Initializer
     // MARK: - Public
@@ -74,7 +72,6 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
         const tell = () => {
             for (const page of watching) PROTOCOL.modsChanged.send(page);
         };
-        RUNNER.observe('didLaunch', (run) => launched.set(run.mod.id, run));
         CATALOG.onChange(tell);
         layer.onFactsChange?.(tell);
         for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, tell);
@@ -99,8 +96,8 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
                     problem: mod.problem || run?.problem || null,
                     state: run?.state || null,
                     launched:
-                        TRANSITIONS.includes(run?.state) && launched.has(mod.id)
-                            ? entryOf(mod, launched.get(mod.id))
+                        TRANSITIONS.includes(run?.state) && RUNNER.launchedOf(mod.id)
+                            ? entryOf(mod, RUNNER.launchedOf(mod.id))
                             : null,
                     ...layer.facts(mod),
                     dependencies: mod.dependencies.map((dependency) => ({
