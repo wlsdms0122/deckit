@@ -1,5 +1,5 @@
 const { canonical, placeOf } = require('./address.js');
-const { tree } = require('./tree.js');
+const { tree, isFolder, folderOf } = require('./tree.js');
 
 // Bookmarks, trusted certificates and site permissions, in the mod's records: the same in every window, and apart
 // from the host app's profile. The bookmarks are a tree of folders (`tree.js`), a bookmark `{ id, url, title, icon }`
@@ -47,6 +47,15 @@ function store({ records, onBookmarksChange }) {
         // `change` is any of `title`, `color`, `collapsed`.
         changeFolder(folder, change) {
             Object.assign(folder, change);
+            save();
+        },
+        // A tab, or a folder of tabs with what it holds, bookmarked at the end of `parent`.
+        addTabs(node, parent = bookmarkTree.root) {
+            const copy = (each) =>
+                isFolder(each)
+                    ? { ...folderOf(each), id: bookmarkTree.newId(), children: each.children.map(copy) }
+                    : bookmarkOf(each.url, each.title, each.icon);
+            bookmarkTree.insert(copy(node), parent);
             save();
         },
         // What it holds takes its place.

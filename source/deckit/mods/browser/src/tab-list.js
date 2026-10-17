@@ -1,5 +1,5 @@
 const { canonical, isFile, placeOf } = require('./address.js');
-const { tree, isFolder } = require('./tree.js');
+const { tree, isFolder, folderOf } = require('./tree.js');
 
 // The open tabs, each with its page, in a tree of folders (`tree.js`), and the session record that brings them back.
 // A web address opens in the web session and a file in the files session. A folder stands until it is deleted, empty
@@ -48,6 +48,7 @@ function tabList({
         ungroup,
         closeTabsIn,
         deleteFolder,
+        openBookmarks,
     };
 
     // Choosing a tab opens its folders: the folds are given back once the tabs are in and the one in front is chosen.
@@ -173,6 +174,20 @@ function tabList({
     // It stays, empty of tabs.
     function closeTabsIn(folder) {
         closeTabs(nodes.items(folder));
+    }
+
+    // A bookmark, or a folder of bookmarks with what it holds, opened at the end of `parent`, and its first tab chosen.
+    function openBookmarks(node, parent = nodes.root) {
+        const opened = (each, into) => {
+            if (!isFolder(each))
+                return [add(each.url, { title: each.title, icon: each.icon, background: true, parent: into })];
+            const folder = { ...folderOf(each), id: nodes.newId(), children: [] };
+            nodes.insert(folder, into);
+            return each.children.flatMap((child) => opened(child, folder));
+        };
+        const [first] = opened(node, parent);
+        if (first) select(first);
+        else changed();
     }
 
     // Its tabs closed, and it gone with what it holds.
@@ -307,8 +322,7 @@ function tabList({
 // What the session record keeps of a node.
 function recordOf(node) {
     if (!isFolder(node)) return { id: node.id, url: node.url, title: node.title, icon: node.icon };
-    const { id, title, color, collapsed, children } = node;
-    return { id, title, color, collapsed, children: children.map(recordOf) };
+    return { ...folderOf(node), children: node.children.map(recordOf) };
 }
 
 // What names a tab in a line: its title, else its file or site.

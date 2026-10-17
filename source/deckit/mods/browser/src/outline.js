@@ -1,4 +1,4 @@
-const { isFolder } = require('./tree.js');
+const { isFolder, folderLabel } = require('./tree.js');
 
 // Each folder colour as it reads on a dark ground and on a light one. A colour picked by the person is a hex, worn on
 // both.
@@ -16,10 +16,10 @@ const FOLDER_INKS = {
 
 // A tree (`tree.js`) drawn as the rows of a list, as an outline view draws one: a folder's row, then its children's a
 // level in, which a folded folder leaves out. A row is moved by a drag, between two rows at the depth it is drawn
-// sideways to, or into a folded or empty folder it is let go on; a folder takes its rows with it. A folder's row is
-// drawn here and an item's by `createItem` and `updateItem`; both are painted here with their depth and the colours
-// of the folders they are in.
-function outline({ ui, createItem, updateItem, onPlace, onToggle }) {
+// sideways to, or into a folded or empty folder it is let go on; a folder takes its rows with it. Drawn out of the
+// list, a row is carried as `describe(node)` says. A folder's row is drawn here and an item's by `createItem` and
+// `updateItem`; both are painted here with their depth and the colours of the folders they are in.
+function outline({ ui, describe, createItem, updateItem, onPlace, onToggle }) {
     // How far a folder's children stand in from it, which puts a child's icon under the folder's: a drag sideways by
     // as much moves a row a level in or out.
     const INDENT = 22;
@@ -90,6 +90,7 @@ function outline({ ui, createItem, updateItem, onPlace, onToggle }) {
             const { parent, index } = placeAt(key, toKey, depth);
             onPlace(rowOf(key).node, parent, index);
         },
+        describe: (key) => describe(rowOf(key).node),
     });
 
     return {
@@ -105,6 +106,18 @@ function outline({ ui, createItem, updateItem, onPlace, onToggle }) {
             const element = target.closest('.browser-outline-row');
             const key = element && list.keyOf(element);
             return key ? rowOf(key).node : null;
+        },
+        // Where a thing dropped on `target` from elsewhere goes, at the end: into the folder whose row it is on, or
+        // the folder of the item whose row it is on, or off the rows the top level. `mark` is that folder's row, or
+        // null for the top level.
+        dropAt(target) {
+            const element = target.closest('.browser-outline-row');
+            const key = element && list.keyOf(element);
+            const { node, ancestors } = key ? rowOf(key) : { node: null, ancestors: [] };
+            if (node && isFolder(node)) return { parent: node, mark: element };
+            const folder = ancestors.at(-1);
+            if (!folder) return { parent: shownTree.root, mark: null };
+            return { parent: folder, mark: list.elementOf(keyOf({ node: folder })) };
         },
     };
 
@@ -219,7 +232,7 @@ function outline({ ui, createItem, updateItem, onPlace, onToggle }) {
         else element.setAttribute('aria-expanded', String(open));
         element.title = empty ? '' : open ? 'Collapse folder' : 'Expand folder';
         glyph.innerHTML = ui.icon(open ? 'folderOpen' : 'folder', { size: 16 });
-        label.textContent = node.title || 'Untitled Folder';
+        label.textContent = folderLabel(node);
         count.textContent = empty ? 'Empty' : node.collapsed && size ? String(size) : '';
         row.setActive(active);
     }

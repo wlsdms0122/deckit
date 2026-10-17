@@ -2,7 +2,7 @@ const { parseAddress } = require('./address.js');
 const { favicon } = require('./favicon.js');
 const { outline, inkOf } = require('./outline.js');
 const { tabLabel } = require('./tab-list.js');
-const { FOLDER_COLORS, isFolder } = require('./tree.js');
+const { FOLDER_COLORS, isFolder, folderLabel } = require('./tree.js');
 
 // The sidebar: the open tabs and the bookmarks, each a tree of folders in a section that folds.
 function sidebar({
@@ -23,7 +23,11 @@ function sidebar({
     onCloseTabsIn,
     onDeleteTabFolder,
     onOpenBookmark,
+    onOpenBookmarks,
 }) {
+    // What a row drawn out of one section into the other is carried as.
+    const TAB = 'browser-tab';
+    const BOOKMARK = 'browser-bookmark';
     const CAPTURES = [
         ['microphone', 'mic', 'Using your microphone'],
         ['camera', 'video', 'Using your camera'],
@@ -45,6 +49,12 @@ function sidebar({
     const element = ui.element('div', { className: 'browser-sidebar' });
     const tabOutline = outline({
         ui,
+        describe: (node) => ({
+            kind: TAB,
+            payload: node,
+            text: isFolder(node) ? folderLabel(node) : tabLabel(node),
+            icon: isFolder(node) ? 'folder' : 'window',
+        }),
         createItem: tabRow,
         updateItem: updateTabRow,
         onPlace: onPlaceTab,
@@ -52,6 +62,12 @@ function sidebar({
     });
     const bookmarkOutline = outline({
         ui,
+        describe: (node) => ({
+            kind: BOOKMARK,
+            payload: node,
+            text: isFolder(node) ? folderLabel(node) : node.title,
+            icon: isFolder(node) ? 'folder' : 'bookmark',
+        }),
         createItem: bookmarkRow,
         updateItem: updateBookmarkRow,
         onPlace: bookmarks.place,
@@ -87,6 +103,19 @@ function sidebar({
     bookmarkSection.body.append(bookmarkOutline.element);
     element.append(tabSection.element, bookmarkSection.element);
 
+    // A tab or a folder of tabs let go in the bookmarks is bookmarked there, and a bookmark or a folder of them let go
+    // in the tabs is opened there; each stays where it came from. A drop on a section off its rows, its heading too,
+    // goes to its top level.
+    ui.dropTarget(bookmarkSection.element, {
+        kind: TAB,
+        placeAt: (under) => dropPlace(bookmarkOutline, bookmarkSection, under),
+        onDrop: (node, { parent }) => bookmarks.addTabs(node, parent),
+    });
+    ui.dropTarget(tabSection.element, {
+        kind: BOOKMARK,
+        placeAt: (under) => dropPlace(tabOutline, tabSection, under),
+        onDrop: (node, { parent }) => onOpenBookmarks(node, parent),
+    });
     ui.contextMenu(tabOutline.element, {
         rowAt: (target) => target.closest('.browser-outline-row'),
         items: (row) => {
@@ -234,6 +263,8 @@ function sidebar({
             { label: 'Rename Folder…', icon: 'pencil', run: () => renameFolder(folder, onChangeTabFolder) },
             { label: 'Color', items: colorItems(folder, onChangeTabFolder) },
             '-',
+            { label: 'Add Folder to Bookmarks', icon: 'bookmark', run: () => bookmarks.addTabs(folder) },
+            '-',
             { label: 'Ungroup', run: () => onUngroupTabs(folder) },
             {
                 label: 'Close Tabs in Folder',
@@ -287,6 +318,8 @@ function sidebar({
 
     function bookmarkFolderMenu(folder) {
         return [
+            { label: 'Open Folder as Tabs', icon: 'window', run: () => onOpenBookmarks(folder) },
+            '-',
             { label: 'New Folder in Folder', icon: 'folderPlus', run: () => newBookmarkFolder(folder) },
             { label: 'Rename Folder…', icon: 'pencil', run: () => renameFolder(folder, bookmarks.changeFolder) },
             { label: 'Color', items: colorItems(folder, bookmarks.changeFolder) },
@@ -332,6 +365,13 @@ function sidebar({
         ];
     }
 
+    // The place in a section a thing from the other one lands, lit by its folder's row, or for the top level by the
+    // whole section.
+    function dropPlace(tree, section, under) {
+        const { parent, mark } = tree.dropAt(under);
+        return { parent, mark: mark || section.element };
+    }
+
     // Right after `node`, in its folder: `{ parent, index }`.
     function beside(tree, node) {
         const parent = tree.parentOf(node);
@@ -340,9 +380,7 @@ function sidebar({
 
     // A folder by the folders it is in and its own name.
     function pathOf(tree, folder) {
-        return [...tree.ancestorsOf(folder).reverse(), folder]
-            .map((each) => each.title || 'Untitled Folder')
-            .join(' / ');
+        return [...tree.ancestorsOf(folder).reverse(), folder].map(folderLabel).join(' / ');
     }
 
     function add() {

@@ -1,5 +1,6 @@
 const { parseAddress, isWrittenAddress, placeOf } = require('./address.js');
 const { tabLabel } = require('./tab-list.js');
+const { folderLabel } = require('./tree.js');
 
 // What the Browser offers the switcher: an address typed there, and its commands. Bookmarks and tabs are pages of
 // their own, so a long list does not bury every other mod; one in a folder is hinted with the folders it is in.
@@ -101,7 +102,7 @@ function switcher({ ui, show, bookmarks, tabTree, lastClosedTab, onNewTab, onReo
     // The folders an item is in, from the outermost, then its file or site.
     function hintOf(tree, item) {
         const folders = tree.ancestorsOf(item).reverse();
-        return [...folders.map((folder) => folder.title || 'Untitled Folder'), placeOf(item.url)].join(' / ');
+        return [...folders.map(folderLabel), placeOf(item.url)].join(' / ');
     }
 }
 

@@ -94,4 +94,14 @@ function isFolder(node) {
     return Array.isArray(node.children);
 }
 
-module.exports = { FOLDER_COLORS, tree, isFolder };
+// A folder's own fields, without what it holds.
+function folderOf({ id, title, color, collapsed }) {
+    return { id, title, color, collapsed };
+}
+
+// What names a folder in a line.
+function folderLabel(folder) {
+    return folder.title || 'Untitled Folder';
+}
+
+module.exports = { FOLDER_COLORS, tree, isFolder, folderOf, folderLabel };

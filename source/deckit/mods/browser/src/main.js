@@ -131,6 +131,7 @@ module.exports = {
             onCloseTabsIn: (folder) => tabs.closeTabsIn(folder),
             onDeleteTabFolder: (folder) => tabs.deleteFolder(folder),
             onOpenBookmark: (bookmark) => tabs.navigate(tabs.front(), bookmark.url),
+            onOpenBookmarks: (node, parent) => tabs.openBookmarks(node, parent),
         });
         const { resolve, commands } = switcher({
             ui,
