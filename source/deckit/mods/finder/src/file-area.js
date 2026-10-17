@@ -44,7 +44,6 @@ function fileArea({
     const footer = ui.element('div', { className: 'finder-footer' });
 
     ui.addStyle(STYLE);
-    element.tabIndex = 0;
 
     return {
         element,

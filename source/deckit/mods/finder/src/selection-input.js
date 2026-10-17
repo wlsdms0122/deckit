@@ -1,7 +1,11 @@
+const { parentOf, isInside } = require('./path.js');
+
 // Presses and keys in the file area. `walkedFolder()` is the folder the keyboard walks; `entriesIn(folder)` what it
 // shows. Command adds or takes away an entry, Shift selects the range from the anchor; `open(entries)` opens what is
-// selected.
+// selected. In columns Right goes into a folder, whose column is to its right, and Left back out, never past the tab's
+// folder.
 function selectionInput({
+    ui,
     areaElement,
     isColumnView,
     location,
@@ -18,15 +22,13 @@ function selectionInput({
     selectAll,
     open,
     openInNewTab,
+    rename,
     quickLook,
 }) {
     const DOUBLE_PRESS_INTERVAL = 500; // milliseconds
     const DOUBLE_PRESS_DISTANCE = 5;
-    const TYPING_PAUSE = 800; // milliseconds
     let lastPress = null;
     let picking = null; // the path a press is on, selected if the press ends as a click
-    let typed = '';
-    let typedAt = 0;
 
     areaElement.addEventListener('mousedown', handlePress);
     areaElement.addEventListener('click', (event) => {
@@ -34,7 +36,20 @@ function selectionInput({
         picking = null;
         if (path && event.target.closest('[data-path]')?.dataset.path === path) select(path, { reveal: true });
     });
-    areaElement.addEventListener('keydown', handleKey);
+    ui.tree(areaElement, {
+        items: () => entriesIn(walkedFolder()).map((entry) => entry.path),
+        lead: selectedPath,
+        nameOf: (path) => entryAt(path).name,
+        multiple: true,
+        parentOf: (path) => (isColumnView() && isInside(parentOf(path), location()) ? parentOf(path) : null),
+        childrenOf: (path) => (isColumnView() ? childrenOf(path) : []),
+        onSelect: (path, { extend: extending }) => (extending ? extend : select)(path, { reveal: true }),
+        onSelectAll: selectAll,
+        onPreview: (path) => quickLook(entryAt(path)),
+        // As in macOS Finder, Return renames one entry and leaves several alone.
+        onRename: (path) => selection().length === 1 && rename(entryAt(path)),
+        onOpen: () => open(selected()),
+    });
 
     // A second press soon after and where the first was opens what the first was on, with the rest selected then when
     // it was one of several, even if the columns have since moved another row under the pointer. A right click or a
@@ -78,44 +93,10 @@ function selectionInput({
         return selection().map(entryAt).filter(Boolean);
     }
 
-    async function handleKey(event) {
-        const path = selectedPath();
-        const folder = walkedFolder();
-        const entries = entriesIn(folder);
-        const index = entries.findIndex((entry) => entry.path === path);
-        // With Command, the arrows are the mod's keys. With Shift, they draw the range.
-        if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !event.metaKey) {
-            event.preventDefault();
-            const step = event.key === 'ArrowDown' ? 1 : -1;
-            const next = entries[Math.max(0, Math.min(entries.length - 1, index < 0 ? 0 : index + step))];
-            if (next && event.shiftKey && index >= 0) extend(next.path, { reveal: true });
-            else if (next) select(next.path, { reveal: true });
-        } else if (event.key === 'a' && event.metaKey && !event.shiftKey && !event.altKey && !event.ctrlKey) {
-            event.preventDefault();
-            selectAll();
-        } else if (isColumnView() && event.key === 'ArrowRight') {
-            event.preventDefault();
-            if (entryAt(path)?.kind !== 'folder') return;
-            if (!isLoaded(path)) await load(path);
-            const first = entriesIn(path)[0];
-            if (first && selectedPath() === path) select(first.path, { reveal: true });
-        } else if (isColumnView() && event.key === 'ArrowLeft') {
-            event.preventDefault();
-            if (path && folder !== location()) select(folder, { reveal: true });
-        } else if (event.key === 'Enter') {
-            event.preventDefault();
-            open(selected(), { usesDefaultApp: event.altKey });
-        } else if (event.key === ' ') {
-            event.preventDefault();
-            quickLook(entries[index]);
-        } else if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
-            const now = Date.now();
-            const letter = event.key.toLowerCase();
-            typed = now - typedAt > TYPING_PAUSE ? letter : typed + letter;
-            typedAt = now;
-            const match = entries.find((entry) => entry.name.toLowerCase().startsWith(typed));
-            if (match) select(match.path, { reveal: true });
-        }
+    async function childrenOf(path) {
+        if (entryAt(path)?.kind !== 'folder') return [];
+        if (!isLoaded(path)) await load(path);
+        return entriesIn(path).map((entry) => entry.path);
     }
 }
 
