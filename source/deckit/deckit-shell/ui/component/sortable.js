@@ -3,6 +3,7 @@ import * as MOTION from '../motion/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as GESTURE from '../gesture/index.js';
 import * as LIST from '../list/index.js';
+import * as DRAG from './drag.js';
 
 // MARK: - Property
 const STYLE = '';
@@ -28,7 +29,10 @@ function make(theme) {
 //
 // With `movesInto(key, toKey)`, a row held over the middle of a row it answers true for goes into that row
 // rather than beside it: the row lights, and `onMoveInto(key, toKey)` hears the drop.
-function sortable(theme, list, { onReorder, depth = null, movesInto = null, onMoveInto = null }) {
+//
+// With `describe(key)`, `{ kind, payload, text, icon }` as a drag source has it, a row drawn above or below the
+// list is carried as a drag source carries it, to a drop target of that kind, and sorted again when it comes back.
+function sortable(theme, list, { onReorder, depth = null, movesInto = null, onMoveInto = null, describe = null }) {
     const { element } = list;
     return GESTURE.drag(element, {
         pick: (target) => {
@@ -37,14 +41,14 @@ function sortable(theme, list, { onReorder, depth = null, movesInto = null, onMo
             return null;
         },
         begin: LIST.heldWhile(element, (row, down, finished) =>
-            lift(theme, list, row, down, { onReorder, depth, movesInto, onMoveInto }, finished)
+            lift(theme, list, row, down, { onReorder, depth, movesInto, onMoveInto, describe }, finished)
         ),
     });
 }
 
 // The row lifted, the others sliding aside as it passes them. The rows are the owner's items as laid out: one that
 // is not laid out has no place to move to or from, and one folding away is no longer an item.
-function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto }, finished) {
+function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto, describe }, finished) {
     const { base, easing } = TOKEN.MOTION;
     const { element: list, keyOf } = keyed;
     const key = keyOf(row);
@@ -83,12 +87,9 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     rows.forEach((child, index) => index !== from && (child.style.transition = slide));
     // The fill is an inset shadow, not a background: the background is the hover's, which repaints as the
     // pointer comes and goes during the drag.
+    const liftedShadow = `inset 0 0 0 100vmax ${theme.color.lifted}, ${theme.shadow.lifted}`;
     if (getComputedStyle(row).position === 'static') row.style.position = 'relative';
-    Object.assign(row.style, {
-        zIndex: '2',
-        boxShadow: `inset 0 0 0 100vmax ${theme.color.lifted}, ${theme.shadow.lifted}`,
-        transition: 'none',
-    });
+    Object.assign(row.style, { zIndex: '2', boxShadow: liftedShadow, transition: 'none' });
     const project = (to, levels) => (depth ? depth.project(key, keyOf(rows[to]), levels) : 0);
     const startDepth = project(from, 0);
     let projected = startDepth;
@@ -120,7 +121,40 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         into = index;
         rows[into]?.setAttribute('data-deckit-target', '');
     };
+    // Out of the list, the row is carried: `out` is that drag, and `afterOut` what runs once it has played out.
+    const described = describe?.(key) || null;
+    let out = null;
+    let afterOut = null;
+    const isOut = (y) => {
+        const box = list.getBoundingClientRect();
+        return !!described && (y < box.top || y > box.bottom);
+    };
+    const leave = (x, y) => {
+        light(-1);
+        to = from;
+        projected = startDepth;
+        rows.forEach((child, index) => (child.style.transform = kept[index].transform));
+        row.style.boxShadow = keptHeld.boxShadow;
+        out = DRAG.carry(row, described, { clientX: x, clientY: y }, () => afterOut?.());
+    };
+    const comeBack = () => {
+        out.settleNow();
+        out = null;
+        row.style.boxShadow = liftedShadow;
+    };
+    const endOut = (how) => {
+        afterOut = () => {
+            restore();
+            finished();
+        };
+        how(out);
+    };
     const follow = (x, y) => {
+        if (isOut(y)) {
+            if (!out) leave(x, y);
+            return out.follow(x, y);
+        }
+        if (out) comeBack();
         const top = held.top + y + scrolled() - down.clientY;
         const middle = top + held.height / 2;
         light(intoAt(middle));
@@ -175,7 +209,8 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     return {
         follow,
         // The list is let go of whatever the owner's reorder does, or every later change would wait on it.
-        drop: () => {
+        drop: (x, y) => {
+            if (out) return endOut((carried) => carried.drop(x, y));
             const intoKey = into >= 0 ? keyOf(rows[into]) : null;
             settle(restingTop(), () => {
                 restore();
@@ -190,6 +225,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
             });
         },
         cancel: () => {
+            if (out) return endOut((carried) => carried.cancel());
             rows.forEach((child, index) => index !== from && (child.style.transform = ''));
             light(-1);
             projected = startDepth;
@@ -198,10 +234,11 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
                 finished();
             });
         },
-        scroller: () => scroller,
+        scroller: (x, y) => (out ? out.scroller(x, y) : scroller),
         // A new press gets the list as it will be, without waiting for the settle.
         settleNow: () => {
-            if (then) {
+            if (out) endOut((carried) => carried.settleNow());
+            else if (then) {
                 clearTimeout(timer);
                 runThen();
             } else if (!done) {
