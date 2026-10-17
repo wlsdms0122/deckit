@@ -9,6 +9,8 @@ import * as DRAG from './drag.js';
 const STYLE = '';
 // A lifted row grows by this much.
 const LIFTED = 1.02;
+// A row held over one it goes into stands back, so the row it goes into shows round it and through it.
+const INTO = Object.freeze({ scale: 0.92, opacity: 0.75 });
 
 // MARK: - Initializer
 // MARK: - Public
@@ -82,7 +84,12 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         transition: child.style.transition,
         transform: child.style.transform,
     }));
-    const keptHeld = { position: row.style.position, zIndex: row.style.zIndex, boxShadow: row.style.boxShadow };
+    const keptHeld = {
+        position: row.style.position,
+        zIndex: row.style.zIndex,
+        boxShadow: row.style.boxShadow,
+        opacity: row.style.opacity,
+    };
     const slide = `transform ${base}ms ${easing}`;
     rows.forEach((child, index) => index !== from && (child.style.transition = slide));
     // The fill is an inset shadow, not a background: the background is the hover's, which repaints as the
@@ -134,7 +141,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         to = from;
         projected = startDepth;
         rows.forEach((child, index) => (child.style.transform = kept[index].transform));
-        row.style.boxShadow = keptHeld.boxShadow;
+        Object.assign(row.style, { boxShadow: keptHeld.boxShadow, opacity: keptHeld.opacity });
         out = DRAG.carry(row, described, { clientX: x, clientY: y }, () => afterOut?.());
     };
     const comeBack = () => {
@@ -167,7 +174,8 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
                 if (middle < boxes[index].top + boxes[index].height / 2) to = index;
         }
         if (depth) projected = into >= 0 ? startDepth : project(to, Math.round((x - down.clientX) / depth.indent));
-        place(Math.min(highest, Math.max(lowest, top)) - held.top, LIFTED);
+        place(Math.min(highest, Math.max(lowest, top)) - held.top, into >= 0 ? INTO.scale : LIFTED);
+        row.style.opacity = into >= 0 ? String(INTO.opacity) : keptHeld.opacity;
         rows.forEach((child, index) => {
             if (index === from) return;
             const shift = index > from && index <= to ? -span : index < from && index >= to ? span : 0;
