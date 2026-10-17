@@ -367,8 +367,8 @@ function sidebar({
 
     // The place in a section a thing from the other one lands, lit by its folder's row, or for the top level by the
     // whole section.
-    function dropPlace(tree, section, under) {
-        const { parent, mark } = tree.dropAt(under);
+    function dropPlace(view, section, under) {
+        const { parent, mark } = view.dropAt(under);
         return { parent, mark: mark || section.element };
     }
 

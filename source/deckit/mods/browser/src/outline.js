@@ -78,7 +78,7 @@ function outline({ ui, describe, createItem, updateItem, onPlace, onToggle }) {
     ui.sortable(list, {
         depth: {
             indent: INDENT,
-            project: (key, toKey, levels) => depthAt(key, toKey, levels),
+            project: depthAt,
             descendants: (key) => descendantsOf(rowOf(key)).map(keyOf),
         },
         movesInto: (key, toKey) => takesDrop(rowOf(toKey).node),

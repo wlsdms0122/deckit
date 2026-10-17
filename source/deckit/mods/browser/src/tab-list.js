@@ -23,7 +23,7 @@ function tabList({
 }) {
     const KEPT_CLOSED = 20;
 
-    const saved = records.get('session', { tabs: [], front: 0, closed: [] });
+    const saved = records.get('session', { tabs: [], front: null, closed: [] });
     const closed = [...saved.closed];
     // Past every folder a closed tab still names, so reopening one never finds its folder in a newer one.
     const nodes = tree([], Math.max(0, ...closed.map((tab) => tab.parent || 0)));
