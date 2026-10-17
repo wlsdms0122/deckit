@@ -39,20 +39,21 @@ function webpSize(head) {
     return null;
 }
 
-// Segment by segment up to the frame's header; an Exif segment before it says how the picture is turned.
+// Segment by segment up to the frame's header. The first Exif segment before it says how the picture is turned, as
+// Quick Look reads it; a later one is not.
 async function jpegSize(read) {
-    let turned = false;
+    let turned = null;
     for (let position = 2; ; ) {
         const marker = await read(position, 4);
         if (marker.length < 4 || marker[0] !== 0xff) return null;
         const type = marker[1];
         const length = marker.readUInt16BE(2);
-        if (type === 0xe1) {
+        if (type === 0xe1 && turned === null) {
             const segment = await read(position + 4, length - 2);
             if (segment.toString('latin1', 0, 6) === 'Exif\0\0') turned = tiffTags(segment, 6).orientation >= 5;
         } else if (type >= 0xc0 && type <= 0xcf && type !== 0xc4 && type !== 0xc8 && type !== 0xcc) {
             const frame = await read(position + 5, 4);
-            return turnedSize({ width: frame.readUInt16BE(2), height: frame.readUInt16BE(0) }, turned);
+            return turnedSize({ width: frame.readUInt16BE(2), height: frame.readUInt16BE(0) }, !!turned);
         }
         position += 2 + length;
     }
