@@ -44,7 +44,11 @@ export function createApi({
             mods: Object.freeze({
                 notifications: NOTIFICATIONS,
                 list: () => Object.freeze(CATALOG.mods().map(manifestOf)),
-                onChange: CATALOG.onChange,
+                // A mod found or gone, or what restartPending answers.
+                onChange: (listener) => {
+                    const offs = [CATALOG.onChange(listener), MAIN_PROCESS.onChange(listener)];
+                    return () => offs.forEach((off) => off?.());
+                },
                 arrange: CATALOG.arrange,
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, view }) => Object.freeze({ run: factsOf(run), view }))),

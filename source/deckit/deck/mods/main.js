@@ -7,14 +7,17 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SANDBOX, MANIFEST, STORAGE, EXTENSION }) {
     // MARK: - Property
     let layer = null;
+    const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
     const watching = new Set(); // the pages told when what `mods` answers may have changed
+    // mod id -> its latest run that launched, kept while the mod starts or stops again
+    const launched = new Map();
 
     // MARK: - Initializer
     // MARK: - Public
     // What is on deck is told of a mod installed, once what runs in its place has launched, and answers what it adds
-    // to what install answers (`installed(id)`, which may answer a promise), and of one removed (`removed(id)`); it is asked what it knows of a
-    // mod (`facts(mod)`) and to clear the sessions it made for a mod removed with its data (`clearSessions(id)`, a
-    // promise).
+    // to what install answers (`installed(id)`, which may answer a promise), and of one removed (`removed(id)`). It
+    // is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed (`onFactsChange(tell)`),
+    // and to clear the sessions it made for a mod removed with its data (`clearSessions(id)`, a promise).
     function start(given) {
         layer = given;
         clearUncleared();
@@ -71,13 +74,17 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
         const tell = () => {
             for (const page of watching) PROTOCOL.modsChanged.send(page);
         };
+        RUNNER.observe('didLaunch', (run) => launched.set(run.mod.id, run));
         CATALOG.onChange(tell);
+        layer.onFactsChange?.(tell);
         for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, tell);
     }
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.
-    // `found`: every mod the catalog found, those that load in the person's order and then the rest, each with `installed`, whether it is a copy in deck's mods folder, and
-    // `state`, its latest run's, null for one with none; `hides`: folders of the same id that are not read.
+    // `found`: every mod the catalog found, those that load in the person's order and then the rest, each with
+    // `installed`, whether it is a copy in deck's mods folder, `state`, its latest run's, null for one with none,
+    // `hides`, folders of the same id that are not read, and `launched`, while it starts or stops again, what its
+    // latest run that launched contributed, as `running` lists it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
@@ -91,6 +98,10 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
                     hides: mod.hides,
                     problem: mod.problem || run?.problem || null,
                     state: run?.state || null,
+                    launched:
+                        TRANSITIONS.includes(run?.state) && launched.has(mod.id)
+                            ? entryOf(mod, launched.get(mod.id))
+                            : null,
                     ...layer.facts(mod),
                     dependencies: mod.dependencies.map((dependency) => ({
                         ...dependency,
@@ -100,17 +111,12 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
             }),
             running: CATALOG.mods()
                 .filter((mod) => running(mod.id))
-                .map((mod) => {
-                    const { summary, problem } = RUNNER.runOf(mod.id);
-                    return {
-                        id: mod.id,
-                        name: mod.name,
-                        ...summary,
-                        extends: EXTENSION.pointsExtendedBy(mod.id),
-                        problem,
-                    };
-                }),
+                .map((mod) => entryOf(mod, RUNNER.runOf(mod.id))),
         };
+    }
+
+    function entryOf(mod, { summary, problem }) {
+        return { id: mod.id, name: mod.name, ...summary, extends: EXTENSION.pointsExtendedBy(mod.id), problem };
     }
 
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
