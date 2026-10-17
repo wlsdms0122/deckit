@@ -113,20 +113,29 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
         const keys = keysOf(mod.id);
         if (!keys.length) return;
         const ending = (async () => {
-            const settled = await withinLimit(Promise.allSettled(keys.map((key) => modules.get(key))));
-            if (!settled) {
-                // The next run starts its own rather than wait on one that may never be done.
-                for (const key of keys) modules.delete(key);
-                return setPending(mod.id, 'leftover');
-            }
-            const made = settled.filter(({ status }) => status === 'fulfilled').map(({ value }) => value);
-            if (made.some(({ dispose }) => !dispose)) return;
+            // Each module as it is by the limit: made, failed, or still starting (null).
+            const results = await Promise.all(
+                keys.map((key) =>
+                    withinLimit(
+                        modules.get(key).then(
+                            (made) => ({ made }),
+                            () => ({ made: null })
+                        )
+                    )
+                )
+            );
+            const made = results.filter((result) => result?.made).map((result) => result.made);
+            const starting = results.some((result) => !result);
+            if (made.some(({ dispose }) => !dispose)) return starting && setPending(mod.id, 'leftover');
             for (const key of windows.get(mod.id) || []) WINDOW.close(key);
             windows.delete(mod.id);
             let clean = true;
             for (const { relative, dispose } of made.reverse())
                 clean = (await disposed(mod, relative, dispose)) && clean;
+            // One still starting is let go: the next run starts its own rather than wait on one that may never be
+            // done.
             for (const key of keys) modules.delete(key);
+            if (starting) clean = false;
             const root = loaded.get(mod.id)?.root;
             if (root) forget(root, Object.keys(require.cache));
             loaded.delete(mod.id);
@@ -180,7 +189,7 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
     async function make(mod, file, relative) {
         if (!loaded.has(mod.id))
             loaded.set(mod.id, { folder: mod.folder, root: fs.realpathSync(mod.folder) + path.sep, code: new Map() });
-        const { root, code } = loaded.get(mod.id);
+        const { root } = loaded.get(mod.id);
         const before = new Set(Object.keys(require.cache));
         let own = null;
         const added = () => Object.keys(require.cache).filter((key) => !before.has(key));
@@ -200,7 +209,7 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
             const paths = [...methods.keys()].map((key) => JSON.parse(key));
             LOG.info(`${mod.id} ${relative}: ${paths.map((path) => path.join('.')).join(', ') || 'no methods'}`);
             const dispose = typeof made.dispose === 'function' ? () => made.dispose() : null;
-            for (const key of own) if (key.startsWith(root) && !code.has(key)) code.set(key, hashOf(key));
+            noteCode(mod.id);
             tell();
             return { relative, methods, paths, dispose };
         } catch (error) {
@@ -226,7 +235,12 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
         const { methods } = await modules.get(key);
         const found = methods.get(JSON.stringify(method));
         if (!found) throw new Error(`${given} has no method ${method.join('.')}`);
-        const answer = await found(...args);
+        let answer;
+        try {
+            answer = await found(...args);
+        } finally {
+            noteCode(mod.id);
+        }
         try {
             structuredClone(answer);
         } catch (error) {
@@ -290,6 +304,15 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
         const found = FOLDER.fileIn(folder, String(given));
         if (!found) throw new Error(`${given} is no file in the mod's folder`);
         return found;
+    }
+
+    // The files of the mod's folder its modules have required so far, by what they held then: a module may require
+    // one when a method first needs it.
+    function noteCode(modId) {
+        const entry = loaded.get(modId);
+        if (!entry) return;
+        for (const key of Object.keys(require.cache))
+            if (key.startsWith(entry.root) && !entry.code.has(key)) entry.code.set(key, hashOf(key));
     }
 
     function keysOf(modId) {
