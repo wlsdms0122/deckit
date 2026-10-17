@@ -82,9 +82,9 @@ function tree({
         childrenOf: (path) => shown.filter((item) => parentOf(item.path) === path).map((item) => item.path),
         onSelect: go,
         onToggle: toggle,
-        // Space previews, as in Finder and Editor. A note is shown as the keys move onto it, so Space shows the led
-        // one, in sight, and the keys stay in the list.
-        onPreview: go,
+        // Space previews, as in Finder and Editor: a folder shows what it holds, and a note, shown as the keys move
+        // onto it, is shown again in sight, the keys staying in the list.
+        onPreview: (path) => (itemOf(path).folds ? toggle(path) : go(path)),
         onRename: (path) => {
             const row = rows.elementOf(path);
             const { kind, since } = entryOf(row);
