@@ -1,11 +1,10 @@
 const { kindIconOf } = require('./icon-cache.js');
 const { parentOf } = require('./path.js');
 
-// Go to Folder: a path typed, `~` for the home folder and relative to the tab's folder, with what is in the folder
+// Go to Folder: a path typed, `~` for the home folder and relative to the tab's folder, with all that is in the folder
 // typed so far listed under it. Tab completes to the suggestion, the arrows move through them, Enter goes. A file goes
 // to its folder, selected there: `onGo(folder, file)`.
 function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
-    const SUGGESTED = 8;
     // A wait shorter than this shows nothing, so a quick answer does not flash the spinner.
     const WAIT_SHOWN_AFTER = 120; // milliseconds
     const STYLE = `
@@ -74,7 +73,6 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
                 .filter((entry) => entry.name.toLowerCase().startsWith(start))
                 .filter((entry) => start.startsWith('.') || !entry.name.startsWith('.'))
                 .sort((a, b) => (b.kind === 'folder') - (a.kind === 'folder') || a.name.localeCompare(b.name))
-                .slice(0, SUGGESTED)
                 .map((entry) => ({ path: entry.path, name: entry.name, folder: entry.kind === 'folder', entry }));
             const where = folder && `“${tildify(folder)}”`;
             unsuggested = !folder
