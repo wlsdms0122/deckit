@@ -1,5 +1,5 @@
 import * as STYLE_PERMISSION from './style/model/permission.js';
-import * as IPC from '../deck/ipc/index.js';
+import * as LISTENER from '../deck/listener/index.js';
 import { createRegion } from './region/main.js';
 import { createPanel } from './panel/main.js';
 import { createSwitcher } from './switcher/main.js';
@@ -21,7 +21,7 @@ function attach(deckit, { host } = {}) {
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;
     // This bundle's listeners report to deckit's log, as deckit's own do.
-    IPC.reportTo((label, failure) => deckit.log.error(`${label} failed`, failure));
+    LISTENER.reportTo((label, failure) => deckit.log.error(`${label} failed`, failure));
     for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
     const REGION = createRegion();
     const PANEL = createPanel({ REGION });

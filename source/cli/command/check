@@ -6,9 +6,11 @@ const path = require('path');
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
 const IPC = 'deck/ipc/index.js';
+// What a package's root holds beside its concept folders: what puts it together in main and in a renderer.
+const ROOT_FILES = ['main.js', 'renderer.js'];
 // Each package's public surface, what a package that depends on it imports of it: its entries.
 const PUBLIC = {
-    deck: new Set(['deck/main.js', 'deck/renderer.js', 'deck/ipc/index.js']),
+    deck: new Set(['deck/main.js', 'deck/renderer.js', 'deck/ipc/index.js', 'deck/listener/index.js']),
     deckit: new Set(['deckit/main.js', 'deckit/renderer.js', 'deckit/match/match.js', 'deckit/keymap/chord.js']),
     'deckit-shell': new Set(['deckit-shell/main.js', 'deckit-shell/renderer.js']),
 };
@@ -161,20 +163,28 @@ function checkPlaces() {
 }
 
 // A folder is a module (its files, and model/ for what supports them) or a group (folders only). A package's root
-// holds its root files beside its concepts.
+// is a group that also holds what puts the package together on each side: main.js and renderer.js.
 function checkFolders() {
     const walk = (folder) => {
         const entries = fs
             .readdirSync(path.join(LIBRARY.DECKIT, folder), { withFileTypes: true })
             .filter(({ name }) => !name.startsWith('.'));
-        const held = entries.filter((entry) => entry.isFile());
         const folders = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
         const below = folders.filter((name) => name !== 'model');
-        if (!LIBRARY.PACKAGES.includes(folder) && held.length && below.length) {
+        const root = LIBRARY.PACKAGES.includes(folder);
+        const held = entries.filter((entry) => entry.isFile() && !(root && ROOT_FILES.includes(entry.name)));
+        if (root && held.length) {
+            say(
+                folder,
+                `holds ${held.map(({ name }) => name).join(', ')}: a package's root holds only ${ROOT_FILES.join(', ')}, and its concepts are folders`
+            );
+        } else if (held.length && below.length) {
             say(
                 folder,
                 `holds files and the folders ${below.join(', ')}: a folder is a module (files, and model/) or a group (folders only)`
             );
+        } else if ((root || !held.length) && folders.includes('model')) {
+            say(folder, 'holds model/ and no files of its own: a group holds folders only');
         }
         for (const name of folders) walk(`${folder}/${name}`);
     };

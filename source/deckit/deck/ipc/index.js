@@ -1,4 +1,4 @@
-import * as LISTENER from '../log/listener.js';
+import * as LISTENER from '../listener/index.js';
 
 // MARK: - Property
 const electron = require('electron');
@@ -205,5 +205,3 @@ function questionsFor(channel) {
 }
 
 export { rendererToMain, mainToRenderer };
-// Where the listeners of the bundle that carries this report what they throw: a layer's bundle carries its own.
-export { reportTo } from '../log/listener.js';

@@ -1,4 +1,3 @@
-import * as PROTOCOL from './protocol.js';
 import * as MAIN_PROCESS_PERMISSION from './main-process/model/permission.js';
 import * as WEB_PERMISSION from './web/model/permission.js';
 import * as CLIPBOARD_PERMISSION from './clipboard/model/permission.js';
@@ -25,7 +24,8 @@ import { createCommand } from './command/main.js';
 import { createMainProcess } from './main-process/main.js';
 import { createModFolder } from './mod-folder/main.js';
 import { createRuntime } from './runtime/main.js';
-import { createApi } from './api.js';
+import { createPage } from './page/main.js';
+import { createApi } from './api/index.js';
 
 // MARK: - Property
 // The scheme deck's pages load from, for the host app's registerSchemesAsPrivileged: Electron takes privileged schemes
@@ -45,7 +45,7 @@ let connected = false;
 // MARK: - Public
 // How a host app starts deckit, once, before it is ready: `preload` is the file it put together around deckit's page
 // bundles, `host` answers what of deckit is the app's, and `config` and `folders` are its configuration. Answers what
-// the app and its shell reach of deckit (api.js).
+// the app and its shell reach of deckit (api/index.js).
 function connect({ preload, host, config = {}, folders = {} } = {}) {
     if (connected) throw new Error('[deckit] connect is called once');
     const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
@@ -98,6 +98,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, deck });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY });
+    const PAGE = createPage({ CONFIG, IDENTITY });
     const API = createApi({
         CONFIG,
         STORAGE,
@@ -151,10 +152,7 @@ function make({ preload, host, config: CONFIG, folders }) {
         MAIN_PROCESS.start();
         MOD_FOLDER.start();
         RUNTIME.start({ restart: () => host.restart() });
-        PROTOCOL.setup.handle((_payload, sender) => {
-            const page = IDENTITY.pageNameOf(sender);
-            return page ? { page } : { id: CONFIG.id };
-        });
+        PAGE.start();
         KEYMAP.connect({ pageFor: WEB.pageFor });
         started = true;
         // What fails to start with deckit fails alone: the mods run whatever it did.

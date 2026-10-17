@@ -1,4 +1,4 @@
-import * as DECK from '../deck/main.js';
+import * as DECK from '../../deck/main.js';
 
 export function createApi({
     CONFIG,

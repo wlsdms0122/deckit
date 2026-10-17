@@ -23,6 +23,7 @@ function wrap(listener, label) {
     };
 }
 
+// Where the listeners of the bundle that carries this report what they throw: a layer's bundle carries its own.
 function reportTo(reporter) {
     report = reporter;
 }

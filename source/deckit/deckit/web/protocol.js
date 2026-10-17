@@ -20,35 +20,35 @@ export const trust = IPC.rendererToMain('deckit:web-trust', { name: 'string', en
 export const allow = IPC.rendererToMain('deckit:web-allow', { name: 'string', entries: 'array' }, { reply: true });
 export const revoke = IPC.rendererToMain('deckit:web-revoke', { name: 'string', entries: 'array' }, { reply: true });
 
-export const load = IPC.rendererToMain('deckit:page-load', { id: 'number', url: 'string' });
+export const load = IPC.rendererToMain('deckit:web-load', { id: 'number', url: 'string' });
 // to: back, forward, reload, stop
-export const navigate = IPC.rendererToMain('deckit:page-navigate', { id: 'number', to: 'string' });
-export const state = IPC.rendererToMain('deckit:page-state', { id: 'number' });
-export const mute = IPC.rendererToMain('deckit:page-mute', { id: 'number', on: 'boolean' });
-export const find = IPC.rendererToMain('deckit:page-find', {
+export const navigate = IPC.rendererToMain('deckit:web-navigate', { id: 'number', to: 'string' });
+export const state = IPC.rendererToMain('deckit:web-state', { id: 'number' });
+export const mute = IPC.rendererToMain('deckit:web-mute', { id: 'number', on: 'boolean' });
+export const find = IPC.rendererToMain('deckit:web-find', {
     id: 'number',
     text: 'string',
     start: 'boolean',
     back: 'boolean',
     matchCase: 'boolean',
 });
-export const stopFind = IPC.rendererToMain('deckit:page-stop-find', { id: 'number', keepSelection: 'boolean' });
-export const close = IPC.rendererToMain('deckit:page-close', { id: 'number' });
-export const clickNotification = IPC.rendererToMain('deckit:page-click-notification', {
+export const stopFind = IPC.rendererToMain('deckit:web-stop-find', { id: 'number', keepSelection: 'boolean' });
+export const close = IPC.rendererToMain('deckit:web-close', { id: 'number' });
+export const clickNotification = IPC.rendererToMain('deckit:web-click-notification', {
     id: 'number',
     notification: 'number',
 });
 // Answers the `asking` of that number.
-export const permit = IPC.rendererToMain('deckit:page-permit', { ask: 'number', allow: 'boolean' });
+export const permit = IPC.rendererToMain('deckit:web-permit', { ask: 'number', allow: 'boolean' });
 
-export const changed = IPC.mainToRenderer('deckit:page-changed');
+export const changed = IPC.mainToRenderer('deckit:web-changed');
 // certificate: { url, host, error, fingerprint, subject, issuer }
-export const refused = IPC.mainToRenderer('deckit:page-certificate-refused');
-export const found = IPC.mainToRenderer('deckit:page-found');
+export const refused = IPC.mainToRenderer('deckit:web-certificate-refused');
+export const found = IPC.mainToRenderer('deckit:web-found');
 // A file page's link to the web, not followed in place.
-export const leaving = IPC.mainToRenderer('deckit:page-leaving');
-export const opening = IPC.mainToRenderer('deckit:page-opening');
+export const leaving = IPC.mainToRenderer('deckit:web-leaving');
+export const opening = IPC.mainToRenderer('deckit:web-opening');
 // Permissions, or opening an app (`app`, `url`); answered with permit.
-export const asking = IPC.mainToRenderer('deckit:page-asking');
-export const notified = IPC.mainToRenderer('deckit:page-notified');
-export const closed = IPC.mainToRenderer('deckit:page-closed');
+export const asking = IPC.mainToRenderer('deckit:web-asking');
+export const notified = IPC.mainToRenderer('deckit:web-notified');
+export const closed = IPC.mainToRenderer('deckit:web-closed');
