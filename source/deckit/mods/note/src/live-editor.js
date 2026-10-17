@@ -415,10 +415,17 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         }
         const same = lines.every((line) => lineStyleAt(state, line) === key);
         let number = 0;
+        // The underline goes from the end of the line before it. A heading's text may span lines: as a heading it is
+        // one line, joined by spaces as CommonMark reads it; as anything else its lines stay.
+        const heading = /^(title|heading|subheading)$/.test(key) && !same;
         const changes = lines.flatMap((line) => {
             const underline = underlines.get(line.number);
-            const dropped = underline ? [{ from: line.to, to: underline.to, insert: '' }] : [];
-            return [...markChange(line), ...dropped];
+            if (!underline) return markChange(line);
+            const last = state.doc.line(underline.number - 1);
+            const joins = [];
+            for (let number = line.number + 1; heading && number < underline.number; number++)
+                joins.push({ from: state.doc.line(number - 1).to, to: state.doc.line(number).from, insert: ' ' });
+            return [...markChange(line), ...joins, { from: last.to, to: underline.to, insert: '' }];
         });
         // Mapped with associativity 1, so a caret at the start of a line lands after the new mark.
         const changeSet = state.changes(changes);
