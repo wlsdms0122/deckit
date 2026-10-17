@@ -139,7 +139,7 @@ The host app and its shell reach deckit through these, and nothing else of decki
 
 ## 5. The host app's own mod, and what the host app offers
 
-What a person does with the host app from the panel is the host app's own mod: the one whose id is the host app's. It ships with the host app and can be removed like any other. That is all that sets it apart: it alone is handed what the host app offers, the `host` it hands `boot`, as `deck.host`, and it may export that on. `deck.host` is a frozen copy of the offer's values whose functions call the host app's: the host app's own objects stay its own to change. A mod that wants the host app requires that mod like any other. In another host app a mod with that id is handed nothing.
+What a person does with the host app from the panel is the host app's own mod: the one whose id is the host app's. It ships with the host app and can be removed like any other. That is all that sets it apart: it alone is handed what the host app offers, the `host` it hands `boot`, as `deck.host`, and it may export that on. `deck.host` is the offer itself: between the host app and its own mod nothing is copied or frozen. A mod that wants the host app requires that mod like any other. In another host app a mod with that id is handed nothing.
 
 It may stand first among a scheme's handlers (`schemeHandlers`, and the scheme in its manifest's `url-schemes`): it opens the addresses it knows and passes the rest on. Deckit never asks whose an address is.
 

@@ -172,7 +172,7 @@ function checkPlaces() {
 }
 
 // A folder is a module (its files, and model/ for what supports them) or a group (folders only). A package's root
-// is a group that also holds what puts the package together on each side: main.js and renderer.js.
+// is a group that also holds its package.json and what puts the package together on each side: main.js and renderer.js.
 function checkFolders() {
     const walk = (folder) => {
         const entries = fs

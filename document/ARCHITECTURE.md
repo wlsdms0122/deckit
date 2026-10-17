@@ -119,7 +119,7 @@ Deck, deckit and deckit-shell are each a package, and every file in them an ES m
 
 | Package | Its entries | What it depends on |
 |---|---|---|
-| `deck/` | `main.js`, `createDeck()` in main, and with it what the layers read of deck (its scheme and origins, a run's notifications, the permissions it checks); `renderer.js`, `createDeck()` in a mod's renderer, and what a layer uses there (the stand-in it hands a mod for what main holds, `proxyOf`, a frozen copy, `deepFreeze`, listeners by name, `BUS`); `ipc/`, how a channel between main and a renderer is declared; `listener/`, how a listener's throw is reported, where a bundle's listeners report | nothing |
+| `deck/` | `main.js`, `createDeck()` in main, and with it what the layers read of deck (its scheme and origins, a run's notifications, the permissions it checks, a mod's scoped names) and a frozen copy, `deepFreeze`; `renderer.js`, `createDeck()` in a mod's renderer, and what a layer uses there (its scheme, the stand-in it hands a mod for what main holds, `proxyOf`, a frozen copy, `deepFreeze`, listeners by name, `BUS`); `ipc/`, how a channel between main and a renderer is declared; `listener/`, how a listener's throw is reported, where a bundle's listeners report | nothing |
 | `deckit/` | `main.js`, `connect()` and `SCHEME`; `renderer.js`, `boot()`; `match/match.js`, how text is matched; `keymap/chord.js`, how a key is written | deck |
 | `deckit-shell/` | `main.js`, `attach()`; `renderer.js`, `page()` and `mod()` | deck and deckit |
 
