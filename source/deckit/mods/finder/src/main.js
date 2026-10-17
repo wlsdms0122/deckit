@@ -205,7 +205,7 @@ module.exports = {
             tildify: util.tildify,
             homeLocation: () => home,
             location: tabs.location,
-            onGo: goToPlace,
+            onGo: goToPath,
         });
 
         ui.addStyle(STYLE);
@@ -398,7 +398,7 @@ module.exports = {
         }
 
         // A folder, or a file selected in its folder.
-        function goToPlace(folder, file) {
+        function goToPath(folder, file) {
             if (folder !== tabs.location()) return tabs.go(folder, { from: file });
             if (file) select(file, { reveal: true });
         }
