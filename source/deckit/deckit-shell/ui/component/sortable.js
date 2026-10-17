@@ -66,7 +66,9 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         (child) => child.getClientRects().length && !child.hasAttribute(LIST.LEAVING)
     );
     const from = rows.indexOf(row);
-    if (from < 0 || rows.length < 2) {
+    // A lone row has nowhere in the list to go, and is lifted only to be carried out of it.
+    const described = describe?.(key) || null;
+    if (from < 0 || (rows.length < 2 && !described)) {
         putAway(false);
         return null;
     }
@@ -79,7 +81,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     const scrolledAt = scroller ? scroller.scrollTop : 0;
     const scrolled = () => (scroller ? scroller.scrollTop - scrolledAt : 0);
     // How far a row moves to take the held row's place: its height and the gap after it.
-    const span = held.height + Math.max(0, boxes[1].top - boxes[0].bottom);
+    const span = held.height + (rows.length > 1 ? Math.max(0, boxes[1].top - boxes[0].bottom) : 0);
     const kept = rows.map((child) => ({
         transition: child.style.transition,
         transform: child.style.transform,
@@ -129,7 +131,6 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         rows[into]?.setAttribute('data-deckit-target', '');
     };
     // Out of the list, the row is carried: `out` is that drag, and `afterOut` what runs once it has played out.
-    const described = describe?.(key) || null;
     let out = null;
     let afterOut = null;
     const isOut = (y) => {
