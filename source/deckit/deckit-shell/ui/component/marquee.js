@@ -20,11 +20,11 @@ function make() {
 }
 
 // MARK: - Private
-// Selection by a rectangle dragged in `area`, as macOS Finder's: the rows it crosses are selected, with Shift or
-// Command added to the rows of that list already selected, and a click on no row selects nothing. `listAt(element)`
-// answers the keyed list a rectangle started there selects in, `{ list, ... }`, or null where none starts (where a
-// press drags a row); `selection()` is the keys selected; `onSelect(keys, place)` hears the keys to select, in the
-// list's order, with what `listAt` answered. Returns the dispose.
+// Selection by a rectangle dragged in `area`, as macOS Finder's: the rows it crosses are selected, with Shift added to
+// the rows of that list already selected, with Command toggled in them, and a click on no row selects nothing.
+// `listAt(element)` answers the keyed list a rectangle started there selects in, `{ list, ... }`, or null where none
+// starts (where a press drags a row); `selection()` is the keys selected; `onSelect(keys, place)` hears the keys to
+// select, in the list's order, with what `listAt` answered. Returns the dispose.
 function marquee(area, { listAt, selection, onSelect }) {
     // On the click, not the press: a press on a scroll bar is never followed by one, and a click on a row is its
     // owner's. The click that ends a rectangle is the drag's.
@@ -54,8 +54,7 @@ function draw(area, place, down, selection, onSelect, finished) {
     );
     const keys = rows.map(list.keyOf);
     const boxes = rows.map((row) => row.getBoundingClientRect());
-    const adding = down.shiftKey || down.metaKey;
-    const kept = new Set(adding ? selection().filter((key) => keys.includes(key)) : []);
+    const before = new Set(down.shiftKey || down.metaKey ? selection().filter((key) => keys.includes(key)) : []);
     const scroller = scrollingBoxOf(list.element, area);
     const scrolledAt = scroller.scrollTop;
     const scrolled = () => scroller.scrollTop - scrolledAt;
@@ -83,13 +82,13 @@ function draw(area, place, down, selection, onSelect, finished) {
             width: Math.max(0, shown.right - shown.left) + 'px',
             height: Math.max(0, shown.bottom - shown.top) + 'px',
         });
-        const next = keys.filter(
-            (key, index) =>
-                kept.has(key) ||
-                (boxes[index].left < right &&
-                    boxes[index].right > left &&
-                    boxes[index].top < bottom &&
-                    boxes[index].bottom > top)
+        const crossed = (index) =>
+            boxes[index].left < right &&
+            boxes[index].right > left &&
+            boxes[index].top < bottom &&
+            boxes[index].bottom > top;
+        const next = keys.filter((key, index) =>
+            down.metaKey ? before.has(key) !== crossed(index) : before.has(key) || crossed(index)
         );
         if (next.join('\n') === selected) return;
         selected = next.join('\n');
