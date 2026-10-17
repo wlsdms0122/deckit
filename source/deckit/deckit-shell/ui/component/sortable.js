@@ -54,20 +54,20 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     const { base, easing } = TOKEN.MOTION;
     const { element: list, keyOf } = keyed;
     const key = keyOf(row);
-    // Put away before anything is measured, so the places are the ones left without them.
+    // Put away before anything is measured, so the places are the ones left without them. Carried out of the list,
+    // the row leaves the list as it was, so what lies under it does not move.
     const carried = (depth?.descendants?.(key) || []).map((name) => keyed.elementOf(name)).filter(Boolean);
     const keptDisplay = carried.map((child) => child.style.display);
-    const showCarried = () => carried.forEach((child, index) => (child.style.display = keptDisplay[index]));
-    carried.forEach((child) => {
-        MOTION.finish(child);
-        child.style.display = 'none';
-    });
+    const putAway = (away) =>
+        carried.forEach((child, index) => (child.style.display = away ? 'none' : keptDisplay[index]));
+    carried.forEach((child) => MOTION.finish(child));
+    putAway(true);
     const rows = [...list.children].filter(
         (child) => child.getClientRects().length && !child.hasAttribute(LIST.LEAVING)
     );
     const from = rows.indexOf(row);
     if (from < 0 || rows.length < 2) {
-        showCarried();
+        putAway(false);
         return null;
     }
     // A row still unfolding is taken at its own size.
@@ -142,11 +142,13 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         projected = startDepth;
         rows.forEach((child, index) => (child.style.transform = kept[index].transform));
         Object.assign(row.style, { boxShadow: keptHeld.boxShadow, opacity: keptHeld.opacity });
+        putAway(false);
         out = DRAG.carry(row, described, { clientX: x, clientY: y }, () => afterOut?.());
     };
     const comeBack = () => {
         out.settleNow();
         out = null;
+        putAway(true);
         row.style.boxShadow = liftedShadow;
     };
     const endOut = (how) => {
@@ -193,7 +195,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         done = true;
         clearTimeout(timer);
         light(-1);
-        showCarried();
+        putAway(false);
         rows.forEach((child, index) => {
             child.style.transition = 'none';
             child.style.transform = kept[index].transform;
