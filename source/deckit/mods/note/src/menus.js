@@ -16,7 +16,7 @@ function menus({
     onNewNote,
     labelFor,
 }) {
-    return { noteItems, folderItems };
+    return { noteItems, folderItems, renameNote, renameFolder };
 
     function noteItems(path, since = relocations.since(), row = null) {
         return [

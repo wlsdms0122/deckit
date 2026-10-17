@@ -2,7 +2,8 @@ const { entryAt, labelIn, markEntry, entryOf } = require('./entry.js');
 const { COMPOSE_SHAPES, NOTEBOOK_SHAPES } = require('./icons.js');
 const { parentOf } = require('./path.js');
 
-// The sidebar: every folder and note under All Notes, folded as the person left them.
+// The sidebar: every folder and note under All Notes, folded as the person left them. The keys move through the rows
+// as a press does, and Return renames the row in place.
 function tree({
     ui,
     show,
@@ -15,6 +16,8 @@ function tree({
     acceptDrops,
     onOpenNote,
     onOpenFolder,
+    renameNote,
+    renameFolder,
     onShowAll,
     onNewNote,
     onNewFolder,
@@ -22,10 +25,12 @@ function tree({
 }) {
     const STYLE = `
         .note-sidebar { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+        .note-tree { outline: none; }
         .note-tree-glyph { display: flex; color: var(--deckit-muted); }
     `;
 
     let expanded = new Set(store.get('expanded', []));
+    let shown = []; // the rows drawn, in order
 
     ui.addStyle(STYLE);
     const noteGlyph = `<span class="note-tree-glyph">${ui.icon('fileText', { size: 16 })}</span>`;
@@ -45,6 +50,7 @@ function tree({
     });
     const rows = ui.list({ key: (item) => item.path, create: rowOf });
 
+    rows.element.classList.add('note-tree');
     section.body.append(rows.element);
     element.append(section.element);
     ui.tooltip(section.actions[0].element, { text: 'New note', chord: () => chordOf('newNote') });
@@ -66,6 +72,22 @@ function tree({
             const { kind, path, since } = entryOf(row);
             return kind === 'note' ? noteMenu(path, since, row) : folderMenu(path, since, row);
         },
+    });
+    ui.tree(rows.element, {
+        items: () => shown.map((item) => item.path),
+        lead: () => shown.find((item) => item.active)?.path ?? null,
+        nameOf: (path) => nameOf(itemOf(path)),
+        expanded: (path) => (itemOf(path).folds ? expanded.has(path) : null),
+        parentOf: (path) => parentOf(path) || null,
+        childrenOf: (path) => shown.filter((item) => parentOf(item.path) === path).map((item) => item.path),
+        onSelect: go,
+        onToggle: toggle,
+        onRename: (path) => {
+            const row = rows.elementOf(path);
+            const { kind, since } = entryOf(row);
+            (kind === 'note' ? renameNote : renameFolder)(path, since, row);
+        },
+        onOpen: (path) => itemOf(path).kind === 'note' && onOpenNote(path, { focus: true }),
     });
     ui.dragSource(rows.element, { itemAt: entryAt, describe: describeDrag });
     acceptDrops(
@@ -96,7 +118,22 @@ function tree({
 
     function draw({ allNotes, place, openPath }) {
         section.setCurrent(place.kind === 'folder' && place.path === '');
-        rows.set(itemsOf(allNotes, 0, { since: allNotes.since, place, openPath }));
+        shown = itemsOf(allNotes, 0, { since: allNotes.since, place, openPath });
+        rows.set(shown);
+    }
+
+    // Shown as a press shows it, and kept in sight.
+    async function go(path) {
+        await (itemOf(path).kind === 'note' ? onOpenNote(path) : onOpenFolder(path));
+        rows.elementOf(path)?.scrollIntoView({ block: 'nearest' });
+    }
+
+    function itemOf(path) {
+        return shown.find((item) => item.path === path);
+    }
+
+    function nameOf(item) {
+        return item.name || 'Untitled';
     }
 
     // Opens the folders above `path`.
@@ -158,7 +195,7 @@ function tree({
             folds: item.folds,
             open: item.open,
             glyph: noteGlyph,
-            name: item.name || 'Untitled',
+            name: nameOf(item),
         });
         markEntry(row.element, item);
         row.element.title = item.path;
