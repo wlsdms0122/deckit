@@ -176,14 +176,16 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         row.dataset.path = item.path;
         const unsaved = ui.element('span', { className: 'editor-unsaved-dot' });
         row.append(unsaved);
-        if (item.folder)
-            row.append(
-                ui.rowAction({
-                    icon: ui.icon('search', { size: 13 }),
-                    title: 'Find in this folder',
-                    onClick: () => onFindIn(relativePath(item.path, root)),
-                }).element
-            );
+        if (item.folder) {
+            const find = ui.rowAction({
+                icon: ui.icon('search', { size: 13 }),
+                title: 'Find in this folder',
+                onClick: () => onFindIn(relativePath(item.path, root)),
+            }).element;
+            // The tree is one stop of Tab; a row's action is reached by the pointer.
+            find.tabIndex = -1;
+            row.append(find);
+        }
         rowParts.set(row, { setActive, setOpen, unsaved });
         updateRow(row, item);
         row.addEventListener('click', () => {
