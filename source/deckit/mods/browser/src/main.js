@@ -122,15 +122,14 @@ module.exports = {
             onNewTab: (url, options) => tabs.add(url, options),
             onSelectTab: (tab) => tabs.select(tab),
             onCloseTab: (tab) => tabs.close(tab),
-            onPlaceTab: (tab, target, after) => tabs.placeTab(tab, target, after),
-            onPlaceGroup: (group, target, after) => tabs.placeGroup(group, target, after),
             onCloseOtherTabs: (tab) => tabs.closeOthers(tab),
-            onNewGroup: (tab) => sidePanel.renameGroup(tabs.newGroup(tab)),
-            onJoinGroup: (tab, group) => tabs.join(tab, group),
-            onLeaveGroup: (tab) => tabs.leave(tab),
-            onChangeGroup: (group, change) => tabs.changeGroup(group, change),
-            onUngroup: (group) => tabs.ungroup(group),
-            onCloseGroup: (group) => tabs.closeGroup(group),
+            onPlaceTab: (node, parent, index) => tabs.place(node, parent, index),
+            onNewTabFolder: (parent, index, node) =>
+                sidePanel.renameFolder(tabs.newFolder(parent, index, node), tabs.changeFolder),
+            onChangeTabFolder: (folder, change) => tabs.changeFolder(folder, change),
+            onUngroupTabs: (folder) => tabs.ungroup(folder),
+            onCloseTabsIn: (folder) => tabs.closeTabsIn(folder),
+            onDeleteTabFolder: (folder) => tabs.deleteFolder(folder),
             onOpenBookmark: (bookmark) => tabs.navigate(tabs.front(), bookmark.url),
         });
         const { resolve, commands } = switcher({
@@ -196,7 +195,7 @@ module.exports = {
         }
 
         function showTabs() {
-            sidePanel.showTabs(tabs.list(), tabs.front(), tabs.groupOf);
+            sidePanel.showTabs(tabs.tree(), tabs.front());
             showBar();
         }
 
