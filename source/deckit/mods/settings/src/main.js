@@ -98,7 +98,12 @@ module.exports = {
                 );
             const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
             const running = [...now, ...restarting];
-            const shortcuts = [...listed, ...restarting.flatMap(({ id }) => drawnKeys.get(id) || [])];
+            // A new run may have registered some of its keys already: those are the key map's.
+            const listedIds = new Set(listed.map(({ id }) => id));
+            const shortcuts = [
+                ...listed,
+                ...restarting.flatMap(({ id }) => drawnKeys.get(id) || []).filter(({ id }) => !listedIds.has(id)),
+            ];
             for (const mod of running) modIcons.set(mod.id, mod.icon);
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();
