@@ -484,11 +484,13 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         }
         const from = state.doc.lineAt(state.selection.main.from);
         const to = state.doc.lineAt(state.selection.main.to);
+        // A setext heading's underline would read as a rule under the code: the closing fence takes its place.
+        const setext = setextAt(state, to);
+        const end = setext
+            ? { from: state.doc.line(setext.underline.number - 1).to, to: setext.underline.to, insert: '\n```' }
+            : { from: to.to, insert: '\n```' };
         view.dispatch({
-            changes: [
-                { from: from.from, insert: '```\n' },
-                { from: to.to, insert: '\n```' },
-            ],
+            changes: [{ from: from.from, insert: '```\n' }, end],
             selection: { anchor: from.from + 4 + (state.selection.main.head - from.from) },
             userEvent: 'input.format',
         });
