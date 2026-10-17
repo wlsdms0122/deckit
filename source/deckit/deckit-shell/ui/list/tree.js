@@ -31,9 +31,14 @@ function tree(
         if (event.target !== element || event.ctrlKey) return;
         if (take(event)) event.preventDefault();
     };
+    const tabIndexBefore = element.getAttribute('tabindex');
     element.tabIndex = 0;
     element.addEventListener('keydown', onKey);
-    return () => element.removeEventListener('keydown', onKey);
+    return () => {
+        element.removeEventListener('keydown', onKey);
+        if (tabIndexBefore === null) element.removeAttribute('tabindex');
+        else element.setAttribute('tabindex', tabIndexBefore);
+    };
 
     // Whether the key was the tree's.
     function take(event) {
