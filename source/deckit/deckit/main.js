@@ -117,7 +117,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     const starting = []; // what starts with deckit, before any mod launches: the shell on it
     let started = false;
 
-    // What each of deckit's services grants, in the order a person reads them.
+    // What each of deckit's concepts grants, in the order a person reads them.
     for (const model of [
         MAIN_PROCESS_PERMISSION,
         WEB_PERMISSION,

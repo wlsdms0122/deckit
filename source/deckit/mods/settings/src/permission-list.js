@@ -41,6 +41,24 @@ const PERMISSION_LIST_STYLE = `
     }
 `;
 
+// The glyph each permission is drawn with, by its id; one Settings does not know is drawn as a permission.
+const PERMISSION_ICONS = {
+    'system.main-process': 'server',
+    'system.files': 'fileText',
+    'system.network': 'globe',
+    'system.certificates': 'shieldCheck',
+    'system.site-permissions': 'mic',
+    'system.clipboard': 'copy',
+    'system.notifications': 'bell',
+    'system.global-keys': 'monitor',
+    'deckit.mods': 'puzzle',
+    'deckit.mod-settings': 'sliders',
+    'deckit.key-map': 'keyboard',
+    'deckit.url-schemes': 'layers',
+    'deckit.styles': 'eye',
+};
+const PERMISSION_ICON = 'shieldCheck';
+
 // The permissions a mod asks for: each one's name, id, the mod's reason and what it lets the mod do.
 function permissionList({ ui, permissions }) {
     const element = ui.element('div', { className: 'settings-permissions' });
@@ -54,7 +72,7 @@ function permissionList({ ui, permissions }) {
         const words = ui.element('div');
         const head = ui.element('div', { className: 'settings-permission-head' });
 
-        icon.innerHTML = ui.icon(permission.icon, { size: 15 });
+        icon.innerHTML = ui.icon(PERMISSION_ICONS[permission.id] || PERMISSION_ICON, { size: 15 });
         head.append(
             ui.element('span', { className: 'settings-permission-name', text: permission.name }),
             ui.element('span', { className: 'settings-permission-id', text: permission.id })
