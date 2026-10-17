@@ -143,5 +143,5 @@ The kit is the shell's, and the one way things look and behave in every page it 
 
 ## 8. Data
 
-- A rename renames everything, stored keys and channels included. Data written in an old shape is written again in the new one.
+- A rename renames everything, stored keys and channels included. A record's shape is its owner's, and nothing reads an old shape: data written in one is the consumer's to write again.
 - A file of a mod's data edited by hand is read at the next start.
