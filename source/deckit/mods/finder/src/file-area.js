@@ -69,6 +69,8 @@ function fileArea({
         rowOf,
         labelOf,
         folderAt,
+        draggableRowAt,
+        listAt,
     };
 
     function setView(next) {
@@ -205,6 +207,20 @@ function fileArea({
         const column = columns.folderAt(under);
         if (column) return column;
         return tabs.location() && !isLoading() ? { folder: tabs.location(), mark: element } : null;
+    }
+
+    // The row a press on `under` drags: in columns any of it, in the list its icon and name, as in macOS Finder.
+    function draggableRowAt(under) {
+        if (view === 'columns') return under.closest('[data-path]');
+        return under.closest('.finder-list-name > *')?.closest('[data-path]') ?? null;
+    }
+
+    // The rows a rectangle dragged from `under` selects among, and their folder: a column's, or the list's. Where a
+    // press drags a row, no rectangle starts.
+    function listAt(under) {
+        if (draggableRowAt(under)) return null;
+        if (view === 'columns') return columns.listAt(under);
+        return tabs.location() && !isLoading() ? { list: list.rows, folder: tabs.location() } : null;
     }
 
     function drawList(loading, failure) {

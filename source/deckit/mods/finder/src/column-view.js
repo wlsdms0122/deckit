@@ -64,7 +64,7 @@ function columnView({ ui, icons, entryAt, onResize }) {
     columns.element.classList.add('finder-column-list');
     element.append(columns.element);
 
-    return { element, foldersOf, draw, endElement, folderAt };
+    return { element, foldersOf, draw, endElement, folderAt, listAt };
 
     // The tab's folder, and each folder on the way down to the lead, the lead too when it is a folder.
     function foldersOf(location, selected) {
@@ -111,6 +111,12 @@ function columnView({ ui, icons, entryAt, onResize }) {
         if (!column) return null;
         const folder = parentOf(column.dataset.preview);
         return { folder, mark: columns.elementOf(folder) || column };
+    }
+
+    // The rows of the column whose body `under` is in, and its folder.
+    function listAt(under) {
+        const column = under.closest('.finder-column-body')?.parentElement;
+        return column ? { list: columnParts.get(column).rows, folder: column.dataset.folder } : null;
     }
 
     function createColumn(folder) {
