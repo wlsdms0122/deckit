@@ -15,9 +15,9 @@ module.exports = {
         const APP_NAME = deck.about().name;
 
         const modIcons = new Map(); // mod id -> its icon, as the list was last drawn
-        // A run's states between running and not: a mod in one is starting or stopping.
-        const TRANSITIONS = ['launching', 'terminating'];
-        const settled = new Map(); // mod id -> { mod, shortcuts }: what it showed when it last ran
+        // mod id -> the keys a mod had as the Keyboard section last drew it running: a key map lists a mod's keys only
+        // while it runs
+        const drawnKeys = new Map();
         let shown = false;
 
         // In every rule of this mod, `line-height` comes after `font`: the shorthand resets it.
@@ -85,20 +85,20 @@ module.exports = {
         deck.mods.onChange(() => shown && redraw());
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
-        // A mod starting or stopping keeps what it showed when it last ran, so a restart reads as one, not as a mod
-        // gone and back.
+        // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
+        // one, not as a mod gone and back.
         function redraw() {
             const { found, running: now } = deck.mods.list();
             const listed = deck.keymap.list();
             const handlerLists = deck.urlSchemes.list();
             for (const mod of now)
-                settled.set(mod.id, { mod, shortcuts: listed.filter(({ owner }) => owner === mod.id) });
-            const runningIds = new Set(now.map(({ id }) => id));
-            const kept = found
-                .filter(({ id, state }) => TRANSITIONS.includes(state) && !runningIds.has(id) && settled.has(id))
-                .map(({ id }) => settled.get(id));
-            const running = [...now, ...kept.map(({ mod }) => mod)];
-            const shortcuts = [...listed, ...kept.flatMap((entry) => entry.shortcuts)];
+                drawnKeys.set(
+                    mod.id,
+                    listed.filter(({ owner }) => owner === mod.id)
+                );
+            const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
+            const running = [...now, ...restarting];
+            const shortcuts = [...listed, ...restarting.flatMap(({ id }) => drawnKeys.get(id) || [])];
             for (const mod of running) modIcons.set(mod.id, mod.icon);
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();

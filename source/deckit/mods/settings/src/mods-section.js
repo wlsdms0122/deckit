@@ -11,11 +11,10 @@ const { section } = require('./section.js');
 function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
-    const STARTING = 'starting: its start() has not finished';
-    // What a mod that loads but is not running is doing, by its run's state.
-    const STATE_WORDS = { launching: STARTING, terminating: 'stopping', notRunning: 'stopped' };
-    // A mod starting or stopping, said beside its name instead of as a failure.
-    const BUSY_WORDS = { launching: 'Starting', terminating: 'Stopping' };
+    // What a mod that loads but is not running is doing, by its run's state: one starting or stopping says it by a
+    // spinner beside its name, with the word as its title.
+    const STATE_WORDS = { launching: 'starting', terminating: 'stopping', notRunning: 'stopped' };
+    const BUSY = ['launching', 'terminating'];
     const DESCRIPTION =
         'Install a mod from its folder, or remove one you no longer need. Open a row to see what it adds, what it ' +
         'needs and where its files are.';
@@ -75,7 +74,6 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             white-space: pre-line;
             word-break: break-word;
         }
-        .settings-mod-failure[data-starting] { color: var(--deckit-muted); }
         .settings-notice {
             margin: 8px 0 0;
             padding: 8px 10px;
@@ -181,8 +179,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             const labels = contributionsOf(mod.live, mod.keys.length, everyScheme);
             name.textContent = name.title = mod.name;
             name.toggleAttribute('data-not-loaded', !!mod.notLoaded);
-            busy.hidden = !BUSY_WORDS[mod.state];
-            busy.title = BUSY_WORDS[mod.state] || '';
+            busy.hidden = !BUSY.includes(mod.state);
+            busy.title = busy.hidden ? '' : STATE_WORDS[mod.state];
             version.textContent = mod.version || NO_VALUE;
             version.toggleAttribute('data-missing', !mod.version);
             contributions.replaceChildren(
@@ -202,7 +200,6 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
                 .filter(Boolean)
                 .join('\n');
             failure.hidden = !failure.textContent;
-            failure.toggleAttribute('data-starting', failure.textContent === STARTING);
             details.set(mod);
         }
 
@@ -342,7 +339,9 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
                     ...fromDisk(mod),
                     keys: keysOf(mod.id),
                     handlerLists,
-                    notLoaded: mod.problem || STATE_WORDS[mod.state] || 'did not load',
+                    // One starting for the first time is not yet anything but starting: its spinner says so.
+                    notLoaded:
+                        mod.problem || (mod.state === 'launching' ? null : STATE_WORDS[mod.state] || 'did not load'),
                 };
             return {
                 id: live.id,
