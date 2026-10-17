@@ -14,6 +14,7 @@ import * as POPOVER_COMPONENT from '../component/popover.js';
 import * as ROW_COMPONENT from '../component/row.js';
 import * as INLINEEDIT_COMPONENT from '../component/inline-edit.js';
 import * as SORTABLE_COMPONENT from '../component/sortable.js';
+import * as MARQUEE_COMPONENT from '../component/marquee.js';
 import * as DRAG_COMPONENT from '../component/drag.js';
 import * as FILETREE_COMPONENT from '../component/file-tree.js';
 import * as RESIZER_COMPONENT from '../component/resizer.js';
@@ -34,6 +35,7 @@ const components = [
     ROW_COMPONENT,
     INLINEEDIT_COMPONENT,
     SORTABLE_COMPONENT,
+    MARQUEE_COMPONENT,
     DRAG_COMPONENT,
     FILETREE_COMPONENT,
     RESIZER_COMPONENT,
