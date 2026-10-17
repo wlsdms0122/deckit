@@ -2,7 +2,7 @@ const { parseAddress } = require('./address.js');
 const { favicon } = require('./favicon.js');
 const { outline, inkOf } = require('./outline.js');
 const { tabLabel } = require('./tab-list.js');
-const { FOLDER_COLORS, isFolder, folderLabel } = require('./tree.js');
+const { FOLDER_COLORS, isFolder, folderLabel, folderPath } = require('./tree.js');
 
 // The sidebar: the open tabs and the bookmarks, each a tree of folders in a section that folds.
 function sidebar({
@@ -24,6 +24,7 @@ function sidebar({
     onDeleteTabFolder,
     onOpenBookmark,
     onOpenBookmarks,
+    onEditBookmark,
 }) {
     // What a row drawn out of one section into the other is carried as.
     const TAB = 'browser-tab';
@@ -128,7 +129,7 @@ function sidebar({
         rowAt: (target) => target.closest('.browser-outline-row'),
         items: (row) => {
             const node = row && tabOutline.nodeAt(row);
-            return node && (isFolder(node) ? tabFolderMenu(node) : tabMenu(node));
+            return node && (isFolder(node) ? tabFolderMenu(node) : tabMenu(node, row));
         },
     });
     ui.contextMenu(bookmarkOutline.element, {
@@ -223,7 +224,7 @@ function sidebar({
         label.title = bookmark.url;
     }
 
-    function tabMenu(tab) {
+    function tabMenu(tab, row) {
         return [
             { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page.reload() },
             {
@@ -241,9 +242,9 @@ function sidebar({
             '-',
             { label: 'Copy Link', icon: 'link', run: () => clipboard.writeText(tab.url).catch(() => {}) },
             {
-                label: bookmarks.has(tab.url) ? 'Remove Bookmark' : 'Add Bookmark',
+                label: bookmarks.has(tab.url) ? 'Edit Bookmark…' : 'Add Bookmark…',
                 icon: 'bookmark',
-                run: () => bookmarks.toggle(tab),
+                run: () => onEditBookmark(tab, row),
             },
             '-',
             { label: 'Close Tab', icon: 'x', hint: chordOf('closeTab'), run: () => onCloseTab(tab) },
@@ -365,7 +366,7 @@ function sidebar({
                 label: 'Move to Folder',
                 disabled: !others.length,
                 items: others.map((folder) => ({
-                    label: pathOf(tree, folder),
+                    label: folderPath(tree, folder),
                     run: () => onPlace(node, folder, folder.children.length),
                 })),
             },
@@ -385,11 +386,6 @@ function sidebar({
     function dropPlace(view, section, under) {
         const { parent, mark } = view.dropAt(under);
         return { parent, mark: mark || section.element };
-    }
-
-    // A folder by the folders it is in and its own name.
-    function pathOf(tree, folder) {
-        return [...tree.ancestorsOf(folder).reverse(), folder].map(folderLabel).join(' / ');
     }
 
     function add() {

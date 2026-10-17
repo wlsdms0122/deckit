@@ -45,7 +45,7 @@ The open tabs, as they come back at the next start:
 
 ### bookmarks
 
-The top level of the tree of bookmarks: `[{ "id": 1, "url": "https://example.com/", "title": "Example", "icon": "" }]`. One address may be bookmarked in more than one place; the star in the address bar is lit while any bookmark has the page's address.
+The top level of the tree of bookmarks: `[{ "id": 1, "url": "https://example.com/", "title": "Example", "icon": "" }]`. One address may be bookmarked in more than one place; the star in the address bar is lit while any bookmark has the page's address. Pressed, it opens the page's bookmark added last, to change its name and folder or to remove it; a page not bookmarked is bookmarked at the end of the top level first. Add Bookmark… and Edit Bookmark… in a tab's menu do the same.
 
 ### certificates and site-permissions
 

@@ -135,4 +135,9 @@ function folderLabel(folder) {
     return folder.title || 'Untitled Folder';
 }
 
-module.exports = { FOLDER_COLORS, tree, isFolder, folderOf, folderLabel };
+// A folder of `tree` by the folders it is in and its own name.
+function folderPath(tree, folder) {
+    return [...tree.ancestorsOf(folder).reverse(), folder].map(folderLabel).join(' / ');
+}
+
+module.exports = { FOLDER_COLORS, tree, isFolder, folderOf, folderLabel, folderPath };

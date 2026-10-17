@@ -1,5 +1,6 @@
 const { addressBar } = require('./address-bar.js');
 const { parseAddress, hostOf } = require('./address.js');
+const { bookmarkEditor } = require('./bookmark-editor.js');
 const { findInPage } = require('./find-in-page.js');
 const { sitePrompter } = require('./site-prompter.js');
 const { sidebar } = require('./sidebar.js');
@@ -57,6 +58,7 @@ module.exports = {
         const webSession = web.session('web');
         const filesSession = web.session('files');
         const { bookmarks, certificates, sitePermissions } = store({ records, onBookmarksChange: showBookmarks });
+        const editor = bookmarkEditor({ ui, bookmarks });
         const content = ui.element('div', {
             style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' },
         });
@@ -80,7 +82,8 @@ module.exports = {
             onForward: goForward,
             onReload: reload,
             onSitePermissions: () => prompter.editSitePermissions(tabs.front().url),
-            onBookmark: () => bookmarks.toggle(tabs.front()),
+            onBookmark: (star) => editor.show(tabs.front(), star),
+            isEditingBookmark: editor.isOpen,
             onSubmit: (text) =>
                 tabs.navigate(
                     tabs.front(),
@@ -106,7 +109,10 @@ module.exports = {
                 find.release(tab);
             },
             // A press in a page reaches this document only as the page taking the focus.
-            onFocus: () => bar.close(),
+            onFocus: () => {
+                editor.close();
+                bar.close();
+            },
             onCertificateRefused: (info) => prompter.askCertificate(info),
             decidePermission: (tab, request) => prompter.askPermission(tab, request),
             onNotification: notify,
@@ -131,6 +137,7 @@ module.exports = {
             onDeleteTabFolder: (folder) => tabs.deleteFolder(folder),
             onOpenBookmark: (bookmark) => tabs.navigate(tabs.front(), bookmark.url),
             onOpenBookmarks: (node, parent) => tabs.openBookmarks(node, parent),
+            onEditBookmark: (tab, row) => editor.show(tab, row),
         });
         const { resolve, commands } = switcher({
             ui,

@@ -9,18 +9,17 @@ function store({ records, onBookmarksChange }) {
     const bookmarks = {
         tree: () => bookmarkTree,
         has: (url) => bookmarkTree.items().some((bookmark) => bookmark.url === canonical(url)),
-        // The star: a page bookmarked loses every bookmark of it, so the star goes dark; one not bookmarked is added at
-        // the end of the top level.
-        toggle({ url, title, icon }) {
-            const address = canonical(url);
-            const found = bookmarkTree.items().filter((bookmark) => bookmark.url === address);
-            if (found.length) for (const bookmark of found) bookmarkTree.remove(bookmark);
-            else bookmarkTree.insert(bookmarkOf(address, title, icon));
-            save();
+        // Of the bookmarks of `url`, the one added last: ids grow as bookmarks are added. Null when there is none.
+        newest(url) {
+            const found = bookmarkTree.items().filter((bookmark) => bookmark.url === canonical(url));
+            return found.reduce((newest, bookmark) => (bookmark.id > newest.id ? bookmark : newest), found[0]) || null;
         },
-        add(url, title) {
-            bookmarkTree.insert(bookmarkOf(canonical(url), title, ''));
+        // At the end of the top level.
+        add(url, title, icon = '') {
+            const bookmark = bookmarkOf(canonical(url), title, icon);
+            bookmarkTree.insert(bookmark);
             save();
+            return bookmark;
         },
         // A bookmark or a folder, with what it holds.
         remove(node) {
