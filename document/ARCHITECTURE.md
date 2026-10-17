@@ -138,7 +138,7 @@ The kit is the shell's, and the one way things look and behave in every page it 
 - One token, derived from the host app's theme: colours, type, radius, shadow, motion, and a code palette. The kit's stylesheet and every mod read it.
 - One stylesheet: hover, press, focus and selection are the platform's states, drawn by rules.
 - One overlay: what floats (a menu, a popover, a modal, a drag) is one stack that owns its order, the press outside, Escape and placement.
-- One list: rows drawn by key, so what the pointer rests on and what has the focus stay put; one listbox for a list with a cursor.
+- One list: rows drawn by key, so what the pointer rests on and what has the focus stay put; one listbox for a list with a cursor, and one tree for the keys of a list or a tree whose items the person selects.
 - One shape for each kind of part: a maker takes one options object and returns `{ element, ...its controls }`, a decorator takes an element and returns its dispose, and a control draws the value it is set to and reports what was asked.
 
 ## 8. Data

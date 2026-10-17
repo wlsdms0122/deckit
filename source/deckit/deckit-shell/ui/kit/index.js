@@ -4,6 +4,7 @@ import * as POINTER from '../pointer/index.js';
 import * as OVERLAY from '../overlay/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as LISTBOX from '../list/listbox.js';
+import * as TREE from '../list/tree.js';
 import * as PART from '../component/part.js';
 import * as BUTTON_COMPONENT from '../component/button.js';
 import * as FIELD_COMPONENT from '../component/field.js';
@@ -61,6 +62,7 @@ function make(theme) {
         element: PART.element,
         addStyle,
         listbox: LISTBOX.listbox,
+        tree: TREE.tree,
         alpha: COLOR.alpha,
         mix: COLOR.mix,
         capturePointer: POINTER.capture,
