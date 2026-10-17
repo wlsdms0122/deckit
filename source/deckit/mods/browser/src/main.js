@@ -124,8 +124,7 @@ module.exports = {
             onCloseTab: (tab) => tabs.close(tab),
             onCloseOtherTabs: (tab) => tabs.closeOthers(tab),
             onPlaceTab: (node, parent, index) => tabs.place(node, parent, index),
-            onNewTabFolder: (parent, index, node) =>
-                sidePanel.renameFolder(tabs.newFolder(parent, index, node), tabs.changeFolder),
+            onNewTabFolder: (parent, index, node) => tabs.newFolder(parent, index, node),
             onChangeTabFolder: (folder, change) => tabs.changeFolder(folder, change),
             onUngroupTabs: (folder) => tabs.ungroup(folder),
             onCloseTabsIn: (folder) => tabs.closeTabsIn(folder),

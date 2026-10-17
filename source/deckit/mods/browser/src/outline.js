@@ -130,11 +130,15 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             if (node.collapsed && node.children.length) onToggle(node);
         },
     });
-    // The lead is marked while the keys are here: with the focus gone, the chosen item is marked again.
-    list.element.addEventListener('focusout', (event) => {
-        if (!leadKey || list.element.contains(event.relatedTarget)) return;
-        leadKey = null;
-        draw();
+    // The lead is marked while the keys are here: with the focus gone, the chosen item is marked again. Where the
+    // focus went is read once the move is over: a rename field taken away loses it before giving it back to the list.
+    list.element.addEventListener('focusout', () => {
+        if (!leadKey) return;
+        queueMicrotask(() => {
+            if (!leadKey || list.element.contains(document.activeElement)) return;
+            leadKey = null;
+            draw();
+        });
     });
     // A press leads from its row, as the keys do.
     list.element.addEventListener('click', (event) => {
@@ -152,6 +156,12 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             shownTree = tree;
             chosen = active;
             draw();
+        },
+        // `node`'s name typed over its row, the folders it is in unfolded to show it: `onCommit(name)` takes the
+        // name, as the kit's `inlineEdit` has it. Resolves whether it renamed.
+        rename(node, onCommit) {
+            for (const folder of shownTree.ancestorsOf(node)) if (folder.collapsed) onToggle(folder);
+            return ui.inlineEdit(list.elementOf(node.id).querySelector('.browser-row-label'), { onCommit });
         },
         // The node of the row `target` is in, or null.
         nodeAt(target) {

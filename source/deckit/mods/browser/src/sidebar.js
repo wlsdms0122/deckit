@@ -60,7 +60,7 @@ function sidebar({
         nameOf: tabLabel,
         choose: onSelectTab,
         // A tab has no name of its own to change: it is its page's title.
-        onRename: (node) => isFolder(node) && renameFolder(node, onChangeTabFolder),
+        onRename: (node) => isFolder(node) && renameTabFolder(node),
         onOpen: onSelectTab,
         onPlace: onPlaceTab,
         onToggle: (folder) => onChangeTabFolder(folder, { collapsed: !folder.collapsed }),
@@ -76,7 +76,7 @@ function sidebar({
         createItem: bookmarkRow,
         updateItem: updateBookmarkRow,
         nameOf: (bookmark) => bookmark.title,
-        onRename: (node) => (isFolder(node) ? renameFolder(node, bookmarks.changeFolder) : edit(node)),
+        onRename: renameBookmark,
         onOpen: onOpenBookmark,
         onPlace: bookmarks.place,
         onToggle: (folder) => bookmarks.changeFolder(folder, { collapsed: !folder.collapsed }),
@@ -85,7 +85,7 @@ function sidebar({
         label: 'Tabs',
         icon: ui.icon('window', { size: 16 }),
         actions: [
-            { icon: ui.icon('folderPlus', { size: 16 }), title: 'New folder', run: () => onNewTabFolder() },
+            { icon: ui.icon('folderPlus', { size: 16 }), title: 'New folder', run: () => newTabFolder() },
             { title: 'New tab', run: () => onNewTab() },
         ],
         collapsed: !!values.get('folds', {}).tabs,
@@ -147,7 +147,6 @@ function sidebar({
             tabOutline.set(tree, front);
         },
         showBookmarks: (tree) => bookmarkOutline.set(tree),
-        renameFolder,
     };
 
     function tabRow(shown) {
@@ -194,16 +193,6 @@ function sidebar({
         row.setActive(active);
     }
 
-    // An empty name leaves the folder untitled.
-    function renameFolder(folder, onChange) {
-        ui.dialog({
-            title: 'Name folder',
-            fields: [{ key: 'title', label: 'Name', value: folder.title, placeholder: 'optional' }],
-            confirmLabel: 'Name',
-            onConfirm: ({ title }) => onChange(folder, { title: title.trim() }),
-        });
-    }
-
     function bookmarkRow(shown) {
         const { node: bookmark } = shown;
         const row = ui.row();
@@ -248,7 +237,7 @@ function sidebar({
                 run: () => tab.page.mute(!tab.muted),
             },
             '-',
-            ...moveItems(tabTree, tab, { onPlace: onPlaceTab, onNewFolder: onNewTabFolder }),
+            ...moveItems(tabTree, tab, { onPlace: onPlaceTab, onNewFolder: newTabFolder }),
             '-',
             { label: 'Copy Link', icon: 'link', run: () => clipboard.writeText(tab.url).catch(() => {}) },
             {
@@ -269,8 +258,8 @@ function sidebar({
     function tabFolderMenu(folder) {
         return [
             { label: 'New Tab in Folder', icon: 'plus', run: () => onNewTab(undefined, { parent: folder }) },
-            { label: 'New Folder in Folder', icon: 'folderPlus', run: () => onNewTabFolder(folder) },
-            { label: 'Rename Folder…', icon: 'pencil', run: () => renameFolder(folder, onChangeTabFolder) },
+            { label: 'New Folder in Folder', icon: 'folderPlus', run: () => newTabFolder(folder) },
+            { label: 'Rename Folder…', icon: 'pencil', run: () => renameTabFolder(folder) },
             { label: 'Color', items: colorItems(folder, onChangeTabFolder) },
             '-',
             { label: 'Add Folder to Bookmarks', icon: 'bookmark', run: () => bookmarks.addTabs(folder) },
@@ -331,7 +320,7 @@ function sidebar({
             { label: 'Open Folder as Tabs', icon: 'window', run: () => onOpenBookmarks(folder) },
             '-',
             { label: 'New Folder in Folder', icon: 'folderPlus', run: () => newBookmarkFolder(folder) },
-            { label: 'Rename Folder…', icon: 'pencil', run: () => renameFolder(folder, bookmarks.changeFolder) },
+            { label: 'Rename Folder…', icon: 'pencil', run: () => renameBookmark(folder) },
             { label: 'Color', items: colorItems(folder, bookmarks.changeFolder) },
             '-',
             { label: 'Ungroup', run: () => bookmarks.ungroup(folder) },
@@ -340,8 +329,26 @@ function sidebar({
     }
 
     // An empty folder at `index` in `parent`, holding `node` when one is given, and named.
+    function newTabFolder(parent, index, node) {
+        renameTabFolder(onNewTabFolder(parent, index, node));
+    }
+
     function newBookmarkFolder(parent, index, node) {
-        renameFolder(bookmarks.newFolder(parent, index, node), bookmarks.changeFolder);
+        renameBookmark(bookmarks.newFolder(parent, index, node));
+    }
+
+    // A name is typed over its row, its section unfolded to show it.
+    function renameTabFolder(folder) {
+        unfold(tabSection, 'tabs');
+        tabOutline.rename(folder, (title) => onChangeTabFolder(folder, { title }));
+    }
+
+    // A bookmark's name only: its address is changed in Edit.
+    function renameBookmark(node) {
+        unfold(bookmarkSection, 'bookmarks');
+        bookmarkOutline.rename(node, (title) =>
+            isFolder(node) ? bookmarks.changeFolder(node, { title }) : bookmarks.edit(node, { title, url: node.url })
+        );
     }
 
     // Moving `node` of `tree` into a new folder at its place, into another folder, or out of the one it is in.
@@ -414,6 +421,12 @@ function sidebar({
                 bookmarks.edit(bookmark, { title: title.trim() || bookmark.title, url: address });
             },
         });
+    }
+
+    function unfold(section, key) {
+        if (!section.isCollapsed()) return;
+        section.setCollapsed(false);
+        fold(key, false);
     }
 
     function fold(key, on) {
