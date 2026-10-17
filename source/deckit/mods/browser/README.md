@@ -50,3 +50,12 @@ The top level of the tree of bookmarks: `[{ "id": 1, "url": "https://example.com
 ### certificates and site-permissions
 
 What you allowed, given back to the web session at each start: `certificates` is `[{ "host", "fingerprint" }]`, a certificate this Mac cannot verify that you trusted for its host; `site-permissions` is `[{ "origin", "permission" }]`, what a site may use.
+
+### Records written before folders
+
+`session` and `bookmarks` kept their names and changed shape. The Browser does not read the shape before: whoever keeps a record in it writes it again in the shape above.
+
+| Record | Before | Now |
+|---|---|---|
+| `session` | `{ tabs: [{ url, title, icon, group }], front, closed: [{ url, title, icon, group, at }], groups: [{ id, title, color, collapsed }] }`: `group` a group's id or `null`, `front` and `at` indexes into `tabs` | `{ tabs, front, closed }` as above. A group is a folder with its `id`, `title`, `color` and `collapsed`, at the place of its first tab, holding its tabs in the order they stood; every tab and folder has an `id`, one in the tree; `front` is the id of the tab in front; a closed tab's `group` is its `parent`, and its `index` is its place in that folder (or at the top level) |
+| `bookmarks` | `[{ url, label, icon }]` | the tree of bookmarks: every bookmark and folder has an `id`, one in the tree, and a bookmark's `label` is its `title` |
