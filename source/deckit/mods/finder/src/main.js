@@ -258,6 +258,7 @@ module.exports = {
             back: { key: 'mod+[', label: 'Back', run: () => tabs.back() },
             forward: { key: 'mod+]', label: 'Forward', run: () => tabs.forward() },
             enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
+            open: { key: 'mod+down', label: 'Open', run: () => operator.open(selectedEntries()) },
             filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
             goToFolder: { key: 'mod+l', label: 'Go to Folder', run: () => tabs.front() && goTo.show() },
             home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
