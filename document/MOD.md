@@ -222,7 +222,7 @@ With `deckit.styles`, styles other pages while the mod runs: a mod's page by its
 - `web.page({ session, url })` shows a web page the way a browser tab does, in the mod's view.
 - `web.window({ session, url, title })` shows one in a window of its own, for a step taken and finished, such as signing in.
 
-Both return `{ session, state, load(url), back(), forward(), reload(), stop(), mute(on), find(text, { start, back, matchCase }), stopFind({ keepSelection }), close(), delegate }`, and a page also its `element` and `focus()`. `state` is `{ url, title, icon, loading, canGoBack, canGoForward, audible, muted, capture: { microphone, camera, screen } }`.
+Both return `{ session, state, load(url), back(), forward(), reload(), stop(), mute(on), find(text, { start, back, matchCase }), stopFind({ keepSelection }), close(), delegate }`, and a page also its `element` and `focus()`. The element is a `<webview>` with white under its page, as a browser has; where it sits in the view is the mod's to say. `state` is `{ url, title, icon, loading, canGoBack, canGoForward, audible, muted, capture: { microphone, camera, screen } }`.
 
 A page reaches its mod through its delegate:
 
