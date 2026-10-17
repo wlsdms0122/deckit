@@ -15,6 +15,9 @@ module.exports = {
         const APP_NAME = deck.about().name;
 
         const modIcons = new Map(); // mod id -> its icon, as the list was last drawn
+        // A run's states between running and not: a mod in one is starting or stopping.
+        const TRANSITIONS = ['launching', 'terminating'];
+        const settled = new Map(); // mod id -> { mod, shortcuts }: what it showed when it last ran
         let shown = false;
 
         // In every rule of this mod, `line-height` comes after `font`: the shorthand resets it.
@@ -82,10 +85,20 @@ module.exports = {
         deck.mods.onChange(() => shown && redraw());
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
+        // A mod starting or stopping keeps what it showed when it last ran, so a restart reads as one, not as a mod
+        // gone and back.
         function redraw() {
-            const { found, running } = deck.mods.list();
-            const shortcuts = deck.keymap.list();
+            const { found, running: now } = deck.mods.list();
+            const listed = deck.keymap.list();
             const handlerLists = deck.urlSchemes.list();
+            for (const mod of now)
+                settled.set(mod.id, { mod, shortcuts: listed.filter(({ owner }) => owner === mod.id) });
+            const runningIds = new Set(now.map(({ id }) => id));
+            const kept = found
+                .filter(({ id, state }) => TRANSITIONS.includes(state) && !runningIds.has(id) && settled.has(id))
+                .map(({ id }) => settled.get(id));
+            const running = [...now, ...kept.map(({ mod }) => mod)];
+            const shortcuts = [...listed, ...kept.flatMap((entry) => entry.shortcuts)];
             for (const mod of running) modIcons.set(mod.id, mod.icon);
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();
