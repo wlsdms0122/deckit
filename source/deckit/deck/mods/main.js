@@ -53,7 +53,7 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
         });
         PROTOCOL.relaunch.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            RUNNER.relaunch(id);
+            return RUNNER.relaunch(id);
         });
         PROTOCOL.count.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -76,12 +76,12 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
     }
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.
-    // `found`: every mod the catalog found, each with `installed`, whether it is a copy in deck's mods folder, and
+    // `found`: every mod the catalog found, those that load in the person's order and then the rest, each with `installed`, whether it is a copy in deck's mods folder, and
     // `state`, its latest run's, null for one with none; `hides`: folders of the same id that are not read.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
-            found: CATALOG.found().map((mod) => {
+            found: [...CATALOG.mods(), ...CATALOG.found().filter((mod) => mod.problem)].map((mod) => {
                 const run = RUNNER.runOf(mod.id);
                 return {
                     ...MANIFEST.of(mod),

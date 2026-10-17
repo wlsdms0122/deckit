@@ -79,13 +79,13 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
     }
 
     // The mod terminates and launches again, or launches when it is not running. Throws while a mod it
-    // requires is not running.
+    // requires is not running. Resolves once the run in its place has launched, or failed to.
     function relaunch(modId) {
         const sandbox = sandboxes.get(modId);
-        if (!sandbox || sandbox.closing || quitting) return;
+        if (!sandbox || sandbox.closing || quitting) return Promise.resolve();
         const missing = notRunningRequirement(sandbox);
         if (missing) throw new Error(`${modId} needs ${missing}, which is not running`);
-        relaunchSandbox(sandbox);
+        return relaunchSandbox(sandbox);
     }
 
     // MARK: - Private
@@ -114,10 +114,25 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
     function relaunchSandbox(sandbox) {
         const { run } = sandbox;
         const live = run.state !== 'notRunning';
-        terminate(sandbox, 'relaunch').then(() => {
+        return terminate(sandbox, 'relaunch').then(() => {
             if (quitting || sandboxes.get(sandbox.mod.id) !== sandbox || sandbox.closing) return;
             if (sandbox.run !== run || (live && !run.relaunches)) return;
             launchAgain(sandbox);
+            return launched(sandbox.run);
+        });
+    }
+
+    // Once the run is past launching: running, or ended.
+    function launched(run) {
+        if (run.state !== 'launching') return Promise.resolve();
+        return new Promise((resolve) => {
+            const offs = ['didLaunch', 'didFailToLaunch', 'didTerminate'].map((name) =>
+                notifications.on(name, (told) => {
+                    if (told !== run) return;
+                    for (const off of offs) off();
+                    resolve();
+                })
+            );
         });
     }
 
