@@ -115,9 +115,9 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         },
         parentOf: (key) => {
             const folder = rowOf(key).ancestors.at(-1);
-            return folder ? keyOf({ node: folder }) : null;
+            return folder ? folder.id : null;
         },
-        childrenOf: (key) => rowOf(key).node.children.map((node) => keyOf({ node })),
+        childrenOf: (key) => rowOf(key).node.children.map((node) => node.id),
         onSelect: lead,
         onToggle: (key, open) => {
             const folder = rowOf(key).node;
@@ -169,7 +169,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             if (node && isFolder(node)) return { parent: node, mark: element };
             const folder = ancestors.at(-1);
             if (!folder) return { parent: shownTree.root, mark: null };
-            return { parent: folder, mark: list.elementOf(keyOf({ node: folder })) };
+            return { parent: folder, mark: list.elementOf(folder.id) };
         },
     };
 
@@ -225,8 +225,9 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         return rows;
     }
 
+    // No two nodes of a tree share an id.
     function keyOf(row) {
-        return (isFolder(row.node) ? 'folder:' : 'item:') + row.node.id;
+        return row.node.id;
     }
 
     function rowOf(key) {
