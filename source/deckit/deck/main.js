@@ -128,3 +128,5 @@ export { SCHEME, originOf, pageOriginOf, addressOf } from './sandbox/model/origi
 export { NOTIFICATIONS } from './mod/lifecycle.js';
 export { MODS, MOD_SETTINGS } from './mod/permission.js';
 export { scopedName } from './mod/model/scoped-name.js';
+// A frozen copy all the way down, for a layer that hands out what deck holds.
+export { deepFreeze } from './export/proxy.js';

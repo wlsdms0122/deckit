@@ -8,24 +8,20 @@ import * as PROTOCOL from './protocol.js';
 // what it emits. A start that failed is tried again the next time it is asked for. `deliver` runs a listener
 // of the mod's and records what it throws.
 function forMod({ deliver }) {
-    const listeners = new Map(); // a module's path -> event name -> Set of what listens to what it emits
-    const listenersOf = (path, name) => {
-        if (!listeners.has(path)) listeners.set(path, new Map());
-        const named = listeners.get(path);
-        if (!named.has(name)) named.set(name, new Set());
-        return named.get(name);
+    const buses = new Map(); // a module's path -> what listens to what it emits
+    const busOf = (path) => {
+        if (!buses.has(path))
+            buses.set(
+                path,
+                DECK.makeBus({ call: (listener, args, name) => deliver(`on("${name}")`, listener, ...args) })
+            );
+        return buses.get(path);
     };
     const started = new Map(); // the path asked for -> promise of the module's proxy
-    PROTOCOL.event.on(({ path, name, args }) => {
-        const told = listenersOf(path, name);
-        for (const listener of [...told]) if (told.has(listener)) deliver(`on("${name}")`, listener, ...args);
-    });
+    PROTOCOL.event.on(({ path, name, args }) => busOf(path).emit(name, ...args));
     const moduleOf = ({ path, methods }) => {
         const proxy = DECK.proxyOf(methods, {}, (method, args) => PROTOCOL.call.invoke({ path, method, args }));
-        proxy.on = (name, listener) => {
-            listenersOf(path, name).add(listener);
-            return () => listenersOf(path, name).delete(listener);
-        };
+        proxy.on = (name, listener) => busOf(path).on(name, listener);
         return DECK.deepFreeze(proxy);
     };
     return (path) => {
