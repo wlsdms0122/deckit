@@ -7,7 +7,6 @@ import * as MAIN_PROCESS from '../main-process/renderer.js';
 import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as BINDING_ID from '../keymap/model/binding-id.js';
-import * as DECK from '../../deck/renderer.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
@@ -112,7 +111,7 @@ export function createMod({ CONFIG, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) 
                       }),
                   }
                 : {}),
-            ...(mod.id === CONFIG.id && HOST ? { host: standInFor(HOST) } : {}),
+            ...(mod.id === CONFIG.id && HOST ? { host: HOST } : {}),
         };
     }
 
@@ -184,25 +183,6 @@ export function createMod({ CONFIG, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) 
     function movePath(path, from, to) {
         if (typeof path !== 'string' || (path !== from && !path.startsWith(from + '/'))) return path;
         return to == null ? null : to + path.slice(from.length);
-    }
-
-    // The host app's offer as its mod gets it: its values copied and its functions called through, frozen. The
-    // host app's own objects stay its own to change.
-    function standInFor(offer) {
-        const functions = [];
-        const copy = (value, path) => {
-            if (!value || typeof value !== 'object') return value;
-            const out = Array.isArray(value) ? [] : {};
-            for (const [key, inner] of Object.entries(value))
-                if (typeof inner === 'function') functions.push([...path, key]);
-                else out[key] = copy(inner, [...path, key]);
-            return out;
-        };
-        const call = (path, args) => {
-            const owner = path.slice(0, -1).reduce((at, key) => at[key], offer);
-            return owner[path.at(-1)](...args);
-        };
-        return DECK.deepFreeze(DECK.proxyOf(functions, copy(offer, []), call));
     }
 
     return { layerOf };
