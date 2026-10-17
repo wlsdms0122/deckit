@@ -198,7 +198,7 @@ module.exports = ({ folder, emit, files }) => {
             if (search) search.stopped = true;
         },
 
-        // Asked as a state, on or off, so a sandbox reloaded without turning it off leaves no second watcher.
+        // Asked as a state, on or off.
         watch: async (on) => {
             const request = ++watchRequests;
             stopWatching();
@@ -226,6 +226,14 @@ module.exports = ({ folder, emit, files }) => {
                 watcher = null;
             }
             return !!watcher;
+        },
+
+        // As the run that started it ends: its watcher, a change it was about to report, and its searches.
+        dispose: () => {
+            watchRequests++;
+            stopWatching();
+            clearTimeout(flushTimer);
+            for (const search of searches.values()) search.stopped = true;
         },
     };
 
