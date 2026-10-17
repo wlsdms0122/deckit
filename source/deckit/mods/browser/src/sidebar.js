@@ -61,11 +61,25 @@ function sidebar({
         .browser-tab-capture { display: flex; color: var(--deckit-alert); }
         .browser-tab [hidden] { display: none; }
         .browser-tab[data-grouped] { padding-left: ${8 + GROUP_INDENT}px; }
-        /* A group's heading and its tabs are one block in the group's colour, under the hover and the selection. */
+        /* A group's heading and its tabs are one block in the group's colour. The hover and the mark of the tab in
+           front are drawn over the colour, as they are drawn over no colour: under it they are lost. */
         .browser-group,
         .browser-tab[data-grouped] {
             border-radius: 0;
+            background-color: transparent;
             background-image: linear-gradient(var(--browser-group-tint), var(--browser-group-tint));
+        }
+        .browser-group:hover,
+        .browser-tab[data-grouped]:hover {
+            background-image:
+                linear-gradient(var(--deckit-hover), var(--deckit-hover)),
+                linear-gradient(var(--browser-group-tint), var(--browser-group-tint));
+        }
+        .browser-group[data-active],
+        .browser-tab[data-grouped][data-active] {
+            background-image:
+                linear-gradient(var(--deckit-selected), var(--deckit-selected)),
+                linear-gradient(var(--browser-group-tint), var(--browser-group-tint));
         }
         .browser-group { border-radius: var(--deckit-radius-control) var(--deckit-radius-control) 0 0; }
         .browser-group[data-group-end],
