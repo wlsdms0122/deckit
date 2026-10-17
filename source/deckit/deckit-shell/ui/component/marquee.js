@@ -21,25 +21,27 @@ function make() {
 
 // MARK: - Private
 // Selection by a rectangle dragged in `area`, as macOS Finder's: the rows it crosses are selected, with Shift or
-// Command added to the rows of that list already selected, and a press without them selects nothing first.
-// `listAt(element)` answers the keyed list a rectangle started there selects in, `{ list, ... }`, or null where none
-// starts (where a press drags a row); `selection()` is the keys selected; `onSelect(keys, place)` hears the keys to
-// select, in the list's order, with what `listAt` answered. Returns the dispose.
+// Command added to the rows of that list already selected, and a click on no row selects nothing. `listAt(element)`
+// answers the keyed list a rectangle started there selects in, `{ list, ... }`, or null where none starts (where a
+// press drags a row); `selection()` is the keys selected; `onSelect(keys, place)` hears the keys to select, in the
+// list's order, with what `listAt` answered. Returns the dispose.
 function marquee(area, { listAt, selection, onSelect }) {
-    const onDown = (event) => {
+    // On the click, not the press: a press on a scroll bar is never followed by one, and a click on a row is its
+    // owner's. The click that ends a rectangle is the drag's.
+    const onClick = (event) => {
         if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) return;
         const place = listAt(event.target);
-        if (place) onSelect([], place);
+        if (place && !isInRow(event.target, place.list)) onSelect([], place);
     };
     const stop = GESTURE.drag(area, {
         pick: (target) => listAt(target) && target,
         begin: (target, down, finished) => draw(area, listAt(target), down, selection, onSelect, finished),
         cursor: 'default',
     });
-    area.addEventListener('pointerdown', onDown);
+    area.addEventListener('click', onClick);
     return () => {
         stop();
-        area.removeEventListener('pointerdown', onDown);
+        area.removeEventListener('click', onClick);
     };
 }
 
@@ -98,6 +100,13 @@ function draw(area, place, down, selection, onSelect, finished) {
         finished();
     };
     return { follow, drop: end, cancel: end, scroller: () => scroller };
+}
+
+// Whether `element` is in one of the rows of `list`.
+function isInRow(element, list) {
+    for (let node = element; node && node !== list.element; node = node.parentElement)
+        if (node.parentElement === list.element) return list.keyOf(node) != null;
+    return false;
 }
 
 // The box around `element` that scrolls it, whether or not it has more to show now; `area` when none does.
