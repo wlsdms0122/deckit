@@ -76,6 +76,7 @@ module.exports = {
             tildify: util.tildify,
             folds,
             homeLocation: () => home,
+            folderInFront: (location, lead, selection) => area.folderInFront(location, lead, selection),
             isFavorite: (path) => favorites.has(path),
             onAddFavorite: (path) => favorites.add(path),
             onLeave: keepScroll,
@@ -320,7 +321,7 @@ module.exports = {
         function applyListing(folder) {
             const whenRead = folder === tabs.location() ? tabs.takeWhenRead() : null;
             if (whenRead?.select) tabs.select(whenRead.select);
-            listings.keepOnly(new Set([...tabs.locations(), ...area.shownFolders()]));
+            listings.keepOnly(new Set([...tabs.locations(), ...tabs.leadFolders(), ...area.shownFolders()]));
             area.draw();
             if (typeof whenRead?.scroll === 'number') area.element.scrollTop = whenRead.scroll;
             else if (whenRead?.scroll === 'reveal' && tabs.selectedPath()) area.reveal(tabs.selectedPath());
@@ -332,9 +333,13 @@ module.exports = {
             if (listings.has(tabs.location())) tabs.keepScroll(area.element.scrollTop);
         }
 
+        // The tab's folder, and what else it shows that was kept: a kept listing is not watched, so it is read again.
         function load() {
             const location = tabs.location();
-            return location ? listings.load(location) : undefined;
+            if (!location) return undefined;
+            for (const folder of area.shownFolders())
+                if (folder !== location && listings.has(folder)) listings.load(folder);
+            return listings.load(location);
         }
 
         function watchShown(options) {
@@ -432,20 +437,21 @@ module.exports = {
             if (next === area.view()) return;
             bar.setView(next);
             area.setView(next);
+            tabs.draw();
             watchShown();
             area.element.focus({ preventScroll: true });
         }
 
+        // The listings first: a tab is named by what they say of its lead.
         function relocate(from, to) {
             const follow = (path) => util.movePath(path, from, to);
-            tabs.relocate(follow, parentOf(from) || '/');
             listings.relocate(follow);
+            tabs.relocate(follow, parentOf(from) || '/');
             favorites.relocate(follow);
         }
 
-        // The path runs to the lead in columns, or else to the tab's folder. The tab is named for the folder in front.
+        // The path runs to the lead in columns, or else to the tab's folder.
         function drawToolbar() {
-            tabs.setFolder(area.workingFolder());
             const selected = area.view() === 'columns' ? tabs.selectedPath() : null;
             const shown = selected && area.columnFolders().includes(parentOf(selected)) ? selected : tabs.location();
             bar.setPath(shown);

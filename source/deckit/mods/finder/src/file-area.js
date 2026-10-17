@@ -66,6 +66,7 @@ function fileArea({
         shownFolders,
         walkedFolder,
         workingFolder,
+        folderInFront,
         rowOf,
         labelOf,
         folderAt,
@@ -166,10 +167,8 @@ function fileArea({
         });
     }
 
-    // Down to the lead, or with more than one entry selected, down to the folder that holds them.
     function columnFolders() {
-        const lead = tabs.selectedPath();
-        return columns.foldersOf(tabs.location(), tabs.selection().length > 1 ? parentOf(lead) : lead);
+        return columnFoldersOf(tabs.location(), tabs.selectedPath(), tabs.selection());
     }
 
     function shownFolders() {
@@ -184,9 +183,19 @@ function fileArea({
         return selected && columnFolders().includes(parentOf(selected)) ? parentOf(selected) : tabs.location();
     }
 
-    // The folder in front, where a new folder goes: the last column's, or the list's.
+    // The folder in front, where a new folder goes.
     function workingFolder() {
-        return view === 'columns' ? columnFolders().at(-1) || null : tabs.location();
+        return folderInFront(tabs.location(), tabs.selectedPath(), tabs.selection());
+    }
+
+    // The folder in front of a tab at `location` with `selection`, `lead` among it: the last column's, or the list's.
+    function folderInFront(location, lead, selection) {
+        return view === 'columns' ? columnFoldersOf(location, lead, selection).at(-1) || null : location;
+    }
+
+    // Down to the lead, or with more than one entry selected, down to the folder that holds them.
+    function columnFoldersOf(location, lead, selection) {
+        return columns.foldersOf(location, selection.length > 1 ? parentOf(lead) : lead);
     }
 
     // The row of `path` in either view.

@@ -2,13 +2,13 @@ const { nameOf, parentOf } = require('./path.js');
 const { sidebarRow } = require('./sidebar-row.js');
 
 // The tabs, each at a location with its own history, selection, filter and column widths, listed in the sidebar; closed
-// ones are kept to reopen. A tab's location is where its columns start, and its folder the one in front, the last
-// column's: a tab is named for its folder, and what is done to the tab as a place (a drop on it, a new tab) is done
-// there. A selection is entries of one folder: the lead, the one the keys and the columns follow, and
-// the anchor a range is drawn from. This list alone writes a tab; the others read the tab in front through its queries
-// and change it through its setters. A tab coming in front or going somewhere is given what to do once its folder is
-// read ({ select, scroll }, taken with `takeWhenRead()`), and `onEnter()` hears it; `onLeave()` hears the tab in front
-// about to give its place.
+// ones are kept to reopen. A tab's location is where its columns start, and its folder the one in front,
+// `folderInFront(location, lead, selection)`: a tab is named for its folder, and what is done to the tab as a place (a
+// drop on it, a new tab) is done there. A selection is entries of one folder: the lead, the one the keys and the
+// columns follow, and the anchor a range is drawn from. This list alone writes a tab; the others read the tab in front
+// through its queries and change it through its setters. A tab coming in front or going somewhere is given what to do
+// once its folder is read ({ select, scroll }, taken with `takeWhenRead()`), and `onEnter()` hears it; `onLeave()`
+// hears the tab in front about to give its place.
 function tabList({
     ui,
     chordOf,
@@ -17,6 +17,7 @@ function tabList({
     tildify,
     folds,
     homeLocation,
+    folderInFront,
     isFavorite,
     onAddFavorite,
     onLeave,
@@ -60,6 +61,7 @@ function tabList({
         items: (row) => {
             const tab = row && tabOf(row);
             if (!tab) return null;
+            const folder = folderOf(tab);
             return [
                 { label: 'Close Tab', icon: 'x', run: () => close(tab) },
                 { label: 'Close Other Tabs', disabled: tabs.length < 2, run: () => closeOthers(tab) },
@@ -67,10 +69,10 @@ function tabList({
                 {
                     label: 'Add to Favorites',
                     icon: 'star',
-                    disabled: isFavorite(tab.folder),
-                    run: () => onAddFavorite(tab.folder),
+                    disabled: isFavorite(folder),
+                    run: () => onAddFavorite(folder),
                 },
-                { label: 'Show in Finder', icon: 'folder', run: () => reveal(tab.folder) },
+                { label: 'Show in Finder', icon: 'folder', run: () => reveal(folder) },
             ];
         },
     });
@@ -87,10 +89,11 @@ function tabList({
         canGoBack: () => !!front?.back.length,
         canGoForward: () => !!front?.forward.length,
         locations: () => tabs.map((tab) => tab.location),
+        leadFolders: () => tabs.filter((tab) => tab.selected).map((tab) => parentOf(tab.selected)),
         folderAt,
+        draw,
         select,
         setSelection,
-        setFolder,
         setFilter,
         clearFilter,
         takeWhenRead,
@@ -114,7 +117,13 @@ function tabList({
     function folderAt(under) {
         const row = under.closest('[data-tab-id]');
         const tab = row && tabOf(row);
-        return tab?.folder ? { folder: tab.folder, mark: row } : null;
+        const folder = tab && folderOf(tab);
+        return folder ? { folder, mark: row } : null;
+    }
+
+    // Each tab's name, which follows its selection and the view.
+    function draw() {
+        rows.set(tabs);
     }
 
     // The one entry at `path`, or none.
@@ -127,13 +136,7 @@ function tabList({
         front.selection = paths;
         front.selected = lead;
         front.anchor = anchor;
-    }
-
-    // The folder in front of the tab in front.
-    function setFolder(folder) {
-        if (!front || front.folder === folder) return;
-        front.folder = folder;
-        rows.set(tabs);
+        draw();
     }
 
     function setFilter(text, folder) {
@@ -155,11 +158,13 @@ function tabList({
         front.scroll = top;
     }
 
-    function open(location = front?.folder || homeLocation(), { background = false, widths = {} } = {}) {
+    function open(
+        location = (front ? folderOf(front) : null) || homeLocation(),
+        { background = false, widths = {} } = {}
+    ) {
         const tab = {
             id: ++lastId,
             location,
-            folder: location,
             back: [],
             forward: [],
             selected: null,
@@ -229,7 +234,6 @@ function tabList({
             tab.forward.length = 0;
         }
         tab.location = location;
-        tab.folder = location;
         tab.selected = null;
         tab.selection = [];
         tab.anchor = null;
@@ -269,7 +273,6 @@ function tabList({
     function relocate(follow, fallback) {
         for (const tab of tabs) {
             tab.location = follow(tab.location) ?? fallback;
-            tab.folder = follow(tab.folder) ?? tab.location;
             tab.back = followHistory(tab.back, follow);
             tab.forward = followHistory(tab.forward, follow);
             // A selection that went is left as is; the next draw cuts it back once the listings no longer hold it.
@@ -309,7 +312,7 @@ function tabList({
             active: Math.max(0, tabs.indexOf(front)),
             closed,
         });
-        rows.set(tabs);
+        draw();
     }
 
     function enter(tab, whenRead) {
@@ -330,6 +333,10 @@ function tabList({
         return tabs.find((tab) => String(tab.id) === row.dataset.tabId);
     }
 
+    function folderOf(tab) {
+        return folderInFront(tab.location, tab.selected, tab.selection);
+    }
+
     function createRow(tab) {
         const row = sidebarRow(ui);
         row.element.dataset.tabId = String(tab.id);
@@ -348,10 +355,11 @@ function tabList({
 
     function updateRow(element, tab) {
         const row = rowParts.get(element);
+        const folder = folderOf(tab);
         row.set({
             icon: 'folder',
-            label: tab.folder ? nameOf(tab.folder) : '…',
-            title: tab.folder ? tildify(tab.folder) : '',
+            label: folder ? nameOf(folder) : '…',
+            title: folder ? tildify(folder) : '',
         });
         row.setActive(tab === front);
     }
