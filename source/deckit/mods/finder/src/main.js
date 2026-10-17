@@ -205,7 +205,7 @@ module.exports = {
             disk,
             tildify: util.tildify,
             homeLocation: () => home,
-            location: tabs.location,
+            folderInFront: area.workingFolder,
             onGo: goToPath,
         });
 
