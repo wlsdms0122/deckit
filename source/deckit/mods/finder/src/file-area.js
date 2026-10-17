@@ -184,7 +184,7 @@ function fileArea({
         return selected && columnFolders().includes(parentOf(selected)) ? parentOf(selected) : tabs.location();
     }
 
-    // Where a new folder goes: the last column, or the list's folder.
+    // The folder in front, where a new folder goes: the last column's, or the list's.
     function workingFolder() {
         return view === 'columns' ? columnFolders().at(-1) || null : tabs.location();
     }
@@ -199,14 +199,14 @@ function fileArea({
     }
 
     // A drop on a folder's row goes into it; on a column or the preview, into that column's folder; anywhere else,
-    // into the tab's folder once it is read.
+    // into the folder in front, the last column's or the list's, once the tab's folder is read.
     function folderAt(under) {
         const row = under.closest('[data-path]');
         const entry = row && listings.entryAt(row.dataset.path);
         if (entry?.kind === 'folder') return { folder: entry.path, mark: row };
         const column = columns.folderAt(under);
         if (column) return column;
-        return tabs.location() && !isLoading() ? { folder: tabs.location(), mark: element } : null;
+        return tabs.location() && !isLoading() ? { folder: workingFolder(), mark: element } : null;
     }
 
     // The row a press on `under` drags: in columns any of it, in the list its icon and name, as in macOS Finder.
