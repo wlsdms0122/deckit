@@ -311,8 +311,11 @@ function tabList({
         page.close();
     }
 
+    // Every tab's page fills the area, one over another; only the front one is shown.
     function pageFor(url) {
-        return web.page({ session: isFile(url) ? filesSession : webSession, url });
+        const page = web.page({ session: isFile(url) ? filesSession : webSession, url });
+        Object.assign(page.element.style, { position: 'absolute', inset: '0', width: '100%', height: '100%' });
+        return page;
     }
 
     // Pages out of sight are hidden by visibility: a page element with nothing to draw into (display: none) comes

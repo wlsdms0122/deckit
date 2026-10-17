@@ -221,13 +221,7 @@ export function createWeb({ PARTITION }) {
         element.setAttribute('allowpopups', '');
         // White under the page, as a browser has: a <webview> is see-through, and a site that leaves its own
         // background unset would show what is under it through its text.
-        Object.assign(element.style, {
-            position: 'absolute',
-            inset: '0',
-            width: '100%',
-            height: '100%',
-            background: '#fff',
-        });
+        element.style.background = '#fff';
         let closed = false;
         // The <webview>'s methods exist only in the document's main world, not this one, so its id is read from
         // there once and everything else goes through main.
