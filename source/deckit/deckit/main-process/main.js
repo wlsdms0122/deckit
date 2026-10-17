@@ -5,23 +5,29 @@ import * as DECK from '../../deck/main.js';
 
 export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER }) {
     // MARK: - Property
+    const DISPOSE_LIMIT_MS = 2000; // what a module's dispose has, as a mod's stop() has
     const fs = require('fs');
     const path = require('path');
     const crypto = require('crypto');
-    // `${mod id}\0${path}` -> promise of { methods, paths }: a module started once, by the first who asks.
+    // `${mod id}\0${path}` -> promise of { relative, methods, paths, dispose }: a module started once in a run, by
+    // the first who asks, in the order they started.
     const modules = new Map();
     // mod id -> { folder, stamp }: its folder as it was when its first module started. A module may require any
     // file of it, then or later, so a change anywhere in it is new code for what runs.
     const loaded = new Map();
     const live = new Set(); // mod ids with a module that started
     const failures = new Map(); // mod id -> Map of module path -> why it did not start
-    // What only a restart can finish: a module once required stays in the process.
-    const pending = new Map(); // mod id -> 'updated' | 'removed' | 'reinstalled'
+    // What only a restart can finish: a module with no dispose stays in the process, and one whose dispose failed
+    // may have left what it made.
+    const pending = new Map(); // mod id -> 'updated' | 'removed' | 'reinstalled' | 'leftover'
+    const endings = new Map(); // mod id -> promise of its modules' end, after its run ended
+    const windows = new Map(); // mod id -> the keys of the windows its modules opened
 
     // MARK: - Initializer
     // MARK: - Public
     function start() {
         RUNNER.observe('willLaunch', ({ mod }) => prepare(mod));
+        RUNNER.observe('didTerminate', ({ mod }) => end(mod));
         PROTOCOL.start.handle(({ path: given }, sender) =>
             load(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS), given)
         );
@@ -34,10 +40,15 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
         });
     }
 
-    // A mod taken away: whatever its modules started keeps going until the process ends.
+    // A mod taken away: what its modules started keeps going until the process ends, unless they ended with its run.
     function unload(modId) {
-        if (loaded.has(modId)) pending.set(modId, 'removed');
         failures.delete(modId);
+        return whenEnded(modId).then(() => loaded.has(modId) && pending.set(modId, 'removed'));
+    }
+
+    // Once the modules of the mod's run that ended have ended too, or stayed.
+    function whenEnded(modId) {
+        return endings.get(modId) || Promise.resolve();
     }
 
     function started(modId) {
@@ -59,18 +70,69 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
     }
 
     // MARK: - Private
-    // Before a mod runs again: modules it started from code that has changed since keep running the old code
-    // until a restart. Its new run asks for its modules again, so what failed before is asked again too.
+    // Before a mod runs again: modules it started from code that has changed since, and that stayed, keep running
+    // the old code until a restart. Its new run asks for its modules again, so what failed before is asked again too.
     function prepare(mod) {
-        const before = loaded.get(mod.id);
-        if (before && (before.folder !== mod.folder || stampOf(mod.folder, mod.main) !== before.stamp))
-            pending.set(mod.id, 'updated');
         failures.delete(mod.id);
+        whenEnded(mod.id).then(() => {
+            const before = loaded.get(mod.id);
+            if (!before || (before.folder === mod.folder && stampOf(mod.folder, mod.main) === before.stamp)) return;
+            pending.set(mod.id, pending.get(mod.id) === 'removed' ? 'reinstalled' : 'updated');
+        });
     }
 
-    // One instance for each mod and file while the app runs: a module holds state (a token, a watcher), and
-    // starting it twice makes two of everything. Answers { path, methods }, the paths of its functions.
+    // A run's modules end with it, each by its dispose, the last started first, and the next run requires them anew.
+    // Only when every one of them has a dispose: one with none stays while the app runs, and with it the files
+    // they share in the cache.
+    function end(mod) {
+        const keys = [...modules.keys()].filter((key) => key.startsWith(mod.id + '\0'));
+        if (!keys.length) return;
+        const ending = (async () => {
+            const settled = await Promise.allSettled(keys.map((key) => modules.get(key)));
+            const made = settled.filter(({ status }) => status === 'fulfilled').map(({ value }) => value);
+            if (made.some(({ dispose }) => !dispose)) return;
+            let clean = true;
+            for (const { relative, dispose } of made.reverse())
+                clean = (await disposed(mod, relative, dispose)) && clean;
+            for (const key of keys) modules.delete(key);
+            forget(mod, Object.keys(require.cache));
+            for (const key of windows.get(mod.id) || []) WINDOW.close(key);
+            windows.delete(mod.id);
+            loaded.delete(mod.id);
+            live.delete(mod.id);
+            if (clean) pending.delete(mod.id);
+            else pending.set(mod.id, 'leftover');
+        })();
+        endings.set(mod.id, ending);
+        ending.finally(() => endings.get(mod.id) === ending && endings.delete(mod.id));
+    }
+
+    // Whether the module ended what it made, in the time a mod's stop() has.
+    async function disposed(mod, relative, dispose) {
+        let timer = null;
+        try {
+            await Promise.race([
+                dispose(),
+                new Promise((_resolve, reject) => {
+                    timer = setTimeout(
+                        () => reject(new Error(`did not end in ${DISPOSE_LIMIT_MS} ms`)),
+                        DISPOSE_LIMIT_MS
+                    );
+                }),
+            ]);
+            return true;
+        } catch (error) {
+            LOG.error(`${mod.id} ${relative}: dispose failed`, error);
+            return false;
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    // One instance for each mod and file in a run: a module holds state (a token, a watcher), and starting it twice
+    // makes two of everything. Answers { path, methods }, the paths of its functions.
     async function load(mod, given) {
+        await whenEnded(mod.id);
         const { file, relative } = locate(mod.folder, given);
         const key = `${mod.id}\0${relative}`;
         if (!modules.has(key)) {
@@ -103,7 +165,8 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
             live.add(mod.id);
             const paths = [...methods.keys()].map((key) => JSON.parse(key));
             LOG.info(`${mod.id} ${relative}: ${paths.map((path) => path.join('.')).join(', ') || 'no methods'}`);
-            return { methods, paths };
+            const dispose = typeof made.dispose === 'function' ? () => made.dispose() : null;
+            return { relative, methods, paths, dispose };
         } catch (error) {
             LOG.error(`${mod.id} ${relative} failed to start`, error);
             const why = String(error.message || error);
@@ -142,7 +205,12 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
                 if (page) PROTOCOL.event.send(page, { path: relative, name: String(name), args });
             },
             window: Object.freeze({
-                open: (options = {}) => WINDOW.open({ ...options, key: `${mod.id}:${options.key || 'main'}` }),
+                open: (options = {}) => {
+                    const key = `${mod.id}:${options.key || 'main'}`;
+                    if (!windows.has(mod.id)) windows.set(mod.id, new Set());
+                    windows.get(mod.id).add(key);
+                    return WINDOW.open({ ...options, key });
+                },
                 get: (key) => WINDOW.get(`${mod.id}:${key || 'main'}`),
                 close: (key) => WINDOW.close(`${mod.id}:${key || 'main'}`),
                 ofPage: () => {
@@ -155,12 +223,14 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
     }
 
     // Its functions by path, nested objects walked, as a mod's exports are. `on` is the proxy's own: how the
-    // mod hears what the module emits.
+    // mod hears what the module emits. `dispose` is deckit's to call, as the module ends.
     function methodsOf(made, relative) {
         if (!made || typeof made !== 'object')
             throw new Error(`${relative} gave no object of methods; a main process module is (deck) => ({ methods })`);
         if (Object.hasOwn(made, 'on'))
             throw new Error(`${relative} has a method "on", which is how its events are heard`);
+        if (Object.hasOwn(made, 'dispose') && typeof made.dispose !== 'function')
+            throw new Error(`${relative} has a "dispose" that is not a function, which is how it ends`);
         const methods = new Map();
         const walking = new Set(); // an object that holds itself is walked once
         const walk = (value, trail) => {
@@ -170,7 +240,8 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
             for (const [key, inner] of Object.entries(value)) walk(inner, [...trail, key]);
             walking.delete(value);
         };
-        walk(made, []);
+        const { dispose: _dispose, ...rest } = made;
+        walk(rest, []);
         return methods;
     }
 
@@ -180,14 +251,15 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
         return found;
     }
 
-    // A module that threw stays cached, so a fixed version installed later would load the broken one. What its
-    // require() put in the cache from the mod's folder goes.
+    // A module that threw, or ended, stays cached, so a fixed version installed later would load the old one. What
+    // of `keys` the cache holds from the mod's folder goes.
     function forget(mod, own) {
         const root = fs.realpathSync(mod.folder) + path.sep;
         for (const key of own) if (key.startsWith(root)) delete require.cache[key];
     }
 
-    // Every file of the folder by its path, size and time, but for the entry, which runs in the sandbox.
+    // Every file of the folder by its path and contents, but for the entry, which runs in the sandbox: an install
+    // copies a folder anew, so a time says nothing of whether its code changed.
     function stampOf(folder, main) {
         const hash = crypto.createHash('sha256');
         const entry = FOLDER.entryOf(folder, { main });
@@ -197,8 +269,9 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
                 const full = path.join(at, item.name);
                 if (item.isDirectory()) walk(full);
                 else if (item.isFile() && full !== entry) {
-                    const { size, mtimeMs } = fs.statSync(full);
-                    hash.update(`${path.relative(root, full)}\0${size}\0${mtimeMs}\0`);
+                    hash.update(`${path.relative(root, full)}\0`);
+                    hash.update(fs.readFileSync(full));
+                    hash.update('\0');
                 }
             }
         };
@@ -211,5 +284,5 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
         return hash.digest('hex');
     }
 
-    return { start, unload, started, failure, restartPending, restartFor };
+    return { start, unload, whenEnded, started, failure, restartPending, restartFor };
 }

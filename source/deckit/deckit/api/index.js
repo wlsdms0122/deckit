@@ -14,6 +14,7 @@ export function createApi({
     WEB,
     KEYMAP,
     COMMAND,
+    MAIN_PROCESS,
 }) {
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...DECK.NOTIFICATIONS]);
@@ -54,6 +55,8 @@ export function createApi({
                 // The mod in the page, which may drive mods; throws for any other page.
                 managerFrom: (webContents) => IDENTITY.modFrom(webContents, DECK.MODS).id,
                 relaunchAll: RUNNER.relaunchAll,
+                // The mods whose main process modules only a restart of the app finishes: [{ id, why }].
+                restartPending: () => frozen(MAIN_PROCESS.restartPending()),
             }),
             pages: Object.freeze({
                 make: PAGES.make,

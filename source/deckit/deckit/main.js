@@ -113,6 +113,7 @@ function make({ preload, host, config: CONFIG, folders }) {
         WEB,
         KEYMAP,
         COMMAND,
+        MAIN_PROCESS,
     });
     const starting = []; // what starts with deckit, before any mod launches: the shell on it
     let started = false;
@@ -170,7 +171,9 @@ function make({ preload, host, config: CONFIG, folders }) {
             describe: (mod) => ({
                 mainProcess: { running: MAIN_PROCESS.started(mod.id), failure: MAIN_PROCESS.failure(mod.id) },
             }),
-            installed: (id) => {
+            // Once what ran in its place has ended, modules and all.
+            installed: async (id) => {
+                await MAIN_PROCESS.whenEnded(id);
                 MAIN_PROCESS.restartFor(id);
                 return { restart: MAIN_PROCESS.restartPending().some((pending) => pending.id === id) };
             },

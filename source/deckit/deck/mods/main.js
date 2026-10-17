@@ -12,7 +12,7 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
     // MARK: - Initializer
     // MARK: - Public
     // What is on deck is told of a mod installed, once what runs in its place has launched, and answers what it adds
-    // to what install answers (`installed(id)`), and of one removed (`removed(id)`); it is asked what it knows of a
+    // to what install answers (`installed(id)`, which may answer a promise), and of one removed (`removed(id)`); it is asked what it knows of a
     // mod (`facts(mod)`) and to clear the sessions it made for a mod removed with its data (`clearSessions(id)`, a
     // promise).
     function start(given) {
@@ -119,7 +119,7 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
         const manifest = INSTALL.install(from, shadowed);
         CATALOG.refresh({ installed: manifest.id });
         await RUNNER.whenClosed(manifest.id);
-        return { ...layer.installed(manifest.id), ...MANIFEST.of(manifest) };
+        return { ...(await layer.installed(manifest.id)), ...MANIFEST.of(manifest) };
     }
 
     // A source folder of the same id would hide the installed copy.
