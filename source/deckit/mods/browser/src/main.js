@@ -136,7 +136,7 @@ module.exports = {
             ui,
             show: deck.show,
             bookmarks,
-            listTabs: () => tabs.list(),
+            tabTree: () => tabs.tree(),
             lastClosedTab: () => tabs.lastClosed(),
             onNewTab: (url) => tabs.add(url),
             onReopenTab: () => tabs.reopen(),
@@ -200,7 +200,7 @@ module.exports = {
         }
 
         function showBookmarks() {
-            sidePanel.showBookmarks(bookmarks.all());
+            sidePanel.showBookmarks(bookmarks.tree());
             showBar();
         }
 

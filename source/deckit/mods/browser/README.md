@@ -8,13 +8,13 @@ The Browser keeps what must not be lost in its records, one JSON file a key unde
 
 ### Folders
 
-The open tabs are a tree of folders and tabs. A folder is
+The open tabs and the bookmarks are two trees of the same nodes, each a folder or an item. A folder is
 
 ```json
 { "id": 2, "title": "Work", "color": "blue", "collapsed": false, "children": [] }
 ```
 
-and a tab is
+and an item, a tab or a bookmark, is
 
 ```json
 { "id": 3, "url": "https://example.com/", "title": "Example", "icon": "https://example.com/favicon.ico" }
@@ -45,7 +45,7 @@ The open tabs, as they come back at the next start:
 
 ### bookmarks
 
-The bookmarks, in the order shown: `[{ "url": "https://example.com/", "label": "Example", "icon": "" }]`. A bookmark is known by its address.
+The top level of the tree of bookmarks: `[{ "id": 1, "url": "https://example.com/", "title": "Example", "icon": "" }]`. One address may be bookmarked in more than one place; the star in the address bar is lit while any bookmark has the page's address.
 
 ### certificates and site-permissions
 

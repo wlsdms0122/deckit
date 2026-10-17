@@ -4,7 +4,7 @@ const { outline, inkOf } = require('./outline.js');
 const { tabLabel } = require('./tab-list.js');
 const { FOLDER_COLORS, isFolder } = require('./tree.js');
 
-// The sidebar: the open tabs, in their folders, and the bookmarks, each a section that folds.
+// The sidebar: the open tabs and the bookmarks, each a tree of folders in a section that folds.
 function sidebar({
     ui,
     chordOf,
@@ -33,7 +33,7 @@ function sidebar({
     let tabTree = null;
     let frontTab = null;
     const tabRows = new WeakMap(); // row element -> { row, icon, label, captures, mute }
-    const bookmarkOf = new WeakMap(); // row element -> bookmark
+    const bookmarkRows = new WeakMap(); // row element -> { label }
 
     ui.addStyle(`
         .browser-sidebar { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
@@ -50,7 +50,13 @@ function sidebar({
         onPlace: onPlaceTab,
         onToggle: (folder) => onChangeTabFolder(folder, { collapsed: !folder.collapsed }),
     });
-    const bookmarkList = ui.list({ key: (bookmark) => bookmark.url, create: bookmarkRow, animated: true });
+    const bookmarkOutline = outline({
+        ui,
+        createItem: bookmarkRow,
+        updateItem: updateBookmarkRow,
+        onPlace: bookmarks.place,
+        onToggle: (folder) => bookmarks.changeFolder(folder, { collapsed: !folder.collapsed }),
+    });
     const tabSection = ui.section({
         label: 'Tabs',
         icon: ui.icon('window', { size: 16 }),
@@ -67,7 +73,10 @@ function sidebar({
     const bookmarkSection = ui.section({
         label: 'Bookmarks',
         icon: ui.icon('bookmark', { size: 16 }),
-        actions: [{ title: 'Add bookmark', run: () => add() }],
+        actions: [
+            { icon: ui.icon('folderPlus', { size: 16 }), title: 'New folder', run: () => newBookmarkFolder() },
+            { title: 'Add bookmark', run: () => add() },
+        ],
         collapsed: !!values.get('folds', {}).bookmarks,
         onToggle: (on) => {
             bookmarkSection.setCollapsed(on);
@@ -75,10 +84,9 @@ function sidebar({
         },
     });
     tabSection.body.append(tabOutline.element);
-    bookmarkSection.body.append(bookmarkList.element);
+    bookmarkSection.body.append(bookmarkOutline.element);
     element.append(tabSection.element, bookmarkSection.element);
 
-    ui.sortable(bookmarkList, { onReorder: (url, toUrl) => bookmarks.move(url, toUrl) });
     ui.contextMenu(tabOutline.element, {
         rowAt: (target) => target.closest('.browser-outline-row'),
         items: (row) => {
@@ -86,9 +94,12 @@ function sidebar({
             return node && (isFolder(node) ? tabFolderMenu(node) : tabMenu(node));
         },
     });
-    ui.contextMenu(bookmarkList.element, {
-        rowAt: (target) => target.closest('.browser-bookmark'),
-        items: (row) => row && bookmarkMenu(bookmarkOf.get(row)),
+    ui.contextMenu(bookmarkOutline.element, {
+        rowAt: (target) => target.closest('.browser-outline-row'),
+        items: (row) => {
+            const node = row && bookmarkOutline.nodeAt(row);
+            return node && (isFolder(node) ? bookmarkFolderMenu(node) : bookmarkMenu(node));
+        },
     });
 
     return {
@@ -98,7 +109,7 @@ function sidebar({
             frontTab = front;
             tabOutline.set(tree, front);
         },
-        showBookmarks: (list) => bookmarkList.set(list),
+        showBookmarks: (tree) => bookmarkOutline.set(tree),
         renameFolder,
     };
 
@@ -156,11 +167,11 @@ function sidebar({
         });
     }
 
-    function bookmarkRow(bookmark) {
+    function bookmarkRow(shown) {
+        const { node: bookmark } = shown;
         const row = ui.row();
         row.element.classList.add('browser-bookmark');
-        const label = ui.element('span', { className: 'browser-row-label', text: bookmark.label });
-        label.title = bookmark.url;
+        const label = ui.element('span', { className: 'browser-row-label' });
         const editAction = ui.rowAction({
             icon: ui.icon('pencil'),
             title: 'Edit name and address',
@@ -169,23 +180,28 @@ function sidebar({
         const removeAction = ui.rowAction({
             icon: ui.icon('x'),
             title: 'Remove',
-            onClick: () => bookmarks.remove(bookmark.url),
+            onClick: () => bookmarks.remove(bookmark),
         });
         row.element.append(favicon({ ui, page: bookmark }).element, label, editAction.element, removeAction.element);
         row.element.addEventListener('click', () => onOpenBookmark(bookmark));
-        bookmarkOf.set(row.element, bookmark);
+        bookmarkRows.set(row.element, { label });
+        updateBookmarkRow(row.element, shown);
         return row.element;
     }
 
+    function updateBookmarkRow(rowElement, { node: bookmark }) {
+        const { label } = bookmarkRows.get(rowElement);
+        label.textContent = bookmark.title;
+        label.title = bookmark.url;
+    }
+
     function tabMenu(tab) {
-        const parent = tabTree.parentOf(tab);
-        const others = tabTree.folders().filter((folder) => folder !== parent);
         return [
             { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page.reload() },
             {
                 label: 'Duplicate',
                 icon: 'window',
-                run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon, ...beside(tab) }),
+                run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon, ...beside(tabTree, tab) }),
             },
             {
                 label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
@@ -193,27 +209,7 @@ function sidebar({
                 run: () => tab.page.mute(!tab.muted),
             },
             '-',
-            {
-                label: 'Move to New Folder',
-                icon: 'folderPlus',
-                run: () => onNewTabFolder(parent, parent.children.indexOf(tab), tab),
-            },
-            {
-                label: 'Move to Folder',
-                disabled: !others.length,
-                items: others.map((folder) => ({
-                    label: pathOf(folder),
-                    run: () => onPlaceTab(tab, folder, folder.children.length),
-                })),
-            },
-            {
-                label: 'Remove from Folder',
-                disabled: parent === tabTree.root,
-                run: () => {
-                    const outside = beside(parent);
-                    onPlaceTab(tab, outside.parent, outside.index);
-                },
-            },
+            ...moveItems(tabTree, tab, { onPlace: onPlaceTab, onNewFolder: onNewTabFolder }),
             '-',
             { label: 'Copy Link', icon: 'link', run: () => clipboard.writeText(tab.url).catch(() => {}) },
             {
@@ -269,45 +265,97 @@ function sidebar({
         ];
     }
 
-    // Right after `node`, in its folder: `{ parent, index }`.
-    function beside(node) {
-        const parent = tabTree.parentOf(node);
-        return { parent, index: parent.children.indexOf(node) + 1 };
-    }
-
-    // A folder by the folders it is in and its own name.
-    function pathOf(folder) {
-        return [...tabTree.ancestorsOf(folder).reverse(), folder]
-            .map((each) => each.title || 'Untitled Folder')
-            .join(' / ');
-    }
-
     function bookmarkMenu(bookmark) {
         return [
             { label: 'Open', icon: 'globe', run: () => onOpenBookmark(bookmark) },
             {
                 label: 'Open in New Tab',
                 icon: 'window',
-                run: () => onNewTab(bookmark.url, { title: bookmark.label, icon: bookmark.icon }),
+                run: () => onNewTab(bookmark.url, { title: bookmark.title, icon: bookmark.icon }),
             },
+            '-',
+            ...moveItems(bookmarks.tree(), bookmark, {
+                onPlace: bookmarks.place,
+                onNewFolder: newBookmarkFolder,
+            }),
             '-',
             { label: 'Copy Link', icon: 'link', run: () => clipboard.writeText(bookmark.url).catch(() => {}) },
             { label: 'Edit…', icon: 'pencil', run: () => edit(bookmark) },
-            { label: 'Remove', icon: 'x', run: () => bookmarks.remove(bookmark.url) },
+            { label: 'Remove', icon: 'x', run: () => bookmarks.remove(bookmark) },
         ];
+    }
+
+    function bookmarkFolderMenu(folder) {
+        return [
+            { label: 'New Folder in Folder', icon: 'folderPlus', run: () => newBookmarkFolder(folder) },
+            { label: 'Rename Folder…', icon: 'pencil', run: () => renameFolder(folder, bookmarks.changeFolder) },
+            { label: 'Color', items: colorItems(folder, bookmarks.changeFolder) },
+            '-',
+            { label: 'Ungroup', run: () => bookmarks.ungroup(folder) },
+            { label: 'Delete Folder', icon: 'trash', run: () => bookmarks.remove(folder) },
+        ];
+    }
+
+    // An empty folder at `index` in `parent`, holding `node` when one is given, and named.
+    function newBookmarkFolder(parent, index, node = null) {
+        const folder = bookmarks.newFolder(parent, index);
+        if (node) bookmarks.place(node, folder, 0);
+        renameFolder(folder, bookmarks.changeFolder);
+    }
+
+    // Moving `node` of `tree` into a new folder at its place, into another folder, or out of the one it is in.
+    function moveItems(tree, node, { onPlace, onNewFolder }) {
+        const parent = tree.parentOf(node);
+        const others = tree.folders().filter((folder) => folder !== parent);
+        return [
+            {
+                label: 'Move to New Folder',
+                icon: 'folderPlus',
+                run: () => onNewFolder(parent, parent.children.indexOf(node), node),
+            },
+            {
+                label: 'Move to Folder',
+                disabled: !others.length,
+                items: others.map((folder) => ({
+                    label: pathOf(tree, folder),
+                    run: () => onPlace(node, folder, folder.children.length),
+                })),
+            },
+            {
+                label: 'Remove from Folder',
+                disabled: parent === tree.root,
+                run: () => {
+                    const outside = beside(tree, parent);
+                    onPlace(node, outside.parent, outside.index);
+                },
+            },
+        ];
+    }
+
+    // Right after `node`, in its folder: `{ parent, index }`.
+    function beside(tree, node) {
+        const parent = tree.parentOf(node);
+        return { parent, index: parent.children.indexOf(node) + 1 };
+    }
+
+    // A folder by the folders it is in and its own name.
+    function pathOf(tree, folder) {
+        return [...tree.ancestorsOf(folder).reverse(), folder]
+            .map((each) => each.title || 'Untitled Folder')
+            .join(' / ');
     }
 
     function add() {
         ui.dialog({
             title: 'Add bookmark',
             fields: [
-                { key: 'label', label: 'Name', placeholder: 'optional' },
+                { key: 'title', label: 'Name', placeholder: 'optional' },
                 { key: 'url', label: 'Address', value: frontTab.url },
             ],
             confirmLabel: 'Add',
-            onConfirm: ({ label, url }) => {
+            onConfirm: ({ title, url }) => {
                 const address = parseAddress(url);
-                if (address) bookmarks.add(address, label.trim());
+                if (address) bookmarks.add(address, title.trim());
                 else notAnAddress(url.trim());
             },
         });
@@ -317,14 +365,13 @@ function sidebar({
         ui.dialog({
             title: 'Edit bookmark',
             fields: [
-                { key: 'label', label: 'Name', value: bookmark.label },
+                { key: 'title', label: 'Name', value: bookmark.title },
                 { key: 'url', label: 'Address', value: bookmark.url },
             ],
-            onConfirm: ({ label, url }) => {
+            onConfirm: ({ title, url }) => {
                 const address = parseAddress(url);
                 if (!address) return notAnAddress(url.trim());
-                if (bookmarks.edit(bookmark.url, { label: label.trim() || bookmark.label, url: address })) return;
-                ui.dialog({ title: 'Already a bookmark', message: address, confirmLabel: 'OK', cancelLabel: 'Close' });
+                bookmarks.edit(bookmark, { title: title.trim() || bookmark.title, url: address });
             },
         });
     }
