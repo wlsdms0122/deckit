@@ -94,7 +94,7 @@ function tabList({
         const { children } = nodes.parentOf(opener);
         let after = opener;
         while (children[children.indexOf(after) + 1]?.opener === opener) after = children[children.indexOf(after) + 1];
-        Object.assign(add(url, { background: !activates, ...beside(after) }), { target, opener });
+        Object.assign(add(url, { background: !activates, ...nodes.beside(after) }), { target, opener });
     }
 
     // A tab chosen in a folded folder opens it, and the folders it is in.
@@ -149,11 +149,8 @@ function tabList({
         changed();
     }
 
-    // An empty folder at `index` in `parent`, holding `node` when one is given.
-    function newFolder(parent = nodes.root, index = parent.children.length, node = null) {
-        const folder = nodes.folder();
-        nodes.insert(folder, parent, index);
-        if (node) nodes.move(node, folder, 0);
+    function newFolder(parent, index, node) {
+        const folder = nodes.newFolder(parent, index, node);
         changed();
         return folder;
     }
@@ -164,10 +161,8 @@ function tabList({
         changed();
     }
 
-    // What it holds takes its place.
     function ungroup(folder) {
-        const { parent, index } = nodes.remove(folder);
-        folder.children.forEach((node, at) => nodes.insert(node, parent, index + at));
+        nodes.ungroup(folder);
         changed();
     }
 
@@ -262,12 +257,6 @@ function tabList({
     function release(tab, page) {
         onRelease(tab);
         page.close();
-    }
-
-    // Right after `node`, in its folder.
-    function beside(node) {
-        const parent = nodes.parentOf(node);
-        return { parent, index: parent.children.indexOf(node) + 1 };
     }
 
     // A tab for `url`, its page made and listened to, in no folder yet.

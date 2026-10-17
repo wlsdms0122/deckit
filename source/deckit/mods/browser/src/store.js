@@ -38,9 +38,8 @@ function store({ records, onBookmarksChange }) {
             Object.assign(bookmark, { title, url: address, icon: address === bookmark.url ? bookmark.icon : '' });
             save();
         },
-        newFolder(parent = bookmarkTree.root, index = parent.children.length) {
-            const folder = bookmarkTree.folder();
-            bookmarkTree.insert(folder, parent, index);
+        newFolder(parent, index, node) {
+            const folder = bookmarkTree.newFolder(parent, index, node);
             save();
             return folder;
         },
@@ -58,10 +57,8 @@ function store({ records, onBookmarksChange }) {
             bookmarkTree.insert(copy(node), parent);
             save();
         },
-        // What it holds takes its place.
         ungroup(folder) {
-            const { parent, index } = bookmarkTree.remove(folder);
-            folder.children.forEach((node, at) => bookmarkTree.insert(node, parent, index + at));
+            bookmarkTree.ungroup(folder);
             save();
         },
     };

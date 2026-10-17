@@ -9,7 +9,23 @@ function tree(children, lastId = 0) {
     const root = { children };
     for (const { node } of walk()) lastId = Math.max(lastId, node.id);
 
-    return { root, walk, items, folders, find, parentOf, ancestorsOf, contains, insert, remove, move, folder, newId };
+    return {
+        root,
+        walk,
+        items,
+        folders,
+        find,
+        parentOf,
+        ancestorsOf,
+        contains,
+        beside,
+        insert,
+        remove,
+        move,
+        newFolder,
+        ungroup,
+        newId,
+    };
 
     // Every node, depth first, with its depth and the folders it is in, outermost first.
     function walk(from = root) {
@@ -57,6 +73,12 @@ function tree(children, lastId = 0) {
         return walk(folder).some((each) => each.node === node);
     }
 
+    // Right after `node`, in its folder: `{ parent, index }`.
+    function beside(node) {
+        const parent = parentOf(node);
+        return { parent, index: parent.children.indexOf(node) + 1 };
+    }
+
     function insert(node, parent = root, index = parent.children.length) {
         parent.children.splice(index, 0, node);
         const added = isFolder(node) ? [node, ...walk(node).map((each) => each.node)] : [node];
@@ -77,12 +99,21 @@ function tree(children, lastId = 0) {
         insert(node, parent, from.parent === parent && from.index < index ? index - 1 : index);
     }
 
-    // A new folder, not yet in the tree.
-    function folder(title = '') {
+    // An empty folder at `index` in `parent`, holding `node` when one is given.
+    function newFolder(parent = root, index = parent.children.length, node = null) {
         const all = folders();
         const used = new Set(all.map((each) => each.color));
         const color = FOLDER_COLORS.find((each) => !used.has(each)) || FOLDER_COLORS[all.length % FOLDER_COLORS.length];
-        return { id: newId(), title, color, collapsed: false, children: [] };
+        const folder = { id: newId(), title: '', color, collapsed: false, children: [] };
+        insert(folder, parent, index);
+        if (node) move(node, folder, 0);
+        return folder;
+    }
+
+    // What it holds takes its place.
+    function ungroup(folder) {
+        const { parent, index } = remove(folder);
+        folder.children.forEach((node, at) => insert(node, parent, index + at));
     }
 
     function newId() {

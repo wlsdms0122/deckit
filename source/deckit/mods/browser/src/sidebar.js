@@ -240,7 +240,7 @@ function sidebar({
             {
                 label: 'Duplicate',
                 icon: 'window',
-                run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon, ...beside(tabTree, tab) }),
+                run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon, ...tabTree.beside(tab) }),
             },
             {
                 label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
@@ -340,10 +340,8 @@ function sidebar({
     }
 
     // An empty folder at `index` in `parent`, holding `node` when one is given, and named.
-    function newBookmarkFolder(parent, index, node = null) {
-        const folder = bookmarks.newFolder(parent, index);
-        if (node) bookmarks.place(node, folder, 0);
-        renameFolder(folder, bookmarks.changeFolder);
+    function newBookmarkFolder(parent, index, node) {
+        renameFolder(bookmarks.newFolder(parent, index, node), bookmarks.changeFolder);
     }
 
     // Moving `node` of `tree` into a new folder at its place, into another folder, or out of the one it is in.
@@ -368,7 +366,7 @@ function sidebar({
                 label: 'Remove from Folder',
                 disabled: parent === tree.root,
                 run: () => {
-                    const outside = beside(tree, parent);
+                    const outside = tree.beside(parent);
                     onPlace(node, outside.parent, outside.index);
                 },
             },
@@ -380,12 +378,6 @@ function sidebar({
     function dropPlace(view, section, under) {
         const { parent, mark } = view.dropAt(under);
         return { parent, mark: mark || section.element };
-    }
-
-    // Right after `node`, in its folder: `{ parent, index }`.
-    function beside(tree, node) {
-        const parent = tree.parentOf(node);
-        return { parent, index: parent.children.indexOf(node) + 1 };
     }
 
     // A folder by the folders it is in and its own name.
