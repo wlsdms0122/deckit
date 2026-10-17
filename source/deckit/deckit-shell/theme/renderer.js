@@ -6,15 +6,16 @@ import * as PROTOCOL from './protocol.js';
 // MARK: - Public
 // The page's theme, worn as the token's custom properties and the page's color scheme, and taken in place
 // when the host app gives a new one. Answers the token's members, each read at its use, and
-// `onChange(listener)`, which answers its off.
-function start() {
+// `onChange(listener)`, which answers its off. `tell(listener)` calls a listener: one's failure is its own, and the
+// others still hear the change.
+function start({ tell = told } = {}) {
     const listeners = new Set();
     const sheet = new CSSStyleSheet();
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
     let token = wear(PROTOCOL.setup.invoke().theme);
     PROTOCOL.change.on(({ theme }) => {
         token = wear(theme);
-        for (const listener of listeners) tell(listener);
+        for (const listener of [...listeners]) tell(listener);
     });
     const read = {
         onChange(listener) {
@@ -35,8 +36,8 @@ function start() {
 }
 
 // MARK: - Private
-// One listener's failure is its own: the others still hear the change.
-function tell(listener) {
+// A listener on a page that runs no mod: what it throws goes to the page's console.
+function told(listener) {
     try {
         listener();
     } catch (error) {

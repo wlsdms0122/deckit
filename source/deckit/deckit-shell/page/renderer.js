@@ -22,11 +22,12 @@ function page(name) {
 }
 
 // Every page the shell draws in starts the same: its look, the pointer and what floats, in the app's theme.
-function start() {
+// `tell(listener)` calls a listener of the theme's, on a mod's page through the mod's own record of what throws.
+function start({ tell } = {}) {
     KIT.addStyle(PAGE_STYLE);
     POINTER.start();
     OVERLAY.start();
-    return THEME.start();
+    return THEME.start({ tell });
 }
 
 // MARK: - Private

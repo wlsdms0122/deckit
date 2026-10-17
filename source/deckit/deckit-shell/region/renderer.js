@@ -1,6 +1,7 @@
 import * as PROTOCOL from './protocol.js';
 
-export function createRegion() {
+// `deliver(label, listener, ...args)` calls a listener of the mod's and records on its row what it throws.
+export function createRegion({ deliver }) {
     // MARK: - Property
     const listeners = new Set();
     let known = null; // [{ id, name, icon }]: asked for once, then told
@@ -60,7 +61,7 @@ export function createRegion() {
             known = PROTOCOL.children.invoke();
             PROTOCOL.childrenChanged.on(({ children: next }) => {
                 known = next;
-                for (const listener of listeners) listener(known.slice());
+                for (const listener of [...listeners]) deliver('children.onChange()', listener, known.slice());
             });
         }
         return known;

@@ -13,8 +13,8 @@ import { createRegion, parentProblem } from '../region/renderer.js';
 // `region(element)`, `children`, the registrations `view` and, with deckit.styles, `styles`, and on deck.mods
 // the panel's pins. Once start() has ended, a view goes in the panel's frame, or a region's for a child.
 function mod({ mod: running, chordOf, deliver }) {
-    const REGION = createRegion();
-    const theme = PAGE.start();
+    const REGION = createRegion({ deliver });
+    const theme = PAGE.start({ tell: (listener) => deliver('theme.onChange()', listener) });
     const ui = KIT.make(theme);
     STYLE.wear();
     const styles = running.permissions.some(({ id }) => id === STYLE_PERMISSION.STYLES);
