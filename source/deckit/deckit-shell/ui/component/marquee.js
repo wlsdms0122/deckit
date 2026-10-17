@@ -20,24 +20,20 @@ function make() {
 }
 
 // MARK: - Private
-// Selection by a rectangle dragged from the empty space of `area`, as macOS Finder's: the rows it crosses are
-// selected, with Shift or Command added to the rows of that list already selected, and a press there without them
-// selects nothing. `listAt(element)` answers the keyed list a press there selects in, `{ list, ... }`, or null where
-// none does; `selection()` is the keys selected; `onSelect(keys, place)` hears the keys to select, in the list's
-// order, with what `listAt` answered. Returns the dispose.
+// Selection by a rectangle dragged in `area`, as macOS Finder's: the rows it crosses are selected, with Shift or
+// Command added to the rows of that list already selected, and a press without them selects nothing first.
+// `listAt(element)` answers the keyed list a rectangle started there selects in, `{ list, ... }`, or null where none
+// starts (where a press drags a row); `selection()` is the keys selected; `onSelect(keys, place)` hears the keys to
+// select, in the list's order, with what `listAt` answered. Returns the dispose.
 function marquee(area, { listAt, selection, onSelect }) {
-    const placeAt = (target) => {
-        const place = listAt(target);
-        return place && !rowOf(place.list, target) ? place : null;
-    };
     const onDown = (event) => {
         if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) return;
-        const place = placeAt(event.target);
+        const place = listAt(event.target);
         if (place) onSelect([], place);
     };
     const stop = GESTURE.drag(area, {
-        pick: (target) => placeAt(target) && target,
-        begin: (target, down, finished) => draw(area, placeAt(target), down, selection, onSelect, finished),
+        pick: (target) => listAt(target) && target,
+        begin: (target, down, finished) => draw(area, listAt(target), down, selection, onSelect, finished),
         cursor: 'default',
     });
     area.addEventListener('pointerdown', onDown);
@@ -109,13 +105,6 @@ function scrollingBoxOf(element, area) {
     for (let node = element.parentElement; node && node !== area; node = node.parentElement)
         if (['auto', 'scroll'].includes(getComputedStyle(node).overflowY)) return node;
     return area;
-}
-
-// The row of `list` that `target` is in, or null.
-function rowOf(list, target) {
-    for (let node = target; node && node !== list.element; node = node.parentElement)
-        if (node.parentElement === list.element) return node;
-    return null;
 }
 
 export { STYLE, make };
