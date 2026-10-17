@@ -164,6 +164,8 @@ function make({ preload, host, config: CONFIG, folders }) {
             }
         }
         deck.start({
+            // A mod's page shows the web in <webview>.
+            webPreferences: { webviewTag: true },
             preparePage,
             describe: (mod) => ({
                 mainProcess: { running: MAIN_PROCESS.started(mod.id), failure: MAIN_PROCESS.failure(mod.id) },

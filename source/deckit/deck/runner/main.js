@@ -15,14 +15,17 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
     const numbers = new Map(); // mod id -> the number of its latest run, counted from 1
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
     let preparePage = null;
+    let webPreferences = {};
     let quitting = null; // the runs terminating as the app quits
 
     // MARK: - Initializer
     // MARK: - Public
     // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show.
-    // `preparePage(webContents, mod)` is what is on deck setting the page up.
-    function start({ preparePage: prepare }) {
+    // `preparePage(webContents, mod)` is what is on deck setting the page up, and `webPreferences` what it adds to
+    // the page's preferences as the page is made.
+    function start({ preparePage: prepare, webPreferences: preferences = {} }) {
         preparePage = prepare;
+        webPreferences = preferences;
         listen();
         follow();
         CATALOG.onChange(reconcile);
@@ -145,7 +148,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
     }
 
     function openSandbox(mod) {
-        const view = SANDBOX.view({ webview: true });
+        const view = SANDBOX.view(webPreferences);
         const webContents = view.webContents;
         const sandbox = { mod, view, run: null, stopping: null, closing: null };
         // Before identity's own, so a crash ends the run with its cause. A page that did not load runs no mod:
