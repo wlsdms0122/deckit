@@ -571,12 +571,7 @@ const brainView = ({ deck, bot, reveal }) => {
         rowElements[next]?.scrollIntoView({ block: 'nearest' });
     });
 
-    let woke = false;
-    const wake = () => {
-        if (woke) return;
-        woke = true;
-        input.value = query;
-        renderAxes();
+    const loadAxes = () =>
         bot.brain
             .axes()
             .then((answer) => {
@@ -585,6 +580,14 @@ const brainView = ({ deck, bot, reveal }) => {
                 if (!query) showResults();
             })
             .catch(() => {});
+
+    let woke = false;
+    const wake = () => {
+        if (woke) return;
+        woke = true;
+        input.value = query;
+        renderAxes();
+        loadAxes();
         refresh();
         const last = store.get('note', null);
         if (last) open(last, false);
@@ -672,6 +675,13 @@ const brainView = ({ deck, bot, reveal }) => {
         },
         back: () => {
             if (trail.length) open(trail.pop(), false);
+        },
+        // Another brain is read: what was listed and the note open are read again from it.
+        reload: () => {
+            if (!woke) return;
+            loadAxes();
+            refresh();
+            if (current) open(current, false);
         },
         commands: () => [
             {

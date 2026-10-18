@@ -1,4 +1,5 @@
-module.exports = ({ home }) => {
+// `id` is the mod's: what forge records as who dispatched a run.
+module.exports = ({ home, id }) => {
     const { app } = require('electron');
     const { spawn, execFile } = require('child_process');
     const path = require('path');
@@ -122,8 +123,8 @@ module.exports = ({ home }) => {
                     return dispatchArgs(
                         name,
                         args.inputs || {},
-                        { session_id: `manual:${name}#${run}`, source: 'slackit' },
-                        { kind: 'manual', id: 'slackit' }
+                        { session_id: `manual:${name}#${run}`, source: id },
+                        { kind: 'manual', id }
                     );
                 },
                 token: true,
@@ -191,7 +192,7 @@ module.exports = ({ home }) => {
         const name = sessionName(session);
         const spec = FORGE_OPS.get(operation);
         if (!spec) throw new Error('unknown forge op: ' + operation);
-        if (spec.token && !readToken(name)) throw new Error('no token: SlacKit did not start this daemon');
+        if (spec.token && !readToken(name)) throw new Error('no token: this daemon was not started from here');
         const out = await runForge(name, spec.argv(args || {}), spec.token);
         try {
             return JSON.parse(out);
@@ -199,19 +200,23 @@ module.exports = ({ home }) => {
             return { raw: out };
         }
     };
-    methods.runSchedule = async (session, id) => {
+    methods.runSchedule = async (session, scheduleId) => {
         const name = sessionName(session);
-        workflowArg({ id }, 'id');
+        workflowArg({ id: scheduleId }, 'id');
         const { schedules } = await methods.call(name, 'schedule.list');
-        const schedule = schedules.find((item) => item.id === id);
-        if (!schedule) throw new Error('schedule no longer exists: ' + id);
+        const schedule = schedules.find((item) => item.id === scheduleId);
+        if (!schedule) throw new Error('schedule no longer exists: ' + scheduleId);
         if (!schedule.workflow || schedule.workflow === '<inline>')
             throw new Error('run now requires a registered workflow');
         const argv = dispatchArgs(
             schedule.workflow,
             schedule.inputs || {},
-            { session_id: `manual:${id}#${require('crypto').randomUUID()}`, source: 'slackit', schedule_id: id },
-            { kind: 'schedule', id }
+            {
+                session_id: `manual:${scheduleId}#${require('crypto').randomUUID()}`,
+                source: id,
+                schedule_id: scheduleId,
+            },
+            { kind: 'schedule', id: scheduleId }
         );
         return JSON.parse(await runForge(name, argv, true));
     };
@@ -241,7 +246,7 @@ module.exports = ({ home }) => {
 
     methods.session = (session) => describe(sessionName(session));
 
-    const PATH_MARK = '__slackit_path__';
+    const PATH_MARK = '__bot_path__';
     let loginPathOnce;
     const loginPath = () => {
         if (loginPathOnce) return loginPathOnce;

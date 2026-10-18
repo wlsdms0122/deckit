@@ -26,6 +26,13 @@ module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`,
 
     settings: {
+        home: {
+            label: "The bot's folder",
+            type: 'text',
+            default: '~/workspace/agent/jineun-bot',
+            placeholder: '~/workspace/agent/jineun-bot',
+            hint: 'Where the bot is: its bin/forge and bin/llmemory, .forge and bot/brain.',
+        },
         wrapCode: {
             label: 'Wrap code in notes',
             type: 'toggle',
@@ -38,6 +45,7 @@ module.exports = {
         const { ui } = deck;
         const store = deck.storage.values;
         const bot = await deck.mainProcess('main-process/bot.js');
+        await bot.use(deck.settings.get('home'));
 
         const content = document.createElement('div');
         Object.assign(content.style, {
@@ -209,6 +217,9 @@ module.exports = {
             ...workflows.commands(),
             ...schedules.commands(),
         ]);
+        deck.settings.on((key, value) => {
+            if (key === 'home') bot.use(value).then(() => brain.reload());
+        });
         deck.exports({ forge: { tasks: bot.forge.tasks, release: bot.forge.release } });
 
         for (const name of ['tasks', 'release']) bot.on(name, (state) => deck.emit(name, state));
