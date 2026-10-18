@@ -19,6 +19,39 @@ export function createIdentity() {
         const id = webContents.id;
         owners.set(id, owner);
         pin(webContents, owner.mod ? ORIGIN.originOf(owner.mod.id) : ORIGIN.pageOriginOf(owner.page));
+        watchPresses(webContents);
+        if (owner.mod) pages.set(owner.mod.id, webContents);
+        ends.set(id, new Set());
+        const end = () => {
+            const undos = [...ends.get(id)];
+            ends.get(id).clear();
+            for (const undo of undos) undo();
+        };
+        // A reload or a crashed renderer keeps the webContents and its id, but the page that set things up is gone.
+        // A navigation ends it only once it commits: one that pin refuses never does.
+        webContents.on('did-navigate', end);
+        webContents.on('render-process-gone', end);
+        webContents.once('destroyed', () => {
+            end();
+            ends.delete(id);
+            owners.delete(id);
+            if (owner.mod && pages.get(owner.mod.id) === webContents) pages.delete(owner.mod.id);
+        });
+    }
+
+    // What a page set up lasts as long as the page: `undo` is called once, when the page navigates away, crashes
+    // or is gone. Calling what this returns drops `undo` uncalled.
+    function whenPageEnds(webContents, undo) {
+        const undos = ends.get(webContents.id);
+        if (!undos) throw new Error("whenEnds takes a page of deck's: a mod's, or one that runs none");
+        undos.add(undo);
+        return () => undos.delete(undo);
+    }
+
+    // A person's presses in a page, read by what follows: every page of deck's is watched, and another, as a web page
+    // a mod shows, is watched once it is handed here.
+    function watchPresses(webContents) {
+        const id = webContents.id;
         // A key main takes never reaches the page, so keys are counted before it is taken; a click after it.
         webContents.on(
             'before-input-event',
@@ -36,35 +69,11 @@ export function createIdentity() {
                 held.delete(id);
             }
         });
-        if (owner.mod) pages.set(owner.mod.id, webContents);
-        ends.set(id, new Set());
-        const end = () => {
-            const undos = [...ends.get(id)];
-            ends.get(id).clear();
-            for (const undo of undos) undo();
-        };
-        // A reload or a crashed renderer keeps the webContents and its id, but the page that set things up is gone.
-        // A navigation ends it only once it commits: one that pin refuses never does.
-        webContents.on('did-navigate', end);
-        webContents.on('render-process-gone', end);
         webContents.once('destroyed', () => {
-            end();
-            ends.delete(id);
             activated.delete(id);
             held.delete(id);
             pointed.delete(id);
-            owners.delete(id);
-            if (owner.mod && pages.get(owner.mod.id) === webContents) pages.delete(owner.mod.id);
         });
-    }
-
-    // What a page set up lasts as long as the page: `undo` is called once, when the page navigates away, crashes
-    // or is gone. Calling what this returns drops `undo` uncalled.
-    function whenPageEnds(webContents, undo) {
-        const undos = ends.get(webContents.id);
-        if (!undos) throw new Error("whenEnds takes a page of deck's: a mod's, or one that runs none");
-        undos.add(undo);
-        return () => undos.delete(undo);
     }
 
     // Whether a person just pressed a key or the mouse in this page, used up by the answer: one press, one act.
@@ -136,6 +145,7 @@ export function createIdentity() {
     return {
         add,
         whenPageEnds,
+        watchPresses,
         consumeUserActivation,
         isPressing,
         isPointing,
