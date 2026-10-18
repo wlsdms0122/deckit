@@ -138,7 +138,7 @@ const STYLE = `
 
 // MARK: - Initializer
 // MARK: - Public
-// The panel's sidebar card: the mods' list over the mod's own sidebar. What it shows is main's (`state`),
+// The panel's sidebar card: the mods' list over the mod's own sidebar. What it draws is main's (`state`),
 // and what the person changes is told back: `onPick`, `onStep`, `onReorder`, `onLayout`. `onCollapsedChange`
 // hears the card collapse or open.
 function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, onLayout, onCollapsedChange, chordOf }) {
@@ -270,7 +270,7 @@ function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, on
         if (collapsedChanged) onCollapsedChange();
     }
 
-    function show(state, animate) {
+    function update(state, animate) {
         mods = state.mods;
         current = state.current;
         rows.set(mods);
@@ -320,7 +320,7 @@ function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, on
 
     return {
         element: card,
-        show,
+        update,
         setInRegion,
         setTitleBarHeight,
         collapsed: () => layout.collapsed && !inRegion,
