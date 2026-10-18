@@ -6,4 +6,3 @@ main = "main.js"
 
 [permissions]
 "deckit.mods" = "Restarts a mod you pick, or the whole app, from the switcher."
-"system.notifications" = "Tells you when a mod you asked to restart could not be."

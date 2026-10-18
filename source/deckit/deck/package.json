@@ -5,7 +5,8 @@
         "./main.js": "./main.js",
         "./renderer.js": "./renderer.js",
         "./ipc/index.js": "./ipc/index.js",
-        "./listener/index.js": "./listener/index.js"
+        "./listener/index.js": "./listener/index.js",
+        "./contract/index.js": "./contract/index.js"
     },
     "dependencies": {}
 }

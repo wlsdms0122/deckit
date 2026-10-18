@@ -129,7 +129,7 @@ export function createMod({ hostMod, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST })
             commands: guarded('commands', parts.commands, fail),
             now: guarded('now', parts.now, fail),
             resolve: typeof parts.resolve === 'function' ? (query) => parts.resolve(query) : null,
-            invalid: fail,
+            fail,
         });
         KEYMAP.scope(parts.keys, {
             invalid: fail,
