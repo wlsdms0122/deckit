@@ -1,5 +1,6 @@
-// `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed each command it runs.
-module.exports = ({ home, id, track }) => {
+// `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed each command it runs, and
+// once `live()` is false it starts no daemon.
+module.exports = ({ home, id, track, live }) => {
     const { app } = require('electron');
     const { spawn, execFile } = require('child_process');
     const path = require('path');
@@ -278,6 +279,7 @@ module.exports = ({ home, id, track }) => {
         const logFd = fs.openSync(log, 'a');
         try {
             const shellPath = await loginPath();
+            if (!live()) throw new Error("the bot's folder changed before forge started");
             const env = { ...process.env, FORGE_BOOTSTRAP_FD: '3', PATH: shellPath || process.env.PATH };
             delete env.FORGE_SESSION;
             const argv = session === DEFAULT ? ['serve', '--config', FORGE_CONFIG] : ['serve', '--session', session];
