@@ -12,6 +12,7 @@ module.exports = ({ home, track }) => {
                     [...argv, '--json', '--home', BRAIN_HOME, '--', ...operands],
                     { cwd: path.dirname(BRAIN_HOME), timeout: 15000, maxBuffer: 8 * 1024 * 1024 },
                     (error, stdout, stderr) => {
+                        if (error?.syscall) return reject(new Error('llmemory could not be run: ' + error.message));
                         if (error) return reject(new Error((String(stderr).trim() || error.message).split('\n')[0]));
                         try {
                             resolve(JSON.parse(String(stdout)));

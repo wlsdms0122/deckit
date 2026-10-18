@@ -179,6 +179,9 @@ module.exports = ({ home, id, track, live }) => {
                     { cwd: FORGE_DIR, env, timeout, maxBuffer: 8 * 1024 * 1024 },
                     (error, stdout, stderr) => {
                         if (error) {
+                            // forge itself did not run.
+                            if (error.syscall)
+                                return reject(new Error('forge could not be run: ' + error.message, { cause: error }));
                             if (error.code === 6) {
                                 dropToken(session);
                                 if (sent) rejected.set(session, sent);
@@ -229,9 +232,13 @@ module.exports = ({ home, id, track, live }) => {
     const controlsFor = (up) => ({ start: !up, restart: up, stop: up });
 
     const describe = async (name) => {
+        // A forge that answers nothing has no daemon up; one that could not be run says nothing about it.
         const status = await runForge(name, ['status', '--json'], false)
             .then(JSON.parse)
-            .catch(() => null);
+            .catch((error) => {
+                if (error.cause) throw error;
+                return null;
+            });
         const daemon = status?.daemon?.pid ? status.daemon : null;
         const authority = readToken(name) !== null;
         return { name, up: !!daemon, daemon, authority, controls: controlsFor(!!daemon) };
@@ -289,6 +296,7 @@ module.exports = ({ home, id, track, live }) => {
                 stdio: ['ignore', logFd, logFd, 'pipe'],
                 detached: true,
             });
+            let failure = null;
             const bootstrap = await new Promise((resolve) => {
                 let received = '';
                 const done = (token) => {
@@ -306,12 +314,17 @@ module.exports = ({ home, id, track, live }) => {
                 });
                 child.stdio[3].on('end', () => done(received.trim() || null));
                 child.stdio[3].on('error', () => done(null));
+                child.once('error', (error) => {
+                    failure = error;
+                    done(null);
+                });
             });
+            if (failure) throw new Error('forge could not be run: ' + failure.message);
             if (!bootstrap) {
                 try {
                     child.kill('SIGKILL');
                 } catch {}
-                throw new Error('forge did not come up (no bootstrap token)');
+                throw new Error('forge did not come up (no bootstrap token): the daemon log says why');
             }
             child.unref();
             return { note: writeToken(session, bootstrap) };
