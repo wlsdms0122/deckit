@@ -4,9 +4,8 @@ const { schedulesView } = require('./forge/schedules.js');
 const { sessionPicker } = require('./forge/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
 
-// The bot's folder while the setting is empty.
-const HOME = '~/workspace/agent/jineun-bot';
-const homeOf = (value) => String(value ?? '').trim() || HOME;
+// The settings that say where forge and llmemory are, handed to the main process together.
+const PLACES = ['forge', 'forgeConfig', 'llmemory', 'brain'];
 
 module.exports = {
     keywords: [
@@ -31,12 +30,33 @@ module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`,
 
     settings: {
-        home: {
-            label: "The bot's folder",
+        forge: {
+            label: 'Forge command',
             type: 'text',
-            default: HOME,
-            placeholder: HOME,
-            hint: 'Where the bot is: its bin/forge and bin/llmemory, .forge and bot/brain.',
+            default: '',
+            placeholder: 'forge',
+            hint: "Where the forge program is, as a full path. Empty: the forge on your login shell's PATH.",
+        },
+        forgeConfig: {
+            label: 'Forge configuration',
+            type: 'text',
+            default: '',
+            placeholder: '~/.config/forge/default/config.toml',
+            hint: "The config.toml the default session is served with. Empty: forge's own, in the session's folder.",
+        },
+        llmemory: {
+            label: 'LLMemory command',
+            type: 'text',
+            default: '',
+            placeholder: 'llmemory',
+            hint: "Where the llmemory program is, as a full path. Empty: the llmemory on your login shell's PATH.",
+        },
+        brain: {
+            label: 'Brain folder',
+            type: 'text',
+            default: '',
+            placeholder: 'Not set',
+            hint: "The brain's folder, the one llmemory reads with --home. Brain lists nothing until it is set.",
         },
         wrapCode: {
             label: 'Wrap code in notes',
@@ -50,7 +70,8 @@ module.exports = {
         const { ui } = deck;
         const store = deck.storage.values;
         const bot = await deck.mainProcess('main-process/bot.js');
-        await bot.use(homeOf(deck.settings.get('home')));
+        const places = () => Object.fromEntries(PLACES.map((key) => [key, deck.settings.get(key)]));
+        await bot.use(places());
 
         const content = document.createElement('div');
         Object.assign(content.style, {
@@ -256,8 +277,8 @@ module.exports = {
             ...schedules.commands(),
             ...picker.commands(),
         ]);
-        deck.settings.on((key, value) => {
-            if (key === 'home') bot.use(homeOf(value)).then(() => brain.reload());
+        deck.settings.on((key) => {
+            if (PLACES.includes(key)) bot.use(places()).then(() => brain.reload());
         });
         deck.exports({ forge: { tasks: bot.forge.tasks, release: bot.forge.release } });
 

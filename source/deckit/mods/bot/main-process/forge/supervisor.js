@@ -1,15 +1,11 @@
-// `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed each command it runs, and
-// once `live()` is false it starts no daemon.
-module.exports = ({ home, id, track, live }) => {
+// `command` runs forge, and `config` is the config.toml the `default` session is served with, forge's own in the
+// session's folder when null. `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed
+// each command it runs, and once `live()` is false it starts no daemon. `loginPath()` is the PATH forge is run with.
+module.exports = ({ command, config, id, track, live, loginPath }) => {
     const { app } = require('electron');
     const { spawn, execFile } = require('child_process');
     const path = require('path');
     const fs = require('fs');
-
-    const FORGE_BIN = path.join(home, 'bin', 'forge');
-    const FORGE_DIR = path.join(home, '.forge');
-    const FORGE_CONFIG = path.join(FORGE_DIR, 'config.toml');
-    const FORGE_LOG = path.join(home, 'log', 'forge', 'proc.log');
 
     const DEFAULT = 'default';
     const SESSION_NAME = /^[a-z0-9][a-z0-9_-]*$/i;
@@ -20,7 +16,13 @@ module.exports = ({ home, id, track, live }) => {
         if (!SESSION_NAME.test(name)) throw new Error('bad session name: ' + name);
         return name;
     };
-    const logFile = (session) => (session === DEFAULT ? FORGE_LOG : path.join(sessionHome(session), 'log', 'proc.log'));
+    const logFile = (session) => path.join(sessionHome(session), 'log', 'proc.log');
+    const environment = async () => {
+        const env = { ...process.env, PATH: (await loginPath()) || process.env.PATH };
+        delete env.FORGE_SESSION;
+        delete env.FORGE_SOCKET;
+        return env;
+    };
 
     // A daemon's token is kept in the bot's place, not in the mod's data folder: every app that runs the bot mod
     // controls the same daemons with it.
@@ -164,19 +166,16 @@ module.exports = ({ home, id, track, live }) => {
         })
     );
 
-    const runForge = (session, argv, withToken, timeout = 15000) =>
-        new Promise((resolve, reject) => {
-            const env = { ...process.env };
-            delete env.FORGE_SESSION;
-            delete env.FORGE_SOCKET;
-
-            const sent = withToken ? readToken(session) : null;
-            if (withToken) env.FORGE_ACCESS_TOKEN = sent;
+    const runForge = async (session, argv, withToken, timeout = 15000) => {
+        const env = await environment();
+        const sent = withToken ? readToken(session) : null;
+        if (withToken) env.FORGE_ACCESS_TOKEN = sent;
+        return new Promise((resolve, reject) => {
             track(
                 execFile(
-                    FORGE_BIN,
+                    command,
                     [...argv, '--session', session],
-                    { cwd: FORGE_DIR, env, timeout, maxBuffer: 8 * 1024 * 1024 },
+                    { env, timeout, maxBuffer: 8 * 1024 * 1024 },
                     (error, stdout, stderr) => {
                         if (error) {
                             // forge itself did not run.
@@ -193,6 +192,7 @@ module.exports = ({ home, id, track, live }) => {
                 )
             );
         });
+    };
 
     const methods = {};
 
@@ -258,40 +258,20 @@ module.exports = ({ home, id, track, live }) => {
 
     methods.session = (session) => describe(sessionName(session));
 
-    const PATH_MARK = '__bot_path__';
-    let loginPathOnce;
-    const loginPath = () => {
-        if (loginPathOnce) return loginPathOnce;
-        loginPathOnce = new Promise((resolve) => {
-            const shell = process.env.SHELL || '/bin/zsh';
-            track(
-                execFile(
-                    shell,
-                    ['-lic', `printf '${PATH_MARK}%s${PATH_MARK}' "$PATH"`],
-                    { timeout: 8000, maxBuffer: 1024 * 1024 },
-                    (error, stdout) => {
-                        const parts = String(stdout || '').split(PATH_MARK);
-                        resolve(error || parts.length < 3 ? null : parts[1].trim() || null);
-                    }
-                )
-            );
-        });
-        return loginPathOnce;
-    };
-
     const start = async (session) => {
         if ((await describe(session)).up) throw new Error('forge is already running');
+        // Served from the folder of its configuration: the one set for `default`, forge's own for the others.
+        const given = session === DEFAULT && config;
+        if (given && !fs.existsSync(given)) throw new Error("forge's configuration is not there: " + given);
         const log = logFile(session);
         fs.mkdirSync(path.dirname(log), { recursive: true });
         const logFd = fs.openSync(log, 'a');
         try {
-            const shellPath = await loginPath();
-            if (!live()) throw new Error("the bot's folder changed before forge started");
-            const env = { ...process.env, FORGE_BOOTSTRAP_FD: '3', PATH: shellPath || process.env.PATH };
-            delete env.FORGE_SESSION;
-            const argv = session === DEFAULT ? ['serve', '--config', FORGE_CONFIG] : ['serve', '--session', session];
-            const child = spawn(FORGE_BIN, argv, {
-                cwd: FORGE_DIR,
+            const env = { ...(await environment()), FORGE_BOOTSTRAP_FD: '3' };
+            if (!live()) throw new Error("the bot's settings changed before forge started");
+            const argv = ['serve', '--session', session, ...(given ? ['--config', given] : [])];
+            const child = spawn(command, argv, {
+                cwd: given ? path.dirname(given) : sessionHome(session),
                 env,
                 stdio: ['ignore', logFd, logFd, 'pipe'],
                 detached: true,

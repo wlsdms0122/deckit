@@ -1,16 +1,15 @@
-module.exports = ({ home, track }) => {
+// `command` runs llmemory on the brain in the folder `home`, with the PATH `loginPath()` answers.
+module.exports = ({ command, home, track, loginPath }) => {
     const { execFile } = require('child_process');
-    const path = require('path');
 
-    const BRAIN_HOME = path.join(home, 'bot', 'brain');
-    const LLMEMORY_BIN = path.join(home, 'bin', 'llmemory');
-    const runBrain = (argv, operands) =>
-        new Promise((resolve, reject) => {
+    const runBrain = async (argv, operands) => {
+        const env = { ...process.env, PATH: (await loginPath()) || process.env.PATH };
+        return new Promise((resolve, reject) => {
             track(
                 execFile(
-                    LLMEMORY_BIN,
-                    [...argv, '--json', '--home', BRAIN_HOME, '--', ...operands],
-                    { cwd: path.dirname(BRAIN_HOME), timeout: 15000, maxBuffer: 8 * 1024 * 1024 },
+                    command,
+                    [...argv, '--json', '--home', home, '--', ...operands],
+                    { env, timeout: 15000, maxBuffer: 8 * 1024 * 1024 },
                     (error, stdout, stderr) => {
                         if (error?.syscall) return reject(new Error('llmemory could not be run: ' + error.message));
                         if (error) return reject(new Error((String(stderr).trim() || error.message).split('\n')[0]));
@@ -23,6 +22,7 @@ module.exports = ({ home, track }) => {
                 )
             );
         });
+    };
 
     const noteId = (id) => {
         const checked = String(id || '');
