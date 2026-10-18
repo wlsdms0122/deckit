@@ -51,7 +51,7 @@ For CSS, the token is also custom properties on the page's root: each colour by 
 What floats is one stack. The top layer has the keys first; Escape and a press outside put it away, then the next, until one holds the press.
 
 - `menu({ items, anchor | point, onClose })` returns `{ element, close(), isOpen() }`, or null when a second press on its anchor closed it. An item is `'-'` (a separator) or `{ label, icon, hint, checked, disabled, items, font, run }`; `items` makes a submenu. Arrow keys move, Enter or Space takes, Tab and Escape close.
-- `select({ options, value, onChange })` returns `{ element, set(value) }`. `options` are `{ value, label, font }`.
+- `select({ options, value, onChange })` returns `{ element, set(value), setOptions(options) }`: a pop-up button. `options` are `{ value, label, font, icon, hint }`, drawn as a menu's items are; the chosen one's icon stands before its label on the button.
 - `contextMenu(area, { rowAt, items, keyRow })` is a decorator: the context click, the ContextMenu key or Shift+F10 opens `items(row)` for the row under the pointer or with the focus, and the row is marked while it is open.
 - `popover({ width, onClose })` returns `{ element, show(anchor), close(), isOpen() }`. `width` is the widest it grows to.
 - `modal({ title, confirmLabel, cancelLabel, destructive, extraLabel, onExtra, chrome, align, width, fill, onKey, onConfirm, onClose })` returns `{ close }`. `fill(card)` puts the content in and returns what takes the focus. With `chrome`, a title and the buttons; Enter in a text field confirms. `onKey(event)` has a key first and answers true when it took it; a key it does not take goes on to Enter and Escape as well.
