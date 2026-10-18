@@ -24,12 +24,13 @@ module.exports = ({ id, emit }) => {
 
     return {
         use(home) {
-            const folder = String(home || '').replace(/^~(?=$|\/)/, os.homedir());
+            const given = String(home || '').replace(/^~(?=$|\/)/, os.homedir());
+            const folder = path.isAbsolute(given) ? path.resolve(given) : null;
             if (served && served.folder === folder) return;
             const first = !used;
             used = true;
             retire();
-            if (!path.isAbsolute(folder)) {
+            if (!folder) {
                 problem = `the bot's folder is not a full path: ${home}`;
                 return;
             }
