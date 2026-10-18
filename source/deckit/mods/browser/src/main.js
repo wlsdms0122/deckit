@@ -256,7 +256,7 @@ module.exports = {
         }
 
         function notAnAddress(text) {
-            ui.dialog({ title: 'Not a web address', message: text, confirmLabel: 'OK', cancelLabel: 'Close' });
+            ui.dialog({ title: 'Not a web address', message: text, confirmLabel: 'OK', cancelLabel: null });
         }
     },
 };
