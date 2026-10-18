@@ -31,7 +31,9 @@ module.exports = (forge) => {
     const look = (name, runLimit, changed, read = (parsed) => parsed) => {
         const state = { report: null, checkedAt: null, checking: false, error: forge.problem || null };
         let out = null;
+        // While forge's settings do not hold there is nothing to ask, and the report keeps saying why.
         const ask = () => {
+            if (forge.problem) return Promise.resolve();
             if (out) return out;
             state.checking = true;
             state.error = null;
