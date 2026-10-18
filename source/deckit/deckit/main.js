@@ -59,6 +59,7 @@ function connect({ preload, host, config = {}, folders = {} } = {}) {
 
 // MARK: - Private
 function refuseUnknown(what, given, known) {
+    if (typeof given !== 'object' || !given) throw new Error(`[deckit] ${what} is not an object`);
     const unknown = Object.keys(given).filter((key) => !known.includes(key));
     if (unknown.length) throw new Error(`[deckit] ${what} sets ${unknown.join(', ')}, which deckit does not read`);
 }
