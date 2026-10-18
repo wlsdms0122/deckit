@@ -27,6 +27,7 @@ function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
         add,
         remove,
         reorder,
+        reorderTab,
         place,
         release,
         move,
@@ -80,10 +81,12 @@ function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
 
     // `workspace` goes where `toWorkspace` is.
     function reorder(workspace, toWorkspace) {
-        const from = list.indexOf(workspace);
-        const to = list.indexOf(toWorkspace);
-        if (from < 0 || to < 0) return;
-        list.splice(to, 0, list.splice(from, 1)[0]);
+        moveTo(list, workspace, toWorkspace);
+    }
+
+    // `file` goes where `toFile` is among its workspace's tabs.
+    function reorderTab(file, toFile) {
+        moveTo(ownerOf(file).files, file, toFile);
     }
 
     // Every open, close and replaced preview goes through place and release, so the open files and the workspaces'
@@ -129,6 +132,13 @@ function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
                 } else if (!workspace.current) workspace.current = file;
             }
         }
+    }
+
+    function moveTo(items, item, toItem) {
+        const from = items.indexOf(item);
+        const to = items.indexOf(toItem);
+        if (from < 0 || to < 0) return;
+        items.splice(to, 0, items.splice(from, 1)[0]);
     }
 
     function unlist(workspace, file) {

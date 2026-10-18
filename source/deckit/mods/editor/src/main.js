@@ -181,6 +181,11 @@ module.exports = {
             onSelect: (file) => show(file),
             onKeep: keep,
             onClose: close,
+            onReorder: (file, toFile) => {
+                workspaces.reorderTab(file, toFile);
+                paint();
+                session.save();
+            },
             menuOf: tabMenu,
         });
         const pathBar = filePathBar({ ui, util, onReveal: revealInTree });
