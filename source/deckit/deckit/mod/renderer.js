@@ -137,7 +137,7 @@ export function createMod({ CONFIG, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) 
             global: mod.permissions.some(({ id }) => id === KEYMAP_PERMISSION.GLOBAL_KEYS),
             problemOf: (key) => given.keyProblem(key, parts),
         });
-        KEYMAP.connect({ deliver, blocksKeys: given.blocksKeys });
+        KEYMAP.hear({ deliver, blocksKeys: given.blocksKeys });
         return {
             contributions: { ...reported.contributions },
             summary: {

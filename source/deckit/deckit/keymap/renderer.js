@@ -41,7 +41,7 @@ export function createKeymap() {
 
     // `deliver` runs a mod's function and records what it throws. A key pressed while `blocksKeys()` is dropped,
     // so it cannot act on what is behind a dialog.
-    function connect({ deliver, blocksKeys }) {
+    function hear({ deliver, blocksKeys }) {
         PROTOCOL.key.on(({ action }) => {
             if (!blocksKeys() && runs.has(action)) deliver(`key ${action}`, runs.get(action));
         });
@@ -127,5 +127,5 @@ export function createKeymap() {
         return !!element?.matches?.("input, textarea, select, [contenteditable]:not([contenteditable='false'])");
     }
 
-    return { scope, connect, chord, bindings, bind, reset, record, onChange };
+    return { scope, hear, chord, bindings, bind, reset, record, onChange };
 }

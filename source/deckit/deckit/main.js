@@ -155,7 +155,6 @@ function make({ preload, host, config: CONFIG, folders }) {
         MOD_FOLDER.start();
         RUNTIME.start({ restart: () => host.restart() });
         PAGE.start();
-        KEYMAP.connect({ pageFor: WEB.pageFor });
         started = true;
         // What fails to start with deckit fails alone: the mods run whatever it did.
         for (const listener of starting) {

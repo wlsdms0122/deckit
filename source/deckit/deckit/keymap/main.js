@@ -13,7 +13,6 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
     let overrides = {};
     let recording = null; // { webContents, timer }
-    let pageFor = () => null;
     let delegated = { isActive: () => false, monitor: () => false };
 
     // MARK: - Initializer
@@ -52,11 +51,6 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         });
     }
 
-    // Which deckit page a keystroke in a webContents belongs to.
-    function connect({ pageFor: of }) {
-        pageFor = of;
-    }
-
     // What the key map asks the shell of a deckit page a keystroke landed in: `isActive(page)`, whether it is the
     // page in front, where the mod's own keys and the shell's run; `monitor(page, input)`, the shell's look at the
     // keystroke before any binding, taking it by answering true.
@@ -64,17 +58,20 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         delegated = { isActive, monitor };
     }
 
-    // Keystrokes in this webContents go through the key map. deckit listens on its own; an app hands its own
-    // where deckit's global keys should work too. `keys` are this webContents' own, taken there first: only a
-    // chord main catches wins over a meaning the app's menu gives it.
-    function listen(webContents, { keys = [] } = {}) {
+    // Keystrokes in this webContents go through the key map. deckit listens on its own pages, and on a web page with
+    // the deckit page that shows it, its `embedder`; an app hands its own where deckit's global keys should work too.
+    // `keys` are this webContents' own, taken there first: only a chord main catches wins over a meaning the app's
+    // menu gives it.
+    function listen(webContents, { keys = [], embedder = null } = {}) {
+        // The deckit page a keystroke here belongs to: a mod's or one the shell made, or the one showing it.
+        const page = IDENTITY.modOf(webContents) || IDENTITY.pageNameOf(webContents) ? webContents : embedder;
         if (keys.length)
             local.set(
                 webContents.id,
                 keys.map(({ key, run }) => ({ chord: CHORD.parse(key), run }))
             );
         LOG.guard(webContents, 'before-input-event', (event, input) => {
-            if (handle(webContents, input)) event.preventDefault();
+            if (handle(webContents, page, input)) event.preventDefault();
         });
         const forget = () => typing.delete(webContents.id);
         webContents.once('destroyed', () => local.delete(webContents.id));
@@ -85,7 +82,8 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     }
 
     // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
-    // on deckit. `global` ones work anywhere a webContents is listened to; the rest only in the page in front. Answers its id, for chordOf.
+    // on deckit. `global` ones work anywhere a webContents is listened to; the rest only in the page in front.
+    // Answers its id, for chordOf.
     function register({ action, key, label, global = false, run }) {
         own.push({ action, key, label, scope: global ? 'global' : 'app', run });
         announce();
@@ -263,7 +261,7 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
 
     // First match wins, in the order bindings() lists them, resolved on every keystroke so a change applies at
     // once.
-    function handle(webContents, input) {
+    function handle(webContents, page, input) {
         if (recording) return take(input);
         if (input.type !== 'keyDown') return false;
         const taken = local.get(webContents.id)?.find(({ chord }) => CHORD.matches(chord, input));
@@ -271,7 +269,6 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
             taken.run();
             return true;
         }
-        const page = pageFor(webContents);
         if (page && delegated.monitor(page, input)) return true;
         const active = bindings().filter(
             (binding) => binding.active && CHORD.matches(CHORD.parse(binding.spec), input)
@@ -332,5 +329,5 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         return true;
     }
 
-    return { start, connect, delegate, listen, register, chordOf };
+    return { start, delegate, listen, register, chordOf };
 }
