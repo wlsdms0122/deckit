@@ -1,5 +1,5 @@
 // The forge session the Forge views show, one for all of them: each session is a daemon of its own, and there may be
-// many. It is chosen from a pop-up button in the title bar, each session marked running or not, or from the switcher.
+// many. It is chosen from a pop-up button in the title bar, each session marked with its state, or from the switcher.
 // The chosen session is asked about as often as the views ask about it; the list, a command for each session, less often.
 const CURRENT_MS = 3000;
 const LIST_MS = 15000;

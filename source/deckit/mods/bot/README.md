@@ -4,7 +4,7 @@ The forge daemons and the llmemory brain of a bot that runs on them. Services st
 
 ## The bot's folder
 
-Settings has the bot's folder, `~/workspace/agent/jineun-bot` until it is set: where `bin/forge`, `bin/llmemory`, `.forge` (the bot's forge configuration and workflows) and `bot/brain` are. `~` at its start is the home folder. A new folder is used at once, and the commands still running for the one before end. A daemon already running stays the one it was started as until it is restarted: the `default` session is one name whatever the folder.
+Settings has the bot's folder, `~/workspace/agent/jineun-bot` while it is empty: where `bin/forge`, `bin/llmemory`, `.forge` (the bot's forge configuration and workflows) and `bot/brain` are. `~` at its start is the home folder. A new folder is used at once, and the commands still running for the one before end. A daemon already running stays the one it was started as until it is restarted: the `default` session is one name whatever the folder, and its log is read from the new folder while it writes to the one it started in.
 
 ## Sessions
 
@@ -21,7 +21,7 @@ A mod that requires `bot` receives `forge`, two reports the bot's workflows writ
 | `forge.tasks` | `state()`, `check()` and `sync()`: the report of the `task-status` workflow, `{ report, checkedAt, checking, error, syncing, lastSync, revision }`. `check()` asks for it again, `sync()` runs `task-sync` and then asks again |
 | `forge.release` | `state()` and `check()`: the report of the `release-status` workflow, `{ report, checkedAt, checking, error, revision }` |
 
-Each change is sent as the events `bot:tasks` and `bot:release`, with the state, and `revision` counts them.
+Each change is sent as the events `bot:tasks` and `bot:release`, with the state, and `revision` counts them. A new bot's folder starts both again, from revision 0, and sends them.
 
 ## Keys
 
