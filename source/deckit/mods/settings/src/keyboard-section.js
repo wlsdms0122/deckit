@@ -10,7 +10,7 @@ function keyboardSection({ ui, keymap }) {
         'a chord already in use is not applied until that chord is free.';
     const SCOPE_NAMES = { global: 'Everywhere', app: 'On any mod' };
 
-    let endRecording = null;
+    let recording = null; // the key a chord is recorded for, and the end of its recording: { id, end }
     let drawAfterRecording = false;
     const cardFills = new WeakMap(); // card -> its fill(group)
     const cellFills = new WeakMap(); // shortcut cell -> its fill(shortcut)
@@ -74,12 +74,15 @@ function keyboardSection({ ui, keymap }) {
     body.append(cards.element);
     return { element, title: TITLE, keywords: KEYWORDS, draw, stopRecording };
 
-    // While a key is recorded the cards wait, and are drawn once it ends.
+    // While a key is recorded the cards wait, and are drawn once it ends. A key that left the key map, its mod
+    // stopped, ends its recording, as the chord would have no key to go to.
     function draw(shortcuts) {
-        if (endRecording) {
+        if (recording && shortcuts.some((shortcut) => shortcut.id === recording.id)) {
             drawAfterRecording = true;
             return;
         }
+        recording?.end();
+        recording = null;
         drawAfterRecording = false;
         const errors = shortcuts.filter((shortcut) => shortcut.issues.some(isError)).length;
         conflicts.element.textContent = `${errors} conflict${errors === 1 ? '' : 's'}`;
@@ -94,8 +97,8 @@ function keyboardSection({ ui, keymap }) {
     }
 
     function stopRecording() {
-        endRecording?.();
-        endRecording = null;
+        recording?.end();
+        recording = null;
         if (drawAfterRecording) draw(keymap.list());
     }
 
@@ -144,12 +147,12 @@ function keyboardSection({ ui, keymap }) {
             stopRecording();
             chord.textContent = 'Press a shortcut…';
             chord.toggleAttribute('data-recording', true);
-            endRecording = keymap.record((recorded) => {
+            const end = keymap.record((recorded) => {
                 if (recorded.error) {
                     chord.textContent = recorded.error;
                     return;
                 }
-                endRecording = null;
+                recording = null;
                 drawAfterRecording = false;
                 const asked = recorded.spec || recorded.clear ? keymap.set(current.id, recorded.spec || '') : null;
                 // A chord the key map refuses (one that cannot work everywhere for a key that does) says why on the
@@ -162,6 +165,7 @@ function keyboardSection({ ui, keymap }) {
                     }
                 );
             });
+            recording = { id: current.id, end };
         });
         reset.element.classList.add('settings-reset');
         line.append(name, scope, chord, reset.element);
