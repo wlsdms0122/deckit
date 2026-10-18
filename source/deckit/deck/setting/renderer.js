@@ -1,8 +1,7 @@
 import * as PROTOCOL from './protocol.js';
+import * as SETTING_TYPE from './model/type.js';
 
 // MARK: - Property
-const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
-
 // MARK: - Initializer
 // MARK: - Public
 // A mod's settings as it reads them: what was saved, over what it declared by default. Changed by main,
@@ -48,7 +47,7 @@ function of({ declared, saved, deck, deliver, fail }) {
 function declarationsOf(declared, invalid) {
     const out = {};
     for (const [key, declaration] of Object.entries(declared || {})) {
-        if (!TYPES.has(declaration?.type)) {
+        if (!SETTING_TYPE.TYPES.has(declaration?.type)) {
             invalid(`setting "${key}" has no type deck knows: ${declaration?.type}`);
             continue;
         }
