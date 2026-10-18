@@ -1,5 +1,5 @@
 const { heldSelection } = require('./held-selection.js');
-const { parentOf } = require('./path.js');
+const { parentOf, isInside } = require('./path.js');
 const { isVisible, visibleEntries, nextSortOrder } = require('./sort.js');
 
 // The files of the tab in front, as columns or as a list, the filter over them and the count under them. The view and
@@ -315,8 +315,11 @@ function fileArea({
     }
 
     // A path a rectangle left open that the disk has cut closes: the columns are opened down to the selection again.
+    // Only a path inside the tab's folder can be cut; the folder itself, opened while several of its entries are
+    // selected, stays while the tab is there.
     function holdOpened() {
         const opened = tabs.opened();
+        if (!opened || !isInside(opened, tabs.location())) return;
         const held = heldSelection({
             location: tabs.location(),
             selected: opened,
