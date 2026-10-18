@@ -1,5 +1,5 @@
-// `id` is the mod's: what forge records as who dispatched a run.
-module.exports = ({ home, id }) => {
+// `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed each command it runs.
+module.exports = ({ home, id, track }) => {
     const { app } = require('electron');
     const { spawn, execFile } = require('child_process');
     const path = require('path');
@@ -21,6 +21,8 @@ module.exports = ({ home, id }) => {
     };
     const logFile = (session) => (session === DEFAULT ? FORGE_LOG : path.join(sessionHome(session), 'log', 'proc.log'));
 
+    // A daemon's token is kept in the bot's place, not in the mod's data folder: every app that runs the bot mod
+    // controls the same daemons with it.
     const tokenDir = (session) =>
         path.join(app.getPath('home'), 'Library', 'Caches', 'im.toss.jineun.bot.forge', session);
     const tokenFile = (session) => path.join(tokenDir(session), 'bootstrap.token');
@@ -169,20 +171,22 @@ module.exports = ({ home, id }) => {
 
             const sent = withToken ? readToken(session) : null;
             if (withToken) env.FORGE_ACCESS_TOKEN = sent;
-            execFile(
-                FORGE_BIN,
-                [...argv, '--session', session],
-                { cwd: FORGE_DIR, env, timeout, maxBuffer: 8 * 1024 * 1024 },
-                (error, stdout, stderr) => {
-                    if (error) {
-                        if (error.code === 6) {
-                            dropToken(session);
-                            if (sent) rejected.set(session, sent);
+            track(
+                execFile(
+                    FORGE_BIN,
+                    [...argv, '--session', session],
+                    { cwd: FORGE_DIR, env, timeout, maxBuffer: 8 * 1024 * 1024 },
+                    (error, stdout, stderr) => {
+                        if (error) {
+                            if (error.code === 6) {
+                                dropToken(session);
+                                if (sent) rejected.set(session, sent);
+                            }
+                            return reject(new Error((String(stderr).trim() || error.message).split('\n')[0]));
                         }
-                        return reject(new Error((String(stderr).trim() || error.message).split('\n')[0]));
+                        resolve(String(stdout));
                     }
-                    resolve(String(stdout));
-                }
+                )
             );
         });
 
@@ -252,14 +256,16 @@ module.exports = ({ home, id }) => {
         if (loginPathOnce) return loginPathOnce;
         loginPathOnce = new Promise((resolve) => {
             const shell = process.env.SHELL || '/bin/zsh';
-            execFile(
-                shell,
-                ['-lic', `printf '${PATH_MARK}%s${PATH_MARK}' "$PATH"`],
-                { timeout: 8000, maxBuffer: 1024 * 1024 },
-                (error, stdout) => {
-                    const parts = String(stdout || '').split(PATH_MARK);
-                    resolve(error || parts.length < 3 ? null : parts[1].trim() || null);
-                }
+            track(
+                execFile(
+                    shell,
+                    ['-lic', `printf '${PATH_MARK}%s${PATH_MARK}' "$PATH"`],
+                    { timeout: 8000, maxBuffer: 1024 * 1024 },
+                    (error, stdout) => {
+                        const parts = String(stdout || '').split(PATH_MARK);
+                        resolve(error || parts.length < 3 ? null : parts[1].trim() || null);
+                    }
+                )
             );
         });
         return loginPathOnce;
