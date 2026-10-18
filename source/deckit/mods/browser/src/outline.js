@@ -63,7 +63,6 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         .browser-folder-glyph { display: flex; flex: 0 0 auto; color: var(--browser-folder-ink); }
         .browser-folder-label { color: var(--browser-folder-ink); font-weight: 600; }
         .browser-folder-count { flex: 0 0 auto; color: var(--browser-folder-ink); font: var(--deckit-type-small); opacity: 0.8; }
-        .browser-folder[data-empty] .browser-folder-count { color: var(--deckit-muted); opacity: 1; }
     `);
     const list = ui.list({
         key: keyOf,
@@ -302,7 +301,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         return row.element;
     }
 
-    // An empty folder has nothing to fold: no caret, and "Empty" where a folded one shows how many items it holds.
+    // An empty folder has nothing to fold, so no caret. A folded one shows how many items it holds.
     function updateFolderRow(element, { node, size, active }) {
         const { row, glyph, label, count } = folderRows.get(element);
         const empty = !node.children.length;
@@ -314,7 +313,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         element.title = empty ? '' : open ? 'Collapse folder' : 'Expand folder';
         glyph.innerHTML = ui.icon(open ? 'folderOpen' : 'folder', { size: 16 });
         label.textContent = folderLabel(node);
-        count.textContent = empty ? 'Empty' : node.collapsed && size ? String(size) : '';
+        count.textContent = node.collapsed && size ? String(size) : '';
         row.setActive(active);
     }
 
