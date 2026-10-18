@@ -29,11 +29,7 @@ export function createKeymap() {
                 invalid(`key "${action}" never runs: ${never}`);
                 continue;
             }
-            const chord = CHORD.parse(key);
-            if (
-                entry.global &&
-                (!(chord.meta || chord.ctrl || chord.alt) || CHORD.editsText({ ...chord, control: chord.ctrl }))
-            ) {
+            if (entry.global && !CHORD.fitsGlobal(key)) {
                 invalid(`key "${action}" cannot be global: a global key needs ⌘, ⌃ or ⌥, and none a text field uses`);
                 continue;
             }

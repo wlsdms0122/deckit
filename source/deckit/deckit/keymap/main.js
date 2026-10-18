@@ -104,15 +104,9 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         const { action, key: spec, label, global } = key || {};
         if (typeof action !== 'string' || typeof spec !== 'string' || typeof label !== 'string') return false;
         if (typeof global !== 'boolean' || CHORD.normalize(spec) !== spec) return false;
-        if (!global || fitsGlobal(spec)) return true;
+        if (!global || CHORD.fitsGlobal(spec)) return true;
         LOG.warn(`${mod.id}: key "${action}" cannot be global, so it is not taken`);
         return false;
-    }
-
-    // A global key is taken from every page, fields included: it needs ⌘, ⌃ or ⌥, and none a text field uses.
-    function fitsGlobal(spec) {
-        const chord = CHORD.parse(spec);
-        return !!(chord.meta || chord.ctrl || chord.alt) && !CHORD.editsText({ ...chord, control: chord.ctrl });
     }
 
     // What a reader needs of the binding an issue is about.
@@ -232,7 +226,7 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         if (!binding) throw new Error('no such shortcut: ' + id);
         const wanted = spec ? CHORD.normalize(spec) : '';
         if (spec && !wanted) throw new Error('not a chord: ' + spec);
-        if (wanted && binding.scope === 'global' && !fitsGlobal(wanted))
+        if (wanted && binding.scope === 'global' && !CHORD.fitsGlobal(wanted))
             throw Object.assign(
                 new Error(
                     `${CHORD.label(wanted)} cannot work everywhere: it needs ⌘, ⌃ or ⌥, and none a text field uses`

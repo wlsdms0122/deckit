@@ -139,6 +139,13 @@ function editsText(input) {
     return EDITING.has(input.code) || (!!input.meta && !input.control && !input.alt && EDIT_COMMANDS.has(input.code));
 }
 
+// Whether a spec can be a global key, one taken from every page, text fields included: it needs ⌘, ⌃ or ⌥, and none
+// a text field uses.
+function fitsGlobal(spec) {
+    const chord = parse(spec);
+    return !!(chord.meta || chord.ctrl || chord.alt) && !editsText({ ...chord, control: chord.ctrl });
+}
+
 // A key typed to be bound. A bare key is refused: bound, it would take that letter from every field on the
 // screen. Function keys are allowed, since nothing types them.
 function record(input) {
@@ -188,4 +195,4 @@ function bare(input) {
     return !input.meta && !input.control && !input.alt && !input.shift;
 }
 
-export { parse, normalize, label, matches, fromEvent, editsText, record, cancels, clears, endsRecording };
+export { parse, normalize, label, matches, fromEvent, editsText, fitsGlobal, record, cancels, clears, endsRecording };
