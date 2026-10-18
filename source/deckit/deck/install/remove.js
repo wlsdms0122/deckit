@@ -1,7 +1,7 @@
 export function createRemove({ STORAGE, MANIFEST, INSTALL }) {
     // MARK: - Property
     const fs = require('fs');
-    const UNCLEARED = 'forgotten';
+    const UNCLEARED = 'uncleared';
 
     // MARK: - Initializer
     // MARK: - Public
