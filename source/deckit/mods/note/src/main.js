@@ -16,8 +16,8 @@ const { session } = require('./session.js');
 const { tree } = require('./tree.js');
 const { FONTS, typefaceOf } = require('./typeface.js');
 
-// What stop() waits for: the open note written, so what was typed just before the run ends is kept, and the notes
-// folder no longer watched.
+// What stop() waits for: the open note written, its title typed and not yet applied too, so what was typed just before
+// the run ends is kept, and the notes folder no longer watched.
 let endRun = null;
 
 module.exports = {
@@ -112,7 +112,7 @@ module.exports = {
             onRenamed: changed,
             onMenu: (path, anchor) => ui.menu({ items: noteMenus.noteItems(path), anchor }),
         });
-        endRun = () => Promise.all([noteSession.saveIfUnsaved(), notesFolder.watch(false).catch(() => {})]);
+        endRun = () => Promise.all([noteSession.settle(), notesFolder.watch(false).catch(() => {})]);
         const placeHistory = navigationHistory({
             movePath: util.movePath,
             current: () => place,
