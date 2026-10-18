@@ -62,6 +62,8 @@ module.exports = {
             font: '14px var(--deckit-font)',
             overflow: 'hidden',
         });
+        // One height for every view, room for its tallest control (or the window's title bar, where taller), so
+        // nothing in it moves when the view changes.
         const head = document.createElement('div');
         Object.assign(head.style, {
             display: 'flex',
@@ -69,7 +71,7 @@ module.exports = {
             gap: '10px',
             flex: '0 0 auto',
             padding: '10px 14px 8px',
-            minHeight: '30px',
+            height: '48px',
         });
         ui.titleBar(head);
 
@@ -173,8 +175,19 @@ module.exports = {
             for (const [key, row] of navRows) row.setActive(key === mode.key);
         };
 
+        // Every view's name in one cell, the one shown over the others, so the title is as wide as the longest and
+        // what follows it starts at one place.
         const title = document.createElement('div');
-        Object.assign(title.style, { flex: '0 0 auto', font: '700 15px var(--deckit-font)' });
+        Object.assign(title.style, { flex: '0 0 auto', display: 'grid', font: '700 15px var(--deckit-font)' });
+        const names = new Map(
+            MODES.map((entry) => {
+                const name = document.createElement('span');
+                name.textContent = entry.label;
+                name.style.gridArea = '1 / 1';
+                title.append(name);
+                return [entry, name];
+            })
+        );
         head.append(title, picker.element, ...MODES.map((entry) => entry.view.bar));
         content.append(head, ...MODES.map((entry) => entry.view.pane));
 
@@ -183,15 +196,15 @@ module.exports = {
             if (visible && next !== mode) hide();
             mode = next;
             store.set('mode', mode.key);
-            title.textContent = mode.label;
             renderNav();
             for (const entry of MODES) {
                 const on = entry === mode;
+                names.get(entry).style.visibility = on ? '' : 'hidden';
                 entry.view.bar.style.display = on ? 'flex' : 'none';
                 entry.view.pane.style.display = on ? 'flex' : 'none';
                 if (entry.view.side) entry.view.side.style.display = on ? 'flex' : 'none';
             }
-            picker.element.style.display = mode.system === 'Forge' ? '' : 'none';
+            picker.element.style.visibility = mode.system === 'Forge' ? '' : 'hidden';
             if (visible) show();
         };
         const show = () => {
