@@ -2,12 +2,12 @@ import * as PROTOCOL from './protocol.js';
 import * as BUILD from '../build/index.js';
 import * as DECK from '../../deck/main.js';
 
-export function createRuntime({ CONFIG, HOME, LOG, IDENTITY }) {
+// `restart` is the app's: the process is its own.
+export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // `restart` is the app's: the process is its own.
-    function start({ restart }) {
+    function start() {
         const { app } = require('electron');
         PROTOCOL.about.handle((_payload, sender) => {
             IDENTITY.modFrom(sender);

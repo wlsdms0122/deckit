@@ -1,6 +1,7 @@
 import * as PROTOCOL from './protocol.js';
 
-export function createRegion() {
+// `deckit` is what connect answered.
+export function createRegion({ deckit }) {
     // MARK: - Property
     // `${webContents id}:${number}` -> { parent, rect, child }: a place in a mod's page that shows a child's view
     const regions = new Map();
@@ -8,15 +9,12 @@ export function createRegion() {
     const known = new Map();
     const sentChildren = new Map(); // parent mod id -> its children as its page was last told them, written
     const listeners = new Set();
-    let deckit = null;
 
     // MARK: - Initializer
     // MARK: - Public
     // The places mods give in their views, and the children shown in them. A mod whose view names a parent is
     // that one's child from when its run starts, through launching again, until a run starts that names none.
-    // `deckit` is what connect answered.
-    function start({ deckit: given }) {
-        deckit = given;
+    function start() {
         deckit.mods.observe('didLaunch', ({ mod, summary }) => {
             const before = parentOf(mod.id);
             if (summary.view) known.set(mod.id, { parent: summary.parent || null });

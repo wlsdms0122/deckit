@@ -69,7 +69,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     const deck = DECK.createDeck({ id: CONFIG.id, ...folders });
     const { log: LOG, home: HOME, storage: STORAGE, identity: IDENTITY, catalog: CATALOG, runner: RUNNER } = deck;
     const { manifest: MANIFEST, permission: MOD_PERMISSION, folder: FOLDER } = deck;
-    const WINDOW = createWindow({ LOG });
+    const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
     const PARTITION = createPartition({ CONFIG });
     const SESSION = createSession({ STORAGE, LOG, PARTITION });
     const REGISTRY = createRegistry();
@@ -93,12 +93,12 @@ function make({ preload, host, config: CONFIG, folders }) {
         SCRIPT,
     });
     const OPEN = createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER });
-    const NOTIFICATION = createNotification({ LOG, IDENTITY });
+    const NOTIFICATION = createNotification({ LOG, IDENTITY, clicked: () => host.notificationClicked() });
     const CLIPBOARD = createClipboard({ IDENTITY });
     const COMMAND = createCommand({ LOG, IDENTITY, CATALOG, RUNNER });
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, deck });
-    const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY });
+    const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
     const PAGE = createPage({ CONFIG, IDENTITY });
     const API = createApi({
         CONFIG,
@@ -144,16 +144,15 @@ function make({ preload, host, config: CONFIG, folders }) {
 
     function start(preload, host) {
         deck.prepare({ preload });
-        WINDOW.start({ openWindow: (options) => host.openWindow(options) });
         WEB.start();
         KEYMAP.start();
         OPEN.start();
-        NOTIFICATION.start({ clicked: () => host.notificationClicked() });
+        NOTIFICATION.start();
         CLIPBOARD.start();
         COMMAND.start();
         MAIN_PROCESS.start();
         MOD_FOLDER.start();
-        RUNTIME.start({ restart: () => host.restart() });
+        RUNTIME.start();
         PAGE.start();
         started = true;
         // What fails to start with deckit fails alone: the mods run whatever it did.
