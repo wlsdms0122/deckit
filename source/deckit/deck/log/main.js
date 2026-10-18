@@ -1,4 +1,4 @@
-import * as LOG from './file.js';
+import * as LOG_FILE from './file.js';
 import * as LISTENER from '../listener/index.js';
 import * as PROTOCOL from './protocol.js';
 
@@ -29,7 +29,7 @@ export function createLog({ CONFIG, HOME }) {
     // `nameOf(webContents)` names the page a line came from, as main knows it: no page says who it is.
     function start({ nameOf }) {
         const { app } = require('electron');
-        writer = LOG.open({ folder: HOME.logs, name: CONFIG.id });
+        writer = LOG_FILE.open({ folder: HOME.logs, name: CONFIG.id });
         file = writer.file;
         LISTENER.reportTo((label, failure) => error(`${label} failed`, failure));
         PROTOCOL.line.on(({ level, parts }, sender) => say(nameOf(sender), LEVELS.has(level) ? level : 'info', parts));
