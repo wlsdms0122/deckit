@@ -313,11 +313,16 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         row.setActive(active);
     }
 
+    // An item stands in by its padding, over the row's whole width; a folder's row starts at its depth, so its colour
+    // does too.
     function paint(element, { node, depth }) {
         element.classList.add('browser-outline-row');
         element.dataset.depth = depth;
-        element.style.paddingLeft = 8 + depth * INDENT + 'px';
-        if (isFolder(node)) element.style.setProperty('--browser-folder-ink', inkOf(node.color));
+        const folder = isFolder(node);
+        element.style.marginLeft = folder ? depth * INDENT + 'px' : '';
+        element.style.width = folder ? `calc(100% - ${depth * INDENT}px)` : '';
+        element.style.paddingLeft = 8 + (folder ? 0 : depth * INDENT) + 'px';
+        if (folder) element.style.setProperty('--browser-folder-ink', inkOf(node.color));
         return element;
     }
 }
