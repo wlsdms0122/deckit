@@ -159,7 +159,8 @@ const brainView = ({ deck, bot, reveal }) => {
         width: '2px',
         background: LINE_IDLE,
         opacity: '0',
-        transition: `opacity ${theme.motion.fast}ms ${theme.motion.easing}, background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
+        transition:
+            'opacity var(--deckit-fast) var(--deckit-easing), background-color var(--deckit-fast) var(--deckit-easing)',
     });
     hit.title = 'Drag to resize';
     divider.append(line, hit);
@@ -571,15 +572,19 @@ const brainView = ({ deck, bot, reveal }) => {
         rowElements[next]?.scrollIntoView({ block: 'nearest' });
     });
 
-    const loadAxes = () =>
-        bot.brain
+    let axesAsked = 0;
+    const loadAxes = () => {
+        const mine = ++axesAsked;
+        return bot.brain
             .axes()
             .then((answer) => {
+                if (mine !== axesAsked) return;
                 axes = answer;
                 renderAxes();
                 if (!query) showResults();
             })
             .catch(() => {});
+    };
 
     let woke = false;
     const wake = () => {
