@@ -4,6 +4,10 @@ const { schedulesView } = require('./forge/schedules.js');
 const { sessionPicker } = require('./forge/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
 
+// The bot's folder while the setting is empty.
+const HOME = '~/workspace/agent/jineun-bot';
+const homeOf = (value) => String(value ?? '').trim() || HOME;
+
 module.exports = {
     keywords: [
         'bot',
@@ -30,8 +34,8 @@ module.exports = {
         home: {
             label: "The bot's folder",
             type: 'text',
-            default: '~/workspace/agent/jineun-bot',
-            placeholder: '~/workspace/agent/jineun-bot',
+            default: HOME,
+            placeholder: HOME,
             hint: 'Where the bot is: its bin/forge and bin/llmemory, .forge and bot/brain.',
         },
         wrapCode: {
@@ -46,7 +50,7 @@ module.exports = {
         const { ui } = deck;
         const store = deck.storage.values;
         const bot = await deck.mainProcess('main-process/bot.js');
-        await bot.use(deck.settings.get('home'));
+        await bot.use(homeOf(deck.settings.get('home')));
 
         const content = document.createElement('div');
         Object.assign(content.style, {
@@ -240,7 +244,7 @@ module.exports = {
             ...picker.commands(),
         ]);
         deck.settings.on((key, value) => {
-            if (key === 'home') bot.use(value).then(() => brain.reload());
+            if (key === 'home') bot.use(homeOf(value)).then(() => brain.reload());
         });
         deck.exports({ forge: { tasks: bot.forge.tasks, release: bot.forge.release } });
 
