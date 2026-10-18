@@ -1,6 +1,6 @@
 // The bot's forge daemons and brain, where its settings say each is: `use(settings)` gives them, before anything is
-// asked and again when one changes, and answers which of the two are served anew. A command left empty is the one on the login shell's PATH, and `~` at the start
-// of a path is the home folder.
+// asked and again when one changes, and answers which of the two are served anew. A command left empty is the one on
+// the login shell's PATH, and `~` at the start of a path is the home folder.
 module.exports = ({ id, emit }) => {
     const os = require('os');
     const path = require('path');

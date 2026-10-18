@@ -13,7 +13,7 @@ Settings says where each is, `~` at the start of a path being the home folder:
 | LLMemory command | the `llmemory` program | the `llmemory` on the login shell's PATH |
 | Brain folder | the brain llmemory reads (`--home`) | not set: Brain says so and lists nothing |
 
-The commands run with the login shell's PATH, as do the daemons they start, for an app opened from the Finder has only the system's. A changed setting is used at once by the tool it is for: the commands forge or llmemory still run for the settings before end, while the other's run on, and a daemon already running stays the one it was started as until it is restarted.
+The commands run with the login shell's PATH, as do the daemons they start, for an app opened from the Finder has only the system's. A changed setting is used at once by the tool it is for: what Bot still runs of that tool for the settings before ends, while what it runs of the other goes on, and a daemon already running stays the one it was started as until it is restarted.
 
 ## Sessions
 
