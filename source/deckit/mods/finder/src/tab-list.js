@@ -300,7 +300,7 @@ function tabList({
         if (!alive.length) alive.push({ location: homeLocation(), from: 0 });
         const opened = alive.map((tab) => open(tab.location, { background: true, widths: tab.widths }));
         // The tab that was in front, or if it is gone the one before it, where closing it would have landed.
-        const was = saved?.active ?? 0;
+        const was = saved?.front ?? 0;
         let pick = alive.findIndex((tab) => tab.from === was);
         if (pick < 0) pick = Math.max(0, alive.map((tab) => tab.from < was).lastIndexOf(true));
         show(opened[pick]);
@@ -309,7 +309,7 @@ function tabList({
     function persist() {
         records.set('tabs', {
             list: tabs.map(({ location, widths }) => ({ location, widths })),
-            active: Math.max(0, tabs.indexOf(front)),
+            front: Math.max(0, tabs.indexOf(front)),
             closed,
         });
         draw();
