@@ -2,8 +2,8 @@ const { kindIconOf } = require('./icon-cache.js');
 const { parentOf } = require('./path.js');
 
 // Go to Folder: a path typed, `~` for the home folder and relative to the folder in front, with all that is in the
-// folder typed so far listed under it. Tab completes to the suggestion, the arrows move through them, Enter goes. A file goes
-// to its folder, selected there: `onGo(folder, file)`.
+// folder typed so far listed under it. Tab completes to the suggestion, the arrows move through them, Enter goes. A
+// file goes to its folder, selected there: `onGo(folder, file)`.
 function goToFolder({ ui, disk, tildify, homeLocation, folderInFront, onGo }) {
     // A wait shorter than this shows nothing, so a quick answer does not flash the spinner.
     const WAIT_SHOWN_AFTER = 120; // milliseconds
