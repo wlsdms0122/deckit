@@ -278,7 +278,10 @@ module.exports = {
             ...picker.commands(),
         ]);
         deck.settings.on((key) => {
-            if (PLACES.includes(key)) bot.use(places()).then(() => brain.reload());
+            if (PLACES.includes(key))
+                bot.use(places()).then((renewed) => {
+                    if (renewed.brain) brain.reload();
+                });
         });
         deck.exports({ forge: { tasks: bot.forge.tasks, release: bot.forge.release } });
 

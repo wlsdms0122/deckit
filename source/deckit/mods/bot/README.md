@@ -13,7 +13,7 @@ Settings says where each is, `~` at the start of a path being the home folder:
 | LLMemory command | the `llmemory` program | the `llmemory` on the login shell's PATH |
 | Brain folder | the brain llmemory reads (`--home`) | not set: Brain says so and lists nothing |
 
-The commands run with the login shell's PATH, as do the daemons they start, for an app opened from the Finder has only the system's. A changed setting is used at once: the commands still running for the settings before end, and a daemon already running stays the one it was started as until it is restarted.
+The commands run with the login shell's PATH, as do the daemons they start, for an app opened from the Finder has only the system's. A changed setting is used at once by the tool it is for: the commands forge or llmemory still run for the settings before end, while the other's run on, and a daemon already running stays the one it was started as until it is restarted.
 
 ## Sessions
 
@@ -30,7 +30,7 @@ A mod that requires `bot` receives `forge`, two reports the bot's workflows writ
 | `forge.tasks` | `state()`, `check()` and `sync()`: the report of the `task-status` workflow, `{ report, checkedAt, checking, error, syncing, lastSync, revision }`. `check()` asks for it again, `sync()` runs `task-sync` and then asks again |
 | `forge.release` | `state()` and `check()`: the report of the `release-status` workflow, `{ report, checkedAt, checking, error, revision }` |
 
-Each change is sent as the events `bot:tasks` and `bot:release`, with the state, and `revision` counts them. A changed setting starts both again, from revision 0, and sends them.
+Each change is sent as the events `bot:tasks` and `bot:release`, with the state, and `revision` counts them. A changed Forge command or Forge configuration starts both again, from revision 0, and sends them.
 
 ## Keys
 
