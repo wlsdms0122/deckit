@@ -413,10 +413,17 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
             if (setext) underlines.set(line.number, setext.underline);
             if (!picked.some(({ number }) => number === line.number)) picked.push(line);
         }
-        // A blank line between paragraphs takes no mark, but for a quote, which holds the paragraphs together.
+        // A blank line takes no mark, but one between two paragraphs of a quote, which it holds together. Whether
+        // the lines are in the style already is read of the paragraphs alone.
         const blank = (line) => !line.text.replace(QUOTE_MARKS, '').trim();
-        const lines = key === 'blockQuote' || picked.every(blank) ? picked : picked.filter((line) => !blank(line));
-        const same = lines.every((line) => lineStyleAt(state, line) === key);
+        const filled = picked.filter((line) => !blank(line));
+        const inside = (line) => line.number > filled[0].number && line.number < filled.at(-1).number;
+        const lines = !filled.length
+            ? picked
+            : key === 'blockQuote'
+              ? picked.filter((line) => !blank(line) || inside(line))
+              : filled;
+        const same = (filled.length ? filled : lines).every((line) => lineStyleAt(state, line) === key);
         let number = 0;
         // The underline goes from the end of the line before it. A heading's text may span lines: as a heading it is
         // one line, joined by spaces as CommonMark reads it; as anything else its lines stay.
