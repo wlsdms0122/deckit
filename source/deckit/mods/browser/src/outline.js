@@ -162,7 +162,9 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         rename(node, onCommit) {
             for (const folder of shownTree.ancestorsOf(node)) if (folder.collapsed) onToggle(folder);
             const label = list.elementOf(node.id).querySelector('.browser-row-label');
-            const name = isFolder(node) ? { value: node.title, required: false } : {};
+            const name = isFolder(node)
+                ? { value: node.title, required: false, placeholder: folderLabel({ title: '' }) }
+                : {};
             return ui.inlineEdit(label, { ...name, onCommit });
         },
         // The node of the row `target` is in, or null.
