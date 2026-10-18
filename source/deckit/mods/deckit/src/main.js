@@ -78,14 +78,8 @@ module.exports = {
                         ...entry,
                         hint: `Needs ${missing.join(', ')}, which ${missing.length === 1 ? 'is' : 'are'} not running`,
                     };
-                return { ...entry, hint: STATES[mod.state], run: () => restart(mod) };
+                return { ...entry, hint: STATES[mod.state], run: () => deck.mods.relaunch(mod.id) };
             });
-        }
-
-        function restart(mod) {
-            return deck.mods
-                .relaunch(mod.id)
-                .catch((error) => deck.notify({ title: `Could not restart ${mod.name}`, body: error.message }));
         }
 
         // Each copies itself, for a report.

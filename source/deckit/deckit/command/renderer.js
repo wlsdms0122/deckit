@@ -12,15 +12,16 @@ export function createCommand() {
     // MARK: - Initializer
     // MARK: - Public
     // A mod as a source of commands. What it returns is checked here, and an entry with no label is left out and
-    // told to `invalid` rather than taking every other mod's search down.
+    // told to `fail` rather than taking every other mod's search down. A function of the mod's that throws or rejects
+    // is told to `fail` too, and answers nothing.
     // `icon` is the mod's, which an entry with none of its own is drawn with.
-    function source({ icon, commands, now, resolve, invalid }) {
+    function source({ icon, commands, now, resolve, fail }) {
         const strings = (list) => (Array.isArray(list) ? list.filter((word) => typeof word === 'string' && word) : []);
         PROTOCOL.source.send({ resolves: typeof resolve === 'function' });
 
         const entryOf = (session, command, kind) => {
             if (typeof command?.label !== 'string' || !command.label) {
-                invalid(`a command needs a label (${kind})`);
+                fail(`a command needs a label (${kind})`);
                 return null;
             }
             const id = 'entry-' + ++sequence;
@@ -53,7 +54,7 @@ export function createCommand() {
                 .filter(Boolean);
         });
         PROTOCOL.collectNow.handle(async ({ session }) => {
-            const rows = await now?.();
+            const rows = await called('now()', () => now?.(), fail);
             return (Array.isArray(rows) ? rows : [])
                 .map((row) => {
                     const entry = entryOf(session, row, 'now');
@@ -69,7 +70,7 @@ export function createCommand() {
                 .filter(Boolean);
         });
         PROTOCOL.resolve.handle(async ({ session, raw }) => {
-            const found = await resolve(raw);
+            const found = await called('resolve()', () => resolve(raw), fail);
             return (Array.isArray(found) ? found : [])
                 .map((command) => {
                     const entry = entryOf(session, command, 'resolved');
@@ -84,10 +85,15 @@ export function createCommand() {
             searching.get(id)?.abort();
             const asked = new AbortController();
             searching.set(id, asked);
-            const found =
-                typeof submenu.search === 'function'
-                    ? await submenu.search(raw, { signal: asked.signal })
-                    : await submenu.entries();
+            let found;
+            try {
+                found =
+                    typeof submenu.search === 'function'
+                        ? await submenu.search(raw, { signal: asked.signal })
+                        : await submenu.entries();
+            } catch (error) {
+                if (!asked.signal.aborted) fail(`a submenu threw: ${error.message || error}`);
+            }
             if (asked.signal.aborted) return null;
             searching.delete(id);
             return (Array.isArray(found) ? found : [])
@@ -96,7 +102,8 @@ export function createCommand() {
         });
         // What a command's run returns stays in the page: only that it ran crosses back.
         PROTOCOL.run.handle(async ({ session, id }) => {
-            await sessions.get(session)?.get(id)?.run?.();
+            const run = sessions.get(session)?.get(id)?.run;
+            if (run) await called("a command's run()", run, fail);
         });
         PROTOCOL.end.on(({ session }) => {
             sessions.delete(session);
@@ -110,6 +117,16 @@ export function createCommand() {
         if (ended.has(session)) return new Map();
         if (!sessions.has(session)) sessions.set(session, new Map());
         return sessions.get(session);
+    }
+
+    // A mod's function: a throw or a rejection is told to `fail`, and answers nothing.
+    async function called(what, call, fail) {
+        try {
+            return await call();
+        } catch (error) {
+            fail(`${what} threw: ${error.message || error}`);
+            return undefined;
+        }
     }
 
     function isSubmenu(submenu) {
