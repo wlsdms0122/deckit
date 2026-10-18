@@ -78,7 +78,8 @@ function tree(
             else goUp(current);
             return true;
         }
-        if (key === ' ' && Date.now() - typedAt > TYPE_AHEAD_MS) return act(onPreview, current);
+        // Taken with no preview too: left to the page, it would scroll the list by a page.
+        if (key === ' ' && Date.now() - typedAt > TYPE_AHEAD_MS) return act(onPreview, current) || true;
         if (key === 'Enter') return act(onRename, current);
         if (key.length === 1) return typeAhead(key, keys, current);
         return false;
