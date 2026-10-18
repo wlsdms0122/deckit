@@ -250,7 +250,8 @@ module.exports = ({ command, config, id, track, live, commands }) => {
         if ((await describe(session)).up) throw new Error('forge is already running');
         // Served from the folder of its configuration: the one set for `default`, forge's own for the others.
         const given = session === DEFAULT && config;
-        if (given && !fs.existsSync(given)) throw new Error("forge's configuration is not there: " + given);
+        if (given && !fs.statSync(given, { throwIfNoEntry: false })?.isFile())
+            throw new Error("forge's configuration is not a file; give its config.toml: " + given);
         const log = logFile(session);
         fs.mkdirSync(path.dirname(log), { recursive: true });
         const logFd = fs.openSync(log, 'a');
