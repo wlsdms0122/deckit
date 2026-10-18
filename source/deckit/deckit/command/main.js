@@ -61,14 +61,14 @@ export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
                         )
                     );
             },
-            // The entries of the page an entry opens, for what was typed in it; null for an entry with no page,
+            // The entries of the submenu an entry opens, for what was typed in it; null for an entry with no submenu,
             // or a search a newer one replaced.
             async search(entryId, raw) {
                 const opener = entries.get(entryId);
                 const mod = opener && CATALOG.mods().find(({ id }) => id === opener.mod);
                 if (!mod) return null;
-                const found = await ask(PROTOCOL.search, mod, { raw, page: opener.local }, null);
-                return found && found.map((entry) => wire(mod, 'page', entry));
+                const found = await ask(PROTOCOL.search, mod, { raw, submenu: opener.local }, null);
+                return found && found.map((entry) => wire(mod, 'submenu', entry));
             },
             // As if the person pressed in the mod's page: picking the entry was their press.
             async run(entryId) {

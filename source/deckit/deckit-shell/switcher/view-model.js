@@ -9,8 +9,8 @@ const NUMBERED = 9;
 // MARK: - Initializer
 // MARK: - Public
 // What the switcher shows and what its keys do, apart from how it is drawn. `items` are the commands, `now` the
-// rows of the Now strip; an item with `run` can be chosen, one with `page` opens a list to search inside it.
-// `onQuery(raw, pageId)` asks for answers, which come back through `setResolved`; `onPick(item)` runs a choice
+// rows of the Now strip; an item with `run` can be chosen, one with `submenu` opens a list to search inside it.
+// `onQuery(raw, submenuId)` asks for answers, which come back through `setResolved`; `onPick(item)` runs a choice
 // and `onClose()` puts the switcher away. `state()` is what to draw; `onChange` hears that it changed.
 function make({ placeholder, items, now, onQuery, onPick, onClose }) {
     let nowItems = now.map((item) => ({ ...item, lead: true }));
@@ -24,10 +24,10 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
     let touched = false;
     // A row was aimed at since the query changed, so a late answer does not move the choice.
     let aimed = false;
-    const answers = new Map(); // page id and query -> the entries answered
-    // A page opened to search inside it: { id, label, icon, placeholder, ranked }.
+    const answers = new Map(); // submenu id and query -> the entries answered
+    // A submenu opened to search inside it: { id, label, icon, placeholder, ranked }.
     let inside = null;
-    // While a searching page has not answered what is typed, its last answer stays up and the list is
+    // While a searching submenu has not answered what is typed, its last answer stays up and the list is
     // provisional: a row aimed at is only remembered (`aimedId`), and Enter or a number waits for the answer
     // (`held`).
     let lastAnswer = [];
@@ -56,7 +56,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
         });
         return {
             placeholder: inside ? inside.placeholder : placeholder,
-            page: inside && { id: inside.id, label: inside.label, icon: inside.icon },
+            submenu: inside && { id: inside.id, label: inside.label, icon: inside.icon },
             query: asked,
             rows,
             active,
@@ -69,7 +69,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
         asked = raw.trim();
         held = null;
         aimedId = null;
-        // A ranked page already gave its whole list; only a search is asked again.
+        // A ranked submenu already gave its whole list; only a search is asked again.
         if (!inside?.ranked) onQuery?.(asked, inside?.id || null);
         apply();
     }
@@ -107,16 +107,16 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
     function choose(index) {
         const item = shown[index];
         if (!isActionable(item)) return;
-        if (!item.page) {
+        if (!item.submenu) {
             onClose?.();
             return onPick?.(item);
         }
-        // Through onPick too, so opening a page counts as a use.
+        // Through onPick too, so opening a submenu counts as a use.
         onPick?.(item);
         enter(item);
     }
 
-    // Leaves the page searched in, if one is open. Whether it did.
+    // Leaves the submenu searched in, if one is open. Whether it did.
     function back() {
         if (!inside) return false;
         inside = null;
@@ -135,10 +135,10 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
 
     // Drawn only for the query it answers and only while nothing is aimed at: answers can go on top, and
     // folding them in would move the choice out from under Enter.
-    function setResolved(raw, entries, pageId) {
-        answers.set(answerKey(pageId, raw), entries);
-        if (aimed || (pageId || null) !== (inside?.id || null)) return;
-        // A ranked page's answer is for the empty query, ranked for whatever is typed now.
+    function setResolved(raw, entries, submenuId) {
+        answers.set(answerKey(submenuId, raw), entries);
+        if (aimed || (submenuId || null) !== (inside?.id || null)) return;
+        // A ranked submenu's answer is for the empty query, ranked for whatever is typed now.
         if (inside?.ranked ? raw !== '' : raw !== asked) return;
         apply();
         if (aimedId != null) {
@@ -173,13 +173,13 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
         inside = {
             id: item.id,
             label: item.label,
-            icon: item.page.icon || '',
-            placeholder: item.page.placeholder || 'Search…',
-            ranked: !!item.page.ranked,
+            icon: item.submenu.icon || '',
+            placeholder: item.submenu.placeholder || 'Search…',
+            ranked: !!item.submenu.ranked,
         };
         reset();
         touched = true;
-        onQuery?.('', inside.id); // what the page shows before anything is typed
+        onQuery?.('', inside.id); // what the submenu shows before anything is typed
         apply();
     }
 
@@ -195,7 +195,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
         // Resolvers get the query as typed: lowercasing is for ranking and would break an id in a URL.
         const query = asked.toLowerCase();
         if (inside) {
-            // A searching page's list is its answer to the raw text; a ranked page gave one list as it opened,
+            // A searching submenu's list is its answer to the raw text; a ranked submenu gave one list as it opened,
             // ranked here.
             const key = answerKey(inside.id, inside.ranked ? '' : asked);
             if (answers.has(key)) lastAnswer = answers.get(key);
@@ -312,8 +312,8 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
 }
 
 // MARK: - Private
-function answerKey(pageId, raw) {
-    return (pageId || '') + '\0' + raw;
+function answerKey(submenuId, raw) {
+    return (submenuId || '') + '\0' + raw;
 }
 
 function isActionable(item) {

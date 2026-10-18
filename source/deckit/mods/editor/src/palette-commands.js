@@ -83,7 +83,7 @@ function paletteCommands({
                     'workspace',
                     nameOf(workspace.root),
                 ],
-                page: {
+                submenu: {
                     placeholder: 'Search files in ' + nameOf(workspace.root),
                     search: (query) => searchFiles(workspace, query),
                 },

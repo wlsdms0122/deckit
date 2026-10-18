@@ -2,7 +2,7 @@ const { parseAddress, isWrittenAddress, placeOf } = require('./address.js');
 const { tabLabel } = require('./tab-list.js');
 const { folderLabel } = require('./tree.js');
 
-// What the Browser offers the switcher: an address typed there, and its commands. Bookmarks and tabs are pages of
+// What the Browser offers the switcher: an address typed there, and its commands. Bookmarks and tabs are submenus of
 // their own, so a long list does not bury every other mod; one in a folder is hinted with the folders it is in.
 function switcher({ ui, show, bookmarks, tabTree, lastClosedTab, onNewTab, onReopenTab, onSelectTab }) {
     return { resolve, commands };
@@ -57,7 +57,7 @@ function switcher({ ui, show, bookmarks, tabTree, lastClosedTab, onNewTab, onReo
                 label: 'Search Bookmarks',
                 icon: ui.icon('bookmark', { size: 16 }),
                 keywords: ['북마크', '즐겨찾기', 'bookmarks'],
-                page: {
+                submenu: {
                     placeholder: 'Search bookmarks',
                     entries: () =>
                         bookmarks
@@ -79,7 +79,7 @@ function switcher({ ui, show, bookmarks, tabTree, lastClosedTab, onNewTab, onReo
                 label: 'Search Tabs',
                 icon: ui.icon('window', { size: 16 }),
                 keywords: ['탭', 'tabs'],
-                page: {
+                submenu: {
                     placeholder: 'Search open tabs',
                     entries: () =>
                         tabTree()

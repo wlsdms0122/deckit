@@ -614,7 +614,7 @@ const brainView = ({ deck, bot, reveal }) => {
 
     const PAGE_MIN = 2,
         PAGE_LIMIT = 8;
-    const searchPage = (raw, { signal } = {}) => {
+    const searchSubmenu = (raw, { signal } = {}) => {
         const text = String(raw || '').trim();
         if (!text) return [];
         const go = (then) => () => {
@@ -700,7 +700,7 @@ const brainView = ({ deck, bot, reveal }) => {
                 icon: ui.icon('search', { size: 16 }),
                 group: 'LLMemory',
                 keywords: ['brain', 'memory', 'note', 'search', 'llmemory', '브레인', '기억', '지식', '노트', '검색'],
-                page: { placeholder: 'Search the brain', search: searchPage },
+                submenu: { placeholder: 'Search the brain', search: searchSubmenu },
             },
         ],
     };

@@ -18,7 +18,7 @@ function paletteCommands({ ui, show, searchNotes, allNotes, onNewNote, onOpenNot
             label: 'Search Notes',
             icon: ui.icon('search', { size: 16 }),
             keywords: ['노트 검색', '메모 검색', '노트', '메모', 'find', 'notes'],
-            page: { placeholder: 'Search notes', search: searchEntries },
+            submenu: { placeholder: 'Search notes', search: searchEntries },
         },
         ...foldersIn(allNotes).map((folder) => ({
             group: 'Folders',
