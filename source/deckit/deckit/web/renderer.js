@@ -1,7 +1,8 @@
 import * as PROTOCOL from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
+import * as PARTITION from './model/partition.js';
 
-export function createWeb({ PARTITION }) {
+export function createWeb({ sessionPrefix }) {
     // MARK: - Property
     // Unique across reloads of this document, since main may still be closing the last one's pages.
     const boot = Date.now().toString(36);
@@ -50,12 +51,12 @@ export function createWeb({ PARTITION }) {
     // What a mod is handed of the web: its sessions, pages in its view, and pages in windows. `owner` is
     // whoever hands it out ({ deliver, recordFailure }), `opener` what opens an address the page passes on, and
     // `permissions` decides which of the session's tools exist.
-    function forMod({ modId, permissions, owner, opener }) {
+    function forMod({ permissions, owner, opener }) {
         const has = (permission) => permissions.includes(permission);
         const made = new Map();
         const session = (name) => {
             if (made.has(name)) return made.get(name);
-            PARTITION.spell(modId, name);
+            PARTITION.spellIn(sessionPrefix, name);
             const handle = Object.freeze({
                 name,
                 clear: () => PROTOCOL.clear.invoke({ name }),
@@ -83,7 +84,7 @@ export function createWeb({ PARTITION }) {
         return Object.freeze({
             session,
             page: ({ session: handle, url = '' } = {}) =>
-                page(PARTITION.spell(modId, nameOf(handle)), url, owner, opener, handle),
+                page(PARTITION.spellIn(sessionPrefix, nameOf(handle)), url, owner, opener, handle),
             window: ({ session: handle, url = '', title = '' } = {}) =>
                 windowPage(nameOf(handle), url, title, owner, opener, handle),
         });
