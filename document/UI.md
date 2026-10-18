@@ -1,6 +1,6 @@
 # The kit (`deck.ui`)
 
-Every page deckit's shell draws, a mod's and its own, draws with one kit, so the panel looks like one app. The kit is the shell's (`source/deckit/deckit-shell`), which hands it to every mod: `deck.theme` is the look; `deck.ui` is the parts drawn in it.
+Every page deckit's shell draws, a mod's and its own, draws with one kit, so the panel looks like one app. The kit is deckit's shell's, which hands it to every mod: `deck.theme` is the look; `deck.ui` is the parts drawn in it.
 
 The kit's parts are of five kinds:
 
