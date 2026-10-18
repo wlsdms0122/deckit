@@ -5,46 +5,46 @@ import * as OVERLAY from '../overlay/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as LISTBOX from '../list/listbox.js';
 import * as TREE from '../list/tree.js';
-import * as PART from '../component/part.js';
-import * as BUTTON_COMPONENT from '../component/button.js';
-import * as FIELD_COMPONENT from '../component/field.js';
-import * as MENU_COMPONENT from '../component/menu.js';
-import * as SECTION_COMPONENT from '../component/section.js';
-import * as POPOVER_COMPONENT from '../component/popover.js';
-import * as ROW_COMPONENT from '../component/row.js';
-import * as INLINEEDIT_COMPONENT from '../component/inline-edit.js';
-import * as SORTABLE_COMPONENT from '../component/sortable.js';
-import * as MARQUEE_COMPONENT from '../component/marquee.js';
-import * as DRAG_COMPONENT from '../component/drag.js';
-import * as FILETREE_COMPONENT from '../component/file-tree.js';
-import * as RESIZER_COMPONENT from '../component/resizer.js';
-import * as EMPTYSTATE_COMPONENT from '../component/empty-state.js';
-import * as LOADING_COMPONENT from '../component/loading.js';
+import * as PART from '../part/index.js';
+import * as BUTTON from '../button/index.js';
+import * as FIELD from '../field/index.js';
+import * as MENU from '../menu/index.js';
+import * as SECTION from '../section/index.js';
+import * as POPOVER from '../popover/index.js';
+import * as ROW from '../row/index.js';
+import * as INLINE_EDIT from '../inline-edit/index.js';
+import * as SORTABLE from '../sortable/index.js';
+import * as MARQUEE from '../marquee/index.js';
+import * as DRAG from '../drag/index.js';
+import * as FILE_TREE from '../file-tree/index.js';
+import * as RESIZER from '../resizer/index.js';
+import * as EMPTY_STATE from '../empty-state/index.js';
+import * as LOADING from '../loading/index.js';
 import * as FONTS from '../fonts/index.js';
-import * as MODAL_COMPONENT from '../component/modal.js';
-import * as QUICKPICK_COMPONENT from '../component/quick-pick.js';
-import * as COLORPICKER_COMPONENT from '../component/color-picker.js';
-import * as DIALOG_COMPONENT from '../component/dialog.js';
+import * as MODAL from '../modal/index.js';
+import * as QUICK_PICK from '../quick-pick/index.js';
+import * as COLOR_PICKER from '../color-picker/index.js';
+import * as DIALOG from '../dialog/index.js';
 
 const components = [
-    BUTTON_COMPONENT,
-    FIELD_COMPONENT,
-    MENU_COMPONENT,
-    SECTION_COMPONENT,
-    POPOVER_COMPONENT,
-    ROW_COMPONENT,
-    INLINEEDIT_COMPONENT,
-    SORTABLE_COMPONENT,
-    MARQUEE_COMPONENT,
-    DRAG_COMPONENT,
-    FILETREE_COMPONENT,
-    RESIZER_COMPONENT,
-    EMPTYSTATE_COMPONENT,
-    LOADING_COMPONENT,
-    MODAL_COMPONENT,
-    QUICKPICK_COMPONENT,
-    COLORPICKER_COMPONENT,
-    DIALOG_COMPONENT,
+    BUTTON,
+    FIELD,
+    MENU,
+    SECTION,
+    POPOVER,
+    ROW,
+    INLINE_EDIT,
+    SORTABLE,
+    MARQUEE,
+    DRAG,
+    FILE_TREE,
+    RESIZER,
+    EMPTY_STATE,
+    LOADING,
+    MODAL,
+    QUICK_PICK,
+    COLOR_PICKER,
+    DIALOG,
 ];
 // MARK: - Property
 let installed = false;

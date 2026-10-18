@@ -3,7 +3,7 @@ import * as MOTION from '../motion/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as GESTURE from '../gesture/index.js';
 import * as LIST from '../list/index.js';
-import * as DRAG from './drag.js';
+import * as DRAG from '../drag/index.js';
 
 // MARK: - Property
 const STYLE = '';
