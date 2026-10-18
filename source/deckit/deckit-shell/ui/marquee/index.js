@@ -23,15 +23,15 @@ function make() {
 // Selection by a rectangle dragged in `area`, as macOS Finder's: the rows it crosses are selected, with Shift added to
 // the rows of that list already selected, with Command toggled in them, and a click on no row selects nothing.
 // `listAt(element)` answers the keyed list a rectangle started there selects in, `{ list, ... }`, or null where none
-// starts (where a press drags a row); `selection()` is the keys selected; `onSelect(keys, place)` hears the keys to
-// select, in the list's order, with what `listAt` answered. Returns the dispose.
+// starts (where a press drags a row); `selection()` is the keys selected; `onSelect(keys, place, { click })` hears the
+// keys to select, in the list's order, with what `listAt` answered, and whether a click chose them. Returns the dispose.
 function marquee(area, { listAt, selection, onSelect }) {
     // On the click, not the press: a press on a scroll bar is never followed by one, and a click on a row is its
     // owner's. The click that ends a rectangle is the drag's.
     const onClick = (event) => {
         if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) return;
         const place = listAt(event.target);
-        if (place && !isInRow(event.target, place.list)) onSelect([], place);
+        if (place && !isInRow(event.target, place.list)) onSelect([], place, { click: true });
     };
     const stop = GESTURE.drag(area, {
         pick: (target) => listAt(target) && target,
@@ -92,7 +92,7 @@ function draw(area, place, down, selection, onSelect, finished) {
         );
         if (next.join('\n') === selected) return;
         selected = next.join('\n');
-        onSelect(next, place);
+        onSelect(next, place, { click: false });
     };
     const end = () => {
         box.remove();
