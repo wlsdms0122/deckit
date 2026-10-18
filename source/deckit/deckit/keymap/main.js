@@ -223,14 +223,9 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         const wanted = spec ? CHORD.normalize(spec) : '';
         if (spec && !wanted) throw new Error('not a chord: ' + spec);
         if (wanted && binding.scope === 'global' && !CHORD.fitsGlobal(wanted))
-            throw Object.assign(
-                new Error(
-                    `${CHORD.label(wanted)} cannot work everywhere: it needs ⌘, ⌃ or ⌥, and none a text field uses`
-                ),
-                {
-                    kind: 'REFUSED',
-                }
-            );
+            throw Object.assign(new Error(`${CHORD.label(wanted)} cannot work everywhere: ${CHORD.GLOBAL_RULE}`), {
+                kind: 'REFUSED',
+            });
         const next = { ...overrides };
         delete next[id];
         if (wanted !== binding.key) next[id] = wanted;

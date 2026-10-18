@@ -30,7 +30,7 @@ export function createKeymap() {
                 continue;
             }
             if (entry.global && !CHORD.fitsGlobal(key)) {
-                invalid(`key "${action}" cannot be global: a global key needs ⌘, ⌃ or ⌥, and none a text field uses`);
+                invalid(`key "${action}" cannot be global: ${CHORD.GLOBAL_RULE}`);
                 continue;
             }
             runs.set(action, entry.run);
