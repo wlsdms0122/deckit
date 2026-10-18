@@ -1,9 +1,12 @@
+// The bot's workflows on its `default` session. `forge` is the supervisor of the daemons, or `{ problem }` when forge's
+// settings do not hold: then every report says so.
 module.exports = (forge) => {
     const SESSION = forge.DEFAULT;
 
     const GRACE = 60 * 1000;
 
     const dispatch = async (name, inputs, runLimit) => {
+        if (forge.problem) throw new Error(forge.problem);
         if (!forge.hasToken(SESSION)) throw new Error("no token for the bot's daemon; start it from Bot · Services");
         const out = await forge.run(
             SESSION,
@@ -26,7 +29,7 @@ module.exports = (forge) => {
     };
 
     const look = (name, runLimit, changed, read = (parsed) => parsed) => {
-        const state = { report: null, checkedAt: null, checking: false, error: null };
+        const state = { report: null, checkedAt: null, checking: false, error: forge.problem || null };
         let out = null;
         const ask = () => {
             if (out) return out;

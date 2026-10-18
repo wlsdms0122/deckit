@@ -30,7 +30,7 @@ A mod that requires `bot` receives `forge`, two reports the bot's workflows writ
 | `forge.tasks` | `state()`, `check()` and `sync()`: the report of the `task-status` workflow, `{ report, checkedAt, checking, error, syncing, lastSync, revision }`. `check()` asks for it again, `sync()` runs `task-sync` and then asks again |
 | `forge.release` | `state()` and `check()`: the report of the `release-status` workflow, `{ report, checkedAt, checking, error, revision }` |
 
-Each change is sent as the events `bot:tasks` and `bot:release`, with the state, and `revision` counts them. A changed Forge command or Forge configuration starts both again, from revision 0, and sends them.
+Each change is sent as the events `bot:tasks` and `bot:release`, with the state, and `revision` counts them. A changed Forge command or Forge configuration starts both again, from revision 0, and sends them. While those settings do not hold, each report's `error` says why.
 
 ## Keys
 

@@ -47,14 +47,15 @@ module.exports = ({ id, emit }) => {
     const through = (read, names) =>
         Object.fromEntries(names.map((name) => [name, async (...args) => read()[name](...args)]));
 
+    // Forge's settings that do not hold stand for the daemons: the supervisor's methods tell the problem, and the
+    // reports carry it as their error.
     const forge = part('forge', (at, { track, live }) => {
-        if (at.problem) return at;
         const send = (name) => (state) => live() && emit(name, state);
-        const supervisor = require('./forge/supervisor.js')({ ...at, id, track, live, commands });
+        const daemons = at.problem ? at : require('./forge/supervisor.js')({ ...at, id, track, live, commands });
         return {
-            supervisor: supervisor.methods,
-            tasks: require('./forge/tasks.js')({ forge: supervisor, send: send('tasks') }),
-            release: require('./forge/release.js')({ forge: supervisor, send: send('release') }),
+            supervisor: at.problem ? at : daemons.methods,
+            tasks: require('./forge/tasks.js')({ forge: daemons, send: send('tasks') }),
+            release: require('./forge/release.js')({ forge: daemons, send: send('release') }),
         };
     });
     const brain = part('the brain', (at, { track }) =>
@@ -100,7 +101,7 @@ module.exports = ({ id, emit }) => {
             });
             const renewed = { forge: forge.use(forgeAt), brain: brain.use(brainAt) };
             // What other mods hear starts again with the new forge settings' reports.
-            if (used && renewed.forge && !forgeAt.problem) {
+            if (used && renewed.forge) {
                 emit('tasks', forge.value().tasks.state());
                 emit('release', forge.value().release.state());
             }
@@ -109,11 +110,11 @@ module.exports = ({ id, emit }) => {
         },
         forge: {
             supervisor: through(
-                () => held(forge.value()).supervisor,
+                () => held(forge.value().supervisor),
                 ['call', 'runSchedule', 'sessions', 'session', 'start', 'stop', 'restart', 'log']
             ),
-            tasks: through(() => held(forge.value()).tasks, ['state', 'check', 'sync']),
-            release: through(() => held(forge.value()).release, ['state', 'check']),
+            tasks: through(() => forge.value().tasks, ['state', 'check', 'sync']),
+            release: through(() => forge.value().release, ['state', 'check']),
         },
         brain: through(() => held(brain.value()), ['search', 'list', 'axes', 'get', 'related']),
         // The daemons it started are the person's and run on after the app; the commands it runs end with it.
