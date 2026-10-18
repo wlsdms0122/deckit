@@ -406,13 +406,16 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         const { state } = view;
         // A setext heading is its text line: its underline goes with whatever style the line takes.
         const underlines = new Map(); // text line number -> its underline line
-        const lines = [];
+        const picked = [];
         for (const selected of selectedLines(state)) {
             const setext = setextAt(state, selected);
             const line = setext ? setext.text : selected;
             if (setext) underlines.set(line.number, setext.underline);
-            if (!lines.some(({ number }) => number === line.number)) lines.push(line);
+            if (!picked.some(({ number }) => number === line.number)) picked.push(line);
         }
+        // A blank line between paragraphs takes no mark, but for a quote, which holds the paragraphs together.
+        const blank = (line) => !line.text.replace(QUOTE_MARKS, '').trim();
+        const lines = key === 'blockQuote' || picked.every(blank) ? picked : picked.filter((line) => !blank(line));
         const same = lines.every((line) => lineStyleAt(state, line) === key);
         let number = 0;
         // The underline goes from the end of the line before it. A heading's text may span lines: as a heading it is
