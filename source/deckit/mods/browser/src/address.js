@@ -1,5 +1,7 @@
+const { TOP_LEVEL_DOMAINS } = require('./top-level-domains.js');
+
 // A host written without its scheme: this machine or an IP address, served over http as a browser reads them, and a
-// name whose last label starts with a letter, over https. "1.5" is a number, not a host.
+// name whose last label is a top-level domain, over https. "main.js" is a file's name and "1.5" a number, not hosts.
 const LOCAL_HOST = /^(localhost|\d{1,3}(\.\d{1,3}){3})(:\d{1,5})?([/?#].*)?$/i;
 const NAMED_HOST = /^[\w-]+(\.[\w-]+)*\.[a-z][a-z0-9-]*(:\d{1,5})?([/?#].*)?$/i;
 
@@ -12,8 +14,13 @@ function parseAddress(given) {
     if (!text || /\s/.test(text)) return null;
     if (/^https?:\/\//i.test(text)) return hrefOf(text);
     if (LOCAL_HOST.test(text)) return hrefOf('http://' + text);
-    if (NAMED_HOST.test(text)) return hrefOf('https://' + text);
+    if (isNamedHost(text)) return hrefOf('https://' + text);
     return null;
+}
+
+function isNamedHost(text) {
+    const host = hostOf('https://' + text);
+    return NAMED_HOST.test(text) && TOP_LEVEL_DOMAINS.has(host.slice(host.lastIndexOf('.') + 1));
 }
 
 // Whether text is an address as written, with its scheme or as a path, rather than a host guessed from a bare name.
