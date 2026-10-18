@@ -7,14 +7,15 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SANDBOX, MANIFEST, STORAGE, EXTENSION }) {
     // MARK: - Property
     let layer = null;
+    const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
     const watching = new Set(); // the pages told when what `mods` answers may have changed
 
     // MARK: - Initializer
     // MARK: - Public
     // What is on deck is told of a mod installed, once what runs in its place has launched, and answers what it adds
-    // to what install answers (`installed(id)`), and of one removed (`removed(id)`); it is asked what it knows of a
-    // mod (`facts(mod)`) and to clear the sessions it made for a mod removed with its data (`clearSessions(id)`, a
-    // promise).
+    // to what install answers (`installed(id)`, which may answer a promise), and of one removed (`removed(id)`). It
+    // is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed (`onFactsChange(tell)`),
+    // and to clear the sessions it made for a mod removed with its data (`clearSessions(id)`, a promise).
     function start(given) {
         layer = given;
         clearUncleared();
@@ -53,7 +54,7 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
         });
         PROTOCOL.relaunch.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            RUNNER.relaunch(id);
+            return RUNNER.relaunch(id);
         });
         PROTOCOL.count.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -72,16 +73,19 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
             for (const page of watching) PROTOCOL.modsChanged.send(page);
         };
         CATALOG.onChange(tell);
+        layer.onFactsChange?.(tell);
         for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, tell);
     }
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.
-    // `found`: every mod the catalog found, each with `installed`, whether it is a copy in deck's mods folder, and
-    // `state`, its latest run's, null for one with none; `hides`: folders of the same id that are not read.
+    // `found`: every mod the catalog found, those that load in the person's order and then the rest, each with
+    // `installed`, whether it is a copy in deck's mods folder, `state`, its latest run's, null for one with none,
+    // `hides`, folders of the same id that are not read, and `launched`, while it starts or stops again, what its
+    // latest run that launched contributed, as `running` lists it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
-            found: CATALOG.found().map((mod) => {
+            found: [...CATALOG.mods(), ...CATALOG.found().filter((mod) => mod.problem)].map((mod) => {
                 const run = RUNNER.runOf(mod.id);
                 return {
                     ...MANIFEST.of(mod),
@@ -91,6 +95,10 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
                     hides: mod.hides,
                     problem: mod.problem || run?.problem || null,
                     state: run?.state || null,
+                    launched:
+                        TRANSITIONS.includes(run?.state) && RUNNER.launchedOf(mod.id)
+                            ? entryOf(mod, RUNNER.launchedOf(mod.id))
+                            : null,
                     ...layer.facts(mod),
                     dependencies: mod.dependencies.map((dependency) => ({
                         ...dependency,
@@ -100,17 +108,12 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
             }),
             running: CATALOG.mods()
                 .filter((mod) => running(mod.id))
-                .map((mod) => {
-                    const { summary, problem } = RUNNER.runOf(mod.id);
-                    return {
-                        id: mod.id,
-                        name: mod.name,
-                        ...summary,
-                        extends: EXTENSION.pointsExtendedBy(mod.id),
-                        problem,
-                    };
-                }),
+                .map((mod) => entryOf(mod, RUNNER.runOf(mod.id))),
         };
+    }
+
+    function entryOf(mod, { summary, problem }) {
+        return { id: mod.id, name: mod.name, ...summary, extends: EXTENSION.pointsExtendedBy(mod.id), problem };
     }
 
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
@@ -119,7 +122,7 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
         const manifest = INSTALL.install(from, shadowed);
         CATALOG.refresh({ installed: manifest.id });
         await RUNNER.whenClosed(manifest.id);
-        return { ...layer.installed(manifest.id), ...MANIFEST.of(manifest) };
+        return { ...(await layer.installed(manifest.id)), ...MANIFEST.of(manifest) };
     }
 
     // A source folder of the same id would hide the installed copy.

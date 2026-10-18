@@ -3,9 +3,11 @@
 module.exports = ({ emit, window, files }) => {
     const fs = require('fs').promises;
     const { watch } = require('fs');
+    const { execFile } = require('child_process');
     const os = require('os');
     const path = require('path');
     const { app, shell, nativeImage } = require('electron');
+    const { imageSize } = require('./image-size.js');
     // macOS shows a folder with one of these extensions as one item, opened and not walked into.
     const PACKAGE_EXTENSIONS = new Set([
         'app',
@@ -26,7 +28,10 @@ module.exports = ({ emit, window, files }) => {
     ]);
     const CHANGE_SETTLE_DELAY = 250; // milliseconds
     const PRIVACY_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders';
+    // Quick Look's server answers at once even for a kind it draws nothing for; this is for one that never answers.
+    const QUICK_LOOK_LIMIT = 5000; // milliseconds
     const watched = new Map(); // folder -> { watcher, timer }
+    const drawing = new Set(); // the Quick Look processes drawing a thumbnail
 
     return {
         async places() {
@@ -89,18 +94,26 @@ module.exports = ({ emit, window, files }) => {
             return answer;
         },
 
+        // Electron draws the thumbnail into the box asked, whatever the file's shape, so it is asked for a picture
+        // in the shape its header tells. Anything else Quick Look draws in its own shape, at most `size` on a side.
         async thumbnail(file, size) {
             const side = Math.max(16, Math.min(1024, Math.round(Number(size) || 0)));
+            const shape = await imageSize(absolute(file)).catch(() => null);
+            if (!shape?.width || !shape.height) return quickLookThumbnail(absolute(file), side);
+            const scale = side / Math.max(shape.width, shape.height);
+            const box = {
+                width: Math.max(1, Math.round(shape.width * scale)),
+                height: Math.max(1, Math.round(shape.height * scale)),
+            };
             try {
-                const image = await nativeImage.createThumbnailFromPath(absolute(file), { width: side, height: side });
+                const image = await nativeImage.createThumbnailFromPath(absolute(file), box);
                 return image.isEmpty() ? null : image.toDataURL();
             } catch {
                 return null;
             }
         },
 
-        // The whole set is replaced: this module stays loaded across a reload of the sandbox, and a reloaded sandbox
-        // never unwatches the folders the one before it watched.
+        // The whole set is replaced.
         watch(folders) {
             const wanted = new Set(
                 []
@@ -129,12 +142,45 @@ module.exports = ({ emit, window, files }) => {
             window.ofPage()?.closeFilePreview();
             return true;
         },
+
+        // As the run that started it ends: its watchers, the thumbnails being drawn, and a preview it showed.
+        dispose() {
+            for (const folder of [...watched.keys()]) stopWatching(folder);
+            for (const child of drawing) child.kill();
+            window.ofPage()?.closeFilePreview();
+        },
     };
 
     function absolute(given) {
         const file = String(given || '');
         if (!path.isAbsolute(file)) throw new Error('not an absolute path: ' + file);
         return file;
+    }
+
+    // A data URL, or null when Quick Look drew none. It writes `<name>.png` into the folder it is given.
+    async function quickLookThumbnail(file, side) {
+        const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'finder-thumbnail-'));
+        try {
+            await new Promise((resolve, reject) => {
+                const child = execFile(
+                    'qlmanage',
+                    ['-t', '-x', '-s', String(side), '-o', folder, file],
+                    { timeout: QUICK_LOOK_LIMIT },
+                    (error) => {
+                        drawing.delete(child);
+                        if (error) reject(error);
+                        else resolve();
+                    }
+                );
+                drawing.add(child);
+            });
+            const drawn = await fs.readFile(path.join(folder, path.basename(file) + '.png'));
+            return 'data:image/png;base64,' + drawn.toString('base64');
+        } catch {
+            return null;
+        } finally {
+            await fs.rm(folder, { recursive: true, force: true });
+        }
     }
 
     async function isFolder(file) {

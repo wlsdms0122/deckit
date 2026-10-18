@@ -76,6 +76,7 @@ module.exports = {
             tildify: util.tildify,
             folds,
             homeLocation: () => home,
+            folderInFront: (location, lead, selection) => area.folderInFront(location, lead, selection),
             isFavorite: (path) => favorites.has(path),
             onAddFavorite: (path) => favorites.add(path),
             onLeave: keepScroll,
@@ -110,6 +111,7 @@ module.exports = {
             fileURL: deck.fileURL,
             disk,
             areaElement: area.element,
+            draggableRowAt: area.draggableRowAt,
             entryAt: listings.entryAt,
             labelOf: area.labelOf,
             selection: tabs.selection,
@@ -150,6 +152,7 @@ module.exports = {
             onDraw: drawStar,
         });
         selectionInput({
+            ui,
             areaElement: area.element,
             isColumnView: () => area.view() === 'columns',
             location: tabs.location,
@@ -158,14 +161,17 @@ module.exports = {
             walkedFolder: area.walkedFolder,
             entriesIn: area.entriesIn,
             entryAt: listings.entryAt,
+            listAt: area.listAt,
             isLoaded: listings.has,
             load: listings.load,
             select,
+            selectIn,
             toggle,
             extend,
             selectAll,
             open: operator.open,
             openInNewTab: (path) => tabs.open(path),
+            rename: operator.rename,
             quickLook: operator.quickLook,
         });
         fileMenu({
@@ -199,8 +205,8 @@ module.exports = {
             disk,
             tildify: util.tildify,
             homeLocation: () => home,
-            location: tabs.location,
-            onGo: goToPlace,
+            folderInFront: area.workingFolder,
+            onGo: goToPath,
         });
 
         ui.addStyle(STYLE);
@@ -254,6 +260,12 @@ module.exports = {
             forward: { key: 'mod+]', label: 'Forward', run: () => tabs.forward() },
             enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
             open: { key: 'mod+down', label: 'Open', run: () => operator.open(selectedEntries()) },
+            // Not while a name or the filter is typed: Return there ends the field.
+            openWithDefaultApp: {
+                key: 'alt+enter',
+                label: 'Open with default app',
+                run: () => !typing() && operator.open(selectedEntries(), { usesDefaultApp: true }),
+            },
             filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
             goToFolder: { key: 'mod+l', label: 'Go to Folder', run: () => tabs.front() && goTo.show() },
             home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
@@ -310,7 +322,7 @@ module.exports = {
         function applyListing(folder) {
             const whenRead = folder === tabs.location() ? tabs.takeWhenRead() : null;
             if (whenRead?.select) tabs.select(whenRead.select);
-            listings.keepOnly(new Set([...tabs.locations(), ...area.shownFolders()]));
+            listings.keepOnly(new Set([...tabs.locations(), ...tabs.leadFolders(), ...area.shownFolders()]));
             area.draw();
             if (typeof whenRead?.scroll === 'number') area.element.scrollTop = whenRead.scroll;
             else if (whenRead?.scroll === 'reveal' && tabs.selectedPath()) area.reveal(tabs.selectedPath());
@@ -322,9 +334,13 @@ module.exports = {
             if (listings.has(tabs.location())) tabs.keepScroll(area.element.scrollTop);
         }
 
+        // The tab's folder, and what else it shows that was kept: a kept listing is not watched, so it is read again.
         function load() {
             const location = tabs.location();
-            return location ? listings.load(location) : undefined;
+            if (!location) return undefined;
+            for (const folder of area.shownFolders())
+                if (folder !== location && listings.has(folder)) listings.load(folder);
+            return listings.load(location);
         }
 
         function watchShown(options) {
@@ -336,6 +352,15 @@ module.exports = {
             if (!tabs.front()) return;
             tabs.select(path);
             showSelection(reveal && path);
+        }
+
+        // Entries of `folder`, the lead the last of them. None leaves the folder itself selected, the way into it kept,
+        // unless it is the tab's.
+        function selectIn(folder, paths) {
+            if (!tabs.front()) return;
+            if (!paths.length) return select(folder === tabs.location() ? null : folder);
+            tabs.setSelection(paths, { lead: paths.at(-1), anchor: paths[0] });
+            showSelection(null);
         }
 
         // Adds the entry to the selection, or takes it away; the lead and the anchor go to it, or to the last one left.
@@ -385,7 +410,7 @@ module.exports = {
         }
 
         // A folder, or a file selected in its folder.
-        function goToPlace(folder, file) {
+        function goToPath(folder, file) {
             if (folder !== tabs.location()) return tabs.go(folder, { from: file });
             if (file) select(file, { reveal: true });
         }
@@ -413,14 +438,16 @@ module.exports = {
             if (next === area.view()) return;
             bar.setView(next);
             area.setView(next);
+            tabs.draw();
             watchShown();
             area.element.focus({ preventScroll: true });
         }
 
+        // The listings first: a tab is named by what they say of its lead.
         function relocate(from, to) {
             const follow = (path) => util.movePath(path, from, to);
-            tabs.relocate(follow, parentOf(from) || '/');
             listings.relocate(follow);
+            tabs.relocate(follow, parentOf(from) || '/');
             favorites.relocate(follow);
         }
 
@@ -463,6 +490,11 @@ module.exports = {
 
         function selectedEntries() {
             return tabs.selection().map(listings.entryAt).filter(Boolean);
+        }
+
+        // A field has the keys: a name being typed, or the filter.
+        function typing() {
+            return !!document.activeElement?.closest('input, textarea, [contenteditable]');
         }
     },
 };

@@ -11,9 +11,10 @@ const { section } = require('./section.js');
 function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
-    const STARTING = 'starting: its start() has not finished';
-    // What a mod that loads but is not running is doing, by its run's state.
-    const STATE_WORDS = { launching: STARTING, terminating: 'stopping', notRunning: 'stopped' };
+    // What a mod that loads but is not running is doing, by its run's state: one starting or stopping says it by a
+    // spinner beside its name, with the word as its title.
+    const STATE_WORDS = { launching: 'starting', terminating: 'stopping', notRunning: 'stopped' };
+    const BUSY = ['launching', 'terminating'];
     const DESCRIPTION =
         'Install a mod from its folder, or remove one you no longer need. Open a row to see what it adds, what it ' +
         'needs and where its files are.';
@@ -49,6 +50,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         .settings-mod[data-open] .settings-caret { transform: rotate(90deg); }
         .settings-mod-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .settings-mod-name[data-not-loaded] { opacity: 0.45; }
+        .settings-mod-busy { display: flex; flex: 0 0 auto; opacity: 0.6; }
+        .settings-mod-busy[hidden] { display: none; }
         .settings-mod-version {
             flex: 0 0 auto;
             overflow: hidden;
@@ -71,7 +74,6 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             white-space: pre-line;
             word-break: break-word;
         }
-        .settings-mod-failure[data-starting] { color: var(--deckit-muted); }
         .settings-notice {
             margin: 8px 0 0;
             padding: 8px 10px;
@@ -130,6 +132,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         const row = ui.row();
         const caret = ui.element('span', { className: 'settings-caret' });
         const name = ui.element('span', { className: 'settings-mod-name' });
+        const busy = ui.element('span', { className: 'settings-mod-busy' });
         const nameCell = ui.element('span', { className: 'settings-mod-name-cell' });
         const version = ui.element('span', { className: 'settings-mod-version' });
         const contributions = ui.element('div', { className: 'settings-mod-contributions' });
@@ -155,7 +158,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
 
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });
-        nameCell.append(caret, name);
+        busy.append(ui.spinner({ size: 11 }).element);
+        nameCell.append(caret, name, busy);
         actions.append(relaunchAction.element, revealAction.element, removeAction.element, source.element);
         row.element.append(nameCell, version, contributions, actions);
         // Selectable: this is what gets pasted into a bug report.
@@ -175,6 +179,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             const labels = contributionsOf(mod.live, mod.keys.length, everyScheme);
             name.textContent = name.title = mod.name;
             name.toggleAttribute('data-not-loaded', !!mod.notLoaded);
+            busy.hidden = !BUSY.includes(mod.state);
+            busy.title = busy.hidden ? '' : STATE_WORDS[mod.state];
             version.textContent = mod.version || NO_VALUE;
             version.toggleAttribute('data-missing', !mod.version);
             contributions.replaceChildren(
@@ -194,7 +200,6 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
                 .filter(Boolean)
                 .join('\n');
             failure.hidden = !failure.textContent;
-            failure.toggleAttribute('data-starting', failure.textContent === STARTING);
             details.set(mod);
         }
 
@@ -308,9 +313,10 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         onChange();
     }
 
-    // One row per mod: the running ones first, in the person's order, then the ones found on disk that did not load
-    // or are still starting. `notLoaded` is why one is not running, `problem` what went wrong with one that is.
-    // Permissions are read from the folder, so one that did not load still shows the permissions it asks for.
+    // One row per mod, in the order deck finds them (the person's, then those that did not load), each in its place
+    // whatever its run is doing: one starting or stopping is in `running` as it last ran, and says so by its
+    // spinner. `notLoaded` is why one is not running, `problem` what went wrong with one that is. Permissions are
+    // read from the folder, so one that did not load still shows the permissions it asks for.
     function modRowsOf({ found, running, shortcuts, handlerLists, pinned }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (mod) => ({
@@ -324,33 +330,32 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             dependencies: mod?.dependencies,
             hides: mod?.hides,
         });
-        const loaded = running.map((live) => {
-            const listed = found.find((mod) => mod.id === live.id);
+        return found.map((mod) => {
+            const live = running.find((entry) => entry.id === mod.id);
+            if (!live)
+                return {
+                    id: mod.id,
+                    name: mod.name,
+                    ...fromDisk(mod),
+                    keys: keysOf(mod.id),
+                    handlerLists,
+                    // One starting for the first time is not yet anything but starting: its spinner says so.
+                    notLoaded:
+                        mod.problem || (mod.state === 'launching' ? null : STATE_WORDS[mod.state] || 'did not load'),
+                };
             return {
                 id: live.id,
                 name: live.name,
-                ...fromDisk(listed),
+                ...fromDisk(mod),
                 live,
                 pinned: pinned.has(live.id),
                 keys: keysOf(live.id),
                 handlerLists,
-                problem: listed?.mainProcess.failure
-                    ? 'a main process module did not start: ' + listed.mainProcess.failure
+                problem: mod.mainProcess.failure
+                    ? 'a main process module did not start: ' + mod.mainProcess.failure
                     : live.problem,
             };
         });
-        const loadedIds = new Set(running.map((live) => live.id));
-        const notLoaded = found
-            .filter((mod) => !loadedIds.has(mod.id))
-            .map((mod) => ({
-                id: mod.id,
-                name: mod.name,
-                ...fromDisk(mod),
-                keys: keysOf(mod.id),
-                handlerLists,
-                notLoaded: mod.problem || STATE_WORDS[mod.state] || 'did not load',
-            }));
-        return [...loaded, ...notLoaded];
     }
 }
 

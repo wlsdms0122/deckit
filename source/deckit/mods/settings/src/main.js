@@ -15,6 +15,9 @@ module.exports = {
         const APP_NAME = deck.about().name;
 
         const modIcons = new Map(); // mod id -> its icon, as the list was last drawn
+        // mod id -> the keys a mod had as the Keyboard section last drew it running: a key map lists a mod's keys only
+        // while it runs
+        const drawnKeys = new Map();
         let shown = false;
 
         // In every rule of this mod, `line-height` comes after `font`: the shorthand resets it.
@@ -82,10 +85,25 @@ module.exports = {
         deck.mods.onChange(() => shown && redraw());
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
+        // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
+        // one, not as a mod gone and back.
         function redraw() {
-            const { found, running } = deck.mods.list();
-            const shortcuts = deck.keymap.list();
+            const { found, running: now } = deck.mods.list();
+            const listed = deck.keymap.list();
             const handlerLists = deck.urlSchemes.list();
+            for (const mod of now)
+                drawnKeys.set(
+                    mod.id,
+                    listed.filter(({ owner }) => owner === mod.id)
+                );
+            const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
+            const running = [...now, ...restarting];
+            // A new run may have registered some of its keys already: those are the key map's.
+            const listedIds = new Set(listed.map(({ id }) => id));
+            const shortcuts = [
+                ...listed,
+                ...restarting.flatMap(({ id }) => drawnKeys.get(id) || []).filter(({ id }) => !listedIds.has(id)),
+            ];
             for (const mod of running) modIcons.set(mod.id, mod.icon);
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();

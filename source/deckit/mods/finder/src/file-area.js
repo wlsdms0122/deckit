@@ -44,7 +44,6 @@ function fileArea({
     const footer = ui.element('div', { className: 'finder-footer' });
 
     ui.addStyle(STYLE);
-    element.tabIndex = 0;
 
     return {
         element,
@@ -67,9 +66,12 @@ function fileArea({
         shownFolders,
         walkedFolder,
         workingFolder,
+        folderInFront,
         rowOf,
         labelOf,
         folderAt,
+        draggableRowAt,
+        listAt,
     };
 
     function setView(next) {
@@ -165,10 +167,8 @@ function fileArea({
         });
     }
 
-    // Down to the lead, or with more than one entry selected, down to the folder that holds them.
     function columnFolders() {
-        const lead = tabs.selectedPath();
-        return columns.foldersOf(tabs.location(), tabs.selection().length > 1 ? parentOf(lead) : lead);
+        return columnFoldersOf(tabs.location(), tabs.selectedPath(), tabs.selection());
     }
 
     function shownFolders() {
@@ -183,9 +183,19 @@ function fileArea({
         return selected && columnFolders().includes(parentOf(selected)) ? parentOf(selected) : tabs.location();
     }
 
-    // Where a new folder goes: the last column, or the list's folder.
+    // The folder in front, where a new folder goes.
     function workingFolder() {
-        return view === 'columns' ? columnFolders().at(-1) || null : tabs.location();
+        return folderInFront(tabs.location(), tabs.selectedPath(), tabs.selection());
+    }
+
+    // The folder in front of a tab at `location` with `selection`, `lead` among it: the last column's, or the list's.
+    function folderInFront(location, lead, selection) {
+        return view === 'columns' ? columnFoldersOf(location, lead, selection).at(-1) || null : location;
+    }
+
+    // Down to the lead, or with more than one entry selected, down to the folder that holds them.
+    function columnFoldersOf(location, lead, selection) {
+        return columns.foldersOf(location, selection.length > 1 ? parentOf(lead) : lead);
     }
 
     // The row of `path` in either view.
@@ -198,14 +208,28 @@ function fileArea({
     }
 
     // A drop on a folder's row goes into it; on a column or the preview, into that column's folder; anywhere else,
-    // into the tab's folder once it is read.
+    // into the folder in front, the last column's or the list's, once the tab's folder is read.
     function folderAt(under) {
         const row = under.closest('[data-path]');
         const entry = row && listings.entryAt(row.dataset.path);
         if (entry?.kind === 'folder') return { folder: entry.path, mark: row };
         const column = columns.folderAt(under);
         if (column) return column;
-        return tabs.location() && !isLoading() ? { folder: tabs.location(), mark: element } : null;
+        return tabs.location() && !isLoading() ? { folder: workingFolder(), mark: element } : null;
+    }
+
+    // The row a press on `under` drags: in columns any of it, in the list its icon and name, as in macOS Finder.
+    function draggableRowAt(under) {
+        if (view === 'columns') return under.closest('[data-path]');
+        return under.closest('.finder-list-name > *')?.closest('[data-path]') ?? null;
+    }
+
+    // The rows a rectangle dragged from `under` selects among, and their folder: a column's, or the list's. Where a
+    // press drags a row, no rectangle starts.
+    function listAt(under) {
+        if (draggableRowAt(under)) return null;
+        if (view === 'columns') return columns.listAt(under);
+        return tabs.location() && !isLoading() ? { list: list.rows, folder: tabs.location() } : null;
     }
 
     function drawList(loading, failure) {

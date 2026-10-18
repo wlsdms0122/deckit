@@ -1,51 +1,70 @@
 const { canonical, placeOf } = require('./address.js');
+const { tree, isFolder, folderOf } = require('./tree.js');
 
 // Bookmarks, trusted certificates and site permissions, in the mod's records: the same in every window, and apart
-// from the host app's profile. A bookmark is known by its canonical address, as a tab is, or the star stays dark on its
-// own page and adds it twice.
+// from the host app's profile. The bookmarks are a tree of folders (`tree.js`), a bookmark `{ id, url, title, icon }`
+// at its canonical address, as a tab is, so the star lights on its page. One address may be bookmarked in two folders.
 function store({ records, onBookmarksChange }) {
+    const bookmarkTree = tree(records.get('bookmarks', []));
     const bookmarks = {
-        all: () => records.get('bookmarks', []),
-        has: (url) => bookmarks.all().some((bookmark) => bookmark.url === canonical(url)),
-        toggle({ url, title, icon }) {
+        tree: () => bookmarkTree,
+        has: (url) => bookmarkTree.items().some((bookmark) => bookmark.url === canonical(url)),
+        // Of the bookmarks of `url`, the one added last: ids grow as bookmarks are added. Null when there is none.
+        newest(url) {
+            const found = bookmarkTree.items().filter((bookmark) => bookmark.url === canonical(url));
+            return found.reduce((newest, bookmark) => (bookmark.id > newest.id ? bookmark : newest), found[0]) || null;
+        },
+        // At the end of the top level.
+        add(url, title, icon = '') {
+            const bookmark = bookmarkOf(canonical(url), title, icon);
+            bookmarkTree.insert(bookmark);
+            save();
+            return bookmark;
+        },
+        // A bookmark or a folder, with what it holds.
+        remove(node) {
+            bookmarkTree.remove(node);
+            save();
+        },
+        // `index` in `parent`, read with the node still where it was.
+        place(node, parent, index) {
+            bookmarkTree.move(node, parent, index);
+            save();
+        },
+        // A new address makes the stored icon wrong, and the conventional one stands in.
+        edit(bookmark, { title, url }) {
             const address = canonical(url);
-            if (bookmarks.has(address)) return bookmarks.remove(address);
-            saveBookmarks([...bookmarks.all(), { url: address, label: title || placeOf(address) || address, icon }]);
+            Object.assign(bookmark, { title, url: address, icon: address === bookmark.url ? bookmark.icon : '' });
+            save();
         },
-        add(url, label) {
-            const address = canonical(url);
-            if (bookmarks.has(address)) return;
-            saveBookmarks([
-                ...bookmarks.all(),
-                { url: address, label: label || placeOf(address) || address, icon: '' },
-            ]);
+        newFolder(parent, index, node) {
+            const folder = bookmarkTree.newFolder(parent, index, node);
+            save();
+            return folder;
         },
-        remove(url) {
-            saveBookmarks(bookmarks.all().filter((bookmark) => bookmark.url !== url));
+        // `change` is any of `title`, `color`, `collapsed`.
+        changeFolder(folder, change) {
+            Object.assign(folder, change);
+            save();
         },
-        // `url` goes where `toUrl` is.
-        move(url, toUrl) {
-            const list = [...bookmarks.all()];
-            const from = list.findIndex((bookmark) => bookmark.url === url);
-            const to = list.findIndex((bookmark) => bookmark.url === toUrl);
-            if (from < 0 || to < 0) return;
-            list.splice(to, 0, ...list.splice(from, 1));
-            saveBookmarks(list);
+        // A tab, or a folder of tabs with what it holds, bookmarked at the end of `parent`.
+        addTabs(node, parent = bookmarkTree.root) {
+            const copy = (each) =>
+                isFolder(each)
+                    ? { ...folderOf(each), id: bookmarkTree.newId(), children: each.children.map(copy) }
+                    : bookmarkOf(each.url, each.title, each.icon);
+            bookmarkTree.insert(copy(node), parent);
+            save();
         },
-        // False when the new address is another bookmark's: the star cannot tell two entries for one page apart.
-        edit(url, { label, url: given }) {
-            const address = canonical(given);
-            if (address !== url && bookmarks.has(address)) return false;
-            saveBookmarks(
-                bookmarks.all().map((bookmark) => {
-                    if (bookmark.url !== url) return bookmark;
-                    // A new address makes the stored icon wrong, and the conventional one stands in.
-                    return { url: address, label, icon: address === url ? bookmark.icon : '' };
-                })
-            );
-            return true;
+        ungroup(folder) {
+            bookmarkTree.ungroup(folder);
+            save();
         },
     };
+
+    function bookmarkOf(url, title, icon) {
+        return { id: bookmarkTree.newId(), url, title: title || placeOf(url) || url, icon };
+    }
 
     // The main process refuses an unverifiable certificate by default and forgets every decision on exit, so the
     // accepted ones are kept here and replayed at startup. Kept with the fingerprint, so a swapped certificate asks
@@ -84,8 +103,8 @@ function store({ records, onBookmarksChange }) {
 
     return { bookmarks, certificates, sitePermissions };
 
-    function saveBookmarks(list) {
-        records.set('bookmarks', list);
+    function save() {
+        records.set('bookmarks', bookmarkTree.root.children);
         onBookmarksChange();
     }
 }

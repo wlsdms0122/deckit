@@ -18,7 +18,7 @@ function treeEntryActions({
     showFiles,
     findIn,
 }) {
-    return { menuOf, create, createHere, move, trash, pathItems };
+    return { menuOf, create, createHere, rename, move, trash, pathItems };
 
     // `entry` null is the space around the rows: the top folder.
     function menuOf(workspace) {

@@ -13,6 +13,8 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
     // answered; `closing`, once the view has closed for good.
     const sandboxes = new Map();
     const numbers = new Map(); // mod id -> the number of its latest run, counted from 1
+    // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
+    const lastLaunched = new Map();
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
     let preparePage = null;
     let webPreferences = {};
@@ -55,6 +57,10 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
         return sandboxes.get(modId)?.run || null;
     }
 
+    function launchedOf(modId) {
+        return lastLaunched.get(modId) || null;
+    }
+
     // The run a page's message is from, while it is that mod's latest: what an older run sent before it was
     // replaced, still on its way, is not the newer one's.
     function currentRun(sender, number) {
@@ -79,13 +85,13 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
     }
 
     // The mod terminates and launches again, or launches when it is not running. Throws while a mod it
-    // requires is not running.
+    // requires is not running. Resolves once the run in its place has launched, or failed to.
     function relaunch(modId) {
         const sandbox = sandboxes.get(modId);
-        if (!sandbox || sandbox.closing || quitting) return;
+        if (!sandbox || sandbox.closing || quitting) return Promise.resolve();
         const missing = notRunningRequirement(sandbox);
         if (missing) throw new Error(`${modId} needs ${missing}, which is not running`);
-        relaunchSandbox(sandbox);
+        return relaunchSandbox(sandbox);
     }
 
     // MARK: - Private
@@ -114,10 +120,25 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
     function relaunchSandbox(sandbox) {
         const { run } = sandbox;
         const live = run.state !== 'notRunning';
-        terminate(sandbox, 'relaunch').then(() => {
+        return terminate(sandbox, 'relaunch').then(() => {
             if (quitting || sandboxes.get(sandbox.mod.id) !== sandbox || sandbox.closing) return;
             if (sandbox.run !== run || (live && !run.relaunches)) return;
             launchAgain(sandbox);
+            return launched(sandbox.run);
+        });
+    }
+
+    // Once the run is past launching: running, or ended.
+    function launched(run) {
+        if (run.state !== 'launching') return Promise.resolve();
+        return new Promise((resolve) => {
+            const offs = ['didLaunch', 'didFailToLaunch', 'didTerminate'].map((name) =>
+                notifications.on(name, (told) => {
+                    if (told !== run) return;
+                    for (const off of offs) off();
+                    resolve();
+                })
+            );
         });
     }
 
@@ -183,6 +204,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
         sandbox.closing = terminate(sandbox, reason).then(() => {
             if (!sandbox.view.webContents.isDestroyed()) sandbox.view.webContents.close();
             sandboxes.delete(sandbox.mod.id);
+            if (reason === 'removed') lastLaunched.delete(sandbox.mod.id);
             reconcile();
         });
     }
@@ -197,6 +219,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
             number,
             notify: (name, run) => {
                 sandbox.run = run;
+                if (name === 'didLaunch') lastLaunched.set(modId, run);
                 notifications.emit(name, run);
             },
         });
@@ -280,5 +303,5 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
         });
     }
 
-    return { start, runs, runOf, currentRun, observe, whenClosed, relaunchAll, relaunch };
+    return { start, runs, runOf, launchedOf, currentRun, observe, whenClosed, relaunchAll, relaunch };
 }

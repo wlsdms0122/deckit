@@ -12,6 +12,7 @@ function fileOperator({
     fileURL,
     disk,
     areaElement,
+    draggableRowAt,
     entryAt,
     labelOf,
     selection,
@@ -27,7 +28,7 @@ function fileOperator({
 
     // A drag from one of several selected entries carries them all.
     ui.dragSource(areaElement, {
-        itemAt: (target) => target.closest('[data-path]'),
+        itemAt: draggableRowAt,
         describe: (row) => {
             const entry = entryAt(row.dataset.path);
             if (!entry) return null;

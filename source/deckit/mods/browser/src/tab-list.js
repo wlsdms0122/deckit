@@ -1,12 +1,9 @@
 const { canonical, isFile, placeOf } = require('./address.js');
+const { tree, isFolder, folderOf } = require('./tree.js');
 
-// What a tab group is coloured, in the order a new group takes the first one no group has.
-const GROUP_COLORS = ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange', 'grey'];
-
-// The open tabs, each with its page, and the session record that brings them back. A web address opens in the web
-// session and a file in the files session.
-//
-// A tab is in one group or none. A group's tabs stand together in the list, and a group goes with its last tab.
+// The open tabs, each with its page, in a tree of folders (`tree.js`), and the session record that brings them back.
+// A web address opens in the web session and a file in the files session. A folder stands until it is deleted, empty
+// or not.
 function tabList({
     web,
     records,
@@ -26,89 +23,85 @@ function tabList({
 }) {
     const KEPT_CLOSED = 20;
 
-    const saved = records.get('session', { tabs: [], front: 0, closed: [], groups: [] });
-    const list = [];
+    const saved = records.get('session', { tabs: [], front: null, closed: [] });
     const closed = [...saved.closed];
-    // id -> { id, title, color, collapsed }: `color` is one of GROUP_COLORS, or a hex the person picked
-    const groups = new Map((saved.groups || []).map((group) => [group.id, { ...group }]));
+    // Past every folder a closed tab still names, so reopening one never finds its folder in a newer one.
+    const nodes = tree([], Math.max(0, ...closed.map((tab) => tab.parent || 0)));
     let front = null;
-    let lastId = 0;
-    // Past every id a closed tab still names, so reopening one never finds its group in a newer one.
-    let lastGroupId = Math.max(0, ...groups.keys(), ...closed.map((tab) => tab.group || 0));
 
     return {
-        list: () => list,
+        tree: () => nodes,
+        list: () => nodes.items(),
         front: () => front,
         lastClosed: () => closed.at(-1),
-        groupOf,
         add,
+        open,
         select,
         navigate,
         close,
         closeOthers,
         reopen,
-        placeTab,
-        placeGroup,
+        place,
         restore,
-        newGroup,
-        join,
-        leave,
-        changeGroup,
+        newFolder,
+        changeFolder,
         ungroup,
-        closeGroup,
+        closeTabsIn,
+        deleteFolder,
+        openBookmarks,
     };
 
-    // Choosing a tab opens its group: the folds are given back once the tabs are in and the one in front is chosen.
+    // Choosing a tab opens its folders: the folds are given back once the tabs are in and the one in front is chosen.
     function restore() {
-        if (!saved.tabs.length) return add();
-        const folds = [...groups.values()].map((group) => [group, group.collapsed]);
-        const restored = saved.tabs.map(({ url, title, icon, group }) =>
-            add(url, { title, icon, group: groups.get(group) })
-        );
-        select(restored[saved.front]);
-        for (const [group, collapsed] of folds) group.collapsed = collapsed;
+        const folds = [];
+        const build = (parent, children) => {
+            for (const node of children) {
+                if (isFolder(node)) {
+                    const folder = { ...node, children: [] };
+                    folds.push([folder, folder.collapsed]);
+                    nodes.insert(folder, parent);
+                    build(folder, node.children);
+                } else nodes.insert(tabOf(node.url, node), parent);
+            }
+        };
+        build(nodes.root, saved.tabs);
+        const tabs = nodes.items();
+        if (!tabs.length) return add();
+        select(tabs.find((tab) => tab.id === saved.front) || tabs[0]);
+        for (const [folder, collapsed] of folds) folder.collapsed = collapsed;
         changed();
     }
 
-    function groupOf(tab) {
-        return groups.get(tab.group) || null;
-    }
-
-    // In `group`, the tab goes after its last one.
-    function add(url = home(), { title = '', icon = '', background = false, group = null } = {}) {
-        const page = pageFor(url);
-        page.element.style.visibility = 'hidden';
-        area.prepend(page.element);
-        const tab = {
-            id: ++lastId,
-            page,
-            url: canonical(url),
-            title,
-            icon,
-            group: group?.id ?? null,
-            loading: true,
-            canGoBack: false,
-            canGoForward: false,
-            // The window name the page asked for, which a later request for the same name reuses.
-            target: '',
-            audible: false,
-            muted: false,
-            capture: { microphone: false, camera: false, screen: false },
-        };
-        const last = group && tabsOf(group).at(-1);
-        list.splice(last ? list.indexOf(last) + 1 : list.length, 0, tab);
-        listen(tab);
+    // At `index` in `parent`, the end of the top level by default.
+    function add(url = home(), { title = '', icon = '', background = false, parent = nodes.root, index } = {}) {
+        const tab = tabOf(url, { title, icon });
+        nodes.insert(tab, parent, index);
         if (background) changed();
         else select(tab);
         return tab;
     }
 
-    // A tab chosen in a collapsed group opens the group.
+    // `target` is the window the page named: a second request for it reuses the tab that answered the first. A tab
+    // opened by another goes after it, and after the tabs it opened just before, in its folder.
+    function open(url, { activates = true, target = '', opener = null } = {}) {
+        const named = target && nodes.items().find((tab) => tab.target === target);
+        if (named) {
+            navigate(named, url);
+            if (activates) select(named);
+            return;
+        }
+        if (!opener) return Object.assign(add(url, { background: !activates }), { target });
+        const { children } = nodes.parentOf(opener);
+        let after = opener;
+        while (children[children.indexOf(after) + 1]?.opener === opener) after = children[children.indexOf(after) + 1];
+        Object.assign(add(url, { background: !activates, ...nodes.beside(after) }), { target, opener });
+    }
+
+    // A tab chosen in a folded folder opens it, and the folders it is in.
     function select(tab) {
         const previous = front;
         front = tab;
-        const group = groupOf(tab);
-        if (group) group.collapsed = false;
+        for (const folder of nodes.ancestorsOf(tab)) folder.collapsed = false;
         showCurrent();
         changed();
         onSelect(tab, previous);
@@ -134,110 +127,87 @@ function tabList({
     }
 
     function close(tab) {
-        const index = list.indexOf(tab);
-        if (index < 0) return;
-        retire(tab);
-        if (!list.length) return add();
-        if (tab === front) select(list[Math.max(0, index - 1)]);
-        else changed();
+        if (nodes.items().includes(tab)) closeTabs([tab]);
     }
 
-    // Retired together: closed one at a time, each close would bring its neighbour forward on the way.
     function closeOthers(keep) {
-        for (const tab of list.filter((each) => each !== keep)) retire(tab);
-        if (keep !== front) select(keep);
-        else changed();
+        closeTabs(nodes.items().filter((each) => each !== keep));
     }
 
-    // Back in its group while the group stands, else where it was and in no group.
+    // Back in its folder, where it was, while the folder stands; else at the end of the top level.
     function reopen() {
         const last = closed.pop();
         if (!last) return;
-        const group = groups.get(last.group);
-        const tab = add(last.url, { title: last.title, icon: last.icon, group });
-        const at = list[Math.min(last.at, list.length - 1)];
-        if (!group && at !== tab) placeTab(tab, groupOf(at) || at, false);
+        const folder = last.parent === null ? nodes.root : nodes.find(last.parent);
+        const where = folder ? { parent: folder, index: Math.min(last.index, folder.children.length) } : {};
+        add(last.url, { title: last.title, icon: last.icon, ...where });
     }
 
-    // The tab goes beside `target`, a tab or a group: after it with `after`, before it otherwise. Beside a tab it is in
-    // that tab's group; beside a group, in none.
-    function placeTab(tab, target, after) {
-        // The group's own tabs, but this one: alone in its group, it has nothing to stand beside.
-        const span = isGroup(target) ? tabsOf(target).filter((each) => each !== tab) : [target];
-        if (target === tab || !span.length) return;
-        const left = groupOf(tab);
-        list.splice(list.indexOf(tab), 1);
-        list.splice(after ? list.indexOf(span.at(-1)) + 1 : list.indexOf(span[0]), 0, tab);
-        tab.group = isGroup(target) ? null : target.group;
-        forgetIfEmpty(left);
+    // A tab or a folder goes to `index` in `parent`, read with it still where it was.
+    function place(node, parent, index) {
+        nodes.move(node, parent, index);
         changed();
     }
 
-    // The group's tabs go beside `target`, a tab or a group, together: beside a tab in a group, they go beside its
-    // group.
-    function placeGroup(group, target, after) {
-        const beside = isGroup(target) ? target : groupOf(target) || target;
-        if (beside === group) return;
-        const moved = tabsOf(group);
-        const span = isGroup(beside) ? tabsOf(beside) : [beside];
-        for (const tab of moved) list.splice(list.indexOf(tab), 1);
-        list.splice(after ? list.indexOf(span.at(-1)) + 1 : list.indexOf(span[0]), 0, ...moved);
+    function newFolder(parent, index, node) {
+        const folder = nodes.newFolder(parent, index, node);
         changed();
-    }
-
-    // A group of `tab` alone, after the group it leaves.
-    function newGroup(tab) {
-        detach(tab);
-        const used = new Set([...groups.values()].map((group) => group.color));
-        const color = GROUP_COLORS.find((each) => !used.has(each)) || GROUP_COLORS[groups.size % GROUP_COLORS.length];
-        const group = { id: ++lastGroupId, title: '', color, collapsed: false };
-        groups.set(group.id, group);
-        tab.group = group.id;
-        changed();
-        return group;
-    }
-
-    // The tab goes after the group's last one.
-    function join(tab, group) {
-        if (tab.group === group.id) return;
-        const left = groupOf(tab);
-        list.splice(list.indexOf(tab), 1);
-        list.splice(list.indexOf(tabsOf(group).at(-1)) + 1, 0, tab);
-        tab.group = group.id;
-        forgetIfEmpty(left);
-        changed();
-    }
-
-    function leave(tab) {
-        detach(tab);
-        changed();
+        return folder;
     }
 
     // `change` is any of `title`, `color`, `collapsed`.
-    function changeGroup(group, change) {
-        Object.assign(group, change);
+    function changeFolder(folder, change) {
+        Object.assign(folder, change);
         changed();
     }
 
-    // Its tabs stay where they are, in no group.
-    function ungroup(group) {
-        for (const tab of tabsOf(group)) tab.group = null;
-        groups.delete(group.id);
+    function ungroup(folder) {
+        nodes.ungroup(folder);
         changed();
     }
 
-    function closeGroup(group) {
-        const gone = tabsOf(group);
-        const index = list.indexOf(gone[0]);
-        for (const tab of gone) retire(tab);
-        if (!list.length) return add();
-        if (gone.includes(front)) select(list[Math.max(0, index - 1)]);
+    // It stays, empty of tabs.
+    function closeTabsIn(folder) {
+        closeTabs(nodes.items(folder));
+    }
+
+    // A bookmark, or a folder of bookmarks with what it holds, opened at the end of `parent`, and its first tab chosen.
+    function openBookmarks(node, parent = nodes.root) {
+        const opened = (each, into) => {
+            if (!isFolder(each))
+                return [add(each.url, { title: each.title, icon: each.icon, background: true, parent: into })];
+            const folder = { ...folderOf(each), id: nodes.newId(), children: [] };
+            nodes.insert(folder, into);
+            return each.children.flatMap((child) => opened(child, folder));
+        };
+        const [first] = opened(node, parent);
+        if (first) select(first);
+        else changed();
+    }
+
+    // Its tabs closed, and it gone with what it holds.
+    function deleteFolder(folder) {
+        closeTabs(nodes.items(folder));
+        nodes.remove(folder);
+        changed();
+    }
+
+    // Retired together: closed one at a time, each close would bring its neighbour forward on the way. The tab in
+    // front, closed, gives way to the nearest one before it, else after it.
+    function closeTabs(tabs) {
+        const order = nodes.items();
+        const at = order.indexOf(front);
+        const stays = (tab) => !tabs.includes(tab);
+        const next = stays(front) ? front : order.slice(0, at).reverse().find(stays) || order.slice(at).find(stays);
+        for (const tab of tabs) retire(tab);
+        if (!next) return add();
+        if (next !== front) select(next);
         else changed();
     }
 
     function listen(tab) {
         const { page } = tab;
-        const isCurrentPage = () => tab.page === page && list.includes(tab);
+        const isCurrentPage = () => tab.page === page && nodes.items().includes(tab);
         page.delegate = {
             didChange: (state) => {
                 if (tab.page !== page) return;
@@ -254,7 +224,7 @@ function tabList({
             },
             didFocus: () => onFocus(),
             didRefuseCertificate: (info) => onCertificateRefused(info),
-            decidePermission: (request) => (list.includes(tab) ? decidePermission(tab, request) : false),
+            decidePermission: (request) => (nodes.items().includes(tab) ? decidePermission(tab, request) : false),
             didReceiveNotification: (notification) => onNotification(tab, notification),
             didFind: (result) => {
                 if (tab.page === page) onFound(tab, result);
@@ -264,6 +234,10 @@ function tabList({
                 if (isCurrentPage()) navigate(tab, url);
                 return false;
             },
+            shouldOpenWindow: (url, { activates, target }) => {
+                if (isCurrentPage()) open(url, { activates, target, opener: tab });
+                return false;
+            },
             didRequestClose: () => {
                 if (isCurrentPage()) close(tab);
             },
@@ -271,44 +245,44 @@ function tabList({
     }
 
     function retire(tab) {
-        const index = list.indexOf(tab);
+        const { parent, index } = nodes.remove(tab);
         if (tab.url !== 'about:blank') {
-            closed.push({ url: tab.url, title: tab.title, icon: tab.icon, group: tab.group, at: index });
+            const { url, title, icon } = tab;
+            closed.push({ url, title, icon, parent: parent === nodes.root ? null : parent.id, index });
             closed.splice(0, Math.max(0, closed.length - KEPT_CLOSED));
         }
         release(tab, tab.page);
-        list.splice(index, 1);
-        forgetIfEmpty(groupOf(tab));
-    }
-
-    // Out of its group, after the group's last tab.
-    function detach(tab) {
-        const group = groupOf(tab);
-        if (!group) return;
-        tab.group = null;
-        const rest = tabsOf(group);
-        if (rest.length) {
-            list.splice(list.indexOf(tab), 1);
-            list.splice(list.indexOf(rest.at(-1)) + 1, 0, tab);
-        }
-        forgetIfEmpty(group);
-    }
-
-    function forgetIfEmpty(group) {
-        if (group && !tabsOf(group).length) groups.delete(group.id);
-    }
-
-    function tabsOf(group) {
-        return list.filter((tab) => tab.group === group.id);
-    }
-
-    function isGroup(item) {
-        return groups.get(item.id) === item;
     }
 
     function release(tab, page) {
         onRelease(tab);
         page.close();
+    }
+
+    // A tab for `url`, its page made and listened to, in no folder yet.
+    function tabOf(url, { id = nodes.newId(), title = '', icon = '' }) {
+        const page = pageFor(url);
+        page.element.style.visibility = 'hidden';
+        area.prepend(page.element);
+        const tab = {
+            id,
+            page,
+            url: canonical(url),
+            title,
+            icon,
+            loading: true,
+            canGoBack: false,
+            canGoForward: false,
+            // The window name the page asked for, which a later request for the same name reuses.
+            target: '',
+            // The tab whose page opened this one.
+            opener: null,
+            audible: false,
+            muted: false,
+            capture: { microphone: false, camera: false, screen: false },
+        };
+        listen(tab);
+        return tab;
     }
 
     // Every tab's page fills the area, one over another; only the front one is shown.
@@ -321,7 +295,7 @@ function tabList({
     // Pages out of sight are hidden by visibility: a page element with nothing to draw into (display: none) comes
     // back blank or at the wrong size.
     function showCurrent() {
-        for (const tab of list) tab.page.element.style.visibility = tab === front ? 'visible' : 'hidden';
+        for (const tab of nodes.items()) tab.page.element.style.visibility = tab === front ? 'visible' : 'hidden';
     }
 
     function changed() {
@@ -330,13 +304,14 @@ function tabList({
     }
 
     function persist() {
-        records.set('session', {
-            tabs: list.map(({ url, title, icon, group }) => ({ url, title, icon, group })),
-            front: Math.max(0, list.indexOf(front)),
-            closed,
-            groups: [...groups.values()],
-        });
+        records.set('session', { tabs: nodes.root.children.map(recordOf), front: front.id, closed });
     }
+}
+
+// What the session record keeps of a node.
+function recordOf(node) {
+    if (!isFolder(node)) return { id: node.id, url: node.url, title: node.title, icon: node.icon };
+    return { ...folderOf(node), children: node.children.map(recordOf) };
 }
 
 // What names a tab in a line: its title, else its file or site.
@@ -344,4 +319,4 @@ function tabLabel(tab) {
     return tab.title || placeOf(tab.url) || 'New tab';
 }
 
-module.exports = { GROUP_COLORS, tabList, tabLabel };
+module.exports = { tabList, tabLabel };

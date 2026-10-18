@@ -1,9 +1,10 @@
 const { parseAddress, isWrittenAddress, placeOf } = require('./address.js');
 const { tabLabel } = require('./tab-list.js');
+const { folderLabel } = require('./tree.js');
 
 // What the Browser offers the switcher: an address typed there, and its commands. Bookmarks and tabs are pages of
-// their own, so a long list does not bury every other mod.
-function switcher({ ui, show, bookmarks, listTabs, lastClosedTab, onNewTab, onReopenTab, onSelectTab }) {
+// their own, so a long list does not bury every other mod; one in a folder is hinted with the folders it is in.
+function switcher({ ui, show, bookmarks, tabTree, lastClosedTab, onNewTab, onReopenTab, onSelectTab }) {
     return { resolve, commands };
 
     // Only an address resolves: a search for any words would put a row above the ranked list on every keystroke. One
@@ -59,16 +60,19 @@ function switcher({ ui, show, bookmarks, listTabs, lastClosedTab, onNewTab, onRe
                 page: {
                     placeholder: 'Search bookmarks',
                     entries: () =>
-                        bookmarks.all().map((bookmark) => ({
-                            label: bookmark.label,
-                            hint: placeOf(bookmark.url),
-                            icon: ui.icon('bookmark'),
-                            address: bookmark.url,
-                            run: () => {
-                                show();
-                                onNewTab(bookmark.url);
-                            },
-                        })),
+                        bookmarks
+                            .tree()
+                            .items()
+                            .map((bookmark) => ({
+                                label: bookmark.title,
+                                hint: hintOf(bookmarks.tree(), bookmark),
+                                icon: ui.icon('bookmark'),
+                                address: bookmark.url,
+                                run: () => {
+                                    show();
+                                    onNewTab(bookmark.url);
+                                },
+                            })),
                 },
             },
             {
@@ -78,19 +82,27 @@ function switcher({ ui, show, bookmarks, listTabs, lastClosedTab, onNewTab, onRe
                 page: {
                     placeholder: 'Search open tabs',
                     entries: () =>
-                        listTabs().map((tab) => ({
-                            label: tabLabel(tab),
-                            hint: placeOf(tab.url),
-                            icon: ui.icon('window'),
-                            address: tab.url,
-                            run: () => {
-                                show();
-                                onSelectTab(tab);
-                            },
-                        })),
+                        tabTree()
+                            .items()
+                            .map((tab) => ({
+                                label: tabLabel(tab),
+                                hint: hintOf(tabTree(), tab),
+                                icon: ui.icon('window'),
+                                address: tab.url,
+                                run: () => {
+                                    show();
+                                    onSelectTab(tab);
+                                },
+                            })),
                 },
             },
         ];
+    }
+
+    // The folders an item is in, from the outermost, then its file or site.
+    function hintOf(tree, item) {
+        const folders = tree.ancestorsOf(item).reverse();
+        return [...folders.map(folderLabel), placeOf(item.url)].join(' / ');
     }
 }
 

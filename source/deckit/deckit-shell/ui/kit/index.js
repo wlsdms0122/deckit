@@ -4,6 +4,7 @@ import * as POINTER from '../pointer/index.js';
 import * as OVERLAY from '../overlay/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as LISTBOX from '../list/listbox.js';
+import * as TREE from '../list/tree.js';
 import * as PART from '../component/part.js';
 import * as BUTTON_COMPONENT from '../component/button.js';
 import * as FIELD_COMPONENT from '../component/field.js';
@@ -13,6 +14,7 @@ import * as POPOVER_COMPONENT from '../component/popover.js';
 import * as ROW_COMPONENT from '../component/row.js';
 import * as INLINEEDIT_COMPONENT from '../component/inline-edit.js';
 import * as SORTABLE_COMPONENT from '../component/sortable.js';
+import * as MARQUEE_COMPONENT from '../component/marquee.js';
 import * as DRAG_COMPONENT from '../component/drag.js';
 import * as FILETREE_COMPONENT from '../component/file-tree.js';
 import * as RESIZER_COMPONENT from '../component/resizer.js';
@@ -33,6 +35,7 @@ const components = [
     ROW_COMPONENT,
     INLINEEDIT_COMPONENT,
     SORTABLE_COMPONENT,
+    MARQUEE_COMPONENT,
     DRAG_COMPONENT,
     FILETREE_COMPONENT,
     RESIZER_COMPONENT,
@@ -61,6 +64,7 @@ function make(theme) {
         element: PART.element,
         addStyle,
         listbox: LISTBOX.listbox,
+        tree: TREE.tree,
         alpha: COLOR.alpha,
         mix: COLOR.mix,
         capturePointer: POINTER.capture,

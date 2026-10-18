@@ -273,8 +273,6 @@ module.exports = {
             for (const file of workspaces.files())
                 if (folderHolding(file) === folder) disk.check(file).catch(() => false);
         });
-        // Before any file opens, so a reloaded sandbox ends what the one before it watched.
-        watchOpenFolders();
         session.restore({ openFolder, openInBackground: (path) => tryOpen(path, { background: true }) }).then(paint);
 
         deck.view({
@@ -537,6 +535,7 @@ module.exports = {
                 onOpen: (path, options) => open(path, options),
                 onFindIn: (relative) => findIn(workspace, relative),
                 onMove: (entry, folder) => entryActions.move(workspace, entry, folder),
+                onRename: (entry) => entryActions.rename(workspace, entry),
                 menu: entryActions.menuOf(workspace),
             });
             workspace.search = workspaceSearch({

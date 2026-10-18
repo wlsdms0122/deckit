@@ -1,11 +1,10 @@
 const { kindIconOf } = require('./icon-cache.js');
 const { parentOf } = require('./path.js');
 
-// Go to Folder: a path typed, `~` for the home folder and relative to the tab's folder, with what is in the folder
-// typed so far listed under it. Tab completes to the suggestion, the arrows move through them, Enter goes. A file goes
+// Go to Folder: a path typed, `~` for the home folder and relative to the folder in front, with all that is in the
+// folder typed so far listed under it. Tab completes to the suggestion, the arrows move through them, Enter goes. A file goes
 // to its folder, selected there: `onGo(folder, file)`.
-function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
-    const SUGGESTED = 8;
+function goToFolder({ ui, disk, tildify, homeLocation, folderInFront, onGo }) {
     // A wait shorter than this shows nothing, so a quick answer does not flash the spinner.
     const WAIT_SHOWN_AFTER = 120; // milliseconds
     const STYLE = `
@@ -74,7 +73,6 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
                 .filter((entry) => entry.name.toLowerCase().startsWith(start))
                 .filter((entry) => start.startsWith('.') || !entry.name.startsWith('.'))
                 .sort((a, b) => (b.kind === 'folder') - (a.kind === 'folder') || a.name.localeCompare(b.name))
-                .slice(0, SUGGESTED)
                 .map((entry) => ({ path: entry.path, name: entry.name, folder: entry.kind === 'folder', entry }));
             const where = folder && `“${tildify(folder)}”`;
             unsuggested = !folder
@@ -147,20 +145,20 @@ function goToFolder({ ui, disk, tildify, homeLocation, location, onGo }) {
         return row.element;
     }
 
-    // The tab's folder, to go on from.
+    // The folder in front, to go on from.
     function startText() {
-        const here = location();
+        const here = folderInFront();
         return here ? tildify(here) + (here === '/' ? '' : '/') : '';
     }
 
     // An absolute path for what is typed: `~` is the home folder, `~name` the home folder of `name` beside it, and a
-    // path not from the root is from the tab's folder.
+    // path not from the root is from the folder in front.
     function resolved(typed) {
         let text = typed.trim();
         if (!text) return null;
         if (text === '~' || text.startsWith('~/')) text = homeLocation() + text.slice(1);
         else if (text.startsWith('~')) text = parentOf(homeLocation()) + '/' + text.slice(1);
-        else if (!text.startsWith('/')) text = (location() || homeLocation()) + '/' + text;
+        else if (!text.startsWith('/')) text = (folderInFront() || homeLocation()) + '/' + text;
         const parts = [];
         for (const part of text.split('/')) {
             if (part === '..') parts.pop();

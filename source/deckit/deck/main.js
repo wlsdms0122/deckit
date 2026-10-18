@@ -72,14 +72,14 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     // What follows the mods' runs starts before the runner launches any. What is on deck adds to a mod's page's
     // `webPreferences` and is told of the page as it is made (`preparePage(webContents, mod)`); the rest it is told
     // and asked is the mods' (mods/main.js).
-    function start({ webPreferences, preparePage, describe: facts, installed, removed, clearSessions }) {
+    function start({ webPreferences, preparePage, describe: facts, onFactsChange, installed, removed, clearSessions }) {
         CATALOG.start();
         RECORD.start();
         SETTING.start();
         EXPORT.start();
         EXTENSION.start();
         EVENT.start();
-        MODS.start({ facts, installed, removed, clearSessions });
+        MODS.start({ facts, onFactsChange, installed, removed, clearSessions });
         RUNNER.start({ preparePage, webPreferences });
     }
 
@@ -112,6 +112,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
             observe: RUNNER.observe,
             runs: RUNNER.runs,
             runOf: RUNNER.runOf,
+            launchedOf: RUNNER.launchedOf,
             relaunchAll: RUNNER.relaunchAll,
         }),
         manifest: Object.freeze({ of: MANIFEST.of, define: MANIFEST.define }),

@@ -73,7 +73,7 @@ function dropTarget(zone, { kind, placeAt, onDrop }) {
 
 // The label morphs out of the thing's box when lifted and back into it when taken back. A thing not all in sight
 // has no box to use (it would be drawn over what covers it), so the label then starts as itself and, taken back,
-// fades where it is.
+// fades where it is. A sortable row held over a drop target is carried by it too.
 function carry(item, { kind, payload, text, icon }, down, finished) {
     const MOTION = TOKEN.MOTION;
     const label = labelOf(text, icon);
@@ -254,4 +254,4 @@ function element(tag, className) {
     return made;
 }
 
-export { STYLE, make };
+export { STYLE, make, carry, landing };

@@ -134,8 +134,7 @@ module.exports = ({ emit, window, files }) => {
         },
 
         // The folders of the open files, each heard as `changed` a moment after something in it changes. The whole set
-        // is replaced: this module stays loaded across a reload of the sandbox, and a reloaded sandbox never unwatches
-        // what the one before it watched.
+        // is replaced.
         watch(folders) {
             const wanted = new Set(folders.map(absolute));
             for (const folder of [...watched.keys()]) if (!wanted.has(folder)) stopWatching(folder);
@@ -163,6 +162,12 @@ module.exports = ({ emit, window, files }) => {
             } finally {
                 if (searches.get(root) === search) searches.delete(root);
             }
+        },
+
+        // As the run that started it ends: its watchers, and its searches' threads.
+        dispose() {
+            for (const folder of [...watched.keys()]) stopWatching(folder);
+            for (const search of [...searches.values()]) search.stop();
         },
     };
 

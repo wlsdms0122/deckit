@@ -2,8 +2,21 @@ const { isWeb, placeOf } = require('./address.js');
 const { favicon } = require('./favicon.js');
 
 // The address bar, floating over the page in the corner it is dragged to. At rest it shows the site; a press opens it
-// with the page's controls, and a press on the open address edits it.
-function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
+// with the page's controls, and a press on the open address edits it. `onBookmark(star)` is a press on the star, and
+// `isEditingBookmark()` whether what it opened is still open.
+function addressBar({
+    theme,
+    ui,
+    values,
+    area,
+    onBack,
+    onForward,
+    onReload,
+    onSitePermissions,
+    onBookmark,
+    isEditingBookmark,
+    onSubmit,
+}) {
     const CORNER_KEY = 'island-corner';
     const DRAG_THRESHOLD = 4;
     // How long after a drag settles the click it ends with may still arrive, in ms.
@@ -216,10 +229,10 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
         element.removeAttribute('data-editing');
     }
 
-    // Kept open while the caret is in the address.
+    // Kept open while the caret is in the address, or while the star's bookmark is edited.
     function setOpen(on) {
         if (open === on) return;
-        if (!on && editing) return;
+        if (!on && (editing || isEditingBookmark())) return;
         open = on;
         element.toggleAttribute('data-open', on);
     }
@@ -231,7 +244,7 @@ function addressBar({ theme, ui, values, area, onBack, onForward, onReload, onSi
 
     function bookmark() {
         if (!shownTab) return;
-        onBookmark();
+        onBookmark(star.element);
         if (!theme.motion.fast) return;
         star.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
             duration: 220,

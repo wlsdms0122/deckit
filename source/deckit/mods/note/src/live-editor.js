@@ -404,26 +404,63 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         if (key === 'monospaced') return toggleFence();
         const style = PARAGRAPH_STYLES.find((candidate) => candidate.key === key);
         const { state } = view;
-        const lines = selectedLines(state);
+        // A setext heading is its text line: its underline goes with whatever style the line takes.
+        const underlines = new Map(); // text line number -> its underline line
+        const lines = [];
+        for (const selected of selectedLines(state)) {
+            const setext = setextAt(state, selected);
+            const line = setext ? setext.text : selected;
+            if (setext) underlines.set(line.number, setext.underline);
+            if (!lines.some(({ number }) => number === line.number)) lines.push(line);
+        }
         const same = lines.every((line) => lineStyleAt(state, line) === key);
         let number = 0;
-        const changes = lines.map((line) => {
-            // Other styles change only what follows the quote marks, so an item in a quote stays in it.
-            const quoted = QUOTE_MARKS.exec(line.text)?.[0] || '';
-            if (key === 'blockQuote')
-                return same
-                    ? { from: line.from, to: line.from + quoted.length, insert: '' }
-                    : { from: line.from, insert: '> ' };
-            const lead = LEADING_MARK.exec(line.text.slice(quoted.length));
-            const indent = /^(title|heading|subheading)$/.test(key) ? '' : lead[1];
-            const mark = same ? '' : key === 'numberedList' ? `${++number}. ` : style.mark;
-            const from = line.from + quoted.length;
-            return { from, to: from + lead[0].length, insert: indent + mark };
+        // The underline goes from the end of the line before it. A heading's text may span lines: as a heading it is
+        // one line, joined by spaces as CommonMark reads it; as anything else its lines stay.
+        const heading = /^(title|heading|subheading)$/.test(key) && !same;
+        const changes = lines.flatMap((line) => {
+            const underline = underlines.get(line.number);
+            if (!underline) return markChange(line);
+            const last = state.doc.line(underline.number - 1);
+            const joins = [];
+            for (let number = line.number + 1; heading && number < underline.number; number++)
+                joins.push({ from: state.doc.line(number - 1).to, to: state.doc.line(number).from, insert: ' ' });
+            return [...markChange(line), ...joins, { from: last.to, to: underline.to, insert: '' }];
         });
         // Mapped with associativity 1, so a caret at the start of a line lands after the new mark.
         const changeSet = state.changes(changes);
         view.dispatch({ changes: changeSet, selection: state.selection.map(changeSet, 1), userEvent: 'input.format' });
         view.focus();
+
+        function markChange(line) {
+            // Other styles change only what follows the quote marks, so an item in a quote stays in it.
+            const quoted = QUOTE_MARKS.exec(line.text)?.[0] || '';
+            if (key === 'blockQuote')
+                return same
+                    ? [{ from: line.from, to: line.from + quoted.length, insert: '' }]
+                    : [{ from: line.from, insert: '> ' }];
+            const lead = LEADING_MARK.exec(line.text.slice(quoted.length));
+            const indent = /^(title|heading|subheading)$/.test(key) ? '' : lead[1];
+            const mark = same ? '' : key === 'numberedList' ? `${++number}. ` : style.mark;
+            const from = line.from + quoted.length;
+            return [{ from, to: from + lead[0].length, insert: indent + mark }];
+        }
+    }
+
+    // The setext heading a line is part of, its text line and its underline (CommonMark: text, then `===` or `---`).
+    function setextAt(state, line) {
+        let found = null;
+        engine.syntaxTree(state).iterate({
+            from: line.from,
+            to: line.to,
+            enter: (node) => {
+                if (found || !/^SetextHeading\d$/.test(node.name)) return;
+                const text = state.doc.lineAt(node.from);
+                const underline = state.doc.lineAt(node.to);
+                if (underline.number > text.number) found = { text, underline };
+            },
+        });
+        return found;
     }
 
     function paragraphStyle() {
@@ -447,11 +484,13 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         }
         const from = state.doc.lineAt(state.selection.main.from);
         const to = state.doc.lineAt(state.selection.main.to);
+        // A setext heading's underline would read as a rule under the code: the closing fence takes its place.
+        const setext = setextAt(state, to);
+        const end = setext
+            ? { from: state.doc.line(setext.underline.number - 1).to, to: setext.underline.to, insert: '\n```' }
+            : { from: to.to, insert: '\n```' };
         view.dispatch({
-            changes: [
-                { from: from.from, insert: '```\n' },
-                { from: to.to, insert: '\n```' },
-            ],
+            changes: [{ from: from.from, insert: '```\n' }, end],
             selection: { anchor: from.from + 4 + (state.selection.main.head - from.from) },
             userEvent: 'input.format',
         });
@@ -861,6 +900,8 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
                         node.name === 'ATXHeading1' ? 'title' : node.name === 'ATXHeading2' ? 'heading' : 'subheading',
                         3
                     );
+                else if (/^SetextHeading\d$/.test(node.name) && starts)
+                    take(node.name === 'SetextHeading1' ? 'title' : 'heading', 3);
                 else if (node.name === 'ListItem' && starts)
                     take(
                         node.node.getChild('Task')

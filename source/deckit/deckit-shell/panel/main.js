@@ -15,6 +15,7 @@ export function createPanel({ REGION }) {
     let host = null;
     let current = null;
     let returning = null; // the mod that was on screen while its page runs again
+    let inList = new Set(); // the mods in the list as it was last sent
     // The panel is glass: its colour laid at this strength over what is behind it, blurred through.
     const GLASS = 0.68;
     // How long main waits on a page's exit before it goes on: it guards a page that is gone or stuck.
@@ -326,11 +327,14 @@ export function createPanel({ REGION }) {
         };
     }
 
+    // A mod listed stays listed while it launches again, in this page or a new one (a replace), until its new run
+    // says whether it has something to show.
     function stateOf() {
         const mods = deckit.mods
             .list()
-            .filter(({ id }) => shownInList(id))
+            .filter(({ id }) => shownInList(id) || (inList.has(id) && listed(id) && mayShow(id)))
             .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));
+        inList = new Set(mods.map(({ id }) => id));
         return {
             mods,
             current,

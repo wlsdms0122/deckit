@@ -8,7 +8,7 @@ const TREE_STYLE = `
 
 // A workspace's folder as a tree, read a folder at a time. The folders expanded are kept per folder in `store`. A row
 // being renamed or dragged keeps its place until it is done.
-function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, menu }) {
+function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, onRename, menu }) {
     let root = null;
     const entriesByFolder = new Map(); // folder path -> its entries, once read
     let expanded = new Set();
@@ -22,7 +22,6 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
     const rowParts = new WeakMap(); // row element -> { setActive, setOpen, unsaved }
     const element = rows.element;
     element.classList.add('editor-tree');
-    element.tabIndex = -1;
 
     ui.contextMenu(element, {
         rowAt: (target) => target.closest?.('[data-path]') || null,
@@ -33,32 +32,26 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
             return entry ? menu(entry) : null;
         },
     });
-    // Only on the tree itself: a name being typed over in a row keeps its keys.
-    element.addEventListener('keydown', (event) => {
-        if (event.target !== element || event.metaKey || event.ctrlKey || event.altKey || !root) return;
-        const entry = selected && entryAt(selected);
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            const paths = [...element.querySelectorAll('[data-path]')].map((row) => row.dataset.path);
-            const index = paths.indexOf(selected);
-            const by = event.key === 'ArrowDown' ? 1 : -1;
-            const next = index < 0 ? paths[0] : paths[Math.min(paths.length - 1, Math.max(0, index + by))];
-            if (next && next !== selected) moveTo(next);
-        } else if (event.key === 'ArrowRight' && entry?.folder) {
-            event.preventDefault();
-            if (!expanded.has(entry.path)) return setExpanded(entry.path, true);
-            const first = entriesByFolder.get(entry.path)?.[0];
-            if (first) moveTo(first.path);
-        } else if (event.key === 'ArrowLeft' && entry) {
-            event.preventDefault();
-            if (entry.folder && expanded.has(entry.path)) return setExpanded(entry.path, false);
-            const up = parentOf(entry.path);
-            if (isInside(up, root)) moveTo(up);
-        } else if (event.key === ' ' && entry?.folder) {
-            // The sidebar does not scroll by a page.
-            event.preventDefault();
-            setExpanded(entry.path, !expanded.has(entry.path));
-        }
+    ui.tree(element, {
+        items: () => [...element.querySelectorAll('[data-path]')].map((row) => row.dataset.path),
+        // A selected entry since gone from the disk is no lead.
+        lead: () => (selected && entryAt(selected) ? selected : null),
+        nameOf: (path) => entryAt(path).name,
+        expanded: (path) => (entryAt(path).folder ? expanded.has(path) : null),
+        parentOf: (path) => (isInside(parentOf(path), root) ? parentOf(path) : null),
+        childrenOf: (path) => (entriesByFolder.get(path) || []).map((entry) => entry.path),
+        onSelect: moveTo,
+        onToggle: setExpanded,
+        // A folder shows what it holds; a file is previewed, as moving onto it does.
+        onPreview: (path) => {
+            if (entryAt(path).folder) setExpanded(path, !expanded.has(path));
+            else onOpen(path, { preview: true, preserveFocus: true });
+        },
+        onRename: (path) => onRename(entryAt(path)),
+        onOpen: (path) => {
+            if (entryAt(path).folder) setExpanded(path, true);
+            else onOpen(path, { preview: false });
+        },
     });
     ui.dragSource(element, {
         itemAt: (target) => target.closest?.('[data-path]') || null,
@@ -183,18 +176,19 @@ function fileTree({ ui, store, fileSystem, isUnsaved, onOpen, onFindIn, onMove, 
         row.dataset.path = item.path;
         const unsaved = ui.element('span', { className: 'editor-unsaved-dot' });
         row.append(unsaved);
-        if (item.folder)
-            row.append(
-                ui.rowAction({
-                    icon: ui.icon('search', { size: 13 }),
-                    title: 'Find in this folder',
-                    onClick: () => onFindIn(relativePath(item.path, root)),
-                }).element
-            );
+        if (item.folder) {
+            const find = ui.rowAction({
+                icon: ui.icon('search', { size: 13 }),
+                title: 'Find in this folder',
+                onClick: () => onFindIn(relativePath(item.path, root)),
+            }).element;
+            // The tree is one stop of Tab; a row's action is reached by the pointer.
+            find.tabIndex = -1;
+            row.append(find);
+        }
         rowParts.set(row, { setActive, setOpen, unsaved });
         updateRow(row, item);
         row.addEventListener('click', () => {
-            element.focus({ preventScroll: true });
             if (!item.folder) return moveTo(item.path);
             select(item.path);
             setExpanded(item.path, !expanded.has(item.path));

@@ -14,11 +14,11 @@ const gestures = new WeakMap(); // area -> the gesture under way in it
 // MARK: - Public
 // The gesture under every drag in the kit. `pick(target)` finds the thing under a press. Past SLOP,
 // `begin(item, down, finished)` returns the drag { follow(x, y), drop(x, y), cancel(), scroller?(x, y),
-// settleNow?() } or null; the drag calls `finished()` once it has played out. A gesture is in one phase at a
-// time (pressed, held, settling, ended) and every handler reads only that.
-function drag(area, { pick, begin }) {
+// settleNow?() } or null; the drag calls `finished()` once it has played out. `cursor` is the pointer's while the drag
+// holds. A gesture is in one phase at a time (pressed, held, settling, ended) and every handler reads only that.
+function drag(area, { pick, begin, cursor = 'grabbing' }) {
     const onDragStart = (event) => pick(event.target) && event.preventDefault();
-    const onDown = (down) => press(area, down, pick, begin);
+    const onDown = (down) => press(area, down, pick, begin, cursor);
     area.addEventListener('dragstart', onDragStart);
     area.addEventListener('pointerdown', onDown);
     return () => {
@@ -28,7 +28,7 @@ function drag(area, { pick, begin }) {
 }
 
 // MARK: - Private
-function press(area, down, pick, begin) {
+function press(area, down, pick, begin, cursor) {
     if (down.button !== 0 || down.target.closest?.('input, textarea, [contenteditable]')) return;
     const item = pick(down.target);
     if (!item || !area.contains(item)) return;
@@ -83,7 +83,7 @@ function press(area, down, pick, begin) {
                 return finished();
             }
             phase = 'held';
-            release = POINTER.capture('grabbing');
+            release = POINTER.capture(cursor);
             layer = OVERLAY.open({ modal: true, onDismiss: callOff });
             window.addEventListener('wheel', onWheel, { capture: true, passive: false });
             frame = requestAnimationFrame(scrollAtEdge);

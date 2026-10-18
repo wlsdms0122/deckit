@@ -72,7 +72,7 @@ function listView({ ui, icons, onSort }) {
     ui.addStyle(STYLE);
     element.classList.add('finder-list');
 
-    return { element, header, fit, draw, select };
+    return { element, header, rows, fit, draw, select };
 
     // Whether the columns shown changed, for a view `width` wide.
     function fit(width) {

@@ -47,10 +47,19 @@ function fileMenu({
     function entryItems(entry) {
         const folder = entry.kind === 'folder';
         return [
-            { label: 'Open', icon: folder ? 'folder' : 'externalWindow', run: () => open([entry]) },
+            {
+                label: 'Open',
+                icon: folder ? 'folder' : 'externalWindow',
+                hint: chordOf('open'),
+                run: () => open([entry]),
+            },
             folder
                 ? { label: 'Open in New Tab', icon: 'window', hint: '⌘', run: () => openInNewTab(entry.path) }
-                : { label: 'Open with Default App', hint: '⌥', run: () => open([entry], { usesDefaultApp: true }) },
+                : {
+                      label: 'Open with Default App',
+                      hint: chordOf('openWithDefaultApp'),
+                      run: () => open([entry], { usesDefaultApp: true }),
+                  },
             { label: 'Quick Look', icon: 'eye', hint: 'Space', run: () => quickLook(entry) },
             '-',
             { label: 'Rename…', icon: 'pencil', run: () => rename(entry) },
@@ -65,7 +74,7 @@ function fileMenu({
     function selectionItems(entries) {
         const count = `${entries.length} Items`;
         return [
-            { label: `Open ${count}`, icon: 'externalWindow', run: () => open(entries) },
+            { label: `Open ${count}`, icon: 'externalWindow', hint: chordOf('open'), run: () => open(entries) },
             '-',
             { label: 'Move to Trash', icon: 'trash', hint: chordOf('trash'), run: () => trash(entries) },
             '-',

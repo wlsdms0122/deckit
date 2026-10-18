@@ -1,6 +1,6 @@
-// A main process module runs in the host app's main process. It is started the first time the mod asks for it and
-// kept until the host app quits, so one whose code changed underneath it keeps running the old code: only a restart
-// finishes the change.
+// A main process module runs in the host app's main process. One with no dispose is kept until the host app quits,
+// so one whose code changed underneath it keeps running the old code, and one whose dispose failed may have left what
+// it made: only a restart finishes those.
 function restartNotice({ ui, mods, appName, onFailure }) {
     ui.addStyle(`
         .settings-restart {
@@ -34,6 +34,7 @@ function restartNotice({ ui, mods, appName, onFailure }) {
         const updated = named('updated');
         const removed = named('removed');
         const reinstalled = named('reinstalled');
+        const leftover = named('leftover');
         const sentences = [];
         if (updated.length)
             sentences.push(
@@ -42,6 +43,8 @@ function restartNotice({ ui, mods, appName, onFailure }) {
         if (removed.length) sentences.push(`${removed.join(', ')} removed, but what it started is still running`);
         if (reinstalled.length)
             sentences.push(`${reinstalled.join(', ')} reinstalled, but what the earlier copy started is still running`);
+        if (leftover.length)
+            sentences.push(`${leftover.join(', ')} stopped, but what it started may not all have ended`);
         text.textContent = sentences.join('. ') + '. A restart finishes it.';
     }
 
