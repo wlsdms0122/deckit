@@ -7,7 +7,6 @@ import * as MAIN_PROCESS from '../main-process/renderer.js';
 import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as BINDING_ID from '../keymap/model/binding-id.js';
-import * as DECK from '../../deck/renderer.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
@@ -112,7 +111,7 @@ export function createMod({ CONFIG, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) 
                       }),
                   }
                 : {}),
-            ...(mod.id === CONFIG.id && HOST ? { host: DECK.deepFreeze({ ...HOST }) } : {}),
+            ...(mod.id === CONFIG.id && HOST ? { host: HOST } : {}),
         };
     }
 

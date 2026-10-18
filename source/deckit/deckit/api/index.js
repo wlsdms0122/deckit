@@ -1,4 +1,4 @@
-import * as DECK from '../deck/main.js';
+import * as DECK from '../../deck/main.js';
 
 export function createApi({
     CONFIG,
@@ -118,14 +118,7 @@ export function createApi({
     }
 
     function frozen(value) {
-        const freeze = (inner) => {
-            if (!inner || typeof inner !== 'object' || Object.isFrozen(inner)) return;
-            Object.freeze(inner);
-            for (const held of Object.values(inner)) freeze(held);
-        };
-        const copy = structuredClone(value);
-        freeze(copy);
-        return copy;
+        return DECK.deepFreeze(structuredClone(value));
     }
 
     return { make };

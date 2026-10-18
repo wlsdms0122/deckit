@@ -28,17 +28,17 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER }) {
         serve();
     }
 
-    // A view for a page of deck's: sandboxed, isolated, in deck's own session. `webview`: whether its page may show
-    // the web. How it looks where it is shown is for whoever shows it.
-    function view({ webview }) {
+    // A view for a page of deck's: sandboxed, isolated, in deck's own session, with what the layers add to its
+    // `webPreferences`. How it looks where it is shown is for whoever shows it.
+    function view(webPreferences = {}) {
         const { WebContentsView } = require('electron');
         return new WebContentsView({
             webPreferences: {
+                ...webPreferences,
                 preload,
                 session: session(),
                 sandbox: true,
                 contextIsolation: true,
-                webviewTag: webview,
             },
         });
     }
@@ -48,7 +48,7 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER }) {
     function page(name) {
         if (!PAGE_NAME.test(String(name)))
             throw new Error(`"${name}" is not a page name: a lower case letter, then letters, digits and -`);
-        const made = view({ webview: false });
+        const made = view();
         IDENTITY.add(made.webContents, { page: name });
         made.webContents.loadURL(ORIGIN.addressOf(ORIGIN.pageOriginOf(name)));
         return made;

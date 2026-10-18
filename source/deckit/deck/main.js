@@ -69,9 +69,10 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
             else LOG.info(`${outcome} ${id}`);
     }
 
-    // What follows the mods' runs starts before the runner launches any. What is on deck is told of a mod's page as
-    // it is made (`preparePage(webContents, mod)`); the rest it is told and asked is the mods' (mods/main.js).
-    function start({ preparePage, describe: facts, installed, removed, clearSessions }) {
+    // What follows the mods' runs starts before the runner launches any. What is on deck adds to a mod's page's
+    // `webPreferences` and is told of the page as it is made (`preparePage(webContents, mod)`); the rest it is told
+    // and asked is the mods' (mods/main.js).
+    function start({ webPreferences, preparePage, describe: facts, installed, removed, clearSessions }) {
         CATALOG.start();
         RECORD.start();
         SETTING.start();
@@ -79,7 +80,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         EXTENSION.start();
         EVENT.start();
         MODS.start({ facts, installed, removed, clearSessions });
-        RUNNER.start({ preparePage });
+        RUNNER.start({ preparePage, webPreferences });
     }
 
     // What the layers on deck reach of it, and no more: who a page is, the mods and their runs, what a layer defines,
@@ -128,3 +129,5 @@ export { SCHEME, originOf, pageOriginOf, addressOf } from './sandbox/model/origi
 export { NOTIFICATIONS } from './mod/lifecycle.js';
 export { MODS, MOD_SETTINGS } from './mod/permission.js';
 export { scopedName } from './mod/model/scoped-name.js';
+// A frozen copy all the way down, for a layer that hands out what deck holds.
+export { deepFreeze } from './export/proxy.js';

@@ -5,7 +5,6 @@ const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: STYLES,
         name: 'Styles',
-        icon: 'eye',
         means: "It can change how every page in the app looks, other mods' among them, and so read what they show.",
         reach: 'app',
     }),

@@ -18,5 +18,8 @@ export function createDeck() {
 // A stand-in for what another side holds, its functions called through main, for a layer to hand a mod.
 export { proxyOf, deepFreeze } from './export/proxy.js';
 
+// Listeners by event name, for a layer that tells a mod's listeners what happens.
+export * as BUS from './event/bus.js';
+
 // The scheme deck's pages load from, for a layer's page to know one of them.
 export { SCHEME } from './sandbox/model/origin.js';
