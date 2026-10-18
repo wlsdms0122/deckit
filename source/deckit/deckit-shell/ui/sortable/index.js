@@ -11,6 +11,11 @@ const STYLE = '';
 const LIFTED = 1.02;
 // A row held over one it goes into stands back, so the row it goes into shows round it and through it.
 const INTO = Object.freeze({ scale: 0.92, opacity: 0.75 });
+// The sides of a row along the list's axis, `y` down it or `x` across it.
+const SIDES = Object.freeze({
+    x: { start: 'left', end: 'right', size: 'width', offset: 'scrollLeft', translate: 'translateX', cross: 'y' },
+    y: { start: 'top', end: 'bottom', size: 'height', offset: 'scrollTop', translate: 'translateY', cross: 'x' },
+});
 
 // MARK: - Initializer
 // MARK: - Public
@@ -21,9 +26,10 @@ function make(theme) {
 // MARK: - Private
 // The rows of a keyed list put in a new order by a drag. The list itself is not reordered: `onReorder(key, toKey)`
 // hears that the item `key` goes where `toKey` is, and the owner draws the new order. Keys, so a change to the
-// items while the drag holds the list does not move another one. Returns the dispose.
+// items while the drag holds the list does not move another one. The rows move along the list's axis: down it, or
+// across it when the list is laid out as a flex row. Returns the dispose.
 //
-// With `depth`, the rows nest, and how far the pointer moves sideways asks for a depth as well: a level for
+// With `depth`, the rows nest, and how far the pointer moves across the axis asks for a depth as well: a level for
 // each `depth.indent` px, to the nearest. `depth.project(key, toKey, levels)` answers the depth the row would
 // take there, levels deeper (or shallower) than it is, and the held row stands that far in. `onReorder(key,
 // toKey, depth)` then hears a move to the same place at another depth too. `depth.descendants(key)` are the keys
@@ -54,6 +60,9 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     const { base, easing } = TOKEN.MOTION;
     const { element: list, keyOf } = keyed;
     const key = keyOf(row);
+    const axis = LIST.across(list) ? 'x' : 'y';
+    const { start, end, size, offset, translate, cross } = SIDES[axis];
+    const pressed = { x: down.clientX, y: down.clientY };
     // Put away before anything is measured, so the places are the ones left without them, and kept away until the
     // row is let go, carried or not: the list keeps one height while it is held, and what lies under it stays put.
     const carried = (depth?.descendants?.(key) || []).map((name) => keyed.elementOf(name)).filter(Boolean);
@@ -77,11 +86,11 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     // Places are read once, as they stood at the lift; a scroll since is added to the pointer instead.
     const boxes = rows.map((child) => child.getBoundingClientRect());
     const held = boxes[from];
-    const scroller = SCROLL.scrollerOf(list);
-    const scrolledAt = scroller ? scroller.scrollTop : 0;
-    const scrolled = () => (scroller ? scroller.scrollTop - scrolledAt : 0);
-    // How far a row moves to take the held row's place: its height and the gap after it.
-    const span = held.height + (rows.length > 1 ? Math.max(0, boxes[1].top - boxes[0].bottom) : 0);
+    const scroller = SCROLL.scrollerOf(list, axis);
+    const scrolledAt = scroller ? scroller[offset] : 0;
+    const scrolled = () => (scroller ? scroller[offset] - scrolledAt : 0);
+    // How far a row moves to take the held row's place: its size and the gap after it.
+    const span = held[size] + (rows.length > 1 ? Math.max(0, boxes[1][start] - boxes[0][end]) : 0);
     const kept = rows.map((child) => ({
         transition: child.style.transition,
         transform: child.style.transform,
@@ -102,15 +111,15 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     const project = (to, levels) => (depth ? depth.project(key, keyOf(rows[to]), levels) : 0);
     const startDepth = project(from, 0);
     let projected = startDepth;
-    const place = (offset, scale) => {
-        const inward = (projected - startDepth) * (depth?.indent || 0);
-        row.style.transform = `translate(${inward}px, ${offset}px) scale(${scale})`;
+    const place = (by, scale) => {
+        const shift = { [axis]: by, [cross]: (projected - startDepth) * (depth?.indent || 0) };
+        row.style.transform = `translate(${shift.x}px, ${shift.y}px) scale(${scale})`;
     };
     place(0, LIFTED);
     // Where the row goes is read from the pointer, not from the row held to the list: held, its middle could
     // never pass the end rows' middles, so no row could go first or last.
-    const lowest = boxes[0].top;
-    const highest = boxes.at(-1).bottom - held.height;
+    const lowest = boxes[0][start];
+    const highest = boxes.at(-1)[end] - held[size];
     let to = from;
     // The row it goes into, or -1. Over the middle half of a row that takes it, it is the row the held one stands
     // over, which stays where it is: the rows between slide aside as they would for a move beside it.
@@ -121,7 +130,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     const intoAt = (middle) => {
         if (!movesInto) return -1;
         const index = boxes.findIndex(
-            (box, at) => at !== from && middle > box.top + box.height / 4 && middle < box.bottom - box.height / 4
+            (box, at) => at !== from && middle > box[start] + box[size] / 4 && middle < box[end] - box[size] / 4
         );
         return index >= 0 && movesInto(key, keyOf(rows[index])) ? index : -1;
     };
@@ -161,31 +170,33 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
             return out.follow(x, y);
         }
         if (out) comeBack();
-        const top = held.top + y + scrolled() - down.clientY;
-        const middle = top + held.height / 2;
+        const at = { x, y };
+        const lead = held[start] + at[axis] + scrolled() - pressed[axis];
+        const middle = lead + held[size] / 2;
         light(intoAt(middle));
         to = from;
         if (into >= 0) to = into > from ? into - 1 : into + 1;
         else {
             for (let index = from + 1; index < rows.length; index++)
-                if (middle > boxes[index].top + boxes[index].height / 2) to = index;
+                if (middle > boxes[index][start] + boxes[index][size] / 2) to = index;
             for (let index = from - 1; index >= 0; index--)
-                if (middle < boxes[index].top + boxes[index].height / 2) to = index;
+                if (middle < boxes[index][start] + boxes[index][size] / 2) to = index;
         }
-        if (depth) projected = into >= 0 ? startDepth : project(to, Math.round((x - down.clientX) / depth.indent));
-        place(Math.min(highest, Math.max(lowest, top)) - held.top, into >= 0 ? INTO.scale : LIFTED);
+        if (depth)
+            projected = into >= 0 ? startDepth : project(to, Math.round((at[cross] - pressed[cross]) / depth.indent));
+        place(Math.min(highest, Math.max(lowest, lead)) - held[start], into >= 0 ? INTO.scale : LIFTED);
         row.style.opacity = into >= 0 ? String(INTO.opacity) : keptHeld.opacity;
         rows.forEach((child, index) => {
             if (index === from) return;
             const shift = index > from && index <= to ? -span : index < from && index >= to ? span : 0;
-            child.style.transform = shift ? `translateY(${shift}px)` : '';
+            child.style.transform = shift ? `${translate}(${shift}px)` : '';
         });
     };
     // On the row it goes into, or in its new place.
-    const restingTop = () => {
-        if (into >= 0) return boxes[into].top;
-        if (to === from) return held.top;
-        return to > from ? boxes[to].bottom - held.height : boxes[to].top;
+    const restingStart = () => {
+        if (into >= 0) return boxes[into][start];
+        if (to === from) return held[start];
+        return to > from ? boxes[to][end] - held[size] : boxes[to][start];
     };
     // Everything as it was, all at once, so the next frame is the owner's order and nothing in between.
     const restore = () => {
@@ -208,7 +219,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     };
     const settle = (target, after) => {
         row.style.transition = slide;
-        place(target - held.top, 1);
+        place(target - held[start], 1);
         then = after;
         if (base) timer = setTimeout(runThen, base);
         else runThen();
@@ -219,7 +230,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         drop: (x, y) => {
             if (out) return endOut((carried) => carried.drop(x, y));
             const intoKey = into >= 0 ? keyOf(rows[into]) : null;
-            settle(restingTop(), () => {
+            settle(restingStart(), () => {
                 restore();
                 try {
                     if (intoKey !== null) onMoveInto(key, intoKey);
@@ -236,12 +247,12 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
             rows.forEach((child, index) => index !== from && (child.style.transform = ''));
             light(-1);
             projected = startDepth;
-            settle(held.top, () => {
+            settle(held[start], () => {
                 restore();
                 finished();
             });
         },
-        scroller: (x, y) => (out ? out.scroller(x, y) : scroller),
+        scroller: (x, y) => (out ? out.scroller(x, y) : scroller && { element: scroller, axis }),
         // A new press gets the list as it will be, without waiting for the settle.
         settleNow: () => {
             if (out) endOut((carried) => carried.settleNow());

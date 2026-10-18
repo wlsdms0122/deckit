@@ -1,27 +1,18 @@
-module.exports = ({ home, track }) => {
-    const { execFile } = require('child_process');
-    const path = require('path');
-
-    const BRAIN_HOME = path.join(home, 'bot', 'brain');
-    const LLMEMORY_BIN = path.join(home, 'bin', 'llmemory');
-    const runBrain = (argv, operands) =>
-        new Promise((resolve, reject) => {
-            track(
-                execFile(
-                    LLMEMORY_BIN,
-                    [...argv, '--json', '--home', BRAIN_HOME, '--', ...operands],
-                    { cwd: path.dirname(BRAIN_HOME), timeout: 15000, maxBuffer: 8 * 1024 * 1024 },
-                    (error, stdout, stderr) => {
-                        if (error) return reject(new Error((String(stderr).trim() || error.message).split('\n')[0]));
-                        try {
-                            resolve(JSON.parse(String(stdout)));
-                        } catch {
-                            reject(new Error('llmemory answered something that is not JSON'));
-                        }
-                    }
-                )
-            );
+// `command` runs llmemory on the brain in the folder `home`, through `commands`.
+module.exports = ({ command, home, track, commands }) => {
+    const runBrain = async (argv, operands) => {
+        const out = await commands.run({
+            program: 'llmemory',
+            command,
+            argv: [...argv, '--json', '--home', home, '--', ...operands],
+            track,
         });
+        try {
+            return JSON.parse(out);
+        } catch {
+            throw new Error('llmemory answered something that is not JSON');
+        }
+    };
 
     const noteId = (id) => {
         const checked = String(id || '');

@@ -18,12 +18,12 @@ const FOLDER_INKS = {
 // level in, which a folded folder leaves out. A row is moved by a drag, between two rows at the depth it is drawn
 // sideways to, or into a folded or empty folder it is let go on; a folder takes its rows with it. Drawn out of the
 // list, a row is carried as `describe(node)` says. A folder's row is drawn here and an item's by `createItem` and
-// `updateItem`; both are painted here with their depth and the colours of the folders they are in.
+// `updateItem`; both are painted here with their depth, and a folder's in its colour.
 //
 // The keys walk the rows as macOS walks an outline (the kit's `tree`). The row they stand on is the lead. With
 // `choose(item)`, leading an item chooses it (a tab brought to the front), so the lead is the chosen item; any other
 // row is marked as chosen while it leads. `nameOf(item)` is what type-ahead matches; `onRename(node)` and
-// `onOpen(node)` are what Return and Command-Down do to the lead, but Command-Down on a folded folder unfolds it.
+// `onOpen(node)` are what Return and Control-Return do to the lead, but Control-Return on a folded folder unfolds it.
 function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, onRename, onOpen, onPlace, onToggle }) {
     // How far a folder's children stand in from it, which puts a child's icon under the folder's: a drag sideways by
     // as much moves a row a level in or out.
@@ -35,29 +35,22 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
     let leadKey = null; // the row the keys stand on, when it is not the chosen item's
     const folderRows = new WeakMap(); // row element -> { row, glyph, label, count }
 
-    // A folder and what it holds are one block in its colour, and a folder in a folder a block in that one: each
-    // folder's colour runs from its own depth to the next folder's. The hover and the mark of the row chosen are drawn
-    // over the colours, as they are over none.
+    // A folder's own row is washed in its colour, and the rows in it are drawn plain, as rows outside a folder are.
+    // The hover and the mark of the row chosen are drawn over the colour, as they are over none.
     ui.addStyle(`
         .browser-row-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .browser-outline-row[data-tinted] {
-            border-radius: 0;
-            background-color: transparent;
-            background-image: var(--browser-tint);
+        .browser-outline-row.browser-folder {
+            --browser-folder-tint: light-dark(
+                color-mix(in srgb, var(--browser-folder-ink) 14%, transparent),
+                color-mix(in srgb, var(--browser-folder-ink) 18%, transparent)
+            );
+            background: var(--browser-folder-tint);
         }
-        .browser-outline-row[data-tinted]:hover {
-            background-image: linear-gradient(var(--deckit-hover), var(--deckit-hover)), var(--browser-tint);
+        .browser-outline-row.browser-folder:hover {
+            background: linear-gradient(var(--deckit-hover), var(--deckit-hover)), var(--browser-folder-tint);
         }
-        .browser-outline-row[data-tinted][data-active] {
-            background-image: linear-gradient(var(--deckit-selected), var(--deckit-selected)), var(--browser-tint);
-        }
-        .browser-outline-row[data-block-start] {
-            border-top-left-radius: var(--deckit-radius-control);
-            border-top-right-radius: var(--deckit-radius-control);
-        }
-        .browser-outline-row[data-block-end] {
-            border-bottom-left-radius: var(--deckit-radius-control);
-            border-bottom-right-radius: var(--deckit-radius-control);
+        .browser-outline-row.browser-folder[data-active] {
+            background: linear-gradient(var(--deckit-selected), var(--deckit-selected)), var(--browser-folder-tint);
         }
         .browser-folder-caret {
             display: flex;
@@ -70,7 +63,6 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         .browser-folder-glyph { display: flex; flex: 0 0 auto; color: var(--browser-folder-ink); }
         .browser-folder-label { color: var(--browser-folder-ink); font-weight: 600; }
         .browser-folder-count { flex: 0 0 auto; color: var(--browser-folder-ink); font: var(--deckit-type-small); opacity: 0.8; }
-        .browser-folder[data-empty] .browser-folder-count { color: var(--deckit-muted); opacity: 1; }
     `);
     const list = ui.list({
         key: keyOf,
@@ -158,14 +150,10 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             draw();
         },
         // `node`'s name typed over its row, the folders it is in unfolded to show it: `onCommit(name)` takes the
-        // name, as the kit's `inlineEdit` has it, and a folder's may be emptied. Resolves whether it renamed.
+        // name, as the kit's `inlineEdit` has it. Resolves whether it renamed.
         rename(node, onCommit) {
             for (const folder of shownTree.ancestorsOf(node)) if (folder.collapsed) onToggle(folder);
-            const label = list.elementOf(node.id).querySelector('.browser-row-label');
-            const name = isFolder(node)
-                ? { value: node.title, required: false, placeholder: folderLabel({ title: '' }) }
-                : {};
-            return ui.inlineEdit(label, { ...name, onCommit });
+            return ui.inlineEdit(list.elementOf(node.id).querySelector('.browser-row-label'), { onCommit });
         },
         // The node of the row `target` is in, or null.
         nodeAt(target) {
@@ -210,8 +198,8 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         draw();
     }
 
-    // Each row's depth, the folders it is in (outermost first), the items a folder holds at any depth, and whether it
-    // starts or ends a block of colour. The lead, when it is not the chosen item, is marked as chosen instead.
+    // Each row's depth, the folders it is in (outermost first) and the items a folder holds at any depth. The lead,
+    // when it is not the chosen item, is marked as chosen instead.
     function rowsOf(tree, active) {
         const rows = [];
         const visit = (children, ancestors) => {
@@ -231,11 +219,6 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             }
         };
         visit(tree.root.children, []);
-        rows.forEach((row, index) => {
-            const tinted = isFolder(row.node) || row.ancestors.length > 0;
-            row.start = isFolder(row.node) && row.depth === 0;
-            row.end = tinted && (rows[index + 1]?.depth ?? 0) === 0;
-        });
         return rows;
     }
 
@@ -314,7 +297,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         return row.element;
     }
 
-    // An empty folder has nothing to fold: no caret, and "Empty" where a folded one shows how many items it holds.
+    // An empty folder has nothing to fold, so no caret. A folded one shows how many items it holds.
     function updateFolderRow(element, { node, size, active }) {
         const { row, glyph, label, count } = folderRows.get(element);
         const empty = !node.children.length;
@@ -326,32 +309,16 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         element.title = empty ? '' : open ? 'Collapse folder' : 'Expand folder';
         glyph.innerHTML = ui.icon(open ? 'folderOpen' : 'folder', { size: 16 });
         label.textContent = folderLabel(node);
-        count.textContent = empty ? 'Empty' : node.collapsed && size ? String(size) : '';
+        count.textContent = node.collapsed && size ? String(size) : '';
         row.setActive(active);
     }
 
-    function paint(element, { node, depth, ancestors, start, end }) {
-        const blocks = isFolder(node) ? [...ancestors, node] : ancestors;
+    function paint(element, { node, depth }) {
         element.classList.add('browser-outline-row');
         element.dataset.depth = depth;
         element.style.paddingLeft = 8 + depth * INDENT + 'px';
-        element.toggleAttribute('data-tinted', blocks.length > 0);
-        element.toggleAttribute('data-block-start', start);
-        element.toggleAttribute('data-block-end', end);
-        element.style.setProperty('--browser-tint', blocks.length ? tintOf(blocks) : 'none');
         if (isFolder(node)) element.style.setProperty('--browser-folder-ink', inkOf(node.color));
         return element;
-    }
-
-    // Each folder's colour from its own depth to the next one's, the innermost to the row's end.
-    function tintOf(blocks) {
-        const stops = blocks.map((folder, level) => {
-            const ink = inkOf(folder.color);
-            const tint = `light-dark(color-mix(in srgb, ${ink} 14%, transparent), color-mix(in srgb, ${ink} 18%, transparent))`;
-            const to = level === blocks.length - 1 ? '100%' : (level + 1) * INDENT + 'px';
-            return `${tint} ${level * INDENT}px ${to}`;
-        });
-        return `linear-gradient(to right, ${stops.join(', ')})`;
     }
 }
 

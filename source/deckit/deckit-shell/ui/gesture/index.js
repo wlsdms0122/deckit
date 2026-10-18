@@ -8,14 +8,20 @@ const SLOP = 4;
 const EDGE = 28;
 const STEP_MAX = 12;
 const LINE = 16;
+const SIDES = Object.freeze({
+    x: { start: 'left', end: 'right', offset: 'scrollLeft' },
+    y: { start: 'top', end: 'bottom', offset: 'scrollTop' },
+});
 const gestures = new WeakMap(); // area -> the gesture under way in it
 
 // MARK: - Initializer
 // MARK: - Public
 // The gesture under every drag in the kit. `pick(target)` finds the thing under a press. Past SLOP,
 // `begin(item, down, finished)` returns the drag { follow(x, y), drop(x, y), cancel(), scroller?(x, y),
-// settleNow?() } or null; the drag calls `finished()` once it has played out. `cursor` is the pointer's while the drag
-// holds. A gesture is in one phase at a time (pressed, held, settling, ended) and every handler reads only that.
+// settleNow?() } or null; the drag calls `finished()` once it has played out. `scroller(x, y)` answers what scrolls
+// under the pointer, at its edges and by the wheel, `{ element, axis }` with `axis` `x` or `y`, or null. `cursor` is
+// the pointer's while the drag holds. A gesture is in one phase at a time (pressed, held, settling, ended) and every
+// handler reads only that.
 function drag(area, { pick, begin, cursor = 'grabbing' }) {
     const onDragStart = (event) => pick(event.target) && event.preventDefault();
     const onDown = (down) => press(area, down, pick, begin, cursor);
@@ -108,14 +114,15 @@ function press(area, down, pick, begin, cursor) {
         const scroller = phase === 'held' && held.scroller?.(event.clientX, event.clientY);
         if (!scroller) return;
         event.preventDefault();
-        scroller.scrollTop += event.deltaY * (event.deltaMode === 1 ? LINE : 1);
+        const by = scroller.axis === 'x' ? event.deltaX : event.deltaY;
+        scroller.element[SIDES[scroller.axis].offset] += by * (event.deltaMode === 1 ? LINE : 1);
         held.follow(x, y);
     };
     const scrollAtEdge = () => {
         frame = 0;
         if (phase !== 'held') return;
         const scroller = held.scroller?.(x, y);
-        if (scroller) scrollNear(scroller, y, () => held.follow(x, y));
+        if (scroller) scrollNear(scroller, x, y, () => held.follow(x, y));
         frame = requestAnimationFrame(scrollAtEdge);
     };
     // A new press settles this one now: a press whose pointerup was lost is the case this is for.
@@ -131,14 +138,20 @@ function press(area, down, pick, begin, cursor) {
     listen(true);
 }
 
-function scrollNear(scroller, y, moved) {
-    const box = scroller.getBoundingClientRect();
+function scrollNear({ element, axis }, x, y, moved) {
+    const { start, end, offset } = SIDES[axis];
+    const box = element.getBoundingClientRect();
+    const at = axis === 'x' ? x : y;
     const by =
-        y < box.top + EDGE ? -(box.top + EDGE - y) / 3 : y > box.bottom - EDGE ? (y - (box.bottom - EDGE)) / 3 : 0;
+        at < box[start] + EDGE
+            ? -(box[start] + EDGE - at) / 3
+            : at > box[end] - EDGE
+              ? (at - (box[end] - EDGE)) / 3
+              : 0;
     if (!by) return;
-    const before = scroller.scrollTop;
-    scroller.scrollTop = before + Math.max(-STEP_MAX, Math.min(STEP_MAX, by));
-    if (scroller.scrollTop !== before) moved();
+    const before = element[offset];
+    element[offset] = before + Math.max(-STEP_MAX, Math.min(STEP_MAX, by));
+    if (element[offset] !== before) moved();
 }
 
 function swallowClick() {

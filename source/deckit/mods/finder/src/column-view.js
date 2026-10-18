@@ -2,9 +2,9 @@ const { formatKind, formatSize, formatDate } = require('./format.js');
 const { parentOf, childOf, isInside, stepsFrom } = require('./path.js');
 const { refillWhenChanged } = require('./refill-when-changed.js');
 
-// The folders from the tab's down to `selected`, side by side, and a preview of `previewed` after them. A column
-// keeps its scroll while it stays, and a width the person drags, kept per tab. `onResize(tab, folder, width)` hears
-// one let go.
+// The folders from the tab's down to the entry it is opened to, side by side, and a preview of `previewed` after them.
+// A column keeps its scroll while it stays, and a width the person drags, kept per tab. `onResize(tab, folder, width)`
+// hears one let go.
 function columnView({ ui, icons, entryAt, onResize }) {
     const COLUMN_MIN = 140;
     const COLUMN_MAX = 640;
@@ -66,12 +66,12 @@ function columnView({ ui, icons, entryAt, onResize }) {
 
     return { element, foldersOf, draw, endElement, folderAt, listAt };
 
-    // The tab's folder, and each folder on the way down to the lead, the lead too when it is a folder.
-    function foldersOf(location, selected) {
+    // The tab's folder, and each folder on the way down to `opened`, it too when it is a folder.
+    function foldersOf(location, opened) {
         if (!location) return [];
         const folders = [location];
-        if (!selected || !isInside(selected, location)) return folders;
-        const steps = stepsFrom(location, selected);
+        if (!opened || !isInside(opened, location)) return folders;
+        const steps = stepsFrom(location, opened);
         let path = location;
         steps.forEach((name, index) => {
             path = childOf(path, name);
@@ -81,8 +81,8 @@ function columnView({ ui, icons, entryAt, onResize }) {
     }
 
     // `tab` is the tab drawn, for whom a resize is; `widths` its column widths by folder. `folders` are { folder,
-    // listing, entries, filtering }; `selected` is the lead of the `selection`; `previewed` is the selected file, or
-    // null.
+    // listing, entries, filtering }; `selected` is the lead of the `selection`; `previewed` is the file the tab is
+    // opened to, or null.
     function draw({ tab, widths, folders, selected, selection, previewed }) {
         drawn = {
             tab,

@@ -1,5 +1,5 @@
 const { heldSelection } = require('./held-selection.js');
-const { parentOf } = require('./path.js');
+const { parentOf, isInside } = require('./path.js');
 const { isVisible, visibleEntries, nextSortOrder } = require('./sort.js');
 
 // The files of the tab in front, as columns or as a list, the filter over them and the count under them. The view and
@@ -107,7 +107,7 @@ function fileArea({
         onDraw();
     }
 
-    // Columns follow the lead; the list only marks the selection, so the rest stays as drawn.
+    // Columns follow where the tab is opened; the list only marks the selection, so the rest stays as drawn.
     function showSelection() {
         if (view === 'columns') draw();
         else {
@@ -168,7 +168,7 @@ function fileArea({
     }
 
     function columnFolders() {
-        return columnFoldersOf(tabs.location(), tabs.selectedPath(), tabs.selection());
+        return columns.foldersOf(tabs.location(), tabs.opened());
     }
 
     function shownFolders() {
@@ -185,17 +185,12 @@ function fileArea({
 
     // The folder in front, where a new folder goes.
     function workingFolder() {
-        return folderInFront(tabs.location(), tabs.selectedPath(), tabs.selection());
+        return folderInFront(tabs.location(), tabs.opened());
     }
 
-    // The folder in front of a tab at `location` with `selection`, `lead` among it: the last column's, or the list's.
-    function folderInFront(location, lead, selection) {
-        return view === 'columns' ? columnFoldersOf(location, lead, selection).at(-1) || null : location;
-    }
-
-    // Down to the lead, or with more than one entry selected, down to the folder that holds them.
-    function columnFoldersOf(location, lead, selection) {
-        return columns.foldersOf(location, selection.length > 1 ? parentOf(lead) : lead);
+    // The folder in front of a tab at `location` opened down to `opened`: the last column's, or the list's.
+    function folderInFront(location, opened) {
+        return view === 'columns' ? columns.foldersOf(location, opened).at(-1) || null : location;
     }
 
     // The row of `path` in either view.
@@ -225,11 +220,14 @@ function fileArea({
     }
 
     // The rows a rectangle dragged from `under` selects among, and their folder: a column's, or the list's. Where a
-    // press drags a row, no rectangle starts.
+    // press drags a row, no rectangle starts. A column with more after it answers `opened` too, the path the tab is
+    // opened down to, which a rectangle there leaves open.
     function listAt(under) {
         if (draggableRowAt(under)) return null;
-        if (view === 'columns') return columns.listAt(under);
-        return tabs.location() && !isLoading() ? { list: list.rows, folder: tabs.location() } : null;
+        if (view !== 'columns')
+            return tabs.location() && !isLoading() ? { list: list.rows, folder: tabs.location() } : null;
+        const place = columns.listAt(under);
+        return place && place.folder !== columnFolders().at(-1) ? { ...place, opened: tabs.opened() } : place;
     }
 
     function drawList(loading, failure) {
@@ -250,22 +248,20 @@ function fileArea({
     function drawColumns() {
         const folders = columnFolders();
         for (const folder of folders) listings.request(folder);
-        const selected = tabs.selectedPath();
-        const selection = tabs.selection();
         const filter = tabs.filter();
-        const picked = selection.length > 1 ? null : listings.entryAt(selected);
+        const opened = listings.entryAt(tabs.opened());
         columns.draw({
             tab: tabs.front(),
             widths: tabs.widths(),
-            selected,
-            selection,
+            selected: tabs.selectedPath(),
+            selection: tabs.selection(),
             folders: folders.map((folder) => ({
                 folder,
                 listing: listings.of(folder),
                 entries: entriesIn(folder),
                 filtering: folder === filter.folder && !!filter.text,
             })),
-            previewed: picked && picked.kind !== 'folder' && folders.includes(parentOf(picked.path)) ? picked : null,
+            previewed: opened && opened.kind !== 'folder' && folders.includes(parentOf(opened.path)) ? opened : null,
         });
     }
 
@@ -279,21 +275,28 @@ function fileArea({
         return `${entriesIn(counted).length} of ${total} item${total === 1 ? '' : 's'}`;
     }
 
+    // The selection held to what is on screen, and in columns the path they are opened down to.
+    function holdSelection() {
+        holdEntries();
+        if (view === 'columns') holdOpened();
+        clearGoneFilter();
+    }
+
     // Several selected keep those their folder still shows, the filter's included, in the order it shows them: the lead
     // goes to the last one kept when it leaves, and the anchor to the lead when it leaves. They wait while the folder
     // is unread. One selected, or none of several kept, is the lead held by `heldSelection`.
-    function holdSelection() {
+    function holdEntries() {
         const lead = tabs.selectedPath();
         const selection = tabs.selection();
         const several = selection.length > 1;
-        if (several && !listings.of(parentOf(lead))) return clearGoneFilter();
+        if (several && !listings.of(parentOf(lead))) return;
         const kept = several
             ? entriesIn(parentOf(lead))
                   .map((entry) => entry.path)
                   .filter((path) => selection.includes(path))
             : [];
         if (kept.length) {
-            if (kept.length === selection.length) return clearGoneFilter();
+            if (kept.length === selection.length) return;
             const keptLead = kept.includes(lead) ? lead : kept.at(-1);
             tabs.setSelection(kept, {
                 lead: keptLead,
@@ -309,7 +312,22 @@ function fileArea({
             });
             if (held !== lead || several) tabs.select(held);
         }
-        clearGoneFilter();
+    }
+
+    // A path a rectangle left open that the disk has cut closes: the columns are opened down to the selection again.
+    // Only a path inside the tab's folder can be cut; the folder itself, opened while several of its entries are
+    // selected, stays while the tab is there.
+    function holdOpened() {
+        const opened = tabs.opened();
+        if (!opened || !isInside(opened, tabs.location())) return;
+        const held = heldSelection({
+            location: tabs.location(),
+            selected: opened,
+            inColumns: true,
+            listingOf: listings.of,
+            showHidden: showsHidden(),
+        });
+        if (held !== opened) tabs.setSelection(tabs.selection(), { lead: tabs.selectedPath(), anchor: tabs.anchor() });
     }
 
     function clearGoneFilter() {

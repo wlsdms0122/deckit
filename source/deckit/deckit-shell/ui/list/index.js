@@ -90,6 +90,12 @@ function heldWhile(area, begin) {
     };
 }
 
+// Whether `list` lays its rows across rather than down.
+function across(list) {
+    const layout = getComputedStyle(list);
+    return layout.display.includes('flex') && layout.flexDirection.startsWith('row');
+}
+
 // MARK: - Private
 // A list is busy while it, something around it or something in it is held.
 function busy(element) {
@@ -107,12 +113,6 @@ function drawWaiting() {
     }
 }
 
-// Whether `list` lays its rows across rather than down.
-function across(list) {
-    const layout = getComputedStyle(list);
-    return layout.display.includes('flex') && layout.flexDirection.startsWith('row');
-}
-
 // Items as plain records: the same when every field is.
 function same(left, right) {
     if (left === right) return true;
@@ -121,4 +121,4 @@ function same(left, right) {
     return keys.length === Object.keys(right).length && keys.every((name) => Object.is(left[name], right[name]));
 }
 
-export { list, hold, heldWhile, LEAVING };
+export { list, hold, heldWhile, across, LEAVING };

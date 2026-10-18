@@ -1,15 +1,11 @@
-// `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed each command it runs, and
-// once `live()` is false it starts no daemon.
-module.exports = ({ home, id, track, live }) => {
+// `command` runs forge, and `config` is the config.toml the `default` session is served with, forge's own in the
+// session's folder when null. `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed
+// each command it runs, and once `live()` is false it starts no daemon. `commands` runs them.
+module.exports = ({ command, config, id, track, live, commands }) => {
     const { app } = require('electron');
-    const { spawn, execFile } = require('child_process');
+    const { spawn } = require('child_process');
     const path = require('path');
     const fs = require('fs');
-
-    const FORGE_BIN = path.join(home, 'bin', 'forge');
-    const FORGE_DIR = path.join(home, '.forge');
-    const FORGE_CONFIG = path.join(FORGE_DIR, 'config.toml');
-    const FORGE_LOG = path.join(home, 'log', 'forge', 'proc.log');
 
     const DEFAULT = 'default';
     const SESSION_NAME = /^[a-z0-9][a-z0-9_-]*$/i;
@@ -20,7 +16,14 @@ module.exports = ({ home, id, track, live }) => {
         if (!SESSION_NAME.test(name)) throw new Error('bad session name: ' + name);
         return name;
     };
-    const logFile = (session) => (session === DEFAULT ? FORGE_LOG : path.join(sessionHome(session), 'log', 'proc.log'));
+    const logFile = (session) => path.join(sessionHome(session), 'log', 'proc.log');
+    // What forge runs in: the session it is for is given as `--session`, never taken from this process.
+    const environment = async () => {
+        const env = await commands.environment();
+        delete env.FORGE_SESSION;
+        delete env.FORGE_SOCKET;
+        return env;
+    };
 
     // A daemon's token is kept in the bot's place, not in the mod's data folder: every app that runs the bot mod
     // controls the same daemons with it.
@@ -164,32 +167,20 @@ module.exports = ({ home, id, track, live }) => {
         })
     );
 
-    const runForge = (session, argv, withToken, timeout = 15000) =>
-        new Promise((resolve, reject) => {
-            const env = { ...process.env };
-            delete env.FORGE_SESSION;
-            delete env.FORGE_SOCKET;
-
-            const sent = withToken ? readToken(session) : null;
-            if (withToken) env.FORGE_ACCESS_TOKEN = sent;
-            track(
-                execFile(
-                    FORGE_BIN,
-                    [...argv, '--session', session],
-                    { cwd: FORGE_DIR, env, timeout, maxBuffer: 8 * 1024 * 1024 },
-                    (error, stdout, stderr) => {
-                        if (error) {
-                            if (error.code === 6) {
-                                dropToken(session);
-                                if (sent) rejected.set(session, sent);
-                            }
-                            return reject(new Error((String(stderr).trim() || error.message).split('\n')[0]));
-                        }
-                        resolve(String(stdout));
-                    }
-                )
-            );
-        });
+    const runForge = async (session, argv, withToken, timeout = 15000) => {
+        const env = await environment();
+        const sent = withToken ? readToken(session) : null;
+        if (withToken) env.FORGE_ACCESS_TOKEN = sent;
+        return commands
+            .run({ program: 'forge', command, argv: [...argv, '--session', session], env, timeout, track })
+            .catch((error) => {
+                if (error.code === 6) {
+                    dropToken(session);
+                    if (sent) rejected.set(session, sent);
+                }
+                throw error;
+            });
+    };
 
     const methods = {};
 
@@ -229,9 +220,13 @@ module.exports = ({ home, id, track, live }) => {
     const controlsFor = (up) => ({ start: !up, restart: up, stop: up });
 
     const describe = async (name) => {
+        // A forge that answers nothing has no daemon up; one that could not be run says nothing about it.
         const status = await runForge(name, ['status', '--json'], false)
             .then(JSON.parse)
-            .catch(() => null);
+            .catch((error) => {
+                if (error.notRun) throw error;
+                return null;
+            });
         const daemon = status?.daemon?.pid ? status.daemon : null;
         const authority = readToken(name) !== null;
         return { name, up: !!daemon, daemon, authority, controls: controlsFor(!!daemon) };
@@ -251,44 +246,28 @@ module.exports = ({ home, id, track, live }) => {
 
     methods.session = (session) => describe(sessionName(session));
 
-    const PATH_MARK = '__bot_path__';
-    let loginPathOnce;
-    const loginPath = () => {
-        if (loginPathOnce) return loginPathOnce;
-        loginPathOnce = new Promise((resolve) => {
-            const shell = process.env.SHELL || '/bin/zsh';
-            track(
-                execFile(
-                    shell,
-                    ['-lic', `printf '${PATH_MARK}%s${PATH_MARK}' "$PATH"`],
-                    { timeout: 8000, maxBuffer: 1024 * 1024 },
-                    (error, stdout) => {
-                        const parts = String(stdout || '').split(PATH_MARK);
-                        resolve(error || parts.length < 3 ? null : parts[1].trim() || null);
-                    }
-                )
-            );
-        });
-        return loginPathOnce;
-    };
-
     const start = async (session) => {
         if ((await describe(session)).up) throw new Error('forge is already running');
+        // Served from the folder of its configuration: the one set for `default`, forge's own for the others.
+        const given = session === DEFAULT && config;
+        const found = given && fs.statSync(given, { throwIfNoEntry: false });
+        if (given && !found) throw new Error("forge's configuration is not there: " + given);
+        if (given && !found.isFile())
+            throw new Error("forge's configuration is a folder; give its config.toml: " + given);
         const log = logFile(session);
         fs.mkdirSync(path.dirname(log), { recursive: true });
         const logFd = fs.openSync(log, 'a');
         try {
-            const shellPath = await loginPath();
-            if (!live()) throw new Error("the bot's folder changed before forge started");
-            const env = { ...process.env, FORGE_BOOTSTRAP_FD: '3', PATH: shellPath || process.env.PATH };
-            delete env.FORGE_SESSION;
-            const argv = session === DEFAULT ? ['serve', '--config', FORGE_CONFIG] : ['serve', '--session', session];
-            const child = spawn(FORGE_BIN, argv, {
-                cwd: FORGE_DIR,
+            const env = { ...(await environment()), FORGE_BOOTSTRAP_FD: '3' };
+            if (!live()) throw new Error("the bot's settings changed before forge started");
+            const argv = ['serve', '--session', session, ...(given ? ['--config', given] : [])];
+            const child = spawn(command, argv, {
+                cwd: given ? path.dirname(given) : sessionHome(session),
                 env,
                 stdio: ['ignore', logFd, logFd, 'pipe'],
                 detached: true,
             });
+            let failure = null;
             const bootstrap = await new Promise((resolve) => {
                 let received = '';
                 const done = (token) => {
@@ -306,12 +285,17 @@ module.exports = ({ home, id, track, live }) => {
                 });
                 child.stdio[3].on('end', () => done(received.trim() || null));
                 child.stdio[3].on('error', () => done(null));
+                child.once('error', (error) => {
+                    failure = error;
+                    done(null);
+                });
             });
+            if (failure) throw commands.notRun('forge', failure);
             if (!bootstrap) {
                 try {
                     child.kill('SIGKILL');
                 } catch {}
-                throw new Error('forge did not come up (no bootstrap token)');
+                throw new Error('forge did not come up (no bootstrap token): the daemon log says why');
             }
             child.unref();
             return { note: writeToken(session, bootstrap) };

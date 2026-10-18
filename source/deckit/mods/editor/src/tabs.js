@@ -54,9 +54,10 @@ const TABS_STYLE = `
 `;
 
 // The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab grows in and
-// a closed one folds away. A switch of workspace draws a new list, so the row is swapped whole and nothing plays. The
-// tab's space is in its icon's and its end's margins, which fold with it.
-function tabs({ ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
+// a closed one folds away, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A switch
+// of workspace draws a new list, so the row is swapped whole and nothing plays. The tab's space is in its icon's and its
+// end's margins, which fold with it.
+function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
     let files = [];
     let shownFor = null; // the workspace whose tabs are drawn
 
@@ -96,6 +97,7 @@ function tabs({ ui, isDirty, onSelect, onKeep, onClose, menuOf }) {
     function tabList() {
         const list = ui.list({ key: (item) => item.file, create: tabOf, update: refresh, animated: true });
         list.element.classList.add('editor-tab-list');
+        ui.sortable(list, { onReorder });
         return list;
     }
 

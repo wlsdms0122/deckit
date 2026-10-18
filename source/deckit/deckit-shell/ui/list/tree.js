@@ -28,7 +28,7 @@ function tree(
     let typed = '';
     let typedAt = 0;
     const onKey = (event) => {
-        if (event.target !== element || event.ctrlKey) return;
+        if (event.target !== element) return;
         if (take(event)) event.preventDefault();
     };
     const tabIndexBefore = element.getAttribute('tabindex');
@@ -42,11 +42,11 @@ function tree(
 
     // Whether the key was the tree's.
     function take(event) {
-        const { key, code, metaKey, altKey, shiftKey } = event;
+        const { key, code, ctrlKey, metaKey, altKey, shiftKey } = event;
         const current = lead();
+        if (ctrlKey) return key === 'Enter' && !metaKey && !altKey && !shiftKey && act(onOpen, current);
         if (metaKey) {
             if (altKey || shiftKey) return false;
-            if (key === 'ArrowDown' || code === 'KeyO') return act(onOpen, current);
             if (code === 'KeyA' && multiple) {
                 onSelectAll();
                 return true;

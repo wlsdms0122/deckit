@@ -35,22 +35,17 @@ function make() {
 }
 
 // MARK: - Private
-// Renames `label` in place: a field over it holding `value` (the label's text unless given), selected (only its stem,
-// before the last dot, with `selectStem`). Enter or leaving the field asks `onCommit(text)`, which answers nothing or
-// why it refused; Enter keeps the field open on a refusal, leaving it closes it. An emptied field gives up, as Escape
-// does, unless the name is not `required`; then `placeholder` is what an empty name reads as. Resolves whether it
-// renamed.
-function inlineEdit(
-    label,
-    { value = label.textContent, required = true, placeholder = '', selectStem = false, onCommit }
-) {
-    const was = value;
+// Renames `label` in place: a field over it holding the label's text, selected (only its stem, before the last dot,
+// with `selectStem`). Enter or leaving the field asks `onCommit(text)`, which answers nothing or why it refused; Enter
+// keeps the field open on a refusal, leaving it closes it. An emptied field gives up, as Escape does. Resolves whether
+// it renamed.
+function inlineEdit(label, { selectStem = false, onCommit }) {
+    const was = label.textContent;
     const row = label.parentElement;
     const look = getComputedStyle(label);
     const input = document.createElement('input');
     input.className = 'deckit-rename';
     input.value = was;
-    input.placeholder = placeholder;
     input.spellcheck = false;
     input.toggleAttribute('data-grows', parseFloat(look.flexGrow) > 0);
     Object.assign(input.style, { font: look.font, letterSpacing: look.letterSpacing });
@@ -96,7 +91,7 @@ function inlineEdit(
             if (over) return;
             over = true;
             clear();
-            if (renamed) label.textContent = text || placeholder;
+            if (renamed) label.textContent = text;
             const focused = document.activeElement === input;
             input.remove();
             label.style.display = display;
@@ -107,7 +102,7 @@ function inlineEdit(
         const commit = async (stay) => {
             if (over || asking) return;
             const text = input.value.trim();
-            if ((required && !text) || text === was) return end(false);
+            if (!text || text === was) return end(false);
             asking = true;
             input.readOnly = true;
             let why;

@@ -1,11 +1,17 @@
 // MARK: - Property
+const SIDES = Object.freeze({
+    x: { overflow: 'overflowX', length: 'scrollWidth', shown: 'clientWidth' },
+    y: { overflow: 'overflowY', length: 'scrollHeight', shown: 'clientHeight' },
+});
+
 // MARK: - Initializer
 // MARK: - Public
-// The nearest ancestor that scrolls vertically now, or null.
-function scrollerOf(element) {
+// The nearest ancestor that scrolls along `axis` now, `x` or `y`, or null.
+function scrollerOf(element, axis = 'y') {
+    const { overflow, length, shown } = SIDES[axis];
     for (let node = element; node && node !== document.body && node !== document.documentElement; ) {
-        const overflow = getComputedStyle(node).overflowY;
-        if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+        const scrolls = getComputedStyle(node)[overflow];
+        if ((scrolls === 'auto' || scrolls === 'scroll') && node[length] > node[shown]) return node;
         node = node.parentElement;
     }
     return null;
