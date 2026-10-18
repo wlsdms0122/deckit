@@ -50,6 +50,8 @@ const EDITING = new Set([
     'Delete',
 ]);
 const EDIT_COMMANDS = new Set(['KeyA', 'KeyC', 'KeyX', 'KeyV', 'KeyZ']);
+// What a global key, one taken from every page, text fields included, needs of its chord.
+const GLOBAL_RULE = 'a global key needs ⌘, ⌃ or ⌥, and none a text field uses';
 const MAC =
     typeof process !== 'undefined' && process.platform
         ? process.platform === 'darwin'
@@ -139,6 +141,12 @@ function editsText(input) {
     return EDITING.has(input.code) || (!!input.meta && !input.control && !input.alt && EDIT_COMMANDS.has(input.code));
 }
 
+// Whether a spec holds to GLOBAL_RULE.
+function fitsGlobal(spec) {
+    const chord = parse(spec);
+    return !!(chord.meta || chord.ctrl || chord.alt) && !editsText({ ...chord, control: chord.ctrl });
+}
+
 // A key typed to be bound. A bare key is refused: bound, it would take that letter from every field on the
 // screen. Function keys are allowed, since nothing types them.
 function record(input) {
@@ -188,4 +196,17 @@ function bare(input) {
     return !input.meta && !input.control && !input.alt && !input.shift;
 }
 
-export { parse, normalize, label, matches, fromEvent, editsText, record, cancels, clears, endsRecording };
+export {
+    GLOBAL_RULE,
+    parse,
+    normalize,
+    label,
+    matches,
+    fromEvent,
+    editsText,
+    fitsGlobal,
+    record,
+    cancels,
+    clears,
+    endsRecording,
+};

@@ -13,7 +13,6 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
     let overrides = {};
     let recording = null; // { webContents, timer }
-    let pageFor = () => null;
     let delegated = { isActive: () => false, monitor: () => false };
 
     // MARK: - Initializer
@@ -52,11 +51,6 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         });
     }
 
-    // Which deckit page a keystroke in a webContents belongs to.
-    function connect({ pageFor: of }) {
-        pageFor = of;
-    }
-
     // What the key map asks the shell of a deckit page a keystroke landed in: `isActive(page)`, whether it is the
     // page in front, where the mod's own keys and the shell's run; `monitor(page, input)`, the shell's look at the
     // keystroke before any binding, taking it by answering true.
@@ -64,17 +58,18 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         delegated = { isActive, monitor };
     }
 
-    // Keystrokes in this webContents go through the key map. deckit listens on its own; an app hands its own
-    // where deckit's global keys should work too. `keys` are this webContents' own, taken there first: only a
-    // chord main catches wins over a meaning the app's menu gives it.
-    function listen(webContents, { keys = [] } = {}) {
+    // Keystrokes in this webContents go through the key map. deckit listens on its own pages and the web pages they
+    // show; an app hands its own where deckit's global keys should work too. `page` is the deckit page a keystroke
+    // here belongs to, as web answers it, or null: the keys of the page in front run only in one. `keys` are this
+    // webContents' own, taken there first: only a chord main catches wins over a meaning the app's menu gives it.
+    function listen(webContents, { keys = [], page = null } = {}) {
         if (keys.length)
             local.set(
                 webContents.id,
                 keys.map(({ key, run }) => ({ chord: CHORD.parse(key), run }))
             );
         LOG.guard(webContents, 'before-input-event', (event, input) => {
-            if (handle(webContents, input)) event.preventDefault();
+            if (handle(webContents, page, input)) event.preventDefault();
         });
         const forget = () => typing.delete(webContents.id);
         webContents.once('destroyed', () => local.delete(webContents.id));
@@ -85,7 +80,8 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     }
 
     // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
-    // on deckit. `global` ones work anywhere a webContents is listened to; the rest only in the page in front. Answers its id, for chordOf.
+    // on deckit. `global` ones work anywhere a webContents is listened to; the rest only in the page in front.
+    // Answers its id, for chordOf.
     function register({ action, key, label, global = false, run }) {
         own.push({ action, key, label, scope: global ? 'global' : 'app', run });
         announce();
@@ -104,15 +100,9 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         const { action, key: spec, label, global } = key || {};
         if (typeof action !== 'string' || typeof spec !== 'string' || typeof label !== 'string') return false;
         if (typeof global !== 'boolean' || CHORD.normalize(spec) !== spec) return false;
-        if (!global || fitsGlobal(spec)) return true;
+        if (!global || CHORD.fitsGlobal(spec)) return true;
         LOG.warn(`${mod.id}: key "${action}" cannot be global, so it is not taken`);
         return false;
-    }
-
-    // A global key is taken from every page, fields included: it needs ⌘, ⌃ or ⌥, and none a text field uses.
-    function fitsGlobal(spec) {
-        const chord = CHORD.parse(spec);
-        return !!(chord.meta || chord.ctrl || chord.alt) && !CHORD.editsText({ ...chord, control: chord.ctrl });
     }
 
     // What a reader needs of the binding an issue is about.
@@ -232,15 +222,10 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         if (!binding) throw new Error('no such shortcut: ' + id);
         const wanted = spec ? CHORD.normalize(spec) : '';
         if (spec && !wanted) throw new Error('not a chord: ' + spec);
-        if (wanted && binding.scope === 'global' && !fitsGlobal(wanted))
-            throw Object.assign(
-                new Error(
-                    `${CHORD.label(wanted)} cannot work everywhere: it needs ⌘, ⌃ or ⌥, and none a text field uses`
-                ),
-                {
-                    kind: 'REFUSED',
-                }
-            );
+        if (wanted && binding.scope === 'global' && !CHORD.fitsGlobal(wanted))
+            throw Object.assign(new Error(`${CHORD.label(wanted)} cannot work everywhere: ${CHORD.GLOBAL_RULE}`), {
+                kind: 'REFUSED',
+            });
         const next = { ...overrides };
         delete next[id];
         if (wanted !== binding.key) next[id] = wanted;
@@ -269,7 +254,7 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
 
     // First match wins, in the order bindings() lists them, resolved on every keystroke so a change applies at
     // once.
-    function handle(webContents, input) {
+    function handle(webContents, page, input) {
         if (recording) return take(input);
         if (input.type !== 'keyDown') return false;
         const taken = local.get(webContents.id)?.find(({ chord }) => CHORD.matches(chord, input));
@@ -277,7 +262,6 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
             taken.run();
             return true;
         }
-        const page = pageFor(webContents);
         if (page && delegated.monitor(page, input)) return true;
         const active = bindings().filter(
             (binding) => binding.active && CHORD.matches(CHORD.parse(binding.spec), input)
@@ -338,5 +322,5 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         return true;
     }
 
-    return { start, connect, delegate, listen, register, chordOf };
+    return { start, delegate, listen, register, chordOf };
 }

@@ -97,6 +97,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
             pageOf: IDENTITY.pageOf,
             pageNameOf: IDENTITY.pageNameOf,
             whenPageEnds: IDENTITY.whenPageEnds,
+            watchPresses: IDENTITY.watchPresses,
             consumeUserActivation: IDENTITY.consumeUserActivation,
             passUserActivation: IDENTITY.passUserActivation,
             isPressing: IDENTITY.isPressing,

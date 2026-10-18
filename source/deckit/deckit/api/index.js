@@ -63,7 +63,8 @@ export function createApi({
             keymap: Object.freeze({
                 register: KEYMAP.register,
                 chordOf: KEYMAP.chordOf,
-                listen: KEYMAP.listen,
+                listen: (webContents, { keys } = {}) =>
+                    KEYMAP.listen(webContents, { keys, page: WEB.pageFor(webContents) }),
                 delegate: KEYMAP.delegate,
             }),
             commands: Object.freeze({ tones: COMMAND.TONES, session: COMMAND.session }),

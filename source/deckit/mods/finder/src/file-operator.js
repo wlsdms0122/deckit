@@ -135,7 +135,12 @@ function fileOperator({
         if (failures.length === entries.length)
             return onStatus(failures.length === 1 ? title + ': ' + failures[0].error.message : title);
         onChanged(parentOf(entries[0].path));
-        ui.dialog({ title, message: failures.map(({ error }) => error.message), confirmLabel: 'OK' });
+        ui.dialog({
+            title,
+            message: failures.map(({ error }) => error.message),
+            confirmLabel: 'OK',
+            cancelLabel: null,
+        });
     }
 
     // Each one that can go into `into`; one that fails does not keep the others. A failure is told in a dialog: the
@@ -161,6 +166,7 @@ function fileOperator({
                     : `Could not move ${failures.length} items`,
             message: failures.map(({ error }) => error.message),
             confirmLabel: 'OK',
+            cancelLabel: null,
         });
     }
 }

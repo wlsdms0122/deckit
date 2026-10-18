@@ -40,8 +40,8 @@ function make(theme, ui) {
 
 // MARK: - Private
 // A card over the page that holds every press. `fill(card)` puts the content in and returns what takes the
-// focus. With `chrome`, a title and Cancel and confirm buttons; Enter in a text field confirms. `onKey` has a
-// key first and returns whether it took it.
+// focus. With `chrome`, a title and Cancel and confirm buttons, a label of null leaving its button out; Enter in a
+// text field confirms. `onKey` has a key first and returns whether it took it.
 function modal(
     ui,
     {
@@ -101,7 +101,7 @@ function modal(
     }
     const focus = fill?.(card) || null;
     const button = (label, onClick, variant = 'plain') => ui.button({ label, variant, onClick }).element;
-    const cancel = button(cancelLabel, close);
+    const cancel = cancelLabel === null ? null : button(cancelLabel, close);
     const confirm = confirms ? button(confirmLabel, submit, destructive ? 'destructive' : 'primary') : null;
     const extra = extraLabel
         ? button(extraLabel, () => {

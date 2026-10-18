@@ -1,7 +1,8 @@
 import * as PROTOCOL from './protocol.js';
 import * as NOTIFICATION_PERMISSION from './model/permission.js';
 
-export function createNotification({ LOG, IDENTITY }) {
+// `clicked` is the app's answer to a clicked notification, which brings it forward before the mod hears of it.
+export function createNotification({ LOG, IDENTITY, clicked }) {
     // MARK: - Property
     // A Notification nothing refers to is garbage collected, and macOS then withdraws it or never delivers it.
     // The cap covers a close that never comes.
@@ -12,8 +13,7 @@ export function createNotification({ LOG, IDENTITY }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // `clicked` is the app's answer to a clicked notification, which brings it forward before the mod hears of it.
-    function start({ clicked }) {
+    function start() {
         PROTOCOL.show.handle(({ id, title, body, silent }, sender) => {
             IDENTITY.modFrom(sender, NOTIFICATION_PERMISSION.NOTIFICATIONS);
             return show(sender, id, title, body, silent, clicked);

@@ -23,17 +23,17 @@ function attach(deckit, { host } = {}) {
     // This bundle's listeners report to deckit's log, as deckit's own do.
     LISTENER.reportTo((label, failure) => deckit.log.error(`${label} failed`, failure));
     for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
-    const REGION = createRegion();
-    const PANEL = createPanel({ REGION });
-    const SWITCHER = createSwitcher({ PANEL });
-    const STYLE = createStyle();
+    const REGION = createRegion({ deckit });
+    const PANEL = createPanel({ REGION, deckit, host });
+    const SWITCHER = createSwitcher({ PANEL, deckit, host });
+    const STYLE = createStyle({ deckit });
     const THEME = createTheme();
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
-        STYLE.start({ deckit });
-        REGION.start({ deckit });
-        PANEL.start({ deckit, host });
-        SWITCHER.start({ deckit, host });
+        STYLE.start();
+        REGION.start();
+        PANEL.start();
+        SWITCHER.start();
         deckit.keymap.delegate({ isActive: PANEL.isActive, monitor: PANEL.monitor });
         host.start({ setTheme: THEME.set, panel: PANEL.control, switcher: SWITCHER.control });
     });

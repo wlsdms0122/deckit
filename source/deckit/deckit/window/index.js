@@ -1,18 +1,13 @@
-export function createWindow({ LOG }) {
+// `openWindow` is the host app's: the window, its bar and where in it the view goes are the app's.
+export function createWindow({ LOG, openWindow }) {
     // MARK: - Property
     const windows = new Map(); // key -> window
     const placed = new WeakMap(); // view -> { window, bounds, onClose }
     const inWindow = new WeakMap(); // window -> Set of the views placed in it
     const roots = new Set(); // every view placed in a window
-    let host = null;
 
     // MARK: - Initializer
     // MARK: - Public
-    // `openWindow` is the host app's: the window, its bar and where in it the view goes are the app's.
-    function start({ openWindow }) {
-        host = { openWindow };
-    }
-
     // A window of the app's holding `view`, of `size`, made by the host app, which puts the view in it with the
     // `place` it is handed. One open under `key` is brought forward instead. `onClose` runs once the view is out
     // of the window.
@@ -24,7 +19,7 @@ export function createWindow({ LOG }) {
             already.focus();
             return already;
         }
-        const window = host.openWindow({
+        const window = openWindow({
             view,
             title,
             size,
@@ -112,5 +107,5 @@ export function createWindow({ LOG }) {
         });
     }
 
-    return { start, open, get, close, place, windowOf, windowShowing };
+    return { open, get, close, place, windowOf, windowShowing };
 }

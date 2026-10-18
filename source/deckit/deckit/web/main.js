@@ -19,9 +19,6 @@ export function createWeb({
     const icons = new Map(); // page id -> the icon it last announced
     const WINDOW_SIZE = { width: 520, height: 700 };
     const windows = new Map(); // window page id -> { window, embedder }
-    // As long as Chromium lets a page act on a person's click or key.
-    const ACTIVATION_MS = 5000;
-    const pressed = new Map(); // page id -> when a person last pressed a key or the mouse in it
 
     // MARK: - Initializer
     // MARK: - Public
@@ -197,7 +194,7 @@ export function createWeb({
         const id = page.id;
         REGISTRY.add(page, { embedder: modPage, mod: IDENTITY.modOf(modPage).id, tab: id, inPage });
         // A page is a webContents of its own: its keystrokes reach the key map only when it is listened to.
-        KEYMAP.listen(page);
+        KEYMAP.listen(page, { page: pageFor(page) });
         AGENT.presentAsBrowser(page);
         page.once('destroyed', () => icons.delete(id));
         const changed = () => report(modPage, page);
@@ -255,10 +252,10 @@ export function createWeb({
     // not a child window, which macOS fastens to its parent. A file page's window would share its session, so
     // it is asked of the delegate instead.
     function holdWindowOpen(modPage, page, { inPage }) {
-        notePresses(page);
+        IDENTITY.watchPresses(page);
         page.setWindowOpenHandler(({ url, disposition, frameName }) => {
             // A page opens what it opens during a person's click or key, as a browser blocks a popup otherwise.
-            if (!spendPress(page)) return { action: 'deny' };
+            if (!IDENTITY.consumeUserActivation(page)) return { action: 'deny' };
             // An app's address opened as a window is the same question as one navigated to.
             if (!/^https?:\/\//i.test(url)) {
                 const at = REGISTRY.tabOf(page);
@@ -291,23 +288,6 @@ export function createWeb({
         });
     }
 
-    // Main sees a page's input itself, so a page cannot claim a press.
-    function notePresses(page) {
-        const id = page.id;
-        const note = (_event, input) =>
-            (input.type === 'mouseDown' || input.type === 'keyDown') && pressed.set(id, Date.now());
-        page.on('input-event', note);
-        page.on('before-input-event', note);
-        page.once('destroyed', () => pressed.delete(id));
-    }
-
-    // Whether a person just pressed in this page, used up by the answer: one press, one window.
-    function spendPress(page) {
-        const fresh = Date.now() - (pressed.get(page.id) || 0) < ACTIVATION_MS;
-        pressed.delete(page.id);
-        return fresh;
-    }
-
     // A window a page opened answers to that page's tab, as do the windows it opens in turn.
     function openPopup(modPage, opener, options) {
         const { WebContentsView } = require('electron');
@@ -318,7 +298,7 @@ export function createWeb({
         const page = pageView.webContents;
         const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
         REGISTRY.add(page, { embedder: modPage, mod: IDENTITY.modOf(modPage).id, tab });
-        KEYMAP.listen(page);
+        KEYMAP.listen(page, { page: pageFor(page) });
         holdWindowOpen(modPage, page, { inPage: false });
         const size = options.width && options.height ? { width: options.width, height: options.height } : null;
         showInWindow(pageView, { size: size || WINDOW_SIZE });

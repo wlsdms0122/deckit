@@ -1,6 +1,5 @@
 import * as PAGE from './page/renderer.js';
 import * as DECK from '../deck/renderer.js';
-import { createPartition } from './web/model/partition.js';
 import { createWeb } from './web/renderer.js';
 import { createNotification } from './notification/renderer.js';
 import { createKeymap } from './keymap/renderer.js';
@@ -24,12 +23,11 @@ function boot({ before, shell = null, host = null } = {}) {
 // MARK: - Private
 // Deckit in the page, made of deck and its own page parts, each handed what it uses.
 function start(shell, host) {
-    const { page, id } = PAGE.setup();
+    const { page, hostMod, sessionPrefix } = PAGE.setup();
     if (page) return shell?.page(page);
-    const CONFIG = Object.freeze({ id });
     const MOD = createMod({
-        CONFIG,
-        WEB: createWeb({ PARTITION: createPartition({ CONFIG }) }),
+        hostMod,
+        WEB: createWeb({ sessionPrefix }),
         NOTIFICATION: createNotification(),
         KEYMAP: createKeymap(),
         COMMAND: createCommand(),

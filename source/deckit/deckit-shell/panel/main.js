@@ -1,6 +1,7 @@
 import * as PROTOCOL from './protocol.js';
 
-export function createPanel({ REGION }) {
+// `deckit` is what connect answered, `host` the app's answers.
+export function createPanel({ REGION, deckit, host }) {
     // MARK: - Property
     const FRAME = 'panel-frame';
     const PINNED = 'panel-pinned';
@@ -10,9 +11,7 @@ export function createPanel({ REGION }) {
     const sent = { onScreen: new Set(), looks: new WeakMap() }; // what the pages were last told
     let raised = new Set(); // the children laid over their regions, lifted over the mod on screen
     const history = { list: [], at: -1 };
-    let deckit = null;
     let container = null;
-    let host = null;
     let current = null;
     let returning = null; // the mod that was on screen while its page runs again
     let inList = new Set(); // the mods in the list as it was last sent
@@ -31,10 +30,8 @@ export function createPanel({ REGION }) {
     // MARK: - Public
     // The mods that have something to show, in a container the host app places. A mod whose view names a parent is
     // that one's child: its view is shown where a region of the parent's shows it, and in the panel only once the
-    // person pins it to the list. `deckit` is what connect answered, `host` the app's answers.
-    function start({ deckit: given, host: answers }) {
-        deckit = given;
-        host = answers;
+    // person pins it to the list.
+    function start() {
         frame = { ...frame, ...deckit.state.read(FRAME, {}) };
         pinned = new Set(deckit.state.read(PINNED, []));
         const { View } = require('electron');

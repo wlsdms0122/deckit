@@ -1,18 +1,17 @@
 import * as PROTOCOL from './protocol.js';
 import * as STYLE_PERMISSION from './model/permission.js';
 
-export function createStyle() {
+// `deckit` is what connect answered.
+export function createStyle({ deckit }) {
     // MARK: - Property
     const EVERY_PAGE = '*';
     const pages = new Map(); // a page that wears styles -> the mod it runs, or null for a page the shell made
-    let deckit = null;
 
     // MARK: - Initializer
     // MARK: - Public
     // A mod with `deckit.styles` styles other pages while it runs: a mod's by its id, or every page the shell draws
     // by "*". Each page wears what applies to it in the mods' order, the later over the earlier.
-    function start({ deckit: given }) {
-        deckit = given;
+    function start() {
         PROTOCOL.current.handle((_payload, sender) => {
             const modId = deckit.mods.modOf(sender);
             if (!modId && !deckit.pages.nameOf(sender))

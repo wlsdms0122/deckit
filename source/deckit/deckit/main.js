@@ -59,6 +59,7 @@ function connect({ preload, host, config = {}, folders = {} } = {}) {
 
 // MARK: - Private
 function refuseUnknown(what, given, known) {
+    if (typeof given !== 'object' || !given) throw new Error(`[deckit] ${what} is not an object`);
     const unknown = Object.keys(given).filter((key) => !known.includes(key));
     if (unknown.length) throw new Error(`[deckit] ${what} sets ${unknown.join(', ')}, which deckit does not read`);
 }
@@ -68,7 +69,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     const deck = DECK.createDeck({ id: CONFIG.id, ...folders });
     const { log: LOG, home: HOME, storage: STORAGE, identity: IDENTITY, catalog: CATALOG, runner: RUNNER } = deck;
     const { manifest: MANIFEST, permission: MOD_PERMISSION, folder: FOLDER } = deck;
-    const WINDOW = createWindow({ LOG });
+    const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
     const PARTITION = createPartition({ CONFIG });
     const SESSION = createSession({ STORAGE, LOG, PARTITION });
     const REGISTRY = createRegistry();
@@ -92,13 +93,13 @@ function make({ preload, host, config: CONFIG, folders }) {
         SCRIPT,
     });
     const OPEN = createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER });
-    const NOTIFICATION = createNotification({ LOG, IDENTITY });
+    const NOTIFICATION = createNotification({ LOG, IDENTITY, clicked: () => host.notificationClicked() });
     const CLIPBOARD = createClipboard({ IDENTITY });
     const COMMAND = createCommand({ LOG, IDENTITY, CATALOG, RUNNER });
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, deck });
-    const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY });
-    const PAGE = createPage({ CONFIG, IDENTITY });
+    const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
+    const PAGE = createPage({ CONFIG, IDENTITY, PARTITION });
     const API = createApi({
         CONFIG,
         STORAGE,
@@ -131,7 +132,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     MANIFEST.define(SCHEMES.FIELD, SCHEMES.field());
     require('electron')
         .app.whenReady()
-        .then(() => start(preload, host));
+        .then(() => start(preload));
     return API.make({ onStart });
 
     // `listener` is told once, as deckit starts once the app is ready, before any mod launches. It is handed over
@@ -141,20 +142,18 @@ function make({ preload, host, config: CONFIG, folders }) {
         starting.push(listener);
     }
 
-    function start(preload, host) {
+    function start(preload) {
         deck.prepare({ preload });
-        WINDOW.start({ openWindow: (options) => host.openWindow(options) });
         WEB.start();
         KEYMAP.start();
         OPEN.start();
-        NOTIFICATION.start({ clicked: () => host.notificationClicked() });
+        NOTIFICATION.start();
         CLIPBOARD.start();
         COMMAND.start();
         MAIN_PROCESS.start();
         MOD_FOLDER.start();
-        RUNTIME.start({ restart: () => host.restart() });
+        RUNTIME.start();
         PAGE.start();
-        KEYMAP.connect({ pageFor: WEB.pageFor });
         started = true;
         // What fails to start with deckit fails alone: the mods run whatever it did.
         for (const listener of starting) {
@@ -187,7 +186,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     // asks for, and a link that leaves its origin, which deck holds it to.
     function preparePage(webContents, mod) {
         WEB.prepareEmbedder(webContents);
-        KEYMAP.listen(webContents);
+        KEYMAP.listen(webContents, { page: WEB.pageFor(webContents) });
         const pressed = () => ({ userInitiated: IDENTITY.consumeUserActivation(webContents) });
         webContents.setWindowOpenHandler((details) => {
             OPEN.open(details.url, { ...WEB.windowOptions(details), ...pressed() });

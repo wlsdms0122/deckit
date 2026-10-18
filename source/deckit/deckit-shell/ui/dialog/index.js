@@ -1,5 +1,5 @@
 import * as ICON from '../icon/index.js';
-import * as PART from './part.js';
+import * as PART from '../part/index.js';
 
 // MARK: - Property
 const STYLE = `

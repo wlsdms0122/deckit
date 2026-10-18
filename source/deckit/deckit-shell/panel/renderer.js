@@ -67,7 +67,7 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
     root.append(sidebar.element, content, buttonsRoom);
     document.body.appendChild(root);
     dress();
-    showState(setup.state, false);
+    sidebar.update(setup.state, false);
     appear();
 
     layers.onChange((on) => PROTOCOL.floating.send({ on }));
@@ -86,7 +86,7 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
         }
         if (last) PROTOCOL.dismiss.send();
     });
-    PROTOCOL.state.on((state) => showState(state, true));
+    PROTOCOL.state.on((state) => sidebar.update(state, true));
     PROTOCOL.look.on((next) => {
         look = next;
         dress();
@@ -96,7 +96,7 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
         open = on;
         appear();
         if (!animate) {
-            if (on) showAtOnce();
+            if (on) enterAtOnce();
             return;
         }
         if (on) fadeIn();
@@ -115,10 +115,6 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
     );
     PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut(() => {}) : fadeIn()));
     PROTOCOL.leave.handle(() => new Promise((resolve) => fadeOut(resolve)));
-
-    function showState(state, animate) {
-        sidebar.show(state, animate);
-    }
 
     // didAppear and didDisappear alternate, worked out in this one place.
     function appear() {
@@ -192,7 +188,7 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
     }
 
     // A view that faded out while it was on screen comes back where it stood.
-    function showAtOnce() {
+    function enterAtOnce() {
         clearTimeout(leaving);
         leaving = null;
         root.style.transition = 'none';

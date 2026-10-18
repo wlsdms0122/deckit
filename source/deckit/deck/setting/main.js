@@ -1,9 +1,9 @@
 import * as PROTOCOL from './protocol.js';
+import * as SETTING_TYPE from './model/type.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 
 export function createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
-    const TYPES = new Set(['toggle', 'number', 'text', 'choice', 'action']);
     // How long a mod has to work out a setting's options: a mod still starting answers once it has.
     const OPTIONS_LIMIT_MS = 5000;
     const declared = new Map(); // mod id -> { name, settings: { key: declaration } }
@@ -52,7 +52,7 @@ export function createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER }) {
     function declare(mod, settings) {
         const kept = {};
         for (const [key, declaration] of Object.entries(settings)) {
-            if (TYPES.has(declaration.type)) kept[key] = declaration;
+            if (SETTING_TYPE.TYPES.has(declaration.type)) kept[key] = declaration;
         }
         declared.set(mod.id, { name: mod.name, settings: kept });
     }

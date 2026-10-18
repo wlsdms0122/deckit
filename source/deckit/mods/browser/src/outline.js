@@ -158,10 +158,14 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
             draw();
         },
         // `node`'s name typed over its row, the folders it is in unfolded to show it: `onCommit(name)` takes the
-        // name, as the kit's `inlineEdit` has it. Resolves whether it renamed.
+        // name, as the kit's `inlineEdit` has it, and a folder's may be emptied. Resolves whether it renamed.
         rename(node, onCommit) {
             for (const folder of shownTree.ancestorsOf(node)) if (folder.collapsed) onToggle(folder);
-            return ui.inlineEdit(list.elementOf(node.id).querySelector('.browser-row-label'), { onCommit });
+            const label = list.elementOf(node.id).querySelector('.browser-row-label');
+            const name = isFolder(node)
+                ? { value: node.title, required: false, placeholder: folderLabel({ title: '' }) }
+                : {};
+            return ui.inlineEdit(label, { ...name, onCommit });
         },
         // The node of the row `target` is in, or null.
         nodeAt(target) {

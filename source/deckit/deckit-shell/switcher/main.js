@@ -1,7 +1,8 @@
 import * as PROTOCOL from './protocol.js';
 import * as PAGE from './model/page-name.js';
 
-export function createSwitcher({ PANEL }) {
+// `deckit` is what connect answered, `host` the app's answers.
+export function createSwitcher({ PANEL, deckit, host }) {
     // MARK: - Property
     const USE = 'switcher-use';
     const USE_KEPT = 60;
@@ -15,15 +16,13 @@ export function createSwitcher({ PANEL }) {
     const EXIT_LIMIT_MS = 400;
     const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
     const handed = new Map(); // entry id -> { mod, kind, group, label }, of what the list was given since it opened
-    let deckit = null;
     let bindingId = null; // the switcher's key in the keymap
     let session = null; // deckit's commands, asked for this list since it last opened
     let supplies = 0;
 
     // MARK: - Initializer
     // MARK: - Public
-    function start({ deckit: given, host }) {
-        deckit = given;
+    function start() {
         bindingId = deckit.keymap.register({
             action: 'switcher',
             key: 'mod+shift+g',
