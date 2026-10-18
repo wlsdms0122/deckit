@@ -334,13 +334,12 @@ module.exports = {
             if (listings.has(tabs.location())) tabs.keepScroll(area.element.scrollTop);
         }
 
-        // The tab's folder, and what else it shows that was kept: a kept listing is not watched, so it is read again.
+        // The tab's folder, read for what the tab waits on once it is (`takeWhenRead`). A read under way does: the
+        // watch, asked for first, began one if the folder's listing was kept unwatched.
         function load() {
             const location = tabs.location();
             if (!location) return undefined;
-            for (const folder of area.shownFolders())
-                if (folder !== location && listings.has(folder)) listings.load(folder);
-            return listings.load(location);
+            return listings.reading(location) || listings.load(location);
         }
 
         function watchShown(options) {

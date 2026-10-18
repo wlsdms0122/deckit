@@ -7,6 +7,7 @@ function listingCache({ about, disk, isShown, onRead }) {
     const listings = new Map(); // folder -> { entries, failure }
     const reads = new Map(); // folder -> { again, done }
     let watched; // the folders last sent to `disk`, as JSON; undefined lets the next set through
+    let watchedFolders = new Set(); // the folders of the set last sent
 
     disk.on('changed', (folder) => {
         if (isShown(folder)) load(folder);
@@ -16,7 +17,7 @@ function listingCache({ about, disk, isShown, onRead }) {
         if (isShown(folder)) load(folder);
     });
 
-    return { of, has, entryAt, load, request, keepOnly, relocate, watch };
+    return { of, has, entryAt, load, reading, request, keepOnly, relocate, watch };
 
     function of(folder) {
         return listings.get(folder) || null;
@@ -53,6 +54,11 @@ function listingCache({ about, disk, isShown, onRead }) {
         })();
         reads.set(folder, read);
         return read.done;
+    }
+
+    // The read of `folder` under way, or null.
+    function reading(folder) {
+        return reads.get(folder)?.done || null;
     }
 
     // Loads a folder that has no listing and is not being read.
@@ -94,7 +100,9 @@ function listingCache({ about, disk, isShown, onRead }) {
     }
 
     // `disk` replaces its whole set with `folders`, or stops with null. `renew` asks again for the same set, renewing a
-    // watch that died. A set it could not fully watch is forgotten, so the next call asks again.
+    // watch that died. A set it could not fully watch is forgotten, so the next call asks again. A listing kept while
+    // its folder was out of the set may be behind the disk: it is read again as the folder joins, after its watch is
+    // asked for, so nothing between the two is missed.
     function watch(folders, { renew = false } = {}) {
         const key = JSON.stringify(folders || []);
         if (renew) watched = undefined;
@@ -106,6 +114,9 @@ function listingCache({ about, disk, isShown, onRead }) {
         disk.watch(folders).then((watching) => {
             if (watching.length !== (folders || []).length) forget();
         }, forget);
+        const before = watchedFolders;
+        watchedFolders = new Set(folders || []);
+        for (const folder of watchedFolders) if (!before.has(folder) && listings.has(folder)) load(folder);
     }
 
     async function readFolder(folder) {
