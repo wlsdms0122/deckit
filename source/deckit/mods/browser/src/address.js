@@ -3,7 +3,7 @@ const { TOP_LEVEL_DOMAINS } = require('./top-level-domains.js');
 // A host written without its scheme: this machine or an IP address, served over http as a browser reads them, and a
 // name whose last label is a top-level domain, over https. "main.js" is a file's name and "1.5" a number, not hosts.
 const LOCAL_HOST = /^(localhost|\d{1,3}(\.\d{1,3}){3})(:\d{1,5})?([/?#].*)?$/i;
-const NAMED_HOST = /^[\w-]+(\.[\w-]+)*\.[a-z][a-z0-9-]*(:\d{1,5})?([/?#].*)?$/i;
+const NAMED_HOST = /^[\p{L}\p{N}_-]+(\.[\p{L}\p{N}_-]+)*\.\p{L}[\p{L}\p{N}-]*(:\d{1,5})?([/?#].*)?$/iu;
 
 // What was typed or handed over as an address, or null when it is none. A file path may hold spaces, so it is read
 // before whitespace means a search.
