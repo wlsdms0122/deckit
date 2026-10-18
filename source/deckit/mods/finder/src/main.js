@@ -76,7 +76,7 @@ module.exports = {
             tildify: util.tildify,
             folds,
             homeLocation: () => home,
-            folderInFront: (location, lead, selection) => area.folderInFront(location, lead, selection),
+            folderInFront: (location, opened) => area.folderInFront(location, opened),
             isFavorite: (path) => favorites.has(path),
             onAddFavorite: (path) => favorites.add(path),
             onLeave: keepScroll,
@@ -355,11 +355,11 @@ module.exports = {
         }
 
         // Entries of `folder`, the lead the last of them. None leaves the folder itself selected, the way into it kept,
-        // unless it is the tab's.
-        function selectIn(folder, paths) {
+        // unless it is the tab's. `opened` is a path deeper left open, or null.
+        function selectIn(folder, paths, opened) {
             if (!tabs.front()) return;
-            if (!paths.length) return select(folder === tabs.location() ? null : folder);
-            tabs.setSelection(paths, { lead: paths.at(-1), anchor: paths[0] });
+            const selected = paths.length || folder === tabs.location() ? paths : [folder];
+            tabs.setSelection(selected, { lead: selected.at(-1) ?? null, anchor: selected[0] ?? null, opened });
             showSelection(null);
         }
 

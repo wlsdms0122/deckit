@@ -2,8 +2,9 @@ const { parentOf, isInside } = require('./path.js');
 
 // Presses and keys in the file area. `walkedFolder()` is the folder the keyboard walks; `entriesIn(folder)` what it
 // shows. Command adds or takes away an entry, Shift selects the range from the anchor, and a rectangle dragged from the
-// space around the entries selects in the list or in one column; `open(entries)` opens what is selected. In columns
-// Right goes into a folder, whose column is to its right, and Left back out, never past the tab's folder.
+// space around the entries selects in the list or in one column, leaving the columns after it open; `open(entries)`
+// opens what is selected. In columns Right goes into a folder, whose column is to its right, and Left back out, never
+// past the tab's folder.
 function selectionInput({
     ui,
     areaElement,
@@ -41,7 +42,8 @@ function selectionInput({
     ui.marquee(areaElement, {
         listAt,
         selection,
-        onSelect: (paths, { folder }) => selectIn(folder, paths),
+        // As in macOS Finder, a click on no entry closes the columns after its own.
+        onSelect: (paths, { folder, opened }, { click }) => selectIn(folder, paths, click ? null : opened),
     });
     ui.tree(areaElement, {
         items: () => entriesIn(walkedFolder()).map((entry) => entry.path),
