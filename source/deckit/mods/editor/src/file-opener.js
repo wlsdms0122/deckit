@@ -1,8 +1,9 @@
 const { nameOf } = require('./path.js');
 
 // Opening a file into its workspace. A path already being opened is waited for, not read again, so two requests at once
-// are one tab. A preview takes the place of its workspace's preview that has no unsaved changes; any other file opens
-// after the current one.
+// are one tab. A preview takes the place of its workspace's preview that has no unsaved changes; a file opened `last`
+// goes after every tab, as a session coming back puts its tabs in their order; any other file opens after the current
+// one.
 function fileOpener({
     ui,
     deck,
@@ -68,7 +69,10 @@ function fileOpener({
 
     // Opens end out of order, since a file not open yet is read first. One that something was requested after does
     // not come forward: a preview is passed by, and a kept file opens behind as its tab.
-    async function openNow(path, { background = false, preview = false, preserveFocus = false, request = 0 } = {}) {
+    async function openNow(
+        path,
+        { background = false, preview = false, preserveFocus = false, last = false, request = 0 } = {}
+    ) {
         const isBehind = () => !background && request !== workspaces.latestRequest();
         const opened = workspaces.fileAt(path);
         if (opened) {
@@ -88,7 +92,7 @@ function fileOpener({
         const { box, view } = createView(onDisk.text, path);
         const file = disk.admit({ path, box, view, preview }, onDisk, drafts.get(path));
         if (disk.isDirty(file)) file.preview = false;
-        const workspace = place(file);
+        const workspace = place(file, { last });
         session.reopened(workspace, path);
         if (background || isBehind()) {
             workspaces.fillIdleFront(workspace, file);
@@ -99,13 +103,13 @@ function fileOpener({
     }
 
     // The workspace is chosen only now, so a folder opened during the read is the one it goes to.
-    function place(file) {
+    function place(file, { last }) {
         const holder = workspaces.holderOf(file.path);
         const replaced =
             file.preview && holder ? holder.files.find((other) => other.preview && !disk.isDirty(other)) : null;
         const index = replaced
             ? holder.files.indexOf(replaced)
-            : holder?.current
+            : holder?.current && !last
               ? holder.files.indexOf(holder.current) + 1
               : null;
         const workspace = workspaces.place(file, index);

@@ -273,7 +273,9 @@ module.exports = {
             for (const file of workspaces.files())
                 if (folderHolding(file) === folder) disk.check(file).catch(() => false);
         });
-        session.restore({ openFolder, openInBackground: (path) => tryOpen(path, { background: true }) }).then(paint);
+        session
+            .restore({ openFolder, openInBackground: (path) => tryOpen(path, { background: true, last: true }) })
+            .then(paint);
 
         deck.view({
             content,
