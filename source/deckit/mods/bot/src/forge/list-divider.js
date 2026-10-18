@@ -1,6 +1,6 @@
 const { styled } = require('../dom.js');
 
-const listDivider = ({ ui, theme, store, pane, list, key }) => {
+const listDivider = ({ ui, store, pane, list, key }) => {
     Object.assign(list.style, {
         width: Math.max(200, store.get(key, 300)) + 'px',
         minWidth: '200px',
@@ -27,7 +27,8 @@ const listDivider = ({ ui, theme, store, pane, list, key }) => {
         width: '2px',
         background: LINE_IDLE,
         opacity: '0',
-        transition: `opacity ${theme.motion.fast}ms ${theme.motion.easing}, background-color ${theme.motion.fast}ms ${theme.motion.easing}`,
+        transition:
+            'opacity var(--deckit-fast) var(--deckit-easing), background-color var(--deckit-fast) var(--deckit-easing)',
     });
     hit.title = 'Drag to resize';
     divider.append(line, hit);

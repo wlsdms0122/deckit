@@ -7,12 +7,12 @@ const workflowForm = ({ ui, fields, draft }) => {
     const controls = new Map();
     for (const field of fields) {
         const label = styled('div');
-        label.className = 'forge-label';
+        label.className = 'bot-label';
         label.append(styled('span', {}, field.name + (field.optional ? ' · optional' : '')));
         const error = styled('div');
-        error.className = 'forge-field-error';
+        error.className = 'bot-field-error';
         error.setAttribute('role', 'alert');
-        error.id = 'forge-input-error-' + ++nextError;
+        error.id = 'bot-input-error-' + ++nextError;
         const changed = (value) => {
             draft[field.name] = value;
             error.textContent = '';

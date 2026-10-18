@@ -76,16 +76,16 @@ const schedulesView = ({ deck, bot, picker, reveal }) => {
         borderTop: 'var(--deckit-border)',
     });
     const list = styled('div', { overflow: 'auto', padding: '8px', borderRight: 'var(--deckit-border)' });
-    const divider = listDivider({ ui, theme: deck.theme, store, pane, list, key: 'schedule-list-width' });
+    const divider = listDivider({ ui, store, pane, list, key: 'schedule-list-width' });
     const body = styled('div', { flex: '1', minWidth: '0', overflow: 'auto', padding: '24px' });
     const status = muted(''),
         notice = styled('div');
     feedback(notice, '');
     const detail = styled('div');
-    detail.className = 'forge-detail';
+    detail.className = 'bot-detail';
     status.setAttribute('data-catalog-status', '');
     const page = styled('div');
-    page.className = 'forge-content';
+    page.className = 'bot-content';
     page.append(notice, detail, status);
     body.append(page);
     pane.append(list, divider, body);
@@ -110,9 +110,9 @@ const schedulesView = ({ deck, bot, picker, reveal }) => {
     const field = (label, value, changed, placeholder = '', type = 'text', key = null) => {
         const row = styled('div', {}, label),
             error = styled('div');
-        error.className = 'forge-field-error';
+        error.className = 'bot-field-error';
         error.setAttribute('role', 'alert');
-        row.className = 'forge-label';
+        row.className = 'bot-label';
         const made = ui.field({
             value,
             placeholder,
@@ -288,7 +288,7 @@ const schedulesView = ({ deck, bot, picker, reveal }) => {
                     }),
             });
             const intro = styled('div');
-            intro.className = 'forge-intro';
+            intro.className = 'bot-intro';
             intro.append(header, state, workflow);
             detail.append(
                 intro,
@@ -409,7 +409,7 @@ const schedulesView = ({ deck, bot, picker, reveal }) => {
         triggerFields = new Map();
         detail.append(styled('h2', {}, 'New schedule'));
         const workflow = styled('div', {}, 'Workflow');
-        workflow.className = 'forge-label';
+        workflow.className = 'bot-label';
         workflow.append(
             select(
                 [
@@ -427,7 +427,7 @@ const schedulesView = ({ deck, bot, picker, reveal }) => {
         detail.append(workflow);
         const trigger = section('Schedule'),
             kind = styled('div', {}, 'Repeat');
-        kind.className = 'forge-label';
+        kind.className = 'bot-label';
         kind.append(
             select(
                 [
@@ -502,7 +502,7 @@ const schedulesView = ({ deck, bot, picker, reveal }) => {
         detail.append(trigger);
         updatePreview();
         const concurrency = styled('div', {}, 'When another run is active');
-        concurrency.className = 'forge-label';
+        concurrency.className = 'bot-label';
         concurrency.append(
             select(
                 [

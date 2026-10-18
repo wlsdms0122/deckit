@@ -51,14 +51,14 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
         borderTop: 'var(--deckit-border)',
     });
     const listPane = styled('div', { overflow: 'auto', padding: '8px', borderRight: 'var(--deckit-border)' });
-    const divider = listDivider({ ui, theme: deck.theme, store, pane, list: listPane, key: 'workflow-list-width' });
+    const divider = listDivider({ ui, store, pane, list: listPane, key: 'workflow-list-width' });
     const content = styled('div', { flex: '1', minWidth: '0', overflow: 'auto', padding: '24px' });
     const runs = styled('div');
     const detail = styled('div');
-    detail.className = 'forge-detail';
+    detail.className = 'bot-detail';
     status.setAttribute('data-catalog-status', '');
     const page = styled('div');
-    page.className = 'forge-content';
+    page.className = 'bot-content';
     page.append(notice, detail, runs, status);
     content.append(page);
     pane.append(listPane, divider, content);
@@ -161,7 +161,7 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
         });
         header.append(styled('h2', {}, selected));
         const intro = styled('div');
-        intro.className = 'forge-intro';
+        intro.className = 'bot-intro';
         intro.append(header);
         detail.append(intro);
         if (!spec) {
