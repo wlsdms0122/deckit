@@ -572,18 +572,23 @@ const brainView = ({ deck, bot, reveal }) => {
         rowElements[next]?.scrollIntoView({ block: 'nearest' });
     });
 
+    // A brain that does not answer has no axes; the list says why.
     let axesAsked = 0;
     const loadAxes = () => {
         const mine = ++axesAsked;
-        return bot.brain
-            .axes()
-            .then((answer) => {
+        return bot.brain.axes().then(
+            (answer) => {
                 if (mine !== axesAsked) return;
                 axes = answer;
                 renderAxes();
                 if (!query) showResults();
-            })
-            .catch(() => {});
+            },
+            () => {
+                if (mine !== axesAsked) return;
+                axes = { total: 0, axes: [] };
+                renderAxes();
+            }
+        );
     };
 
     let woke = false;
