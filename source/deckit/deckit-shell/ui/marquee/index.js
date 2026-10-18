@@ -98,7 +98,7 @@ function draw(area, place, down, selection, onSelect, finished) {
         box.remove();
         finished();
     };
-    return { follow, drop: end, cancel: end, scroller: () => scroller };
+    return { follow, drop: end, cancel: end, scroller: () => ({ element: scroller, axis: 'y' }) };
 }
 
 // Whether `element` is in one of the rows of `list`.

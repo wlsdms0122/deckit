@@ -242,7 +242,10 @@ function landing(x, y, kind, payload) {
 function scrollerAt(x, y, kind) {
     for (const under of document.elementsFromPoint(x, y)) {
         for (let node = under; node; node = node.parentElement) {
-            if ([...(zones.get(node) || [])].some((target) => target.kind === kind)) return SCROLL.scrollerOf(under);
+            if ([...(zones.get(node) || [])].some((target) => target.kind === kind)) {
+                const element = SCROLL.scrollerOf(under);
+                return element && { element, axis: 'y' };
+            }
         }
     }
     return null;
