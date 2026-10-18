@@ -1,9 +1,8 @@
-const supervisorView = ({ deck, bot, reveal }) => {
+const supervisorView = ({ deck, bot, picker, reveal }) => {
     const { theme, ui } = deck;
     const store = deck.storage.values;
 
-    let botSession = null;
-    let session = store.get('session', null);
+    let session = picker.current();
 
     const forgeOf = (name) => ({
         call: (operation, args) => bot.forge.supervisor.call(name, operation, args),
@@ -27,7 +26,6 @@ const supervisorView = ({ deck, bot, reveal }) => {
     let state = { ...EMPTY };
     let actionError = '',
         actionNote = '';
-    let sessions = [];
     let timer = null,
         visible = false;
 
@@ -42,38 +40,9 @@ const supervisorView = ({ deck, bot, reveal }) => {
         whiteSpace: 'nowrap',
     });
 
-    const marks = new Map();
-    const sessionBar = ui.segmented({
-        items: [],
-        value: session,
-        size: 'small',
-        onChange: (name) => chooseSession(name),
-    });
-    const paintSessions = () => {
-        sessionBar.element.style.display = sessions.length > 1 ? 'flex' : 'none';
-        sessionBar.setItems(
-            sessions.map((entry) => {
-                let mark = marks.get(entry.name);
-                if (!mark) {
-                    mark = dot('idle');
-                    Object.assign(mark.style, { width: '6px', height: '6px' });
-                    marks.set(entry.name, mark);
-                }
-                mark.style.background = TONE[entry.up ? 'ok' : 'alert'];
-                return {
-                    key: entry.name,
-                    label: entry.name,
-                    lead: mark,
-                    title: `${entry.name} · ${entry.up ? 'running' : 'stopped'}${entry.up && !entry.authority ? ' · started elsewhere' : ''}`,
-                };
-            })
-        );
-        sessionBar.set(session);
-    };
-
     const bar = document.createElement('div');
     Object.assign(bar.style, { display: 'flex', flex: '1 1 auto', minWidth: '0', alignItems: 'center', gap: '10px' });
-    bar.append(sessionBar.element, headState);
+    bar.append(headState);
 
     const body = document.createElement('div');
     Object.assign(body.style, { flex: '1 1 auto', minHeight: '0', overflowY: 'auto', padding: '10px 12px' });
@@ -402,31 +371,24 @@ const supervisorView = ({ deck, bot, reveal }) => {
     const load = async () => {
         const mine = ++generation;
         try {
-            const answer = await bot.forge.supervisor.sessions();
-            botSession = answer.main;
-            sessions = answer.sessions || [];
-            if (!sessions.some((entry) => entry.name === session)) return chooseSession(botSession);
-            const next = await snapshot(sessions.find((entry) => entry.name === session));
+            const next = await snapshot(await bot.forge.supervisor.session(session));
             if (mine !== generation) return;
             state = { ...next, loading: false };
         } catch (error) {
             if (mine !== generation) return;
             state = { ...state, error: String(error?.message || error), loading: false };
         }
-        paintSessions();
         render();
     };
 
-    const chooseSession = (name) => {
-        if (name === session) return;
+    // Another session is shown: what was drawn for the last one goes.
+    const setSession = (name) => {
         session = name;
-        store.set('session', name);
         state = { ...EMPTY };
         actionError = actionNote = '';
         for (const row of rows.values()) row.element.remove();
         rows.clear();
         logBody.textContent = '';
-        paintSessions();
         render();
         load();
         renderLog();
@@ -472,9 +434,9 @@ const supervisorView = ({ deck, bot, reveal }) => {
             notice.style.display = 'block';
             notice.style.borderColor = TONE.warn;
             notice.textContent =
-                'Started outside SlacKit: forge hands its boot token only to the process that started it, ' +
+                'Started elsewhere: forge hands its boot token only to the process that started it, ' +
                 'so the services it supervises cannot be read or run from here. Stop and Restart work; ' +
-                'restart it from here and its services come under SlacKit too.';
+                'restart it from here and its services can be run from here too.';
         }
 
         if (!tree.firstChild) tree.appendChild(headerRow());
@@ -502,7 +464,7 @@ const supervisorView = ({ deck, bot, reveal }) => {
 
         rows.get('forge').update({
             tone: loading ? 'idle' : up ? 'ok' : 'alert',
-            name: !session || session === botSession ? 'forge' : `forge (${session})`,
+            name: 'forge',
             state: loading ? 'checking' : up ? 'running' : 'stopped',
             pid: daemon?.pid,
             uptime: up ? since(daemon.started_at) : '',
@@ -517,7 +479,7 @@ const supervisorView = ({ deck, bot, reveal }) => {
                                 'reload',
                                 authority
                                     ? 'Restart forge: the services it supervises come with it'
-                                    : "Restart: launching it again puts it under SlacKit's control",
+                                    : 'Restart: launching it from here puts it under control from here',
                                 () => act((forge) => forge.restart()),
                                 controls.restart
                             ),
@@ -664,6 +626,7 @@ const supervisorView = ({ deck, bot, reveal }) => {
     return {
         bar,
         pane,
+        setSession,
         show: () => {
             visible = true;
             tick();
@@ -678,7 +641,7 @@ const supervisorView = ({ deck, bot, reveal }) => {
             const entry = await bot.forge.supervisor.session();
             const { daemon, services, authority, error } = await snapshot(entry);
             const go = () => {
-                chooseSession(entry.name);
+                picker.choose(entry.name);
                 reveal();
             };
             if (!daemon) {
@@ -721,8 +684,8 @@ const supervisorView = ({ deck, bot, reveal }) => {
 
         commands: () => [
             {
-                label: 'Restart Forge' + (!session || session === botSession ? '' : ` (${session})`),
-                hint: 'Starts it if it is not running, with the services it supervises',
+                label: 'Restart Forge',
+                hint: `The ${session} session's daemon, with the services it supervises; started if it is not running`,
                 icon: ui.icon('reload', { size: 16 }),
                 group: 'Forge',
                 keywords: ['forge', '데몬', '재시작', '기동', 'restart', 'start'],

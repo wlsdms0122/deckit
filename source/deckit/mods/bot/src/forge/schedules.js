@@ -7,7 +7,7 @@ const { listDivider } = require('./list-divider.js');
 const { triggerOf, triggerSummary } = require('./schedule-trigger.js');
 const { installContent, actions, section, values, feedback } = require('./content-ui.js');
 
-const schedulesView = ({ deck, bot, reveal }) => {
+const schedulesView = ({ deck, bot, picker, reveal }) => {
     const { ui } = deck,
         store = deck.storage.values;
     installContent(ui);
@@ -16,7 +16,7 @@ const schedulesView = ({ deck, bot, reveal }) => {
         form = null,
         preview = null,
         triggerFields = new Map();
-    let session = store.get('schedule-session', store.get('workflow-session', 'default')) || 'default';
+    let session = picker.current();
     let visible = false,
         epoch = 0,
         pending = null,
@@ -43,7 +43,6 @@ const schedulesView = ({ deck, bot, reveal }) => {
     const muted = (text) =>
         styled('div', { color: 'var(--deckit-muted)', font: '12px var(--deckit-font)', whiteSpace: 'pre-wrap' }, text);
     const bar = styled('div', { display: 'none', flex: '1', gap: '8px', alignItems: 'center', minWidth: '0' });
-    const sessionsBar = ui.segmented({ items: [], value: session, size: 'small', onChange: chooseSession });
     const search = ui.field({
         placeholder: 'Search schedules',
         icon: ui.icon('search', { size: 14 }),
@@ -68,7 +67,7 @@ const schedulesView = ({ deck, bot, reveal }) => {
             if (creating && draft.workflow) loadSpec();
         },
     });
-    bar.append(sessionsBar.element, search.element, add.element, refreshButton.element);
+    bar.append(search.element, add.element, refreshButton.element);
     const pane = styled('div', {
         display: 'none',
         flex: '1',
@@ -196,9 +195,8 @@ const schedulesView = ({ deck, bot, reveal }) => {
         if (!list.children.length) list.append(muted(schedules.length ? 'No matching schedules' : 'No schedules'));
         list.scrollTop = scroll;
     }
-    function chooseSession(name) {
+    function setSession(name) {
         session = name;
-        store.set('schedule-session', name);
         epoch++;
         specRequest++;
         pending = null;
@@ -215,7 +213,6 @@ const schedulesView = ({ deck, bot, reveal }) => {
         inputDrafts.clear();
         feedback(notice, '');
         status.textContent = 'Loading schedules…';
-        sessionsBar.set(name);
         paintList();
         paintDetail();
         clearTimeout(timer);
@@ -614,11 +611,8 @@ const schedulesView = ({ deck, bot, reveal }) => {
         pending = request;
         const current = () => visible && epoch === request.epoch && session === request.session;
         try {
-            const sessions = await bot.forge.supervisor.sessions();
+            const chosen = await bot.forge.supervisor.session(session);
             if (!current()) return;
-            sessionsBar.setItems(sessions.sessions.map((item) => ({ key: item.name, label: item.name })));
-            sessionsBar.set(session);
-            const chosen = sessions.sessions.find((item) => item.name === session);
             if (!chosen?.up || !chosen.authority)
                 throw new Error(
                     !chosen?.up
@@ -669,6 +663,7 @@ const schedulesView = ({ deck, bot, reveal }) => {
     return {
         bar,
         pane,
+        setSession,
         show: () => {
             visible = true;
             epoch++;

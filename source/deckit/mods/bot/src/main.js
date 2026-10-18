@@ -1,6 +1,7 @@
 const { supervisorView } = require('./forge/supervisor.js');
 const { workflowsView } = require('./forge/workflows.js');
 const { schedulesView } = require('./forge/schedules.js');
+const { sessionPicker } = require('./forge/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
 
 module.exports = {
@@ -72,6 +73,17 @@ module.exports = {
             deck.show();
             setMode(key);
         };
+        const picker = sessionPicker({
+            deck,
+            bot,
+            reveal: () => {
+                deck.show();
+                if (mode.system !== 'Forge') setMode('supervisor');
+            },
+            onChange: (name) => {
+                for (const entry of MODES) if (entry.system === 'Forge') entry.view.setSession(name);
+            },
+        });
         const SYSTEMS = [
             { name: 'Forge', icon: 'anvil' },
             { name: 'LLMemory', icon: 'brain' },
@@ -82,21 +94,21 @@ module.exports = {
                 system: 'Forge',
                 label: 'Services',
                 icon: 'server',
-                view: supervisorView({ deck, bot, reveal: reveal('supervisor') }),
+                view: supervisorView({ deck, bot, picker, reveal: reveal('supervisor') }),
             },
             {
                 key: 'workflows',
                 system: 'Forge',
                 label: 'Workflows',
                 icon: 'list',
-                view: workflowsView({ deck, bot, reveal: reveal('workflows') }),
+                view: workflowsView({ deck, bot, picker, reveal: reveal('workflows') }),
             },
             {
                 key: 'schedules',
                 system: 'Forge',
                 label: 'Schedules',
                 icon: 'calendar',
-                view: schedulesView({ deck, bot, reveal: reveal('schedules') }),
+                view: schedulesView({ deck, bot, picker, reveal: reveal('schedules') }),
             },
             {
                 key: 'brain',
@@ -159,12 +171,12 @@ module.exports = {
 
         const title = document.createElement('div');
         Object.assign(title.style, { flex: '0 0 auto', font: '700 15px var(--deckit-font)' });
-        head.append(title, ...MODES.map((entry) => entry.view.bar));
+        head.append(title, picker.element, ...MODES.map((entry) => entry.view.bar));
         content.append(head, ...MODES.map((entry) => entry.view.pane));
 
         const setMode = (key) => {
             const next = modeOf(key);
-            if (visible && next !== mode) mode.view.hide?.();
+            if (visible && next !== mode) hide();
             mode = next;
             store.set('mode', mode.key);
             title.textContent = mode.label;
@@ -175,7 +187,16 @@ module.exports = {
                 entry.view.pane.style.display = on ? 'flex' : 'none';
                 if (entry.view.side) entry.view.side.style.display = on ? 'flex' : 'none';
             }
-            if (visible) mode.view.show();
+            picker.element.style.display = mode.system === 'Forge' ? '' : 'none';
+            if (visible) show();
+        };
+        const show = () => {
+            if (mode.system === 'Forge') picker.show();
+            mode.view.show();
+        };
+        const hide = () => {
+            picker.hide();
+            mode.view.hide?.();
         };
         setMode(mode.key);
 
@@ -189,11 +210,11 @@ module.exports = {
             sidebar,
             didAppear: () => {
                 visible = true;
-                mode.view.show();
+                show();
             },
             didDisappear: () => {
                 visible = false;
-                mode.view.hide?.();
+                hide();
             },
         });
         deck.keys({
@@ -216,6 +237,7 @@ module.exports = {
             ...supervisor.commands(),
             ...workflows.commands(),
             ...schedules.commands(),
+            ...picker.commands(),
         ]);
         deck.settings.on((key, value) => {
             if (key === 'home') bot.use(value).then(() => brain.reload());

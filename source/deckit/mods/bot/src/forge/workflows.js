@@ -5,13 +5,13 @@ const { workflowForm } = require('./workflow-form.js');
 const { listDivider } = require('./list-divider.js');
 const { installContent, actions, section, values, feedback } = require('./content-ui.js');
 
-const workflowsView = ({ deck, bot, reveal }) => {
+const workflowsView = ({ deck, bot, picker, reveal }) => {
     const { ui } = deck;
     installContent(ui);
     let form = null,
         runButton = null;
     const store = deck.storage.values;
-    let session = store.get('workflow-session', store.get('session', 'default')) || 'default';
+    let session = picker.current();
     let visible = false,
         epoch = 0,
         timer = null,
@@ -29,7 +29,6 @@ const workflowsView = ({ deck, bot, reveal }) => {
     const notice = styled('div');
     feedback(notice, '');
     const bar = styled('div', { display: 'none', flex: '1', minWidth: '0', alignItems: 'center', gap: '8px' });
-    const sessionBar = ui.segmented({ items: [], value: session, size: 'small', onChange: chooseSession });
     const search = ui.field({
         placeholder: 'Search workflows',
         icon: ui.icon('search', { size: 14 }),
@@ -43,7 +42,7 @@ const workflowsView = ({ deck, bot, reveal }) => {
             if (selected) choose(selected);
         },
     });
-    bar.append(sessionBar.element, search.element, refreshButton.element);
+    bar.append(search.element, refreshButton.element);
     const pane = styled('div', {
         display: 'none',
         flex: '1',
@@ -112,12 +111,10 @@ const workflowsView = ({ deck, bot, reveal }) => {
         list.set(rows);
         empty.textContent = rows.length ? '' : catalog.length ? 'No matching workflows' : 'No workflows';
     }
-    function chooseSession(name) {
+    function setSession(name) {
         session = name;
-        store.set('workflow-session', session);
         epoch++;
         detailRequest++;
-        sessionBar.set(session);
         status.textContent = 'Loading workflows…';
         status.title = '';
         catalog = [];
@@ -282,17 +279,8 @@ const workflowsView = ({ deck, bot, reveal }) => {
         refreshing = request;
         const current = () => visible && request.epoch === epoch && request.session === session;
         try {
-            const sessions = await bot.forge.supervisor.sessions();
+            const chosen = await bot.forge.supervisor.session(session);
             if (!current()) return;
-            sessionBar.setItems(
-                sessions.sessions.map((item) => ({
-                    key: item.name,
-                    label: item.name,
-                    title: item.up ? 'Running' : 'Stopped',
-                }))
-            );
-            sessionBar.set(session);
-            const chosen = sessions.sessions.find((item) => item.name === session);
             if (!chosen?.up || !chosen.authority)
                 throw new Error(
                     !chosen?.up
@@ -337,6 +325,7 @@ const workflowsView = ({ deck, bot, reveal }) => {
     return {
         bar,
         pane,
+        setSession,
         show: () => {
             visible = true;
             epoch++;
