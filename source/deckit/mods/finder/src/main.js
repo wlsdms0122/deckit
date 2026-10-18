@@ -259,7 +259,8 @@ module.exports = {
             back: { key: 'mod+[', label: 'Back', run: () => tabs.back() },
             forward: { key: 'mod+]', label: 'Forward', run: () => tabs.forward() },
             enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
-            // Neither while a name or the filter is typed: Return there ends the field.
+            // Both stay Finder's while a name or the filter is typed, so the field never hears them; they open nothing
+            // then.
             open: { key: 'ctrl+enter', label: 'Open', run: () => !typing() && operator.open(selectedEntries()) },
             openWithDefaultApp: {
                 key: 'alt+enter',
