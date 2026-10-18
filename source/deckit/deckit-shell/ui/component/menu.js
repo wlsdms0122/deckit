@@ -57,6 +57,7 @@ const STYLE = `
     }
     .deckit-select:hover { background: var(--deckit-selected); }
     .deckit-select:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
+    .deckit-select-icon { display: flex; flex: 0 0 auto; margin-left: -2px; }
     .deckit-select-label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .deckit-select-caret {
         display: flex;
@@ -101,23 +102,31 @@ function menu({ items, anchor = null, point = null, onClose }) {
     return shown;
 }
 
-// One of `options` ({ value, label, font }), chosen from a menu. A choice is reported; the owner sets it.
+// One of `options` ({ value, label, font, icon, hint }), chosen from a menu. A choice is reported; the owner sets it.
 function select({ options, value = null, onChange }) {
     let current = value;
+    let choices = options;
     let shown = null;
     const element = tag('button', 'deckit-select');
     element.type = 'button';
     element.setAttribute('aria-haspopup', 'listbox');
     element.setAttribute('aria-expanded', 'false');
+    const glyph = tag('span', 'deckit-select-icon');
     const label = tag('span', 'deckit-select-label');
     const caret = tag('span', 'deckit-select-caret');
     caret.innerHTML = ICON.icon('chevronDown', { size: 13 });
-    element.append(label, caret);
+    element.append(glyph, label, caret);
     const set = (next) => {
         current = next;
-        const option = options.find((candidate) => candidate.value === current);
+        const option = choices.find((candidate) => candidate.value === current);
         label.textContent = option ? option.label : '';
         label.style.fontFamily = option?.font || '';
+        glyph.style.display = option?.icon ? '' : 'none';
+        glyph.innerHTML = option?.icon ? iconMarkup(option.icon) : '';
+    };
+    const setOptions = (next) => {
+        choices = next;
+        set(current);
     };
     const open = () => {
         element.setAttribute('aria-expanded', 'true');
@@ -126,11 +135,13 @@ function select({ options, value = null, onChange }) {
             minWidth: element.getBoundingClientRect().width,
             active: Math.max(
                 0,
-                options.findIndex((option) => option.value === current)
+                choices.findIndex((option) => option.value === current)
             ),
-            items: options.map((option) => ({
+            items: choices.map((option) => ({
                 label: option.label,
                 font: option.font,
+                icon: option.icon,
+                hint: option.hint,
                 checked: option.value === current,
                 run: () => option.value !== current && onChange?.(option.value),
             })),
@@ -147,7 +158,7 @@ function select({ options, value = null, onChange }) {
         open();
     });
     set(current);
-    return { element, set };
+    return { element, set, setOptions };
 }
 
 // The menu of a row of `area`, opened by the context click, or by the ContextMenu key or Shift+F10 on the row
@@ -351,7 +362,7 @@ function rowOf(item, ticks) {
     if (item.disabled) row.setAttribute('aria-disabled', 'true');
     if (item.icon) {
         const glyph = tag('span', 'deckit-menu-icon');
-        glyph.innerHTML = /^\s*<svg/.test(item.icon) ? item.icon : ICON.icon(item.icon, { size: 14 });
+        glyph.innerHTML = iconMarkup(item.icon);
         row.append(glyph);
     }
     const label = tag('span', 'deckit-menu-label');
@@ -379,6 +390,11 @@ function withoutStraySeparators(items) {
     }
     if (kept.at(-1) === '-') kept.pop();
     return kept;
+}
+
+// An item's icon: SVG markup as given, or the name of one of the kit's.
+function iconMarkup(icon) {
+    return /^\s*<svg/.test(icon) ? icon : ICON.icon(icon, { size: 14 });
 }
 
 function tag(name, className) {

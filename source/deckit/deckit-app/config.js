@@ -2,7 +2,7 @@
 const path = require('path');
 
 // The mods Deckit ships, in their order until the person changes it: the panel lists those with a view.
-const SHIPS = ['editor', 'finder', 'note', 'browser', 'calendar', 'settings', 'deckit'];
+const SHIPS = ['editor', 'finder', 'note', 'browser', 'calendar', 'bot', 'settings', 'deckit'];
 // Run unpackaged, all its data is in the folder DECKIT_DATA names (main.js).
 const data = process.env.DECKIT_DATA;
 
