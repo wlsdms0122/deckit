@@ -4,6 +4,7 @@
 module.exports = ({ id, emit }) => {
     const os = require('os');
     const path = require('path');
+    const commands = require('./command.js')();
     let served = null; // what serves the settings in use: { key, children, live, forge, brain }
     // A part served, or why its settings do not hold.
     const part = (name) => {
@@ -71,9 +72,8 @@ module.exports = ({ id, emit }) => {
                 child.once('close', () => children.delete(child));
             };
             const send = (name) => (state) => live.on && emit(name, state);
-            const loginPath = require('./login-path.js')(track);
             const forgeFor = (at) => {
-                const forge = require('./forge/supervisor.js')({ ...at, id, track, live: () => live.on, loginPath });
+                const forge = require('./forge/supervisor.js')({ ...at, id, track, live: () => live.on, commands });
                 return {
                     supervisor: forge.methods,
                     tasks: require('./forge/tasks.js')({ forge, send: send('tasks') }),
@@ -85,7 +85,7 @@ module.exports = ({ id, emit }) => {
                 children,
                 live,
                 forge: forgeAt.problem ? forgeAt : forgeFor(forgeAt),
-                brain: brainAt.problem ? brainAt : require('./llmemory/brain.js')({ ...brainAt, track, loginPath }),
+                brain: brainAt.problem ? brainAt : require('./llmemory/brain.js')({ ...brainAt, track, commands }),
             };
             // What other mods hear starts again with the new settings' reports.
             if (!first && !forgeAt.problem) {
@@ -103,6 +103,9 @@ module.exports = ({ id, emit }) => {
         },
         brain: through(() => part('brain'), ['search', 'list', 'axes', 'get', 'related']),
         // The daemons it started are the person's and run on after the app; the commands it runs end with it.
-        dispose: retire,
+        dispose: () => {
+            retire();
+            commands.end();
+        },
     };
 };

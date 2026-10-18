@@ -1,27 +1,17 @@
-// `command` runs llmemory on the brain in the folder `home`, with the PATH `loginPath()` answers.
-module.exports = ({ command, home, track, loginPath }) => {
-    const { execFile } = require('child_process');
-
+// `command` runs llmemory on the brain in the folder `home`, through `commands`.
+module.exports = ({ command, home, track, commands }) => {
     const runBrain = async (argv, operands) => {
-        const env = { ...process.env, PATH: (await loginPath()) || process.env.PATH };
-        return new Promise((resolve, reject) => {
-            track(
-                execFile(
-                    command,
-                    [...argv, '--json', '--home', home, '--', ...operands],
-                    { env, timeout: 15000, maxBuffer: 8 * 1024 * 1024 },
-                    (error, stdout, stderr) => {
-                        if (error?.syscall) return reject(new Error('llmemory could not be run: ' + error.message));
-                        if (error) return reject(new Error((String(stderr).trim() || error.message).split('\n')[0]));
-                        try {
-                            resolve(JSON.parse(String(stdout)));
-                        } catch {
-                            reject(new Error('llmemory answered something that is not JSON'));
-                        }
-                    }
-                )
-            );
+        const out = await commands.run({
+            program: 'llmemory',
+            command,
+            argv: [...argv, '--json', '--home', home, '--', ...operands],
+            track,
         });
+        try {
+            return JSON.parse(out);
+        } catch {
+            throw new Error('llmemory answered something that is not JSON');
+        }
     };
 
     const noteId = (id) => {

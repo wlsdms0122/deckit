@@ -1,9 +1,9 @@
 // `command` runs forge, and `config` is the config.toml the `default` session is served with, forge's own in the
 // session's folder when null. `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed
-// each command it runs, and once `live()` is false it starts no daemon. `loginPath()` is the PATH forge is run with.
-module.exports = ({ command, config, id, track, live, loginPath }) => {
+// each command it runs, and once `live()` is false it starts no daemon. `commands` runs them.
+module.exports = ({ command, config, id, track, live, commands }) => {
     const { app } = require('electron');
-    const { spawn, execFile } = require('child_process');
+    const { spawn } = require('child_process');
     const path = require('path');
     const fs = require('fs');
 
@@ -17,8 +17,9 @@ module.exports = ({ command, config, id, track, live, loginPath }) => {
         return name;
     };
     const logFile = (session) => path.join(sessionHome(session), 'log', 'proc.log');
+    // What forge runs in: the session it is for is given as `--session`, never taken from this process.
     const environment = async () => {
-        const env = { ...process.env, PATH: (await loginPath()) || process.env.PATH };
+        const env = await commands.environment();
         delete env.FORGE_SESSION;
         delete env.FORGE_SOCKET;
         return env;
@@ -170,28 +171,15 @@ module.exports = ({ command, config, id, track, live, loginPath }) => {
         const env = await environment();
         const sent = withToken ? readToken(session) : null;
         if (withToken) env.FORGE_ACCESS_TOKEN = sent;
-        return new Promise((resolve, reject) => {
-            track(
-                execFile(
-                    command,
-                    [...argv, '--session', session],
-                    { env, timeout, maxBuffer: 8 * 1024 * 1024 },
-                    (error, stdout, stderr) => {
-                        if (error) {
-                            // forge itself did not run.
-                            if (error.syscall)
-                                return reject(new Error('forge could not be run: ' + error.message, { cause: error }));
-                            if (error.code === 6) {
-                                dropToken(session);
-                                if (sent) rejected.set(session, sent);
-                            }
-                            return reject(new Error((String(stderr).trim() || error.message).split('\n')[0]));
-                        }
-                        resolve(String(stdout));
-                    }
-                )
-            );
-        });
+        return commands
+            .run({ program: 'forge', command, argv: [...argv, '--session', session], env, timeout, track })
+            .catch((error) => {
+                if (error.code === 6) {
+                    dropToken(session);
+                    if (sent) rejected.set(session, sent);
+                }
+                throw error;
+            });
     };
 
     const methods = {};
@@ -236,7 +224,7 @@ module.exports = ({ command, config, id, track, live, loginPath }) => {
         const status = await runForge(name, ['status', '--json'], false)
             .then(JSON.parse)
             .catch((error) => {
-                if (error.cause) throw error;
+                if (error.notRun) throw error;
                 return null;
             });
         const daemon = status?.daemon?.pid ? status.daemon : null;
@@ -299,7 +287,7 @@ module.exports = ({ command, config, id, track, live, loginPath }) => {
                     done(null);
                 });
             });
-            if (failure) throw new Error('forge could not be run: ' + failure.message);
+            if (failure) throw commands.notRun('forge', failure);
             if (!bootstrap) {
                 try {
                     child.kill('SIGKILL');
