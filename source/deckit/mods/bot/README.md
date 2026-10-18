@@ -4,13 +4,13 @@ The forge daemons and the llmemory brain of a bot that runs on them. Services st
 
 ## The bot's folder
 
-Settings has the bot's folder, `~/workspace/agent/jineun-bot` until it is set: where `bin/forge`, `bin/llmemory`, `.forge` (the bot's forge configuration and workflows) and `bot/brain` are. `~` at its start is the home folder. A new folder is used at once.
+Settings has the bot's folder, `~/workspace/agent/jineun-bot` until it is set: where `bin/forge`, `bin/llmemory`, `.forge` (the bot's forge configuration and workflows) and `bot/brain` are. `~` at its start is the home folder. A new folder is used at once, and the commands still running for the one before end. A daemon already running stays the one it was started as until it is restarted: the `default` session is one name whatever the folder.
 
 ## Sessions
 
-Each forge session is a daemon of its own. `default` is the bot's, served with `.forge/config.toml` and logging to `log/forge/proc.log`; every other is a folder of forge's own (`~/.config/forge/<name>`, or under `$XDG_CONFIG_HOME`). Services, Workflows and Schedules show one session, chosen from the pop-up button in the title bar, where each is marked running or stopped, or with Forge Session in the switcher.
+Each forge session is a daemon of its own. `default` is the bot's, served with `.forge/config.toml` and logging to `log/forge/proc.log`; every other is a folder of forge's own (`~/.config/forge/<name>`, or under `$XDG_CONFIG_HOME`). Services, Workflows and Schedules show one session, chosen from the pop-up button in the title bar, where each is marked running, started elsewhere or stopped, or with Forge Session in the switcher.
 
-forge hands the token that controls a daemon to the process that starts it. A daemon started elsewhere can be stopped and restarted from here; its services, workflows and schedules are reached once it is started from here, or once its session's folder holds an `admin.token`, which Bot writes for a session it starts. The daemons Bot starts are the person's and run on after the app quits.
+forge hands the token that controls a daemon to the process that starts it. A daemon started elsewhere can be stopped and restarted from here; its services, workflows and schedules are reached once it is started from here, or, for a session other than `default`, once its folder holds an `admin.token`, which Bot writes for such a session it starts. The daemons Bot starts are the person's and run on after the app quits.
 
 ## For other mods
 
