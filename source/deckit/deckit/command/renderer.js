@@ -4,9 +4,9 @@ import * as PROTOCOL from './protocol.js';
 export function createCommand() {
     // MARK: - Property
     // The functions behind the entries each session was handed, which holds only their ids, until it ends.
-    const sessions = new Map(); // session -> Map of id -> { run, page }
+    const sessions = new Map(); // session -> Map of id -> { run, submenu }
     const ended = new Set(); // sessions whose late answers keep nothing
-    const searching = new Map(); // page id -> the AbortController of its query in flight
+    const searching = new Map(); // entry id -> the AbortController of its query in flight
     let sequence = 0;
 
     // MARK: - Initializer
@@ -24,8 +24,8 @@ export function createCommand() {
                 return null;
             }
             const id = 'entry-' + ++sequence;
-            const page = isPage(command.page) ? command.page : null;
-            localOf(session).set(id, { run: typeof command.run === 'function' ? command.run : null, page });
+            const submenu = isSubmenu(command.submenu) ? command.submenu : null;
+            localOf(session).set(id, { run: typeof command.run === 'function' ? command.run : null, submenu });
             return {
                 id,
                 group: typeof command.group === 'string' ? command.group : '',
@@ -34,12 +34,12 @@ export function createCommand() {
                 icon: command.icon || icon || '',
                 keywords: strings(command.keywords).join(' '),
                 address: typeof command.address === 'string' ? command.address : '',
-                runnable: typeof command.run === 'function' || !!page,
-                page: page
+                runnable: typeof command.run === 'function' || !!submenu,
+                submenu: submenu
                     ? {
-                          placeholder: String(page.placeholder || ''),
+                          placeholder: String(submenu.placeholder || ''),
                           icon: icon || '',
-                          ranked: typeof page.entries === 'function',
+                          ranked: typeof submenu.entries === 'function',
                       }
                     : null,
             };
@@ -48,7 +48,7 @@ export function createCommand() {
         PROTOCOL.collect.handle(({ session }) => {
             const offered = commands?.();
             return (Array.isArray(offered) ? offered : [])
-                .filter((command) => command && (typeof command.run === 'function' || isPage(command.page)))
+                .filter((command) => command && (typeof command.run === 'function' || isSubmenu(command.submenu)))
                 .map((command) => entryOf(session, command, 'command'))
                 .filter(Boolean);
         });
@@ -78,20 +78,20 @@ export function createCommand() {
                 .filter(Boolean);
         });
         // A search a newer one replaced is aborted and answers null, so its answer never stands for a query.
-        PROTOCOL.search.handle(async ({ session, raw, page: id }) => {
-            const page = sessions.get(session)?.get(id)?.page;
-            if (!page) return null;
+        PROTOCOL.search.handle(async ({ session, raw, submenu: id }) => {
+            const submenu = sessions.get(session)?.get(id)?.submenu;
+            if (!submenu) return null;
             searching.get(id)?.abort();
             const asked = new AbortController();
             searching.set(id, asked);
             const found =
-                typeof page.search === 'function'
-                    ? await page.search(raw, { signal: asked.signal })
-                    : await page.entries();
+                typeof submenu.search === 'function'
+                    ? await submenu.search(raw, { signal: asked.signal })
+                    : await submenu.entries();
             if (asked.signal.aborted) return null;
             searching.delete(id);
             return (Array.isArray(found) ? found : [])
-                .map((command) => entryOf(session, command, 'page'))
+                .map((command) => entryOf(session, command, 'submenu'))
                 .filter(Boolean);
         });
         // What a command's run returns stays in the page: only that it ran crosses back.
@@ -112,8 +112,8 @@ export function createCommand() {
         return sessions.get(session);
     }
 
-    function isPage(page) {
-        return !!page && (typeof page.search === 'function' || typeof page.entries === 'function');
+    function isSubmenu(submenu) {
+        return !!submenu && (typeof submenu.search === 'function' || typeof submenu.entries === 'function');
     }
 
     return { source };

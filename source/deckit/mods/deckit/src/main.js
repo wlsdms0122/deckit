@@ -17,7 +17,7 @@ module.exports = {
                 label: 'Open Address…',
                 icon: icon('link'),
                 keywords: ['url', 'scheme', 'open', '주소', '열기'],
-                page: {
+                submenu: {
                     placeholder: 'An address with its scheme: https://…, file:///…',
                     search: (query) => address.entriesFor(query),
                 },
@@ -26,7 +26,7 @@ module.exports = {
                 label: 'Restart Mod…',
                 icon: icon('reload'),
                 keywords: ['relaunch', 'reload', '재시작'],
-                page: { placeholder: 'Search mods', entries: modEntries },
+                submenu: { placeholder: 'Search mods', entries: modEntries },
             },
             {
                 label: 'Restart ' + APP_NAME,
@@ -56,7 +56,7 @@ module.exports = {
                 label: 'About ' + APP_NAME,
                 icon: icon('info'),
                 keywords: ['version', '버전'],
-                page: { placeholder: 'Versions', entries: versions },
+                submenu: { placeholder: 'Versions', entries: versions },
             },
         ]);
 

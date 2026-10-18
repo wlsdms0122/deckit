@@ -171,7 +171,7 @@ function boot(theme) {
 
     const entries = {
         need: () => PROTOCOL.need.send(),
-        query: (raw, page) => PROTOCOL.query.send({ raw, page: page || null }),
+        query: (raw, submenu) => PROTOCOL.query.send({ raw, submenu: submenu || null }),
         pick: (id) => PROTOCOL.pick.send({ id }),
     };
     let toned = false;
@@ -190,8 +190,8 @@ function boot(theme) {
             placeholder: 'Jump to a mod, bookmark or view…',
             items: hydrate(items),
             now: hydrate(now),
-            // Resolvers and page searches live with the mods, in their pages.
-            onQuery: (raw, pageId) => entries.query(raw, pageId),
+            // Resolvers and submenu searches live with the mods, in their pages.
+            onQuery: (raw, submenuId) => entries.query(raw, submenuId),
             onPick: (item) => item.run(),
             onClose: () => {
                 switcher = null;
@@ -201,8 +201,8 @@ function boot(theme) {
         });
     });
     PROTOCOL.now.on(({ rows }) => switcher?.model.setNow(hydrate(rows)));
-    PROTOCOL.resolved.on(({ raw, entries: found, page }) =>
-        switcher?.model.setResolved(String(raw || ''), hydrate(found), page || null)
+    PROTOCOL.resolved.on(({ raw, entries: found, submenu }) =>
+        switcher?.model.setResolved(String(raw || ''), hydrate(found), submenu || null)
     );
     PROTOCOL.open.on(() => {
         if (switcher) return;
@@ -280,13 +280,13 @@ function open(ui, { placeholder, items, now, onQuery, onPick, onClose }) {
         onKey,
         onClose,
     });
-    let pageShown;
+    let submenuShown;
     draw();
     model.onChange(draw);
     return { model, close: () => picker.close() };
 
     // The view model owns the active row, so the arrows and Enter are its. Escape, and Backspace in an empty
-    // field, leave a page before they close anything.
+    // field, leave a submenu before they close anything.
     function onKey(event) {
         if (event.key === 'Escape' || (event.key === 'Backspace' && !picker.text())) return model.back();
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') model.move(event.key === 'ArrowDown' ? 1 : -1);
@@ -297,11 +297,11 @@ function open(ui, { placeholder, items, now, onQuery, onPick, onClose }) {
 
     function draw() {
         const state = model.state();
-        if ((state.page?.id ?? null) !== pageShown) {
-            pageShown = state.page?.id ?? null;
+        if ((state.submenu?.id ?? null) !== submenuShown) {
+            submenuShown = state.submenu?.id ?? null;
             picker.setText('');
             picker.setPlaceholder(state.placeholder);
-            picker.setScope(state.page ? { icon: state.page.icon, label: state.page.label } : null);
+            picker.setScope(state.submenu ? { icon: state.submenu.icon, label: state.submenu.label } : null);
             picker.focus();
         }
         const entries = state.rows.flatMap((row, index) => [

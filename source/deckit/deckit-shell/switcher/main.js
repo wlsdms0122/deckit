@@ -38,9 +38,9 @@ export function createSwitcher({ PANEL, deckit, host }) {
         });
         PROTOCOL.close.on((_payload, sender) => sender === state.view?.webContents && close());
         PROTOCOL.need.on((_payload, sender) => sender === state.view?.webContents && supply());
-        PROTOCOL.query.on(({ raw, page }, sender) => {
+        PROTOCOL.query.on(({ raw, submenu }, sender) => {
             if (sender !== state.view?.webContents) return;
-            if (page) search(raw, page);
+            if (submenu) search(raw, submenu);
             else resolve(raw);
         });
         PROTOCOL.pick.on(({ id }, sender) => sender === state.view?.webContents && pick(id));
@@ -178,7 +178,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
                     address: '',
                     aliases: [mod.name, ...deckit.mods.listingOf(mod.id).keywords],
                     runnable: true,
-                    page: null,
+                    submenu: null,
                     mod,
                 })
             );
@@ -201,10 +201,10 @@ export function createSwitcher({ PANEL, deckit, host }) {
         }
     }
 
-    // A page of entries an entry opened, answered by its mod.
-    async function search(raw, page) {
-        const found = await session?.search(page, raw);
-        if (found && list()) PROTOCOL.resolved.send(list(), { raw, entries: found.map(hand), page });
+    // The entries of a submenu, answered by its mod.
+    async function search(raw, submenu) {
+        const found = await session?.search(submenu, raw);
+        if (found && list()) PROTOCOL.resolved.send(list(), { raw, entries: found.map(hand), submenu });
     }
 
     // Only a command is remembered: a readout or a query's result is not something to run again.

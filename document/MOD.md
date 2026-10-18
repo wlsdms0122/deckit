@@ -147,12 +147,12 @@ deck.keys({ newTab: { key: 'mod+t', label: 'New tab', run() { … } } });
 
 `fn()` returns `[{ label, hint, icon, group, run, keywords, address }]`: entries for the quick switcher, under the mod's heading. `group` is a caption inside it; `address` is a URL or a path a query matches last. Running one does not show the mod: a command that wants to be seen calls `deck.show()`. A headless mod is often nothing but this.
 
-Instead of `run`, an entry may have a `page`, a list the switcher opens to search inside it; Escape or Backspace leaves it:
+Instead of `run`, an entry may have a `submenu`, a list the switcher opens to search inside it; Escape or Backspace leaves it:
 
-- `page: { placeholder, search(query, { signal }) }`: the mod answers each query. A new query aborts `signal`; pass it on to what fetches.
-- `page: { placeholder, entries() }`: one list the switcher ranks itself.
+- `submenu: { placeholder, search(query, { signal }) }`: the mod answers each query. A new query aborts `signal`; pass it on to what fetches.
+- `submenu: { placeholder, entries() }`: one list the switcher ranks itself.
 
-An entry of `commands` has a `run` or a `page`; one with neither is left out. In `now`, `resolve` and a page, an entry without `run` is a readout: shown, never chosen.
+An entry of `commands` has a `run` or a `submenu`; one with neither is left out. In `now`, `resolve` and a submenu, an entry without `run` is a readout: shown, never chosen.
 
 ### deck.now(fn)
 
