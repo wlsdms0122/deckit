@@ -58,13 +58,11 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         delegated = { isActive, monitor };
     }
 
-    // Keystrokes in this webContents go through the key map. deckit listens on its own pages, and on a web page with
-    // the deckit page that shows it, its `embedder`; an app hands its own where deckit's global keys should work too.
-    // `keys` are this webContents' own, taken there first: only a chord main catches wins over a meaning the app's
-    // menu gives it.
-    function listen(webContents, { keys = [], embedder = null } = {}) {
-        // The deckit page a keystroke here belongs to: a mod's or one the shell made, or the one showing it.
-        const page = IDENTITY.modOf(webContents) || IDENTITY.pageNameOf(webContents) ? webContents : embedder;
+    // Keystrokes in this webContents go through the key map. deckit listens on its own pages and the web pages they
+    // show; an app hands its own where deckit's global keys should work too. `page` is the deckit page a keystroke
+    // here belongs to, as web answers it, or null: the keys of the page in front run only in one. `keys` are this
+    // webContents' own, taken there first: only a chord main catches wins over a meaning the app's menu gives it.
+    function listen(webContents, { keys = [], page = null } = {}) {
         if (keys.length)
             local.set(
                 webContents.id,

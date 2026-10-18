@@ -194,7 +194,7 @@ export function createWeb({
         const id = page.id;
         REGISTRY.add(page, { embedder: modPage, mod: IDENTITY.modOf(modPage).id, tab: id, inPage });
         // A page is a webContents of its own: its keystrokes reach the key map only when it is listened to.
-        KEYMAP.listen(page, { embedder: modPage });
+        KEYMAP.listen(page, { page: pageFor(page) });
         AGENT.presentAsBrowser(page);
         page.once('destroyed', () => icons.delete(id));
         const changed = () => report(modPage, page);
@@ -288,7 +288,6 @@ export function createWeb({
         });
     }
 
-    // Main sees a page's input itself, so a page cannot claim a press.
     // A window a page opened answers to that page's tab, as do the windows it opens in turn.
     function openPopup(modPage, opener, options) {
         const { WebContentsView } = require('electron');
@@ -299,7 +298,7 @@ export function createWeb({
         const page = pageView.webContents;
         const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
         REGISTRY.add(page, { embedder: modPage, mod: IDENTITY.modOf(modPage).id, tab });
-        KEYMAP.listen(page, { embedder: modPage });
+        KEYMAP.listen(page, { page: pageFor(page) });
         holdWindowOpen(modPage, page, { inPage: false });
         const size = options.width && options.height ? { width: options.width, height: options.height } : null;
         showInWindow(pageView, { size: size || WINDOW_SIZE });

@@ -132,7 +132,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     MANIFEST.define(SCHEMES.FIELD, SCHEMES.field());
     require('electron')
         .app.whenReady()
-        .then(() => start(preload, host));
+        .then(() => start(preload));
     return API.make({ onStart });
 
     // `listener` is told once, as deckit starts once the app is ready, before any mod launches. It is handed over
@@ -142,7 +142,7 @@ function make({ preload, host, config: CONFIG, folders }) {
         starting.push(listener);
     }
 
-    function start(preload, host) {
+    function start(preload) {
         deck.prepare({ preload });
         WEB.start();
         KEYMAP.start();
@@ -186,7 +186,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     // asks for, and a link that leaves its origin, which deck holds it to.
     function preparePage(webContents, mod) {
         WEB.prepareEmbedder(webContents);
-        KEYMAP.listen(webContents);
+        KEYMAP.listen(webContents, { page: WEB.pageFor(webContents) });
         const pressed = () => ({ userInitiated: IDENTITY.consumeUserActivation(webContents) });
         webContents.setWindowOpenHandler((details) => {
             OPEN.open(details.url, { ...WEB.windowOptions(details), ...pressed() });
