@@ -127,7 +127,8 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
 
 // What the layers on deck read of it: the scheme its pages load from and their origins, a run's notifications, the
 // permissions deck checks itself, and how a name of a mod's is scoped by it.
-export { SCHEME, originOf, pageOriginOf, addressOf } from './sandbox/model/origin.js';
+export { SCHEME } from './contract/index.js';
+export { originOf, pageOriginOf, addressOf } from './sandbox/model/origin.js';
 export { NOTIFICATIONS } from './mod/lifecycle.js';
 export { MODS, MOD_SETTINGS } from './mod/permission.js';
 export { scopedName } from './mod/model/scoped-name.js';
