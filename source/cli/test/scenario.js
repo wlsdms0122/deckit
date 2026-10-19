@@ -10,7 +10,9 @@ const LINES = 'lines.txt';
 const FOUND = 'source/quick-open-target.js';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
+// And the test's own mods, installed.
 function seed({ data, files }) {
+    fs.cpSync(path.join(__dirname, 'mods'), path.join(data, 'deckit', 'mods'), { recursive: true });
     const contents = {
         [LINES]: Array.from({ length: 40 }, (_, index) => `line ${index + 1}`).join('\n') + '\n',
         [FOUND]: 'export {};\n',
@@ -46,7 +48,8 @@ async function run({ page, targets, thrown }) {
         const rows = await editor.evaluate(
             `[...document.querySelectorAll('[data-mod-id]')].map((row) => row.dataset.modId)`
         );
-        check(`nav lists ${VIEWS} mods`, Array.isArray(rows) && rows.length === VIEWS, JSON.stringify(rows));
+        // The shipped views and the test's region parent: its child is in no list.
+        check(`nav lists ${VIEWS + 1} mods`, Array.isArray(rows) && rows.length === VIEWS + 1, JSON.stringify(rows));
 
         await editor.press('[data-mod-id="finder"]');
         await sleep(600);
@@ -230,6 +233,22 @@ async function run({ page, targets, thrown }) {
             await sleep(800);
             await (await page(`deckit://${id}.mod`))?.shot('screen-' + id);
         }
+
+        // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.
+        await (await page('deckit://note.mod')).press('[data-mod-id="region-parent"]');
+        await until(async () => (await visibility('region-parent')) === 'visible', 3000);
+        const parent = await page('deckit://region-parent.mod');
+        const child = await page('deckit://region-child.mod');
+        const slot = `(() => { const r = document.getElementById('region-slot').getBoundingClientRect(); return [r.width, r.height].map(Math.round).join('x'); })()`;
+        const seen = `document.documentElement.dataset.shown === 'yes' ? innerWidth + 'x' + innerHeight : 'hidden'`;
+        const laid = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
+        check('a region in the sidebar lays its child over it', laid, await child.evaluate(seen));
+        await parent.key('\\', 'Backslash', META, 220);
+        const gone = await until(async () => (await child.evaluate(seen)) === 'hidden', 3000);
+        check('folding the sidebar takes its region away', gone, await child.evaluate(seen));
+        await parent.key('\\', 'Backslash', META, 220);
+        const back = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
+        check('unfolding the sidebar brings the region back', back, await child.evaluate(seen));
     } catch (error) {
         check('scenario ran', false, error.stack);
     }
