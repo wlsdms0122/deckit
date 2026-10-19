@@ -5,20 +5,19 @@ import * as PAGE from './model/page-name.js';
 // `deckit` is what connect answered, `host` the app's answers.
 export function createPanel({ REGION, deckit, host }) {
     // MARK: - Property
-    const FRAME = 'panel-frame';
+    const SIDEBAR = 'panel-frame';
     const PINNED = 'panel-pinned';
     const HISTORY_LIMIT = 50;
-    // What the frame's page opens beside itself: under the mods, and over everything.
-    const BACKDROP = 'backdrop';
-    const HANDLE = 'handle';
     const views = new Map(); // mod id -> the view its page is in, while the mod has something to show
     const floating = new Map(); // webContents id of a mod page with something floating -> its end's off
     const sent = { onScreen: new Set(), guides: new WeakMap(), look: '' }; // what the pages were last told
-    // The frame's page, the surfaces it opened by name, and where it said its parts are. `spread` is where its
+    // The frame's page, the surfaces it opened by name, and where it said its parts are. `moving` is where its
     // page is laid while the frame moves: what it covers before and after.
-    const shell = { view: null, surfaces: new Map(), rects: null, spread: null, settling: null };
+    // `animates` is the mod the move was told to.
+    const shell = { view: null, surfaces: new Map(), rects: null, moving: null, settling: null, animates: null };
     const keys = { back: null, forward: null }; // the ids of the panel's keys a tooltip names
     let raised = new Set(); // the children laid over their regions, lifted over the mod on screen
+    let front = null; // what is lifted over every view: the frame, or the mod on screen while something floats in it
     const history = { list: [], at: -1 };
     let container = null;
     let current = null;
@@ -33,7 +32,7 @@ export function createPanel({ REGION, deckit, host }) {
     let moves = 0; // counts the hides and moves, so a newer one takes the place of one still waiting
     let titled = null; // the title the host was last told
     let look = { floating: false, dismissible: false, titleBar: null };
-    let frame = { width: 240, collapsed: false, navHeight: null };
+    let sidebar = { width: WIDTH.MIN, collapsed: false, navHeight: null }; // as the person left it
     let pinned = new Set(); // the children the person pinned to the panel's list
 
     // MARK: - Initializer
@@ -42,7 +41,7 @@ export function createPanel({ REGION, deckit, host }) {
     // whose view names a parent is that one's child: its view is shown where a region of the parent's shows it,
     // and in the panel only once the person pins it to the list.
     function start() {
-        frame = { ...frame, ...deckit.state.read(FRAME, {}) };
+        sidebar = { ...sidebar, ...deckit.state.read(SIDEBAR, {}) };
         pinned = new Set(deckit.state.read(PINNED, []));
         const { View } = require('electron');
         container = new View();
@@ -112,7 +111,7 @@ export function createPanel({ REGION, deckit, host }) {
         PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
         PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && deckit.mods.arrange(ids));
-        PROTOCOL.layout.on((change, sender) => fromFrame(sender) && setFrame(change));
+        PROTOCOL.layout.on((change, sender) => fromFrame(sender) && setSidebar(change));
         PROTOCOL.rects.on((rects, sender) => fromFrame(sender) && setRects(rects));
         PROTOCOL.setup.handle((_payload, sender) => ({ guide: guideOf(sender), shown: sent.onScreen.has(sender) }));
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
@@ -127,7 +126,7 @@ export function createPanel({ REGION, deckit, host }) {
         });
     }
 
-    // The frame's page is the shell's own, made once, under every mod's view but over them all where it draws.
+    // The frame's page is the shell's own, made once, over every mod's view where it draws.
     // It opens its backdrop and its handle, and nothing else. A press there is the person's on the panel, so the
     // keyboard goes back to the mod on screen.
     function makeFrame() {
@@ -136,7 +135,7 @@ export function createPanel({ REGION, deckit, host }) {
         view.setBackgroundColor('#00000000');
         view.setVisible(false);
         contents.setWindowOpenHandler(({ frameName }) =>
-            [BACKDROP, HANDLE].includes(frameName) && !shell.surfaces.has(frameName)
+            Object.values(PAGE.SURFACE).includes(frameName) && !shell.surfaces.has(frameName)
                 ? { action: 'allow', createWindow: (options) => openSurface(frameName, options.webContents) }
                 : { action: 'deny' }
         );
@@ -145,6 +144,8 @@ export function createPanel({ REGION, deckit, host }) {
         // It lays the frame out off screen too, since the mods are laid by it. Chromium takes the preference back
         // at each load, so it is given again as each one finishes.
         deckit.log.guard(contents, 'did-finish-load', () => contents.setBackgroundThrottling(false));
+        // The panel has no frame without it: a page that crashed is loaded again.
+        deckit.log.guard(contents, 'render-process-gone', () => !contents.isDestroyed() && contents.reload());
         deckit.log.guard(
             contents,
             'console-message',
@@ -164,8 +165,11 @@ export function createPanel({ REGION, deckit, host }) {
         deckit.log.guard(webContents, 'will-frame-navigate', (details) => details.preventDefault());
         deckit.log.guard(webContents, 'focus', focus);
         shell.surfaces.set(name, view);
-        if (name === BACKDROP) container.addChildView(view, 0);
-        else container.addChildView(view);
+        if (name === PAGE.SURFACE.BACKDROP) container.addChildView(view, 0);
+        else {
+            container.addChildView(view);
+            stack(true);
+        }
         update();
         return webContents;
     }
@@ -178,19 +182,20 @@ export function createPanel({ REGION, deckit, host }) {
         shell.surfaces.clear();
         clearTimeout(shell.settling);
         shell.rects = null;
-        shell.spread = null;
+        shell.moving = null;
         update();
     }
 
     // While the frame moves, its page covers both where it was and where it goes, until it has gone there.
     function setRects(next) {
-        const before = shell.rects?.overlay;
+        const before = shell.rects?.obscured;
         shell.rects = next;
+        shell.animates = next.animation ? current : null;
         clearTimeout(shell.settling);
-        shell.spread = next.animation && before ? union(before, next.overlay) : null;
-        if (shell.spread)
+        shell.moving = next.animation && before ? union(before, next.obscured) : null;
+        if (shell.moving)
             shell.settling = setTimeout(() => {
-                shell.spread = null;
+                shell.moving = null;
                 layout();
             }, next.animation.duration);
         update();
@@ -220,13 +225,18 @@ export function createPanel({ REGION, deckit, host }) {
         if (!on) {
             floating.get(page.id)();
             floating.delete(page.id);
+            stack();
             return;
         }
         const id = page.id;
         floating.set(
             id,
-            deckit.pages.whenEnds(page, () => floating.delete(id))
+            deckit.pages.whenEnds(page, () => {
+                floating.delete(id);
+                stack();
+            })
         );
+        stack();
     }
 
     function isEscape(input) {
@@ -243,7 +253,7 @@ export function createPanel({ REGION, deckit, host }) {
             action: 'toggleSidebar',
             key: 'mod+\\',
             label: 'Toggle sidebar',
-            run: () => setFrame({ collapsed: !frame.collapsed }),
+            run: () => setSidebar({ collapsed: !sidebar.collapsed }),
         });
         keys.back = deckit.keymap.register({
             action: 'back',
@@ -289,7 +299,7 @@ export function createPanel({ REGION, deckit, host }) {
             container.addChildView(view);
             added = true;
         }
-        if (added) raiseFrame();
+        if (added) stack(true);
         update();
         if (returning && !mayShow(returning)) returning = null;
         if (returning && views.has(returning)) {
@@ -370,15 +380,22 @@ export function createPanel({ REGION, deckit, host }) {
             view.setVisible(true);
         }
         raised = new Set(children.keys());
-        if (lifted) raiseFrame();
-        lay(shell.surfaces.get(BACKDROP), { x: 0, y: 0, width, height }, width, height);
-        lay(shell.view, shell.spread || shell.rects?.overlay, width, height);
-        lay(shell.surfaces.get(HANDLE), shell.rects?.handle, width, height);
+        stack(lifted);
+        lay(shell.surfaces.get(PAGE.SURFACE.BACKDROP), { x: 0, y: 0, width, height }, width, height);
+        lay(shell.view, shell.moving || shell.rects?.obscured, width, height);
+        lay(shell.surfaces.get(PAGE.SURFACE.HANDLE), shell.rects?.handle, width, height);
     }
 
-    // The frame's page and its handle stay over every mod's view.
-    function raiseFrame() {
-        for (const view of [shell.view, shell.surfaces.get(HANDLE)]) if (view) container.addChildView(view);
+    // The frame's page and its handle stay over every mod's view, but for a dialog or a menu of the mod on screen,
+    // which comes over them as it did over the page's own. `again`: a view was added, so what was lifted is
+    // lifted again.
+    function stack(again = false) {
+        const next = floating.has(currentContents()?.id) ? views.get(current) : shell.view;
+        if (next === front && !again) return;
+        front = next;
+        if (next !== shell.view) return container.addChildView(next);
+        for (const view of [shell.view, shell.surfaces.get(PAGE.SURFACE.HANDLE)])
+            if (view) container.addChildView(view);
     }
 
     function lay(view, rect, width, height) {
@@ -457,7 +474,7 @@ export function createPanel({ REGION, deckit, host }) {
         if (id && id !== current && REGION.parentOf(id)) {
             const rect = REGION.rectOf(id);
             const laid = rect ? clip(rect, width, height) : { x: 0, y: 0, width: 0, height: 0 };
-            const side = lends ? Math.min(laid.width, WIDTH.fitted(frame.width, laid.width)) : 0;
+            const side = lends ? Math.min(laid.width, WIDTH.fitted(sidebar.width, laid.width)) : 0;
             const bar = look.titleBar;
             const over = bar ? Math.max(0, bar.height - laid.y) : 0;
             return {
@@ -465,7 +482,7 @@ export function createPanel({ REGION, deckit, host }) {
                 region: true,
                 content: { x: side, y: 0, width: laid.width - side, height: laid.height },
                 sidebar: lends ? { x: 0, y: 0, width: side, height: laid.height } : null,
-                obscured: within(shell.rects?.overlay, laid),
+                obscured: within(shell.rects?.obscured, laid),
                 titleBar: over ? { height: over, controlsWidth: Math.max(0, bar.controlsWidth - laid.x) } : null,
                 animation: null,
             };
@@ -475,10 +492,10 @@ export function createPanel({ REGION, deckit, host }) {
             floating: look.floating,
             region: false,
             content: rects?.content || { x: 0, y: 0, width, height },
-            sidebar: lends ? rects?.slot || null : null,
-            obscured: rects?.overlay || null,
+            sidebar: lends ? rects?.sidebar || null : null,
+            obscured: rects?.obscured || null,
             titleBar: look.titleBar,
-            animation: id === current ? rects?.animation || null : null,
+            animation: id === shell.animates && id === current ? rects?.animation || null : null,
         };
     }
 
@@ -501,7 +518,7 @@ export function createPanel({ REGION, deckit, host }) {
             current,
             canBack: history.at > 0,
             canForward: history.at < history.list.length - 1,
-            frame,
+            sidebar,
             chords: { back: deckit.keymap.chordOf(keys.back), forward: deckit.keymap.chordOf(keys.forward) },
         };
     }
@@ -514,12 +531,13 @@ export function createPanel({ REGION, deckit, host }) {
         if (title !== titled) host.panelTitled((titled = title));
     }
 
-    function setFrame(change) {
-        frame = {
-            ...frame,
+    function setSidebar(change) {
+        sidebar = {
+            ...sidebar,
             ...Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined && value !== null)),
         };
-        deckit.state.write(FRAME, frame);
+        deckit.state.write(SIDEBAR, sidebar);
+        update();
         broadcast();
     }
 

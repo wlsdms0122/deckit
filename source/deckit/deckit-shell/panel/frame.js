@@ -3,6 +3,7 @@ import * as GESTURE from '../ui/gesture/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
 import * as WIDTH from './model/width.js';
+import * as PAGE from './model/page-name.js';
 import * as PROTOCOL from './protocol.js';
 
 // MARK: - Property
@@ -14,7 +15,7 @@ const HANDLE = { width: 16, height: 64 };
 const HANDLE_FOLDED = 3;
 // The card's surface, drawn in the content's ink rather than the sidebar colour, which is chosen against a
 // sidebar fill: white over a dark ground, black over a light one.
-const SURFACE = `:root {
+const CARD = `:root {
     --deckit-sidebar-top: light-dark(rgba(0,0,0,.03), rgba(255,255,255,.045));
     --deckit-sidebar-bottom: light-dark(rgba(0,0,0,.015), rgba(255,255,255,.025));
     --deckit-sidebar-rim: light-dark(rgba(0,0,0,.08), rgba(255,255,255,.1));
@@ -74,18 +75,19 @@ const STYLE = `
 // by it.
 function boot(theme) {
     const ui = KIT.make(theme);
-    KIT.addStyle(SURFACE + STYLE);
+    KIT.addStyle(CARD + STYLE);
     const setup = PROTOCOL.frameSetup.invoke();
     const { motion: MOTION } = theme;
     let { look, state } = setup;
     let open = setup.shown;
     let width = null; // the width a drag of the handle draws, until main keeps it
+    let dragging = false;
     let leaving = null;
     let returning = null; // brings the handle back once the card has moved
     let sent = '';
 
-    const backdrop = surface('backdrop');
-    const grip = surface('handle');
+    const backdrop = surface(PAGE.SURFACE.BACKDROP);
+    const handleSurface = surface(PAGE.SURFACE.HANDLE);
     const backdropRoot = element(backdrop.document, 'div', 'deckit-panel deckit-panel-backdrop');
     const backdropCard = element(backdrop.document, 'div', 'deckit-sidebar deckit-sidebar-card');
     backdropRoot.append(backdropCard);
@@ -110,9 +112,9 @@ function boot(theme) {
     root.append(card, buttonsRoom);
     document.body.append(root);
 
-    const handle = element(grip.document, 'button', 'deckit-sidebar-handle');
+    const handle = element(handleSurface.document, 'button', 'deckit-sidebar-handle');
     handle.type = 'button';
-    grip.document.body.append(handle);
+    handleSurface.document.body.append(handle);
     drag();
 
     dressSurfaces();
@@ -124,9 +126,11 @@ function boot(theme) {
     if (open) enterAtOnce();
 
     PROTOCOL.state.on((next) => {
-        const moved = next.frame.collapsed !== state.frame.collapsed || next.frame.width !== state.frame.width;
+        // What a drag drew is already where it goes.
+        const moved =
+            next.sidebar.collapsed !== state.sidebar.collapsed || next.sidebar.width !== (width ?? state.sidebar.width);
         state = next;
-        width = null;
+        if (!dragging) width = null;
         sidebar.update(state);
         apply(moved);
     });
@@ -172,14 +176,14 @@ function boot(theme) {
         const rules = document.adoptedStyleSheets
             .flatMap((sheet) => [...sheet.cssRules].map((rule) => rule.cssText))
             .join('\n');
-        for (const { document: page, style } of [backdrop, grip]) {
+        for (const { document: page, style } of [backdrop, handleSurface]) {
             style.textContent = rules;
             page.documentElement.style.colorScheme = document.documentElement.style.colorScheme;
         }
     }
 
     // Floating over an app, the ring makes the panel read as on top and the rounding needs the page behind to be
-    // clear. Filling a window, the frame is the OS's, and the panel may share the window's top with its title bar:
+    // clear. Filling a window, its edge is the OS's, and the panel may share the window's top with its title bar:
     // the card reaches up under it, and holds what it lists from below it.
     function dress() {
         const bar = look.titleBar;
@@ -199,9 +203,7 @@ function boot(theme) {
         titleBarRoom.style.height = room + 'px';
     }
 
-    // The card in both documents, at once, then where it all lands told to main. Folding animates width, a
-    // layout property, so the mod's content is laid out again each frame; a transform would make it jump to its
-    // final width instead.
+    // The card in both documents, at once, then where it all lands told to main.
     function apply(animate) {
         const { panel, card: box, collapsed, drawn } = geometry();
         const transition = animate
@@ -243,12 +245,11 @@ function boot(theme) {
         const { panel, card: box, collapsed } = geometry();
         const bar = look.titleBar;
         const border = collapsed ? 0 : 1;
-        const laid = sidebar.slot.getBoundingClientRect();
         const slot = {
             x: box.x + border,
-            y: laid.top,
+            y: box.y + border + sidebar.slot.offsetTop,
             width: Math.max(0, box.width - 2 * border),
-            height: laid.height,
+            height: sidebar.slot.offsetHeight,
         };
         const contentX = collapsed ? 0 : box.x + box.width + INSET;
         const content = { x: contentX, y: 0, width: Math.max(0, panel.width - contentX), height: panel.height };
@@ -257,14 +258,17 @@ function boot(theme) {
             y: (panel.height - HANDLE.height) / 2,
             ...HANDLE,
         };
-        const overlay = {
+        const obscured = {
             x: 0,
             y: 0,
             width: Math.max(collapsed ? 0 : box.x + box.width, bar?.controlsWidth || 0),
             height: Math.max(collapsed ? 0 : slot.y, bar?.height || 0),
         };
         const rects = Object.fromEntries(
-            Object.entries({ overlay, slot, content, handle: handleRect }).map(([name, rect]) => [name, rounded(rect)])
+            Object.entries({ obscured, sidebar: slot, content, handle: handleRect }).map(([name, rect]) => [
+                name,
+                rounded(rect),
+            ])
         );
         const written = JSON.stringify(rects);
         if (written === sent) return;
@@ -278,8 +282,8 @@ function boot(theme) {
     // Where the card goes: `drawn` is its width open, which what it holds keeps while it folds.
     function geometry() {
         const { size: panel } = look;
-        const { collapsed } = state.frame;
-        const drawn = WIDTH.fitted(width ?? state.frame.width, panel.width);
+        const { collapsed } = state.sidebar;
+        const drawn = WIDTH.fitted(width ?? state.sidebar.width, panel.width);
         const inset = collapsed ? 0 : INSET;
         return {
             panel,
@@ -299,7 +303,7 @@ function boot(theme) {
             down.preventDefault();
             const start = down.screenX;
             const from = geometry().drawn;
-            const sizing = !state.frame.collapsed;
+            const sizing = !state.sidebar.collapsed;
             let moving = false;
             travelled = false;
             handle.setPointerCapture(down.pointerId);
@@ -310,6 +314,7 @@ function boot(theme) {
                     travelled = true;
                     if (!sizing) return;
                     moving = true;
+                    dragging = true;
                     handle.toggleAttribute('data-dragging', true);
                 }
                 width = WIDTH.fitted(from + delta, geometry().panel.width);
@@ -320,6 +325,7 @@ function boot(theme) {
                 handle.removeEventListener('pointerup', up);
                 handle.removeEventListener('pointercancel', up);
                 if (!moving) return;
+                dragging = false;
                 handle.toggleAttribute('data-dragging', false);
                 PROTOCOL.layout.send({ width: Math.round(width) });
             };
@@ -327,14 +333,13 @@ function boot(theme) {
             handle.addEventListener('pointerup', up);
             handle.addEventListener('pointercancel', up);
         });
-        // The click event is also what Enter and Space on the handle make.
         handle.addEventListener('click', (event) => {
             event.preventDefault();
             if (travelled) {
                 travelled = false;
                 return;
             }
-            PROTOCOL.layout.send({ collapsed: !state.frame.collapsed });
+            PROTOCOL.layout.send({ collapsed: !state.sidebar.collapsed });
         });
     }
 
@@ -354,12 +359,12 @@ function boot(theme) {
                 opacity: '0',
                 transform: MOTION.entrance,
             });
-        grip.document.body.style.transition = 'none';
-        grip.document.body.style.opacity = '0';
+        handleSurface.document.body.style.transition = 'none';
+        handleSurface.document.body.style.opacity = '0';
         void root.offsetHeight;
         void backdropRoot.offsetHeight;
-        void grip.document.body.offsetHeight;
-        for (const each of [...faded(), grip.document.body])
+        void handleSurface.document.body.offsetHeight;
+        for (const each of [...faded(), handleSurface.document.body])
             Object.assign(each.style, { transition: motion(), opacity: '1', transform: 'none' });
     }
 
@@ -367,14 +372,14 @@ function boot(theme) {
     function enterAtOnce() {
         clearTimeout(leaving);
         leaving = null;
-        for (const each of [...faded(), grip.document.body])
+        for (const each of [...faded(), handleSurface.document.body])
             Object.assign(each.style, { transition: 'none', opacity: '1', transform: 'none' });
     }
 
     function fadeOut(then) {
         for (const each of faded())
             Object.assign(each.style, { transition: motion(), opacity: '0', transform: MOTION.entrance });
-        Object.assign(grip.document.body.style, { transition: motion(), opacity: '0' });
+        Object.assign(handleSurface.document.body.style, { transition: motion(), opacity: '0' });
         clearTimeout(leaving);
         const duration = MOTION.base;
         if (!duration) return then();

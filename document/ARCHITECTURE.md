@@ -8,7 +8,7 @@ Deckit is three layers, each built on the one under it:
 |---|---|---|
 | deck | the engine: what a mod is, running each in a sandbox of its own, what mods give each other (requires and exports, extension points, events), their storage and settings, and the permissions a person grants | the kernel |
 | deckit | the platform on deck: the web, windows, keys, commands, opening addresses, the clipboard, notifications and main process modules, and `connect`, which a host app starts it with | the operating system: what an application runs on, on this machine |
-| the shell | the surface a person uses deckit through. Deckit's own shell is the panel, which lists the mods with a view and lays the one in front in its frame, the quick switcher, the kit they draw with, and styles; a host app may put its own on deckit instead | the system's interface, as macOS has its menu bar, its Dock and the windows apps draw in |
+| the shell | the surface a person uses deckit through. Deckit's own shell is the panel, which lists the mods with a view and lends the one in front room beside and under its list, the quick switcher, the kit they draw with, and styles; a host app may put its own on deckit instead | the system's interface, as macOS has its menu bar, its Dock and the windows apps draw in |
 
 A mod is an application. The host app is the machine: the process and its windows. It starts deckit, puts a shell on it, and says where the shell is shown. Deck knows nothing of a screen: to deck a mod's page is where the mod runs. Deckit knows no shell: the shell is built on what `connect` answers, as a host app's own would be. A mod runs whether or not the panel is shown.
 
@@ -73,13 +73,13 @@ The pages never speak to each other. Main carries everything between them, and e
 | which mod is in front, and back and forward | `deckit-shell/panel/main.js` |
 | which mod's view is whose child, which child a region shows, and where it lies | `deckit-shell/region/main.js` |
 | where each view is laid in the panel, and the children the person pinned to its list | `deckit-shell/panel/main.js`, the pins in `state/host/` |
-| where the frame's parts are: the list, the room it lends the mod's sidebar, the content's room and the handle | the frame's page, `deckit-shell/panel/frame.js`, which tells main |
+| where the frame's parts are: the list, the slot it lends the mod's sidebar, the content's room and the handle | the frame's page, `deckit-shell/panel/frame.js`, which tells main |
 | what the switcher lists, and what was picked before | `deckit-shell/switcher/main.js` |
 | which styles each page wears, in what order | `deckit-shell/style/main.js` |
 | a mod's data, records and settings | main, under deckit's folder (below) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
 | what the person arranged (mod order, key overrides, each scheme's handlers), and what deck and deckit keep for themselves between runs (the web sessions each mod made, the mods whose sessions are still to clear) | `state/` |
-| what the host app and its shell keep (the panel's frame, what was picked in the switcher before) | `state/host/` |
+| what the host app and its shell keep (the panel's sidebar as the person left it, what was picked in the switcher before) | `state/host/` |
 
 What a mod is, `deck/mod` says: its manifest, its folder, its permissions, its entry and its lifecycle. The rest of deck runs mods by it, and `deck/mod` names nothing of running them. The runner tells each transition of a run (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`); what follows a mod's run (its exports, its extensions, its settings, its events, and above deck its main process modules, its keys, its styles and its place in the panel) listens to those, or asks the run, and changes none of it but to record a problem.
 

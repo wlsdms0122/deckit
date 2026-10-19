@@ -16,4 +16,4 @@ function fitted(width, room) {
 
 // MARK: - Private
 
-export { fitted };
+export { MIN, fitted };

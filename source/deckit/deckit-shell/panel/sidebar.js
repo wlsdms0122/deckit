@@ -142,7 +142,7 @@ function make({ ui, chordOf, onPick, onStep, onReorder, onLayout, onMove }) {
         rows.set(mods);
         section.actions[0].setEnabled(state.canBack);
         section.actions[1].setEnabled(state.canForward);
-        if (state.frame.navHeight) nav.style.height = state.frame.navHeight + 'px';
+        if (state.sidebar.navHeight) nav.style.height = state.sidebar.navHeight + 'px';
     }
 
     function rowOf(mod) {

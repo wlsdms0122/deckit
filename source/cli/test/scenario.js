@@ -113,7 +113,7 @@ async function run({ page, targets, thrown }) {
         }
 
         const note = await page('deckit://note.mod');
-        const room = `(() => { const box = (part) => Math.round(document.querySelector(part).getBoundingClientRect()[part === '.deckit-view-content' ? 'x' : 'width']); return box('.deckit-view-content') + ',' + box('.deckit-view-room'); })()`;
+        const room = `(() => { const box = (part) => Math.round(document.querySelector(part).getBoundingClientRect()[part === '.deckit-view-content' ? 'x' : 'width']); return box('.deckit-view-content') + ',' + box('.deckit-view-slot'); })()`;
         const open = await note?.evaluate(room);
         await note?.key('\\', 'Backslash', META, 220);
         await sleep(700);

@@ -8,23 +8,23 @@ export const pick = IPC.rendererToMain('deckit-shell:panel-pick', { id: 'string'
 // by: -1 back, 1 forward, through the mods shown.
 export const step = IPC.rendererToMain('deckit-shell:panel-step', { by: 'number' });
 export const reorder = IPC.rendererToMain('deckit-shell:panel-reorder', { ids: 'array' });
-// The frame as the person left it: { width, collapsed, navHeight }, any of them.
+// The sidebar as the person left it: { width, collapsed, navHeight }, any of them.
 export const layout = IPC.rendererToMain('deckit-shell:panel-layout', {
     width: 'number?',
     collapsed: 'boolean?',
     navHeight: 'number?',
 });
-// Where the frame's parts are in the panel, each { x, y, width, height }: `overlay`, what the frame's page covers
-// over the mod on screen; `slot`, the room under the list for the mod's sidebar; `content`, the room beside the
-// sidebar; `handle`, the width's handle. `animation` { duration, easing }: they move there as the frame does.
+// Where the frame's parts are in the panel, each { x, y, width, height }: `obscured`, what the frame's page covers
+// over the mod on screen; `sidebar`, the slot under the list lent to the mod's sidebar; `content`, the room beside
+// the sidebar; `handle`, the width's handle. `animation` { duration, easing }: they move there as the frame does.
 export const rects = IPC.rendererToMain('deckit-shell:panel-rects', {
-    overlay: 'object',
-    slot: 'object',
+    obscured: 'object',
+    sidebar: 'object',
     content: 'object',
     handle: 'object',
     animation: 'object?',
 });
-// { mods: [{ id, name, icon }], current, canBack, canForward, frame: { width, collapsed, navHeight },
+// { mods: [{ id, name, icon }], current, canBack, canForward, sidebar: { width, collapsed, navHeight },
 // chords: { back, forward } }
 export const state = IPC.mainToRenderer('deckit-shell:panel-state');
 // { floating, titleBar, size }: drawn over something, the window's title bar over the panel's top, and the panel's

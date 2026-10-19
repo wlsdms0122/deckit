@@ -9,11 +9,11 @@ const pins = Object.freeze({
     pinned: () => PROTOCOL.pinned.invoke(),
     setPinned: (id, pinned) => PROTOCOL.setPinned.invoke({ id: String(id), pinned: !!pinned }),
 });
-// The mod's sidebar scrolls when it is taller than its room.
+// The mod's sidebar scrolls when it is taller than its slot.
 const STYLE = `
     .deckit-view { position: fixed; inset: 0; overflow: hidden; font: 15px var(--deckit-font); }
     .deckit-view-content { position: absolute; display: flex; flex-direction: column; color: var(--deckit-text); }
-    .deckit-view-room { position: absolute; overflow: hidden; }
+    .deckit-view-slot { position: absolute; overflow: hidden; }
     .deckit-view-sidebar {
         position: absolute;
         top: 0;
@@ -31,7 +31,7 @@ const STYLE = `
 // MARK: - Initializer
 // MARK: - Public
 // One mod's view, in its own page, laid out where the panel's guide says: the content in its room and the sidebar,
-// if the view has one, in the room the panel lends it. `tell` calls a part of the view (didAppear, didDisappear);
+// if the view has one, in the slot the panel lends it. `tell` calls a part of the view (didAppear, didDisappear);
 // `layers` is what floats in the page.
 function mount({ theme, view, tell, layers }) {
     KIT.addStyle(STYLE);
@@ -45,15 +45,15 @@ function mount({ theme, view, tell, layers }) {
     const content = element('div', 'deckit-view-content');
     Object.assign(view.content.style, { width: '100%', flex: '1 1 auto', minHeight: '0' });
     content.append(view.content);
-    // Two boxes: the room animates its width while the sidebar keeps its own, so what is inside does not reflow
+    // Two boxes: the slot animates its width while the sidebar keeps its own, so what is inside does not reflow
     // against its minimum widths every frame.
-    const room = view.sidebar ? element('div', 'deckit-view-room') : null;
-    if (room) {
+    const slot = view.sidebar ? element('div', 'deckit-view-slot') : null;
+    if (slot) {
         const sidebar = element('div', 'deckit-view-sidebar');
         sidebar.append(view.sidebar);
         SCROLL.edgeFade(sidebar);
-        room.append(sidebar);
-        root.append(room);
+        slot.append(sidebar);
+        root.append(slot);
     }
     root.append(content);
     document.body.appendChild(root);
@@ -105,19 +105,21 @@ function mount({ theme, view, tell, layers }) {
     // content, from past the window's buttons that do. Floating, the panel's rounding needs the page clear at the
     // corners.
     function lay() {
-        const { content: area, sidebar: lent, titleBar: bar, animation } = guide;
+        const { content: area, titleBar: bar, animation } = guide;
         const transition = animation
             ? ['left', 'top', 'width', 'height', 'opacity']
                   .map((property) => `${property} ${animation.duration}ms ${animation.easing}`)
                   .join(', ')
             : 'none';
         place(content, area, transition);
-        if (room) {
-            room.style.display = lent ? '' : 'none';
-            if (lent) {
-                place(room, lent, transition);
-                room.style.opacity = lent.width ? '1' : '0';
-                if (lent.width) room.firstChild.style.width = lent.width + 'px';
+        if (slot) {
+            slot.style.display = guide.sidebar ? '' : 'none';
+            if (guide.sidebar) {
+                place(slot, guide.sidebar, transition);
+                slot.style.opacity = guide.sidebar.width ? '1' : '0';
+                if (guide.sidebar.width) slot.firstChild.style.width = guide.sidebar.width + 'px';
+                // What of the window's bar lies over the sidebar is left clear, its buttons above all.
+                slot.firstChild.style.paddingTop = (bar ? Math.max(0, bar.height - guide.sidebar.y) : 0) + 'px';
             }
         }
         document.documentElement.toggleAttribute('data-deckit-title-bar', !!bar);
