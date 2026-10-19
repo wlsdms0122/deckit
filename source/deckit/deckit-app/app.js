@@ -64,18 +64,21 @@ function createApp({ WINDOW, THEME }) {
             return require('electron').BrowserWindow.fromWebContents(webContents);
         }
 
-        // A second press closes it. It took the keyboard as it opened, so the panel takes it back. It covers the
+        // A second press closes it. Pressed in another of the app's windows, a popup's or a web page's, it brings the
+        // panel's forward to open in. It took the keyboard as it opened, so the panel takes it back. It covers the
         // whole window, the bar too, so its scrim dims all of it.
-        function summonSwitcher(webContents) {
-            const window = windowOf(webContents);
+        function summonSwitcher() {
             const here = controls.switcher.shown();
             controls.switcher.close();
-            if (here || !window || window !== live(state.window)) return;
-            controls.switcher.place(window, {
-                front: true,
-                onClose: () => controls.switcher.close(),
+            if (here) return;
+            show().then((window) => {
+                if (!window) return;
+                controls.switcher.place(window, {
+                    front: true,
+                    onClose: () => controls.switcher.close(),
+                });
+                controls.switcher.open().then((closed) => closed && controls.panel.shown() && controls.panel.focus());
             });
-            controls.switcher.open().then((closed) => closed && controls.panel.shown() && controls.panel.focus());
         }
 
         return {

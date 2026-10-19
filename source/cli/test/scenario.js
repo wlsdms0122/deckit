@@ -29,7 +29,7 @@ function seed({ data, files }) {
     fs.writeFileSync(record, JSON.stringify(session));
 }
 
-async function run({ page, targets, thrown }) {
+async function run({ page, pages, compose, targets, thrown }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
     // What main says is on screen, as the panel's frame shows it: the selected row of the mods' list.
@@ -38,6 +38,21 @@ async function run({ page, targets, thrown }) {
             `document.querySelector('[data-mod-id][aria-selected="true"]')?.dataset.modId`
         );
     const visibility = async (id) => ((await current()) === id ? 'visible' : 'hidden');
+
+    // The panel's window as a person sees it, its pages laid one over another from the bottom: the window's own page,
+    // the backdrop, the mod on screen and the frame. The width's handle is left out.
+    const panelShot = async (name, id) => {
+        const backdrop = await until(async () => {
+            for (const surface of await pages('about:blank'))
+                if ((await surface.evaluate('innerWidth')) > 100) return surface;
+        }, 2000);
+        const layers = [await page('data:'), backdrop, await page(`deckit://${id}.mod`), await page('deckit://panel')];
+        if (layers.every(Boolean))
+            await compose(
+                name,
+                layers.map((session) => ({ session }))
+            );
+    };
 
     await sleep(9000);
     for (const target of await targets()) if (target.url.startsWith('deckit://')) await page(target.url);
@@ -51,6 +66,11 @@ async function run({ page, targets, thrown }) {
         );
         // The shipped views and the test's region parent: its child is in no list.
         check(`nav lists ${VIEWS + 1} mods`, Array.isArray(rows) && rows.length === VIEWS + 1, JSON.stringify(rows));
+        // The test's region parent has no icon.
+        const heights = await frame.evaluate(
+            `[...new Set([...document.querySelectorAll('[data-mod-id]')].map((row) => row.offsetHeight))].join()`
+        );
+        check('a mod with no icon has a row as tall as the others', !String(heights).includes(','), heights);
         check(
             "the list is the frame's alone",
             !(await editor.evaluate(`document.querySelectorAll('[data-mod-id]').length`)),
@@ -62,15 +82,17 @@ async function run({ page, targets, thrown }) {
         await frame.evaluate(`document.querySelector('.deckit-sidebar-nav').style.height = '90px'`);
         await frame.evaluate(`${list}.scrollTop = 30`);
         const scrolled = await frame.evaluate(`${list}.scrollTop`);
+        // Back by its key: the row of a mod scrolled out of sight is not pressed.
         await frame.press('[data-mod-id="note"]');
         await until(async () => (await visibility('note')) === 'visible', 3000);
-        await frame.press('[data-mod-id="editor"]');
+        await (await page('deckit://note.mod')).key('[', 'BracketLeft', CTRL | META, 219);
         await until(async () => (await visibility('editor')) === 'visible', 3000);
         const kept = await frame.evaluate(`${list}.scrollTop`);
+        const returned = await visibility('editor');
         check(
             'the list keeps its scroll as the mod changes',
-            scrolled > 0 && kept === scrolled,
-            `${scrolled} -> ${kept}`
+            scrolled > 0 && kept === scrolled && returned === 'visible',
+            `${scrolled} -> ${kept}, editor ${returned}`
         );
         await frame.evaluate(`document.querySelector('.deckit-sidebar-nav').style.height = ''`);
 
@@ -275,6 +297,7 @@ async function run({ page, targets, thrown }) {
             await until(async () => (await visibility(id)) === 'visible', 3000);
             await sleep(800);
             await (await page(`deckit://${id}.mod`))?.shot('screen-' + id);
+            await panelShot('panel-' + id, id);
         }
 
         // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.

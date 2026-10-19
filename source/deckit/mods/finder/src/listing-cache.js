@@ -101,8 +101,8 @@ function listingCache({ about, disk, isShown, onRead }) {
 
     // `disk` replaces its whole set with `folders`, or stops with null. `renew` asks again for the same set, renewing a
     // watch that died. A set it could not fully watch is forgotten, so the next call asks again. A listing kept while
-    // its folder was out of the set may be behind the disk: it is read again as the folder joins, after its watch is
-    // asked for, so nothing between the two is missed.
+    // its folder was out of the set may be behind the disk, and so may a read that began then: either is read again
+    // as the folder joins, after its watch is asked for, so nothing between the two is missed.
     function watch(folders, { renew = false } = {}) {
         const key = JSON.stringify(folders || []);
         if (renew) watched = undefined;
@@ -116,7 +116,8 @@ function listingCache({ about, disk, isShown, onRead }) {
         }, forget);
         const before = watchedFolders;
         watchedFolders = new Set(folders || []);
-        for (const folder of watchedFolders) if (!before.has(folder) && listings.has(folder)) load(folder);
+        for (const folder of watchedFolders)
+            if (!before.has(folder) && (listings.has(folder) || reads.has(folder))) load(folder);
     }
 
     async function readFolder(folder) {
