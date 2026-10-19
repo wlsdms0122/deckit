@@ -14,6 +14,8 @@ export const layout = IPC.rendererToMain('deckit-shell:panel-layout', {
     collapsed: 'boolean?',
     navHeight: 'number?',
 });
+// The chord of one of the panel's keys, `back` or `forward`, as it is bound now, or ''.
+export const chord = IPC.rendererToMain('deckit-shell:panel-chord', { action: 'string' }, { reply: true, sync: true });
 // Where the frame's parts are in the panel, each { x, y, width, height }: `obscured`, what the frame's page covers
 // over the mod on screen; `sidebar`, the slot under the list lent to the mod's sidebar; `content`, the room beside
 // the sidebar; `handle`, the width's handle. `animation` { duration, easing }: they move there as the frame does.
@@ -24,8 +26,7 @@ export const rects = IPC.rendererToMain('deckit-shell:panel-rects', {
     handle: 'object',
     animation: 'object?',
 });
-// { mods: [{ id, name, icon }], current, canBack, canForward, sidebar: { width, collapsed, navHeight },
-// chords: { back, forward } }
+// { mods: [{ id, name, icon }], current, canBack, canForward, sidebar: { width, collapsed, navHeight } }
 export const state = IPC.mainToRenderer('deckit-shell:panel-state');
 // { floating, titleBar, size }: drawn over something, the window's title bar over the panel's top, and the panel's
 // { width, height }.
@@ -46,8 +47,8 @@ export const play = IPC.mainToRenderer('deckit-shell:panel-play');
 export const setup = IPC.rendererToMain('deckit-shell:panel-setup', {}, { reply: true, sync: true });
 // Where the page lays out what it shows: { floating, region, content, sidebar, obscured, titleBar, animation }.
 // `content` and `sidebar` (or null) are the rooms for the view's parts, `obscured` (or null) what the frame covers,
-// `titleBar` { height, controlsWidth } (or null) the window's bar over the page, `region` whether the page is in a
-// region of another mod's, and `animation` { duration, easing } (or null) how the rooms move there.
+// the window's buttons among it, `titleBar` { height } (or null) the window's bar over the page, `region` whether the
+// page is in a region of another mod's, and `animation` { duration, easing } (or null) how the rooms move there.
 export const guide = IPC.mainToRenderer('deckit-shell:panel-guide');
 // Escape, taken in main so a web page in the page cannot keep it: answers whether the page took it.
 export const escape = IPC.mainToRenderer('deckit-shell:panel-escape', { reply: true });

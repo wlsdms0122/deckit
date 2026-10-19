@@ -115,6 +115,9 @@ async function run({ page, targets, thrown }) {
         const note = await page('deckit://note.mod');
         const room = `(() => { const box = (part) => Math.round(document.querySelector(part).getBoundingClientRect()[part === '.deckit-view-content' ? 'x' : 'width']); return box('.deckit-view-content') + ',' + box('.deckit-view-slot'); })()`;
         const open = await note?.evaluate(room);
+        // Where the content's title bar area starts: past the window's buttons once nothing else is there.
+        const barStart = `document.documentElement.style.getPropertyValue('--deckit-title-bar-area-x')`;
+        const barOpen = await note?.evaluate(barStart);
         await note?.key('\\', 'Backslash', META, 220);
         await sleep(700);
         const cardWidth = `document.querySelector('.deckit-sidebar')?.style.width || 'no card'`;
@@ -125,6 +128,12 @@ async function run({ page, targets, thrown }) {
             "folding takes the mod's sidebar away and widens its content",
             folded === '0,0' && open !== folded,
             `${open} -> ${folded}`
+        );
+        const barFolded = await note?.evaluate(barStart);
+        check(
+            "folded, the content's title bar starts past the window's buttons",
+            barOpen === '0px' && parseFloat(barFolded) > 0,
+            `${barOpen} -> ${barFolded}`
         );
         await note?.key('\\', 'Backslash', META, 220);
         await sleep(700);
@@ -203,6 +212,9 @@ async function run({ page, targets, thrown }) {
             `[...document.querySelectorAll('[data-mod-id] svg')].filter((svg) => svg.children.length).length`
         );
         check("every mod's icon is drawn in the frame", drawn === VIEWS, drawn);
+        const backTip = `(() => { const button = document.querySelector('.deckit-sidebar-nav button[title^="Back"]'); button.dispatchEvent(new PointerEvent('pointerenter')); return button.title; })()`;
+        const tip = await frame.evaluate(backTip);
+        check('the Back button names its chord', /^Back \(.+\)$/.test(tip || ''), tip);
         await editor.evaluate(`(() => {
             const image = document.createElement('img');
             image.setAttribute('onerror', 'window.ranInPage = true');

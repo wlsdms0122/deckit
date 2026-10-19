@@ -102,8 +102,8 @@ function mount({ theme, view, tell, layers }) {
     }
 
     // The content's title bar area is the mod's (`ui.titleBar`): as much of the window's bar as lies over the
-    // content, from past the window's buttons that do. Floating, the panel's rounding needs the page clear at the
-    // corners.
+    // content, from past what the panel covers at its start, the window's buttons. Floating, the panel's rounding
+    // needs the page clear at the corners.
     function lay() {
         const { content: area, titleBar: bar, animation } = guide;
         const transition = animation
@@ -125,7 +125,7 @@ function mount({ theme, view, tell, layers }) {
         document.documentElement.toggleAttribute('data-deckit-title-bar', !!bar);
         const page = document.documentElement.style;
         page.setProperty('--deckit-title-bar-area-height', (bar ? Math.max(0, bar.height - area.y) : 0) + 'px');
-        page.setProperty('--deckit-title-bar-area-x', (bar ? Math.max(0, bar.controlsWidth - area.x) : 0) + 'px');
+        page.setProperty('--deckit-title-bar-area-x', (bar ? coveredFrom(area, guide.obscured, bar) : 0) + 'px');
         root.style.borderRadius = guide.floating ? '12px' : '0';
     }
 
@@ -174,6 +174,13 @@ function keyProblem(key, view) {
 }
 
 // MARK: - Private
+// How far into the room's top, `bar` tall, the covered rect reaches from its start.
+function coveredFrom(room, covered, bar) {
+    if (!covered?.width || !covered.height) return 0;
+    if (covered.x > room.x || covered.y >= bar.height) return 0;
+    return Math.max(0, covered.x + covered.width - room.x);
+}
+
 function place(box, { x, y, width, height }, transition) {
     Object.assign(box.style, { transition, left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
 }
