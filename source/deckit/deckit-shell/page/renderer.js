@@ -3,6 +3,8 @@ import * as OVERLAY from '../ui/overlay/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as SWITCHER from '../switcher/renderer.js';
 import * as SWITCHER_PAGE from '../switcher/model/page-name.js';
+import * as FRAME from '../panel/frame.js';
+import * as FRAME_PAGE from '../panel/model/page-name.js';
 import * as THEME from '../theme/renderer.js';
 
 // MARK: - Property
@@ -15,10 +17,10 @@ const PAGE_STYLE = `
 
 // MARK: - Initializer
 // MARK: - Public
-// A page the shell made: the switcher's.
+// A page the shell made: the switcher's, or the panel's frame.
 function page(name) {
-    if (name !== SWITCHER_PAGE.PAGE_NAME) return;
-    SWITCHER.boot(start());
+    if (name === SWITCHER_PAGE.PAGE_NAME) SWITCHER.boot(start());
+    else if (name === FRAME_PAGE.PAGE_NAME) FRAME.boot(start());
 }
 
 // Every page the shell draws in starts the same: its look, the pointer and what floats, in the app's theme.

@@ -1,15 +1,23 @@
 import * as PROTOCOL from './protocol.js';
+import * as WIDTH from './model/width.js';
+import * as PAGE from './model/page-name.js';
 
 // `deckit` is what connect answered, `host` the app's answers.
 export function createPanel({ REGION, deckit, host }) {
     // MARK: - Property
-    const FRAME = 'panel-frame';
+    const SIDEBAR = 'panel-frame';
     const PINNED = 'panel-pinned';
     const HISTORY_LIMIT = 50;
     const views = new Map(); // mod id -> the view its page is in, while the mod has something to show
     const floating = new Map(); // webContents id of a mod page with something floating -> its end's off
-    const sent = { onScreen: new Set(), looks: new WeakMap() }; // what the pages were last told
+    const sent = { onScreen: new Set(), guides: new WeakMap(), look: '' }; // what the pages were last told
+    // The frame's page, the surfaces it opened by name, and where it said its parts are. `moving` is where its
+    // page is laid while the frame moves: what it covers before and after.
+    // `animates` is the mod the move was told to.
+    const shell = { view: null, surfaces: new Map(), rects: null, moving: null, settling: null, animates: null };
+    const keys = { back: null, forward: null }; // the ids of the panel's keys a tooltip names
     let raised = new Set(); // the children laid over their regions, lifted over the mod on screen
+    let front = null; // what is lifted over every view: the frame, or the mod on screen while something floats in it
     const history = { list: [], at: -1 };
     let container = null;
     let current = null;
@@ -17,22 +25,23 @@ export function createPanel({ REGION, deckit, host }) {
     let inList = new Set(); // the mods in the list as it was last sent
     // The panel is glass: its colour laid at this strength over what is behind it, blurred through.
     const GLASS = 0.68;
-    // How long main waits on a page's exit before it goes on: it guards a page that is gone or stuck.
+    // How long main waits on a page's exit, or its answer to Escape, before it goes on: it guards a page that is
+    // gone or stuck.
     const EXIT_LIMIT_MS = 400;
     let shown = false;
     let moves = 0; // counts the hides and moves, so a newer one takes the place of one still waiting
     let titled = null; // the title the host was last told
     let look = { floating: false, dismissible: false, titleBar: null };
-    let frame = { width: 240, collapsed: false, navHeight: null };
+    let sidebar = { width: WIDTH.MIN, collapsed: false, navHeight: null }; // as the person left it
     let pinned = new Set(); // the children the person pinned to the panel's list
 
     // MARK: - Initializer
     // MARK: - Public
-    // The mods that have something to show, in a container the host app places. A mod whose view names a parent is
-    // that one's child: its view is shown where a region of the parent's shows it, and in the panel only once the
-    // person pins it to the list.
+    // The mods that have something to show, in a container the host app places, under the panel's frame. A mod
+    // whose view names a parent is that one's child: its view is shown where a region of the parent's shows it,
+    // and in the panel only once the person pins it to the list.
     function start() {
-        frame = { ...frame, ...deckit.state.read(FRAME, {}) };
+        sidebar = { ...sidebar, ...deckit.state.read(SIDEBAR, {}) };
         pinned = new Set(deckit.state.read(PINNED, []));
         const { View } = require('electron');
         container = new View();
@@ -41,6 +50,7 @@ export function createPanel({ REGION, deckit, host }) {
         deckit.log.guard(container, 'bounds-changed', update);
         listen();
         registerKeys();
+        makeFrame();
         deckit.mods.onChange(reconcile);
         // Who is whose child changes with the runs, which reconcile hears too: a region's change is only layout.
         REGION.onChange(update);
@@ -48,19 +58,28 @@ export function createPanel({ REGION, deckit, host }) {
         reconcile();
     }
 
-    // Whether a deckit page is the panel's in front; whether the panel is what is in front there is the host's.
+    // Whether a deckit page is the panel's in front, the frame's included; whether the panel is what is in front
+    // there is the host's.
     function isActive(page) {
-        if (!shown || !onScreen().includes(page)) return false;
+        if (!shown || (page !== frameContents() && !onScreen().includes(page))) return false;
         return !!host.showsPanel(page);
     }
 
     // Escape is the page's while something floats in it, and else puts the panel away where the panel floats over
-    // something; in its own window Escape is the window's. The page plays it out.
+    // something; in its own window Escape is the window's. A mod's page plays it out and answers whether it took
+    // it.
     function monitor(page, input) {
         if (!isEscape(input)) return false;
         const last = dismisses(page);
+        if (page === frameContents()) {
+            if (last) host.dismiss();
+            return last;
+        }
         if (!floating.has(page.id) && !last) return false;
-        PROTOCOL.escape.send(page, { last });
+        PROTOCOL.escape
+            .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
+            .then((taken) => !taken && last && dismisses(page) && host.dismiss())
+            .catch(() => {});
         return true;
     }
 
@@ -76,29 +95,26 @@ export function createPanel({ REGION, deckit, host }) {
     }
 
     // MARK: - Private
-    // Only a mod's page speaks to the panel.
+    // The list and the frame are drawn in the frame's page alone, so what it tells is the person's: no mod's code
+    // runs there. A mod's page tells only what is its own.
     function listen() {
         const modOf = deckit.mods.modOf;
-        PROTOCOL.setup.handle((_payload, sender) => ({
-            glass: GLASS,
-            look: lookOf(sender),
-            shown: sent.onScreen.has(sender),
-            frame,
-            state: stateOf(),
-        }));
-        // The panel's frame is drawn in each mod's page, so what it tells is taken only while a person presses there:
-        // otherwise a mod's own code could change the mod on screen or how the person arranged the panel. Its rows and
-        // Back and Forward are buttons, pressed with a key as well; a drag is the mouse's alone, so a key typed in a
-        // field does not let the mod's code reorder the mods or size the panel.
-        const pressed = (sender) => !!modOf(sender) && deckit.pages.isPressing(sender);
-        const pointed = (sender) => !!modOf(sender) && deckit.pages.isPointing(sender);
-        PROTOCOL.pick.on(({ id }, sender) => pressed(sender) && select(id));
-        PROTOCOL.step.on(({ by }, sender) => pressed(sender) && step(by));
-        // A reorder not taken puts the list the page drew back as it is.
-        PROTOCOL.reorder.on(({ ids }, sender) => (pointed(sender) ? deckit.mods.arrange(ids) : broadcast()));
-        PROTOCOL.layout.on((change, sender) => pointed(sender) && setFrame(change));
+        const fromFrame = (sender) => sender === frameContents();
+        PROTOCOL.frameSetup.handle((_payload, sender) => {
+            if (!fromFrame(sender))
+                throw Object.assign(new Error("only the panel's frame asks this"), { kind: 'REFUSED' });
+            // What the page opened ends with it: its next run opens its own.
+            deckit.pages.whenEnds(sender, dropSurfaces);
+            sent.look = JSON.stringify(frameLook());
+            return { glass: GLASS, look: frameLook(), shown, state: stateOf() };
+        });
+        PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
+        PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
+        PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && deckit.mods.arrange(ids));
+        PROTOCOL.layout.on((change, sender) => fromFrame(sender) && setSidebar(change));
+        PROTOCOL.rects.on((rects, sender) => fromFrame(sender) && setRects(rects));
+        PROTOCOL.setup.handle((_payload, sender) => ({ guide: guideOf(sender), shown: sent.onScreen.has(sender) }));
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
-        PROTOCOL.dismiss.on((_payload, sender) => pressed(sender) && onScreen().includes(sender) && host.dismiss());
         PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);
@@ -108,6 +124,81 @@ export function createPanel({ REGION, deckit, host }) {
             deckit.mods.managerFrom(sender);
             setPinned(id, on);
         });
+    }
+
+    // The frame's page is the shell's own, made once, over every mod's view where it draws.
+    // It opens its backdrop and its handle, and nothing else. A press there is the person's on the panel, so the
+    // keyboard goes back to the mod on screen.
+    function makeFrame() {
+        const view = deckit.pages.make(PAGE.PAGE_NAME);
+        const contents = view.webContents;
+        view.setBackgroundColor('#00000000');
+        view.setVisible(false);
+        contents.setWindowOpenHandler(({ frameName }) =>
+            Object.values(PAGE.SURFACE).includes(frameName) && !shell.surfaces.has(frameName)
+                ? { action: 'allow', createWindow: (options) => openSurface(frameName, options.webContents) }
+                : { action: 'deny' }
+        );
+        deckit.keymap.listen(contents);
+        deckit.log.guard(contents, 'focus', focus);
+        // It lays the frame out off screen too, since the mods are laid by it. Chromium takes the preference back
+        // at each load, so it is given again as each one finishes.
+        deckit.log.guard(contents, 'did-finish-load', () => contents.setBackgroundThrottling(false));
+        // The panel has no frame without it: a page that crashed is loaded again.
+        deckit.log.guard(contents, 'render-process-gone', () => !contents.isDestroyed() && contents.reload());
+        deckit.log.guard(
+            contents,
+            'console-message',
+            ({ level, message }) => level === 'error' && deckit.log.error(`panel: ${message}`)
+        );
+        container.addChildView(view);
+        shell.view = view;
+    }
+
+    // A document of the frame's page, laid as a view of its own. It runs no code and goes nowhere.
+    function openSurface(name, webContents) {
+        const { WebContentsView } = require('electron');
+        const view = new WebContentsView({ webContents });
+        view.setBackgroundColor('#00000000');
+        view.setVisible(false);
+        webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+        deckit.log.guard(webContents, 'will-frame-navigate', (details) => details.preventDefault());
+        deckit.log.guard(webContents, 'focus', focus);
+        shell.surfaces.set(name, view);
+        if (name === PAGE.SURFACE.BACKDROP) container.addChildView(view, 0);
+        else {
+            container.addChildView(view);
+            stack(true);
+        }
+        update();
+        return webContents;
+    }
+
+    function dropSurfaces() {
+        for (const view of shell.surfaces.values()) {
+            container.removeChildView(view);
+            if (!view.webContents.isDestroyed()) view.webContents.close();
+        }
+        shell.surfaces.clear();
+        clearTimeout(shell.settling);
+        shell.rects = null;
+        shell.moving = null;
+        update();
+    }
+
+    // While the frame moves, its page covers both where it was and where it goes, until it has gone there.
+    function setRects(next) {
+        const before = shell.rects?.obscured;
+        shell.rects = next;
+        shell.animates = next.animation ? current : null;
+        clearTimeout(shell.settling);
+        shell.moving = next.animation && before ? union(before, next.obscured) : null;
+        if (shell.moving)
+            shell.settling = setTimeout(() => {
+                shell.moving = null;
+                layout();
+            }, next.animation.duration);
+        update();
     }
 
     // A child unpinned while on screen leaves the panel for its parent.
@@ -134,13 +225,18 @@ export function createPanel({ REGION, deckit, host }) {
         if (!on) {
             floating.get(page.id)();
             floating.delete(page.id);
+            stack();
             return;
         }
         const id = page.id;
         floating.set(
             id,
-            deckit.pages.whenEnds(page, () => floating.delete(id))
+            deckit.pages.whenEnds(page, () => {
+                floating.delete(id);
+                stack();
+            })
         );
+        stack();
     }
 
     function isEscape(input) {
@@ -157,15 +253,15 @@ export function createPanel({ REGION, deckit, host }) {
             action: 'toggleSidebar',
             key: 'mod+\\',
             label: 'Toggle sidebar',
-            run: () => setFrame({ collapsed: !frame.collapsed }),
+            run: () => setSidebar({ collapsed: !sidebar.collapsed }),
         });
-        deckit.keymap.register({
+        keys.back = deckit.keymap.register({
             action: 'back',
             key: 'ctrl+mod+[',
             label: 'Back to the previous mod',
             run: () => step(-1),
         });
-        deckit.keymap.register({
+        keys.forward = deckit.keymap.register({
             action: 'forward',
             key: 'ctrl+mod+]',
             label: 'Forward to the next mod',
@@ -194,13 +290,16 @@ export function createPanel({ REGION, deckit, host }) {
             current = null;
             returning = id;
         }
+        let added = false;
         for (const [id, view] of showing) {
             if (views.has(id)) continue;
             views.set(id, view);
             view.setBackgroundColor('#00000000');
             view.setVisible(false);
             container.addChildView(view);
+            added = true;
         }
+        if (added) stack(true);
         update();
         if (returning && !mayShow(returning)) returning = null;
         if (returning && views.has(returning)) {
@@ -235,7 +334,7 @@ export function createPanel({ REGION, deckit, host }) {
         return !REGION.parentOf(id) || pinned.has(id);
     }
 
-    // The pages on screen while the panel is: the mod on screen, then the children its regions show.
+    // The mods' pages on screen while the panel is: the mod on screen, then the children its regions show.
     function onScreen() {
         if (!views.has(current)) return [];
         return [current, ...childrenOnScreen().keys()].map((id) => views.get(id).webContents);
@@ -246,7 +345,7 @@ export function createPanel({ REGION, deckit, host }) {
         return REGION.laidOut(current, (id) => id !== current && views.has(id));
     }
 
-    // Every view where it goes, then every page told whether it is on screen and how it is framed. A page that
+    // Every view where it goes, then every page told whether it is on screen and where it lays out. A page that
     // leaves the screen holding the keyboard would go on taking keystrokes unseen: the mod on screen takes it.
     function update() {
         const holder = [...sent.onScreen].find((page) => !page.isDestroyed() && deckit.web.holdsKeyboard(page));
@@ -255,11 +354,12 @@ export function createPanel({ REGION, deckit, host }) {
         if (holder && !sent.onScreen.has(holder)) focus();
     }
 
-    // The mod on screen fills the container, the children it shows are laid over their regions, above it, and
-    // the rest are hidden.
+    // From the bottom: the backdrop over the whole container, the mod on screen over it all, the children it shows
+    // over their regions, then the frame's page and its handle where they draw. The rest are hidden.
     function layout() {
         const { width, height } = container.getBounds();
         const children = childrenOnScreen();
+        let lifted = false;
         for (const [id, view] of views) {
             if (id === current) {
                 view.setBounds({ x: 0, y: 0, width, height });
@@ -272,14 +372,47 @@ export function createPanel({ REGION, deckit, host }) {
                 continue;
             }
             // Added again, a view is lifted over the rest.
-            if (!raised.has(id)) container.addChildView(view);
+            if (!raised.has(id)) {
+                container.addChildView(view);
+                lifted = true;
+            }
             view.setBounds(clip(rect, width, height));
             view.setVisible(true);
         }
         raised = new Set(children.keys());
+        stack(lifted);
+        lay(shell.surfaces.get(PAGE.SURFACE.BACKDROP), { x: 0, y: 0, width, height }, width, height);
+        lay(shell.view, shell.moving || shell.rects?.obscured, width, height);
+        lay(shell.surfaces.get(PAGE.SURFACE.HANDLE), shell.rects?.handle, width, height);
+    }
+
+    // The frame's page and its handle stay over every mod's view, but for a dialog or a menu of the mod on screen,
+    // which comes over them as it did over the page's own. `again`: a view was added, so what was lifted is
+    // lifted again.
+    function stack(again = false) {
+        const next = floating.has(currentContents()?.id) ? views.get(current) : shell.view;
+        if (next === front && !again) return;
+        front = next;
+        if (next !== shell.view) return container.addChildView(next);
+        for (const view of [shell.view, shell.surfaces.get(PAGE.SURFACE.HANDLE)])
+            if (view) container.addChildView(view);
+    }
+
+    function lay(view, rect, width, height) {
+        if (!view) return;
+        const laid = rect && clip(rect, width, height);
+        const on = !!laid && laid.width > 0 && laid.height > 0;
+        if (on) view.setBounds(laid);
+        view.setVisible(on);
     }
 
     function tellPages() {
+        const contents = frameContents();
+        const written = JSON.stringify(frameLook());
+        if (contents && sent.look !== written) {
+            sent.look = written;
+            PROTOCOL.look.send(contents, frameLook());
+        }
         const now = new Set(shown ? onScreen() : []);
         for (const page of sent.onScreen)
             if (!now.has(page)) PROTOCOL.visible.send(page, { open: false, animate: false });
@@ -287,11 +420,11 @@ export function createPanel({ REGION, deckit, host }) {
             if (!sent.onScreen.has(page)) PROTOCOL.visible.send(page, { open: true, animate: false });
         sent.onScreen = now;
         for (const view of views.values()) {
-            const next = lookOf(view.webContents);
+            const next = guideOf(view.webContents);
             const written = JSON.stringify(next);
-            if (sent.looks.get(view.webContents) === written) continue;
-            sent.looks.set(view.webContents, written);
-            PROTOCOL.look.send(view.webContents, next);
+            if (sent.guides.get(view.webContents) === written) continue;
+            sent.guides.set(view.webContents, written);
+            PROTOCOL.guide.send(view.webContents, next);
         }
     }
 
@@ -306,22 +439,70 @@ export function createPanel({ REGION, deckit, host }) {
         };
     }
 
-    // How a page is framed where it is. In a region its frame is the region's: what of the window's title bar
-    // lies over it as it is laid, and Escape as the mod on screen has it.
-    function lookOf(page) {
-        const id = deckit.mods.modOf(page);
-        if (!id || id === current || !REGION.parentOf(id)) return { ...look, region: false };
-        const { width, height } = container.getBounds();
-        const rect = REGION.rectOf(id);
-        const laid = rect && clip(rect, width, height);
-        const bar = look.titleBar;
-        const over = bar && laid ? Math.max(0, bar.height - laid.y) : 0;
+    // The smallest rect that holds both; an empty one holds nothing.
+    function union(one, other) {
+        if (!one.width || !one.height) return other;
+        if (!other.width || !other.height) return one;
+        const x = Math.min(one.x, other.x);
+        const y = Math.min(one.y, other.y);
         return {
-            floating: false,
-            dismissible: look.dismissible,
-            titleBar: over ? { height: over, controlsWidth: Math.max(0, bar.controlsWidth - laid.x) } : null,
-            region: true,
+            x,
+            y,
+            width: Math.max(one.x + one.width, other.x + other.width) - x,
+            height: Math.max(one.y + one.height, other.y + other.height) - y,
         };
+    }
+
+    // The part of `rect` inside `outer`, in `outer`'s own place, or null.
+    function within(rect, outer) {
+        if (!rect) return null;
+        const x = Math.max(rect.x, outer.x);
+        const y = Math.max(rect.y, outer.y);
+        const width = Math.min(rect.x + rect.width, outer.x + outer.width) - x;
+        const height = Math.min(rect.y + rect.height, outer.y + outer.height) - y;
+        return width > 0 && height > 0 ? { x: x - outer.x, y: y - outer.y, width, height } : null;
+    }
+
+    // Where a mod's page lays out what it shows. Every page in the panel lays out by the frame, the hidden ones
+    // too, so one comes on screen laid out; only the one on screen moves as the frame does. In a region its
+    // rooms are the region's: its sidebar at the start, as wide as the panel's, and what of the frame and the
+    // window's title bar lie over it as it is laid.
+    function guideOf(page) {
+        const id = deckit.mods.modOf(page);
+        const { width, height } = container.getBounds();
+        const lends = !!deckit.mods.runOf(id)?.summary?.sidebar;
+        if (id && id !== current && REGION.parentOf(id)) {
+            const rect = REGION.rectOf(id);
+            const laid = rect ? clip(rect, width, height) : { x: 0, y: 0, width: 0, height: 0 };
+            const side = lends ? Math.min(laid.width, WIDTH.fitted(sidebar.width, laid.width)) : 0;
+            const bar = look.titleBar;
+            const over = bar ? Math.max(0, bar.height - laid.y) : 0;
+            return {
+                floating: false,
+                region: true,
+                content: { x: side, y: 0, width: laid.width - side, height: laid.height },
+                sidebar: lends ? { x: 0, y: 0, width: side, height: laid.height } : null,
+                obscured: within(shell.rects?.obscured, laid),
+                titleBar: over ? { height: over, controlsWidth: Math.max(0, bar.controlsWidth - laid.x) } : null,
+                animation: null,
+            };
+        }
+        const rects = shell.rects;
+        return {
+            floating: look.floating,
+            region: false,
+            content: rects?.content || { x: 0, y: 0, width, height },
+            sidebar: lends ? rects?.sidebar || null : null,
+            obscured: rects?.obscured || null,
+            titleBar: look.titleBar,
+            animation: id === shell.animates && id === current ? rects?.animation || null : null,
+        };
+    }
+
+    // The frame lays out across the whole container.
+    function frameLook() {
+        const { width, height } = container.getBounds();
+        return { floating: look.floating, titleBar: look.titleBar, size: { width, height } };
     }
 
     // A mod listed stays listed while it launches again, in this page or a new one (a replace), until its new run
@@ -337,24 +518,26 @@ export function createPanel({ REGION, deckit, host }) {
             current,
             canBack: history.at > 0,
             canForward: history.at < history.list.length - 1,
-            frame,
+            sidebar,
+            chords: { back: deckit.keymap.chordOf(keys.back), forward: deckit.keymap.chordOf(keys.forward) },
         };
     }
 
     function broadcast() {
-        const state = stateOf();
-        for (const view of views.values()) PROTOCOL.state.send(view.webContents, state);
+        const contents = frameContents();
+        if (contents) PROTOCOL.state.send(contents, stateOf());
         const mod = deckit.mods.list().find(({ id }) => id === current);
         const title = mod?.name || deckit.config.name;
         if (title !== titled) host.panelTitled((titled = title));
     }
 
-    function setFrame(change) {
-        frame = {
-            ...frame,
+    function setSidebar(change) {
+        sidebar = {
+            ...sidebar,
             ...Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined && value !== null)),
         };
-        deckit.state.write(FRAME, frame);
+        deckit.state.write(SIDEBAR, sidebar);
+        update();
         broadcast();
     }
 
@@ -392,8 +575,11 @@ export function createPanel({ REGION, deckit, host }) {
         return views.has(id) && listed(id);
     }
 
-    // Whether a keystroke or a request in this webContents is the panel's: one of its pages, or a web page in one.
+    // Whether a keystroke or a request in this webContents is the panel's: its frame, a surface the frame opened,
+    // one of its mods' pages, or a web page in one.
     function contains(webContents) {
+        if (webContents === frameContents()) return true;
+        if ([...shell.surfaces.values()].some((view) => view.webContents === webContents)) return true;
         const page = deckit.web.pageFor(webContents);
         return [...views.values()].some((view) => view.webContents === page);
     }
@@ -402,13 +588,18 @@ export function createPanel({ REGION, deckit, host }) {
         return views.get(current)?.webContents || null;
     }
 
+    function frameContents() {
+        return shell.view?.webContents || null;
+    }
+
     // The view's own idea of whether it is up (didAppear, its keys, its entrance and exit) never parts from this.
-    // The children on screen play it with the mod on screen; main waits on that mod's alone.
+    // The frame and the children on screen play it with the mod on screen; main waits on the frame's alone.
     // `waited`: a page main waits on to play its exit, told by its own channel.
     function setShown(on, waited = null) {
         shown = on;
         const pages = onScreen();
-        for (const page of pages) if (page !== waited) PROTOCOL.visible.send(page, { open: on, animate: true });
+        for (const page of [frameContents(), ...pages])
+            if (page && page !== waited) PROTOCOL.visible.send(page, { open: on, animate: true });
         sent.onScreen = new Set(on ? pages : []);
     }
 
@@ -422,14 +613,14 @@ export function createPanel({ REGION, deckit, host }) {
     }
 
     // Resolves whether the panel had the keyboard as it went, in any of its pages on screen: a hidden view keeps
-    // its focus and goes on taking keystrokes, so the host gives it back. Hidden only after the view has played
+    // its focus and goes on taking keystrokes, so the host gives it back. Hidden only after the frame has played
     // its exit.
     // A newer hide or move takes the place of one waiting on its exit, which then resolves false.
     async function hide() {
         if (!shown) return false;
         const mine = ++moves;
-        const contents = currentContents();
-        const pages = onScreen();
+        const contents = frameContents();
+        const pages = [contents, ...onScreen()].filter(Boolean);
         setShown(false, contents);
         if (contents) await exitOf(PROTOCOL.exit, contents);
         if (mine !== moves || shown) return false;
@@ -443,24 +634,25 @@ export function createPanel({ REGION, deckit, host }) {
         return channel.invoke(contents, {}, { timeout: EXIT_LIMIT_MS }).catch(() => {});
     }
 
+    // The keyboard is the mod's on screen, or the frame's while there is none.
     function focus() {
-        currentContents()?.focus();
+        (currentContents() || frameContents())?.focus();
     }
 
     // A move keeps the panel up the whole way, its exit played as it leaves and its entrance as it arrives.
     // Resolves false when it was put away on the way, or a newer move replaced it.
     async function leave() {
-        const contents = currentContents();
+        const contents = frameContents();
         if (!shown || !contents) return true;
         const mine = ++moves;
-        for (const page of onScreen()) if (page !== contents) PROTOCOL.play.send(page, { direction: 'out' });
+        for (const page of onScreen()) PROTOCOL.play.send(page, { direction: 'out' });
         await exitOf(PROTOCOL.leave, contents);
         return mine === moves;
     }
 
     function arrive() {
         show();
-        for (const page of onScreen()) PROTOCOL.play.send(page, { direction: 'in' });
+        for (const page of [frameContents(), ...onScreen()]) if (page) PROTOCOL.play.send(page, { direction: 'in' });
     }
 
     // `titleBar`, filling a window that draws its title bar over the panel's top: { height, controlsWidth }, the

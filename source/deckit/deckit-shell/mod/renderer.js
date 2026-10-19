@@ -11,8 +11,8 @@ import { createRegion, parentProblem } from '../region/renderer.js';
 // MARK: - Public
 // What the shell gives a mod's page, as deckit runs it (deckit/mod/renderer): the theme, the kit, `show()`,
 // `region(element)`, `children`, the registrations `view` and, with deckit.styles, `styles`, and on deck.mods
-// the panel's pins. Once start() has ended, a view goes in the panel's frame, or a region's for a child.
-function mod({ mod: running, chordOf, deliver }) {
+// the panel's pins. Once start() has ended, a view is laid where the panel's guide says, or a region's for a child.
+function mod({ mod: running, deliver }) {
     const REGION = createRegion({ deliver });
     const theme = PAGE.start({ tell: (listener) => deliver('theme.onChange()', listener) });
     const ui = KIT.make(theme);
@@ -31,7 +31,7 @@ function mod({ mod: running, chordOf, deliver }) {
             const view = parts.view || null;
             if (view) {
                 const tell = (name) => typeof view[name] === 'function' && deliver(`${name}()`, () => view[name]());
-                PANEL.mount({ theme, ui, view, tell, layers: OVERLAY.layers, chordOf });
+                PANEL.mount({ theme, view, tell, layers: OVERLAY.layers });
             }
             const given = { ...(parts.styles || {}) };
             return {
