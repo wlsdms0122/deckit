@@ -32,9 +32,9 @@ function seed({ data, files }) {
 async function run({ page, targets, thrown }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
-    // What main says is on screen, as every mod's frame shows it: the selected row of the mods' list.
+    // What main says is on screen, as the panel's frame shows it: the selected row of the mods' list.
     const current = async () =>
-        (await page('deckit://editor.mod'))?.evaluate(
+        (await page('deckit://panel'))?.evaluate(
             `document.querySelector('[data-mod-id][aria-selected="true"]')?.dataset.modId`
         );
     const visibility = async (id) => ((await current()) === id ? 'visible' : 'hidden');
@@ -43,15 +43,38 @@ async function run({ page, targets, thrown }) {
     for (const target of await targets()) if (target.url.startsWith('deckit://')) await page(target.url);
     try {
         const editor = await page('deckit://editor.mod');
+        const frame = await page('deckit://panel');
         check('editor view up', editor);
         check('editor visible first', (await visibility('editor')) === 'visible', await visibility('editor'));
-        const rows = await editor.evaluate(
+        const rows = await frame.evaluate(
             `[...document.querySelectorAll('[data-mod-id]')].map((row) => row.dataset.modId)`
         );
         // The shipped views and the test's region parent: its child is in no list.
         check(`nav lists ${VIEWS + 1} mods`, Array.isArray(rows) && rows.length === VIEWS + 1, JSON.stringify(rows));
+        check(
+            "the list is the frame's alone",
+            !(await editor.evaluate(`document.querySelectorAll('[data-mod-id]').length`)),
+            ''
+        );
 
-        await editor.press('[data-mod-id="finder"]');
+        // The list is one, so where it is scrolled stays as the mod on screen changes.
+        const list = `document.querySelector('.deckit-sidebar-nav .deckit-section-body')`;
+        await frame.evaluate(`document.querySelector('.deckit-sidebar-nav').style.height = '90px'`);
+        await frame.evaluate(`${list}.scrollTop = 30`);
+        const scrolled = await frame.evaluate(`${list}.scrollTop`);
+        await frame.press('[data-mod-id="note"]');
+        await until(async () => (await visibility('note')) === 'visible', 3000);
+        await frame.press('[data-mod-id="editor"]');
+        await until(async () => (await visibility('editor')) === 'visible', 3000);
+        const kept = await frame.evaluate(`${list}.scrollTop`);
+        check(
+            'the list keeps its scroll as the mod changes',
+            scrolled > 0 && kept === scrolled,
+            `${scrolled} -> ${kept}`
+        );
+        await frame.evaluate(`document.querySelector('.deckit-sidebar-nav').style.height = ''`);
+
+        await frame.press('[data-mod-id="finder"]');
         await sleep(600);
         check('picking Finder shows it', (await visibility('finder')) === 'visible', await visibility('finder'));
         check('picking Finder hides Editor', (await visibility('editor')) === 'hidden', await visibility('editor'));
@@ -90,13 +113,22 @@ async function run({ page, targets, thrown }) {
         }
 
         const note = await page('deckit://note.mod');
+        const room = `(() => { const box = (part) => Math.round(document.querySelector(part).getBoundingClientRect()[part === '.deckit-view-content' ? 'x' : 'width']); return box('.deckit-view-content') + ',' + box('.deckit-view-room'); })()`;
+        const open = await note?.evaluate(room);
         await note?.key('\\', 'Backslash', META, 220);
         await sleep(700);
         const cardWidth = `document.querySelector('.deckit-sidebar')?.style.width || 'no card'`;
-        const collapsed = await note?.evaluate(cardWidth);
+        const collapsed = await frame.evaluate(cardWidth);
         check('toggle sidebar key folds it', collapsed === '0px', collapsed);
+        const folded = await note?.evaluate(room);
+        check(
+            "folding takes the mod's sidebar away and widens its content",
+            folded === '0,0' && open !== folded,
+            `${open} -> ${folded}`
+        );
         await note?.key('\\', 'Backslash', META, 220);
         await sleep(700);
+        check('unfolding lays them back', (await note?.evaluate(room)) === open, await note?.evaluate(room));
         await note?.shot('note');
         check(
             'nothing is left floating in a view',
@@ -105,8 +137,7 @@ async function run({ page, targets, thrown }) {
                 `[...document.querySelectorAll('body > *')].map((element) => element.className + ':' + getComputedStyle(element).backgroundColor).join(' | ')`
             )
         );
-        // Pressed in Notes, the view in front: a person presses only what is seen.
-        await note?.press('[data-mod-id="settings"]');
+        await frame.press('[data-mod-id="settings"]');
         await sleep(1200);
         const settings = await page('deckit://settings.mod');
         // The rows come after the sections, once the list of mods is read.
@@ -168,10 +199,10 @@ async function run({ page, targets, thrown }) {
             document.body.appendChild(page);
         })`);
         check("a mod cannot open another mod's session", stolen !== 'attached', stolen);
-        const drawn = await editor.evaluate(
+        const drawn = await frame.evaluate(
             `[...document.querySelectorAll('[data-mod-id] svg')].filter((svg) => svg.children.length).length`
         );
-        check("every mod's icon is drawn in another's view", drawn === VIEWS, drawn);
+        check("every mod's icon is drawn in the frame", drawn === VIEWS, drawn);
         await editor.evaluate(`(() => {
             const image = document.createElement('img');
             image.setAttribute('onerror', 'window.ranInPage = true');
@@ -197,7 +228,7 @@ async function run({ page, targets, thrown }) {
         );
         check('a refused navigation leaves the page its commands', listed, '');
         await again?.key('Escape', 'Escape', 0, 27);
-        await editor.press('[data-mod-id="editor"]');
+        await frame.press('[data-mod-id="editor"]');
         await until(async () => (await visibility('editor')) === 'visible', 3000);
         const activeLine = `document.querySelector('.cm-focused .cm-activeLine')?.textContent`;
         await until(async () => (await editor.evaluate(activeLine)) === 'line 1', 4000);
@@ -228,14 +259,14 @@ async function run({ page, targets, thrown }) {
         await editor.key('Escape', 'Escape', 0, 27);
         // Every mod's screen, drawn: what the test does not drive is still seen.
         for (const id of ['editor', 'finder', 'browser', 'note']) {
-            await editor.press(`[data-mod-id="${id}"]`);
+            await frame.press(`[data-mod-id="${id}"]`);
             await until(async () => (await visibility(id)) === 'visible', 3000);
             await sleep(800);
             await (await page(`deckit://${id}.mod`))?.shot('screen-' + id);
         }
 
         // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.
-        await (await page('deckit://note.mod')).press('[data-mod-id="region-parent"]');
+        await frame.press('[data-mod-id="region-parent"]');
         await until(async () => (await visibility('region-parent')) === 'visible', 3000);
         const parent = await page('deckit://region-parent.mod');
         const child = await page('deckit://region-child.mod');
