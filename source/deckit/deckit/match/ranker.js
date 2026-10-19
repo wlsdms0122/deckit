@@ -44,7 +44,7 @@ function ranker({ paths = false } = {}) {
 function start() {
     if (failure) throw failure;
     if (worker) return worker;
-    const source = `${MATCH.script}\n${score}\n${best}\n${listUnranked}\n(${serve})();`;
+    const source = `${MATCH.script}\n${score}\n${best}\n${listUnranked}\n(${serve})(MATCH);`;
     worker = new Worker(URL.createObjectURL(new Blob([source], { type: 'text/javascript' })));
     worker.onmessage = ({ data }) => {
         const resolve = waiting.get(data.ask);
@@ -66,7 +66,7 @@ function start() {
 }
 
 // score, best, listUnranked and serve run from their source in the worker, so they reach nothing but their
-// arguments and MATCH.
+// arguments and each other. The engine comes in as an argument: a bundler renames what this module imports.
 function score(names, from, to, query, match, paths, into) {
     for (let index = from; index < to; index++) {
         const text = names[index];
@@ -101,8 +101,8 @@ function listUnranked(names, query, limit) {
 // Between slices the worker hears newer asks, and an older ask of the same list is answered null. Every ask
 // is answered, a failure included: a throw in this async handler would be a rejection the page never hears
 // of, and the ask would wait forever.
-function serve() {
-    const { match } = MATCH;
+function serve(engine) {
+    const { match } = engine;
     const SLICE = 3000;
     const lists = new Map();
     const newest = new Map(); // list -> its newest ask
