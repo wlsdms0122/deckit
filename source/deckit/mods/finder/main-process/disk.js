@@ -95,22 +95,21 @@ module.exports = ({ emit, window, files }) => {
         },
 
         // Electron draws the thumbnail into the box asked, whatever the file's shape, so it is asked for a picture
-        // in the shape its header tells. Anything else Quick Look draws in its own shape, at most `size` on a side.
+        // in the shape its header tells. Anything else Quick Look draws in its own shape, at most `size` on a side,
+        // and a kind it draws nothing for is the kind's icon, which is square.
         async thumbnail(file, size) {
             const side = Math.max(16, Math.min(1024, Math.round(Number(size) || 0)));
             const shape = await imageSize(absolute(file)).catch(() => null);
-            if (!shape?.width || !shape.height) return quickLookThumbnail(absolute(file), side);
+            if (!shape?.width || !shape.height)
+                return (
+                    (await quickLookThumbnail(absolute(file), side)) ??
+                    electronThumbnail(absolute(file), { width: side, height: side })
+                );
             const scale = side / Math.max(shape.width, shape.height);
-            const box = {
+            return electronThumbnail(absolute(file), {
                 width: Math.max(1, Math.round(shape.width * scale)),
                 height: Math.max(1, Math.round(shape.height * scale)),
-            };
-            try {
-                const image = await nativeImage.createThumbnailFromPath(absolute(file), box);
-                return image.isEmpty() ? null : image.toDataURL();
-            } catch {
-                return null;
-            }
+            });
         },
 
         // The whole set is replaced.
@@ -155,6 +154,16 @@ module.exports = ({ emit, window, files }) => {
         const file = String(given || '');
         if (!path.isAbsolute(file)) throw new Error('not an absolute path: ' + file);
         return file;
+    }
+
+    // A data URL, or null when Electron drew none.
+    async function electronThumbnail(file, box) {
+        try {
+            const image = await nativeImage.createThumbnailFromPath(file, box);
+            return image.isEmpty() ? null : image.toDataURL();
+        } catch {
+            return null;
+        }
     }
 
     // A data URL, or null when Quick Look drew none. It writes `<name>.png` into the folder it is given.
