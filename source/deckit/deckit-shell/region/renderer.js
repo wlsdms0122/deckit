@@ -20,8 +20,8 @@ export function createRegion({ deliver }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A place in the mod's view where the shell shows a child's. The child runs in its own page, laid over
-    // `element`'s rect as it moves, so what the parent draws there is covered and nothing of the parent's floats
+    // A place in the mod's view where the shell shows a child's. The child runs in its own page, laid over what of
+    // `element` is seen as it moves, so what the parent draws there is covered and nothing of the parent's floats
     // over it. `place(id)` puts a child in this region, out of any other it was in, and `clear()` leaves the region
     // empty. The region ends when its element, once in the page, leaves it.
     function make(element) {
@@ -36,7 +36,7 @@ export function createRegion({ deliver }) {
                 return PROTOCOL.end.send({ region });
             }
             entered ||= element.isConnected;
-            const { x, y, width, height } = element.getBoundingClientRect();
+            const { x, y, width, height } = seenRect(element);
             const written = JSON.stringify([x, y, width, height]);
             if (written !== sent) {
                 sent = written;
@@ -68,6 +68,25 @@ export function createRegion({ deliver }) {
     }
 
     return { children, make };
+}
+
+// What of `element` is seen: its rect cut to each ancestor that clips what overflows it, and nothing while it is
+// hidden. A child laid over it is made as small as that, not cropped.
+function seenRect(element) {
+    if (!element.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+        return { x: 0, y: 0, width: 0, height: 0 };
+    let { left, top, right, bottom } = element.getBoundingClientRect();
+    for (let node = element.parentElement; node; node = node.parentElement) {
+        const { overflowX, overflowY } = getComputedStyle(node);
+        if (overflowX === 'visible' && overflowY === 'visible') continue;
+        const box = node.getBoundingClientRect();
+        const inner = { left: box.left + node.clientLeft, top: box.top + node.clientTop };
+        left = Math.max(left, inner.left);
+        top = Math.max(top, inner.top);
+        right = Math.min(right, inner.left + node.clientWidth);
+        bottom = Math.min(bottom, inner.top + node.clientHeight);
+    }
+    return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
 
 // Why a view's parent is not one a mod may name, or '': a mod it uses, in its [requires] or [optional].
