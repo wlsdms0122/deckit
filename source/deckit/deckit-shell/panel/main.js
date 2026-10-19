@@ -108,6 +108,9 @@ export function createPanel({ REGION, deckit, host }) {
             sent.look = JSON.stringify(frameLook());
             return { glass: GLASS, look: frameLook(), shown, state: stateOf() };
         });
+        PROTOCOL.chord.handle(({ action }, sender) =>
+            fromFrame(sender) && Object.hasOwn(keys, action) ? deckit.keymap.chordOf(keys[action]) : ''
+        );
         PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
         PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && deckit.mods.arrange(ids));
@@ -483,7 +486,7 @@ export function createPanel({ REGION, deckit, host }) {
                 content: { x: side, y: 0, width: laid.width - side, height: laid.height },
                 sidebar: lends ? { x: 0, y: 0, width: side, height: laid.height } : null,
                 obscured: within(shell.rects?.obscured, laid),
-                titleBar: over ? { height: over, controlsWidth: Math.max(0, bar.controlsWidth - laid.x) } : null,
+                titleBar: over ? { height: over } : null,
                 animation: null,
             };
         }
@@ -494,7 +497,7 @@ export function createPanel({ REGION, deckit, host }) {
             content: rects?.content || { x: 0, y: 0, width, height },
             sidebar: lends ? rects?.sidebar || null : null,
             obscured: rects?.obscured || null,
-            titleBar: look.titleBar,
+            titleBar: look.titleBar && { height: look.titleBar.height },
             animation: id === shell.animates && id === current ? rects?.animation || null : null,
         };
     }
@@ -519,7 +522,6 @@ export function createPanel({ REGION, deckit, host }) {
             canBack: history.at > 0,
             canForward: history.at < history.list.length - 1,
             sidebar,
-            chords: { back: deckit.keymap.chordOf(keys.back), forward: deckit.keymap.chordOf(keys.forward) },
         };
     }
 

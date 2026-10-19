@@ -101,7 +101,7 @@ function boot(theme) {
     const buttonsRoom = element(document, 'div', 'deckit-panel-buttons');
     const sidebar = SIDEBAR.make({
         ui,
-        chordOf: (action) => state.chords[action] || '',
+        chordOf: (action) => PROTOCOL.chord.invoke({ action }),
         onPick: (id) => PROTOCOL.pick.send({ id }),
         onStep: (by) => PROTOCOL.step.send({ by }),
         onReorder: (ids) => PROTOCOL.reorder.send({ ids }),
