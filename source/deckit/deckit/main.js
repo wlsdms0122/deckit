@@ -99,7 +99,7 @@ function make({ preload, host, config: CONFIG, folders }) {
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, deck });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
-    const PAGE = createPage({ CONFIG, IDENTITY, PARTITION });
+    const PAGE = createPage({ IDENTITY, PARTITION });
     const API = createApi({
         CONFIG,
         STORAGE,

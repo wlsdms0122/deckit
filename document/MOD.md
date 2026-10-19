@@ -198,7 +198,7 @@ With `deckit.styles`, styles other pages while the mod runs: a mod's page by its
 
 ## deck
 
-`start(deck)` receives `{ id, name, settings, storage, web, requires, optional, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), `mainProcess` for a mod with `system.main-process`, and `host` for the host app's own mod. The shell adds `theme`, `ui`, `show()`, `region()` and `children`, the registrations `view` and `styles`, and the pins on `mods` (the beginning of this document).
+`start(deck)` receives `{ id, name, settings, storage, web, requires, optional, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), and `mainProcess` for a mod with `system.main-process`. The shell adds `theme`, `ui`, `show()`, `region()` and `children`, the registrations `view` and `styles`, and the pins on `mods` (the beginning of this document).
 
 ### theme and ui
 
@@ -283,8 +283,6 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 `requires` is what each mod named in `[requires]` exports. A mod runs only while everything it requires runs, so these are there: when one of them terminates or crashes, the mod terminates too, before that one's `stop()` is asked, and it launches again, with what that one exports now, once that one launches again. Calls made in `stop()` still reach it.
 
 `optional` is a handle for each optional dependency, each mod named in `[optional]`: `exports()` is what that one exports while it runs at a version this one names, or null; `onChange(listener)` hears it each time that changes (that one launched, or began to end), and returns its off. One that begins to end is gone at once: `exports()` is null and a call to it rejects, as a mod that required it would have ended first. The mod runs whether or not that one does, and goes on running when that one ends or launches again: it neither waits for it nor launches again with it.
-
-`host` is what the host app offers, handed to the host app's own mod only.
 
 ## Lifecycle
 

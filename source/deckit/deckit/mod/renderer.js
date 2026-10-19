@@ -12,7 +12,7 @@ import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 
-export function createMod({ hostMod, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST }) {
+export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
     // MARK: - Property
     // What the shell gives a mod where none is on deckit: nothing.
     const NO_SHELL = Object.freeze({
@@ -110,7 +110,6 @@ export function createMod({ hostMod, WEB, NOTIFICATION, KEYMAP, COMMAND, HOST })
                       }),
                   }
                 : {}),
-            ...(hostMod && HOST ? { host: HOST } : {}),
         };
     }
 
