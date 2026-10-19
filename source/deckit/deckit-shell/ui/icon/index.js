@@ -88,19 +88,27 @@ function sanitize(text) {
     // The HTML parser places <svg> in the SVG namespace without an xmlns, as icons are written. Its document is
     // inert: nothing in it loads or runs.
     const parsed = new DOMParser().parseFromString(String(text || ''), 'text/html').body.firstElementChild;
-    if (parsed?.namespaceURI !== SVG || parsed.localName !== 'svg') return document.createElementNS(SVG, 'svg');
-    const svg = copyOf(parsed);
+    const svg =
+        parsed?.namespaceURI === SVG && parsed.localName === 'svg'
+            ? copyOf(parsed)
+            : document.createElementNS(SVG, 'svg');
     svg.setAttribute('aria-hidden', 'true');
     fit(svg);
     return svg;
 }
 
 // MARK: - Private
-// Its width and height at most the frame's, its shape kept: a viewBox from what it said, if it said none.
+// Its width and height at most the frame's, its shape kept: a viewBox from what it said, if it said none. One that
+// says no size is the frame's, not the 300 by 150 a page gives it.
 function fit(svg) {
     const width = Number(svg.getAttribute('width'));
     const height = Number(svg.getAttribute('height'));
-    if (!(width > 0) || !(height > 0) || (width <= FRAME && height <= FRAME)) return;
+    if (!(width > 0) || !(height > 0)) {
+        svg.setAttribute('width', String(FRAME));
+        svg.setAttribute('height', String(FRAME));
+        return;
+    }
+    if (width <= FRAME && height <= FRAME) return;
     if (!svg.hasAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     const scale = FRAME / Math.max(width, height);
     svg.setAttribute('width', String(Math.round(width * scale)));
