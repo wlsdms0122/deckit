@@ -133,7 +133,7 @@ On a page, the shell is what the host app hands `boot` as `shell`: `page(name)` 
 | `keyProblem(key, parts)` | why a key would never run, or `''`, with `parts` what `start` registered |
 | `contribute(parts, entry)` | called once `start` has ended, with what it registered and the entry: mounts what the shell shows and answers `{ summary, contributions }`, what main is told of the mod, which a run carries as its `summary` and `contributions`. One that throws leaves the mod unstarted |
 
-That is how deckit's shell hands a mod `theme`, `ui`, `show`, `region`, `children`, the registrations `view` and `styles`, and the pins on `mods`, and how the panel's frame goes around a view. What deckit gives a mod is never replaced by what the shell gives.
+That is how deckit's shell hands a mod `theme`, `ui`, `show`, `region`, `children`, the registrations `view` and `styles`, and the pins on `mods`, and how a view is laid in its page where the panel's frame leaves it room. What deckit gives a mod is never replaced by what the shell gives.
 
 The host app and its shell reach deckit through these, and nothing else of deckit's: their own listeners and their own files are their own.
 

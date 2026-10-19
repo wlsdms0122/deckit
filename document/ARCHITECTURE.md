@@ -7,10 +7,10 @@ Deckit is three layers, each built on the one under it:
 | Layer | What it is | As an operating system has it |
 |---|---|---|
 | deck | the engine: what a mod is, running each in a sandbox of its own, what mods give each other (requires and exports, extension points, events), their storage and settings, and the permissions a person grants | the kernel |
-| deckit | the platform on deck: the web, windows, keys, commands, opening addresses, the clipboard, notifications and main process modules, and `connect`, which a host app starts it with | the system and its services |
-| the shell | the surface a person uses deckit through. Deckit's own shell is the panel that shows the mods with a view, the quick switcher, the kit they draw with, and styles; a host app may put its own on deckit instead | a shell, bash or zsh |
+| deckit | the platform on deck: the web, windows, keys, commands, opening addresses, the clipboard, notifications and main process modules, and `connect`, which a host app starts it with | the operating system: what an application runs on, on this machine |
+| the shell | the surface a person uses deckit through. Deckit's own shell is the panel, which lists the mods with a view and lays the one in front in its frame, the quick switcher, the kit they draw with, and styles; a host app may put its own on deckit instead | the system's interface, as macOS has its menu bar, its Dock and the windows apps draw in |
 
-The host app is the process and its windows: it starts deckit, puts a shell on it, and says where the shell is shown, as a terminal runs a shell. Deck knows nothing of a screen: to deck a mod's page is where the mod runs. Deckit knows no shell: the shell is built on what `connect` answers, as a host app's own would be. A mod runs whether or not the panel is shown.
+A mod is an application. The host app is the machine: the process and its windows. It starts deckit, puts a shell on it, and says where the shell is shown. Deck knows nothing of a screen: to deck a mod's page is where the mod runs. Deckit knows no shell: the shell is built on what `connect` answers, as a host app's own would be. A mod runs whether or not the panel is shown.
 
 This document is why deckit is split the way it is, and the rules that keep it so. The contract a mod is written against is [MOD.md](MOD.md); how a host app embeds deckit is [EMBEDDING.md](EMBEDDING.md); the kit mods draw with is [UI.md](UI.md).
 
@@ -46,8 +46,8 @@ A new mod needs no change to deck. A new place to show the panel in needs no cha
 | Where | What runs there |
 |---|---|
 | main | deck: mod folders, storage, and what a page asks of deck. Deckit: main process modules, the keymap, opening addresses, commands, windows. The shell: the panel and the switcher, the views it puts in the host app's windows |
-| a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; with deckit's shell on deckit, a mod with a view has the panel's frame around it there, or a region's where it is another's child |
-| a page that runs no mod | made for the shell, at `deckit://<name>/`: the quick switcher's list, at `deckit://switcher/` |
+| a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; with deckit's shell on deckit, a mod with a view lays it there where the panel's frame leaves it room, or in a region where it is another's child |
+| a page that runs no mod | made for the shell, at `deckit://<name>/`: the quick switcher's list, at `deckit://switcher/`, and the panel's frame, at `deckit://panel/`, with the two documents it opens and draws in, its backdrop under the mods and its width's handle over them |
 
 A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed; a mod with `deckit.styles` styles another's page, and that is all. Main knows which mod is asking by the page that asks (`deck/identity/index.js`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
@@ -73,6 +73,7 @@ The pages never speak to each other. Main carries everything between them, and e
 | which mod is in front, and back and forward | `deckit-shell/panel/main.js` |
 | which mod's view is whose child, which child a region shows, and where it lies | `deckit-shell/region/main.js` |
 | where each view is laid in the panel, and the children the person pinned to its list | `deckit-shell/panel/main.js`, the pins in `state/host/` |
+| where the frame's parts are: the list, the room it lends the mod's sidebar, the content's room and the handle | the frame's page, `deckit-shell/panel/frame.js`, which tells main |
 | what the switcher lists, and what was picked before | `deckit-shell/switcher/main.js` |
 | which styles each page wears, in what order | `deckit-shell/style/main.js` |
 | a mod's data, records and settings | main, under deckit's folder (below) |
