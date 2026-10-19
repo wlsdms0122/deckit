@@ -57,8 +57,9 @@ const STYLE = `
         box-sizing: border-box;
         padding: 0 12px;
     }
-    .deckit-sidebar-nav { flex: 0 0 auto; min-height: ${NAV_MIN}px; }
-    .deckit-sidebar-nav .deckit-section { margin-top: 0; }
+    .deckit-sidebar-nav { flex: 0 0 auto; min-height: ${NAV_MIN}px; overflow: hidden; }
+    .deckit-sidebar-nav .deckit-section { flex: 1 1 auto; min-height: 0; margin-top: 0; }
+    .deckit-sidebar-nav .deckit-section-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -12px; padding: 0 12px; }
     .deckit-sidebar-slot { flex: 1 1 auto; min-height: 0; }
     .deckit-sidebar-slot[hidden] { display: none; }
     .deckit-sidebar-slot > * { flex-shrink: 0; }
@@ -153,8 +154,8 @@ function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, on
     const card = element('div', 'deckit-sidebar');
     const body = element('div', 'deckit-sidebar-body');
     const titleBarRoom = element('div', 'deckit-sidebar-title-bar');
+    // The mods' list scrolls under its heading.
     const nav = element('div', 'deckit-sidebar-nav');
-    SCROLL.edgeFade(nav);
     const section = ui.section({
         label: 'Mods',
         title: true,
@@ -166,6 +167,7 @@ function make({ theme, ui, root, content, sidebar, onPick, onStep, onReorder, on
     ui.tooltip(section.actions[0].element, { text: 'Back', chord: () => chordOf('back') });
     ui.tooltip(section.actions[1].element, { text: 'Forward', chord: () => chordOf('forward') });
     nav.append(section.element);
+    SCROLL.edgeFade(section.body);
     const rows = LIST.list({
         element: section.body,
         key: (mod) => mod.id,
