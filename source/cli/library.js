@@ -5,17 +5,17 @@ const path = require('path');
 
 const DECKIT = path.join(__dirname, '..', 'deckit');
 // In layers: each stands on those before it.
-const PACKAGES = ['deck', 'deckit', 'deckit-shell'];
+const PACKAGES = ['deck', 'deckit-electron', 'deckit-shell'];
 const MODS = path.join(DECKIT, 'mods');
 const APP = path.join(DECKIT, 'deckit-app');
 const ESBUILD = 'esbuild@0.28.2';
 // Each bundle: the file it starts from, how it loads, and for a renderer's, the global the preload starts it by. Main's
 // bundles are CommonJS modules a host app requires; a renderer's run as they are in the preload.
 const BUNDLES = {
-    main: { entry: 'deckit/main.js', format: 'cjs', platform: 'node', target: 'node22' },
+    main: { entry: 'deckit-electron/main.js', format: 'cjs', platform: 'node', target: 'node22' },
     'shell-main': { entry: 'deckit-shell/main.js', format: 'cjs', platform: 'node', target: 'node22' },
     renderer: {
-        entry: 'deckit/renderer.js',
+        entry: 'deckit-electron/renderer.js',
         format: 'iife',
         platform: 'browser',
         target: 'chrome120',
@@ -29,7 +29,7 @@ const BUNDLES = {
         global: 'DeckitShellRenderer',
     },
     chord: {
-        entry: 'deckit/keymap/chord.js',
+        entry: 'deckit-electron/keymap/chord.js',
         format: 'iife',
         platform: 'browser',
         target: 'chrome120',

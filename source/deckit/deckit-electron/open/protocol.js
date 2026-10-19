@@ -2,7 +2,7 @@ import * as IPC from '../../deck/ipc/index.js';
 
 // Answers whether something took it.
 export const open = IPC.rendererToMain(
-    'deckit:open',
+    'deckit-electron:open',
     {
         url: 'string',
         activates: 'boolean',
@@ -12,14 +12,14 @@ export const open = IPC.rendererToMain(
     { reply: true }
 );
 // The sending mod answers the url-schemes its manifest names.
-export const handles = IPC.rendererToMain('deckit:open-handles', {});
-export const reveal = IPC.rendererToMain('deckit:open-reveal', { file: 'string' }, { reply: true });
+export const handles = IPC.rendererToMain('deckit-electron:open-handles', {});
+export const reveal = IPC.rendererToMain('deckit-electron:open-reveal', { file: 'string' }, { reply: true });
 // deckit.url-schemes: each scheme's handlers in order, and setting that order.
-export const handlerLists = IPC.rendererToMain('deckit:open-handler-lists', {}, { reply: true, sync: true });
+export const handlerLists = IPC.rendererToMain('deckit-electron:open-handler-lists', {}, { reply: true, sync: true });
 export const setHandlers = IPC.rendererToMain(
-    'deckit:open-handlers-set',
+    'deckit-electron:open-handlers-set',
     { scheme: 'string', order: 'array', off: 'array' },
     { reply: true }
 );
 // Asks a mod to open an address; it answers true when it took it.
-export const offer = IPC.mainToRenderer('deckit:open-offer', { reply: true });
+export const offer = IPC.mainToRenderer('deckit-electron:open-offer', { reply: true });

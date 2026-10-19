@@ -7,6 +7,6 @@
     },
     "dependencies": {
         "deck": "file:../deck",
-        "deckit": "file:../deckit"
+        "deckit-electron": "file:../deckit-electron"
     }
 }

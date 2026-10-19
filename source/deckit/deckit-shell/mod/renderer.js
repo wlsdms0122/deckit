@@ -9,7 +9,7 @@ import { createRegion, parentProblem } from '../region/renderer.js';
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// What the shell gives a mod's page, as deckit runs it (deckit/mod/renderer): the theme, the kit, `show()`,
+// What the shell gives a mod's page, as deckit runs it (deckit-electron/mod/renderer): the theme, the kit, `show()`,
 // `region(element)`, `children`, the registrations `view` and, with deckit.styles, `styles`, and on deck.mods
 // the panel's pins. Once start() has ended, a view is laid where the panel's guide says, or a region's for a child.
 function mod({ mod: running, deliver }) {

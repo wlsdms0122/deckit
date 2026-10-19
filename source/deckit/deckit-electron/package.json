@@ -1,5 +1,5 @@
 {
-    "name": "deckit",
+    "name": "deckit-electron",
     "private": true,
     "exports": {
         "./main.js": "./main.js",
