@@ -1,2 +1,2 @@
-source/deckit/mod/*/src/engine.js
-source/deckit/mod/*/src/engine/package-lock.json
+source/deckit/mods/*/src/engine.js
+source/deckit/mods/*/src/engine/package-lock.json

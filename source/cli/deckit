@@ -10,6 +10,7 @@ deckit: a library a host app embeds to take mods, the way a game does
   app              Deckit.app, into .build/, from the archive the last build made
   check            hold the packages' files to how they are laid out
   dev              Deckit.app from the sources, built again when one changes
+  test             drive Deckit.app, from the archive the last build made, through its scenario
   install          Deckit.app into /Applications, as deckit app last made it
   engine <mod>     build a mod's editing engine again (editor, note)
 

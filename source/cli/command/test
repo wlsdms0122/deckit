@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+// Drives Deckit.app, put together from the archive the last build made, through the scenario, with data of its own
+// that is thrown away. Exits 1 with a line for each check that failed. Screenshots and the app's log are left in
+// .build/test/.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const root = path.join(__dirname, '..', '..', '..');
+const APP = require(path.join(root, 'source', 'cli', 'app.js'));
+const { launch } = require(path.join(root, 'source', 'cli', 'test', 'launch.js'));
+const { connect, sleep } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
+const SCENARIO = require(path.join(root, 'source', 'cli', 'test', 'scenario.js'));
+const OUT = path.join(root, '.build', 'test');
+const LIMIT = 300000;
+
+const args = process.argv.slice(2);
+const at = args.indexOf('--port');
+const port = at < 0 ? 9334 : Number(args[at + 1]);
+if (!Number.isInteger(port) || port <= 0) {
+    console.error('usage: deckit test [--port <DevTools port, default 9334>]');
+    process.exit(2);
+}
+
+const main = async () => {
+    const archive = APP.builtArchive();
+    fs.rmSync(OUT, { recursive: true, force: true });
+    fs.mkdirSync(OUT, { recursive: true });
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-app-'));
+    const data = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-data-'));
+    process.on('exit', () => {
+        for (const made of [folder, data]) fs.rmSync(made, { recursive: true, force: true });
+    });
+    APP.assemble(archive, folder);
+    const log = path.join(OUT, 'log.txt');
+    const app = launch({ app: folder, data, port, log, limit: LIMIT });
+    const devtools = connect({ port, shots: OUT });
+    const report = await SCENARIO.run(devtools);
+    devtools.close();
+    app.stop();
+    await sleep(1000);
+    fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 4) + '\n');
+
+    const failed = report.filter(({ ok }) => !ok);
+    const shown = path.relative(root, OUT) + '/';
+    if (!failed.length) {
+        console.log(`ok: ${report.length} checks, on Deckit.app as the last build made it (screenshots in ${shown})`);
+        process.exit(0);
+    }
+    for (const { name, detail } of failed) console.error(`FAIL ${name}${detail ? ': ' + detail.slice(0, 300) : ''}`);
+    const lines = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').split('\n') : [];
+    const worth = lines.filter((line) => /error|failed|threw|refused/i.test(line));
+    if (worth.length) console.error('the app logged:\n' + worth.slice(0, 30).join('\n'));
+    console.error(`${failed.length} of ${report.length} checks failed (the app's log is ${shown}log.txt)`);
+    process.exit(1);
+};
+
+main().catch((error) => {
+    console.error('[test] ' + error.message);
+    process.exit(1);
+});
