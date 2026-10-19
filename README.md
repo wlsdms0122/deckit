@@ -25,9 +25,12 @@ source/cli/deckit build            the deckit archive, into .build/
 source/cli/deckit app              Deckit.app, into .build/, from the archive the last build made
 source/cli/deckit check            hold the packages' files to how they are laid out
 source/cli/deckit dev              Deckit.app from the sources, its data in .dev/, built again when one changes
+source/cli/deckit test             drive Deckit.app, from the archive the last build made, through its scenario
 source/cli/deckit install          Deckit.app into /Applications, as the last app command made it
 source/cli/deckit engine <mod>     build the Editor's or the Notes' editing engine again, from its src/engine/
 ```
+
+`test` runs the app in the background, with data of its own that it throws away, so it never takes the screen or touches `~/.config/deckit`. It leaves screenshots and the app's log in `.build/test/`; `--port` picks the DevTools port when another test is running.
 
 `manifest.toml` lists the same commands for open-package.
 
