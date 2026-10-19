@@ -28,10 +28,12 @@ const main = async () => {
     fs.mkdirSync(OUT, { recursive: true });
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-app-'));
     const data = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-data-'));
+    const files = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-files-'));
     process.on('exit', () => {
-        for (const made of [folder, data]) fs.rmSync(made, { recursive: true, force: true });
+        for (const made of [folder, data, files]) fs.rmSync(made, { recursive: true, force: true });
     });
     APP.assemble(archive, folder);
+    SCENARIO.seed({ data, files: fs.realpathSync(files) });
     const log = path.join(OUT, 'log.txt');
     const app = launch({ app: folder, data, port, log, limit: LIMIT });
     const devtools = connect({ port, shots: OUT });

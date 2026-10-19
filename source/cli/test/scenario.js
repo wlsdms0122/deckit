@@ -1,9 +1,31 @@
 // What the test does to Deckit.app, as a person would, and what it checks along the way. Each check is a name, whether
 // it held, and what was seen.
+const fs = require('fs');
+const path = require('path');
 const { until, sleep, CTRL, META, SHIFT } = require('./devtools.js');
 
 // The mods Deckit.app ships with a view: every one but Deckit, which is commands only.
 const VIEWS = 7;
+const LINES = 'lines.txt';
+const FOUND = 'source/quick-open-target.js';
+
+// A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
+function seed({ data, files }) {
+    const contents = {
+        [LINES]: Array.from({ length: 40 }, (_, index) => `line ${index + 1}`).join('\n') + '\n',
+        [FOUND]: 'export {};\n',
+        'source/other.js': 'export {};\n',
+    };
+    for (const [name, text] of Object.entries(contents)) {
+        fs.mkdirSync(path.dirname(path.join(files, name)), { recursive: true });
+        fs.writeFileSync(path.join(files, name), text);
+    }
+    const lines = path.join(files, LINES);
+    const session = { spaces: [{ root: files, open: [lines], active: lines, mode: 'files' }], active: files };
+    const record = path.join(data, 'deckit', 'records', 'editor', 'session.json');
+    fs.mkdirSync(path.dirname(record), { recursive: true });
+    fs.writeFileSync(record, JSON.stringify(session));
+}
 
 async function run({ page, targets, thrown }) {
     const report = [];
@@ -80,7 +102,8 @@ async function run({ page, targets, thrown }) {
                 `[...document.querySelectorAll('body > *')].map((element) => element.className + ':' + getComputedStyle(element).backgroundColor).join(' | ')`
             )
         );
-        await editor.press('[data-mod-id="settings"]');
+        // Pressed in Notes, the view in front: a person presses only what is seen.
+        await note?.press('[data-mod-id="settings"]');
         await sleep(1200);
         const settings = await page('deckit://settings.mod');
         // The rows come after the sections, once the list of mods is read.
@@ -171,6 +194,35 @@ async function run({ page, targets, thrown }) {
         );
         check('a refused navigation leaves the page its commands', listed, '');
         await again?.key('Escape', 'Escape', 0, 27);
+        await editor.press('[data-mod-id="editor"]');
+        await until(async () => (await visibility('editor')) === 'visible', 3000);
+        const activeLine = `document.querySelector('.cm-focused .cm-activeLine')?.textContent`;
+        await until(async () => (await editor.evaluate(activeLine)) === 'line 1', 4000);
+        await editor.key('l', 'KeyL', META, 76);
+        const lineField = await until(() => editor.evaluate(`!!document.querySelector('.deckit-quick-pick-field')`));
+        check('Go to Line opens as a panel', lineField, '');
+        await editor.type('12');
+        await sleep(200);
+        await editor.shot('go-to-line');
+        await editor.key('Enter', 'Enter', 0, 13);
+        await until(async () => (await editor.evaluate(activeLine)) === 'line 12', 2000);
+        check(
+            'Go to Line moves the cursor',
+            (await editor.evaluate(activeLine)) === 'line 12',
+            await editor.evaluate(activeLine)
+        );
+        await editor.key('p', 'KeyP', META, 80);
+        await until(() => editor.evaluate(`!!document.querySelector('.deckit-quick-pick-field')`));
+        await editor.type('target');
+        const names = `[...document.querySelectorAll('.editor-quick-open-name')].map((name) => name.textContent).join()`;
+        const found = await until(async () => /quick-open-target\.js/.test((await editor.evaluate(names)) || ''), 4000);
+        await editor.shot('open-quickly');
+        check(
+            'Open Quickly finds a file by part of its name',
+            found,
+            await editor.evaluate(`document.querySelector('.deckit-quick-pick-message')?.textContent`)
+        );
+        await editor.key('Escape', 'Escape', 0, 27);
         // Every mod's screen, drawn: what the test does not drive is still seen.
         for (const id of ['editor', 'finder', 'browser', 'note']) {
             await editor.press(`[data-mod-id="${id}"]`);
@@ -185,4 +237,4 @@ async function run({ page, targets, thrown }) {
     return report;
 }
 
-module.exports = { run };
+module.exports = { seed, run };

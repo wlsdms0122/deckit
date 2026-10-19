@@ -10,6 +10,7 @@ const { fileOpener } = require('./file-opener.js');
 const { filePathBar, PATH_BAR_STYLE } = require('./file-path-bar.js');
 const { fileTree, TREE_STYLE } = require('./file-tree.js');
 const { findInFile } = require('./find-in-file.js');
+const { goToLine } = require('./go-to-line.js');
 const { paletteCommands } = require('./palette-commands.js');
 const { nameOf, parentOf, isInside, relativePath } = require('./path.js');
 const { quickOpen, QUICK_OPEN_STYLE } = require('./quick-open.js');
@@ -243,6 +244,7 @@ module.exports = {
             onMode: setMode,
             onShowFile: (file) => show(file),
         });
+        const goTo = goToLine({ ui, scrollEffect: code.scrollEffect });
         const quickOpener = quickOpen({
             ui,
             ranker: util.ranker,
@@ -335,7 +337,7 @@ module.exports = {
                 label: 'Go to line',
                 run: () => {
                     const file = workspaces.current();
-                    if (file) engine.gotoLine(file.view);
+                    if (file) goTo.show(file.view);
                 },
             },
             wrapLines: {
