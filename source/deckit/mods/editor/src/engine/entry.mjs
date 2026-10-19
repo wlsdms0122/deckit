@@ -31,7 +31,6 @@ export {
     openSearchPanel,
     closeSearchPanel,
     highlightSelectionMatches,
-    gotoLine,
     SearchQuery,
     getSearchQuery,
     setSearchQuery,
