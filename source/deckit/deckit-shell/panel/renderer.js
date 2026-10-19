@@ -1,4 +1,5 @@
-import * as SIDEBAR from './sidebar.js';
+import * as SCROLL from '../ui/scroll/index.js';
+import * as KIT from '../ui/kit/index.js';
 import * as PROTOCOL from './protocol.js';
 
 // MARK: - Property
@@ -8,88 +9,77 @@ const pins = Object.freeze({
     pinned: () => PROTOCOL.pinned.invoke(),
     setPinned: (id, pinned) => PROTOCOL.setPinned.invoke({ id: String(id), pinned: !!pinned }),
 });
+// The mod's sidebar scrolls when it is taller than its room.
+const STYLE = `
+    .deckit-view { position: fixed; inset: 0; overflow: hidden; font: 15px var(--deckit-font); }
+    .deckit-view-content { position: absolute; display: flex; flex-direction: column; color: var(--deckit-text); }
+    .deckit-view-room { position: absolute; overflow: hidden; }
+    .deckit-view-sidebar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow-y: auto;
+        box-sizing: border-box;
+        padding: 0 12px;
+    }
+    .deckit-view-sidebar > * { flex-shrink: 0; }
+`;
 
 // MARK: - Initializer
 // MARK: - Public
-// The panel's frame around one mod's view, in its own page. `tell` calls a part of the view (didAppear,
-// didDisappear); `layers` is what floats in the page; `chordOf(action)` is the chord of one of the panel's keys.
-function mount({ theme, ui, view, tell, layers, chordOf }) {
+// One mod's view, in its own page, laid out where the panel's guide says: the content in its room and the sidebar,
+// if the view has one, in the room the panel lends it. `tell` calls a part of the view (didAppear, didDisappear);
+// `layers` is what floats in the page.
+function mount({ theme, view, tell, layers }) {
+    KIT.addStyle(STYLE);
     const setup = PROTOCOL.setup.invoke();
     const { motion: MOTION } = theme;
+    let guide = setup.guide;
     let open = setup.shown;
-    let look = setup.look;
-    let leaving = null;
     let appeared = false;
 
-    const root = element('div', {
-        position: 'fixed',
-        inset: '0',
-        display: 'flex',
-        overflow: 'hidden',
-        flexDirection: 'row',
-        font: '15px var(--deckit-font)',
-        boxSizing: 'border-box',
-    });
-    const content = element('div', {
-        flex: '1 1 auto',
-        minWidth: '0',
-        background: 'transparent',
-        color: 'var(--deckit-text)',
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-    });
+    const root = element('div', 'deckit-view');
+    const content = element('div', 'deckit-view-content');
     Object.assign(view.content.style, { width: '100%', flex: '1 1 auto', minHeight: '0' });
     content.append(view.content);
-    // Where the window's buttons stand is the panel's, whatever is drawn there: it drags the window, so the
-    // window can be moved however the mod on screen draws its top. Last, so a region the mod keeps from dragging
-    // does not take it back.
-    const buttonsRoom = element('div', {
-        position: 'absolute',
-        top: '0',
-        left: '0',
-        display: 'none',
-        webkitAppRegion: 'drag',
-    });
-    const sidebar = SIDEBAR.make({
-        theme,
-        ui,
-        root,
-        content,
-        sidebar: view.sidebar || null,
-        onPick: (id) => PROTOCOL.pick.send({ id }),
-        onStep: (by) => PROTOCOL.step.send({ by }),
-        onReorder: (ids) => PROTOCOL.reorder.send({ ids }),
-        onLayout: (change) => PROTOCOL.layout.send(change),
-        onCollapsedChange: () => dress(),
-        chordOf,
-    });
-    root.append(sidebar.element, content, buttonsRoom);
+    // Two boxes: the room animates its width while the sidebar keeps its own, so what is inside does not reflow
+    // against its minimum widths every frame.
+    const room = view.sidebar ? element('div', 'deckit-view-room') : null;
+    if (room) {
+        const sidebar = element('div', 'deckit-view-sidebar');
+        sidebar.append(view.sidebar);
+        SCROLL.edgeFade(sidebar);
+        room.append(sidebar);
+        root.append(room);
+    }
+    root.append(content);
     document.body.appendChild(root);
-    dress();
-    sidebar.update(setup.state, false);
+    lay();
     appear();
 
     layers.onChange((on) => PROTOCOL.floating.send({ on }));
     // Main took this Escape, so the field never saw it: it is played again as a keydown. A field that handles
     // it keeps the caret; one that does not is left, as a browser would, so the next Escape reaches the page.
-    PROTOCOL.escape.on(({ last }) => {
+    PROTOCOL.escape.handle(() => {
         const top = layers.top();
-        if (top) return top.dismiss();
-        const field = document.activeElement;
-        if (isField(field)) {
-            const handled = !field.dispatchEvent(
-                new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
-            );
-            if (!handled && document.activeElement === field) field.blur();
-            return;
+        if (top) {
+            top.dismiss();
+            return true;
         }
-        if (last) PROTOCOL.dismiss.send();
+        const field = document.activeElement;
+        if (!isField(field)) return false;
+        const handled = !field.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
+        );
+        if (!handled && document.activeElement === field) field.blur();
+        return true;
     });
-    PROTOCOL.state.on((state) => sidebar.update(state, true));
-    PROTOCOL.look.on((next) => {
-        look = next;
-        dress();
+    PROTOCOL.guide.on((next) => {
+        guide = next;
+        lay();
     });
     PROTOCOL.visible.on(({ open: on, animate }) => {
         if (open === on) return;
@@ -100,21 +90,9 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
             return;
         }
         if (on) fadeIn();
-        else fadeOut(() => {});
+        else fadeOut();
     });
-    // Main waits for the exit of the page in front before it takes the panel off screen, or moves it, so neither is
-    // seen as a flicker. An entrance cancels an exit under way, which is then never answered.
-    PROTOCOL.exit.handle(
-        () =>
-            new Promise((resolve) => {
-                if (!open) return resolve();
-                open = false;
-                appear();
-                fadeOut(resolve);
-            })
-    );
-    PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut(() => {}) : fadeIn()));
-    PROTOCOL.leave.handle(() => new Promise((resolve) => fadeOut(resolve)));
+    PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut() : fadeIn()));
 
     // didAppear and didDisappear alternate, worked out in this one place.
     function appear() {
@@ -123,95 +101,56 @@ function mount({ theme, ui, view, tell, layers, chordOf }) {
         tell(open ? 'didAppear' : 'didDisappear');
     }
 
-    // Floating over an app, the ring makes the panel read as on top and the rounding needs the page behind
-    // to be clear. Filling a window, the frame is the OS's, and the panel may share the window's top with its
-    // title bar: the sidebar reaches up under it, and so does the content, whose title bar area is the mod's
-    // (`ui.titleBar`): as tall as the bar, from past the window's buttons when the sidebar is collapsed. In a
-    // region of another mod's, the frame is the region: no list of mods and no surface of its own, the parent's
-    // showing through, and as much of the bar as lies over the region, from past the buttons that do.
-    function dress() {
-        const bar = look.titleBar;
-        document.documentElement.toggleAttribute('data-deckit-title-bar', !!bar);
-        Object.assign(buttonsRoom.style, {
-            display: bar && !look.region ? 'block' : 'none',
-            width: (bar?.controlsWidth || 0) + 'px',
-            height: (bar?.height || 0) + 'px',
-        });
-        sidebar.setInRegion(!!look.region);
-        const page = document.documentElement.style;
-        page.setProperty('--deckit-title-bar-area-height', (bar?.height || 0) + 'px');
-        page.setProperty(
-            '--deckit-title-bar-area-x',
-            (bar && (look.region || sidebar.collapsed()) ? bar.controlsWidth : 0) + 'px'
-        );
-        sidebar.setTitleBarHeight(bar?.height || 0);
-        if (look.region) {
-            Object.assign(root.style, {
-                background: 'transparent',
-                boxShadow: 'none',
-                border: '0',
-                borderRadius: '0',
-                transform: 'none',
-                transition: `opacity ${MOTION.fast}ms ${MOTION.easing}`,
-            });
-            return;
+    // The content's title bar area is the mod's (`ui.titleBar`): as much of the window's bar as lies over the
+    // content, from past the window's buttons that do. Floating, the panel's rounding needs the page clear at the
+    // corners.
+    function lay() {
+        const { content: area, sidebar: lent, titleBar: bar, animation } = guide;
+        const transition = animation
+            ? ['left', 'top', 'width', 'height', 'opacity']
+                  .map((property) => `${property} ${animation.duration}ms ${animation.easing}`)
+                  .join(', ')
+            : 'none';
+        place(content, area, transition);
+        if (room) {
+            room.style.display = lent ? '' : 'none';
+            if (lent) {
+                place(room, lent, transition);
+                room.style.opacity = lent.width ? '1' : '0';
+                if (lent.width) room.firstChild.style.width = lent.width + 'px';
+            }
         }
-        Object.assign(
-            root.style,
-            {
-                background: `color-mix(in srgb, var(--deckit-background) ${setup.glass * 100}%, transparent)`,
-                boxShadow: 'none',
-            },
-            look.floating
-                ? {
-                      border: '1px solid rgba(255,255,255,.14)',
-                      borderRadius: '12px',
-                      transformOrigin: 'center',
-                      transition: `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`,
-                  }
-                : { border: '0', borderRadius: '0', opacity: '1', transform: 'none', transition: 'none' }
-        );
+        document.documentElement.toggleAttribute('data-deckit-title-bar', !!bar);
+        const page = document.documentElement.style;
+        page.setProperty('--deckit-title-bar-area-height', (bar ? Math.max(0, bar.height - area.y) : 0) + 'px');
+        page.setProperty('--deckit-title-bar-area-x', (bar ? Math.max(0, bar.controlsWidth - area.x) : 0) + 'px');
+        root.style.borderRadius = guide.floating ? '12px' : '0';
     }
 
-    // An entrance cancels an exit under way, so a quick close, open and close never reports the first exit done.
+    // The start is read back before the end is written, or both land in
+    // one style pass and nothing transitions.
     function fadeIn() {
-        clearTimeout(leaving);
-        leaving = null;
-        root.style.transition = 'none';
-        root.style.opacity = '0';
-        root.style.transform = entrance();
-        requestAnimationFrame(() => {
-            root.style.transition = `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`;
-            root.style.opacity = '1';
-            root.style.transform = 'none';
-        });
+        Object.assign(root.style, { transition: 'none', opacity: '0', transform: entrance() });
+        void root.offsetHeight;
+        Object.assign(root.style, { transition: motion(), opacity: '1', transform: 'none' });
     }
 
     // A view that faded out while it was on screen comes back where it stood.
     function enterAtOnce() {
-        clearTimeout(leaving);
-        leaving = null;
-        root.style.transition = 'none';
-        root.style.opacity = '1';
-        root.style.transform = 'none';
+        Object.assign(root.style, { transition: 'none', opacity: '1', transform: 'none' });
+    }
+
+    function fadeOut() {
+        Object.assign(root.style, { transition: motion(), opacity: '0', transform: entrance() });
     }
 
     // A region's page fades in place: the parent around it does not grow or shrink with it.
     function entrance() {
-        return look.region ? 'none' : MOTION.entrance;
+        return guide.region ? 'none' : MOTION.entrance;
     }
 
-    function fadeOut(then) {
-        root.style.transition = `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`;
-        root.style.opacity = '0';
-        root.style.transform = entrance();
-        clearTimeout(leaving);
-        const duration = MOTION.base;
-        if (!duration) return then();
-        leaving = setTimeout(() => {
-            leaving = null;
-            then();
-        }, duration);
+    function motion() {
+        return `opacity ${MOTION.fast}ms ${MOTION.easing}, transform ${MOTION.base}ms ${MOTION.easing}`;
     }
 }
 
@@ -233,13 +172,17 @@ function keyProblem(key, view) {
 }
 
 // MARK: - Private
+function place(box, { x, y, width, height }, transition) {
+    Object.assign(box.style, { transition, left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
+}
+
 function isField(element) {
     return !!element?.matches?.("input, textarea, select, [contenteditable]:not([contenteditable='false'])");
 }
 
-function element(tag, style) {
+function element(tag, className) {
     const made = document.createElement(tag);
-    Object.assign(made.style, style);
+    made.className = className;
     return made;
 }
 
