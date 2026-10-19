@@ -37,7 +37,41 @@ function connect({ port, shots }) {
         const target = (await targets()).find(
             (candidate) => candidate.type === 'page' && candidate.url.startsWith(match)
         );
-        if (!target) return null;
+        return target ? sessionOf(target) : null;
+    }
+
+    // The sessions of every page whose address starts with `match`.
+    async function pages(match) {
+        const found = (await targets()).filter(
+            (candidate) => candidate.type === 'page' && candidate.url.startsWith(match)
+        );
+        return Promise.all(found.map(sessionOf));
+    }
+
+    // Pages laid one over another, as views are in a window, drawn into one screenshot: `layers` from the bottom,
+    // each { session, x, y }, its place in the window. Each is taken clear where it draws nothing.
+    async function compose(name, layers) {
+        const images = [];
+        for (const { session, x = 0, y = 0 } of layers) images.push({ data: await session.capture(), x, y });
+        const [bottom] = layers;
+        const png = await bottom.session.evaluate(`(async (images) => {
+            const drawn = await Promise.all(images.map(async ({ data, x, y }) => {
+                const image = new Image();
+                image.src = 'data:image/png;base64,' + data;
+                await image.decode();
+                return { image, x, y };
+            }));
+            const canvas = document.createElement('canvas');
+            canvas.width = drawn[0].image.naturalWidth;
+            canvas.height = drawn[0].image.naturalHeight;
+            const context = canvas.getContext('2d');
+            for (const { image, x, y } of drawn) context.drawImage(image, x * devicePixelRatio, y * devicePixelRatio);
+            return canvas.toDataURL('image/png').split(',')[1];
+        })(${JSON.stringify(images)})`);
+        if (typeof png === 'string') fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(png, 'base64'));
+    }
+
+    async function sessionOf(target) {
         if (sessions.has(target.id)) return sessions.get(target.id);
         const socket = new WebSocket(target.webSocketDebuggerUrl);
         await new Promise((resolve, reject) => ((socket.onopen = resolve), (socket.onerror = reject)));
@@ -98,6 +132,13 @@ function connect({ port, shots }) {
                         clickCount: 1,
                     });
             },
+            // The page as a screenshot, clear where it draws nothing, in base64.
+            async capture() {
+                await send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 0, g: 0, b: 0, a: 0 } });
+                const shot = await send('Page.captureScreenshot', { format: 'png' });
+                await send('Emulation.setDefaultBackgroundColorOverride');
+                return shot.result?.data || '';
+            },
             async shot(name) {
                 const shot = await send('Page.captureScreenshot', { format: 'png' });
                 if (shot.result?.data)
@@ -114,7 +155,7 @@ function connect({ port, shots }) {
         for (const session of sessions.values()) session.close();
     };
 
-    return { targets, page, thrown, close };
+    return { targets, page, pages, compose, thrown, close };
 }
 
 module.exports = { connect, until, sleep, CTRL, META, SHIFT };
