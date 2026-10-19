@@ -276,7 +276,7 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `movePath(path, from, to)` | a path after `from` moved to `to`, or null when it went with it |
 | `tildify(path)` | a path as it is shown, from `~` under the home folder |
 
-### mainProcess, requires, optional, host
+### mainProcess, requires, optional
 
 `mainProcess(path)` starts a main process module of the mod's (below) and resolves to its methods, each called through the main process and so returning a promise, with `on(name, listener)` to hear what it emits; `on` returns the unsubscribe. A path outside the mod's folder, or a module that throws as it starts, rejects. A failed start is tried again the next time it is asked for.
 
