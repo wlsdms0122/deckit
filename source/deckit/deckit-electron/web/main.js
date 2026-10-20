@@ -26,9 +26,12 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
         (name) =>
         (...args) =>
             deck[name](...args);
+    const sessionOfPage = (page) => PARTITION.read(SESSION.partitionOf(page));
     const SITE_PERMISSION = createSitePermission({
         SESSION,
         REGISTRY,
+        sessionOf: sessionOfPage,
+        permits: told('permits'),
         request: told('request'),
         requestApp: told('requestApp'),
     });
@@ -36,8 +39,9 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
     const SCRIPT = createScript({
         LOG,
         DEBUGGER,
-        SESSION,
-        SITE_PERMISSION,
+        sessionOf: sessionOfPage,
+        permits: told('permits'),
+        permitted: told('permitted'),
         notified: told('notified'),
         request: told('request'),
     });
@@ -49,7 +53,6 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
         deck = ENVIRONMENT.checked(given, ENVIRONMENT.WEB_DECK, 'what deck hands the web');
         SITE_PERMISSION.start();
         CERTIFICATE.start();
-        SCRIPT.start();
     }
 
     function embed(modPage) {
@@ -168,10 +171,6 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
         };
     }
 
-    function granted(page, origin, permission) {
-        return SITE_PERMISSION.granted(SESSION.partitionOf(page), origin, permission);
-    }
-
     // MARK: - Private
     // The session the partitions an element names spell, one and the same, as `{ mod, name }`, or null.
     function sessionOf(partitions) {
@@ -213,8 +212,8 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
             return verdict === 'load' ? loadURL(url, options) : Promise.resolve();
         };
         LOG.guard(page, 'will-navigate', (event, url) => {
-            if (deck.loading(modPage, page, String(url), { inPage, from: page.getURL() }) === 'leave')
-                event.preventDefault();
+            const verdict = deck.loading(modPage, page, String(url), { inPage, from: page.getURL(), followed: true });
+            if (verdict !== 'load') event.preventDefault();
         });
         // A new document starts without the last one's icon or streams; it announces its own.
         LOG.guard(page, 'did-navigate', () => {
@@ -315,12 +314,11 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
         close,
         stateOf,
         clickNotification: (page, notification) => SCRIPT.clickNotification(page, notification),
-        granted,
+        sessionOf: sessionOfPage,
+        permissionsChanged: () => SCRIPT.permissionsChanged(),
         fetchText: (mod, session, url) => SESSION.fetchText(mod, session, url),
         clear: (mod, session) => SESSION.clear(mod, session),
         trust: (mod, session, entries) => CERTIFICATE.trust(PARTITION.spell(mod, session), entries),
-        allow: (mod, session, entries) => SITE_PERMISSION.allow(PARTITION.spell(mod, session), entries),
-        revoke: (mod, session, entries) => SITE_PERMISSION.revoke(PARTITION.spell(mod, session), entries),
         sessionsOf: (mod) => PARTITION.prefixOf(mod),
     };
 }

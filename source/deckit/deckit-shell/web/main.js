@@ -4,6 +4,7 @@ import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 import * as SESSION from './model/session.js';
 import * as SITE from './model/site.js';
+import * as SITE_PERMISSION from './model/site-permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -30,6 +31,9 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     const windows = new Map(); // id of a web page in a window a mod asked for -> the mod's page that asked
     const questions = new Map(); // ask id -> { embedder, key, off, waiting: [resolve] }
     const questionFor = new Map(); // web page id|origin|permissions -> ask id
+    // mod|session|origin|permission: what a mod let a site have in one of its sessions, until the app quits. The mod
+    // hands it back through allow(); a refusal is not kept, so a page refused by mistake can ask again once reloaded.
+    const granted = new Set();
     let sequence = 0;
 
     // MARK: - Initializer
@@ -49,7 +53,9 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             },
             refused: (embedder, id, certificate) => PROTOCOL.refused.send(embedder, { id, certificate }),
             notified,
-            request: (embedder, id, { origin, permissions }) => ask(embedder, id, origin, permissions),
+            permits,
+            permitted,
+            request,
             requestApp: (embedder, id, { url, origin }) => mayOpenApp(embedder, id, url, origin),
         });
         listen();
@@ -104,10 +110,16 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             WEB.trust(IDENTITY.modFrom(sender, WEB_PERMISSION.CERTIFICATES).id, SESSION.nameOf(name), entries)
         );
         PROTOCOL.allow.handle(({ name, entries }, sender) =>
-            WEB.allow(IDENTITY.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS).id, SESSION.nameOf(name), entries)
+            change(IDENTITY.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS).id, SESSION.nameOf(name), entries, (key) =>
+                granted.add(key)
+            )
         );
+        // A page already holding a stream keeps it, and one told "granted" keeps believing it: the mod reloads its
+        // pages of that origin.
         PROTOCOL.revoke.handle(({ name, entries }, sender) =>
-            WEB.revoke(IDENTITY.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS).id, SESSION.nameOf(name), entries)
+            change(IDENTITY.modFrom(sender, WEB_PERMISSION.SITE_PERMISSIONS).id, SESSION.nameOf(name), entries, (key) =>
+                granted.delete(key)
+            )
         );
         PROTOCOL.permit.on(({ ask: id, allow }, sender) => {
             if (questions.get(id)?.embedder === sender) settle(id, allow);
@@ -200,11 +212,13 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // What becomes of a web page `page` asked to load `to`, from `from`, where it is: `load`, `refuse`, or `leave`. A
     // file document never becomes a web one in its page, as the session given to show files would keep the web's
     // cookies: the web it asks for goes to whoever shows the page instead, told it is leaving.
-    function loading(modPage, page, to, { inPage, from = '' }) {
+    function loading(modPage, page, to, { inPage, from = '', followed = false }) {
         if (/^file:/i.test(String(from)) && /^https?:/i.test(String(to))) {
             PROTOCOL.leaving.send(modPage, { id: WEB.holderOf(page).id, url: String(to) });
             return 'leave';
         }
+        // A link the page follows goes where the web takes it: only what is loaded into it is held to what it shows.
+        if (followed) return 'load';
         return mayShow(modPage, to, { inPage }) ? 'load' : 'refuse';
     }
 
@@ -243,7 +257,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // What a site shows only once it was allowed notifications.
     function notified(embedder, id, { origin, notification, title, body, silent }) {
         const page = WEB.pageOf(id);
-        if (!page || !WEB.granted(page, origin, 'notifications')) return;
+        if (!page || !permits(WEB.sessionOf(page), origin, 'notifications')) return;
         PROTOCOL.notified.send(embedder, {
             id,
             notification,
@@ -253,6 +267,47 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         });
     }
 
+    // Whether a site may have `name` in a session, `{ mod, name }` or null for one that is no mod's: what it is let have
+    // without asking, or what the mod let it have when it is asked.
+    function permits(session, origin, name) {
+        const rule = SITE_PERMISSION.ruleOf(name);
+        if (rule !== 'ask') return rule === 'allow' || rule === 'checked';
+        return !!session && granted.has(keyOf(session, SITE.originOf(origin), name));
+    }
+
+    // The sites that may have `name` in a session.
+    function permitted(session, name) {
+        if (!session) return [];
+        const prefix = `${session.mod}|${session.name}|`;
+        return [...granted]
+            .filter((key) => key.startsWith(prefix) && key.endsWith('|' + name))
+            .map((key) => key.slice(prefix.length, -name.length - 1));
+    }
+
+    // What a site asks: refused when it asks for nothing deck names or for something it is never let have, let through
+    // when it is all it is let have without asking, and otherwise asked of the mod showing it.
+    function request(embedder, id, { origin, permissions }) {
+        const rules = permissions.map(SITE_PERMISSION.ruleOf);
+        if (!permissions.length || rules.some((rule) => rule === 'refuse' || rule === 'checked'))
+            return Promise.resolve(false);
+        if (rules.every((rule) => rule === 'allow')) return Promise.resolve(true);
+        return ask(embedder, id, origin, permissions);
+    }
+
+    function keyOf(session, origin, permission) {
+        return `${session.mod}|${session.name}|${origin}|${permission}`;
+    }
+
+    // What a mod lets sites have in one of its sessions, changed: answers how many allowances are kept.
+    function change(modId, name, entries, apply) {
+        for (const entry of entries) {
+            const origin = SITE.originOf(entry?.origin);
+            if (origin && entry.permission) apply(keyOf({ mod: modId, name }, origin, String(entry.permission)));
+        }
+        WEB.permissionsChanged();
+        return granted.size;
+    }
+
     // One question per web page, site and set of permissions: a page asking again before it is answered joins the
     // question already up. Only a mod holding system.site-permissions is asked; for any other the site is refused.
     function ask(embedder, tabId, origin, permissions, about = {}) {
@@ -260,7 +315,9 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             if (!origin || !permissions.length || !decides(embedder)) return resolve(false);
             const tab = WEB.pageOf(tabId);
             if (!tab) return resolve(false);
-            if (permissions.every((permission) => WEB.granted(tab, origin, permission))) return resolve(true);
+            const session = WEB.sessionOf(tab);
+            if (session && permissions.every((permission) => granted.has(keyOf(session, origin, permission))))
+                return resolve(true);
             const key = [tabId, origin, ...[...permissions].sort()].join('|');
             const up = questions.get(questionFor.get(key));
             if (up) {

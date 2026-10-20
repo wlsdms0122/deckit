@@ -1,4 +1,4 @@
-// Deckit.app's Electron entry: deckit's main bundles, the app's own files, then connect.
+// Deckit.app's Electron entry: deckit's main bundles, the app's own files, then the environment, connect and attach.
 const path = require('path');
 const { app, protocol } = require('electron');
 
@@ -16,13 +16,13 @@ if (UNPACKAGED) {
 if (!app.requestSingleInstanceLock()) {
     app.quit();
 } else {
-    const DECKIT = require('./deckit/main.js');
-    const SHELL = require('./deckit/shell-main.js');
+    const ELECTRON = require('./deckit/main.js');
+    const DECKIT = require('./deckit/shell-main.js');
     const { config, folders } = require('./config.js');
     const { createWindow } = require('./window.js');
     const { createApp } = require('./app.js');
     const { createTheme } = require('./theme.js');
-    protocol.registerSchemesAsPrivileged([DECKIT.SCHEME]);
+    protocol.registerSchemesAsPrivileged([ELECTRON.SCHEME]);
     // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
     const restart = () => {
         if (UNPACKAGED) app.once('quit', () => app.exit(RESTART));
@@ -31,14 +31,13 @@ if (!app.requestSingleInstanceLock()) {
     };
     const THEME = createTheme();
     const host = createApp({ WINDOW: createWindow({ CONFIG: config, THEME }), THEME }).make({ restart });
-    const deckit = DECKIT.connect({
+    const environment = ELECTRON.environment({
         preload: path.join(__dirname, 'preload.js'),
         core: path.join(__dirname, 'deckit', require('./deckit/deckit.json').core),
         host,
-        config,
-        folders,
     });
-    SHELL.attach(deckit, { host });
+    const deckit = DECKIT.connect(environment, { host, config, folders });
+    DECKIT.attach(deckit, { host });
     // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
     app.on('activate', () => host.show());
     app.on('second-instance', () => host.show());

@@ -4,7 +4,7 @@
     "exports": {
         "./main.js": "./main.js",
         "./renderer.js": "./renderer.js",
-        "./deck/contract/index.js": "./deck/contract/index.js"
+        "./contract/index.js": "./contract/index.js"
     },
     "dependencies": {
         "deckit-shell": "file:../deckit-shell"

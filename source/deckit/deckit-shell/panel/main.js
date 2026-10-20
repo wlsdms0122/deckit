@@ -1,5 +1,4 @@
 import * as CHANNEL from '../deck/channel/index.js';
-import * as LAYER from '../layer/index.js';
 import * as DECLARED from './protocol.js';
 import * as WIDTH from './model/width.js';
 import * as PAGE from './model/page-name.js';
@@ -51,7 +50,7 @@ export function createPanel({ REGION, deckit, host }) {
     function start() {
         sidebar = { ...sidebar, ...deckit.state.read(SIDEBAR, {}) };
         pinned = new Set(deckit.state.read(PINNED, []));
-        stage = LAYER.checked(deckit.pages.stage(), LAYER.STAGE, 'a stage');
+        stage = deckit.pages.stage();
         stage.whenResized(update);
         listen();
         registerKeys();

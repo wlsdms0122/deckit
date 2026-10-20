@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Checks the channels between main and a page, the stage pages are laid on, what a layer and an environment agree on,
-// deck's client of the core, its runner, the key map, the web pages a mod shows and what a page is told as it starts,
-// runs the core's tests, then drives Deckit.app, put together from the archive the last build made, through the
+// Checks the channels between main and a page, the stage pages are laid on, what an environment gives and connect
+// answers, deck's client of the core, its runner, the key map, the web pages a mod shows and what a page is told as it
+// starts, runs the core's tests, then drives Deckit.app, put together from the archive the last build made, through the
 // scenario, with data of its own that is thrown away. Exits 1 with a line for each check that failed. Screenshots and
 // the app's log are left in .build/test/.
 const fs = require('fs');
@@ -26,7 +26,17 @@ if (!Number.isInteger(port) || port <= 0) {
 }
 
 const main = async () => {
-    for (const check of ['channels.js', 'stage.js', 'layer.js', 'core.js', 'runner.js', 'keymap.js', 'web.js', 'page.js'])
+    const checks = [
+        'channels.js',
+        'stage.js',
+        'environment.js',
+        'core.js',
+        'runner.js',
+        'keymap.js',
+        'web.js',
+        'page.js',
+    ];
+    for (const check of checks)
         execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {
             stdio: 'inherit',
         });

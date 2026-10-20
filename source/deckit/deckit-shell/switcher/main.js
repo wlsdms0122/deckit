@@ -1,5 +1,4 @@
 import * as CHANNEL from '../deck/channel/index.js';
-import * as LAYER from '../layer/index.js';
 import * as DECLARED from './protocol.js';
 import * as PAGE from './model/page-name.js';
 
@@ -83,7 +82,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
     // fills. A renderer that crashed is loaded again.
     function build() {
         if (!stage) {
-            stage = LAYER.checked(deckit.pages.stage(), LAYER.STAGE, 'a stage');
+            stage = deckit.pages.stage();
             stage.whenResized(lay);
             stage.show(true);
         }

@@ -4,7 +4,8 @@ import * as LISTENER from '../listener/index.js';
 // (environment/: MAIN.pages); a page is its token, kept and compared, never read.
 export function createIdentity({ pages: PAGES }) {
     // MARK: - Property
-    // As long as Chromium lets a page act on a person's click or key.
+    // How long after a person's click or key deck takes what a page does as theirs: deck's own window, as a browser
+    // has one for a page's user activation.
     const ACTIVATION_MS = 5000;
     const owners = new Map(); // page -> { mod }, or { page }, the name of a page that runs no mod
     const pages = new Map(); // mod id -> its page

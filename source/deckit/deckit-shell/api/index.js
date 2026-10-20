@@ -1,14 +1,14 @@
-import * as MOD_PERMISSION from '../../deckit-shell/deck/mod/permission.js';
-import * as LIFECYCLE from '../../deckit-shell/deck/mod/lifecycle.js';
-import * as PROXY from '../../deckit-shell/deck/export/proxy.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
-import * as LAYER from '../../deckit-shell/layer/index.js';
+import * as MOD_PERMISSION from '../deck/mod/permission.js';
+import * as LIFECYCLE from '../deck/mod/lifecycle.js';
+import * as PROXY from '../deck/export/proxy.js';
+import * as IPC from '../deck/ipc/main.js';
+import * as ENVIRONMENT from '../environment/index.js';
 
+// What connect answers. `stage` is the environment's (environment: MAIN.stage).
 export function createApi({
     CONFIG,
     STORAGE,
     LOG,
-    WINDOW,
     IDENTITY,
     CATALOG,
     RUNNER,
@@ -19,7 +19,7 @@ export function createApi({
     MAIN_PROCESS,
     PAGE,
     SETUP,
-    STAGE,
+    stage,
 }) {
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
@@ -29,12 +29,11 @@ export function createApi({
     // MARK: - Initializer
 
     // MARK: - Public
-    // What a host app and the shell it puts on deckit reach of deckit, in main: the mods and their runs, pages of
-    // the shell's own, keys, commands, permissions for what the shell adds, their own state, and windows. No more
-    // of deckit is theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what
-    // starts with it.
+    // What a host app and the shell's UI on deckit reach of deckit, in main: the mods and their runs, pages that run
+    // no mod, keys, commands, permissions for what the UI adds, their own state, and the log. No more of deckit is
+    // theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it.
     function make({ onStart }) {
-        const answer = Object.freeze({
+        return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
             onStart,
             attach: SETUP.attach,
@@ -48,30 +47,25 @@ export function createApi({
                 },
                 arrange: CATALOG.arrange,
                 runs: () =>
-                    Object.freeze(
-                        RUNNER.runs().map(({ run, page }) =>
-                            Object.freeze({ run: factsOf(run), page, view: PAGE.viewOf(page) })
-                        )
-                    ),
+                    Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: factsOf(run), page }))),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),
                 listingOf,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
-                modOf: (webContents) => IDENTITY.modOf(webContents)?.id || null,
+                modOf: (page) => IDENTITY.modOf(page)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
-                managerFrom: (webContents) => IDENTITY.modFrom(webContents, MOD_PERMISSION.MODS).id,
+                managerFrom: (page) => IDENTITY.modFrom(page, MOD_PERMISSION.MODS).id,
                 relaunchAll: RUNNER.relaunchAll,
                 // The mods whose main process modules only a restart of the app finishes: [{ id, why }].
                 restartPending: () => frozen(MAIN_PROCESS.restartPending()),
             }),
             pages: Object.freeze({
                 open: PAGE.open,
-                stage: STAGE.stage,
+                // A stage, held to what a stage is as the environment makes it.
+                stage: () => ENVIRONMENT.checked(stage(), ENVIRONMENT.STAGE, 'a stage'),
                 close: PAGE.close,
                 focus: PAGE.focus,
                 isAlive: PAGE.isAlive,
                 whenFocused: PAGE.whenFocused,
-                viewOf: PAGE.viewOf,
-                make: (name) => PAGE.viewOf(PAGE.open(name)),
                 nameOf: IDENTITY.pageNameOf,
                 whenEnds: IDENTITY.whenPageEnds,
                 isPressing: IDENTITY.isPressing,
@@ -80,8 +74,7 @@ export function createApi({
             keymap: Object.freeze({
                 register: KEYMAP.register,
                 chordOf: KEYMAP.chordOf,
-                listen: (webContents, { keys } = {}) =>
-                    KEYMAP.listen(webContents, { keys, page: WEB.pageFor(webContents) }),
+                listen: (page, { keys } = {}) => KEYMAP.listen(page, { keys, page: WEB.pageFor(page) }),
                 delegate: KEYMAP.delegate,
             }),
             commands: Object.freeze({ tones: COMMAND.TONES, session: COMMAND.session }),
@@ -89,14 +82,10 @@ export function createApi({
             // What the host app and its shell keep of the person's, in a folder of their own beside deck's state.
             state: STORAGE.stateIn('host'),
             web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
-            window: Object.freeze({ place: WINDOW.place }),
-            log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, guard: LOG.guard }),
-            // How the shell binds its own channels: as deckit-shell/deck/channel declares them, never one of deckit's.
+            log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error }),
+            // How the UI binds its own channels: as deck/channel declares them, never one of deck's own.
             channels: IPC.layerChannels,
         });
-        // A layer is given at least what a driver and a layer agree on: one this answer lacks fails at once.
-        LAYER.checked(answer, LAYER.CONNECTED, "connect's answer");
-        return answer;
     }
 
     // MARK: - Private

@@ -1,7 +1,7 @@
 // The web pages a mod shows (deckit-shell/web) over a stand-in for the environment's web: what loads in them, which
-// sessions attach and are kept, a mod's windows closing with its document, what a web page's window.open gets, the
-// question put to the mod showing a site, a site's notifications, and a mod's tabs held to the mod. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as
-// such.
+// sessions attach and are kept, a mod's windows closing with its document, what a web page's window.open gets, what a
+// site may have and the question put to the mod showing it, a site's notifications, and a mod's tabs held to the mod.
+// Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -63,7 +63,7 @@ async function main() {
     ]);
     const watching = new Map(); // page -> what watches it
     const done = []; // what the environment was asked to do
-    const allowed = new Set(); // origin|permission
+    let changes = 0; // how often what sites may have changed
     let deck = null;
     let clearing = () => {}; // what happens as a session is cleared
     const windowPage = { id: 9, embedder: filesPage };
@@ -72,7 +72,8 @@ async function main() {
         embed: () => {},
         pageOf: (id) => webPages.get(id) || null,
         holderOf: (page) => ({ embedder: page.embedder, id: page.id, tab: page.id, inPage: true }),
-        granted: (_page, origin, permission) => allowed.has(origin + '|' + permission),
+        sessionOf: (page) => ({ mod: owners.get(page.embedder)?.id, name: 'main' }),
+        permissionsChanged: () => changes++,
         openWindow: () => {
             webPages.set(9, windowPage);
             return 9;
@@ -233,7 +234,13 @@ async function main() {
         (await deck.request(plainPage, 8, { origin: 'https://a.com', permissions: ['camera'] })) === false,
         ''
     );
-    allowed.add('https://a.com|microphone');
+    const allowSite = (origin, permission) =>
+        heard.asked(filesPage, {
+            channel: 'deckit-shell:web-allow',
+            payload: { name: 'main', entries: [{ origin, permission }] },
+        });
+    await allowSite('https://a.com', 'microphone');
+    check('what a mod lets a site have is told the environment', changes === 1, changes);
     check(
         'what was allowed is not asked again',
         (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['microphone'] })) === true,
@@ -248,13 +255,74 @@ async function main() {
     const notice = { origin: 'https://a.com', notification: 1, title: 'Hi', body: 'There', silent: false };
     deck.notified(filesPage, 7, notice);
     check('a site not allowed notifications shows none', shown() === 0, shown());
-    allowed.add('https://a.com|notifications');
+    await allowSite('https://a.com', 'notifications');
     deck.notified(filesPage, 7, { ...notice, title: 'x'.repeat(300) });
     const shownNotice = toldOn('deckit-shell:web-notified').at(-1)?.[1].payload;
     check(
         'a site allowed notifications shows them, cut to length',
         shown() === 1 && shownNotice.title.length === 200,
         shownNotice
+    );
+
+    // What a site may have, as the environment checks it.
+    const session = { mod: 'files', name: 'main' };
+    check(
+        'a site is let have what it is never asked for',
+        deck.permits(null, 'https://b.com', 'fullscreen') === true,
+        ''
+    );
+    check('a site is refused what deck does not name', deck.permits(session, 'https://b.com', 'midi') === false, '');
+    check(
+        'a site has what it is asked for once the mod lets it, in that session alone',
+        deck.permits(session, 'https://a.com', 'notifications') === true &&
+            deck.permits({ mod: 'files', name: 'other' }, 'https://a.com', 'notifications') === false &&
+            deck.permits(session, 'https://b.com', 'notifications') === false,
+        ''
+    );
+    check(
+        'the sites that may have it are listed',
+        JSON.stringify(deck.permitted(session, 'notifications')) === '["https://a.com"]',
+        deck.permitted(session, 'notifications')
+    );
+    check(
+        'a request for nothing deck names, or for what is never let, is refused without asking',
+        (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: [] })) === false &&
+            (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['camera', 'midi'] })) === false,
+        ''
+    );
+    check(
+        'a request for what is let without asking is let',
+        (await deck.request(plainPage, 8, { origin: 'https://a.com', permissions: ['fullscreen'] })) === true,
+        ''
+    );
+    check(
+        'what a site is only checked for is said yes to when checked and refused when asked for',
+        deck.permits(session, 'https://a.com', 'local-network-access') === true &&
+            (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['local-network-access'] })) ===
+                false,
+        ''
+    );
+    await heard.asked(filesPage, {
+        channel: 'deckit-shell:web-revoke',
+        payload: { name: 'main', entries: [{ origin: 'https://a.com', permission: 'notifications' }] },
+    });
+    check(
+        'what a mod revokes a site no longer has',
+        deck.permits(session, 'https://a.com', 'notifications') === false,
+        ''
+    );
+
+    // A link the page follows goes where the web takes it; what is loaded into it is held to what it shows.
+    check(
+        'a link a web page follows loads',
+        deck.loading(plainPage, other, 'zoommtg://x', { inPage: true, from: 'https://a.com', followed: true }) ===
+            'load',
+        ''
+    );
+    check(
+        'an address loaded into a web page it may not show is refused',
+        deck.loading(plainPage, other, 'zoommtg://x', { inPage: true, from: 'https://a.com' }) === 'refuse',
+        ''
     );
 
     // A mod's tabs are its own.

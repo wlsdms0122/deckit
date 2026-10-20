@@ -1,4 +1,4 @@
-import * as ORIGIN from './deck/sandbox/model/origin.js';
+import * as ORIGIN from './sandbox/model/origin.js';
 import { environment } from './environment/renderer.js';
 
 // MARK: - Public

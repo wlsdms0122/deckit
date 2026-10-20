@@ -1,5 +1,5 @@
-// How a channel between main and a page is declared, as plain data with nothing of a driver's: whichever driver carries
-// it reads the same declaration.
+// How a channel between main and a page is declared, as plain data with nothing of an environment's: whichever
+// environment carries it reads the same declaration.
 // MARK: - Property
 // What a field may be, written as is, or ending in `?` when it may be absent.
 const KINDS = Object.freeze(['string', 'number', 'boolean', 'object', 'array', 'any']);
@@ -37,7 +37,7 @@ function problemOf({ channel, fields }, payload) {
     return '';
 }
 
-// Why `declared` is not a channel declared as above, or '': what a driver binds may come from code it does not trust.
+// Why `declared` is not a channel declared as above, or '': what is bound may come from code that is not trusted.
 function declarationProblem(declared) {
     if (kindOf(declared) !== 'object') return `a channel is declared as an object, not ${kindOf(declared)}`;
     const { channel, to, fields, reply, sync = false } = declared;
