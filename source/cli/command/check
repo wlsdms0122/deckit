@@ -86,7 +86,7 @@ function checkFile(file) {
     if (file !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
     const protocol = file.endsWith('/protocol.js');
-    if (!protocol && /["'`](deck|deckit|deckit-shell):(?!\/\/)/.test(plain))
+    if (!protocol && /["'`](deck|deckit-electron|deckit-shell):(?!\/\/)/.test(plain))
         say(file, 'writes a channel; channels are declared in a protocol.js');
     if (protocol) checkChannels(file, plain);
     for (const { spec, file: target } of imports.get(file)) checkImport(file, spec, target);

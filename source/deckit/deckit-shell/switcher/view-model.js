@@ -1,4 +1,4 @@
-import * as MATCH from '../../deckit/match/match.js';
+import * as MATCH from '../../deckit-electron/match/match.js';
 
 // MARK: - Property
 const { TIER, matchFields } = MATCH;

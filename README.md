@@ -10,7 +10,7 @@ Deckit is `source/deckit` and the documents it ships, whole by itself. This pack
 source/cli/deckit build
 ```
 
-writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the bundles of deck and deckit and of the shell, `deckit.json`, the documents a host app reads, and deckit's own mods, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources make the same archive, byte for byte.
+writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the bundles of deck and deckit and of the shell, the core (built with Swift 6.3 or later), `deckit.json`, the documents a host app reads, and deckit's own mods, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources, built with the same Swift, make the same archive, byte for byte.
 
 ```
 source/cli/deckit app
@@ -25,7 +25,7 @@ source/cli/deckit build            the deckit archive, into .build/
 source/cli/deckit app              Deckit.app, into .build/, from the archive the last build made
 source/cli/deckit check            hold the packages' files to how they are laid out
 source/cli/deckit dev              Deckit.app from the sources, its data in .dev/, built again when one changes
-source/cli/deckit test             drive Deckit.app, from the archive the last build made, through its scenario
+source/cli/deckit test             the core's tests, then Deckit.app, from the archive the last build made, through its scenario
 source/cli/deckit install          Deckit.app into /Applications, as the last app command made it
 source/cli/deckit engine <mod>     build the Editor's or the Notes' editing engine again, from its src/engine/
 ```

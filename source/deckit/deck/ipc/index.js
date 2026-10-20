@@ -91,18 +91,16 @@ function handle(channel, fields, sync, answer) {
         });
         return;
     }
-    // A synchronous answer is what the handler returns at once: a promise cannot cross.
+    // The page waits for a synchronous answer until main has it, a promise's included.
     ipcMain.on(channel, (event, payload) => {
         const problem = problemOf(channel, fields, payload);
         if (problem) {
             event.returnValue = { error: { message: problem, kind: 'REFUSED' } };
             return;
         }
-        try {
-            event.returnValue = { value: answer(payload, event.sender) };
-        } catch (error) {
-            event.returnValue = { error: errorOf(error) };
-        }
+        settle(() => answer(payload, event.sender)).then((answered) => {
+            event.returnValue = answered;
+        });
     });
 }
 

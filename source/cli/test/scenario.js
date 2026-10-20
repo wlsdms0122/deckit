@@ -29,7 +29,8 @@ function seed({ data, files }) {
     fs.writeFileSync(record, JSON.stringify(session));
 }
 
-async function run({ page, pages, compose, targets, thrown }) {
+// `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far.
+async function run({ page, pages, compose, targets, thrown, endCore, logged }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
     // What main says is on screen, as the panel's frame shows it: the selected row of the mods' list.
@@ -319,6 +320,15 @@ async function run({ page, pages, compose, targets, thrown }) {
         check('scenario ran', false, error.stack);
     }
     check('no page threw', !thrown.length, thrown.slice(0, 3).join(' | '));
+
+    // A core that ends is not started again: what it ended of is told, asking for the app to be restarted.
+    try {
+        endCore();
+        const told = await until(() => /deckit's core ended \(.+\): restart the app/.test(logged()), 5000);
+        check('a core that ends asks for the app to be restarted', told, '');
+    } catch (error) {
+        check('the core was ended', false, error.stack);
+    }
     return report;
 }
 

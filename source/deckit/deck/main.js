@@ -2,6 +2,7 @@ import * as MOD_PERMISSION from './mod/permission.js';
 import { createHome } from './storage/home.js';
 import { createStorage } from './storage/index.js';
 import { createLog } from './log/main.js';
+import { createCore } from './core/main.js';
 import { createPermission } from './mod/permission.js';
 import { createManifest } from './mod/manifest.js';
 import { createFolder } from './mod/folder.js';
@@ -20,12 +21,14 @@ import { createMods } from './mods/main.js';
 
 // Deck in main, made of its parts, each handed what it uses. `id` names everything deck keeps; `home` is its folder,
 // ~/.config/<id> when none is given; `ship` the mod folders the host app ships, installed at every start; `sources`
-// folders of mods read in place, ahead of installed ones. Answers what the layers on deck reach of it.
-export function createDeck({ id = 'deckit', home = null, ship = [], sources = [] } = {}) {
-    const CONFIG = Object.freeze({ id, home, ship, sources });
+// folders of mods read in place, ahead of installed ones; `core` the core's executable. Answers what the layers on deck
+// reach of it.
+export function createDeck({ id = 'deckit', home = null, ship = [], sources = [], core } = {}) {
+    const CONFIG = Object.freeze({ id, home, ship, sources, core });
     const HOME = createHome({ CONFIG });
     const STORAGE = createStorage({ HOME });
     const LOG = createLog({ CONFIG, HOME });
+    const CORE = createCore({ CONFIG, HOME, LOG });
     const PERMISSION = createPermission();
     for (const permission of MOD_PERMISSION.PERMISSIONS) PERMISSION.define(permission);
     const MANIFEST = createManifest({ MOD_PERMISSION: PERMISSION });
@@ -36,7 +39,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     const IDENTITY = createIdentity();
     const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
     const RUNNER = createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFEST });
-    const RECORD = createRecord({ STORAGE, IDENTITY });
+    const RECORD = createRecord({ CORE, IDENTITY });
     const SETTING = createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER });
     const EXPORT = createExport({ IDENTITY, RUNNER });
     const EXTENSION = createExtension({ IDENTITY, RUNNER, EXPORT });
@@ -51,17 +54,19 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         SANDBOX,
         MANIFEST,
         STORAGE,
+        RECORD,
         EXTENSION,
     });
 
     // MARK: - Initializer
     // MARK: - Public
     // Before any page of deck's loads, once the app is ready: `preload` is the file every page loads with. The log
-    // starts then, and what the host app ships is installed, before anything reads the mods.
+    // starts then, then the core, and what the host app ships is installed, before anything reads the mods.
     function prepare({ preload }) {
         LOG.start({
             nameOf: (webContents) => IDENTITY.modOf(webContents)?.id || IDENTITY.pageNameOf(webContents) || 'page',
         });
+        CORE.start();
         SANDBOX.start({ preload });
         if (!CONFIG.ship.length) return;
         for (const { id, outcome, problem } of INSTALL.installShipped())

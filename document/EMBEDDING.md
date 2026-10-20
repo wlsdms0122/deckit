@@ -4,11 +4,12 @@ Deckit is a library a host app embeds, in three layers: deck, the engine that ru
 
 ## 1. The archive
 
-A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it, in an Electron of its own: deckit is made against Electron 44. It keeps the archive as built and unpacks it where it builds and runs. The same sources make the same archive, byte for byte, so its hash says which deckit it is.
+A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it, in an Electron of its own: deckit is made against Electron 44. It keeps the archive as built and unpacks it where it builds and runs. The same sources, built with the same Swift, make the same archive, byte for byte, so its hash says which deckit it is.
 
 | In the archive | |
 |---|---|
-| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a renderer's, the global it leaves, the mods |
+| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a renderer's, the global it leaves, the core's executable (`core`), the mods |
+| `deckit` | the core: deckit's own process, an executable for Macs of either kind (macOS 13 or later). Deckit starts it as the host app is ready and it ends with the host app's process |
 | `main.js` | deck and deckit in main, a CommonJS module: `{ SCHEME, connect }` |
 | `shell-main.js` | deckit's shell in main, a CommonJS module: `{ attach }` |
 | `renderer.js` | deck and deckit in the renderer of every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitRenderer`: `{ boot }` |
@@ -60,13 +61,13 @@ In main, before the host app is ready:
 const DECKIT = require('<deckit>/main.js');
 const SHELL = require('<deckit>/shell-main.js');
 protocol.registerSchemesAsPrivileged([DECKIT.SCHEME, ...theAppsOwn]);
-const deckit = DECKIT.connect({ preload, host, config, folders });
+const deckit = DECKIT.connect({ preload, core, host, config, folders });
 SHELL.attach(deckit, { host });
 ```
 
-`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1). Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
+`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1), and `core` the archive's `deckit` where the host app unpacked it, executable. A host app that signs what it ships signs `deckit` with it, as any executable of its own; one in the App Sandbox gives it `com.apple.security.inherit`. Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
 
-`connect` is called once, with `preload`, the host app's answers about what of deckit is its own and its configuration (section 2); `attach`, once, with what connect answered and the host app's answers about where the shell is shown. One object may answer both. Either throws and names what is missing.
+`connect` is called once, with `preload` and `core`, the host app's answers about what of deckit is its own and its configuration (section 2); `attach`, once, with what connect answered and the host app's answers about where the shell is shown. One object may answer both. Either throws and names what is missing.
 
 What the host app answers deckit:
 

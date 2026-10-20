@@ -8,14 +8,6 @@ export function createStorage({ HOME }) {
     const KEY = /^[a-z0-9][a-z0-9._-]{0,63}$/;
     const COUNT_LIMIT = 1000;
 
-    // A mod's records: JSON by key, kept by deck apart from the mod's own data folder.
-    const records = {
-        read: (modId, key) => STORE.read(recordFile(modId, key)),
-        write: (modId, key, value) => STORE.write(recordFile(modId, key), value),
-        remove: (modId, key) => STORE.remove(recordFile(modId, key)),
-        keys: (modId) => keysOf(path.join(HOME.records, modId)),
-    };
-
     // A mod's settings are deck's to keep, so they live outside the mod's folder.
     const settings = {
         read: (modId) => STORE.read(path.join(HOME.settings, modId + '.json'), {}),
@@ -35,18 +27,17 @@ export function createStorage({ HOME }) {
         return path.join(HOME.data, modId);
     }
 
-    // Every file counts, whatever wrote it: erasing takes them all.
+    // Every file of the mod's data folder counts, whatever wrote it: erasing takes them all.
     async function count(modId) {
         const seen = { count: 0, capped: false, hidden: false };
         await walk(folderOf(modId), 0, seen);
-        await walk(path.join(HOME.records, modId), 0, seen);
         return seen;
     }
 
-    // What deck kept for a mod. Its pages' storage and its web sessions are their sessions' to clear.
+    // What deck kept here for a mod: its records are the core's to erase, and its pages' storage and its web
+    // sessions their sessions' to clear.
     function erase(modId) {
         fs.rmSync(folderOf(modId), { recursive: true, force: true });
-        fs.rmSync(path.join(HOME.records, modId), { recursive: true, force: true });
         fs.rmSync(path.join(HOME.settings, modId + '.json'), { force: true });
     }
 
@@ -63,21 +54,6 @@ export function createStorage({ HOME }) {
     }
 
     // MARK: - Private
-    function recordFile(modId, key) {
-        if (!KEY.test(String(key)) || String(key).includes('..')) {
-            throw Object.assign(new Error('not a record key: ' + key), { kind: 'KEY' });
-        }
-        return path.join(HOME.records, modId, key + '.json');
-    }
-
-    function keysOf(folder) {
-        if (!fs.existsSync(folder)) return [];
-        return fs
-            .readdirSync(folder)
-            .filter((name) => name.endsWith('.json') && KEY.test(name.slice(0, -5)))
-            .map((name) => name.slice(0, -5));
-    }
-
     async function walk(folder, depth, seen) {
         const entries = await fs.promises.readdir(folder, { withFileTypes: true }).catch(() => []);
         for (const entry of entries) {
@@ -89,5 +65,5 @@ export function createStorage({ HOME }) {
         }
     }
 
-    return { folderOf, records, settings, state, stateIn, count, erase };
+    return { folderOf, settings, state, stateIn, count, erase };
 }

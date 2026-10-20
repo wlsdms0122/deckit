@@ -12,7 +12,7 @@ WORK="$(mktemp -d "$OUT/.building.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 LIB="$WORK/lib"
 mkdir -p "$LIB/document" "$LIB/mods"
-SOURCE_HASH="$({ find source/deckit/deck source/deckit/deckit source/deckit/deckit-shell source/deckit/mods source/cli/library.js source/cli/bundle.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+SOURCE_HASH="$({ find source/deckit/deck source/deckit/deckit source/deckit/deckit-electron source/deckit/deckit-shell source/deckit/mods source/cli/library.js source/cli/bundle.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -not -path '*/.build/*' -not -path '*/.swiftpm/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 cp document/EMBEDDING.md document/MOD.md document/UI.md "$LIB/document/"
 
@@ -37,10 +37,18 @@ for dir in source/deckit/mods/*/; do
   " || { echo "$dir does not bundle from its src/ alone into an entry: stopping" >&2; exit 1; }
 done
 
+# The core, for both kinds of Mac, beside main.js. Its build is kept between runs, and nothing in it names where it was
+# built: the same sources make the same bytes.
+CORE_SWIFT=(swift build --package-path source/deckit/deckit --product deckit -c release --arch arm64 --arch x86_64
+  --scratch-path "$OUT/core" -Xswiftc -file-prefix-map -Xswiftc "$PWD/source/deckit/deckit=." -Xlinker -S)
+"${CORE_SWIFT[@]}" --quiet || { echo "the core could not be built: stopping" >&2; exit 1; }
+cp "$("${CORE_SWIFT[@]}" --show-bin-path)/deckit" "$LIB/deckit"
+
 # The packages' bundles, each from its entry, and deckit.json, which says what they are.
 node source/cli/bundle.js "$LIB" "$VERSION" "$SOURCE_HASH" || { echo "deckit could not be bundled: stopping" >&2; exit 1; }
 
-# Byte for byte the same from the same sources, wherever built: the archive's hash is which deckit it is.
+# Byte for byte the same from the same sources, wherever built with the same Swift: the archive's hash is which deckit it
+# is.
 pack() {
   local from="$1" to="$2"
   chmod -R u=rwX,go=rX "$from"

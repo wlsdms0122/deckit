@@ -1,0 +1,13 @@
+{
+    "name": "deckit-electron",
+    "private": true,
+    "exports": {
+        "./main.js": "./main.js",
+        "./renderer.js": "./renderer.js",
+        "./match/match.js": "./match/match.js",
+        "./keymap/chord.js": "./keymap/chord.js"
+    },
+    "dependencies": {
+        "deck": "file:../deck"
+    }
+}

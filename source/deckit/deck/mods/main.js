@@ -4,7 +4,19 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
 // again and counting what one stored.
-export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SANDBOX, MANIFEST, STORAGE, EXTENSION }) {
+export function createMods({
+    LOG,
+    IDENTITY,
+    INSTALL,
+    REMOVE,
+    CATALOG,
+    RUNNER,
+    SANDBOX,
+    MANIFEST,
+    STORAGE,
+    RECORD,
+    EXTENSION,
+}) {
     // MARK: - Property
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
@@ -61,7 +73,7 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
             // A mod id names a folder of deck's and nothing outside it.
             const problem = MANIFEST.idProblem(id);
             if (problem) throw Object.assign(new Error(problem), { kind: 'REFUSED' });
-            return STORAGE.count(id);
+            return stored(id);
         });
         PROTOCOL.watchMods.on((_payload, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -117,8 +129,10 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
     }
 
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
-    // nothing.
+    // nothing. What a removal of the same id left to clear is cleared first, so clearing it never reaches this one.
     async function install(from) {
+        const { id } = INSTALL.wouldInstall(from, shadowed);
+        if (REMOVE.uncleared().includes(id)) await clear(id);
         const manifest = INSTALL.install(from, shadowed);
         CATALOG.refresh({ installed: manifest.id });
         await RUNNER.whenClosed(manifest.id);
@@ -142,21 +156,34 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
         CATALOG.refresh();
         await RUNNER.whenClosed(id);
         const removed = { data: data && REMOVE.eraseData(id) };
-        if (removed.data) await clearSessions(id);
+        if (removed.data) await clear(id);
         return removed;
     }
 
-    // A mod removed with its data, whose pages' storage and sessions were not cleared then: cleared here.
+    // What a mod stored, in its data folder and its records: `{ count, capped, hidden }`.
+    async function stored(id) {
+        const [data, records] = await Promise.all([STORAGE.count(id), RECORD.count(id)]);
+        return { count: data.count + records.count, capped: data.capped, hidden: data.hidden || records.hidden };
+    }
+
+    // A mod removed with its data, whose records, pages' storage and sessions were not cleared then: cleared here.
     function clearUncleared() {
         for (const id of REMOVE.uncleared()) {
-            clearSessions(id).catch((error) => LOG.warn(`could not clear the web storage of ${id}`, error));
+            clear(id).catch((error) => LOG.warn(`could not clear the records and web storage of ${id}`, error));
         }
     }
 
-    // The record that it is to be cleared goes only once it is, so a failure is tried again at the next start.
-    async function clearSessions(id) {
-        await SANDBOX.clearSessions(id);
-        await layer.clearSessions(id);
+    // What a mod removed with its data kept outside its folders: its records, its pages' storage and its sessions.
+    // Each is cleared whether or not another fails; the note that it is to be cleared goes only once all are, so a
+    // failure is tried again at the next start.
+    async function clear(id) {
+        const outcomes = await Promise.allSettled([
+            RECORD.erase(id),
+            SANDBOX.clearSessions(id),
+            layer.clearSessions(id),
+        ]);
+        const failed = outcomes.find(({ status }) => status === 'rejected');
+        if (failed) throw failed.reason;
         REMOVE.cleared(id);
     }
 
