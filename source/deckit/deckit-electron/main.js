@@ -19,7 +19,7 @@ import { createIdentity } from '../deckit-shell/deck/identity/index.js';
 import * as LISTENER from './deck/listener/index.js';
 import { createEnvironment } from './environment/main.js';
 import { createSandbox } from './deck/sandbox/index.js';
-import { createRunner } from './deck/runner/main.js';
+import { createRunner } from '../deckit-shell/deck/runner/main.js';
 import { createRecord } from '../deckit-shell/deck/record/main.js';
 import { createSetting } from '../deckit-shell/deck/setting/main.js';
 import { createExport } from '../deckit-shell/deck/export/main.js';
@@ -96,8 +96,10 @@ function refuseUnknown(what, given, known) {
 
 // Deckit in main, made of deck's parts and its own, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
-    // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses.
-    const ENV = ENVIRONMENT.checked(createEnvironment({ CONFIG, core }), ENVIRONMENT.MAIN, 'what Electron gives deck');
+    // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses. The rest
+    // of it is Electron's own, for what lays pages in a window.
+    const ELECTRON = createEnvironment({ CONFIG, core, preload });
+    const ENV = ENVIRONMENT.checked(ELECTRON, ENVIRONMENT.MAIN, 'what Electron gives deck');
     const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
     // Deck's log, and listening on Electron's objects with what a listener throws logged.
     const LOG = Object.freeze({
@@ -112,7 +114,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const CATALOG = createCatalog({ CORE, LOG, files: ENV.files });
     const IDENTITY = createIdentity({ pages: ENV.pages });
     const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG });
-    const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE });
+    const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
     const RECORD = createRecord({ CORE, IDENTITY });
     const SETTING = createSetting({ CORE, LOG, IDENTITY, RUNNER });
     const EXPORT = createExport({ CORE, IDENTITY, RUNNER });
@@ -149,7 +151,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const MAIN_PROCESS = createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
-    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, RUNNER, LOG });
+    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG, modViewOf: ELECTRON.viewOf });
     const STAGE = createStage({ LOG, WINDOW, viewOf: PAGE.viewOf });
     const API = createApi({
         CONFIG,
@@ -243,8 +245,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
             removed: MAIN_PROCESS.unload,
             clearSessions: SESSION.clearSessions,
         });
-        // A mod's page shows the web in <webview>.
-        RUNNER.start({ preparePage, webPreferences: { webviewTag: true } });
+        RUNNER.start({ preparePage });
     }
 
     // A mod's page shows the web, hears the key map, and offers what it opens to the scheme's handlers: a window it

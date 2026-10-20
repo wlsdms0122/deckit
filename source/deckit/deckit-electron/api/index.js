@@ -47,7 +47,9 @@ export function createApi({
                 arrange: CATALOG.arrange,
                 runs: () =>
                     Object.freeze(
-                        RUNNER.runs().map(({ run, view, page }) => Object.freeze({ run: factsOf(run), page, view }))
+                        RUNNER.runs().map(({ run, page }) =>
+                            Object.freeze({ run: factsOf(run), page, view: PAGE.viewOf(page) })
+                        )
                     ),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),
                 listingOf,

@@ -6,7 +6,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The pages that run no mod, which a layer on deckit draws, and what any page of deck's is to that layer: a token it
 // keeps and hands back, never reads.
-export function createPage({ IDENTITY, PARTITION, SANDBOX, RUNNER, LOG }) {
+export function createPage({ IDENTITY, PARTITION, SANDBOX, LOG, modViewOf }) {
     // MARK: - Property
     const views = new WeakMap(); // a page opened here, or a surface one opened -> the view it is in
     const surfacePages = new WeakMap(); // a surface a page opened here opened -> its leaving the opener's surfaces
@@ -56,7 +56,7 @@ export function createPage({ IDENTITY, PARTITION, SANDBOX, RUNNER, LOG }) {
 
     // The view a page of deck's is in: one opened here, a surface one opened, or a mod's.
     function viewOf(page) {
-        return views.get(page) || RUNNER.viewOf(page);
+        return views.get(page) || modViewOf(page);
     }
 
     // Whether the page is still there: it is gone once it is closed.

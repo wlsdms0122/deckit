@@ -16,28 +16,27 @@ export function createIdentity({ pages: PAGES }) {
     // MARK: - Initializer
     // MARK: - Public
     // Only main makes the pages a mod runs in and the pages that run none, so who sent a message is known by which
-    // page it came from, and never by what the message says. What watches a page before it is added is told before
-    // it: a crash's cause is told before the run's page is gone, and the core keeps the first problem of a run. A key
-    // is counted before what watches the page's input after it may take it. A page is held to the address it loads,
-    // so it is known as its owner for as long as it is.
+    // page it came from, and never by what the message says. A key is counted before what watches the page's input
+    // after it may take it. A page is held to the address it loads, so it is known as its owner for as long as it is.
     function add(page, owner) {
         owners.set(page, owner);
         PAGES.pin(page);
         watchPresses(page);
         if (owner.mod) pages.set(owner.mod.id, page);
         ends.set(page, new Set());
-        // Each undo runs whatever another throws.
-        const end = (undos) => {
+        // Each undo runs whatever another throws, told how the document ended.
+        const end = (undos, ending) => {
             const due = [...undos];
             undos.clear();
-            for (const undo of due) LISTENER.wrap(undo, 'what a page set up')();
+            for (const undo of due) LISTENER.wrap(undo, 'what a page set up')(ending);
         };
         // A reload or a crashed renderer keeps the page, but the document that set things up is gone. A navigation
         // ends it only once it commits: one the environment refuses never does.
         PAGES.watch(page, {
-            ended: () => end(ends.get(page)),
+            ended: () => end(ends.get(page), { replaced: true }),
+            gone: (why) => end(ends.get(page), { gone: why }),
             destroyed: () => {
-                end(ends.get(page));
+                end(ends.get(page), { destroyed: true });
                 ends.delete(page);
                 owners.delete(page);
                 if (owner.mod && pages.get(owner.mod.id) === page) pages.delete(owner.mod.id);
@@ -45,8 +44,9 @@ export function createIdentity({ pages: PAGES }) {
         });
     }
 
-    // What a page set up lasts as long as the page: `undo` is called once, when the page navigates away, crashes
-    // or is gone. Calling what this returns drops `undo` uncalled.
+    // What a page set up lasts as long as the page: `undo(ending)` is called once, when the page navigates away, its
+    // process ends or it is destroyed, `ending` saying which: `{ replaced: true }`, `{ gone: why }` or
+    // `{ destroyed: true }`. Calling what this returns drops `undo` uncalled.
     function whenPageEnds(page, undo) {
         const undos = ends.get(page);
         if (!undos) throw new Error("whenEnds takes a page of deck's: a mod's, or one that runs none");
