@@ -1,7 +1,8 @@
 import * as SITE from '../../deckit-shell/web/model/site.js';
 
-// What a web page's Notification shows, and what it asks, are told to deck: `notified(embedder, id, { notification,
-// title, body, silent })`, and `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed.
+// What a web page's Notification shows, and what it asks, are told to deck: `notified(embedder, id, { origin,
+// notification, title, body, silent })`, and `request(embedder, id, { origin, permissions })`, a promise of whether it
+// is allowed.
 export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION, notified, request }) {
     // MARK: - Property
     // Electron's own notification knows nothing of the page, so the page's Notification is replaced by a content
@@ -62,8 +63,9 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION, notified
                     screen: !!message.screen,
                 });
                 changed();
-            } else if (message.op === 'show' && allowed(origin)) {
+            } else if (message.op === 'show') {
                 notified(embedder, page.id, {
+                    origin,
                     notification: id,
                     title: String(message.title),
                     body: String(message.body),

@@ -1,3 +1,4 @@
+import * as ENVIRONMENT from '../../deckit-shell/environment/index.js';
 import { createPartition } from './model/partition.js';
 import { createSession } from './session.js';
 import { createRegistry } from './registry.js';
@@ -9,8 +10,7 @@ import { createScript } from './script.js';
 
 // The web pages a mod's page shows, as Electron shows them (deckit-shell/environment: MAIN.web): a <webview> in the
 // mod's page, or a page in a window of the app's, each in a session of the mod's, its web page id its webContents id.
-// `modIdOf(page)` is the mod a page of deck's runs.
-export function createWeb({ CONFIG, LOG, WINDOW, modIdOf }) {
+export function createWeb({ CONFIG, LOG, WINDOW }) {
     // MARK: - Property
     const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
     const icons = new Map(); // page id -> the icon it last announced
@@ -46,7 +46,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, modIdOf }) {
     // MARK: - Public
     function listen(given) {
         if (deck) throw new Error('[deckit] the web is listened to once');
-        deck = given;
+        deck = ENVIRONMENT.checked(given, ENVIRONMENT.WEB_DECK, 'what deck hands the web');
         SITE_PERMISSION.start();
         CERTIFICATE.start();
         SCRIPT.start();
@@ -64,23 +64,22 @@ export function createWeb({ CONFIG, LOG, WINDOW, modIdOf }) {
                 allowRunningInsecureContent: false,
                 experimentalFeatures: false,
             });
-            const named = [params.partition, preferences.partition].filter(Boolean).map(PARTITION.read);
-            if (!deck.attaching(modPage, named)) {
+            // Whatever fails on the way, the web page is not shown.
+            const source = String(params.src || '');
+            let shows = false;
+            try {
+                const session = sessionOf([params.partition, preferences.partition].filter(Boolean));
+                if (!deck.attaching(modPage, session)) throw new Error("its session is not the mod's");
+                SESSION.of(session.mod, session.name);
+                shows = source === 'about:blank' || deck.loading(modPage, null, source, { inPage: true }) === 'load';
+            } catch (error) {
+                LOG.warn('a web page was not shown', error?.message || '');
                 event.preventDefault();
                 return;
             }
-            SESSION.of(named[0].mod, named[0].name);
-            const source = String(params.src || '');
-            if (source !== 'about:blank' && !deck.mayShow(modPage, source, { inPage: true }))
-                params.src = 'about:blank';
+            if (!shows) params.src = 'about:blank';
         });
         LOG.guard(modPage, 'did-attach-webview', (_event, page) => adopt(modPage, page, { inPage: true }));
-        // A window page answers to the document that asked for it; a new document has no delegate for it.
-        const closeWindows = () => {
-            for (const entry of windows.values()) if (entry.embedder === modPage) entry.window.close();
-        };
-        LOG.guard(modPage, 'did-navigate', closeWindows);
-        modPage.once('destroyed', closeWindows);
     }
 
     // A web page deck holds, while it is there.
@@ -173,12 +172,16 @@ export function createWeb({ CONFIG, LOG, WINDOW, modIdOf }) {
         return SITE_PERMISSION.granted(SESSION.partitionOf(page), origin, permission);
     }
 
-    function whenGone(page, listener) {
-        page.once('destroyed', listener);
-        return () => page.removeListener('destroyed', listener);
+    // MARK: - Private
+    // The session the partitions an element names spell, one and the same, as `{ mod, name }`, or null.
+    function sessionOf(partitions) {
+        const named = partitions.map(PARTITION.read);
+        const [first] = named;
+        return first && named.every((session) => session?.mod === first.mod && session.name === first.name)
+            ? first
+            : null;
     }
 
-    // MARK: - Private
     function report(modPage, page) {
         const state = stateOf(page);
         if (state) deck.changed(modPage, page.id, state);
@@ -186,7 +189,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, modIdOf }) {
 
     function adopt(modPage, page, { inPage }) {
         const id = page.id;
-        REGISTRY.add(page, { embedder: modPage, mod: modIdOf(modPage), tab: id, inPage });
+        REGISTRY.add(page, { embedder: modPage, tab: id, inPage });
         deck.adopted(modPage, page);
         AGENT.presentAsBrowser(page);
         page.once('destroyed', () => icons.delete(id));
@@ -206,17 +209,12 @@ export function createWeb({ CONFIG, LOG, WINDOW, modIdOf }) {
         // will-navigate.
         const loadURL = page.loadURL.bind(page);
         page.loadURL = (url, options) => {
-            const to = String(url || '');
-            if (deck.leavesFile(page.getURL(), to)) {
-                deck.leaving(modPage, id, to);
-                return Promise.resolve();
-            }
-            return deck.mayShow(modPage, to, { inPage }) ? loadURL(url, options) : Promise.resolve();
+            const verdict = deck.loading(modPage, page, String(url || ''), { inPage, from: page.getURL() });
+            return verdict === 'load' ? loadURL(url, options) : Promise.resolve();
         };
         LOG.guard(page, 'will-navigate', (event, url) => {
-            if (!deck.leavesFile(page.getURL(), url)) return;
-            event.preventDefault();
-            deck.leaving(modPage, id, String(url));
+            if (deck.loading(modPage, page, String(url), { inPage, from: page.getURL() }) === 'leave')
+                event.preventDefault();
         });
         // A new document starts without the last one's icon or streams; it announces its own.
         LOG.guard(page, 'did-navigate', () => {
@@ -276,7 +274,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, modIdOf }) {
         });
         const page = pageView.webContents;
         const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
-        REGISTRY.add(page, { embedder: modPage, mod: modIdOf(modPage), tab });
+        REGISTRY.add(page, { embedder: modPage, tab });
         deck.adopted(modPage, page);
         holdWindowOpen(modPage, page, { inPage: false });
         const size = options.width && options.height ? { width: options.width, height: options.height } : null;
@@ -318,7 +316,6 @@ export function createWeb({ CONFIG, LOG, WINDOW, modIdOf }) {
         stateOf,
         clickNotification: (page, notification) => SCRIPT.clickNotification(page, notification),
         granted,
-        whenGone,
         fetchText: (mod, session, url) => SESSION.fetchText(mod, session, url),
         clear: (mod, session) => SESSION.clear(mod, session),
         trust: (mod, session, entries) => CERTIFICATE.trust(PARTITION.spell(mod, session), entries),

@@ -114,7 +114,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const WINDOW = ELECTRON.window;
     const PARTITION = createPartition({ CONFIG });
     const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: ENV.pages, keys: ENV.keys });
-    const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, open: ENV.open });
+    const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
     const OPEN = createOpen({ LOG, IDENTITY, CORE, open: ENV.open });
     const NOTIFICATION = createNotification({
         LOG,

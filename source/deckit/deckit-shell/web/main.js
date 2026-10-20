@@ -7,14 +7,14 @@ import * as SITE from './model/site.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// `web` is the environment's: the web pages a mod's page shows, their sessions, and what a site was allowed. `open` is
-// the environment's too: what opens an address outside the app.
-export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYSTEM }) {
+// `web` is the environment's: the web pages a mod's page shows, their sessions, and what a site was allowed. `pages`
+// and `open` are the environment's too: what it tells of a page, and what opens an address outside the app.
+export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAGES, open: SYSTEM }) {
     // MARK: - Property
     const SESSIONS = 'web-sessions'; // the state's key: mod id -> the names of the web sessions it used
     const TITLE_LIMIT = 200;
     const BODY_LIMIT = 400;
-    // Asked per scheme, so a site allowed one app is not allowed every app.
+    // Asked per scheme, so a site allowed one app is not allowed every app. These are the web's own, never an app's.
     const NEVER_OUT = new Set([
         'javascript',
         'data',
@@ -22,15 +22,12 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
         'file',
         'filesystem',
         'about',
-        'chrome',
-        'chrome-extension',
-        'devtools',
-        'view-source',
         'http',
         'https',
         'ws',
         'wss',
     ]);
+    const windows = new Map(); // id of a web page in a window a mod asked for -> the mod's page that asked
     const questions = new Map(); // ask id -> { embedder, key, off, waiting: [resolve] }
     const questionFor = new Map(); // web page id|origin|permissions -> ask id
     let sequence = 0;
@@ -39,16 +36,17 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
     // MARK: - Public
     function start() {
         WEB.listen({
-            mayShow,
-            leavesFile,
+            loading,
             attaching,
-            adopted,
             windowOpen,
+            adopted,
             changed: (embedder, id, state) => PROTOCOL.changed.send(embedder, { id, state }),
             found: (embedder, id, { matches, active, final }) =>
                 PROTOCOL.found.send(embedder, { id, matches, active, final }),
-            leaving: (embedder, id, url) => PROTOCOL.leaving.send(embedder, { id, url }),
-            closed: (embedder, id) => PROTOCOL.closed.send(embedder, { id }),
+            closed: (embedder, id) => {
+                windows.delete(id);
+                PROTOCOL.closed.send(embedder, { id });
+            },
             refused: (embedder, id, certificate) => PROTOCOL.refused.send(embedder, { id, certificate }),
             notified,
             request: (embedder, id, { origin, permissions }) => ask(embedder, id, origin, permissions),
@@ -58,9 +56,17 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
     }
 
     // A mod's page that shows web pages: only that mod's sessions attach there, and only the web, or a file for a mod
-    // with system.files, loads in them.
+    // with system.files, loads in them. A window it asked for answers to the document that asked for it, and a new
+    // document has no delegate for it, so it closes.
     function prepare(modPage) {
         WEB.embed(modPage);
+        const closeWindows = () => {
+            for (const [id, embedder] of windows) {
+                const page = embedder === modPage && WEB.pageOf(id);
+                if (page) WEB.close(page);
+            }
+        };
+        PAGES.watch(modPage, { ended: closeWindows, destroyed: closeWindows });
     }
 
     // The page of deck's a page answers to: a mod's or one the shell made, or the mod's page that shows it as a web
@@ -75,10 +81,11 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
         return WEB.holdsKeyboard(modPage);
     }
 
-    // What a mod kept in the web sessions it used.
+    // What a mod kept in the web sessions it used. The record is read again once they are cleared, so what another mod
+    // used meanwhile stays.
     async function clearSessions(modId) {
+        for (const name of STORAGE.state.read(SESSIONS, {})[modId] || []) await WEB.clear(modId, name);
         const sessions = STORAGE.state.read(SESSIONS, {});
-        for (const name of sessions[modId] || []) await WEB.clear(modId, name);
         delete sessions[modId];
         STORAGE.state.write(SESSIONS, sessions);
         LOG.info(`forgot the web sessions of ${modId}`);
@@ -166,7 +173,9 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
     function openWindow(modPage, mod, name, url, title) {
         if (!mayShow(modPage, url, { inPage: false })) return 0;
         use(mod.id, name);
-        return WEB.openWindow(modPage, { mod: mod.id, session: name, url, title });
+        const id = WEB.openWindow(modPage, { mod: mod.id, session: name, url, title });
+        windows.set(id, modPage);
+        return id;
     }
 
     async function fetchText(mod, name, url) {
@@ -188,18 +197,23 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
         return !!IDENTITY.modOf(modPage)?.permissions.some(({ id }) => id === WEB_PERMISSION.FILES);
     }
 
-    // A file document never becomes a web one in its page: the session given to show files would keep the web's
-    // cookies. The web it asks for goes to whoever shows the page instead.
-    function leavesFile(from, to) {
-        return /^file:/i.test(String(from)) && /^https?:/i.test(String(to));
+    // What becomes of a web page `page` asked to load `to`, from `from`, where it is: `load`, `refuse`, or `leave`. A
+    // file document never becomes a web one in its page, as the session given to show files would keep the web's
+    // cookies: the web it asks for goes to whoever shows the page instead, told it is leaving.
+    function loading(modPage, page, to, { inPage, from = '' }) {
+        if (/^file:/i.test(String(from)) && /^https?:/i.test(String(to))) {
+            PROTOCOL.leaving.send(modPage, { id: WEB.holderOf(page).id, url: String(to) });
+            return 'leave';
+        }
+        return mayShow(modPage, to, { inPage }) ? 'load' : 'refuse';
     }
 
-    // Only the mod's own sessions attach in its page: `sessions` are those the page names, each `{ mod, name }`, or
-    // null for one that is no mod's.
-    function attaching(modPage, sessions) {
+    // Only the mod's own sessions attach in its page: `session` is the one the page names, `{ mod, name }`, or null for
+    // one that is no mod's.
+    function attaching(modPage, session) {
         const mod = IDENTITY.modOf(modPage);
-        if (!sessions.length || sessions.some((session) => session?.mod !== mod.id)) return false;
-        use(mod.id, sessions[0].name);
+        if (session?.mod !== mod.id) return false;
+        use(mod.id, session.name);
         return true;
     }
 
@@ -226,7 +240,10 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
         return false;
     }
 
-    function notified(embedder, id, { notification, title, body, silent }) {
+    // What a site shows only once it was allowed notifications.
+    function notified(embedder, id, { origin, notification, title, body, silent }) {
+        const page = WEB.pageOf(id);
+        if (!page || !WEB.granted(page, origin, 'notifications')) return;
         PROTOCOL.notified.send(embedder, {
             id,
             notification,
@@ -254,7 +271,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
             const question = { embedder, key, off: null, waiting: [resolve] };
             questions.set(id, question);
             questionFor.set(key, id);
-            question.off = WEB.whenGone(tab, () => settle(id, false));
+            question.off = PAGES.watch(tab, { destroyed: () => settle(id, false) });
             PROTOCOL.asking.send(embedder, { id: tabId, ask: id, origin, permissions, ...about });
         });
     }
@@ -265,10 +282,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, open: SYST
         if (!scheme || NEVER_OUT.has(scheme)) return Promise.resolve(false);
         const name = SYSTEM.appFor(String(url));
         if (!name) return Promise.resolve(false);
-        return ask(embedder, tabId, origin, ['open:' + scheme], {
-            app: name.replace(/\.app$/i, ''),
-            url: String(url),
-        });
+        return ask(embedder, tabId, origin, ['open:' + scheme], { app: name, url: String(url) });
     }
 
     function decides(embedder) {

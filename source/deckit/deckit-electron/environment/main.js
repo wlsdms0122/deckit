@@ -18,6 +18,8 @@ import { messages } from '../messages/main.js';
 const INPUT = { keyDown: 'keydown', keyUp: 'keyup', mouseDown: 'mousedown', mouseUp: 'mouseup' };
 // Chromium's code for a load that another load replaced.
 const ERR_ABORTED = -3;
+// Chromium's own schemes: its pages, its extensions' and its tools'.
+const CHROMIUM_SCHEMES = Object.freeze(['chrome', 'chrome-extension', 'devtools', 'view-source']);
 
 // MARK: - Initializer
 // MARK: - Public
@@ -41,7 +43,7 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
     MAIN_PROCESS.holdQuit();
     const views = new WeakMap(); // a page a mod runs in, or ran in -> the view it is in, kept while the page is
     const mods = new WeakMap(); // a page a mod runs in -> the mod's id
-    const WEB = createWeb({ CONFIG, LOG, WINDOW, modIdOf: (page) => mods.get(page) || null });
+    const WEB = createWeb({ CONFIG, LOG, WINDOW });
     const clearStorageOf = (modId) => clearStorage(CONFIG, modId);
     // A mod's page shows the web in <webview>.
     const make = ({ modId }) => {
@@ -96,7 +98,6 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
             stateOf: WEB.stateOf,
             clickNotification: WEB.clickNotification,
             granted: WEB.granted,
-            whenGone: WEB.whenGone,
             fetchText: WEB.fetchText,
             clear: WEB.clear,
             trust: WEB.trust,
@@ -144,7 +145,8 @@ function isGone(page) {
     return page.isDestroyed() || page.isCrashed();
 }
 
-// `origin` is the page's own, a mod's, for what leaves it.
+// `origin` is the page's own, a mod's, for what leaves it. Answers what stops watching, but for `opens`, which the page
+// then is refused.
 function watch(
     guard,
     page,
@@ -159,26 +161,31 @@ function watch(
     } = {},
     { origin }
 ) {
+    const added = []; // [event, listener]
+    const on = (event, listener, options) => added.push([event, guard(page, event, listener, options)]);
     if (failed)
-        guard(page, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
+        on('did-fail-load', (_event, code, description, _url, isMainFrame) => {
             if (isMainFrame && code !== ERR_ABORTED) failed(description);
         });
     // A main-frame navigation that commits replaces the document, the first load's included; one refused before it
     // commits leaves it be.
-    if (ended) guard(page, 'did-navigate', () => ended());
-    if (gone) guard(page, 'render-process-gone', (_event, { reason }) => gone(reason));
-    if (destroyed) guard(page, 'destroyed', () => destroyed(), { once: true });
-    if (consoleError)
-        guard(page, 'console-message', ({ level, message }) => level === 'error' && consoleError(message));
+    if (ended) on('did-navigate', () => ended());
+    if (gone) on('render-process-gone', (_event, { reason }) => gone(reason));
+    if (destroyed) on('destroyed', () => destroyed(), { once: true });
+    if (consoleError) on('console-message', ({ level, message }) => level === 'error' && consoleError(message));
     if (opens)
         page.setWindowOpenHandler((details) => {
             opens(details.url, windowOptions(details));
             return { action: 'deny' };
         });
     if (leaves && origin)
-        guard(page, 'will-frame-navigate', (details) => {
+        on('will-frame-navigate', (details) => {
             if (details.isMainFrame && !details.url.startsWith(origin + '/')) leaves(details.url);
         });
+    return () => {
+        for (const [event, listener] of added.splice(0)) page.removeListener(event, listener);
+        if (opens && !page.isDestroyed()) page.setWindowOpenHandler(() => ({ action: 'deny' }));
+    };
 }
 
 // A navigation keeps the page, so a page that left its address would still be known as its owner while it ran
@@ -226,8 +233,13 @@ function reveal(file) {
     return !!found;
 }
 
+// An app's name as a person reads it. Chromium's own schemes open in no app.
 function appFor(url) {
-    return require('electron').app.getApplicationNameForProtocol(String(url));
+    const scheme = String(url).split(':')[0].toLowerCase();
+    if (CHROMIUM_SCHEMES.includes(scheme)) return '';
+    return require('electron')
+        .app.getApplicationNameForProtocol(String(url))
+        .replace(/\.app$/i, '');
 }
 
 async function chooseFolder({ title, buttonLabel, message }) {

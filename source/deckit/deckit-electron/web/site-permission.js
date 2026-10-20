@@ -1,30 +1,30 @@
 import * as SITE from '../../deckit-shell/web/model/site.js';
+import * as SITE_PERMISSION from '../../deckit-shell/web/model/site-permission.js';
 
-// What a site was allowed in a mod's session, and what Chromium asks of a web page's permissions. Deck decides what is
-// asked: `request(embedder, id, { origin, permissions })` and `requestApp(embedder, id, { url, origin })` answer, each
-// a promise, whether the web page of that id, or the tab it answers to, may have it.
+// What a site was allowed in a mod's session, and Chromium's questions about a web page's permissions put in the names
+// deck rules on (deckit-shell/web/model/site-permission.js). Deck decides what is asked: `request(embedder, id,
+// { origin, permissions })` and `requestApp(embedder, id, { url, origin })` answer, each a promise, whether the web page
+// of that id, or the tab it answers to, may have it.
 export function createSitePermission({ SESSION, REGISTRY, request, requestApp }) {
     // MARK: - Property
     // partition|origin|permission. Allowances live until exit: the mod hands them back through allow(). A
     // refusal is not kept, so a page refused by mistake can ask again once reloaded.
     const GRANTED = new Set();
-    const MEDIA = { audio: 'microphone', video: 'camera' };
-    // What a site may have only once it is asked, as a browser asks the person: put to the mod showing it.
-    const ASKED = {
+    // Chromium's names for what a site asks, by the web platform's.
+    const NAMES = {
         notifications: 'notifications',
         'clipboard-read': 'clipboard-read',
         geolocation: 'geolocation',
+        fullscreen: 'fullscreen',
+        'clipboard-sanitized-write': 'clipboard-write',
+        pointerLock: 'pointer-lock',
+        keyboardLock: 'keyboard-lock',
+        mediaKeySystem: 'encrypted-media',
+        'local-network-access': 'local-network-access',
+        'local-network': 'local-network-access',
+        'loopback-network': 'local-network-access',
     };
-    // What a browser lets a site have without asking. Anything neither here nor asked is refused.
-    const UNASKED = new Set([
-        'fullscreen',
-        'clipboard-sanitized-write',
-        'pointerLock',
-        'keyboardLock',
-        'mediaKeySystem',
-    ]);
-    // Nothing follows a local network check to ask, and Electron does not block the connection either.
-    const LOCAL_NETWORK = new Set(['local-network-access', 'local-network', 'loopback-network']);
+    const MEDIA = { audio: 'microphone', video: 'camera' };
     const listeners = new Set();
 
     // MARK: - Initializer
@@ -82,8 +82,6 @@ export function createSitePermission({ SESSION, REGISTRY, request, requestApp })
     function onRequest(page, permission, callback, details) {
         const at = REGISTRY.tabOf(page);
         if (!at) return callback(false);
-        if (UNASKED.has(permission)) return callback(true);
-        const origin = SITE.originOf(details?.securityOrigin || details?.requestingUrl || page.getURL());
         if (permission === 'openExternal') {
             requestApp(at.embedder, at.tab.id, {
                 url: details?.externalURL,
@@ -91,26 +89,30 @@ export function createSitePermission({ SESSION, REGISTRY, request, requestApp })
             }).then(callback);
             return;
         }
-        const permissions =
-            permission === 'media'
-                ? [...new Set((details?.mediaTypes || []).map((type) => MEDIA[type]).filter(Boolean))]
-                : Object.hasOwn(ASKED, permission)
-                  ? [ASKED[permission]]
-                  : [];
-        if (!permissions.length) return callback(false);
+        const permissions = namesOf(permission, details);
+        const rules = permissions.map(SITE_PERMISSION.ruleOf);
+        if (permissions.length && rules.every((rule) => rule === 'allow')) return callback(true);
+        if (!permissions.length || rules.some((rule) => rule === 'refuse')) return callback(false);
+        const origin = SITE.originOf(details?.securityOrigin || details?.requestingUrl || page.getURL());
         request(at.embedder, at.tab.id, { origin, permissions }).then(callback);
     }
 
     // A check has no way to ask, and a page told no stops before it ever asks, so media says yes and the
     // request that follows asks. What is asked answers whether it was allowed.
     function onCheck(page, permission, requestingOrigin, details) {
-        if (LOCAL_NETWORK.has(permission) || UNASKED.has(permission) || permission === 'media') return true;
-        if (!Object.hasOwn(ASKED, permission) || !page) return false;
-        return granted(
-            SESSION.partitionOf(page),
-            SITE.originOf(details?.securityOrigin || requestingOrigin),
-            ASKED[permission]
-        );
+        if (permission === 'media') return true;
+        const name = NAMES[permission];
+        const rule = name ? SITE_PERMISSION.ruleOf(name) : 'refuse';
+        if (rule === 'allow') return true;
+        if (rule !== 'ask' || !page) return false;
+        return granted(SESSION.partitionOf(page), SITE.originOf(details?.securityOrigin || requestingOrigin), name);
+    }
+
+    // What a site asks, by the web platform's names: a camera or a microphone for media.
+    function namesOf(permission, details) {
+        if (permission === 'media')
+            return [...new Set((details?.mediaTypes || []).map((type) => MEDIA[type]).filter(Boolean))];
+        return Object.hasOwn(NAMES, permission) ? [NAMES[permission]] : [];
     }
 
     return { start, granted, onChange, notifications, allow, revoke };
