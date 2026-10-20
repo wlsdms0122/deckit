@@ -4,7 +4,7 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
 // again and counting what one stored.
-export function createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION }) {
+export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION }) {
     // MARK: - Property
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
@@ -18,7 +18,7 @@ export function createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, ST
     // and to clear the sessions it made for a mod removed with its data (`clearSessions(id)`, a promise).
     function start(given) {
         layer = given;
-        clearUncleared();
+        eraseUncleared();
         listen();
     }
 
@@ -115,10 +115,10 @@ export function createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, ST
     }
 
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
-    // nothing. What a removal of the same id left to clear is cleared first, so clearing it never reaches this one.
+    // nothing. What a removal of the same id left to erase is erased first, so erasing it never reaches this one.
     async function install(from) {
         const { id } = await CATALOG.wouldInstall(from);
-        if (REMOVE.uncleared().includes(id)) await clear(id);
+        if ((await CORE.request('erasure/uncleared')).includes(id)) await erase(id);
         const manifest = await CATALOG.install(from);
         await CATALOG.refresh();
         await RUNNER.whenClosed(manifest.id);
@@ -133,8 +133,7 @@ export function createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, ST
         await CATALOG.refresh();
         await RUNNER.whenClosed(id);
         if (!data || !keeps) return { data: false };
-        await REMOVE.eraseData(id);
-        await clear(id);
+        await erase(id);
         return { data: true };
     }
 
@@ -144,28 +143,30 @@ export function createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, ST
         return { count: data.count + records.count, capped: data.capped, hidden: data.hidden || records.hidden };
     }
 
-    // A mod removed with its data, whose records, settings, pages' storage and sessions were not cleared then: cleared
-    // here.
-    function clearUncleared() {
-        for (const id of REMOVE.uncleared()) {
-            clear(id).catch((error) => LOG.warn(`could not clear what the core and web storage keep of ${id}`, error));
+    // A mod removed with its data, whose pages' storage and sessions were not cleared then, or what the core keeps of
+    // it not erased: erased here.
+    async function eraseUncleared() {
+        const uncleared = await CORE.request('erasure/uncleared').catch((error) => {
+            LOG.warn('could not read which mods removed are left to erase', error);
+            return [];
+        });
+        for (const id of uncleared) {
+            erase(id).catch((error) => LOG.warn(`could not erase what is kept of ${id}`, error));
         }
     }
 
-    // What a mod removed with its data kept outside its folders: its records and settings, its pages' storage and its
-    // sessions.
-    // Each is cleared whether or not another fails; the note that it is to be cleared goes only once all are, so a
-    // failure is tried again at the next start.
-    async function clear(id) {
+    // What a mod removed with its data kept outside its own folder: the core erases its data folder, its records and
+    // its settings, and notes it until its pages' storage and its sessions are cleared here. Each is cleared whether
+    // or not another fails; the note goes only once all are, so a failure is tried again at the next start.
+    async function erase(id) {
         const outcomes = await Promise.allSettled([
-            RECORD.erase(id),
-            STORAGE.settings.erase(id),
+            CORE.request('erasure/erase', { mod: id }),
             SANDBOX.clearSessions(id),
             layer.clearSessions(id),
         ]);
         const failed = outcomes.find(({ status }) => status === 'rejected');
         if (failed) throw failed.reason;
-        REMOVE.cleared(id);
+        await CORE.request('erasure/cleared', { mod: id });
     }
 
     return { start, wouldInstall };

@@ -24,11 +24,6 @@ export function createRecord({ CORE, IDENTITY }) {
         );
     }
 
-    // Every record of the mod's.
-    function erase(modId) {
-        return CORE.request('record/erase', { mod: modId });
-    }
-
     // How many files the mod's records are, `{ count, hidden }`.
     function count(modId) {
         return CORE.request('record/count', { mod: modId });
@@ -44,5 +39,5 @@ export function createRecord({ CORE, IDENTITY }) {
         }
     }
 
-    return { start, erase, count };
+    return { start, count };
 }

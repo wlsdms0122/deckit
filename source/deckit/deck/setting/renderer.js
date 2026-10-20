@@ -42,21 +42,22 @@ function of({ declared, saved, deck, deliver, fail }) {
     };
 }
 
-// What main is told of the declarations: their data, without functions. A type deck does not know is
-// left out and told to `invalid`.
+// What main is told of the declarations: their data, without functions, in the order declared. A type deck does not
+// know is left out and told to `invalid`.
 function declarationsOf(declared, invalid) {
-    const out = {};
+    const out = [];
     for (const [key, declaration] of Object.entries(declared || {})) {
         if (!SETTING_TYPE.TYPES.has(declaration?.type)) {
             invalid(`setting "${key}" has no type deck knows: ${declaration?.type}`);
             continue;
         }
         const { run, options, ...data } = declaration;
-        out[key] = {
+        out.push({
             ...data,
+            key,
             options: Array.isArray(options) ? options : [],
             computed: typeof options === 'function',
-        };
+        });
     }
     return out;
 }
