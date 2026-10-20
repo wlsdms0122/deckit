@@ -36,8 +36,8 @@ export function createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER }) {
     }
 
     // A value saved for a setting the mod no longer declares is not handed back.
-    function valuesOf(modId) {
-        const saved = STORAGE.settings.read(modId);
+    async function valuesOf(modId) {
+        const saved = await STORAGE.settings.read(modId);
         const settings = declared.get(modId)?.settings || {};
         const values = {};
         for (const [key, declaration] of Object.entries(settings)) {
@@ -65,9 +65,7 @@ export function createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER }) {
         const declaration = declared.get(modId)?.settings[key];
         if (!declaration) throw new Error(`${modId} has no setting "${key}"`);
         const next = await coerce(modId, key, declaration, value);
-        const values = STORAGE.settings.read(modId);
-        if (values[key] === next) return next;
-        STORAGE.settings.write(modId, { ...values, [key]: next });
+        if (!(await STORAGE.settings.write(modId, key, next))) return next;
         const webContents = IDENTITY.pageOf(modId);
         if (webContents) PROTOCOL.settingChanged.send(webContents, { key, value: next });
         return next;
@@ -117,7 +115,7 @@ export function createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER }) {
         for (const { id } of CATALOG.mods().filter(({ id }) => declared.has(id))) {
             const { name, settings } = declared.get(id);
             if (!Object.keys(settings).length) continue;
-            const values = valuesOf(id);
+            const values = await valuesOf(id);
             const items = [];
             for (const [key, declaration] of Object.entries(settings)) {
                 const value = values[key];

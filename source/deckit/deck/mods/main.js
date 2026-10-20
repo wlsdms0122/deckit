@@ -166,19 +166,22 @@ export function createMods({
         return { count: data.count + records.count, capped: data.capped, hidden: data.hidden || records.hidden };
     }
 
-    // A mod removed with its data, whose records, pages' storage and sessions were not cleared then: cleared here.
+    // A mod removed with its data, whose records, settings, pages' storage and sessions were not cleared then: cleared
+    // here.
     function clearUncleared() {
         for (const id of REMOVE.uncleared()) {
-            clear(id).catch((error) => LOG.warn(`could not clear the records and web storage of ${id}`, error));
+            clear(id).catch((error) => LOG.warn(`could not clear what the core and web storage keep of ${id}`, error));
         }
     }
 
-    // What a mod removed with its data kept outside its folders: its records, its pages' storage and its sessions.
+    // What a mod removed with its data kept outside its folders: its records and settings, its pages' storage and its
+    // sessions.
     // Each is cleared whether or not another fails; the note that it is to be cleared goes only once all are, so a
     // failure is tried again at the next start.
     async function clear(id) {
         const outcomes = await Promise.allSettled([
             RECORD.erase(id),
+            STORAGE.settings.erase(id),
             SANDBOX.clearSessions(id),
             layer.clearSessions(id),
         ]);
