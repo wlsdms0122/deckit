@@ -1,4 +1,6 @@
-import * as DECK from '../../deck/main.js';
+import * as MOD_PERMISSION from '../deck/mod/permission.js';
+import * as LIFECYCLE from '../deck/mod/lifecycle.js';
+import * as PROXY from '../deck/export/proxy.js';
 
 export function createApi({
     CONFIG,
@@ -6,17 +8,17 @@ export function createApi({
     LOG,
     WINDOW,
     IDENTITY,
-    PAGES,
+    SANDBOX,
     CATALOG,
     RUNNER,
-    MOD_PERMISSION,
+    PERMISSION,
     WEB,
     KEYMAP,
     COMMAND,
     MAIN_PROCESS,
 }) {
     // MARK: - Property
-    const NOTIFICATIONS = Object.freeze([...DECK.NOTIFICATIONS]);
+    const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
     const facts = new WeakMap(); // a run -> what the host app reads of it
     const listings = new WeakMap(); // a run that launched -> how it listed its mod, { icon, keywords }
 
@@ -47,13 +49,13 @@ export function createApi({
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
                 modOf: (webContents) => IDENTITY.modOf(webContents)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
-                managerFrom: (webContents) => IDENTITY.modFrom(webContents, DECK.MODS).id,
+                managerFrom: (webContents) => IDENTITY.modFrom(webContents, MOD_PERMISSION.MODS).id,
                 relaunchAll: RUNNER.relaunchAll,
                 // The mods whose main process modules only a restart of the app finishes: [{ id, why }].
                 restartPending: () => frozen(MAIN_PROCESS.restartPending()),
             }),
             pages: Object.freeze({
-                make: PAGES.make,
+                make: SANDBOX.page,
                 nameOf: IDENTITY.pageNameOf,
                 whenEnds: IDENTITY.whenPageEnds,
                 isPressing: IDENTITY.isPressing,
@@ -67,7 +69,7 @@ export function createApi({
                 delegate: KEYMAP.delegate,
             }),
             commands: Object.freeze({ tones: COMMAND.TONES, session: COMMAND.session }),
-            permissions: Object.freeze({ define: MOD_PERMISSION.define }),
+            permissions: Object.freeze({ define: PERMISSION.define }),
             // What the host app and its shell keep of the person's, in a folder of their own beside deck's state.
             state: STORAGE.stateIn('host'),
             web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
@@ -129,7 +131,7 @@ export function createApi({
     }
 
     function frozen(value) {
-        return DECK.deepFreeze(structuredClone(value));
+        return PROXY.deepFreeze(structuredClone(value));
     }
 
     return { make };

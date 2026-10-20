@@ -1,9 +1,9 @@
-export function createHome({ CONFIG }) {
+export function createHome({ CONFIG, FOLDERS }) {
     // MARK: - Property
     const os = require('os');
     const path = require('path');
     // Not the app's userData: an app that updates can be reinstalled under it.
-    const folder = CONFIG.home || path.join(os.homedir(), '.config', CONFIG.id);
+    const folder = FOLDERS.home || path.join(os.homedir(), '.config', CONFIG.id);
     const mods = path.join(folder, 'mods');
 
     // MARK: - Initializer

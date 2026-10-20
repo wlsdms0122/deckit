@@ -1,4 +1,4 @@
-import * as IPC from '../../deck/ipc/index.js';
+import * as IPC from '../deck/ipc/index.js';
 
 // Answers whether it was shown. `id` comes back with clicked.
 export const show = IPC.rendererToMain(

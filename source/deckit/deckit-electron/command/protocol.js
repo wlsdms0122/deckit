@@ -1,4 +1,4 @@
-import * as IPC from '../../deck/ipc/index.js';
+import * as IPC from '../deck/ipc/index.js';
 
 // Each question carries the session it is for, whose entries the page keeps until it ends.
 export const collect = IPC.mainToRenderer('deckit-electron:command-collect', { reply: true });

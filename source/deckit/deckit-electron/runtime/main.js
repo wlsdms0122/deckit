@@ -1,6 +1,6 @@
 import * as PROTOCOL from './protocol.js';
 import * as BUILD from '../build/index.js';
-import * as DECK from '../../deck/main.js';
+import * as MOD_PERMISSION from '../deck/mod/permission.js';
 
 // `restart` is the app's: the process is its own.
 export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart }) {
@@ -25,7 +25,7 @@ export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart }) {
             };
         });
         PROTOCOL.restart.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, DECK.MODS);
+            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             restart();
             return true;
         });

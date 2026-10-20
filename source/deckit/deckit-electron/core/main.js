@@ -1,10 +1,10 @@
 import * as CONNECTION from './connection.js';
 import * as MESSAGE from './message.js';
-import { API } from '../contract/index.js';
+import { API } from '../deck/contract/index.js';
 
 // The core: deckit's own process, which reads and installs the mods, and keeps what they store and the state.
-// `CONFIG.core` is its executable.
-export function createCore({ CONFIG, HOME, LOG }) {
+// `core` is its executable.
+export function createCore({ CONFIG, FOLDERS, HOME, LOG, core }) {
     // MARK: - Property
     const pending = new Map(); // request id -> { resolve, reject }
     let connection = null;
@@ -17,7 +17,7 @@ export function createCore({ CONFIG, HOME, LOG }) {
     // Once the app is ready, before any mod launches: what the mods are read against is handed over then, `permissions`
     // the layers' own.
     function start({ permissions }) {
-        connection = CONNECTION.open(CONFIG.core, {
+        connection = CONNECTION.open(core, {
             onMessage: receive,
             onLog: (line) => LOG.info('core:', line),
             onEnd: end,
@@ -27,8 +27,8 @@ export function createCore({ CONFIG, HOME, LOG }) {
             name: CONFIG.name,
             schemeHandlers: CONFIG.schemeHandlers,
             api: API,
-            ship: CONFIG.ship,
-            sources: CONFIG.sources,
+            ship: FOLDERS.ship,
+            sources: FOLDERS.sources,
             permissions,
         });
         // A core that does not start is logged, as it ends or as it refuses what it is handed, and each request after
