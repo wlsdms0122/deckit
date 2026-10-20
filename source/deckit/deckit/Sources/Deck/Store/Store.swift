@@ -10,8 +10,15 @@ import Foundation
 // Files deck keeps, each written whole.
 struct Store {
     // MARK: - Property
+    // A name deck gives a file or a folder. A Mac's disk is blind to case: lower case only, as a mod id is.
+    private let namePattern = #/[a-z0-9][a-z0-9._-]{0,63}/#
+
     // MARK: - Initializer
     // MARK: - Public
+    func isName(_ name: String) -> Bool {
+        name.wholeMatch(of: namePattern) != nil && !name.contains("..")
+    }
+
     func read(_ file: URL) -> String? {
         guard let data = FileManager.default.contents(atPath: file.path(percentEncoded: false)) else { return nil }
         return String(data: data, encoding: .utf8)
@@ -35,6 +42,12 @@ struct Store {
     func names(in folder: URL) throws -> [String] {
         guard FileManager.default.fileExists(atPath: folder.path(percentEncoded: false)) else { return [] }
         return try FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false))
+    }
+
+    func isFolder(_ file: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: file.path(percentEncoded: false), isDirectory: &isDirectory)
+            && isDirectory.boolValue
     }
 
     // MARK: - Private
