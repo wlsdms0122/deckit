@@ -1,10 +1,9 @@
-import * as CHANNELS from '../channels/index.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as DECLARED from './protocol.js';
 
-const PROTOCOL = CHANNELS.bindAll(DECLARED);
-
-export function createTheme() {
+export function createTheme({ deckit }) {
     // MARK: - Property
+    const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     let theme = null; // the host app's, or null until it gives one
     const pages = new Set(); // the pages that drew in it, each told when it changes
 

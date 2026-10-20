@@ -1,8 +1,9 @@
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 function info(...parts) {

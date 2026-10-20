@@ -1,11 +1,10 @@
-import * as CHANNELS from '../channels/index.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as DECLARED from './protocol.js';
-
-const PROTOCOL = CHANNELS.bindAll(DECLARED);
 
 // `deckit` is what connect answered.
 export function createRegion({ deckit }) {
     // MARK: - Property
+    const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     // `${webContents id}:${number}` -> { parent, rect, child }: a place in a mod's page that shows a child's view
     const regions = new Map();
     // mod id -> { parent }: the view its run that last started has, kept while the mod launches again

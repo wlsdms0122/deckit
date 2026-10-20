@@ -1,12 +1,11 @@
-import * as CHANNELS from '../channels/index.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as PAGE from './model/page-name.js';
-
-const PROTOCOL = CHANNELS.bindAll(DECLARED);
 
 // `deckit` is what connect answered, `host` the app's answers.
 export function createSwitcher({ PANEL, deckit, host }) {
     // MARK: - Property
+    const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const USE = 'switcher-use';
     const USE_KEPT = 60;
     // Taken round robin up to this, so a mod with many rows loses its last ones rather than crowding others out.

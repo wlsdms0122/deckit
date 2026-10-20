@@ -1,6 +1,9 @@
 // How a channel between main and a page is declared, as plain data with nothing of a driver's: whichever driver carries
 // it reads the same declaration.
 // MARK: - Property
+// What a field may be, written as is, or ending in `?` when it may be absent.
+const KINDS = ['string', 'number', 'boolean', 'object', 'array', 'any'];
+
 // MARK: - Initializer
 // MARK: - Public
 // What a page asks or tells main. `fields` is what it may send, each a kind (`string`, `number`, `boolean`, `object`,
@@ -34,14 +37,27 @@ function problemOf({ channel, fields }, payload) {
     return '';
 }
 
-// Why `declared` is not a channel declared here, or '': what a driver binds may come from code it does not trust.
-function problemOfDeclaration(declared) {
+// Why `declared` is not a channel declared as above, or '': what a driver binds may come from code it does not trust.
+function declarationProblem(declared) {
     if (kindOf(declared) !== 'object') return `a channel is declared as an object, not ${kindOf(declared)}`;
-    const { channel, to, fields } = declared;
+    const { channel, to, fields, reply, sync = false } = declared;
     if (typeof channel !== 'string' || !channel) return 'a channel is declared with its name';
     if (to !== 'main' && to !== 'page') return `${channel} goes to main or to a page`;
-    if (to === 'main' && kindOf(fields) !== 'object') return `${channel} is declared with its fields`;
+    if (typeof reply !== 'boolean' || typeof sync !== 'boolean') return `${channel} says whether it is answered`;
+    if (sync && (to !== 'main' || !reply)) return `${channel} is answered at once only as a page asks main`;
+    if (to === 'page') return '';
+    if (kindOf(fields) !== 'object') return `${channel} is declared with its fields`;
+    for (const [key, written] of Object.entries(fields))
+        if (typeof written !== 'string' || !KINDS.includes(written.replace(/\?$/, '')))
+            return `${channel}'s ${key} is none of ${KINDS.join(', ')}`;
     return '';
+}
+
+// Each of `declarations` (a protocol.js), by its name, bound with `channels`.
+function bindAll(channels, declarations) {
+    return Object.freeze(
+        Object.fromEntries(Object.entries(declarations).map(([name, declared]) => [name, channels.bind(declared)]))
+    );
 }
 
 // MARK: - Private
@@ -51,4 +67,4 @@ function kindOf(value) {
     return typeof value;
 }
 
-export { pageToMain, mainToPage, problemOf, problemOfDeclaration };
+export { pageToMain, mainToPage, problemOf, declarationProblem, bindAll };

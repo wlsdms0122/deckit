@@ -1,8 +1,9 @@
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as LOG from '../log/renderer.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 // What a mod's page knows of its run: the mod, the run's number main counts it by, and what went wrong with it,
 // which main is told as it is recorded.

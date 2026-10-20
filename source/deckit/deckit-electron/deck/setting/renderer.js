@@ -1,9 +1,10 @@
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as SETTING_TYPE from './model/type.js';
 
 // MARK: - Property
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // A mod's settings as it reads them: what was saved, over what it declared by default. Changed by main,

@@ -17,12 +17,11 @@ import { createMod } from './mod/renderer.js';
 // The entry of every page deckit makes: a mod's, or one the shell made. `before` is the set of the names the page's
 // global object had before deckit's bundles ran: what they added goes, so a mod reaches deckit only through what it is
 // handed. `shell` is the renderer side of the shell on deckit, if one is: `page(name, { channels })` draws a page it
-// made, `mod(context)` is what it gives each mod (mod/renderer.js), and its `questions`, what main asks its pages, are
-// heard from here on. Nothing starts off deckit's scheme: the preload runs on an error page too, which is no mod's.
+// made, `channels` binding its channels in the page, and `mod(context)` is what it gives each mod (mod/renderer.js).
+// Nothing starts off deckit's scheme: the preload runs on an error page too, which is no mod's.
 function boot({ before, shell = null } = {}) {
     for (const name of Object.keys(window)) if (!before.has(name)) delete window[name];
     if (location.protocol !== ORIGIN.SCHEME.scheme + ':') return;
-    for (const declared of shell?.questions || []) IPC.forLayer.bind(declared);
     if (document.readyState === 'loading')
         document.addEventListener('DOMContentLoaded', () => start(shell), { once: true });
     else start(shell);
@@ -33,7 +32,7 @@ function boot({ before, shell = null } = {}) {
 // with what deckit and the shell give it.
 function start(shell) {
     const { page, sessionPrefix } = PAGE.setup();
-    if (page) return shell?.page(page, { channels: IPC.forLayer });
+    if (page) return shell?.page(page, { channels: IPC.channels });
     const RUN = createRun();
     const RUNNER = createRunner({
         RUN,

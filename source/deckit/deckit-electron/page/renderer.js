@@ -1,8 +1,9 @@
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as IPC from '../deck/ipc/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // What this page is: { page }, the name of a page the shell made, or for a mod's { sessionPrefix }.

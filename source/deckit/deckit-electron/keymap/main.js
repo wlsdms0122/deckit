@@ -1,8 +1,9 @@
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as IPC from '../deck/ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 // Keys, as the core resolves them: the core keeps the keymap and says how each binding stands, and a keystroke is
 // resolved here against the copy it last told, where the keystroke lands.

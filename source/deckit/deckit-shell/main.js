@@ -1,5 +1,4 @@
 import * as STYLE_PERMISSION from './style/model/permission.js';
-import * as CHANNELS from './channels/index.js';
 import { createRegion } from './region/main.js';
 import { createPanel } from './panel/main.js';
 import { createSwitcher } from './switcher/main.js';
@@ -20,14 +19,12 @@ function attach(deckit, { host } = {}) {
     const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;
-    // The shell's channels are bound by the driver, which reports what their listeners throw to deckit's log.
-    CHANNELS.use(deckit.channels);
     for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
     const REGION = createRegion({ deckit });
     const PANEL = createPanel({ REGION, deckit, host });
     const SWITCHER = createSwitcher({ PANEL, deckit, host });
     const STYLE = createStyle({ deckit });
-    const THEME = createTheme();
+    const THEME = createTheme({ deckit });
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         STYLE.start();

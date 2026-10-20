@@ -1,9 +1,10 @@
 import * as LOG_FILE from './file.js';
 import * as LISTENER from '../listener/index.js';
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 export function createLog({ CONFIG, HOME }) {
     // MARK: - Property

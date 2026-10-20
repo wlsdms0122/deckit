@@ -2,10 +2,9 @@ import * as OVERLAY from '../ui/overlay/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as STYLE from '../style/renderer.js';
 import * as STYLE_PERMISSION from '../style/model/permission.js';
-import * as PANEL from '../panel/renderer.js';
+import { createPanel, viewProblem, keyProblem } from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion, parentProblem } from '../region/renderer.js';
-import * as CHANNELS from '../channels/index.js';
 
 // MARK: - Property
 // MARK: - Initializer
@@ -15,21 +14,21 @@ import * as CHANNELS from '../channels/index.js';
 // panel's pins. Once start() has ended, a view is laid where the panel's guide says, or a region's for a child.
 // `channels` binds the shell's channels in the page.
 function mod({ mod: running, deliver, channels }) {
-    CHANNELS.use(channels);
-    const REGION = createRegion({ deliver });
-    const theme = PAGE.start({ tell: (listener) => deliver('theme.onChange()', listener) });
+    const REGION = createRegion({ deliver, channels });
+    const PANEL = createPanel({ channels });
+    const theme = PAGE.start({ channels, tell: (listener) => deliver('theme.onChange()', listener) });
     const ui = KIT.make(theme);
-    STYLE.wear();
+    STYLE.wear({ channels });
     const styles = running.permissions.some(({ id }) => id === STYLE_PERMISSION.STYLES);
     return {
         deck: { theme, ui, show: PANEL.show, region: REGION.make, children: REGION.children },
         mods: PANEL.pins,
         registrations: {
-            view: (value) => PANEL.viewProblem(value) || parentProblem(value.parent, running),
+            view: (value) => viewProblem(value) || parentProblem(value.parent, running),
             ...(styles ? { styles: STYLE.problemOf } : {}),
         },
         blocksKeys: () => OVERLAY.layers.count() > 0,
-        keyProblem: (key, parts) => PANEL.keyProblem(key, parts.view),
+        keyProblem: (key, parts) => keyProblem(key, parts.view),
         contribute(parts) {
             const view = parts.view || null;
             if (view) {

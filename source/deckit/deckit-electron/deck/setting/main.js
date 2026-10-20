@@ -1,8 +1,9 @@
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 // The mods' settings, as the core judges and keeps them: what only a mod's page knows, the options it works out and
 // its actions, is asked of the page here and handed to the core.

@@ -1,8 +1,9 @@
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as IPC from '../deck/ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as NOTIFICATION_PERMISSION from './model/permission.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 // `clicked` is the app's answer to a clicked notification, which brings it forward before the mod hears of it.
 export function createNotification({ LOG, IDENTITY, clicked }) {

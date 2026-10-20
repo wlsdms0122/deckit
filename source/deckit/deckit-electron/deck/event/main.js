@@ -1,7 +1,8 @@
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 // Events, as the core routes them: the core names an event after the mod that sent it and says which mods hear it, and
 // what it carries goes from page to page through here.

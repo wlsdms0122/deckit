@@ -1,12 +1,11 @@
-import * as CHANNELS from '../channels/index.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as STYLE_PERMISSION from './model/permission.js';
-
-const PROTOCOL = CHANNELS.bindAll(DECLARED);
 
 // `deckit` is what connect answered.
 export function createStyle({ deckit }) {
     // MARK: - Property
+    const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const EVERY_PAGE = '*';
     const pages = new Map(); // a page that wears styles -> the mod it runs, or null for a page the shell made
 

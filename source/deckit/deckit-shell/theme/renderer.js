@@ -1,16 +1,16 @@
 import * as TOKEN from '../ui/token/index.js';
-import * as CHANNELS from '../channels/index.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
-const PROTOCOL = CHANNELS.bindAll(DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // The page's theme, worn as the token's custom properties and the page's color scheme, and taken in place
 // when the host app gives a new one. Answers the token's members, each read at its use, and
 // `onChange(listener)`, which answers its off. `tell(listener)` calls a listener: one's failure is its own, and the
-// others still hear the change.
-function start({ tell = told } = {}) {
+// others still hear the change. `channels` binds the theme's channels in the page.
+function start({ channels, tell = told }) {
+    const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const listeners = new Set();
     const sheet = new CSSStyleSheet();
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];

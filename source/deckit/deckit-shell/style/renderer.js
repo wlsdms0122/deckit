@@ -1,15 +1,15 @@
-import * as CHANNELS from '../channels/index.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
-const PROTOCOL = CHANNELS.bindAll(DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // The page wears the styles mods give it, as its last style sheets: a sheet the kit or the mod's entry adopts
 // later goes before them, so a mod's style wins over those at the same specificity. A style a page sets on an
 // element itself still wins over a sheet, as in any page. A sheet the page's own world adopts goes after them
-// until the styles next change. `onChange` hears the styles change.
-function wear({ onChange = null } = {}) {
+// until the styles next change. `onChange` hears the styles change; `channels` binds the styles' channels in the page.
+function wear({ channels, onChange = null }) {
+    const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const adopted = Object.getOwnPropertyDescriptor(Document.prototype, 'adoptedStyleSheets');
     let worn = [];
     const others = () => adopted.get.call(document).filter((sheet) => !worn.includes(sheet));

@@ -1,7 +1,8 @@
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as IPC from '../deck/ipc/index.js';
 import * as DECLARED from './protocol.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 export function createKeymap() {
     // MARK: - Property

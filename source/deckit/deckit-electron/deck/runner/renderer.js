@@ -1,3 +1,4 @@
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as SETTINGS from '../setting/renderer.js';
@@ -7,7 +8,7 @@ import * as SCOPED from '../mod/model/scoped-name.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 // The run of a mod in its page: its entry evaluated and started with the deck it is handed, and what it contributed
 // told to main. `RUN` is the page's run; `STORAGE`, `EXPORT`, `EXTENSION` and `MODS` are what deck gives it.

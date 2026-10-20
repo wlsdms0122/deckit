@@ -1,9 +1,10 @@
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 import * as IPC from '../deck/ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as BUILD from '../build/index.js';
 import * as MOD_PERMISSION from '../deck/mod/permission.js';
 
-const PROTOCOL = IPC.bindAll(DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
 
 // `restart` is the app's: the process is its own.
 export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart }) {
