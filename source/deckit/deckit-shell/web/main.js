@@ -271,7 +271,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // without asking, or what the mod let it have when it is asked.
     function permits(session, origin, name) {
         const rule = SITE_PERMISSION.ruleOf(name);
-        if (rule !== 'ask') return rule === 'allow';
+        if (rule !== 'ask') return rule === 'allow' || rule === 'checked';
         return !!session && granted.has(keyOf(session, SITE.originOf(origin), name));
     }
 
@@ -288,7 +288,8 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // when it is all it is let have without asking, and otherwise asked of the mod showing it.
     function request(embedder, id, { origin, permissions }) {
         const rules = permissions.map(SITE_PERMISSION.ruleOf);
-        if (!permissions.length || rules.includes('refuse')) return Promise.resolve(false);
+        if (!permissions.length || rules.some((rule) => rule === 'refuse' || rule === 'checked'))
+            return Promise.resolve(false);
         if (rules.every((rule) => rule === 'allow')) return Promise.resolve(true);
         return ask(embedder, id, origin, permissions);
     }

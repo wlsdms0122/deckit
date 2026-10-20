@@ -295,6 +295,13 @@ async function main() {
         (await deck.request(plainPage, 8, { origin: 'https://a.com', permissions: ['fullscreen'] })) === true,
         ''
     );
+    check(
+        'what a site is only checked for is said yes to when checked and refused when asked for',
+        deck.permits(session, 'https://a.com', 'local-network-access') === true &&
+            (await deck.request(filesPage, 7, { origin: 'https://a.com', permissions: ['local-network-access'] })) ===
+                false,
+        ''
+    );
     await heard.asked(filesPage, {
         channel: 'deckit-shell:web-revoke',
         payload: { name: 'main', entries: [{ origin: 'https://a.com', permission: 'notifications' }] },
