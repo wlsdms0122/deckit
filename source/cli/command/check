@@ -6,8 +6,18 @@ const path = require('path');
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
 const IPC = 'deckit-electron/deck/ipc/index.js';
-// What a driver gives the shell, declared alone: plain data and pure functions that run on any side of any driver.
+// What the shell and a driver agree on: plain declarations and pure functions, which run on any side of any driver.
 const DRIVER = 'deckit-driver';
+// The packages each may depend on. The shell and a driver both stand on what they agree on; the driver names nothing of
+// a shell.
+const MAY_DEPEND = {
+    'deckit-driver': [],
+    'deckit-electron': ['deckit-driver'],
+    // deckit-electron's entries, until the shell reaches a driver only through what they agree on.
+    'deckit-shell': ['deckit-driver', 'deckit-electron'],
+};
+// A channel's declaration, whatever the module that declares it is imported as.
+const DECLARES = '\\b\\w+\\.(?:rendererToMain|mainToRenderer|pageToMain|mainToPage)\\(';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];
@@ -38,11 +48,11 @@ const channels = new Map(); // channel -> the protocol that declares it
 const files = LIBRARY.files();
 const imports = new Map(files.map((file) => [file, LIBRARY.importsOf(file)]));
 
-// The packages stand in layers, each on those before it (library.js): one depends only on what is below it.
+// A package depends only on those it may (MAY_DEPEND).
 for (const [name, { depends }] of SURFACES)
-    for (const below of depends)
-        if (!LIBRARY.PACKAGES.slice(0, LIBRARY.PACKAGES.indexOf(name)).includes(below))
-            problems.push(`deckit/${name}/package.json: depends on ${below}, which is not a package below it`);
+    for (const other of depends)
+        if (!(MAY_DEPEND[name] || []).includes(other))
+            problems.push(`deckit/${name}/package.json: depends on ${other}, which ${name} may not depend on`);
 for (const [name, { entries }] of SURFACES)
     for (const entry of entries)
         if (!files.includes(entry))
@@ -93,21 +103,24 @@ function checkFile(file) {
     for (const { spec, file: target } of imports.get(file)) checkImport(file, spec, target);
 }
 
-// The driver contract holds nothing of a driver: no module, nothing of a process or a page, and no state of its own.
+// What the shell and a driver agree on holds nothing of either: no module, nothing of a process or a page, and no
+// state of its own. Read without its strings, so a channel's name or a word in one is not taken for a use.
 function checkPure(file, plain) {
-    if (/\brequire\s*\(/.test(plain)) say(file, `requires a module, but ${DRIVER}/ is plain declarations`);
-    if (/\b(?:electron|ipcMain|ipcRenderer|process|window|document)\b/.test(plain))
+    const bare = plain.replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, "''");
+    if (/\brequire\s*\(/.test(bare)) say(file, `requires a module, but ${DRIVER}/ is plain declarations`);
+    if (/\b(?:globalThis|window|document|process|self)\s*[.[]/.test(bare))
         say(file, `reaches a process or a page, but ${DRIVER}/ runs on any side of any driver`);
-    if (/^let\b/m.test(plain)) say(file, `holds state, but ${DRIVER}/ is plain declarations`);
+    if (/^(?:let|var)\b/m.test(bare) || /^\S[^\n]*\bnew\s+(?:Map|Set|WeakMap|WeakSet)\s*\(/m.test(bare))
+        say(file, `holds state, but ${DRIVER}/ is plain declarations and pure functions`);
 }
 
 // A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no
 // package reaches another's around what that one answers.
 function checkChannels(file, plain) {
     const owner = packageOf(file);
-    if (/\bIPC\.(?:rendererToMain|mainToRenderer)\(\s*(?=\S)(?!["'`][^"'`$]*["'`])/.test(plain))
+    if (new RegExp(DECLARES + `\\s*(?=\\S)(?!["'\`][^"'\`$]*["'\`])`).test(plain))
         say(file, 'declares a channel not written out as text, so whose it is cannot be read');
-    for (const [, channel] of plain.matchAll(/\bIPC\.(?:rendererToMain|mainToRenderer)\(\s*["'`]([^"'`]+)["'`]/g)) {
+    for (const [, channel] of plain.matchAll(new RegExp(DECLARES + `\\s*["'\`]([^"'\`]+)["'\`]`, 'g'))) {
         if (!channel.startsWith(owner + ':')) say(file, `declares the channel ${channel}, which is not ${owner}'s`);
         if (channels.has(channel))
             say(file, `declares the channel ${channel}, which ${channels.get(channel)} declares`);

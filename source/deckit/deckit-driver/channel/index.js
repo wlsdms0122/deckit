@@ -1,4 +1,4 @@
-// How a channel between main and a page is declared, as plain data with nothing of Electron's: whichever driver carries
+// How a channel between main and a page is declared, as plain data with nothing of a driver's: whichever driver carries
 // it reads the same declaration.
 // MARK: - Property
 // MARK: - Initializer
@@ -6,13 +6,13 @@
 // What a page asks or tells main. `fields` is what it may send, each a kind (`string`, `number`, `boolean`, `object`,
 // `array`, `any`), optional when it ends in `?`. A page runs code main does not trust, so main holds what arrives to
 // them; nothing else checks.
-function rendererToMain(channel, fields, { reply = false, sync = false } = {}) {
+function pageToMain(channel, fields, { reply = false, sync = false } = {}) {
     return Object.freeze({ channel, to: 'main', fields: Object.freeze({ ...fields }), reply, sync });
 }
 
 // What main tells or asks a page.
-function mainToRenderer(channel, { reply = false } = {}) {
-    return Object.freeze({ channel, to: 'renderer', reply });
+function mainToPage(channel, { reply = false } = {}) {
+    return Object.freeze({ channel, to: 'page', reply });
 }
 
 // Why `payload` is not what the channel carries, or ''.
@@ -41,4 +41,4 @@ function kindOf(value) {
     return typeof value;
 }
 
-export { rendererToMain, mainToRenderer, problemOf };
+export { pageToMain, mainToPage, problemOf };

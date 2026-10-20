@@ -12,7 +12,7 @@ let sequence = 0;
 // MARK: - Public
 // A channel as deckit-driver declares it, carried by Electron's IPC.
 function rendererToMain(channel, fields, declaring) {
-    const declared = CHANNEL.rendererToMain(channel, fields, declaring);
+    const declared = CHANNEL.pageToMain(channel, fields, declaring);
     const { reply, sync } = declared;
     if (inMain) {
         if (reply) return { handle: (answer) => handle(declared, answer) };
@@ -25,7 +25,7 @@ function rendererToMain(channel, fields, declaring) {
 }
 
 function mainToRenderer(channel, declaring) {
-    const { reply } = CHANNEL.mainToRenderer(channel, declaring);
+    const { reply } = CHANNEL.mainToPage(channel, declaring);
     if (inMain) {
         if (reply)
             return {
