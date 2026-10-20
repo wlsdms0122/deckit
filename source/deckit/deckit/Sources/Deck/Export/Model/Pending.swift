@@ -10,9 +10,9 @@ import Foundation
 // The run what is asked waits on: asked again once the mod's latest run is no longer the `run`th in `state`.
 public struct Pending: Encodable, Equatable, Sendable {
     // MARK: - Property
-    let mod: String
-    let run: Int
-    let state: RunState
+    public let mod: String
+    public let run: Int
+    public let state: RunState
 
     // MARK: - Initializer
     // MARK: - Public

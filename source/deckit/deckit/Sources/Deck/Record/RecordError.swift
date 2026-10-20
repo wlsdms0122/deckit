@@ -7,22 +7,12 @@
 
 import Foundation
 
-enum RecordError: DeckError, Equatable {
+public enum RecordError: DeckError, Equatable {
     case notAKey(String)
     case notAMod(String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .notAKey:
-            "KEY"
-
-        case .notAMod:
-            "MOD"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .notAKey(key):
             "not a record key: \(key)"

@@ -8,7 +8,7 @@
 import Foundation
 
 // Why a setting was not set, or an action not run.
-enum SettingError: DeckError, Equatable {
+public enum SettingError: DeckError, Equatable {
     case undeclared(mod: String, key: String)
     case notAnAction(mod: String, key: String)
     case isAnAction(String)
@@ -16,26 +16,7 @@ enum SettingError: DeckError, Equatable {
     case notAnOption(key: String, value: SettingValue?)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .undeclared:
-            "UNDECLARED"
-
-        case .notAnAction:
-            "NOT_AN_ACTION"
-
-        case .isAnAction:
-            "ACTION"
-
-        case .notOfType:
-            "TYPE"
-
-        case .notAnOption:
-            "OPTION"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .undeclared(mod, key):
             "\(mod) has no setting \"\(key)\""

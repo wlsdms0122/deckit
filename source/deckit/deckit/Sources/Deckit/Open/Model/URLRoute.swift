@@ -11,9 +11,9 @@ import Foundation
 // deckit opens it by itself. `url` is the address as it is offered.
 public struct URLRoute: Encodable, Sendable {
     // MARK: - Property
-    let url: String
-    let handlers: [String]
-    let system: SystemHandler?
+    public let url: String
+    public let handlers: [String]
+    public let system: SystemHandler?
 
     // MARK: - Initializer
     // MARK: - Public

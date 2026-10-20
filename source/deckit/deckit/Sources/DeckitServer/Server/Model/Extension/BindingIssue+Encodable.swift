@@ -1,11 +1,12 @@
 //
 //  BindingIssue+Encodable.swift
-//  Deckit
+//  DeckitServer
 //
 //  Created by JSilver on 10/20/26.
 //
 
 import Foundation
+import Deckit
 
 // `{ level, kind, other }`: `level` is `error` or `warn`, and `other` what a reader needs of the binding the issue is
 // about.
@@ -29,7 +30,7 @@ extension BindingIssue: Encodable {
 
     // MARK: - Initializer
     // MARK: - Public
-    func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(isError ? "error" : "warn", forKey: .level)
         try container.encode(kind, forKey: .kind)

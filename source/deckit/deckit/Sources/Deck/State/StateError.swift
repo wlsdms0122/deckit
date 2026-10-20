@@ -7,22 +7,12 @@
 
 import Foundation
 
-enum StateError: DeckError, Equatable {
+public enum StateError: DeckError, Equatable {
     case notAKey(String)
     case notAFolder(String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .notAKey:
-            "KEY"
-
-        case .notAFolder:
-            "FOLDER"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .notAKey(key):
             "not a state key: \(key)"

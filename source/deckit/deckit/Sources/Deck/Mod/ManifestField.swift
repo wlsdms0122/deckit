@@ -9,7 +9,7 @@ import Foundation
 
 // A field a layer on deck adds to the manifest: `name` as a manifest writes it, `key` as a manifest holds it.
 public protocol ManifestField: Sendable {
-    associatedtype Value: Encodable & Sendable
+    associatedtype Value: Sendable
 
     var name: String { get }
     var key: String { get }

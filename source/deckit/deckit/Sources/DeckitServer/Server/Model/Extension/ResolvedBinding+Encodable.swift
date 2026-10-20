@@ -1,11 +1,12 @@
 //
 //  ResolvedBinding+Encodable.swift
-//  Deckit
+//  DeckitServer
 //
 //  Created by JSilver on 10/20/26.
 //
 
 import Foundation
+import Deckit
 
 // One object: the binding, with `key` and `spec` as written, `chord` and `defaultChord` as a person reads them, `app`
 // for the app's own, and what the driver resolves a keystroke with, `keystroke` and `editsText` (a text field owns it).
@@ -32,7 +33,7 @@ extension ResolvedBinding: Encodable {
 
     // MARK: - Initializer
     // MARK: - Public
-    func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(binding.id, forKey: .id)
         try container.encode(binding.owner.id, forKey: .owner)

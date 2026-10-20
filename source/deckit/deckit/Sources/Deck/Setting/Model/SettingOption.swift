@@ -11,13 +11,13 @@ import Foundation
 // nothing chosen.
 public struct SettingOption: Codable, Equatable, Sendable {
     // MARK: - Property
-    let value: SettingValue
-    let label: String
-    let font: String?
-    let absent: Bool?
+    public let value: SettingValue
+    public let label: String
+    public let font: String?
+    public let absent: Bool?
 
     // MARK: - Initializer
-    init(value: SettingValue, label: String, font: String? = nil, absent: Bool? = nil) {
+    public init(value: SettingValue, label: String, font: String? = nil, absent: Bool? = nil) {
         self.value = value
         self.label = label
         self.font = font

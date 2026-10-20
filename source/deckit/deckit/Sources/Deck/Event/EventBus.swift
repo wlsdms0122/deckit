@@ -10,7 +10,7 @@ import Foundation
 // Mods say what happened to them through deck, never to each other: an event is named after the mod that sent it, so
 // none speaks for another. It goes to the runs that listen to it, and only from a run that is running. A run that has
 // ended hears nothing.
-final class EventBus {
+public final class EventBus {
     // MARK: - Property
     private let runner: Runner
     // Mod id -> its run that listens, and every scoped event name it listens to.
@@ -22,13 +22,13 @@ final class EventBus {
     }
 
     // MARK: - Public
-    func listen(mod id: String, run number: Int, names: [String]) {
+    public func listen(mod id: String, run number: Int, names: [String]) {
         guard isLive(id, run: number) else { return }
         listening[id] = (number, Set(names))
     }
 
     // The event `name` of the `number`th run of `id`, and the mods to tell it, none while that run is not running.
-    func emit(mod id: String, run number: Int, name: String) -> EventDelivery {
+    public func emit(mod id: String, run number: Int, name: String) -> EventDelivery {
         let scoped = ScopedName(modId: id, name: name).description
         guard let run = runner.run(of: id), run.number == number, run.state == .running else {
             return EventDelivery(name: scoped, listeners: [])

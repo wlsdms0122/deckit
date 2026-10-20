@@ -10,7 +10,7 @@ import Foundation
 // A mod reaches another only through what that one exports, and only one it requires or has as an optional dependency.
 // What a run exports is what it contributed as it started, and a call reaches it while it runs, and while it terminates
 // until it has ended: the mods that require it end first. What a run has not decided yet is answered pending on it.
-final class ExportBroker {
+public final class ExportBroker {
     // MARK: - Property
     private let runner: Runner
     // Mod id -> its run last told what its optional dependencies export to it, and the run of each it may use, as told.
@@ -24,7 +24,7 @@ final class ExportBroker {
     // MARK: - Public
     // What each mod the run requires exports, once each has started, and what its optional dependencies export to it
     // now. Refused once one it requires has ended for good.
-    func dependencies(mod id: String, run number: Int) throws(ExportError) -> Poll<Dependencies> {
+    public func dependencies(mod id: String, run number: Int) throws(ExportError) -> Poll<Dependencies> {
         let (mod, _) = try running(id, run: number)
         var requires: [String: Snapshot] = [:]
         for required in mod.manifest.requires.keys.sorted() {
@@ -47,7 +47,12 @@ final class ExportBroker {
     // A call from the `number`th run of `caller` into the function at `path` of what `id` exports: ready once it goes
     // to that mod's page. A mod it requires that launches again answers a running caller once its new run has started,
     // and a terminating caller only with the run it ran with. A mod it has optional answers only while it runs.
-    func call(from caller: String, run number: Int, mod id: String, path: [String]) throws(ExportError) -> Poll<Bool> {
+    public func call(
+        from caller: String,
+        run number: Int,
+        mod id: String,
+        path: [String]
+    ) throws(ExportError) -> Poll<Bool> {
         let (callerMod, run) = try running(caller, run: number)
         let exports: Snapshot
         if callerMod.manifest.optional[id] != nil {

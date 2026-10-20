@@ -7,9 +7,11 @@
 
 import Foundation
 import Deck
+import Deckit
 
 // Each as `effect`, its name, with the mod's id as `mod` and a run's number as `run`, as main names them in what it
-// asks; the mod a sandbox opens for is `found`, as the catalog reads it.
+// asks; the mod a sandbox opens for is `found`, as the catalog reads it. A layer's change is named by what it is: the
+// keymap is `bindingsChanged`.
 extension Effect: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -90,9 +92,13 @@ extension Effect: Encodable {
             try container.encode(modId, forKey: .mod)
             try container.encode(points, forKey: .points)
 
-        case let .layer(effect, change):
-            try change.encode(to: encoder)
-            try container.encode(effect, forKey: .effect)
+        case let .layer(keymap as ResolvedKeymap):
+            try keymap.encode(to: encoder)
+            try container.encode("bindingsChanged", forKey: .effect)
+
+        case let .layer(change):
+            let context = EncodingError.Context(codingPath: encoder.codingPath, debugDescription: "no effect names it")
+            throw EncodingError.invalidValue(change, context)
         }
     }
 

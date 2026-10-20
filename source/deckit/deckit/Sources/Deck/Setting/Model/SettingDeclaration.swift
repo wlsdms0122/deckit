@@ -42,7 +42,7 @@ public struct SettingDeclaration: Decodable, Equatable, Sendable {
     public let button: String?
 
     // MARK: - Initializer
-    init(
+    public init(
         key: String,
         type: SettingType,
         label: String? = nil,

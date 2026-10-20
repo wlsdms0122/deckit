@@ -8,6 +8,7 @@
 import Foundation
 import Testing
 @testable import Deck
+import Deckit
 @testable import DeckitServer
 
 @Suite("Server")
@@ -365,6 +366,44 @@ struct ServerTests {
             listed == #"{"computed":false,"default":12,"key":"size","label":"Size","min":8,"options":[],"#
                 + #""type":"number","value":14}"#
         )
+    }
+
+    @Test("the keymap reads as the driver keeps it: each binding with its chord, its issues and its keystroke")
+    func testThatTheKeymapIsJSON() throws {
+        // Given
+        try initialize()
+        for (id, (action, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
+            _ = try respond(
+                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"action":"\#(action)","#
+                    + #""key":"\#(spec)","label":"","global":false}}"#
+            )
+        }
+
+        // When
+        let bound = try respond(
+            #"{"jsonrpc":"2.0","id":4,"method":"keymap/bind","params":{"id":"@app.two","spec":"cmd+1"}}"#
+        )
+
+        // Then
+        guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let two = bindings.last,
+            case let .array(issues)? = value(in: two, at: "issues"), let held = issues.first
+        else {
+            Issue.record("not a keymap: \(bound)")
+            return
+        }
+        #expect(value(in: bound, at: "result", "revision") == .number(3))
+        #expect(value(in: two, at: "id") == .string("@app.two"))
+        #expect(value(in: two, at: "key") == Keystroke(spec: "mod+2")?.spec.map(JSONValue.string))
+        #expect(value(in: two, at: "spec") == .string("cmd+1"))
+        #expect(value(in: two, at: "chord") == .string(try #require(Keystroke(spec: "cmd+1")).label))
+        #expect(value(in: two, at: "changed") == .bool(true))
+        #expect(value(in: two, at: "active") == .bool(false))
+        #expect(value(in: two, at: "keystroke", "code") == .string("Digit1"))
+        #expect(value(in: held, at: "level") == .string("error"))
+        #expect(value(in: held, at: "kind") == .string("held"))
+        #expect(value(in: held, at: "other", "id") == .string("@app.one"))
+        #expect(value(in: held, at: "other", "ownerName") == .string("Deckit"))
+        #expect(value(in: held, at: "other", "app") == .bool(true))
     }
 
     // MARK: - Private

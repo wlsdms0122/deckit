@@ -10,9 +10,9 @@ import Foundation
 // A scheme's handlers in the order they are asked, `system` what deckit opens its addresses with after them.
 public struct HandlerList: Encodable, Sendable {
     // MARK: - Property
-    let scheme: String
-    let system: SystemHandler?
-    let handlers: [SchemeHandler]
+    public let scheme: String
+    public let system: SystemHandler?
+    public let handlers: [SchemeHandler]
 
     // MARK: - Initializer
     // MARK: - Public

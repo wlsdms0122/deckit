@@ -10,17 +10,17 @@ import Foundation
 // A key in the keymap, by its id: its owner's and its action's. `defaultKeystroke` is the chord it is declared with,
 // `keystroke` the one it is bound to now, none when it is unbound, and `changed` whether a person changed it from
 // today's default.
-struct Binding: Equatable, Sendable {
+public struct Binding: Equatable, Sendable {
     // MARK: - Property
-    let owner: BindingOwner
-    let scope: BindingScope
-    let action: String
-    let label: String
-    let defaultKeystroke: Keystroke?
-    let keystroke: Keystroke?
-    let changed: Bool
+    public let owner: BindingOwner
+    public let scope: BindingScope
+    public let action: String
+    public let label: String
+    public let defaultKeystroke: Keystroke?
+    public let keystroke: Keystroke?
+    public let changed: Bool
 
-    var id: String {
+    public var id: String {
         owner.bindingId(of: action)
     }
 

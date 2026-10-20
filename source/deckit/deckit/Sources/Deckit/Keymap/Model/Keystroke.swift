@@ -74,14 +74,14 @@ public struct Keystroke: Codable, Equatable, Sendable {
     ]
     private static let editCommands: Set<String> = ["KeyA", "KeyC", "KeyX", "KeyV", "KeyZ"]
 
-    let code: String
-    let meta: Bool
-    let control: Bool
-    let shift: Bool
-    let alt: Bool
+    public let code: String
+    public let meta: Bool
+    public let control: Bool
+    public let shift: Bool
+    public let alt: Bool
 
     // The key's name in a spec, or nil for a key a spec cannot name.
-    var name: String? {
+    public var name: String? {
         if code.wholeMatch(of: #/Key[A-Z]/#) != nil { return code.dropFirst(3).lowercased() }
         if code.wholeMatch(of: #/Digit[0-9]/#) != nil { return String(code.dropFirst(5)) }
         if code.wholeMatch(of: #/F([1-9]|1[0-9])/#) != nil { return code.lowercased() }
@@ -89,7 +89,7 @@ public struct Keystroke: Codable, Equatable, Sendable {
     }
 
     // One spelling per chord, so two specs compare as strings: "ctrl+alt+shift+cmd+t".
-    var spec: String? {
+    public var spec: String? {
         guard let name else { return nil }
         let modifiers = [(control, "ctrl"), (alt, "alt"), (shift, "shift"), (meta, "cmd")]
             .filter { held, _ in held }
@@ -99,7 +99,7 @@ public struct Keystroke: Codable, Equatable, Sendable {
     }
 
     // As the platform writes it: ⌃⌥⇧⌘ in that order on a Mac.
-    var label: String {
+    public var label: String {
         guard let name else { return "" }
         let key = if Self.isMac, let symbol = Self.symbols[name] {
             symbol
@@ -114,7 +114,7 @@ public struct Keystroke: Codable, Equatable, Sendable {
         return (control ? "⌃" : "") + (alt ? "⌥" : "") + (shift ? "⇧" : "") + (meta ? "⌘" : "") + key
     }
 
-    var editsText: Bool {
+    public var editsText: Bool {
         Self.editing.contains(code) || (meta && !control && !alt && Self.editCommands.contains(code))
     }
 
@@ -124,7 +124,7 @@ public struct Keystroke: Codable, Equatable, Sendable {
     }
 
     // MARK: - Initializer
-    init(code: String, meta: Bool, control: Bool, shift: Bool, alt: Bool) {
+    public init(code: String, meta: Bool, control: Bool, shift: Bool, alt: Bool) {
         self.code = code
         self.meta = meta
         self.control = control
@@ -134,7 +134,7 @@ public struct Keystroke: Codable, Equatable, Sendable {
 
     // A spec ("mod+shift+g") as the keystroke it names. A second key or an unknown word refuses the whole spec, so a
     // typo is not bound as another chord.
-    init?(spec: String) {
+    public init?(spec: String) {
         var code: String?
         var meta = false
         var control = false

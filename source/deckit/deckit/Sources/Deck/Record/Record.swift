@@ -9,7 +9,7 @@ import Foundation
 
 // A mod's records: JSON by key, one file a key, kept apart from the mod's own data folder. Deck keeps the text it is
 // handed and never reads what it says.
-final class Record {
+public final class Record {
     // MARK: - Property
     private let fileExtension = "json"
     private let folder: URL
@@ -22,19 +22,19 @@ final class Record {
     }
 
     // MARK: - Public
-    func read(mod: String, key: String) throws -> String? {
+    public func read(mod: String, key: String) throws -> String? {
         store.read(try file(mod: mod, key: key))
     }
 
-    func write(mod: String, key: String, text: String) throws {
+    public func write(mod: String, key: String, text: String) throws {
         try store.write(text, to: try file(mod: mod, key: key))
     }
 
-    func remove(mod: String, key: String) throws {
+    public func remove(mod: String, key: String) throws {
         try store.remove(try file(mod: mod, key: key))
     }
 
-    func keys(mod: String) throws -> [String] {
+    public func keys(mod: String) throws -> [String] {
         try store.names(in: folder(of: mod))
             .compactMap { name in
                 let file = URL(filePath: name)
@@ -51,7 +51,7 @@ final class Record {
     }
 
     // A mod that manages the mods asks for any id, so one that is no mod's is refused.
-    func count(mod: String) throws -> RecordCount {
+    public func count(mod: String) throws -> RecordCount {
         guard store.isName(mod) else { throw RecordError.notAMod(mod) }
 
         let names = try store.names(in: folder(of: mod))

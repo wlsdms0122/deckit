@@ -8,30 +8,14 @@
 import Foundation
 
 // Why a mod's page does not run, or the mod does not launch again.
-enum RunnerError: DeckError, Equatable {
+public enum RunnerError: DeckError, Equatable {
     case noSandbox(String)
     case closing(String)
     case quitting(String)
     case needs(mod: String, requirement: String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .noSandbox:
-            "NO_SANDBOX"
-
-        case .closing:
-            "CLOSING"
-
-        case .quitting:
-            "QUITTING"
-
-        case .needs:
-            "NEEDS"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .noSandbox(mod):
             "\(mod) has no sandbox"

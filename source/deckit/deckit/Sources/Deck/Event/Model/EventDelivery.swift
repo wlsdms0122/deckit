@@ -10,8 +10,8 @@ import Foundation
 // An event as its listeners hear it: its scoped name, and the mods whose runs listen to it.
 public struct EventDelivery: Encodable, Equatable, Sendable {
     // MARK: - Property
-    let name: String
-    let listeners: [String]
+    public let name: String
+    public let listeners: [String]
 
     // MARK: - Initializer
     // MARK: - Public

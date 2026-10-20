@@ -29,7 +29,7 @@ struct CommandRegistryTests {
         _ = try sut.started("c", run: 1, contributing: ["resolve": .bool(true)])
         _ = try sut.started("b", run: 1, contributing: ["commands": .bool(false)])
         _ = try sut.started("a", run: 1, contributing: ["commands": .bool(true), "now": .bool(true)])
-        let sources = sut.commandSources()
+        let sources = sut.commands.sources()
 
         // Then
         let lines = sources.map { source in

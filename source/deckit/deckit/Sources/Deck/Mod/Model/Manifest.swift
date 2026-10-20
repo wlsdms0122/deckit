@@ -21,7 +21,7 @@ public struct Manifest: Sendable {
     public let optional: [String: String]
     public let permissions: [PermissionRequest]
     // What the layers' fields hold, by the key each is held under.
-    public let fields: [String: any Encodable & Sendable]
+    public let fields: [String: any Sendable]
 
     // MARK: - Initializer
     // MARK: - Public

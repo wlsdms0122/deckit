@@ -1,14 +1,15 @@
 //
-//  Version+Codable.swift
-//  Deck
+//  Version+Decodable.swift
+//  DeckitServer
 //
 //  Created by JSilver on 10/20/26.
 //
 
 import Foundation
+import Deck
 
 // As it is written.
-extension Version: Codable {
+extension Version: Decodable {
     // MARK: - Property
     // MARK: - Initializer
     public init(from decoder: any Decoder) throws {
@@ -22,10 +23,5 @@ extension Version: Codable {
     }
 
     // MARK: - Public
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(description)
-    }
-
     // MARK: - Private
 }

@@ -7,18 +7,11 @@
 
 import Foundation
 
-enum ErasureError: DeckError, Equatable {
+public enum ErasureError: DeckError, Equatable {
     case notAMod(String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .notAMod:
-            "MOD"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .notAMod(mod):
             "not a mod id: \(mod)"

@@ -10,7 +10,7 @@ import Deck
 
 // The mods whose runs offer what a person may run: commands, readouts of what is happening now, and answers to what
 // they type. A run offers each by registering it, which it contributed under its name.
-final class CommandRegistry {
+public final class CommandRegistry {
     // MARK: - Property
     private unowned let deck: Deck
 
@@ -21,7 +21,7 @@ final class CommandRegistry {
 
     // MARK: - Public
     // In the person's order of the mods.
-    func sources() -> [CommandSource] {
+    public func sources() -> [CommandSource] {
         deck.mods().compactMap { mod in
             guard let contributions = deck.contributions(of: mod.manifest.id) else { return nil }
             let registered = { (name: String) in contributions.layers[name] == .bool(true) }

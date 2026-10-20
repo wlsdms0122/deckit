@@ -8,7 +8,7 @@
 import Foundation
 
 // The folders mods keep their own data in, one a mod, named by its id: whatever of a mod writes there.
-final class DataFolder {
+public final class DataFolder {
     // MARK: - Property
     private let countLimit = 1000
     private let depthLimit = 8
@@ -24,7 +24,7 @@ final class DataFolder {
     // MARK: - Public
     // Every file in the mod's data folder counts, whatever wrote it: erasing takes them all. A mod that manages the
     // mods asks for any id, so one that is no mod's is refused.
-    func count(mod: String) throws -> DataCount {
+    public func count(mod: String) throws -> DataCount {
         guard store.isName(mod) else { throw DataFolderError.notAMod(mod) }
 
         var count = DataCount()

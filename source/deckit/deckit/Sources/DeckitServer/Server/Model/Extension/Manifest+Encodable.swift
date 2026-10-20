@@ -7,8 +7,9 @@
 
 import Foundation
 import Deck
+import Deckit
 
-// The layers' fields beside deck's own.
+// The fields deckit adds beside deck's own.
 extension Manifest: Encodable {
     // MARK: - Property
     private struct Key: CodingKey {
@@ -40,9 +41,8 @@ extension Manifest: Encodable {
         try container.encode(requires, forKey: Key("requires"))
         try container.encode(optional, forKey: Key("optional"))
         try container.encode(permissions, forKey: Key("permissions"))
-        for (key, value) in fields {
-            try container.encode(value, forKey: Key(key))
-        }
+        let urlSchemes = URLSchemesField()
+        try container.encodeIfPresent(fields[urlSchemes.key] as? URLSchemesField.Value, forKey: Key(urlSchemes.key))
     }
 
     // MARK: - Private

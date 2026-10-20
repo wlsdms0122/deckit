@@ -10,13 +10,13 @@ import Foundation
 // A version written "MAJOR.MINOR.PATCH".
 public struct Version: Equatable, Sendable {
     // MARK: - Property
-    let major: Int
-    let minor: Int
-    let patch: Int
+    public let major: Int
+    public let minor: Int
+    public let patch: Int
 
     // MARK: - Initializer
     // Nil for what is not written so.
-    init?(_ written: String) {
+    public init?(_ written: String) {
         guard let match = written.wholeMatch(of: #/([0-9]+)\.([0-9]+)\.([0-9]+)/#),
             let major = Int(match.1),
             let minor = Int(match.2),
@@ -30,7 +30,7 @@ public struct Version: Equatable, Sendable {
 
     // MARK: - Public
     // The same major, and at least the wanted minor and patch.
-    func satisfies(_ wanted: Version) -> Bool {
+    public func satisfies(_ wanted: Version) -> Bool {
         major == wanted.major && (minor > wanted.minor || (minor == wanted.minor && patch >= wanted.patch))
     }
 

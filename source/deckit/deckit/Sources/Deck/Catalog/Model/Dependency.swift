@@ -10,11 +10,11 @@ import Foundation
 // A mod one depends on, as it lists it: whether it is there in a version wanted, and whether it runs without it.
 public struct Dependency: Encodable, Equatable, Sendable {
     // MARK: - Property
-    let id: String
-    let want: String
-    let name: String
-    let ok: Bool
-    let optional: Bool
+    public let id: String
+    public let want: String
+    public let name: String
+    public let ok: Bool
+    public let optional: Bool
 
     // MARK: - Initializer
     // MARK: - Public

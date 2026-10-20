@@ -9,7 +9,7 @@ import Foundation
 
 // A step of a run: the states it leaves, the state it reaches and what it tells. A launch that fails ends as any run
 // does, its stop() asked while it terminates. A crash ends a run that has not ended, with no willTerminate before it.
-enum Transition: String, Sendable {
+public enum Transition: String, Sendable {
     case didLaunch
     case didFailToLaunch
     case terminate

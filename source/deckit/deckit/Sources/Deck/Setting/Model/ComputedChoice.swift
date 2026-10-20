@@ -17,12 +17,12 @@ public struct ComputedChoice: Decodable, Sendable {
         case options
     }
 
-    let mod: String
-    let key: String
-    let options: [SettingOption]
+    public let mod: String
+    public let key: String
+    public let options: [SettingOption]
 
     // MARK: - Initializer
-    init(mod: String, key: String, options: [SettingOption]) {
+    public init(mod: String, key: String, options: [SettingOption]) {
         self.mod = mod
         self.key = key
         self.options = options

@@ -13,8 +13,8 @@ extension [Effect] {
     // MARK: - Property
     // The keymap the last `bindingsChanged` tells, or nil when none does.
     var bindingsChanged: ResolvedKeymap? {
-        for case let .layer(effect, change) in reversed() where effect == "bindingsChanged" {
-            return change as? ResolvedKeymap
+        for case let .layer(keymap as ResolvedKeymap) in reversed() {
+            return keymap
         }
         return nil
     }

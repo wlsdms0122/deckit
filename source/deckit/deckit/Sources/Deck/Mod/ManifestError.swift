@@ -8,22 +8,12 @@
 import Foundation
 
 // What the layers on deck are refused with as they add to the manifest.
-enum ManifestError: DeckError, Equatable {
+public enum ManifestError: DeckError, Equatable {
     case permissionDefined(String)
     case fieldDefined(String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .permissionDefined:
-            "PERMISSION"
-
-        case .fieldDefined:
-            "FIELD"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .permissionDefined(id):
             "the permission \(id) is defined twice"

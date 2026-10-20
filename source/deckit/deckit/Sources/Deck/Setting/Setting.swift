@@ -9,7 +9,7 @@ import Foundation
 
 // What the person can choose about each mod: what its run declares, and the values saved, one file a mod, kept apart
 // from the mod's own data folder. A value is saved as its declaration takes it.
-final class Setting {
+public final class Setting {
     // MARK: - Property
     private let fileExtension = "json"
     private let folder: URL
@@ -31,7 +31,7 @@ final class Setting {
     // A mod's settings stand from its run's declaring them as it launches until a later run declares them again, or
     // until the mod no longer loads: one whose start failed can still be set. Whether they were kept: what an older
     // run declared, or a run past launching, is not.
-    func declare(_ settings: [SettingDeclaration], mod: String, run number: Int) -> Bool {
+    public func declare(_ settings: [SettingDeclaration], mod: String, run number: Int) -> Bool {
         guard let run = runner.run(of: mod), run.number == number, run.state == .launching else { return false }
         declarations[mod] = settings
 
@@ -45,7 +45,7 @@ final class Setting {
     }
 
     // The choices of `mod`, or of every mod, whose options its page works out as they are read.
-    func computedChoices(mod: String?) -> [SettingKey] {
+    public func computedChoices(mod: String?) -> [SettingKey] {
         declarations.keys
             .filter { id in mod == nil || id == mod }
             .sorted()
@@ -59,7 +59,7 @@ final class Setting {
     // Every loading mod's that declared any, in the person's order, with `choices`, the options their pages worked out.
     // A choice a page gave none for offers none. A saved value no option offers now (one this machine lacks, or one an
     // update took away) is offered marked absent, and left as it is.
-    func list(choices: [ComputedChoice]) -> [SettingGroup] {
+    public func list(choices: [ComputedChoice]) -> [SettingGroup] {
         catalog.lastRead
             .filter { mod in mod.problem == nil }
             .compactMap { mod in
@@ -84,7 +84,7 @@ final class Setting {
     }
 
     // `options` are those the mod's page worked out, for a choice whose options are computed.
-    func set(mod: String, key: String, value: SettingValue?, options: [SettingOption]?) throws -> SettingChange {
+    public func set(mod: String, key: String, value: SettingValue?, options: [SettingOption]?) throws -> SettingChange {
         let declaration = try declaration(mod: mod, key: key)
         let next = try declaration.value(for: value, among: declaration.options(workedOut: options))
 
@@ -92,14 +92,14 @@ final class Setting {
     }
 
     // Refused unless the mod declared `key` as an action, which its page runs.
-    func action(mod: String, key: String) throws {
+    public func action(mod: String, key: String) throws {
         guard try declaration(mod: mod, key: key).type == .action else {
             throw SettingError.notAnAction(mod: mod, key: key)
         }
     }
 
     // A file that is not there, or that is not a table of values, reads as none saved.
-    func read(mod: String) -> [String: SettingValue] {
+    public func read(mod: String) -> [String: SettingValue] {
         guard let text = store.read(file(of: mod)) else { return [:] }
         return (try? JSONDecoder().decode([String: SettingValue].self, from: Data(text.utf8))) ?? [:]
     }

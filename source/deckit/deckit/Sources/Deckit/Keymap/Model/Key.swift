@@ -18,12 +18,19 @@ public struct Key: Decodable, Equatable, Sendable {
         case global
     }
 
-    let action: String
-    let spec: String
-    let label: String
-    let global: Bool
+    public let action: String
+    public let spec: String
+    public let label: String
+    public let global: Bool
 
     // MARK: - Initializer
+    public init(action: String, spec: String, label: String, global: Bool) {
+        self.action = action
+        self.spec = spec
+        self.label = label
+        self.global = global
+    }
+
     // MARK: - Public
     // MARK: - Private
 }

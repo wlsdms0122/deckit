@@ -73,12 +73,12 @@ struct URLRouterTests {
         }
 
         // When
-        try sut.setHandlers(of: "https", order: ["a", "b"], off: ["c"])
+        try sut.urlRouter.setHandlers(of: "https", order: ["a", "b"], off: ["c"])
         let restarted = try mods.deckit(schemeHandlers: ["https": ["b"]])
         for mod in ["a", "b", "c"] {
             _ = try restarted.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
         }
-        let lists = restarted.handlerLists()
+        let lists = restarted.urlRouter.handlerLists()
 
         // Then
         let https = try #require(lists.first { list in list.scheme == "https" })
@@ -89,7 +89,7 @@ struct URLRouterTests {
         let routed = route(restarted, "https://example.com", userInitiated: true)
         #expect(routed == "https://example.com -> a b, browser")
         #expect(throws: URLRouterError.noHandlers("mailto")) {
-            try restarted.setHandlers(of: "mailto", order: [], off: [])
+            try restarted.urlRouter.setHandlers(of: "mailto", order: [], off: [])
         }
     }
 
@@ -116,7 +116,7 @@ struct URLRouterTests {
     // MARK: - Private
     // `url -> handlers, system` as a test compares a route.
     private func route(_ sut: Deckit, _ url: String, userInitiated: Bool, usesDefaultApp: Bool = false) -> String {
-        let route = sut.route(url, userInitiated: userInitiated, usesDefaultApp: usesDefaultApp)
+        let route = sut.urlRouter.route(url, userInitiated: userInitiated, usesDefaultApp: usesDefaultApp)
 
         return "\(route.url) -> \(route.handlers.joined(separator: " ")), \(route.system?.rawValue ?? "none")"
     }

@@ -11,7 +11,7 @@ import Deck
 // Which mods an address is offered to, in what order, and what deckit opens it with by itself after them. A mod handles
 // the schemes its manifest names under url-schemes once its run has registered deck.handleURL(): its run contributed
 // `handleURL`. The app names who is asked first for each scheme, and the person orders them and switches them off.
-final class URLRouter: Layer {
+public final class URLRouter {
     // MARK: - Property
     private let contributionKey = "handleURL"
     private let preferencesKey = "scheme-handlers"
@@ -49,16 +49,12 @@ final class URLRouter: Layer {
         return []
     }
 
-    func changes() -> [(effect: String, change: any Encodable & Sendable)] {
-        []
-    }
-
     // MARK: - Public
     // A file opens only on a person's click or key, whoever answers it, and deckit opens nothing by itself without one:
     // otherwise any mod could open apps at will, or learn which paths exist.
     // `userInitiated` for an address a person's click or key asked for, and `usesDefaultApp` for one that skips the
     // mods for what deckit opens it with by itself.
-    func route(_ url: String, userInitiated: Bool, usesDefaultApp: Bool) -> URLRoute {
+    public func route(_ url: String, userInitiated: Bool, usesDefaultApp: Bool) -> URLRoute {
         let address = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let scheme = URLScheme(address: address), scheme.isPlace else {
             return URLRoute(url: address, handlers: [], system: nil)
@@ -71,7 +67,7 @@ final class URLRouter: Layer {
     }
 
     // Every scheme with a handler list: those deckit opens by itself, then each one a mod handles, then every other.
-    func handlerLists() -> [HandlerList] {
+    public func handlerLists() -> [HandlerList] {
         schemes().map { scheme in
             HandlerList(scheme: scheme, system: SystemHandler(scheme: scheme), handlers: handlers(of: scheme))
         }
@@ -80,7 +76,7 @@ final class URLRouter: Layer {
     // The handlers in `order` take the places they held among themselves. One missing from the list now (failed to
     // load, or waiting on what it requires) keeps its place and switch: otherwise editing the list while it was gone
     // would give its place to the app's. Those in `off` are switched off.
-    func setHandlers(of scheme: String, order: [String], off: [String]) throws {
+    public func setHandlers(of scheme: String, order: [String], off: [String]) throws {
         guard schemes().contains(scheme) else { throw URLRouterError.noHandlers(scheme) }
 
         let given = Set(order)

@@ -8,11 +8,11 @@
 import Foundation
 
 // A binding as a keystroke is resolved: `active` while its chord is applied, and its issues.
-struct ResolvedBinding: Equatable, Sendable {
+public struct ResolvedBinding: Equatable, Sendable {
     // MARK: - Property
-    let binding: Binding
-    let active: Bool
-    let issues: [BindingIssue]
+    public let binding: Binding
+    public let active: Bool
+    public let issues: [BindingIssue]
 
     // MARK: - Initializer
     // MARK: - Public

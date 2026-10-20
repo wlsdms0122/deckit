@@ -11,8 +11,8 @@ import Foundation
 // of those.
 public struct RecordCount: Encodable, Equatable, Sendable {
     // MARK: - Property
-    let count: Int
-    let hidden: Bool
+    public let count: Int
+    public let hidden: Bool
 
     // MARK: - Initializer
     // MARK: - Public

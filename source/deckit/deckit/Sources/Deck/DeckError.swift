@@ -7,8 +7,7 @@
 
 import Foundation
 
-// What deck, or a layer on it, refuses with: `kind` is how whoever asked tells one refusal from another.
+// What deck, or a layer on it, refuses with, as a person reads it. Which refusal it is, is its case.
 public protocol DeckError: Error {
-    var kind: String { get }
     var message: String { get }
 }

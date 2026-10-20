@@ -12,16 +12,17 @@ public final class Deck {
     // MARK: - Property
     // The state deck keeps, which a layer keeps its own in beside deck's.
     public let state: State
-    private let record: Record
-    private let setting: Setting
-    private let dataFolder: DataFolder
-    private let catalog: Catalog
+    public let records: Record
+    public let settings: Setting
+    public let dataFolder: DataFolder
+    // The mods found, installed and removed, and their order. Reading them again is deck's (`readCatalog()`).
+    public let catalog: Catalog
+    public let erasure: Erasure
+    public let exports: ExportBroker
+    public let extensions: ExtensionRegistry
+    public let events: EventBus
     private let runner: Runner
-    private let erasure: Erasure
-    private let exportBroker: ExportBroker
-    private let extensionRegistry: ExtensionRegistry
-    private let eventBus: EventBus
-    private var layers: [any Layer] = []
+    private var layers: [Layer] = []
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
@@ -58,16 +59,16 @@ public final class Deck {
             catalog: catalog,
             runner: runner
         )
-        self.record = record
+        self.records = record
         self.state = state
-        self.setting = setting
+        self.settings = setting
         self.dataFolder = dataFolder
         self.catalog = catalog
         self.runner = runner
         self.erasure = Erasure(dataFolder: dataFolder, record: record, setting: setting, state: state, store: store)
-        self.exportBroker = ExportBroker(runner: runner)
-        self.extensionRegistry = ExtensionRegistry(runner: runner)
-        self.eventBus = EventBus(runner: runner)
+        self.exports = ExportBroker(runner: runner)
+        self.extensions = ExtensionRegistry(runner: runner)
+        self.events = EventBus(runner: runner)
     }
 
     // MARK: - Public
@@ -83,113 +84,15 @@ public final class Deck {
     }
 
     // `layer` is asked of each run as it starts, and of what has changed once the runs have moved.
-    public func add(_ layer: any Layer) {
+    public func add(_ layer: Layer) {
         layers.append(layer)
-    }
-
-    // A mod's record under `key`, as JSON text, or none.
-    public func readRecord(mod: String, key: String) throws -> String? {
-        try record.read(mod: mod, key: key)
-    }
-
-    // `text` is JSON, as the record's file holds it.
-    public func writeRecord(mod: String, key: String, text: String) throws {
-        try record.write(mod: mod, key: key, text: text)
-    }
-
-    public func removeRecord(mod: String, key: String) throws {
-        try record.remove(mod: mod, key: key)
-    }
-
-    public func recordKeys(mod: String) throws -> [String] {
-        try record.keys(mod: mod)
-    }
-
-    public func countRecords(mod: String) throws -> RecordCount {
-        try record.count(mod: mod)
-    }
-
-    // What a mod has saved of its settings, by key.
-    public func settings(of mod: String) -> [String: SettingValue] {
-        setting.read(mod: mod)
-    }
-
-    // What the `run`th run of `mod` declares as its entry is read, in the order declared: whether it was taken.
-    public func declareSettings(_ settings: [SettingDeclaration], mod: String, run: Int) -> Bool {
-        setting.declare(settings, mod: mod, run: run)
-    }
-
-    // The choices whose options its page works out, of `mod`, or of every mod for none.
-    public func computedChoices(mod: String?) -> [SettingKey] {
-        setting.computedChoices(mod: mod)
-    }
-
-    // Every mod's settings as Settings lists them, with the options the pages worked out for `choices`.
-    public func listSettings(choices: [ComputedChoice]) -> [SettingGroup] {
-        setting.list(choices: choices)
-    }
-
-    // A value asked for a mod's setting, and for a computed choice the options its page worked out.
-    public func setSetting(
-        mod: String,
-        key: String,
-        value: SettingValue?,
-        options: [SettingOption]?
-    ) throws -> SettingChange {
-        try setting.set(mod: mod, key: key, value: value, options: options)
-    }
-
-    // Refused unless the mod declared `key` as an action, which its page runs.
-    public func validateSettingAction(mod: String, key: String) throws {
-        try setting.action(mod: mod, key: key)
     }
 
     // The mods read again, as the catalog reads them now.
     public func readCatalog() -> [Mod] {
         let mods = catalog.read()
-        setting.forget()
+        settings.forget()
         return mods
-    }
-
-    // The ids named take the places they held among themselves, in the order given; the rest stay put.
-    public func arrange(_ ids: [String]) throws {
-        try catalog.arrange(ids)
-    }
-
-    public func installShipped() throws -> [InstallReport] {
-        try catalog.installShipped()
-    }
-
-    // What installing the mod in `folder` would install.
-    public func wouldInstall(from folder: URL) throws -> Manifest {
-        try catalog.wouldInstall(from: folder)
-    }
-
-    public func install(from folder: URL) throws -> Manifest {
-        try catalog.install(from: folder)
-    }
-
-    // Whether the mod `id` was installed and is removed.
-    public func remove(_ id: String) throws -> Bool {
-        try catalog.remove(id)
-    }
-
-    public func countData(mod: String) throws -> DataCount {
-        try dataFolder.count(mod: mod)
-    }
-
-    // What the mod kept is erased, noted until main has cleared what its pages kept.
-    public func erase(mod: String) throws {
-        try erasure.erase(mod: mod)
-    }
-
-    // The mods erased whose pages' storage main has not cleared yet.
-    public func uncleared() -> [String] {
-        erasure.uncleared()
-    }
-
-    public func cleared(mod: String) throws {
-        try erasure.cleared(mod: mod)
     }
 
     // What the runs come to for the catalog as it was last read.
@@ -225,7 +128,7 @@ public final class Deck {
     }
 
     // A problem against the `run`th run of `id`.
-    public func recordProblem(_ id: String, run: Int, problem: String) throws -> [Effect] {
+    public func record(_ id: String, run: Int, problem: String) throws -> [Effect] {
         try withChanges(runner.record(id, run: run, problem: problem))
     }
 
@@ -241,39 +144,13 @@ public final class Deck {
         try withChanges(runner.stopped(id, run: run))
     }
 
-    // What the `run`th run of `mod` is given of what its dependencies export.
-    public func dependencies(mod: String, run: Int) throws -> Poll<Dependencies> {
-        try exportBroker.dependencies(mod: mod, run: run)
-    }
-
-    // Whether a call from the `run`th run of `caller` into the function at `path` of what `mod` exports goes.
-    public func callExport(from caller: String, run: Int, mod: String, path: [String]) throws -> Poll<Bool> {
-        try exportBroker.call(from: caller, run: run, mod: mod, path: path)
-    }
-
-    // Whether a call from the `run`th run of `caller` into the function at `path` of what `mod` extends `point` with
-    // goes.
-    public func callExtension(from caller: String, run: Int, mod: String, point: String, path: [String]) throws {
-        try extensionRegistry.call(from: caller, run: run, mod: mod, point: point, path: path)
-    }
-
-    // Every scoped event name the `run`th run of `mod` listens to now.
-    public func listen(mod: String, run: Int, names: [String]) {
-        eventBus.listen(mod: mod, run: run, names: names)
-    }
-
-    // Who hears an event the `run`th run of `mod` sends of itself, by its own name for it.
-    public func emit(mod: String, run: Int, name: String) -> EventDelivery {
-        eventBus.emit(mod: mod, run: run, name: name)
-    }
-
     // MARK: - Private
     // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, and
     // what each layer tells has changed of its own.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
         effects
-            + exportBroker.changes()
-            + extensionRegistry.changes()
+            + exports.changes()
+            + extensions.changes()
             + layers.flatMap { layer in layer.changes() }.map(Effect.layer)
     }
 
@@ -281,7 +158,7 @@ public final class Deck {
     private func problems(of id: String, run number: Int) -> [String] {
         guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
 
-        return extensionRegistry.problems(of: run, mod: mod)
-            + layers.flatMap { layer in layer.problems(of: run, mod: mod) }
+        return extensions.problems(of: run, mod: mod)
+            + layers.flatMap { layer in layer.problems(run, mod) }
     }
 }

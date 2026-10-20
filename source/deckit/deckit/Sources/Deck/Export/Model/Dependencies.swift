@@ -10,8 +10,8 @@ import Foundation
 // What each mod a run requires exports, and what each of its optional dependencies exports to it now, or null.
 public struct Dependencies: Encodable, Equatable, Sendable {
     // MARK: - Property
-    let requires: [String: Snapshot]
-    let optional: [String: Snapshot?]
+    public let requires: [String: Snapshot]
+    public let optional: [String: Snapshot?]
 
     // MARK: - Initializer
     // MARK: - Public

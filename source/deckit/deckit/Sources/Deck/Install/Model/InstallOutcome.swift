@@ -8,7 +8,7 @@
 import Foundation
 
 // What became of a mod the app ships as what it ships was installed.
-enum InstallOutcome: String, Encodable, Sendable {
+public enum InstallOutcome: String, Encodable, Sendable {
     case installed
     // Shipped before and removed by the person since, so it stays out.
     case leftOut = "left out"
