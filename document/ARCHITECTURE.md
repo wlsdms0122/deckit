@@ -46,7 +46,7 @@ A new mod needs no change to deck. A new place to show the panel in needs no cha
 
 | Where | What runs there |
 |---|---|
-| the core | deckit's own process, the host app's child: a mod's records |
+| the core | deckit's own process, the host app's child: a mod's records and settings, and the state |
 | main | deck: mod folders, storage, and what a page asks of deck. Deckit: main process modules, the keymap, opening addresses, commands, windows. The shell: the panel and the switcher, the views it puts in the host app's windows |
 | a mod's sandbox | where one mod's entry runs, headless or not: a page in a `WebContentsView` of its own at `deckit://<id>.mod/`; with deckit's shell on deckit, a mod with a view lays it there where the panel's frame leaves it room, or in a region where it is another's child |
 | a page that runs no mod | made for the shell, at `deckit://<name>/`: the quick switcher's list, at `deckit://switcher/`, and the panel's frame, at `deckit://panel/`, with the two documents it opens and draws in, its backdrop under the mods and its width's handle over them |
@@ -55,7 +55,7 @@ A mod's sandbox is a renderer and deck is in main. Each mod's sandbox has its ow
 
 The pages never speak to each other. Main carries everything between them, and every word is a channel declared once in its concept's `protocol.js` (`deck/ipc`), named for its package (`deck:`, `deckit-electron:`, `deckit-shell:`): `rendererToMain` for what a page asks or tells main, `mainToRenderer` for what main tells or asks a page. Main holds what arrives to the channel's fields; nothing else checks it. A question main asks a page ends when it is answered, when the page goes away, or when its time runs out. An error crosses with its kind.
 
-The core is `source/deckit/deckit`, a Swift package: `Deck`, `Deckit` on `Deck`, and `DeckitServer`, the executable `deckit`, which answers through `Deckit`. It keeps a mod's records: main asks for them as a mod's page does, and the core answers by the mod main names. Deck's methods take their params as `Decodable` and answer an `Encodable`: what they are on the wire is the server's.
+The core is `source/deckit/deckit`, a Swift package: `Deck`, `Deckit` on `Deck`, and `DeckitServer`, the executable `deckit`, which answers through `Deckit`. It keeps a mod's records and the values of its settings, and the state: main asks for a mod's as its page does, and the core answers by the mod main names. Main reads the state once, before anything on deckit reads it, and answers each read from that copy at once. Main is the state's only writer and the core keeps writes in the order sent, so a write goes to the copy and to the core; one the core refuses is taken back out of the copy. Deck's methods take their params as `Decodable` and answer an `Encodable`: what they are on the wire is the server's.
 
 Main starts the core once the app is ready, from the file the host app hands `connect` as `core` (`deck/core`), and asks nothing else of it until it has answered `initialize` with deckit's folder. They speak JSON-RPC 2.0, a message a line: main's requests on the core's stdin and its answers on its stdout, and what it writes to stderr is deckit's log. The core answers one message at a time in the order they come, and asks main nothing. A refusal crosses with its kind, as between main and a page. How the messages go is `deck/core/connection.js` and `DeckitServer/Connection`; what they are, `deck/core/message.js` and `DeckitServer/Server/Model`.
 
@@ -84,11 +84,11 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | where the frame's parts are: the list, the slot it lends the mod's sidebar, the content's room and the handle | the frame's page, `deckit-shell/panel/frame.js`, which tells main |
 | what the switcher lists, and what was picked before | `deckit-shell/switcher/main.js` |
 | which styles each page wears, in what order | `deckit-shell/style/main.js` |
-| a mod's records | the core, `Deck/Record`, under deckit's folder (below) |
-| a mod's data and settings | main, under deckit's folder (below) |
+| a mod's records, and the values of its settings | the core, `Deck/Record` and `Deck/Setting`, under deckit's folder (below) |
+| a mod's data | main, under deckit's folder (below) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
-| what the person arranged (mod order, key overrides, each scheme's handlers), and what deck and deckit keep for themselves between runs (the web sessions each mod made, the mods whose sessions are still to clear) | `state/` |
-| what the host app and its shell keep (the panel's sidebar as the person left it, what was picked in the switcher before) | `state/host/` |
+| what the person arranged (mod order, key overrides, each scheme's handlers), and what deck and deckit keep for themselves between runs (the web sessions each mod made, the mods whose sessions are still to clear) | the core, `Deck/State`, in `state/` |
+| what the host app and its shell keep (the panel's sidebar as the person left it, what was picked in the switcher before) | the core, `Deck/State`, in `state/host/` |
 
 What a mod is, `deck/mod` says: its manifest, its folder, its permissions, its entry and its lifecycle. The rest of deck runs mods by it, and `deck/mod` names nothing of running them. The runner tells each transition of a run (`willLaunch`, `didLaunch`, `didFailToLaunch`, `willTerminate`, `didTerminate`); what follows a mod's run (its exports, its extensions, its settings, its events, and above deck its main process modules, its keys, its styles and its place in the panel) listens to those, or asks the run, and changes none of it but to record a problem.
 

@@ -109,14 +109,14 @@ Any other member stops the mod. Everything the mod reaches is in `deck`.
 
 ### settings
 
-What the person can choose about the mod is declared. Settings draws and lists every mod's, the main process checks each value against its declaration and keeps it, and the mod reads them through `deck.settings`.
+What the person can choose about the mod is declared. Settings draws and lists every mod's, the main process checks each value against its declaration, deckit's core keeps it, and the mod reads them through `deck.settings`.
 
 `settings` is `{ <key>: { label, type, default, hint } }`, and `type` is one of:
 
 | Type | Also takes |
 |---|---|
 | `toggle` | |
-| `choice` | `options`: `[{ value, label, font }]`, or a function of `deck` that gives them |
+| `choice` | `options`: `[{ value, label, font }]`, or a function of `deck` that gives them. A `value` is a boolean, a number or text |
 | `number` | `min`, `max`, `step`, `unit` |
 | `text` | `placeholder` |
 | `action` | `button` (its text) and `run(deck)`, which may return a line to show |
