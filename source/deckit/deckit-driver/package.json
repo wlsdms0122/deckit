@@ -1,0 +1,8 @@
+{
+    "name": "deckit-driver",
+    "private": true,
+    "exports": {
+        "./channel/index.js": "./channel/index.js"
+    },
+    "dependencies": {}
+}

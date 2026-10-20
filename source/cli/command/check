@@ -6,6 +6,8 @@ const path = require('path');
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
 const IPC = 'deckit-electron/deck/ipc/index.js';
+// What a driver gives the shell, declared alone: plain data and pure functions that run on any side of any driver.
+const DRIVER = 'deckit-driver';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];
@@ -83,11 +85,20 @@ function checkFile(file) {
         say(file, 'imports while it runs; import statically, so the check and the bundle see it');
     if (file !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
+    if (packageOf(file) === DRIVER) checkPure(file, plain);
     const protocol = file.endsWith('/protocol.js');
     if (!protocol && /["'`](deckit-electron|deckit-shell):(?!\/\/)/.test(plain))
         say(file, 'writes a channel; channels are declared in a protocol.js');
     if (protocol) checkChannels(file, plain);
     for (const { spec, file: target } of imports.get(file)) checkImport(file, spec, target);
+}
+
+// The driver contract holds nothing of a driver: no module, nothing of a process or a page, and no state of its own.
+function checkPure(file, plain) {
+    if (/\brequire\s*\(/.test(plain)) say(file, `requires a module, but ${DRIVER}/ is plain declarations`);
+    if (/\b(?:electron|ipcMain|ipcRenderer|process|window|document)\b/.test(plain))
+        say(file, `reaches a process or a page, but ${DRIVER}/ runs on any side of any driver`);
+    if (/^let\b/m.test(plain)) say(file, `holds state, but ${DRIVER}/ is plain declarations`);
 }
 
 // A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no

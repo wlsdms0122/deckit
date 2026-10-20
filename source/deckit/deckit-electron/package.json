@@ -9,5 +9,7 @@
         "./deck/listener/index.js": "./deck/listener/index.js",
         "./deck/contract/index.js": "./deck/contract/index.js"
     },
-    "dependencies": {}
+    "dependencies": {
+        "deckit-driver": "file:../deckit-driver"
+    }
 }

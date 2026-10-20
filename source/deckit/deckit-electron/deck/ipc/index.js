@@ -1,3 +1,4 @@
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as LISTENER from '../listener/index.js';
 
 // MARK: - Property
@@ -9,11 +10,13 @@ let sequence = 0;
 
 // MARK: - Initializer
 // MARK: - Public
-// A renderer runs code main does not trust, so main holds what arrives to `fields`; nothing else checks.
-function rendererToMain(channel, fields, { reply = false, sync = false } = {}) {
+// A channel as deckit-driver declares it, carried by Electron's IPC.
+function rendererToMain(channel, fields, declaring) {
+    const declared = CHANNEL.rendererToMain(channel, fields, declaring);
+    const { reply, sync } = declared;
     if (inMain) {
-        if (reply) return { handle: (answer) => handle(channel, fields, sync, answer) };
-        return { on: (listener) => listen(channel, fields, listener) };
+        if (reply) return { handle: (answer) => handle(declared, answer) };
+        return { on: (listener) => listen(declared, listener) };
     }
     const { ipcRenderer } = electron;
     if (!reply) return { send: (payload = {}) => ipcRenderer.send(channel, payload) };
@@ -21,7 +24,8 @@ function rendererToMain(channel, fields, { reply = false, sync = false } = {}) {
     return { invoke: (payload = {}) => ipcRenderer.invoke(channel, payload).then(unwrap) };
 }
 
-function mainToRenderer(channel, { reply = false } = {}) {
+function mainToRenderer(channel, declaring) {
+    const { reply } = CHANNEL.mainToRenderer(channel, declaring);
     if (inMain) {
         if (reply)
             return {
@@ -34,30 +38,6 @@ function mainToRenderer(channel, { reply = false } = {}) {
 }
 
 // MARK: - Private
-function problemOf(channel, fields, payload) {
-    if (kindOf(payload) !== 'object') return `${channel} carries an object, not ${kindOf(payload)}`;
-    for (const key of Object.keys(payload)) {
-        if (!Object.hasOwn(fields, key)) return `${channel} has no field ${key}`;
-    }
-    for (const [key, written] of Object.entries(fields)) {
-        const optional = written.endsWith('?');
-        const type = optional ? written.slice(0, -1) : written;
-        const value = payload[key];
-        if (value === undefined || value === null) {
-            if (!optional) return `${channel} needs ${key}`;
-            continue;
-        }
-        if (type !== 'any' && kindOf(value) !== type) return `${channel}'s ${key} is ${kindOf(value)}, not ${type}`;
-    }
-    return '';
-}
-
-function kindOf(value) {
-    if (value === null) return 'null';
-    if (Array.isArray(value)) return 'array';
-    return typeof value;
-}
-
 // Only a message crosses a process, so an error's kind travels beside it and is put back on the far side.
 function errorOf(error) {
     return { message: String(error?.message ?? error), kind: error?.kind ?? null };
@@ -81,11 +61,12 @@ function settle(work) {
         );
 }
 
-function handle(channel, fields, sync, answer) {
+function handle(declared, answer) {
+    const { channel, sync } = declared;
     const { ipcMain } = electron;
     if (!sync) {
         ipcMain.handle(channel, (event, payload) => {
-            const problem = problemOf(channel, fields, payload);
+            const problem = CHANNEL.problemOf(declared, payload);
             if (problem) return { error: { message: problem, kind: 'REFUSED' } };
             return settle(() => answer(payload, event.sender));
         });
@@ -93,7 +74,7 @@ function handle(channel, fields, sync, answer) {
     }
     // The page waits for a synchronous answer until main has it, a promise's included.
     ipcMain.on(channel, (event, payload) => {
-        const problem = problemOf(channel, fields, payload);
+        const problem = CHANNEL.problemOf(declared, payload);
         if (problem) {
             event.returnValue = { error: { message: problem, kind: 'REFUSED' } };
             return;
@@ -104,10 +85,11 @@ function handle(channel, fields, sync, answer) {
     });
 }
 
-function listen(channel, fields, listener) {
+function listen(declared, listener) {
+    const { channel } = declared;
     const guarded = LISTENER.wrap(listener, channel);
     electron.ipcMain.on(channel, (event, payload) => {
-        const problem = problemOf(channel, fields, payload);
+        const problem = CHANNEL.problemOf(declared, payload);
         if (problem) {
             console.error(`[deckit] refused: ${problem}`);
             return;
