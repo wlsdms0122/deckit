@@ -244,7 +244,6 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
             crash(sandbox.run, `its page ended (${reason})`)
         );
         IDENTITY.add(webContents, { mod });
-        SANDBOX.pin(webContents, ORIGIN.originOf(mod.id));
         // A page opens no window of its own: what it asked for is what is on deck's to answer.
         webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
         preparePage(webContents, mod);

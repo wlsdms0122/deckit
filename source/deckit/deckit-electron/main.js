@@ -94,11 +94,11 @@ function refuseUnknown(what, given, known) {
 
 // Deckit in main, made of deck's parts and its own, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
-    // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses.
-    const ENV = ENVIRONMENT.checked(environment, ENVIRONMENT.MAIN, 'what Electron gives deck');
-    IPC.carry(ENV);
     const HOME = createHome({ CONFIG, FOLDERS });
     const LOG = createLog({ CONFIG, HOME });
+    // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses.
+    const ENV = ENVIRONMENT.checked(environment, ENVIRONMENT.MAIN, 'what Electron gives deck');
+    IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
     const CORE = createCore({ CONFIG, FOLDERS, HOME, LOG, core });
     const STORAGE = createStorage({ HOME, CORE, LOG });
     const PERMISSION = createPermission();

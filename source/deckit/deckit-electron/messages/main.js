@@ -7,30 +7,25 @@ let listening = false;
 
 // MARK: - Initializer
 // MARK: - Public
-function listen({ told, asked, askedSync, answered }) {
+function listen({ told, asked, askedSync }) {
     if (listening) throw new Error('[deckit] deck is heard already');
     listening = true;
     const { ipcMain } = require('electron');
-    ipcMain.on(WIRE.pageTells.channel, (event, message) => told(event.sender, message));
-    ipcMain.handle(WIRE.pageAsks.channel, (event, message) => asked(event.sender, message));
+    ipcMain.on(WIRE.pageTells, (event, message) => told(event.sender, message));
+    ipcMain.handle(WIRE.pageAsks, (event, message) => asked(event.sender, message));
     // A page asking sync waits until main has the answer, a promise's included.
-    ipcMain.on(WIRE.pageAsksSync.channel, (event, message) => {
+    ipcMain.on(WIRE.pageAsksSync, (event, message) => {
         askedSync(event.sender, message).then((result) => {
             event.returnValue = result;
         });
     });
-    ipcMain.on(WIRE.pageAnswers.channel, (event, message) => answered(event.sender, message));
 }
 
 function tell(page, message) {
-    if (!page.isDestroyed()) page.send(WIRE.mainTells.channel, message);
+    if (!page.isDestroyed()) page.send(WIRE.mainTells, message);
 }
 
-function ask(page, message) {
-    page.send(WIRE.mainAsks.channel, message);
-}
-
-const messages = Object.freeze({ listen, tell, ask });
+const messages = Object.freeze({ listen, tell });
 
 // MARK: - Private
 

@@ -1,4 +1,4 @@
-import * as CHANNEL from '../deck/channel/index.js';
+import * as ENVIRONMENT from '../environment/index.js';
 
 // What a layer on deckit, a shell, and a driver agree on, as plain data: what the layer is given in main (what connect
 // answers), of a stage, and on a page. A driver gives at least this, and the layer is handed this alone (`checked`).
@@ -70,36 +70,9 @@ const MOD_CONTEXT = Object.freeze({ mod: 'object', deliver: 'function', channels
 
 // MARK: - Initializer
 // MARK: - Public
-// The members `table` names that `given` does not have as it says, each by its path: none when it has them all. A
-// member of the wrong kind is missing. A nested table is met by an object, or a function, carrying its members.
-function missingIn(given, table, at = '') {
-    return Object.entries(table).flatMap(([name, kind]) => {
-        const path = at + name;
-        const value = given?.[name];
-        if (typeof kind !== 'object') return CHANNEL.kindOf(value) === kind ? [] : [path];
-        const carries = value && (typeof value === 'object' || typeof value === 'function');
-        return carries ? missingIn(value, kind, path + '.') : [path];
-    });
-}
-
-// What `given` holds of `table`, and nothing else, frozen: a throw naming what `what` lacks when it lacks any. So a
-// layer handed this reaches only what it is given.
-function checked(given, table, what) {
-    const missing = missingIn(given, table);
-    if (missing.length) throw new Error(`[deckit] ${what} lacks ${missing.join(', ')}`);
-    return copyOf(given, table);
-}
+// How a layer is held to what it is given: as an environment is (environment/).
+const { missingIn, checked } = ENVIRONMENT;
 
 // MARK: - Private
-function copyOf(given, table) {
-    return Object.freeze(
-        Object.fromEntries(
-            Object.entries(table).map(([name, kind]) => [
-                name,
-                typeof kind === 'object' ? copyOf(given[name], kind) : given[name],
-            ])
-        )
-    );
-}
 
 export { CONNECTED, NOTIFIED, STAGE, PAGE_CONTEXT, MOD_CONTEXT, missingIn, checked };

@@ -1,3 +1,5 @@
+import * as LISTENER from '../listener/index.js';
+
 // Which page is which mod's, or which runs none, and what a person just did in a page. `pages` is the environment's
 // (environment/: MAIN.pages); a page is its token, kept and compared, never read.
 export function createIdentity({ pages: PAGES }) {
@@ -16,23 +18,26 @@ export function createIdentity({ pages: PAGES }) {
     // Only main makes the pages a mod runs in and the pages that run none, so who sent a message is known by which
     // page it came from, and never by what the message says. What watches a page before it is added is told before
     // it: a crash's cause is told before the run's page is gone, and the core keeps the first problem of a run. A key
-    // is counted before what watches the page's input after it may take it.
+    // is counted before what watches the page's input after it may take it. A page is held to the address it loads,
+    // so it is known as its owner for as long as it is.
     function add(page, owner) {
         owners.set(page, owner);
+        PAGES.pin(page);
         watchPresses(page);
         if (owner.mod) pages.set(owner.mod.id, page);
         ends.set(page, new Set());
-        const end = () => {
-            const undos = [...ends.get(page)];
-            ends.get(page).clear();
-            for (const undo of undos) undo();
+        // Each undo runs whatever another throws.
+        const end = (undos) => {
+            const due = [...undos];
+            undos.clear();
+            for (const undo of due) LISTENER.wrap(undo, 'what a page set up')();
         };
         // A reload or a crashed renderer keeps the page, but the document that set things up is gone. A navigation
         // ends it only once it commits: one the environment refuses never does.
         PAGES.watch(page, {
-            ended: end,
+            ended: () => end(ends.get(page)),
             destroyed: () => {
-                end();
+                end(ends.get(page));
                 ends.delete(page);
                 owners.delete(page);
                 if (owner.mod && pages.get(owner.mod.id) === page) pages.delete(owner.mod.id);
@@ -54,13 +59,13 @@ export function createIdentity({ pages: PAGES }) {
     function watchPresses(page) {
         PAGES.watchInput(page, ({ type }) => {
             // A drag tells what it did as it is let go, however long it was held: the release is a press too.
-            if (type === 'keyDown') {
+            if (type === 'keydown') {
                 activated.set(page, Date.now());
-            } else if (type === 'mouseDown') {
+            } else if (type === 'mousedown') {
                 activated.set(page, Date.now());
                 pointed.set(page, Date.now());
                 held.add(page);
-            } else if (type === 'mouseUp') {
+            } else if (type === 'mouseup') {
                 activated.set(page, Date.now());
                 pointed.set(page, Date.now());
                 held.delete(page);

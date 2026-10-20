@@ -20,15 +20,15 @@ let sequence = 0;
 const { ownChannels, layerChannels } = table;
 
 // What carries the channels from now on, handed over once, before anything crosses: a channel is bound as its module
-// loads, and heard once something carries it.
-function carry(environment) {
+// loads, and heard once something carries it. `report` is told what a listener on them throws.
+function carry(environment, { report }) {
     if (carrier) throw new Error('[deckit] the channels are carried already');
     carrier = environment;
+    LISTENER.reportTo(report);
     carrier.messages.listen({
-        told,
+        told: (page, message) => (ENVELOPE.ofQuestion(message) ? answered(page, message) : told(page, message)),
         asked: (page, message) => answerPage(ENVELOPE.asked, message, page),
         askedSync: (page, message) => answerPage(ENVELOPE.askedSync, message, page),
-        answered,
     });
 }
 
@@ -108,7 +108,7 @@ function ask(page, channel, payload, { timeout = 0 } = {}) {
             ? setTimeout(() => settleAsked(channel, id, { error: { message: `${channel}: no answer` } }), timeout)
             : null;
         asked.get(channel).set(id, { resolve, reject, page, timer });
-        messages.ask(page, { channel, id, payload, timeout });
+        messages.tell(page, { channel, id, payload, timeout });
     });
 }
 

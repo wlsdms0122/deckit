@@ -2,6 +2,7 @@
 // the environment carries (environment/: PAGE.messages). `ownChannels` binds deck's own, and `layerChannels`, handed to
 // a layer on deck, binds the layer's.
 import * as LISTENER from '../listener/index.js';
+import * as ENVELOPE from './model/envelope.js';
 import * as TABLE from './index.js';
 
 // MARK: - Property
@@ -15,12 +16,14 @@ const waiting = new Map();
 // MARK: - Public
 const { ownChannels, layerChannels } = table;
 
-// What carries the channels from now on, handed over once, as the page starts and before its code runs, so a question
-// main asks a page waits here from the page's start for the page's code to say how to answer it.
-function carry(environment) {
+// What carries the channels from now on, handed over once, as the page's preload runs and before its code does, so a
+// question main asks a page waits here from the page's start for the page's code to say how to answer it. `report` is
+// told what a listener on them throws.
+function carry(environment, { report }) {
     if (messages) throw new Error('[deckit] the channels are carried already');
     messages = environment.messages;
-    messages.listen({ told, asked });
+    LISTENER.reportTo(report);
+    messages.listen({ told: (message) => (ENVELOPE.ofQuestion(message) ? asked(message) : told(message)) });
 }
 
 // MARK: - Private
@@ -76,9 +79,9 @@ function answerMain(entry, id, payload) {
 // An answer that cannot cross a process goes back as the error it is, so the question is not left open.
 function send(channel, id, result) {
     try {
-        carried().answer({ channel, id, ...result });
+        carried().tell({ channel, id, ...result });
     } catch (error) {
-        carried().answer({ channel, id, error: TABLE.errorOf(error) });
+        carried().tell({ channel, id, error: TABLE.errorOf(error) });
     }
 }
 

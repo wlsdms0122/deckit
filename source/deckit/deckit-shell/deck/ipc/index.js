@@ -8,24 +8,24 @@ import * as CHANNEL from '../channel/index.js';
 // A side's channels. `sides` makes what a channel is on this side from its copy: `toMain(copy)` for one a page asks or
 // tells main, `toPage(copy)` for one main asks or tells a page. What is bound is a copy of the declaration, read once,
 // so nothing changes it after. A channel is declared once: binding the same declaration again binds the same channel,
-// and another declaration of its name is refused. A layer's are bound as any other, but never under a name deck's own
-// start with: deck binds its own as its modules load, before a layer is handed anything.
+// and another declaration of its name is refused. A layer's are bound as any other, but never one deck binds as its
+// own, whoever declares it.
 function createTable(sides) {
     const declared = new Map(); // channel -> the declaration it was bound as, so it is declared once
     // The channels heard here, by name: { copy, answer, listeners }, once something answers or listens on one.
     const heard = new Map();
-    const reserved = new Set(); // what deck's own channels' names start with, up to their `:`
+    const own = new Set(); // the channels deck binds as its own
 
     function bindOwn(given) {
         const copy = copyOf(given);
-        reserved.add(prefixOf(copy.channel));
-        return bindCopy(given, copy);
+        const bound = bindCopy(given, copy);
+        own.add(copy.channel);
+        return bound;
     }
 
     function bindLayer(given) {
         const copy = copyOf(given);
-        if (reserved.has(prefixOf(copy.channel)))
-            throw new Error(`[deckit] ${copy.channel} is not a layer's to declare`);
+        if (own.has(copy.channel)) throw new Error(`[deckit] ${copy.channel} is deck's, not a layer's to declare`);
         return bindCopy(given, copy);
     }
 
@@ -99,10 +99,6 @@ function copyOf(given) {
     return to === 'main'
         ? CHANNEL.pageToMain(channel, fields, { reply, sync })
         : CHANNEL.mainToPage(channel, { reply });
-}
-
-function prefixOf(channel) {
-    return channel.slice(0, channel.indexOf(':') + 1);
 }
 
 export { createTable, errorOf, failure, refusal, unwrap, settle };

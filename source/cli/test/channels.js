@@ -33,10 +33,6 @@ const MAIN_ENVIRONMENT = {
             const copy = structuredClone(message);
             if (!page.destroyed) setImmediate(() => page.heard?.told(copy));
         },
-        ask(page, message) {
-            const copy = structuredClone(message);
-            setImmediate(() => page.heard?.asked(copy));
-        },
     },
     pages: {
         isGone: (page) => page.destroyed || page.crashed,
@@ -45,6 +41,7 @@ const MAIN_ENVIRONMENT = {
             page.on('render-process-gone', ended);
             page.on('destroyed', destroyed);
         },
+        pin() {},
         watchInput() {},
     },
 };
@@ -62,8 +59,10 @@ function pageNamed(name) {
     };
     const messages = {
         listen: (listener) => (page.heard = listener),
+        // An answer to main's question is a tell carrying the question's id.
         tell(message) {
             const copy = structuredClone(message);
+            if (Object.hasOwn(copy, 'id')) answers.push({ from: name, ...copy });
             setImmediate(() => heardInMain.told(page, copy));
         },
         ask: (message) => Promise.resolve().then(() => heardInMain.asked(page, structuredClone(message))),
@@ -74,30 +73,24 @@ function pageNamed(name) {
             heardInMain.askedSync(page, structuredClone(message)).then((result) => (asked.returnValue = result));
             return asked;
         },
-        answer(message) {
-            const copy = structuredClone(message);
-            answers.push({ from: name, ...copy });
-            setImmediate(() => heardInMain.answered(page, copy));
-        },
     };
     return { page, environment: { messages } };
 }
 
 async function main() {
     const CHANNEL = await import(url('deckit-shell', 'deck', 'channel', 'index.js'));
-    const LISTENER = await import(url('deckit-shell', 'deck', 'listener', 'index.js'));
     const reported = [];
-    LISTENER.reportTo((label) => reported.push(label));
+    const report = (label) => reported.push(label);
     const [A, B, C, D] = ['A', 'B', 'C', 'D'].map((name) => pageNamed(name));
     const MAIN = await import(`${IPC('main.js')}?main`);
     const unborne = thrown(() =>
         CHANNEL.bindAll(MAIN.layerChannels, { early: CHANNEL.mainToPage('deckit-shell:early') }).early.send(A.page, {})
     );
-    MAIN.carry(MAIN_ENVIRONMENT);
+    MAIN.carry(MAIN_ENVIRONMENT, { report });
     const pages = [];
     for (const [at, { environment }] of [A, B, C, D].entries()) {
         const side = await import(`${IPC('renderer.js')}?page${at}`);
-        side.carry(environment);
+        side.carry(environment, { report });
         pages.push(side);
     }
     const [PAGE_A, PAGE_B, PAGE_C, PAGE_D] = pages;
@@ -158,7 +151,7 @@ async function main() {
     const early = outcome(inMain.escape.invoke(A.page, { key: 'Escape' }, { timeout: 1000 }));
     await tick();
     // Page B answers A's question: not its answer.
-    B.environment.messages.answer({ channel: 'deckit-shell:escape', id: 1, value: 'from B' });
+    B.environment.messages.tell({ channel: 'deckit-shell:escape', id: 1, value: 'from B' });
     await tick();
     inA.escape.handle((payload) => `A took ${payload.key}`);
     const answered = await early;
@@ -208,14 +201,18 @@ async function main() {
     await tick();
     check('a page hears what main tells once it listens, and nothing before', JSON.stringify(states) === '[2]', states);
 
-    // A layer's names are its own, read once.
-    MAIN.ownChannels.bind(CHANNEL.pageToMain('deckit-electron:mod-load', {}));
-    const own = thrown(() => MAIN.layerChannels.bind(CHANNEL.pageToMain('deckit-electron:other', {})));
-    check("a layer binds no name under deck's own", /not a layer's/.test(own), own);
+    // A layer's names are its own, read once: what deck binds as its own is never a layer's, even declared alike, and
+    // deck and a layer may share a package's names otherwise.
+    const deckOwn = CHANNEL.pageToMain('deckit-shell:mod-load', {});
+    MAIN.ownChannels.bind(deckOwn);
+    const own = thrown(() => MAIN.layerChannels.bind(deckOwn));
+    check('a layer binds no channel deck binds as its own', /not a layer's/.test(own), own);
+    const beside = thrown(() => MAIN.layerChannels.bind(CHANNEL.pageToMain('deckit-shell:panel-said', {})));
+    check("a layer binds its own beside deck's, under the same package's name", beside === '', beside);
     let reads = 0;
     const twoFaced = {
         get channel() {
-            return ++reads === 1 ? 'deckit-shell:mask' : 'deckit-electron:mod-load';
+            return ++reads === 1 ? 'deckit-shell:mask' : 'deckit-shell:mod-load';
         },
         to: 'main',
         fields: {},
@@ -245,7 +242,7 @@ async function main() {
 
     // The channels are carried once, by one environment, and nothing crosses before.
     check('nothing crosses before the channels are carried', /nothing carries/.test(unborne), unborne);
-    const twice = thrown(() => MAIN.carry(MAIN_ENVIRONMENT));
+    const twice = thrown(() => MAIN.carry(MAIN_ENVIRONMENT, { report }));
     check('the channels are carried once', /carried already/.test(twice), twice);
 
     for (const line of failed) console.error(line);
