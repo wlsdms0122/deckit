@@ -1,4 +1,4 @@
-export function createRemove({ STORAGE, MANIFEST, INSTALL }) {
+export function createRemove({ CORE, STORAGE, MANIFEST, INSTALL }) {
     // MARK: - Property
     const fs = require('fs');
     const UNCLEARED = 'uncleared';
@@ -15,8 +15,9 @@ export function createRemove({ STORAGE, MANIFEST, INSTALL }) {
 
     // What a mod stored, erased: whether there was any to erase. An id that is no mod id never loaded, so it stored
     // nothing. Its pages' storage and its web sessions are their sessions' to clear, so it is noted until they are.
-    function eraseData(id) {
+    async function eraseData(id) {
         if (MANIFEST.idProblem(id)) return false;
+        await CORE.request('record/erase', { mod: id });
         STORAGE.erase(id);
         STORAGE.state.write(UNCLEARED, [...new Set([...uncleared(), id])]);
         return true;

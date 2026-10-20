@@ -141,7 +141,7 @@ export function createMods({ LOG, IDENTITY, INSTALL, REMOVE, CATALOG, RUNNER, SA
         layer.removed(id);
         CATALOG.refresh();
         await RUNNER.whenClosed(id);
-        const removed = { data: data && REMOVE.eraseData(id) };
+        const removed = { data: data && (await REMOVE.eraseData(id)) };
         if (removed.data) await clearSessions(id);
         return removed;
     }
