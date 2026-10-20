@@ -31,7 +31,7 @@ export function createExtension({ RUN }) {
                         Object.entries(given).map(([id, { values, functions }]) => [
                             id,
                             PROXY.deepFreeze(
-                                PROXY.proxyOf(functions, values, (path, args) =>
+                                PROXY.proxyOf(functions, JSON.parse(values), (path, args) =>
                                     PROTOCOL.callExtension.invoke({ run: RUN.number, mod: id, point, path, args })
                                 )
                             ),

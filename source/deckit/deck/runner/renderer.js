@@ -217,20 +217,20 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS }) {
             caller: EXPORT.callerNow,
             ...register,
             extensionPoint,
-            ...EVENT.forMod({ owner: { deliver: RUN.deliver, recordFailure: RUN.fail } }),
+            ...EVENT.forMod({ owner: { deliver: RUN.deliver, recordFailure: RUN.fail }, run: RUN.number }),
             ...(has(MOD_PERMISSION.MODS) ? { mods: MODS.tool(given.mods) } : {}),
             ...(has(MOD_PERMISSION.MOD_SETTINGS) ? { modSettings: SETTINGS.modSettingsTool() } : {}),
         });
     }
 
-    // What deck joins of what start() registered: exports and each extension as its values copied and the paths of
-    // its functions, and the points it opens by name.
+    // What deck joins of what start() registered: exports and each extension as its values copied as JSON text and the
+    // paths of its functions, and the points it opens by name.
     function contributionsOf(parts) {
         const copy = (what, value) => {
             try {
-                return structuredClone(snapshotOf(value));
+                return snapshotOf(value);
             } catch (error) {
-                throw new Error(`${what} takes values that can be copied: ${error.message || error}`);
+                throw new Error(`${what} takes values that can be copied as JSON: ${error.message || error}`);
             }
         };
         return {
@@ -245,7 +245,7 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS }) {
         };
     }
 
-    // Values as data, functions as the paths main calls them by. An object inside itself has no path to end.
+    // Values as JSON text, functions as the paths main calls them by. An object inside itself has no path to end.
     function snapshotOf(given) {
         const functions = [];
         const walk = (value, path, holding) => {
@@ -253,6 +253,12 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS }) {
                 functions.push(path);
                 return undefined;
             }
+            if (
+                typeof value === 'bigint' ||
+                typeof value === 'symbol' ||
+                (typeof value === 'number' && !Number.isFinite(value))
+            )
+                throw new Error(`${path.join('.') || 'it'} is ${String(value)}, which JSON does not hold`);
             if (!value || typeof value !== 'object') return value;
             if (holding.includes(value)) throw new Error(`${path.join('.') || 'it'} holds itself`);
             const out = Array.isArray(value) ? [] : {};
@@ -262,7 +268,7 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS }) {
             }
             return out;
         };
-        return { values: walk(given, [], []), functions };
+        return { values: JSON.stringify(walk(given, [], []) ?? null), functions };
     }
 
     return { start };

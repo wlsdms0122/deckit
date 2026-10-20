@@ -10,18 +10,19 @@ export function createExport({ RUN }) {
     // MARK: - Initializer
     // MARK: - Public
     // What each mod it requires exports: values copied and frozen, functions called through main. Its optional
-    // dependencies are set on `optional` as they are now. Null when one it requires did not start.
+    // dependencies are set on `optional` as they are now. Null when main refused them, as when one it requires did not
+    // start.
     async function requiresOf(optional) {
-        const given = await PROTOCOL.dependencies.invoke();
+        let given;
+        try {
+            given = await PROTOCOL.dependencies.invoke({ run: RUN.number });
+        } catch (error) {
+            RUN.fail(error.message || String(error));
+            return null;
+        }
         for (const [id, exported] of Object.entries(given.optional)) optional.set(id, exported);
         const out = {};
-        for (const [id, exported] of Object.entries(given.requires)) {
-            if (exported.error) {
-                RUN.fail(exported.error);
-                return null;
-            }
-            out[id] = exportsOf(id, exported);
-        }
+        for (const [id, exported] of Object.entries(given.requires)) out[id] = exportsOf(id, exported);
         return Object.freeze(out);
     }
 
@@ -79,7 +80,7 @@ export function createExport({ RUN }) {
     // MARK: - Private
     function exportsOf(id, exported) {
         return PROXY.deepFreeze(
-            PROXY.proxyOf(exported.functions, structuredClone(exported.values), (path, args) =>
+            PROXY.proxyOf(exported.functions, JSON.parse(exported.values), (path, args) =>
                 PROTOCOL.callExport.invoke({ run: RUN.number, mod: id, path, args })
             )
         );

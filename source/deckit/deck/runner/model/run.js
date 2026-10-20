@@ -2,10 +2,10 @@
 // MARK: - Initializer
 // MARK: - Public
 // A run of `mod`, the `number`th, as the core last told it: one object for as long as the run lasts, so whatever holds
-// it reads it as it is now. `update(told)` takes what the core told of it, and `update({ summary, contributions })`
-// what its page reported as it started.
+// it reads it as it is now. `update(told)` takes what the core told of it.
 //
-// `summary` is what it contributes once running, as a person reads it, and `contributions` what deck joins of it;
+// `summary` is what it contributes once running, as a person reads it, and `contributions` what deck joins of it, both
+// as its page reported them as it started;
 // `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed; `endReason`,
 // the reason it terminated for; `relaunches`, whether the mod launches again once it has ended.
 function makeRun({ mod, number }) {

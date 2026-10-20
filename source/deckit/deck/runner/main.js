@@ -16,8 +16,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
-    const reports = new Map(); // mod id -> what its page reported as its run started, { number, summary, contributions }
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
+    const effectHandlers = new Map(); // effect name -> what does it, for an effect that is another module's to do
     const problemListeners = new Set(); // told when a problem is kept against a run
     const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
     let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
@@ -95,10 +95,18 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
         return asked.then(() => until(() => !sandboxes.get(modId)?.closing));
     }
 
-    // Resolves once the core has answered all that was asked of it, and it was done: what a page says after it told
-    // main of its run is read as the core moved the run.
-    function settled() {
-        return asked;
+    // `handler(effect)` does each effect the core answers by `name` that is another module's to do.
+    function handleEffect(name, handler) {
+        effectHandlers.set(name, handler);
+    }
+
+    // Resolves once the mod's latest run is no longer the `run`th in `state`, as the core told it: what the core
+    // answered pending on that run.
+    function whenMoved({ mod, run, state }) {
+        return until(() => {
+            const latest = runOf(mod);
+            return latest?.number !== run || latest.state !== state;
+        });
     }
 
     function relaunchAll() {
@@ -181,6 +189,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
                     quitHold = null;
                     require('electron').app.quit();
                     break;
+                default:
+                    effectHandlers.get(effect.effect)?.(effect);
             }
         }
         for (const wait of waiting) {
@@ -195,18 +205,12 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
         return new Promise((resolve, reject) => waiting.add({ done, resolve, reject }));
     }
 
-    // A run is one object from willLaunch on. What its page reported as it started is kept as it launches.
+    // A run is one object from willLaunch on.
     function tell(sandbox, name, told) {
         if (name === 'willLaunch') Object.assign(sandbox, RUN.makeRun({ mod: sandbox.mod, number: told.run }));
         update(sandbox, told);
         const { run } = sandbox;
-        if (name === 'didLaunch') {
-            const reported = reports.get(run.mod.id);
-            reports.delete(run.mod.id);
-            if (reported?.number === run.number)
-                sandbox.update({ summary: reported.summary, contributions: reported.contributions });
-            lastLaunched.set(run.mod.id, run);
-        }
+        if (name === 'didLaunch') lastLaunched.set(run.mod.id, run);
         notifications.emit(name, run);
     }
 
@@ -216,8 +220,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
     }
 
     function update(sandbox, told) {
-        const { state, problem = null, endReason = null, relaunches } = told;
-        sandbox.update({ state, problem, endReason, relaunches });
+        const { state, problem = null, endReason = null, relaunches, summary = null, contributions = null } = told;
+        sandbox.update({ state, problem, endReason, relaunches, summary, contributions });
     }
 
     function openSandbox(mod) {
@@ -290,11 +294,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
                 run: run.number,
             };
         });
-        PROTOCOL.started.on(({ run: number, contributions, summary }, sender) => {
-            const { id } = IDENTITY.modFrom(sender);
-            reports.set(id, { number, summary, contributions });
-            send('runner/started', { mod: id, run: number });
-        });
+        PROTOCOL.started.on(({ run: number, contributions, summary }, sender) =>
+            send('runner/started', { mod: IDENTITY.modFrom(sender).id, run: number, summary, contributions })
+        );
         PROTOCOL.problem.on(({ run: number, problem }, sender) =>
             send('runner/problem', { mod: IDENTITY.modFrom(sender).id, run: number, problem })
         );
@@ -312,7 +314,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
         observe,
         reportProblem,
         onProblem,
-        settled,
+        handleEffect,
+        whenMoved,
         whenClosed,
         relaunchAll,
         relaunch,
