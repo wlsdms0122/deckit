@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Deck
 
 // A JSON-RPC request, or a notification when it has no id.
 struct Request: Decodable {
