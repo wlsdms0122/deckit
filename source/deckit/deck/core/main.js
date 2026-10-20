@@ -1,7 +1,7 @@
 import * as CONNECTION from './connection.js';
 import * as MESSAGE from './message.js';
 
-// The core: deckit's own process, which keeps what deck has moved into it. `CONFIG.core` is its executable.
+// The core: deckit's own process, which keeps a mod's records. `CONFIG.core` is its executable.
 export function createCore({ CONFIG, HOME, LOG }) {
     // MARK: - Property
     const pending = new Map(); // request id -> { resolve, reject }

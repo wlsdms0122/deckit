@@ -27,11 +27,10 @@ export function createStorage({ HOME }) {
         return path.join(HOME.data, modId);
     }
 
-    // Every file counts, whatever wrote it: erasing takes them all.
+    // Every file of the mod's data folder counts, whatever wrote it: erasing takes them all.
     async function count(modId) {
         const seen = { count: 0, capped: false, hidden: false };
         await walk(folderOf(modId), 0, seen);
-        await walk(path.join(HOME.records, modId), 0, seen);
         return seen;
     }
 

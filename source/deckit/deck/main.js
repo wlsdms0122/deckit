@@ -34,7 +34,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     const MANIFEST = createManifest({ MOD_PERMISSION: PERMISSION });
     const FOLDER = createFolder({ MANIFEST });
     const INSTALL = createInstall({ CONFIG, HOME, FOLDER });
-    const REMOVE = createRemove({ CORE, STORAGE, MANIFEST, INSTALL });
+    const REMOVE = createRemove({ STORAGE, MANIFEST, INSTALL });
     const CATALOG = createCatalog({ CONFIG, HOME, STORAGE, LOG, FOLDER, INSTALL });
     const IDENTITY = createIdentity();
     const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
@@ -54,6 +54,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         SANDBOX,
         MANIFEST,
         STORAGE,
+        RECORD,
         EXTENSION,
     });
 

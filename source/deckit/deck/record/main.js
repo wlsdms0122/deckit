@@ -12,7 +12,7 @@ export function createRecord({ CORE, IDENTITY }) {
             return text === null ? null : valueOf(text);
         });
         PROTOCOL.writeRecord.handle(async ({ key, value }, sender) => {
-            await CORE.request('record/write', { mod: IDENTITY.modFrom(sender).id, key, value: JSON.stringify(value) });
+            await CORE.request('record/write', { mod: IDENTITY.modFrom(sender).id, key, text: JSON.stringify(value) });
             return true;
         });
         PROTOCOL.removeRecord.handle(async ({ key }, sender) => {
@@ -22,6 +22,16 @@ export function createRecord({ CORE, IDENTITY }) {
         PROTOCOL.recordKeys.handle((_payload, sender) =>
             CORE.request('record/keys', { mod: IDENTITY.modFrom(sender).id })
         );
+    }
+
+    // Every record of the mod's.
+    function erase(modId) {
+        return CORE.request('record/erase', { mod: modId });
+    }
+
+    // How many files the mod's records are, `{ count, hidden }`.
+    function count(modId) {
+        return CORE.request('record/count', { mod: modId });
     }
 
     // MARK: - Private
@@ -34,5 +44,5 @@ export function createRecord({ CORE, IDENTITY }) {
         }
     }
 
-    return { start };
+    return { start, erase, count };
 }
