@@ -28,13 +28,6 @@ const BUNDLES = {
         target: 'chrome120',
         global: 'DeckitShellRenderer',
     },
-    chord: {
-        entry: 'deckit-electron/keymap/chord.js',
-        format: 'iife',
-        platform: 'browser',
-        target: 'chrome120',
-        global: 'DeckitChord',
-    },
 };
 
 // A "/" starts a regular expression where a value is expected: after one of these, or at the start.

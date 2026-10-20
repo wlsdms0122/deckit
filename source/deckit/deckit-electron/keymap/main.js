@@ -1,52 +1,47 @@
-import * as CHORD from './chord.js';
 import * as PROTOCOL from './protocol.js';
-import * as BINDING_ID from './model/binding-id.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
 
-export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) {
+// Keys, as the core resolves them: the core keeps the keymap and says how each binding stands, and a keystroke is
+// resolved here against the copy it last told, where the keystroke lands.
+export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
     // MARK: - Property
-    const OVERRIDES = 'keys';
     const RECORDING_MS = 20 * 1000;
-    const own = []; // [{ action, key, label, scope: 'global' | 'app', run(webContents) }]
-    const scopes = new Map(); // mod id -> [{ action, key, label, global }]
+    const runs = new Map(); // action -> run(webContents), of the keys registered through what connect answers
     const typing = new Set(); // webContents ids with a field focused
-    const local = new Map(); // webContents id -> [{ chord, run }], taken there before anything else
-    let overrides = {};
-    let recording = null; // { webContents, timer }
+    const local = new Map(); // webContents id -> [{ keystroke, run }], taken there before anything else
+    let keymap = { revision: 0, bindings: [] };
+    let recording = null; // { webContents, drop, timer }
     let delegated = { isActive: () => false, monitor: () => false };
 
     // MARK: - Initializer
     // MARK: - Public
     function start() {
-        overrides = STORAGE.state.read(OVERRIDES, {});
-        PROTOCOL.scope.on(({ keys }, sender) => {
-            const mod = IDENTITY.modFrom(sender);
-            const taken = keys.filter((key) => takes(mod, key));
-            scopes.set(mod.id, taken);
-            IDENTITY.whenPageEnds(sender, () => scopes.get(mod.id) === taken && scopes.delete(mod.id));
-            announce();
+        RUNNER.handleEffect('bindingsChanged', ({ revision, bindings }) => keep({ revision, bindings }));
+        PROTOCOL.typing.on(({ on }, sender) => {
+            if (on) typing.add(sender.id);
+            else typing.delete(sender.id);
         });
-        // A run that has ended takes no key, though its page may stay until the mod launches again.
-        RUNNER.observe('didTerminate', ({ mod }) => scopes.delete(mod.id) && announce());
-        PROTOCOL.typing.on(({ on }, sender) => mark(typing, sender, on));
         PROTOCOL.record.on(({ on }, sender) => {
             IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
             if (on) startRecording(sender);
             else if (recording?.webContents === sender) stopRecording(false);
         });
-        PROTOCOL.chord.handle(({ id }) => chordOf(id));
+        PROTOCOL.chord.handle(({ action, app }, sender) => {
+            const owner = app ? null : IDENTITY.modFrom(sender).id;
+            return chordOf(action, (binding) => (app ? binding.app : binding.owner === owner));
+        });
         PROTOCOL.bindings.handle((_payload, sender) => {
             IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
-            return bindings().map(({ run, ...binding }) => binding);
+            return keymap.bindings;
         });
-        PROTOCOL.bind.handle(({ id, spec }, sender) => {
+        PROTOCOL.bind.handle(async ({ id, spec }, sender) => {
             IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
-            bind(id, spec);
+            keep(await CORE.request('keymap/bind', { id, spec }));
             return true;
         });
-        PROTOCOL.reset.handle(({ id }, sender) => {
+        PROTOCOL.reset.handle(async ({ id }, sender) => {
             IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
-            reset(id);
+            keep(await CORE.request('keymap/reset', { id }));
             return true;
         });
     }
@@ -64,9 +59,16 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
     // webContents' own, taken there first: only a chord main catches wins over a meaning the app's menu gives it.
     function listen(webContents, { keys = [], page = null } = {}) {
         if (keys.length)
-            local.set(
-                webContents.id,
-                keys.map(({ key, run }) => ({ chord: CHORD.parse(key), run }))
+            CORE.request('keymap/keystrokes', { specs: keys.map(({ key }) => String(key)) }).then(
+                (keystrokes) => {
+                    if (webContents.isDestroyed()) return;
+                    const read = keys.map(({ run }, index) => ({ keystroke: keystrokes[index], run }));
+                    local.set(
+                        webContents.id,
+                        read.filter(({ keystroke }) => keystroke)
+                    );
+                },
+                (error) => LOG.error("a page's own keys were not read", error)
             );
         LOG.guard(webContents, 'before-input-event', (event, input) => {
             if (handle(webContents, page, input)) event.preventDefault();
@@ -81,206 +83,71 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
 
     // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
     // on deckit. `global` ones work anywhere a webContents is listened to; the rest only in the page in front.
-    // Answers its id, for chordOf.
-    function register({ action, key, label, global = false, run }) {
-        own.push({ action, key, label, scope: global ? 'global' : 'app', run });
-        announce();
-        return BINDING_ID.idOf(BINDING_ID.APP_OWNER, action);
+    function register({ action, key, label = '', global = false, run }) {
+        runs.set(action, run);
+        CORE.request('keymap/register', { action, key: String(key), label: String(label), global: !!global }).then(
+            keep,
+            (error) => LOG.error(`the key ${action} was not registered`, error)
+        );
     }
 
-    // The chord bound now to an id, as a person reads it.
-    function chordOf(id) {
-        return bindings().find((binding) => binding.id === id && binding.active)?.chord || '';
+    // The chord a key registered through what connect answers is bound to now, by its action, as a person reads it.
+    function chordOfApp(action) {
+        return chordOf(action, (binding) => binding.app);
     }
 
     // MARK: - Private
-    // What a page declares is held to the rule here, where it is taken: a global key needs ⌘, ⌃ or ⌥, and none a
-    // text field uses, since it is taken from every page, fields included.
-    function takes(mod, key) {
-        const { action, key: spec, label, global } = key || {};
-        if (typeof action !== 'string' || typeof spec !== 'string' || typeof label !== 'string') return false;
-        if (typeof global !== 'boolean' || CHORD.normalize(spec) !== spec) return false;
-        if (!global || CHORD.fitsGlobal(spec)) return true;
-        LOG.warn(`${mod.id}: key "${action}" cannot be global, so it is not taken`);
-        return false;
+    function chordOf(action, owns) {
+        return (
+            keymap.bindings.find((binding) => owns(binding) && binding.action === action && binding.active)?.chord || ''
+        );
     }
 
-    // What a reader needs of the binding an issue is about.
-    function factsOf(binding) {
-        const { id, chord, label, owner, ownerName, scope } = binding;
-        return { id, chord, label, owner, ownerName, scope, app: owner === BINDING_ID.APP_OWNER };
-    }
-
-    function mark(set, sender, on) {
-        if (on) set.add(sender.id);
-        else set.delete(sender.id);
-    }
-
-    function effective(id, key) {
-        const spec = Object.hasOwn(overrides, id) ? overrides[id] : key;
-        return spec ? CHORD.normalize(spec) : null;
-    }
-
-    function bindingOf(owner, ownerName, scope, { action, key, label, run }) {
-        const id = BINDING_ID.idOf(owner, action);
-        const written = CHORD.normalize(key);
-        const spec = effective(id, written);
-        return {
-            id,
-            owner,
-            ownerName,
-            scope,
-            action,
-            label,
-            key: written,
-            spec,
-            run,
-            chord: spec ? CHORD.label(spec) : '',
-            defaultChord: written ? CHORD.label(written) : '',
-            // Against today's default: a change a mod update has since made its default is no longer a change.
-            changed: Object.hasOwn(overrides, id) && spec !== written,
-        };
-    }
-
-    // Global first, in the order a keystroke tries them; bindings() relies on this order to pick winners. A
-    // mod's key is global only with system.global-keys.
-    function ordered() {
-        const mods = CATALOG.mods().filter(({ id }) => scopes.has(id));
-        const global = (mod) => mod.permissions.some(({ id }) => id === KEYMAP_PERMISSION.GLOBAL_KEYS);
-        const keysOf = (mod, wantGlobal) =>
-            scopes.get(mod.id).filter((key) => !!key.global === wantGlobal && (!wantGlobal || global(mod)));
-        return [
-            ...own
-                .filter((key) => key.scope === 'global')
-                .map((key) => bindingOf(BINDING_ID.APP_OWNER, CONFIG.name, 'global', key)),
-            ...mods.flatMap((mod) => keysOf(mod, true).map((key) => bindingOf(mod.id, mod.name, 'global', key))),
-            ...own
-                .filter((key) => key.scope === 'app')
-                .map((key) => bindingOf(BINDING_ID.APP_OWNER, CONFIG.name, 'app', key)),
-            ...mods.flatMap((mod) => keysOf(mod, false).map((key) => bindingOf(mod.id, mod.name, 'mod', key))),
-        ];
-    }
-
-    // Two mods' own keys never meet: each runs only in its own mod's page.
-    function together(a, b) {
-        return !(a.scope === 'mod' && b.scope === 'mod' && a.owner !== b.owner);
-    }
-
-    // Defaults first, then changes in the order they were made (the saved map's order), so a change landing on a
-    // chord already taken is the one held back. Among defaults nothing is held back. A binding's `issues` say how a
-    // keystroke is actually resolved, each { level, kind, other }: `held` (not applied, the chord is taken),
-    // `shadowed` (never runs, another takes the chord first), `hides` (it hides `other` in its mod's page),
-    // `hidden` (not in `other`'s mod's page, where the chord is `other`'s).
-    function bindings() {
-        const list = ordered();
-        const order = Object.keys(overrides);
-        const rank = (binding) => (binding.changed ? order.indexOf(binding.id) : -1);
-        const at = new Map(list.map((binding, index) => [binding.id, index]));
-        const issues = new Map(list.map((binding) => [binding.id, []]));
-        const say = (binding, level, kind, other) =>
-            issues.get(binding.id).push({ level, kind, other: factsOf(other) });
-        const held = new Set();
-        const accepted = [];
-        for (const binding of [...list].sort((a, b) => rank(a) - rank(b) || at.get(a.id) - at.get(b.id))) {
-            if (!binding.spec) continue;
-            const taken = accepted.find((other) => other.spec === binding.spec && together(other, binding));
-            if (taken && binding.changed) {
-                held.add(binding.id);
-                say(binding, 'error', 'held', taken);
-                continue;
-            }
-            accepted.push(binding);
-        }
-        for (const binding of accepted) {
-            for (const other of accepted) {
-                if (other === binding || other.spec !== binding.spec || !together(other, binding)) continue;
-                const earlier = at.get(other.id) < at.get(binding.id);
-                if (other.scope === 'global' && binding.scope !== 'global') say(binding, 'error', 'shadowed', other);
-                else if (binding.scope === 'global' && other.scope === 'global' && earlier)
-                    say(binding, 'error', 'shadowed', other);
-                else if (
-                    binding.scope !== 'global' &&
-                    other.owner === binding.owner &&
-                    other.scope === binding.scope &&
-                    earlier
-                ) {
-                    say(binding, 'error', 'shadowed', other);
-                } else if (binding.scope === 'mod' && other.scope === 'app') say(binding, 'warn', 'hides', other);
-                else if (binding.scope === 'app' && other.scope === 'mod') say(binding, 'warn', 'hidden', other);
-            }
-        }
-        return list.map((binding) => ({
-            ...binding,
-            active: !!binding.spec && !held.has(binding.id),
-            issues: issues.get(binding.id),
-        }));
-    }
-
-    // Deleted and added again, so the saved map keeps the order changes were made in, which bindings() relies on.
-    function bind(id, spec) {
-        const binding = bindings().find((candidate) => candidate.id === id);
-        if (!binding) throw new Error('no such shortcut: ' + id);
-        const wanted = spec ? CHORD.normalize(spec) : '';
-        if (spec && !wanted) throw new Error('not a chord: ' + spec);
-        if (wanted && binding.scope === 'global' && !CHORD.fitsGlobal(wanted))
-            throw Object.assign(new Error(`${CHORD.label(wanted)} cannot work everywhere: ${CHORD.GLOBAL_RULE}`), {
-                kind: 'REFUSED',
-            });
-        const next = { ...overrides };
-        delete next[id];
-        if (wanted !== binding.key) next[id] = wanted;
-        save(next);
-    }
-
-    function reset(id) {
-        if (!Object.hasOwn(overrides, id)) return;
-        const next = { ...overrides };
-        delete next[id];
-        save(next);
-    }
-
-    function save(next) {
-        overrides = next;
-        STORAGE.state.write(OVERRIDES, overrides);
-        announce();
-    }
-
-    function announce() {
+    // The later of what the core told, whichever way each came.
+    function keep(told) {
+        if (told.revision <= keymap.revision) return;
+        keymap = told;
         for (const mod of CATALOG.mods()) {
             const page = IDENTITY.pageOf(mod.id);
             if (page) PROTOCOL.changed.send(page, {});
         }
     }
 
-    // First match wins, in the order bindings() lists them, resolved on every keystroke so a change applies at
-    // once.
+    // `input` has Electron's before-input-event shape.
+    function matches(keystroke, input) {
+        return (
+            !!keystroke &&
+            keystroke.code === input.code &&
+            keystroke.meta === !!input.meta &&
+            keystroke.control === !!input.control &&
+            keystroke.shift === !!input.shift &&
+            keystroke.alt === !!input.alt
+        );
+    }
+
+    // The first that runs where the keystroke landed wins, in the order the core lists the bindings.
     function handle(webContents, page, input) {
         if (recording) return take(input);
         if (input.type !== 'keyDown') return false;
-        const taken = local.get(webContents.id)?.find(({ chord }) => CHORD.matches(chord, input));
+        const taken = local.get(webContents.id)?.find(({ keystroke }) => matches(keystroke, input));
         if (taken) {
             taken.run();
             return true;
         }
         if (page && delegated.monitor(page, input)) return true;
-        const active = bindings().filter(
-            (binding) => binding.active && CHORD.matches(CHORD.parse(binding.spec), input)
-        );
+        const active = keymap.bindings.filter((binding) => binding.active && matches(binding.keystroke, input));
         const global = active.find((binding) => binding.scope === 'global');
         if (global) return run(global, webContents);
         if (!page || !delegated.isActive(page)) return false;
-        if (typing.has(page.id) && CHORD.editsText(input)) return false;
+        if (typing.has(page.id) && active.some(({ editsText }) => editsText)) return false;
         const mod = IDENTITY.modOf(page);
-        // The mod's own first, so it wins a chord it shares with the app's.
-        const hit =
-            active.find((binding) => binding.scope === 'mod' && binding.owner === mod?.id) ||
-            active.find((binding) => binding.scope === 'app');
+        const hit = active.find((binding) => binding.scope === 'app' || binding.owner === mod?.id);
         return hit ? run(hit, webContents) : false;
     }
 
     function run(binding, webContents) {
-        if (binding.owner === BINDING_ID.APP_OWNER) {
-            binding.run(webContents);
+        if (binding.app) {
+            runs.get(binding.action)?.(webContents);
             return true;
         }
         const page = IDENTITY.pageOf(binding.owner);
@@ -307,20 +174,28 @@ export function createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }
         if (tell) PROTOCOL.recorded.send(webContents, { cancel: true });
     }
 
+    // Every keystroke is taken while recording; what one comes to is the core's to say, and the recording ends on
+    // one that is a chord, cancels or clears.
     function take(input) {
         if (input.type !== 'keyDown') return true;
-        const keys = {
+        const asking = recording;
+        const keystroke = {
             code: input.code,
-            meta: input.meta,
-            control: input.control,
-            shift: input.shift,
-            alt: input.alt,
+            meta: !!input.meta,
+            control: !!input.control,
+            shift: !!input.shift,
+            alt: !!input.alt,
         };
-        const { webContents } = recording;
-        if (CHORD.endsRecording(keys)) stopRecording(false);
-        PROTOCOL.recorded.send(webContents, keys);
+        CORE.request('keymap/record', { keystroke }).then(
+            (recorded) => {
+                if (recording !== asking) return;
+                if (!recorded.pending && !recorded.error) stopRecording(false);
+                PROTOCOL.recorded.send(asking.webContents, recorded);
+            },
+            (error) => LOG.error('a key typed to be bound was not read', error)
+        );
         return true;
     }
 
-    return { start, delegate, listen, register, chordOf };
+    return { start, delegate, listen, register, chordOf: chordOfApp };
 }

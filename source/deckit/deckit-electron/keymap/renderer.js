@@ -1,4 +1,3 @@
-import * as CHORD from './chord.js';
 import * as PROTOCOL from './protocol.js';
 
 export function createKeymap() {
@@ -9,19 +8,14 @@ export function createKeymap() {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's keys, checked once here: { action: { key, label, run, global } }. A global key is taken from every
-    // page, fields included, so it needs a modifier and must not be one that edits text. `problemOf(entry)` is the
-    // shell's reason a key would never run, or ''.
-    function scope(keys, { invalid, global, problemOf }) {
+    // A mod's keys, { action: { key, label, run, global } }, as its run contributes them: the core judges each chord.
+    // One with no function to run, or that `problemOf(entry)`, the shell's reason a key would never run, refuses, is
+    // told to `invalid` and left out.
+    function declare(keys, { invalid, problemOf }) {
         const declared = [];
         for (const [action, entry] of Object.entries(keys || {})) {
-            const key = entry && CHORD.normalize(entry.key);
-            if (!key || typeof entry.run !== 'function') {
-                invalid(`key "${action}" cannot be used: it needs a chord in "key" and a function in "run"`);
-                continue;
-            }
-            if (entry.global && !global) {
-                invalid(`key "${action}" cannot be global: that takes the system.global-keys permission`);
+            if (typeof entry?.run !== 'function') {
+                invalid(`key "${action}" cannot be used: it needs a function in "run"`);
                 continue;
             }
             const never = problemOf(entry);
@@ -29,14 +23,15 @@ export function createKeymap() {
                 invalid(`key "${action}" never runs: ${never}`);
                 continue;
             }
-            if (entry.global && !CHORD.fitsGlobal(key)) {
-                invalid(`key "${action}" cannot be global: ${CHORD.GLOBAL_RULE}`);
-                continue;
-            }
             runs.set(action, entry.run);
-            declared.push({ action, key, label: entry.label || action, global: !!entry.global });
+            declared.push({
+                action,
+                key: String(entry.key ?? ''),
+                label: typeof entry.label === 'string' ? entry.label : '',
+                global: !!entry.global,
+            });
         }
-        PROTOCOL.scope.send({ keys: declared });
+        return declared;
     }
 
     // `deliver` runs a mod's function and records what it throws. A key pressed while `blocksKeys()` is dropped,
@@ -48,7 +43,7 @@ export function createKeymap() {
         PROTOCOL.changed.on(() => {
             for (const listener of listeners) listener();
         });
-        PROTOCOL.recorded.on((input) => hearing?.(input));
+        PROTOCOL.recorded.on((recorded) => hearing?.(recorded));
         // Later: during focusout the field losing focus is still the active element.
         let typing = false;
         const tell = () =>
@@ -62,8 +57,9 @@ export function createKeymap() {
         document.addEventListener('focusout', tell);
     }
 
-    function chord(id) {
-        return PROTOCOL.chord.invoke({ id });
+    // The chord one of the mod's keys is bound to now, or with `app`, one the app registered.
+    function chord(action, { app = false } = {}) {
+        return PROTOCOL.chord.invoke({ action: String(action), app });
     }
 
     function bindings() {
@@ -78,41 +74,23 @@ export function createKeymap() {
         return PROTOCOL.reset.invoke({ id });
     }
 
-    // The next chord typed, for a person setting one: { cancel }, { clear }, a chord, or an error to try again.
+    // The next chord typed, for a person setting one: { cancel }, { clear }, { spec }, or { error } to try again.
+    // Main takes every keystroke while it records, so none reaches the page.
     function record(onKey) {
         let done = false;
         const finish = () => {
             if (done) return;
             done = true;
             hearing = null;
-            window.removeEventListener('keydown', local, true);
             PROTOCOL.record.send({ on: false });
         };
-        const hear = (input) => {
-            if (done) return;
-            if (input.cancel || CHORD.cancels(input)) {
-                finish();
-                return onKey({ cancel: true });
-            }
-            if (CHORD.clears(input)) {
-                finish();
-                return onKey({ clear: true });
-            }
-            const got = CHORD.record(input);
-            if (got.pending) return;
+        hearing = (recorded) => {
+            if (done || recorded.pending) return;
             // Main is still recording, so the next keystroke is still this one's.
-            if (got.error) return onKey(got);
+            if (recorded.error) return onKey(recorded);
             finish();
-            onKey(got);
+            onKey(recorded);
         };
-        // For a keystroke main did not take; one main takes never reaches the page.
-        const local = (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            hear(CHORD.fromEvent(event));
-        };
-        hearing = hear;
-        window.addEventListener('keydown', local, true);
         PROTOCOL.record.send({ on: true });
         return finish;
     }
@@ -127,5 +105,5 @@ export function createKeymap() {
         return !!element?.matches?.("input, textarea, select, [contenteditable]:not([contenteditable='false'])");
     }
 
-    return { scope, hear, chord, bindings, bind, reset, record, onChange };
+    return { declare, hear, chord, bindings, bind, reset, record, onChange };
 }

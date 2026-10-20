@@ -24,6 +24,7 @@ export function createCore({ CONFIG, HOME, LOG }) {
         });
         ready = send('initialize', {
             home: HOME.folder,
+            name: CONFIG.name,
             api: API,
             ship: CONFIG.ship,
             sources: CONFIG.sources,
