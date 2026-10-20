@@ -9,7 +9,6 @@ export function createApi({
     PAGES,
     CATALOG,
     RUNNER,
-    MANIFEST,
     MOD_PERMISSION,
     WEB,
     KEYMAP,
@@ -92,7 +91,7 @@ export function createApi({
     }
 
     function manifestOf(mod) {
-        return frozen(MANIFEST.of(mod));
+        return frozen(mod.manifest);
     }
 
     // What a run is, read only: its transitions are the runner's. What it reported is copied once it is known.
