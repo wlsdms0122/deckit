@@ -1,5 +1,5 @@
-import * as CHANNEL from '../../deckit-shell/channel/index.js';
-import * as IPC from '../deck/ipc/index.js';
+import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
+import * as IPC from '../../deckit-shell/deck/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 import * as PARTITION from './model/partition.js';

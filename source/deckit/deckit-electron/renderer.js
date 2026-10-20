@@ -1,8 +1,10 @@
 import * as PAGE from './page/renderer.js';
-import * as IPC from './deck/ipc/index.js';
-import * as LISTENER from './deck/listener/index.js';
+import * as IPC from '../deckit-shell/deck/ipc/renderer.js';
+import * as LISTENER from '../deckit-shell/deck/listener/index.js';
 import * as LOG from './deck/log/renderer.js';
 import * as ORIGIN from './deck/sandbox/model/origin.js';
+import * as ENVIRONMENT from '../deckit-shell/environment/index.js';
+import { environment } from './environment/renderer.js';
 import { createRun } from './deck/runner/run.js';
 import { createRunner } from './deck/runner/renderer.js';
 import { createRecord } from './deck/record/renderer.js';
@@ -24,6 +26,7 @@ import { createMod } from './mod/renderer.js';
 function boot({ before, shell = null } = {}) {
     for (const name of Object.keys(window)) if (!before.has(name)) delete window[name];
     if (location.protocol !== ORIGIN.SCHEME.scheme + ':') return;
+    IPC.carry(ENVIRONMENT.checked(environment, ENVIRONMENT.PAGE, 'what Electron gives deck'));
     // What a listener on the page's channels throws goes to deckit's log, as main's does.
     LISTENER.reportTo((label, failure) => LOG.error(`${label} failed`, failure));
     if (document.readyState === 'loading')

@@ -12,7 +12,10 @@ import { createLog } from './deck/log/main.js';
 import { createPermission } from './deck/mod/permission.js';
 import { createFolder } from './deck/mod/folder.js';
 import { createCatalog } from './deck/catalog/index.js';
-import { createIdentity } from './deck/identity/index.js';
+import * as ENVIRONMENT from '../deckit-shell/environment/index.js';
+import * as IPC from '../deckit-shell/deck/ipc/main.js';
+import { createIdentity } from '../deckit-shell/deck/identity/index.js';
+import { environment } from './environment/main.js';
 import { createSandbox } from './deck/sandbox/index.js';
 import { createRunner } from './deck/runner/main.js';
 import { createRecord } from './deck/record/main.js';
@@ -91,6 +94,9 @@ function refuseUnknown(what, given, known) {
 
 // Deckit in main, made of deck's parts and its own, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
+    // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses.
+    const ENV = ENVIRONMENT.checked(environment, ENVIRONMENT.MAIN, 'what Electron gives deck');
+    IPC.carry(ENV);
     const HOME = createHome({ CONFIG, FOLDERS });
     const LOG = createLog({ CONFIG, HOME });
     const CORE = createCore({ CONFIG, FOLDERS, HOME, LOG, core });
@@ -98,7 +104,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const PERMISSION = createPermission();
     const FOLDER = createFolder();
     const CATALOG = createCatalog({ CORE, LOG });
-    const IDENTITY = createIdentity();
+    const IDENTITY = createIdentity({ pages: ENV.pages });
     const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE });
     const RECORD = createRecord({ CORE, IDENTITY });

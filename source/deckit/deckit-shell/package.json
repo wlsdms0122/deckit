@@ -4,10 +4,16 @@
     "exports": {
         "./main.js": "./main.js",
         "./renderer.js": "./renderer.js",
-        "./channel/index.js": "./channel/index.js",
+        "./deck/channel/index.js": "./deck/channel/index.js",
         "./layer/index.js": "./layer/index.js",
         "./match/match.js": "./match/match.js",
-        "./match/ranker.js": "./match/ranker.js"
+        "./match/ranker.js": "./match/ranker.js",
+        "./environment/index.js": "./environment/index.js",
+        "./deck/ipc/main.js": "./deck/ipc/main.js",
+        "./deck/ipc/renderer.js": "./deck/ipc/renderer.js",
+        "./deck/ipc/model/envelope.js": "./deck/ipc/model/envelope.js",
+        "./deck/identity/index.js": "./deck/identity/index.js",
+        "./deck/listener/index.js": "./deck/listener/index.js"
     },
     "dependencies": {}
 }

@@ -1,4 +1,4 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../deck/channel/index.js';
 
 // What a layer on deckit, a shell, and a driver agree on, as plain data: what the layer is given in main (what connect
 // answers), of a stage, and on a page. A driver gives at least this, and the layer is handed this alone (`checked`).

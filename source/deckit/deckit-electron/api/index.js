@@ -1,7 +1,7 @@
 import * as MOD_PERMISSION from '../deck/mod/permission.js';
 import * as LIFECYCLE from '../deck/mod/lifecycle.js';
 import * as PROXY from '../deck/export/proxy.js';
-import * as IPC from '../deck/ipc/index.js';
+import * as IPC from '../../deckit-shell/deck/ipc/main.js';
 import * as LAYER from '../../deckit-shell/layer/index.js';
 
 export function createApi({
@@ -87,7 +87,7 @@ export function createApi({
             web: Object.freeze({ pageFor: WEB.pageFor, holdsKeyboard: WEB.holdsKeyboard }),
             window: Object.freeze({ place: WINDOW.place }),
             log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, guard: LOG.guard }),
-            // How the shell binds its own channels: as deckit-shell/channel declares them, never one of deckit's.
+            // How the shell binds its own channels: as deckit-shell/deck/channel declares them, never one of deckit's.
             channels: IPC.layerChannels,
         });
         // A layer is given at least what a driver and a layer agree on: one this answer lacks fails at once.

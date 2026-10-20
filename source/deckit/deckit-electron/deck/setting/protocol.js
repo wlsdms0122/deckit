@@ -1,5 +1,5 @@
 // Between a mod's page and main, about settings: a mod's own, and with deckit.mod-settings every mod's.
-import * as CHANNEL from '../../../deckit-shell/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
 
 // Its settings, as soon as its entry is read: the declarations, without functions, in the order declared.
 export const declare = CHANNEL.pageToMain('deckit-electron:mod-declare', { run: 'number', settings: 'array' });

@@ -1,5 +1,5 @@
 // Between a mod's page and main, about what mods export to each other.
-import * as CHANNEL from '../../../deckit-shell/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
 
 // What the page's run is given of the mods it depends on, once every mod it requires has started, and refused once
 // one has ended for good: { requires: { [id]: { values, functions } }, optional: { [id]: { values, functions } or

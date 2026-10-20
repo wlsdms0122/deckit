@@ -50,6 +50,7 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
             throw new Error(`"${name}" is not a page name: a lower case letter, then letters, digits and -`);
         const made = view();
         IDENTITY.add(made.webContents, { page: name });
+        pin(made.webContents, ORIGIN.pageOriginOf(name));
         logConsole(made.webContents, name);
         made.webContents.loadURL(ORIGIN.addressOf(ORIGIN.pageOriginOf(name)));
         return made;
@@ -68,6 +69,17 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
     // again as each one finishes.
     function keepDrawing(webContents) {
         LOG.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
+    }
+
+    // A navigation keeps the page, so a page that left its origin would still be known as its mod while it ran
+    // another's page with that one's storage, and one that went to another path of its own origin would start the mod
+    // again beside the run still going. So a page of deck's stays at its one address. Only main's own loadURL and reload
+    // pass without these events.
+    function pin(webContents, origin) {
+        const address = ORIGIN.addressOf(origin);
+        const leaves = (details) => details.isMainFrame && withoutFragment(details.url) !== address;
+        webContents.on('will-frame-navigate', (details) => leaves(details) && details.preventDefault());
+        webContents.on('will-redirect', (details) => leaves(details) && details.preventDefault());
     }
 
     // What a mod's pages kept: their storage in deck's own session.
@@ -115,5 +127,9 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
         }
     }
 
-    return { SCHEME, start, view, page, logConsole, keepDrawing, clearSessions };
+    function withoutFragment(url) {
+        return String(url).split('#')[0];
+    }
+
+    return { SCHEME, start, view, page, pin, logConsole, keepDrawing, clearSessions };
 }

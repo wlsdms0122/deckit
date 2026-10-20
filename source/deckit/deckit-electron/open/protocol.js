@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deckit-shell/channel/index.js';
+import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
 
 // Answers whether something took it.
 export const open = CHANNEL.pageToMain(

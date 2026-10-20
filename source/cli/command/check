@@ -5,7 +5,8 @@ const path = require('path');
 
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
-const IPC = 'deckit-electron/deck/ipc/index.js';
+// What carries deck's messages over Electron's IPC, the only files that reach it.
+const IPC = ['deckit-electron/messages/main.js', 'deckit-electron/messages/renderer.js'];
 // The packages each may depend on. A driver stands on the shell, which declares what they agree on, and the shell knows
 // no driver.
 const MAY_DEPEND = {
@@ -111,7 +112,7 @@ function checkFile(file) {
             say(file, `requires ${spec}, a package of npm: a package requires only Electron and Node`);
     if (/\bimport\s*\(/.test(plain))
         say(file, 'imports while it runs; import statically, so the check and the bundle see it');
-    if (file !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
+    if (!IPC.includes(file) && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
     if (SHARED.has(file)) checkPure(file, plain);
     if (packageOf(file) === SHELL) checkShell(file, plain);

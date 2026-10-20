@@ -1,4 +1,4 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../deck/channel/index.js';
 
 // The page may finish loading after the chord that opened it.
 export const ready = CHANNEL.pageToMain('deckit-shell:switcher-ready', {});
