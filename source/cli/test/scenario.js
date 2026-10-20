@@ -9,10 +9,12 @@ const VIEWS = 7;
 const LINES = 'lines.txt';
 const FOUND = 'source/quick-open-target.js';
 const BROKEN = 'opens-everything';
+// A mod removed with its data whose web sessions were not cleared then, so what deck keeps of it is erased at start.
+const REMOVED = 'removed-with-data';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
-// The test's own mods, installed, one of them naming schemes it may not, and Settings placed second, as a person would
-// have arranged it.
+// The test's own mods, installed, one of them naming schemes it may not, Settings placed second, as a person would
+// have arranged it, and what REMOVED left.
 function seed({ data, files }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -38,6 +40,11 @@ function seed({ data, files }) {
     fs.writeFileSync(record, JSON.stringify(session));
     fs.mkdirSync(path.join(data, 'deckit', 'state'), { recursive: true });
     fs.writeFileSync(path.join(data, 'deckit', 'state', 'mod-order.json'), JSON.stringify(['editor', 'settings']));
+    fs.writeFileSync(path.join(data, 'deckit', 'state', 'uncleared.json'), JSON.stringify([REMOVED]));
+    for (const kept of [['records', REMOVED, 'tabs.json'], ['settings', `${REMOVED}.json`], ['data', REMOVED, 'a.txt']]) {
+        fs.mkdirSync(path.dirname(path.join(data, 'deckit', ...kept)), { recursive: true });
+        fs.writeFileSync(path.join(data, 'deckit', ...kept), '{}');
+    }
 }
 
 // `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder.
@@ -176,6 +183,13 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const frameKept = path.join(home, 'state', 'host', 'panel-frame.json');
         const sidebarKept = await until(() => fs.existsSync(frameKept), 2000);
         check("the shell's state is kept by the core", sidebarKept, frameKept);
+        const left = () =>
+            [`records/${REMOVED}`, `data/${REMOVED}`, `settings/${REMOVED}.json`].filter((kept) =>
+                fs.existsSync(path.join(home, kept))
+            );
+        const uncleared = () => fs.readFileSync(path.join(home, 'state', 'uncleared.json'), 'utf8');
+        const erased = await until(() => !left().length && uncleared() === '[]', 4000);
+        check('what a mod removed with its data left is erased at start', erased, `${left()} ${uncleared()}`);
         await note?.shot('note');
         check(
             'nothing is left floating in a view',
