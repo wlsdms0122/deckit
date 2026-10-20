@@ -100,7 +100,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
     }
 
     function lay() {
-        if (!stage || !state.page) return;
+        if (!stage || !state.page || !deckit.pages.isAlive(state.page)) return;
         // Closed, its page is hidden, as a page off screen is.
         stage.lay([
             state.on ? { page: state.page, rect: { x: 0, y: 0, ...stage.size() } } : { page: state.page, hidden: true },

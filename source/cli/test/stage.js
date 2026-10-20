@@ -149,6 +149,17 @@ async function main() {
         ]) === '' && orderOf() === 'backdrop',
         orderOf()
     );
+    page('emptied');
+    lay(['backdrop', 'emptied']);
+    views.get('emptied').webContents = null;
+    check(
+        'a page whose view has nothing left in it is taken off',
+        refusal([
+            { page: 'backdrop', rect: { x: 0, y: 0, width: 1, height: 1 } },
+            { page: 'emptied', hidden: true },
+        ]) === '' && orderOf() === 'backdrop',
+        orderOf()
+    );
     const unknown = refusal([{ page: 'nowhere', rect: { x: 0, y: 0, width: 1, height: 1 } }]);
     check("a stage lays only pages of deck's", /a stage lays/.test(unknown), unknown);
     const both = refusal([{ page: 'backdrop', rect: { x: 0, y: 0, width: 1, height: 1 }, hidden: true }]);

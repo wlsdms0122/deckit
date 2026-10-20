@@ -110,7 +110,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const rows = await frame.evaluate(
             `[...document.querySelectorAll('[data-mod-id]')].map((row) => row.dataset.modId)`
         );
-        // The shipped views and the test's region parent: its child is in no list.
+        // The shipped views and the test's own, the region parent and the window probe: the region child is in no list.
         check(
             `nav lists ${VIEWS + TEST_VIEWS} mods`,
             Array.isArray(rows) && rows.length === VIEWS + TEST_VIEWS,

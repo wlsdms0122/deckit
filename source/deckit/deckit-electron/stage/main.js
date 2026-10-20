@@ -47,7 +47,8 @@ export function createStage({ LOG, WINDOW, viewOf }) {
                 if (!rect === !hidden) throw new Error('[deckit] a layer is { page, rect } or { page, hidden: true }');
                 const view = viewOf(page) || laid.get(page);
                 if (!view) throw new Error("[deckit] a stage lays a page of deck's, or a surface one opened");
-                if (view.webContents.isDestroyed()) {
+                // A destroyed view may have no webContents left to ask.
+                if (!view.webContents || view.webContents.isDestroyed()) {
                     LOG.info('a page laid on a stage is gone: it is taken off');
                     continue;
                 }
