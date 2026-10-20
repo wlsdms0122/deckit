@@ -7,7 +7,7 @@
 
 import Foundation
 
-// The kernel: what a mod is, what it keeps and how it runs.
+// The kernel: what a mod is, what it keeps, how it runs and what it gives other mods.
 public final class Deck {
     // MARK: - Property
     private let record: Record
@@ -17,6 +17,9 @@ public final class Deck {
     private let catalog: Catalog
     private let runner: Runner
     private let erasure: Erasure
+    private let exportBroker: ExportBroker
+    private let extensionRegistry: ExtensionRegistry
+    private let eventBus: EventBus
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
@@ -60,6 +63,9 @@ public final class Deck {
         self.catalog = catalog
         self.runner = runner
         self.erasure = Erasure(dataFolder: dataFolder, record: record, setting: setting, state: state, store: store)
+        self.exportBroker = ExportBroker(runner: runner)
+        self.extensionRegistry = ExtensionRegistry(runner: runner)
+        self.eventBus = EventBus(runner: runner)
     }
 
     // MARK: - Public
@@ -165,41 +171,78 @@ public final class Deck {
             return true
 
         case "runner/reconcile":
-            return try runner.reconcile()
+            return try withChanges(runner.reconcile())
 
         case "runner/relaunch":
             let params = try call.params.decode(as: SandboxParams.self)
-            return try runner.relaunch(params.mod)
+            return try withChanges(runner.relaunch(params.mod))
 
         case "runner/relaunch-all":
-            return try runner.relaunchAll()
+            return try withChanges(runner.relaunchAll())
 
         case "runner/quit":
-            return try runner.quit()
+            return try withChanges(runner.quit())
 
         case "runner/load":
             let params = try call.params.decode(as: SandboxParams.self)
-            return try runner.load(params.mod)
+            return try withChanges(runner.load(params.mod))
 
         case "runner/started":
-            let params = try call.params.decode(as: RunParams.self)
-            return try runner.started(params.mod, run: params.run)
+            let params = try call.params.decode(as: StartedParams.self)
+            var effects = try runner.started(
+                params.mod,
+                run: params.run,
+                summary: params.summary,
+                contributions: params.contributions
+            )
+            for problem in extensionRegistry.problems(of: params.mod, run: params.run) {
+                effects += try runner.record(params.mod, run: params.run, problem: problem)
+            }
+            return withChanges(effects)
 
         case "runner/problem":
             let params = try call.params.decode(as: RunProblemParams.self)
-            return try runner.record(params.mod, run: params.run, problem: params.problem)
+            return try withChanges(runner.record(params.mod, run: params.run, problem: params.problem))
 
         case "runner/not-started":
             let params = try call.params.decode(as: RunProblemParams.self)
-            return try runner.notStarted(params.mod, run: params.run, problem: params.problem)
+            return try withChanges(runner.notStarted(params.mod, run: params.run, problem: params.problem))
 
         case "runner/crash":
             let params = try call.params.decode(as: RunProblemParams.self)
-            return try runner.crash(params.mod, run: params.run, problem: params.problem)
+            return try withChanges(runner.crash(params.mod, run: params.run, problem: params.problem))
 
         case "runner/stopped":
             let params = try call.params.decode(as: RunParams.self)
-            return try runner.stopped(params.mod, run: params.run)
+            return try withChanges(runner.stopped(params.mod, run: params.run))
+
+        case "export/dependencies":
+            let params = try call.params.decode(as: RunParams.self)
+            return try exportBroker.dependencies(mod: params.mod, run: params.run)
+
+        case "export/call":
+            let params = try call.params.decode(as: CallExportParams.self)
+            return try exportBroker.call(from: params.caller, run: params.run, mod: params.mod, path: params.path)
+
+        case "extension/call":
+            let params = try call.params.decode(as: CallExtensionParams.self)
+            try extensionRegistry.call(
+                from: params.caller,
+                run: params.run,
+                mod: params.mod,
+                point: params.point,
+                path: params.path
+            )
+            return true
+
+        case "event/listen":
+            let params = try call.params.decode(as: ListenParams.self)
+            eventBus.listen(mod: params.mod, run: params.run, names: params.names)
+            return true
+
+        case "event/emit":
+            let params = try call.params.decode(as: EmitParams.self)
+            return eventBus.emit(mod: params.mod, run: params.run, name: params.name)
 
         default:
             return nil
@@ -207,4 +250,8 @@ public final class Deck {
     }
 
     // MARK: - Private
+    // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it.
+    private func withChanges(_ effects: [Effect]) -> [Effect] {
+        effects + exportBroker.changes() + extensionRegistry.changes()
+    }
 }

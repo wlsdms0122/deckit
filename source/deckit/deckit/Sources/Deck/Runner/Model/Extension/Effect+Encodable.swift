@@ -22,6 +22,13 @@ extension Effect: Encodable {
         case endReason
         case relaunches
         case reason
+        case summary
+        case contributions
+        case dependency
+        case exports
+        case name
+        case extensions
+        case points
     }
 
     // MARK: - Initializer
@@ -63,6 +70,24 @@ extension Effect: Encodable {
 
         case .quit:
             try container.encode("quit", forKey: .effect)
+
+        case let .optionalChanged(modId, dependency, exports):
+            try container.encode("optionalChanged", forKey: .effect)
+            try container.encode(modId, forKey: .mod)
+            try container.encode(dependency, forKey: .dependency)
+            try container.encode(exports, forKey: .exports)
+
+        case let .extensionsChanged(modId, run, name, extensions):
+            try container.encode("extensionsChanged", forKey: .effect)
+            try container.encode(modId, forKey: .mod)
+            try container.encode(run, forKey: .run)
+            try container.encode(name, forKey: .name)
+            try container.encode(extensions, forKey: .extensions)
+
+        case let .extendsChanged(modId, points):
+            try container.encode("extendsChanged", forKey: .effect)
+            try container.encode(modId, forKey: .mod)
+            try container.encode(points, forKey: .points)
         }
     }
 
@@ -74,5 +99,7 @@ extension Effect: Encodable {
         try container.encodeIfPresent(run.problem, forKey: .problem)
         try container.encodeIfPresent(run.endReason, forKey: .endReason)
         try container.encode(run.relaunches, forKey: .relaunches)
+        try container.encodeIfPresent(run.summary, forKey: .summary)
+        try container.encodeIfPresent(run.contributions, forKey: .contributions)
     }
 }

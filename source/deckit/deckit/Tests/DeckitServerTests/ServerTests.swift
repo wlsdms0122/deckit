@@ -268,8 +268,41 @@ struct ServerTests {
         )
     }
 
+    @Test("what a run contributed comes back with it, the layers' too, and is what the mods that require it are given")
+    func testThatContributionsRoundTrip() throws {
+        // Given
+        try initialize()
+        try mod("calendar")
+        try mod("google", requires: #"calendar = "1.0.0""#)
+        _ = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
+        _ = try respond(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#)
+        let contributions = #"{"exports":{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]},"#
+            + #""extensionPoints":["accounts"],"extensions":{},"styles":["a.css"]}"#
+        let started = #"{"mod":"calendar","run":1,"summary":{"view":true},"contributions":\#(contributions)}"#
+
+        // When
+        let response = try respond(#"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":\#(started)}"#)
+        let dependencies = try respond(
+            #"{"jsonrpc":"2.0","id":5,"method":"export/dependencies","params":{"mod":"google","run":1}}"#
+        )
+
+        // Then
+        guard case let .array(effects)? = value(in: response, at: "result"), let told = effects.first else {
+            Issue.record("no effects in \(response)")
+            return
+        }
+        #expect(value(in: told, at: "notification") == .string("didLaunch"))
+        #expect(value(in: told, at: "summary", "view") == .bool(true))
+        #expect(value(in: told, at: "contributions", "styles") == .array([.string("a.css")]))
+        #expect(value(in: told, at: "contributions", "extensionPoints") == .array([.string("accounts")]))
+        #expect(
+            value(in: dependencies, at: "result", "ready", "requires", "calendar")
+                == (try json(#"{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]}"#))
+        )
+    }
+
     // MARK: - Private
-    private func mod(_ id: String, schemes: String? = nil) throws {
+    private func mod(_ id: String, schemes: String? = nil, requires: String? = nil) throws {
         let folder = URL(filePath: home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let manifest = """
@@ -278,6 +311,7 @@ struct ServerTests {
             api = "1.0.0"
             main = "main.js"
             """ + (schemes.map { schemes in "\nurl-schemes = \(schemes)" } ?? "")
+            + (requires.map { requires in "\n[requires]\n\(requires)" } ?? "")
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
         try Data().write(to: folder.appending(path: "main.js"))
     }

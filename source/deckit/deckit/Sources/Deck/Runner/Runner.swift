@@ -26,6 +26,16 @@ final class Runner {
     }
 
     // MARK: - Public
+    // The mods that have a sandbox, in the order they opened.
+    func mods() -> [Mod] {
+        sandboxes.map(\.mod)
+    }
+
+    // The mod a sandbox runs, while it has one.
+    func mod(of id: String) -> Mod? {
+        sandbox(of: id)?.mod
+    }
+
     // The mod's latest run, while it has a sandbox.
     func run(of id: String) -> Run? {
         sandbox(of: id)?.run
@@ -90,10 +100,13 @@ final class Runner {
         }
     }
 
-    func started(_ id: String, run number: Int) throws -> [Effect] {
+    // It started, with what it contributed.
+    func started(_ id: String, run number: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id, run: number), sandbox.run.state == .launching else { return }
-            try move(sandbox) { run throws(LifecycleError) in try run.didLaunch() }
+            try move(sandbox) { run throws(LifecycleError) in
+                try run.didLaunch(summary: summary, contributions: contributions)
+            }
         }
     }
 

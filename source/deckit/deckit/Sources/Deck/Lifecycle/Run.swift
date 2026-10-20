@@ -17,6 +17,10 @@ struct Run: Sendable {
     private(set) var problem: String?
     // The reason it terminated for: none for a run that crashed or did not launch.
     private(set) var endReason: TerminateReason?
+    // What its page reported as it started, once it launched: `summary`, what it contributes as a person reads it, is
+    // carried and not read.
+    private(set) var summary: JSONValue?
+    private(set) var contributions: Contribution?
 
     var relaunches: Bool {
         endReason?.relaunches ?? false
@@ -29,8 +33,14 @@ struct Run: Sendable {
     }
 
     // MARK: - Public
-    mutating func didLaunch() throws(LifecycleError) -> LifecycleNotification {
-        try move(.didLaunch)
+    mutating func didLaunch(
+        summary: JSONValue,
+        contributions: Contribution
+    ) throws(LifecycleError) -> LifecycleNotification {
+        let notification = try move(.didLaunch)
+        self.summary = summary
+        self.contributions = contributions
+        return notification
     }
 
     mutating func didFailToLaunch(_ problem: String) throws(LifecycleError) -> LifecycleNotification {

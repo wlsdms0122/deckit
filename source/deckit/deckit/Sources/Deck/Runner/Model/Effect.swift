@@ -7,7 +7,7 @@
 
 import Foundation
 
-// What the driver does, in order, with what the runner decided.
+// What the driver does, in order, with what deck decided of the runs.
 enum Effect: Sendable {
     // Make the mod's sandbox, its page not loaded yet.
     case open(Mod)
@@ -25,6 +25,12 @@ enum Effect: Sendable {
     case close(modId: String, reason: TerminateReason)
     // Every run has ended for the quit: the app may quit.
     case quit
+    // Tell the mod's run what an optional dependency of its exports to it now, or that it exports nothing.
+    case optionalChanged(modId: String, dependency: String, exports: Snapshot?)
+    // Tell the mod's `run`th run what extends its extension point `name` now, by the id of the mod that extends it.
+    case extensionsChanged(modId: String, run: Int, name: String, extensions: [String: Snapshot])
+    // The scoped names of the points the mod extends now.
+    case extendsChanged(modId: String, points: [String])
 
     // MARK: - Property
     // MARK: - Initializer
