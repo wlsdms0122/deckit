@@ -17,7 +17,6 @@ export function createCommand() {
     // `icon` is the mod's, which an entry with none of its own is drawn with.
     function source({ icon, commands, now, resolve, fail }) {
         const strings = (list) => (Array.isArray(list) ? list.filter((word) => typeof word === 'string' && word) : []);
-        PROTOCOL.source.send({ resolves: typeof resolve === 'function' });
 
         const entryOf = (session, command, kind) => {
             if (typeof command?.label !== 'string' || !command.label) {

@@ -128,7 +128,7 @@ private struct MainField: ManifestField {
     let name = "main"
     let key = "main"
 
-    func read(_ written: TOMLValue?) -> any Encodable & Sendable {
+    func read(_ written: TOMLValue?) -> String {
         ""
     }
 

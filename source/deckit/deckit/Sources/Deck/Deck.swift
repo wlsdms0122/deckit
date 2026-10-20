@@ -76,9 +76,10 @@ public final class Deck {
         catalog.lastRead.filter { mod in mod.problem == nil }
     }
 
-    // The mod's latest run, while it has a sandbox.
-    public func run(of id: String) -> Run? {
-        runner.run(of: id)
+    // What the mod's run contributed, from its launch until it has ended.
+    public func contributions(of id: String) -> Contribution? {
+        guard let run = runner.run(of: id), run.state == .running || run.state == .terminating else { return nil }
+        return run.contributions
     }
 
     // `layer` is asked of each run as it starts, and of what has changed once the runs have moved.

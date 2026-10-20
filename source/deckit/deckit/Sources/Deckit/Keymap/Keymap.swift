@@ -42,7 +42,7 @@ final class Keymap: Layer {
 
     // MARK: - Lifecycle
     func problems(of run: Run, mod: Mod) -> [String] {
-        declared(by: run).compactMap { key in problem(of: key, mod: mod) }
+        declared(in: run.contributions).compactMap { key in problem(of: key, mod: mod) }
     }
 
     // The keymap, once it resolves otherwise than the driver was last told.
@@ -113,17 +113,8 @@ final class Keymap: Layer {
         return told
     }
 
-    // The keys a mod's run contributed, while it runs or terminates.
-    private func keys(of mod: Mod) -> [Key] {
-        guard let run = deck.run(of: mod.manifest.id),
-            run.state == .running || run.state == .terminating
-        else { return [] }
-
-        return declared(by: run)
-    }
-
-    private func declared(by run: Run) -> [Key] {
-        guard let written = run.contributions?.layers[contributionKey] else { return [] }
+    private func declared(in contributions: Contribution?) -> [Key] {
+        guard let written = contributions?.layers[contributionKey] else { return [] }
         return (try? written.decode(as: [Key].self)) ?? []
     }
 
@@ -170,7 +161,8 @@ final class Keymap: Layer {
         let mods = deck.mods().map { mod in
             (
                 owner: BindingOwner.mod(id: mod.manifest.id, name: mod.manifest.name),
-                keys: keys(of: mod).filter { key in problem(of: key, mod: mod) == nil }
+                keys: declared(in: deck.contributions(of: mod.manifest.id))
+                    .filter { key in problem(of: key, mod: mod) == nil }
             )
         }
         let app = { (global: Bool, scope: BindingScope) in

@@ -16,12 +16,21 @@ import { createExtension } from './extension/main.js';
 import { createEvent } from './event/main.js';
 import { createMods } from './mods/main.js';
 
-// Deck in main, made of its parts, each handed what it uses. `id` names everything deck keeps, and `name` is the app's,
-// as a person reads it; `home` is its folder, ~/.config/<id> when none is given; `ship` the mod folders the host app
-// ships, installed at every start; `sources` folders of mods read in place, ahead of installed ones; `core` the core's
-// executable. Answers what the layers on deck reach of it.
-export function createDeck({ id = 'deckit', name = 'Deckit', home = null, ship = [], sources = [], core } = {}) {
-    const CONFIG = Object.freeze({ id, name, home, ship, sources, core });
+// Deck in main, made of its parts, each handed what it uses. `id` names everything deck keeps, `name` is the app's, as
+// a person reads it, and `schemeHandlers`, by scheme, the mods it asks first to open an address; `home` is its folder,
+// ~/.config/<id> when none is given; `ship` the mod folders the host app ships, installed at every start; `sources`
+// folders of mods read in place, ahead of installed ones; `core` the core's executable. Answers what the layers on deck
+// reach of it.
+export function createDeck({
+    id = 'deckit',
+    name = 'Deckit',
+    schemeHandlers = {},
+    home = null,
+    ship = [],
+    sources = [],
+    core,
+} = {}) {
+    const CONFIG = Object.freeze({ id, name, schemeHandlers, home, ship, sources, core });
     const HOME = createHome({ CONFIG });
     const LOG = createLog({ CONFIG, HOME });
     const CORE = createCore({ CONFIG, HOME, LOG });
@@ -111,12 +120,11 @@ export function createDeck({ id = 'deckit', name = 'Deckit', home = null, ship =
     });
 }
 
-// What the layers on deck read of it: the scheme its pages load from and their origins, a run's notifications, the
-// permissions deck checks itself, and how a name of a mod's is scoped by it.
+// What the layers on deck read of it: the scheme its pages load from and their origins, a run's notifications and the
+// permissions deck checks itself.
 export { SCHEME } from './contract/index.js';
 export { originOf, pageOriginOf, addressOf } from './sandbox/model/origin.js';
 export { NOTIFICATIONS } from './mod/lifecycle.js';
 export { MODS, MOD_SETTINGS } from './mod/permission.js';
-export { scopedName } from './mod/model/scoped-name.js';
 // A frozen copy all the way down, for a layer that hands out what deck holds.
 export { deepFreeze } from './export/proxy.js';

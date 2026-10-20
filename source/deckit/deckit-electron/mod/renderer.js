@@ -116,33 +116,37 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
     // cannot put up leaves the mod unstarted, with nothing of it joined.
     function contribute(mod, parts, entry, { given, deliver, fail }) {
         const reported = given.contribute(parts, entry) || {};
-        const names = mod.urlSchemes;
-        const opens = typeof parts.handleURL === 'function';
-        if (names.length && !opens) fail('manifest.toml names url-schemes, but start() registered no deck.handleURL()');
-        if (opens && !names.length)
-            fail('start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it');
-        if (names.length && opens) OPEN.answer((url, options) => parts.handleURL(url, options));
+        const registered = (name) => typeof parts[name] === 'function';
+        if (registered('handleURL')) OPEN.answer((url, options) => parts.handleURL(url, options));
         COMMAND.source({
             icon: entry.icon,
             commands: guarded('commands', parts.commands, fail),
             now: guarded('now', parts.now, fail),
-            resolve: typeof parts.resolve === 'function' ? (query) => parts.resolve(query) : null,
+            resolve: registered('resolve') ? (query) => parts.resolve(query) : null,
             fail,
         });
         const keys = KEYMAP.declare(parts.keys, { invalid: fail, problemOf: (key) => given.keyProblem(key, parts) });
         KEYMAP.hear({ deliver, blocksKeys: given.blocksKeys });
         return {
-            contributions: { ...reported.contributions, keys },
+            // What it registered, by name, beside the shell's, for deckit's core to judge it by.
+            contributions: {
+                ...reported.contributions,
+                keys,
+                commands: registered('commands'),
+                now: registered('now'),
+                resolve: registered('resolve'),
+                handleURL: registered('handleURL'),
+            },
             summary: {
                 ...reported.summary,
                 icon: String(entry.icon || ''),
                 keywords: Array.isArray(entry.keywords)
                     ? entry.keywords.filter((word) => typeof word === 'string' && word)
                     : [],
-                commands: typeof parts.commands === 'function',
-                now: typeof parts.now === 'function',
-                resolver: typeof parts.resolve === 'function',
-                urlSchemes: opens ? names : [],
+                commands: registered('commands'),
+                now: registered('now'),
+                resolver: registered('resolve'),
+                urlSchemes: registered('handleURL') ? mod.urlSchemes : [],
             },
         };
     }

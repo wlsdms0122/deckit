@@ -1,0 +1,153 @@
+//
+//  URLRouter.swift
+//  Deckit
+//
+//  Created by JSilver on 10/20/26.
+//
+
+import Foundation
+import Deck
+
+// Which mods an address is offered to, in what order, and what deckit opens it with by itself after them. A mod handles
+// the schemes its manifest names under url-schemes once its run has registered deck.handleURL(): its run contributed
+// `handleURL`. The app names who is asked first for each scheme, and the person orders them and switches them off.
+final class URLRouter: Layer {
+    // MARK: - Property
+    private let contributionKey = "handleURL"
+    private let preferencesKey = "scheme-handlers"
+    private let field: URLSchemesField
+    private unowned let deck: Deck
+    // Scheme -> the mods the app asks first.
+    private let schemeHandlers: [String: [String]]
+    // Scheme -> how the person arranged its handlers.
+    private var preferences: [String: HandlerPreference]
+
+    // MARK: - Initializer
+    // `field` is the url-schemes field deck reads manifests with.
+    init(deck: Deck, field: URLSchemesField, schemeHandlers: [String: [String]]) {
+        self.deck = deck
+        self.field = field
+        self.schemeHandlers = schemeHandlers
+        let saved = try? deck.state.read(folder: nil, key: preferencesKey)
+        self.preferences = saved.flatMap { text in
+            try? JSONDecoder().decode([String: HandlerPreference].self, from: Data(text.utf8))
+        } ?? [:]
+    }
+
+    // MARK: - Lifecycle
+    // A mod that names schemes and opens none, or opens what it names none of, is told so as it starts.
+    func problems(of run: Run, mod: Mod) -> [String] {
+        let names = !mod.manifest.value(of: field).isEmpty
+        let opens = handlesURL(run.contributions)
+        if names && !opens {
+            return ["manifest.toml names url-schemes, but start() registered no deck.handleURL()"]
+        }
+        if opens && !names {
+            return ["start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"]
+        }
+
+        return []
+    }
+
+    func changes() -> [(effect: String, change: any Encodable & Sendable)] {
+        []
+    }
+
+    // MARK: - Public
+    // A file opens only on a person's click or key, whoever answers it, and deckit opens nothing by itself without one:
+    // otherwise any mod could open apps at will, or learn which paths exist.
+    func route(_ params: RouteParams) -> URLRoute {
+        let address = params.url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let scheme = URLScheme(address: address), scheme.isPlace else {
+            return URLRoute(url: address, handlers: [], system: nil)
+        }
+        let system = SystemHandler(scheme: scheme.name)
+        guard params.userInitiated || system != .file else { return URLRoute(url: address, handlers: [], system: nil) }
+
+        let handlers = params.usesDefaultApp ? [] : handlers(of: handledAs(scheme)).filter(\.on).map(\.id)
+        return URLRoute(url: address, handlers: handlers, system: params.userInitiated ? system : nil)
+    }
+
+    // Every scheme with a handler list: those deckit opens by itself, then each one a mod handles, then every other.
+    func handlerLists() -> [HandlerList] {
+        schemes().map { scheme in
+            HandlerList(scheme: scheme, system: SystemHandler(scheme: scheme), handlers: handlers(of: scheme))
+        }
+    }
+
+    // The handlers in `order` take the places they held among themselves. One missing from the list now (failed to
+    // load, or waiting on what it requires) keeps its place and switch: otherwise editing the list while it was gone
+    // would give its place to the app's.
+    func setHandlers(_ params: SetHandlersParams) throws -> Bool {
+        guard schemes().contains(params.scheme) else { throw URLRouterError.noHandlers(params.scheme) }
+
+        let given = Set(params.order)
+        var next = params.order[...]
+        let placed = order(of: params.scheme).compactMap { id in given.contains(id) ? next.popFirst() : id } + next
+        let off = preference(of: params.scheme).off.filter { id in !given.contains(id) } + params.off
+        var preferences = preferences
+        preferences[params.scheme] = HandlerPreference(order: placed, off: off)
+        try save(preferences)
+
+        return true
+    }
+
+    // MARK: - Private
+    private func save(_ next: [String: HandlerPreference]) throws {
+        let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
+        try deck.state.write(folder: nil, key: preferencesKey, text: text)
+        preferences = next
+    }
+
+    private func handlesURL(_ contributions: Contribution?) -> Bool {
+        contributions?.layers[contributionKey] == .bool(true)
+    }
+
+    // The mods that answer addresses, in the person's order, with the schemes each names.
+    private func answering() -> [(mod: Mod, schemes: [String])] {
+        deck.mods().compactMap { mod in
+            let schemes = mod.manifest.value(of: field)
+            guard !schemes.isEmpty, handlesURL(deck.contributions(of: mod.manifest.id)) else { return nil }
+            return (mod, schemes)
+        }
+    }
+
+    private func schemes() -> [String] {
+        let named = answering().flatMap(\.schemes)
+        let own = named.filter { scheme in scheme != URLScheme.every }
+        let every = named.contains(URLScheme.every) ? [URLScheme.every] : []
+        var seen: Set<String> = []
+
+        return (SystemHandler.schemes.map(\.scheme) + own + every).filter { scheme in seen.insert(scheme).inserted }
+    }
+
+    // The list an address is offered to: its scheme's own, or every scheme's when it has none.
+    private func handledAs(_ scheme: URLScheme) -> String {
+        schemes().contains(scheme.name) ? scheme.name : URLScheme.every
+    }
+
+    // What the app names first and the person has not placed, then what the person placed.
+    private func order(of scheme: String) -> [String] {
+        let placed = preference(of: scheme).order
+        return (schemeHandlers[scheme] ?? []).filter { id in !placed.contains(id) } + placed
+    }
+
+    private func preference(of scheme: String) -> HandlerPreference {
+        preferences[scheme] ?? HandlerPreference(order: [], off: [])
+    }
+
+    // In the scheme's order; a mod no one placed comes after, by its id: the mods' order says nothing of who opens
+    // what.
+    private func handlers(of scheme: String) -> [SchemeHandler] {
+        let order = order(of: scheme)
+        let off = preference(of: scheme).off
+        let rank = { (id: String) in order.firstIndex(of: id) ?? order.count }
+
+        return answering()
+            .filter { _, schemes in schemes.contains { named in named == URLScheme.every || named == scheme } }
+            .map { mod, _ in
+                SchemeHandler(id: mod.manifest.id, name: mod.manifest.name, on: !off.contains(mod.manifest.id))
+            }
+            .sorted { one, other in (rank(one.id), one.id) < (rank(other.id), other.id) }
+    }
+}

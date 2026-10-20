@@ -34,5 +34,10 @@ public struct Manifest: Sendable {
         return version.satisfies(wanted)
     }
 
+    // What the manifest holds of a field the layer that asks added to deck: the reader reads each added field into it.
+    public func value<Field: ManifestField>(of field: Field) -> Field.Value {
+        fields[field.key] as! Field.Value
+    }
+
     // MARK: - Private
 }

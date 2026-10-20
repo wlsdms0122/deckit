@@ -22,18 +22,24 @@ extension Deckit {
 
     // The effects of the `run`th run of `mod` started, having contributed `keys`.
     func started(_ mod: String, run: Int, keys: [JSONValue]) throws -> JSONValue {
+        try started(mod, run: run, contributing: ["keys": .array(keys)])
+    }
+
+    // The effects of the `run`th run of `mod` started, having contributed `layers` beside deck's own.
+    func started(_ mod: String, run: Int, contributing layers: [String: JSONValue]) throws -> JSONValue {
         try json(
             "runner/started",
             .object([
                 "mod": .string(mod),
                 "run": .number(Double(run)),
                 "summary": .object([:]),
-                "contributions": .object([
-                    "exports": .object(["values": .string("{}"), "functions": .array([])]),
-                    "extensionPoints": .array([]),
-                    "extensions": .object([:]),
-                    "keys": .array(keys)
-                ])
+                "contributions": .object(
+                    layers.merging([
+                        "exports": .object(["values": .string("{}"), "functions": .array([])]),
+                        "extensionPoints": .array([]),
+                        "extensions": .object([:])
+                    ]) { layer, _ in layer }
+                )
             ])
         )
     }

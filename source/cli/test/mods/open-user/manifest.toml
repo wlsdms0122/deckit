@@ -1,0 +1,6 @@
+id = "open-user"
+name = "Open User"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+url-schemes = ["test-open"]

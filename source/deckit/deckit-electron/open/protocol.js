@@ -11,8 +11,6 @@ export const open = IPC.rendererToMain(
     },
     { reply: true }
 );
-// The sending mod answers the url-schemes its manifest names.
-export const handles = IPC.rendererToMain('deckit-electron:open-handles', {});
 export const reveal = IPC.rendererToMain('deckit-electron:open-reveal', { file: 'string' }, { reply: true });
 // deckit.url-schemes: each scheme's handlers in order, and setting that order.
 export const handlerLists = IPC.rendererToMain('deckit-electron:open-handler-lists', {}, { reply: true, sync: true });

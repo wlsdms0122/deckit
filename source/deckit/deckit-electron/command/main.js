@@ -1,79 +1,68 @@
 import * as PROTOCOL from './protocol.js';
 import * as TONE from './model/tone.js';
-import * as DECK from '../../deck/main.js';
 
-export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
+export function createCommand({ LOG, IDENTITY, CORE }) {
     // MARK: - Property
     // A mod that has not answered by then answers nothing, so one stuck page does not hold the others.
     const ANSWER_MS = 2000;
     const TONES = Object.freeze([...TONE.TONES]);
-    const sources = new Map(); // mod id -> { resolves }
     let sessions = 0;
+    let handed = 0; // entries handed out, by every session: an id one session handed out is never another's
 
     // MARK: - Initializer
     // MARK: - Public
-    function start() {
-        PROTOCOL.source.on((source, sender) => {
-            const mod = IDENTITY.modFrom(sender);
-            sources.set(mod.id, source);
-            IDENTITY.whenPageEnds(sender, () => sources.get(mod.id) === source && sources.delete(mod.id));
-        });
-        // A run that has ended offers nothing, though its page may stay until the mod launches again.
-        RUNNER.observe('didTerminate', ({ mod }) => sources.delete(mod.id));
-    }
-
-    // What the running mods offer to be run, asked by one caller: an entry runs by the id its session handed
-    // out, until the session ends. Two callers' sessions never touch.
-    function session() {
+    // What the mods offer to be run, asked by one caller of those that offered it as the session began: an entry runs
+    // by the id its session handed out, until the session ends. Two callers' sessions never touch.
+    async function session() {
+        const sources = await CORE.request('command/sources');
         const number = ++sessions;
         const entries = new Map(); // entry id -> { mod, local }
         let ended = false;
 
-        // An entry crosses as data, under an id this side keeps: running it comes back by that id.
-        const wire = (mod, kind, entry) => {
-            const id = DECK.scopedName(mod.id, entry.id);
-            entries.set(id, { mod: mod.id, local: entry.id });
-            return { ...entry, id, kind, mod: { id: mod.id, name: mod.name } };
+        // An entry crosses as data, under an id handed out here: running it comes back by that id.
+        const wire = (source, kind, entry) => {
+            const id = String(++handed);
+            const mod = { id: source.id, name: source.name };
+            entries.set(id, { mod, local: entry.id });
+            return { ...entry, id, kind, mod };
         };
         const ask = (end, mod, payload, fallback) =>
             ended ? Promise.resolve(fallback) : question(end, mod, { ...payload, session: number }, fallback);
+        const offering = (what) => sources.filter((source) => source[what]);
 
         return Object.freeze({
-            // Every running mod's commands, in the mods' order.
+            // Every offering mod's commands, in the mods' order.
             async list() {
-                const mods = running();
-                const answers = await Promise.all(mods.map((mod) => ask(PROTOCOL.collect, mod, {}, [])));
-                return mods.flatMap((mod, index) => answers[index].map((entry) => wire(mod, 'command', entry)));
+                const asked = offering('commands');
+                const answers = await Promise.all(asked.map((source) => ask(PROTOCOL.collect, source, {}, [])));
+                return asked.flatMap((source, index) => answers[index].map((entry) => wire(source, 'command', entry)));
             },
-            // A promise for each running mod's readouts of what is happening now, which land as each mod answers.
+            // A promise for each offering mod's readouts of what is happening now, which land as each mod answers.
             now() {
-                return running().map((mod) =>
-                    ask(PROTOCOL.collectNow, mod, {}, []).then((rows) => rows.map((row) => wire(mod, 'now', row)))
+                return offering('now').map((source) =>
+                    ask(PROTOCOL.collectNow, source, {}, []).then((rows) => rows.map((row) => wire(source, 'now', row)))
                 );
             },
             // A promise for each answer to what the person typed, from each mod that resolves.
             resolve(raw) {
-                return running()
-                    .filter((mod) => sources.get(mod.id).resolves)
-                    .map((mod) =>
-                        ask(PROTOCOL.resolve, mod, { raw }, []).then((found) =>
-                            found.map((entry) => wire(mod, 'resolved', entry))
-                        )
-                    );
+                return offering('resolve').map((source) =>
+                    ask(PROTOCOL.resolve, source, { raw }, []).then((found) =>
+                        found.map((entry) => wire(source, 'resolved', entry))
+                    )
+                );
             },
             // The entries of the submenu an entry opens, for what was typed in it; null for an entry with no submenu,
             // or a search a newer one replaced.
             async search(entryId, raw) {
                 const opener = entries.get(entryId);
-                const mod = opener && CATALOG.mods().find(({ id }) => id === opener.mod);
-                if (!mod) return null;
-                const found = await ask(PROTOCOL.search, mod, { raw, submenu: opener.local }, null);
-                return found && found.map((entry) => wire(mod, 'submenu', entry));
+                if (!opener) return null;
+                const found = await ask(PROTOCOL.search, opener.mod, { raw, submenu: opener.local }, null);
+                return found && found.map((entry) => wire(opener.mod, 'submenu', entry));
             },
             // As if the person pressed in the mod's page: picking the entry was their press.
             async run(entryId) {
                 const entry = entries.get(entryId);
-                const page = !ended && entry && IDENTITY.pageOf(entry.mod);
+                const page = !ended && entry && IDENTITY.pageOf(entry.mod.id);
                 if (!page) return;
                 IDENTITY.passUserActivation(page);
                 await PROTOCOL.run.invoke(page, { session: number, id: entry.local });
@@ -83,7 +72,7 @@ export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
                 if (ended) return;
                 ended = true;
                 entries.clear();
-                for (const id of sources.keys()) {
+                for (const { id } of sources) {
                     const page = IDENTITY.pageOf(id);
                     if (page) PROTOCOL.end.send(page, { session: number });
                 }
@@ -92,10 +81,6 @@ export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
     }
 
     // MARK: - Private
-    function running() {
-        return CATALOG.mods().filter((mod) => sources.has(mod.id) && IDENTITY.pageOf(mod.id));
-    }
-
     // What a mod's page answers; one that fails or went away answers `fallback`, recorded against it.
     function question(end, mod, payload, fallback) {
         const page = IDENTITY.pageOf(mod.id);
@@ -106,5 +91,5 @@ export function createCommand({ LOG, IDENTITY, CATALOG, RUNNER }) {
         });
     }
 
-    return { start, TONES, session };
+    return { TONES, session };
 }

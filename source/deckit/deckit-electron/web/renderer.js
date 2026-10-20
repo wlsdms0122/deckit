@@ -134,7 +134,10 @@ export function createWeb({ sessionPrefix }) {
         };
         // Only false keeps the default back, so a delegate that forgot to answer does not lose the request.
         const otherwiseOpen = async (method, to, options) => {
-            if ((await ask(method, true, to, options)) !== false) opener.open(to, options);
+            if ((await ask(method, true, to, options)) === false) return;
+            opener
+                .open(to, options)
+                .catch((error) => owner.recordFailure(`${to} did not open: ${error.message || error}`));
         };
         const receive = (event, payload) => {
             switch (event) {
