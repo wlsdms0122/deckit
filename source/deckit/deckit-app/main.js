@@ -31,7 +31,13 @@ if (!app.requestSingleInstanceLock()) {
     };
     const THEME = createTheme();
     const host = createApp({ WINDOW: createWindow({ CONFIG: config, THEME }), THEME }).make({ restart });
-    const deckit = DECKIT.connect({ preload: path.join(__dirname, 'preload.js'), host, config, folders });
+    const deckit = DECKIT.connect({
+        preload: path.join(__dirname, 'preload.js'),
+        core: path.join(__dirname, 'deckit', 'deckit'),
+        host,
+        config,
+        folders,
+    });
     SHELL.attach(deckit, { host });
     // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
     app.on('activate', () => host.show());
