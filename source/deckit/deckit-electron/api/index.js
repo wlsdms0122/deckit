@@ -91,7 +91,8 @@ export function createApi({
             channels: IPC.layerChannels,
         });
         // A layer is given at least what a driver and a layer agree on: one this answer lacks fails at once.
-        return LAYER.checked(answer, LAYER.MAIN, "connect's answer");
+        LAYER.checked(answer, LAYER.CONNECTED, "connect's answer");
+        return answer;
     }
 
     // MARK: - Private

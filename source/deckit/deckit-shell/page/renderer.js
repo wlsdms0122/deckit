@@ -20,7 +20,7 @@ const PAGE_STYLE = `
 // MARK: - Public
 // A page the shell made: the switcher's, or the panel's frame. `channels` binds the shell's channels in the page.
 function page(name, context) {
-    const { channels } = LAYER.checked(context, LAYER.PAGE, 'what the page is handed');
+    const { channels } = LAYER.checked(context, LAYER.PAGE_CONTEXT, 'what the page is handed');
     if (name === SWITCHER_PAGE.PAGE_NAME) SWITCHER.boot(start({ channels }), channels);
     else if (name === FRAME_PAGE.PAGE_NAME) FRAME.boot(start({ channels }), channels);
 }

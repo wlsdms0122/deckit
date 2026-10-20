@@ -169,10 +169,12 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         OPEN_PERMISSION,
     ])
         for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
+    // What connect answers is made, and held to what a layer is given, before anything starts.
+    const answer = API.make({ onStart });
     require('electron')
         .app.whenReady()
         .then(() => start(preload));
-    return API.make({ onStart });
+    return answer;
 
     // `listener` is told once, as deckit starts once the app is ready, before any mod launches. It is handed over
     // before then.

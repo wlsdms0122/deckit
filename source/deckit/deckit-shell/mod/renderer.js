@@ -15,7 +15,11 @@ import { createRegion, parentProblem } from '../region/renderer.js';
 // panel's pins. Once start() has ended, a view is laid where the panel's guide says, or a region's for a child.
 // `channels` binds the shell's channels in the page.
 function mod(context) {
-    const { mod: running, deliver, channels } = LAYER.checked(context, LAYER.MOD_PAGE, "what a mod's page is handed");
+    const {
+        mod: running,
+        deliver,
+        channels,
+    } = LAYER.checked(context, LAYER.MOD_CONTEXT, "what a mod's page is handed");
     const REGION = createRegion({ deliver, channels });
     const PANEL = createPanel({ channels });
     const theme = PAGE.start({ channels, tell: (listener) => deliver('theme.onChange()', listener) });

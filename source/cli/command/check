@@ -19,13 +19,25 @@ const MAY_DEPEND = {
 const SHELL = 'deckit-shell';
 const SHELL_BUNDLES = ['shell-main', 'shell-renderer'];
 const ELECTRON = /\brequire\(\s*["'`]electron["'`]\s*\)/;
-const ELECTRON_NAMES =
-    /\b(?:View|WebContentsView|BrowserWindow|nativeTheme|screen|ipcMain|ipcRenderer)\b|\.(?:webContents|setBounds|setVisible|addChildView|removeChildView|setBackgroundColor|getBounds|isDestroyed|setWindowOpenHandler|setBackgroundThrottling)\b/;
+// Electron's objects and their members. `View` and `screen` are a page's words too (`window.screen`), so they are held
+// only in what the shell's main bundle carries.
+const ELECTRON_MEMBERS =
+    'webContents|setBounds|setVisible|addChildView|removeChildView|setBackgroundColor|getBounds|isDestroyed|setWindowOpenHandler|setBackgroundThrottling';
+const ELECTRON_NAMES = new RegExp(
+    `\\b(?:WebContentsView|BrowserWindow|nativeTheme|ipcMain|ipcRenderer)\\b|\\.(?:${ELECTRON_MEMBERS})\\b|[{,]\\s*(?:${ELECTRON_MEMBERS})\\s*[,}:]`
+);
+// One read in brackets, with its name as a string.
+const ELECTRON_READ = new RegExp(`\\[\\s*["'\`](?:${ELECTRON_MEMBERS})["'\`]\\s*\\]`);
+const ELECTRON_MAIN_NAMES = /\b(?:View|screen)\b/;
+// What runs code or reaches a process around what the shell is handed.
+const AROUND = /\b(?:require|process|globalThis|eval|module)\b|\bFunction\s*\(/;
 // A channel's declaration, whatever the module that declares it is imported as.
 const DECLARES = '\\b\\w+\\.(?:pageToMain|mainToPage)\\(';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];
+// The files the shell's main bundle carries.
+const SHELL_MAIN = LIBRARY.reach(LIBRARY.BUNDLES['shell-main'].entry);
 const SURFACES = new Map(LIBRARY.PACKAGES.map((name) => [name, LIBRARY.surfaceOf(name)]));
 // Where each bundle runs: main or a renderer.
 const PLACES = {
@@ -112,7 +124,7 @@ function checkFile(file) {
 // What the shell and a driver agree on holds nothing of either: no module, nothing of a process or a page, and no
 // state of its own. Read without its strings, so a channel's name or a word in one is not taken for a use.
 function checkPure(file, plain) {
-    const bare = bareOf(plain);
+    const bare = LIBRARY.bare(plain);
     if (/\brequire\s*\(/.test(bare)) say(file, `requires a module, but ${DRIVER}/ is plain declarations`);
     if (/\b(?:globalThis|window|document|process|self)\s*[.[]/.test(bare))
         say(file, `reaches a process or a page, but ${DRIVER}/ runs on any side of any driver`);
@@ -122,15 +134,12 @@ function checkPure(file, plain) {
 
 // The shell's code, read without its strings: nothing it requires, and no Electron object's name or member.
 function checkShell(file, plain) {
-    const bare = bareOf(plain);
-    if (/\brequire\s*\(/.test(bare)) say(file, `requires a module, but ${SHELL}/ reaches a driver only through ${DRIVER}/`);
-    const named = bare.match(ELECTRON_NAMES);
-    if (named) say(file, `names ${named[0]} of Electron's, but ${SHELL}/ reaches a driver only through ${DRIVER}/`);
-}
-
-// Code without its strings, so a word in one is not taken for a use.
-function bareOf(plain) {
-    return plain.replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, "''");
+    const bare = LIBRARY.bare(plain);
+    const around = bare.match(AROUND);
+    if (around) say(file, `uses ${around[0]}, but ${SHELL}/ reaches a driver only through ${DRIVER}/`);
+    const named =
+        bare.match(ELECTRON_NAMES) || plain.match(ELECTRON_READ) || (SHELL_MAIN.has(file) && bare.match(ELECTRON_MAIN_NAMES));
+    if (named) say(file, `names ${named[0].trim()} of Electron's, but ${SHELL}/ reaches a driver only through ${DRIVER}/`);
 }
 
 // A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no

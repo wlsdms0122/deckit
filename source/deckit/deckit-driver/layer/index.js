@@ -1,10 +1,9 @@
-// What a layer on deckit, a shell, and a driver agree on, as plain data: what the layer is given in main (what connect
-// answers), on a stage, and on a page, and what the layer answers a mod's page. A driver gives at least this; the
-// layer reaches nothing else. Each leaf says what a member is: `function`, `array`, `object` or `string`.
-// MARK: - Property
-// What a run tells as it moves, in the order a run that starts and stops tells them.
-const NOTIFICATIONS = Object.freeze(['willLaunch', 'didLaunch', 'didFailToLaunch', 'willTerminate', 'didTerminate']);
+import * as CHANNEL from '../channel/index.js';
 
+// What a layer on deckit, a shell, and a driver agree on, as plain data: what the layer is given in main (what connect
+// answers), of a stage, and on a page. A driver gives at least this, and the layer is handed this alone (`checked`).
+// Each leaf says what a member is: `function`, `object`, `string`, or `array`, a list the layer reads.
+// MARK: - Property
 /**
  * A page: a token a layer keeps, compares and hands back, and never reads.
  * @typedef {object} Page
@@ -12,12 +11,12 @@ const NOTIFICATIONS = Object.freeze(['willLaunch', 'didLaunch', 'didFailToLaunch
  * A key pressed, as the layer's `monitor` sees it.
  * @typedef {{ code: string, meta: boolean, control: boolean, alt: boolean, shift: boolean }} Keystroke
  *
- * A page on a stage, bottom to top: laid at `rect`, or hidden in the place it has.
- * @typedef {{ page: Page, rect: { x: number, y: number, width: number, height: number } } | { page: Page, hidden: true }} Layer
+ * A page as a stage lays it, bottom to top: at `rect`, or hidden in the place it has.
+ * @typedef {{ page: Page, rect: { x: number, y: number, width: number, height: number } } | { page: Page, hidden: true }} Laid
  */
 
-// In main: what connect answers that a layer uses.
-const MAIN = Object.freeze({
+// What connect answers that a layer uses, in main.
+const CONNECTED = Object.freeze({
     config: { name: 'string' },
     onStart: 'function',
     channels: { bind: 'function' },
@@ -53,7 +52,10 @@ const MAIN = Object.freeze({
     log: { warn: 'function' },
 });
 
-// What `pages.stage()` makes: `lay(layers)` takes Layers, bottom to top.
+// The notifications of a run a layer hears by name, of those `mods.notifications` lists.
+const NOTIFIED = Object.freeze(['didLaunch', 'didTerminate']);
+
+// What `pages.stage()` makes: `lay(laid)` takes Laid pages, bottom to top.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',
@@ -63,47 +65,41 @@ const STAGE = Object.freeze({
 });
 
 // On a page: what a page the layer made is handed (`page(name, context)`), and what a mod's page is (`mod(context)`).
-const PAGE = Object.freeze({ channels: { bind: 'function' } });
-const MOD_PAGE = Object.freeze({ mod: 'object', deliver: 'function', channels: { bind: 'function' } });
-
-// What a layer answers a mod's page, as it gives nothing: what it reads of the entry, adds to `deck` and to
-// `deck.mods`, takes as registrations, each by its check, whether a key pressed now is dropped, why a key would never
-// run, and what main is told of the mod beside the driver's own.
-const NO_LAYER = Object.freeze({
-    members: Object.freeze([]),
-    deck: Object.freeze({}),
-    registrations: Object.freeze({}),
-    mods: Object.freeze({}),
-    blocksKeys: () => false,
-    keyProblem: () => '',
-    contribute: () => ({}),
-});
+const PAGE_CONTEXT = Object.freeze({ channels: { bind: 'function' } });
+const MOD_CONTEXT = Object.freeze({ mod: 'object', deliver: 'function', channels: { bind: 'function' } });
 
 // MARK: - Initializer
 // MARK: - Public
-// The members `table` names that `given` does not have as it says, each by its path: none when it has them all.
+// The members `table` names that `given` does not have as it says, each by its path: none when it has them all. A
+// member of the wrong kind is missing. A nested table is met by an object, or a function, carrying its members.
 function missingIn(given, table, at = '') {
     return Object.entries(table).flatMap(([name, kind]) => {
         const path = at + name;
         const value = given?.[name];
-        if (typeof kind === 'object')
-            return value && typeof value === 'object' ? missingIn(value, kind, path + '.') : [path];
-        return kindOf(value) === kind ? [] : [path];
+        if (typeof kind !== 'object') return CHANNEL.kindOf(value) === kind ? [] : [path];
+        const carries = value && (typeof value === 'object' || typeof value === 'function');
+        return carries ? missingIn(value, kind, path + '.') : [path];
     });
 }
 
-// `given` as it is, once it has every member `table` names; otherwise a throw naming what `what` lacks.
+// What `given` holds of `table`, and nothing else, frozen: a throw naming what `what` lacks when it lacks any. So a
+// layer handed this reaches only what it is given.
 function checked(given, table, what) {
     const missing = missingIn(given, table);
     if (missing.length) throw new Error(`[deckit] ${what} lacks ${missing.join(', ')}`);
-    return given;
+    return copyOf(given, table);
 }
 
 // MARK: - Private
-function kindOf(value) {
-    if (Array.isArray(value)) return 'array';
-    if (value === null) return 'null';
-    return typeof value;
+function copyOf(given, table) {
+    return Object.freeze(
+        Object.fromEntries(
+            Object.entries(table).map(([name, kind]) => [
+                name,
+                typeof kind === 'object' ? copyOf(given[name], kind) : given[name],
+            ])
+        )
+    );
 }
 
-export { NOTIFICATIONS, MAIN, STAGE, PAGE, MOD_PAGE, NO_LAYER, missingIn, checked };
+export { CONNECTED, NOTIFIED, STAGE, PAGE_CONTEXT, MOD_CONTEXT, missingIn, checked };

@@ -13,11 +13,15 @@ const ANSWERS = ['start', 'showsPanel', 'show', 'dismiss', 'summonSwitcher', 'pa
 let attached = false;
 
 // MARK: - Public
-// How a host app puts deckit's shell on deckit, once, before it is ready: `deckit` is what connect answered, and
+// How a host app puts deckit's shell on deckit, once, before it is ready: `given` is what connect answered, and
 // `host` answers where the shell is shown. The shell starts with deckit, before any mod launches.
-function attach(deckit, { host } = {}) {
+function attach(given, { host } = {}) {
     if (attached) throw new Error('[deckit] attach is called once');
-    LAYER.checked(deckit, LAYER.MAIN, 'what the driver answers');
+    // Only what the driver and the shell agree on, and every notification the shell hears by name.
+    const deckit = LAYER.checked(given, LAYER.CONNECTED, 'what the driver answers');
+    const unheard = LAYER.NOTIFIED.filter((name) => !deckit.mods.notifications.includes(name));
+    if (unheard.length)
+        throw new Error(`[deckit] what the driver answers lacks the notifications ${unheard.join(', ')}`);
     const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;
