@@ -1,11 +1,11 @@
 import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
 import * as IPC from '../../../deckit-shell/deck/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as SETTINGS from '../setting/renderer.js';
-import * as EVENT from '../event/renderer.js';
-import * as ENTRY from '../mod/entry.js';
-import * as SCOPED from '../mod/model/scoped-name.js';
-import * as MOD_PERMISSION from '../mod/permission.js';
+import * as SETTINGS from '../../../deckit-shell/deck/setting/renderer.js';
+import * as EVENT from '../../../deckit-shell/deck/event/renderer.js';
+import * as ENTRY from '../../../deckit-shell/deck/mod/entry.js';
+import * as SCOPED from '../../../deckit-shell/deck/mod/model/scoped-name.js';
+import * as MOD_PERMISSION from '../../../deckit-shell/deck/mod/permission.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);

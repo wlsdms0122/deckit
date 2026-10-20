@@ -9,7 +9,7 @@ export function createTheme({ deckit }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // `draws(webContents)`: whether a page is one the shell draws in.
+    // `draws(page)`: whether a page is one the shell draws in.
     function start({ draws }) {
         PROTOCOL.setup.handle((_payload, sender) => {
             if (!draws(sender)) throw Object.assign(new Error('only a deckit page draws'), { kind: 'REFUSED' });

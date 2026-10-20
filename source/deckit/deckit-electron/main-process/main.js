@@ -3,11 +3,11 @@ import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
 import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
 import * as IPC from '../../deckit-shell/deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
-import * as MOD_PERMISSION from '../deck/mod/permission.js';
+import * as MOD_PERMISSION from '../../deckit-shell/deck/mod/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER }) {
+export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER }) {
     // MARK: - Property
     // What a module's dispose has, as a mod's stop() has, and what a module still starting as its run ends has to
     // finish starting.
@@ -258,7 +258,7 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
     function deckOf(mod, relative) {
         return Object.freeze({
             id: mod.id,
-            folder: STORAGE.folderOf(mod.id),
+            folder: HOME.dataOf(mod.id),
             emit(name, ...args) {
                 const page = IDENTITY.pageOf(mod.id);
                 if (page) PROTOCOL.event.send(page, { path: relative, name: String(name), args });

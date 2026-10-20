@@ -1,9 +1,9 @@
-import * as EVENT_BUS from '../event/bus.js';
+import * as EVENT_BUS from '../../../deckit-shell/deck/event/bus.js';
 import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
 import * as IPC from '../../../deckit-shell/deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
-import * as MOD from '../catalog/model/mod.js';
+import * as MOD from '../../../deckit-shell/deck/catalog/model/mod.js';
 import * as RUN from './model/run.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
@@ -290,7 +290,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
             IDENTITY.whenPageEnds(sender, () => crash(run, 'its page went away'));
             return {
                 manifest: mod.manifest,
-                source: CATALOG.sourceOf(mod),
+                source: await CATALOG.sourceOf(mod),
                 settings: await CORE.request('setting/read', { mod: id }),
                 run: run.number,
             };

@@ -70,15 +70,9 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
         LOG.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
     }
 
-    // What a mod's pages kept: their storage in deck's own session.
-    function clearSessions(modId) {
-        return session().clearStorageData({ origin: ORIGIN.originOf(modId) });
-    }
-
     // MARK: - Private
-    // The session deck's pages load in, apart from the host app's.
     function session() {
-        return require('electron').session.fromPartition(`persist:${CONFIG.id}`);
+        return sessionOf(CONFIG);
     }
 
     // Every page of deck's is the same PAGE, whichever origin it is loaded under: what it becomes is asked of main
@@ -115,5 +109,15 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
         }
     }
 
-    return { SCHEME, start, view, page, logConsole, keepDrawing, clearSessions };
+    return { SCHEME, start, view, page, logConsole, keepDrawing };
+}
+
+// What a mod's pages kept: their storage in deck's own session.
+export function clearStorage(CONFIG, modId) {
+    return sessionOf(CONFIG).clearStorageData({ origin: ORIGIN.originOf(modId) });
+}
+
+// The session deck's pages load in, apart from the host app's.
+function sessionOf(CONFIG) {
+    return require('electron').session.fromPartition(`persist:${CONFIG.id}`);
 }

@@ -1,6 +1,6 @@
-import * as MOD_PERMISSION from '../deck/mod/permission.js';
-import * as LIFECYCLE from '../deck/mod/lifecycle.js';
-import * as PROXY from '../deck/export/proxy.js';
+import * as MOD_PERMISSION from '../../deckit-shell/deck/mod/permission.js';
+import * as LIFECYCLE from '../../deckit-shell/deck/mod/lifecycle.js';
+import * as PROXY from '../../deckit-shell/deck/export/proxy.js';
 import * as IPC from '../../deckit-shell/deck/ipc/main.js';
 import * as LAYER from '../../deckit-shell/layer/index.js';
 

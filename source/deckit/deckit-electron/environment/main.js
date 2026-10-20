@@ -1,6 +1,9 @@
-// What Electron gives deck on main's side (deckit-shell/environment: MAIN): its IPC carries the messages, and a page
-// is its webContents.
+// What Electron gives deck on main's side (deckit-shell/environment: MAIN): its IPC carries the messages, a page is its
+// webContents, the core is a child process, and the log a file of its own.
 import * as LISTENER from '../deck/listener/index.js';
+import * as CONNECTION from '../core/connection.js';
+import * as LOG_FILE from '../deck/log/file.js';
+import { clearStorage } from '../deck/sandbox/index.js';
 import { messages } from '../messages/main.js';
 
 // MARK: - Property
@@ -9,6 +12,27 @@ const INPUT = { keyDown: 'keydown', mouseDown: 'mousedown', mouseUp: 'mouseup' }
 
 // MARK: - Initializer
 // MARK: - Public
+// What Electron gives deck for the host app's configuration: `core` is the core's executable.
+function createEnvironment({ CONFIG, core }) {
+    const { app } = require('electron');
+    const clearStorageOf = (modId) => clearStorage(CONFIG, modId);
+    return Object.freeze({
+        messages,
+        pages: Object.freeze({ isGone, watch, pin, watchInput, clearStorage: clearStorageOf }),
+        core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
+        folders: Object.freeze({ user: require('os').homedir() }),
+        files: Object.freeze({ readText: (file) => require('fs').promises.readFile(file, 'utf8') }),
+        log: Object.freeze({ open: ({ folder, name }) => LOG_FILE.open({ folder, name }) }),
+        about: Object.freeze({
+            app: Object.freeze({ name: app.getName(), version: app.getVersion() }),
+            engines: Object.freeze([
+                Object.freeze({ name: 'Electron', version: process.versions.electron }),
+                Object.freeze({ name: 'Chrome', version: process.versions.chrome }),
+            ]),
+        }),
+    });
+}
+
 // A destroyed page, or one whose renderer is gone, receives nothing.
 function isGone(page) {
     return page.isDestroyed() || page.isCrashed();
@@ -49,11 +73,9 @@ function watchInput(page, listener) {
     });
 }
 
-const environment = Object.freeze({ messages, pages: Object.freeze({ isGone, watch, pin, watchInput }) });
-
 // MARK: - Private
 function withoutFragment(url) {
     return String(url).split('#')[0];
 }
 
-export { environment };
+export { createEnvironment };
