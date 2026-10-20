@@ -89,8 +89,8 @@ async function main() {
         ended.kind === 'ENDED' && /it exited with 1/.test(ended.error) && /restart the app/.test(ended.error),
         ended
     );
-    const after = await outcome(CORE.request('catalog/read', {}));
     const before = sent.length;
+    const after = await outcome(CORE.request('catalog/read', {}));
     check('a core that ended refuses what is asked after', after.kind === 'ENDED', after);
     check('nothing is sent to a core that ended', sent.length === before, sent.length);
 
