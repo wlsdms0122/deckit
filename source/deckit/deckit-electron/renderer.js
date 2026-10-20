@@ -11,9 +11,9 @@ import { createExport } from '../deckit-shell/deck/export/renderer.js';
 import { createExtension } from '../deckit-shell/deck/extension/renderer.js';
 import { createMods } from '../deckit-shell/deck/mods/renderer.js';
 import { createWeb } from './web/renderer.js';
-import { createNotification } from './notification/renderer.js';
-import { createKeymap } from './keymap/renderer.js';
-import { createCommand } from './command/renderer.js';
+import { createNotification } from '../deckit-shell/notification/renderer.js';
+import { createKeymap } from '../deckit-shell/keymap/renderer.js';
+import { createCommand } from '../deckit-shell/command/renderer.js';
 import { createMod } from './mod/renderer.js';
 
 // MARK: - Public

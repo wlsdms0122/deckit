@@ -4,6 +4,11 @@
     "exports": {
         "./main.js": "./main.js",
         "./renderer.js": "./renderer.js",
+        "./clipboard/main.js": "./clipboard/main.js",
+        "./clipboard/model/permission.js": "./clipboard/model/permission.js",
+        "./clipboard/renderer.js": "./clipboard/renderer.js",
+        "./command/main.js": "./command/main.js",
+        "./command/renderer.js": "./command/renderer.js",
         "./deck/catalog/index.js": "./deck/catalog/index.js",
         "./deck/catalog/model/mod.js": "./deck/catalog/model/mod.js",
         "./deck/channel/index.js": "./deck/channel/index.js",
@@ -39,9 +44,25 @@
         "./deck/setting/renderer.js": "./deck/setting/renderer.js",
         "./deck/storage/index.js": "./deck/storage/index.js",
         "./environment/index.js": "./environment/index.js",
+        "./keymap/main.js": "./keymap/main.js",
+        "./keymap/model/permission.js": "./keymap/model/permission.js",
+        "./keymap/renderer.js": "./keymap/renderer.js",
         "./layer/index.js": "./layer/index.js",
+        "./main-process/main.js": "./main-process/main.js",
+        "./main-process/model/permission.js": "./main-process/model/permission.js",
+        "./main-process/renderer.js": "./main-process/renderer.js",
         "./match/match.js": "./match/match.js",
-        "./match/ranker.js": "./match/ranker.js"
+        "./match/ranker.js": "./match/ranker.js",
+        "./mod-folder/main.js": "./mod-folder/main.js",
+        "./mod-folder/renderer.js": "./mod-folder/renderer.js",
+        "./notification/main.js": "./notification/main.js",
+        "./notification/model/permission.js": "./notification/model/permission.js",
+        "./notification/renderer.js": "./notification/renderer.js",
+        "./open/main.js": "./open/main.js",
+        "./open/model/permission.js": "./open/model/permission.js",
+        "./open/renderer.js": "./open/renderer.js",
+        "./runtime/main.js": "./runtime/main.js",
+        "./runtime/renderer.js": "./runtime/renderer.js"
     },
     "dependencies": {}
 }

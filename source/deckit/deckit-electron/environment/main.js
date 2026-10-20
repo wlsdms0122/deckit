@@ -5,21 +5,30 @@ import * as CONNECTION from '../core/connection.js';
 import * as LOG_FILE from '../deck/log/file.js';
 import * as ORIGIN from '../deck/sandbox/model/origin.js';
 import { clearStorage, makeView, keepDrawing } from '../deck/sandbox/index.js';
+import { createFolder } from '../deck/mod/folder.js';
+import { createWindow } from '../window/index.js';
+import { createNotifications } from '../notification/main.js';
+import { createMainProcess } from '../main-process/main.js';
 import { messages } from '../messages/main.js';
 
 // MARK: - Property
 // UI Events' names for the input deck is told of, by Electron's.
-const INPUT = { keyDown: 'keydown', mouseDown: 'mousedown', mouseUp: 'mouseup' };
+const INPUT = { keyDown: 'keydown', keyUp: 'keyup', mouseDown: 'mousedown', mouseUp: 'mouseup' };
 // Chromium's code for a load that another load replaced.
 const ERR_ABORTED = -3;
 
 // MARK: - Initializer
 // MARK: - Public
-// What Electron gives deck for the host app's configuration: `core` is the core's executable, and `preload` the file
-// every page of deck's loads with. `viewOf(page)`, the view a mod's page is in, is Electron's own, beside what deck is
-// given, for what lays pages in a window.
-function createEnvironment({ CONFIG, core, preload }) {
+// What Electron gives deck for the host app's configuration: `core` is the core's executable, `preload` the file
+// every page of deck's loads with, `openWindow` the host app's answer for a window, and `log` where what Electron's
+// own parts say is logged. `viewOf(page)`, the view a mod's page is in, and `window`, the windows deckit opens, are
+// Electron's own, beside what deck is given, for what lays pages in a window.
+function createEnvironment({ CONFIG, core, preload, openWindow, log }) {
     const { app } = require('electron');
+    const WINDOW = createWindow({ LOG: log, openWindow });
+    const MAIN_PROCESS = createMainProcess({ WINDOW, LOG: log, FOLDER: createFolder() });
+    const NOTIFICATIONS = createNotifications();
+    MAIN_PROCESS.holdQuit();
     const views = new WeakMap(); // a page a mod runs in, or ran in -> the view it is in, kept while the page is
     const mods = new WeakMap(); // a page a mod runs in -> the mod's id
     const clearStorageOf = (modId) => clearStorage(CONFIG, modId);
@@ -37,8 +46,31 @@ function createEnvironment({ CONFIG, core, preload }) {
     const viewOf = (page) => views.get(page) || null;
     return Object.freeze({
         viewOf,
+        window: WINDOW,
         messages,
         pages: Object.freeze({ make, load, close, isGone, watch, pin, watchInput, clearStorage: clearStorageOf }),
+        keys: Object.freeze({ capture }),
+        open: Object.freeze({ url: openURL, file: openFile, reveal }),
+        notifications: Object.freeze({ show: NOTIFICATIONS.show }),
+        clipboard: Object.freeze({
+            readText: () => require('electron').clipboard.readText(),
+            writeText: (text) => require('electron').clipboard.writeText(text),
+        }),
+        dialogs: Object.freeze({ chooseFolder }),
+        mainProcess: Object.freeze({
+            start: MAIN_PROCESS.start,
+            call: MAIN_PROCESS.call,
+            prepare: MAIN_PROCESS.prepare,
+            end: MAIN_PROCESS.end,
+            unload: MAIN_PROCESS.unload,
+            onEvent: MAIN_PROCESS.onEvent,
+            onChange: MAIN_PROCESS.onChange,
+            whenEnded: MAIN_PROCESS.whenEnded,
+            started: MAIN_PROCESS.started,
+            failure: MAIN_PROCESS.failure,
+            restartPending: MAIN_PROCESS.restartPending,
+            reinstalled: MAIN_PROCESS.reinstalled,
+        }),
         core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
         folders: Object.freeze({ user: require('os').homedir() }),
         files: Object.freeze({ readText: (file) => require('fs').promises.readFile(file, 'utf8') }),
@@ -106,7 +138,46 @@ function watchInput(page, listener) {
     });
 }
 
+// A key, told before it reaches the page, taken from it when `handler` answers true. Told after what watchInput
+// watches, when that watch began first.
+function capture(page, handler) {
+    LISTENER.guard(page, 'before-input-event', (event, { type, code, meta, control, alt, shift }) => {
+        const kind = INPUT[type] || String(type).toLowerCase();
+        const pressed = { type: kind, code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
+        if (handler(Object.freeze(pressed))) event.preventDefault();
+    });
+}
+
+function openURL(url, { activate = true } = {}) {
+    return require('electron').shell.openExternal(url, { activate });
+}
+
+async function openFile(file) {
+    const found = existing(file);
+    return !!found && !(await require('electron').shell.openPath(found));
+}
+
+function reveal(file) {
+    const found = existing(file);
+    if (found) require('electron').shell.showItemInFolder(found);
+    return !!found;
+}
+
+async function chooseFolder({ title, buttonLabel, message }) {
+    const { dialog } = require('electron');
+    const result = await dialog.showOpenDialog({ title, buttonLabel, message, properties: ['openDirectory'] });
+    return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
+}
+
 // MARK: - Private
+// The file an absolute path names, if there is one there; '' otherwise.
+function existing(file) {
+    const path = require('path');
+    if (!path.isAbsolute(String(file))) return '';
+    const resolved = path.resolve(file);
+    return require('fs').existsSync(resolved) ? resolved : '';
+}
+
 function withoutFragment(url) {
     return String(url).split('#')[0];
 }

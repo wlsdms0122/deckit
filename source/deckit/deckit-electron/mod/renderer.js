@@ -1,15 +1,15 @@
 import * as MATCH from '../../deckit-shell/match/match.js';
 import * as RANKER from '../../deckit-shell/match/ranker.js';
-import * as CLIPBOARD from '../clipboard/renderer.js';
-import * as RUNTIME from '../runtime/renderer.js';
-import * as OPEN from '../open/renderer.js';
-import * as MAIN_PROCESS from '../main-process/renderer.js';
-import * as MOD_FOLDER from '../mod-folder/renderer.js';
-import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
-import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
-import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
-import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
-import * as OPEN_PERMISSION from '../open/model/permission.js';
+import * as CLIPBOARD from '../../deckit-shell/clipboard/renderer.js';
+import * as RUNTIME from '../../deckit-shell/runtime/renderer.js';
+import * as OPEN from '../../deckit-shell/open/renderer.js';
+import * as MAIN_PROCESS from '../../deckit-shell/main-process/renderer.js';
+import * as MOD_FOLDER from '../../deckit-shell/mod-folder/renderer.js';
+import * as MAIN_PROCESS_PERMISSION from '../../deckit-shell/main-process/model/permission.js';
+import * as CLIPBOARD_PERMISSION from '../../deckit-shell/clipboard/model/permission.js';
+import * as NOTIFICATION_PERMISSION from '../../deckit-shell/notification/model/permission.js';
+import * as KEYMAP_PERMISSION from '../../deckit-shell/keymap/model/permission.js';
+import * as OPEN_PERMISSION from '../../deckit-shell/open/model/permission.js';
 
 // `CHANNELS` is what the shell's layer binds its channels with in the page.
 export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {

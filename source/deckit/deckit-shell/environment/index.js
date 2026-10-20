@@ -2,9 +2,10 @@ import * as CHANNEL from '../deck/channel/index.js';
 
 // What an environment gives deck, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files and
-// the log, the pages a mod runs in and the app quitting, and what only the environment knows: the person's home folder
-// and what runs deckit. An environment gives at least this, and deck is handed this alone (`checked`). Each leaf says
-// what a member is: `function`, `object`, `string`, or `array`, a list read.
+// the log, the pages a mod runs in and the app quitting, what deckit does through the system for a mod (keys,
+// opening, notifications, the clipboard, a folder chosen, main process modules), and what only the environment
+// knows: the person's home folder and what runs deckit. An environment gives at least this, and deck is handed this
+// alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a list read.
 // MARK: - Property
 /**
  * A page: a token deck keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -46,6 +47,45 @@ const MAIN = Object.freeze({
         watchInput: 'function',
         // clearStorage(modId) -> Promise: what the mod's pages stored, the web's storage, taken
         clearStorage: 'function',
+    },
+    keys: {
+        // capture(page, handler(pressed) -> boolean): each key pressed in the page, `{ type, code, meta, control, alt,
+        // shift }` with `type` as UI Events names it (`keydown`, `keyup`), told before the page has it and taken from
+        // the page when `handler` answers true, at once. Told after what `pages.watchInput` told of it, when that
+        // watch began first
+        capture: 'function',
+    },
+    // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the browser,
+    // brought forward unless `activate` is false; `file(path) -> Promise of boolean`, a file at an absolute path in
+    // its app, false when there is none there or it did not open; `reveal(path) -> boolean`, an absolute path shown
+    // where it lies, false when there is none there
+    open: { url: 'function', file: 'function', reveal: 'function' },
+    notifications: {
+        // show({ title, body, silent }, { onClick }) -> Promise: true once shown, false where the system has none;
+        // rejects with why when the system says it did not show it. `onClick()` hears a click on it
+        show: 'function',
+    },
+    // The clipboard's text: readText() -> string, writeText(text)
+    clipboard: { readText: 'function', writeText: 'function' },
+    // chooseFolder({ title, buttonLabel, message }) -> Promise of the folder the person chose, or null
+    dialogs: { chooseFolder: 'function' },
+    // A mod's main process modules, which the environment runs, deck saying which mod starts what and when. A mod is
+    // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
+    mainProcess: {
+        start: 'function', // start(mod, path) -> Promise of { path, methods }: the module, started once in a run
+        // call(modId, path, method, args) -> Promise of what the method answered, which can be copied
+        call: 'function',
+        prepare: 'function', // prepare(mod): its run is about to launch
+        end: 'function', // end(mod): its run ended, and its modules end with it
+        unload: 'function', // unload(modId, { running }): the mod was taken away, its run not ended when `running`
+        onEvent: 'function', // onEvent(listener(modId, path, name, args)) -> off: what a module emits
+        // onChange(listener()) -> off: what `started`, `failure` or `restartPending` answer may have changed
+        onChange: 'function',
+        whenEnded: 'function', // whenEnded(modId) -> Promise: once the modules of its run that ended have ended
+        started: 'function', // started(modId): whether a module of its started
+        failure: 'function', // failure(modId): why its modules did not start, or null
+        restartPending: 'function', // restartPending() -> [{ id, why }]: what only a restart of the app finishes
+        reinstalled: 'function', // reinstalled(modId): the mod was installed again
     },
     core: {
         // open({ onMessage(line), onLog(line), onEnd(why) }) -> { send(line) }: the core, started, a message a line

@@ -1,28 +1,27 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
+import * as CHANNEL from '../deck/channel/index.js';
+import * as IPC from '../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as BUILD from '../build/index.js';
-import * as MOD_PERMISSION from '../../deckit-shell/deck/mod/permission.js';
+import * as MOD_PERMISSION from '../deck/mod/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// `restart` is the app's: the process is its own.
-export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart }) {
+// `restart` is the app's: the process is its own. `about` and `user` are the environment's: the host app, what runs
+// it, and the person's home folder.
+export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart, about: ABOUT, user }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
     function start() {
-        const { app } = require('electron');
         PROTOCOL.about.handle((_payload, sender) => {
             IDENTITY.modFrom(sender);
             return {
                 version: BUILD.VERSION,
                 source: BUILD.SOURCE,
                 name: CONFIG.name,
-                home: require('os').homedir(),
-                app: `${app.getName()} ${app.getVersion()}`,
-                electron: process.versions.electron,
-                chrome: process.versions.chrome,
+                home: user,
+                app: `${ABOUT.app.name} ${ABOUT.app.version}`,
+                ...enginesOf(ABOUT.engines),
                 mods: HOME.mods,
                 data: HOME.data,
                 log: LOG.file(),
@@ -36,6 +35,10 @@ export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart }) {
     }
 
     // MARK: - Private
+    // Each engine's version under its name in lower case, as a mod reads them (`electron`, `chrome`).
+    function enginesOf(engines) {
+        return Object.fromEntries(engines.map(({ name, version }) => [name.toLowerCase(), version]));
+    }
 
     return { start };
 }
