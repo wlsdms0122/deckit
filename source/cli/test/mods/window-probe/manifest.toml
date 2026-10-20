@@ -1,0 +1,9 @@
+id = "window-probe"
+name = "Window Probe"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"system.main-process" = "to test what a main process module finds of the panel's window"
+"deckit.mods" = "to install what the test hands it"

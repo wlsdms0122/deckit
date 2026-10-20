@@ -23,6 +23,7 @@ import { createEvent } from './deck/event/main.js';
 import { createMods } from './deck/mods/main.js';
 import { createCore } from './core/main.js';
 import { createWindow } from './window/index.js';
+import { createStage } from './stage/main.js';
 import { createPartition } from './web/model/partition.js';
 import { createSession } from './web/session.js';
 import { createRegistry } from './web/registry.js';
@@ -136,7 +137,8 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
-    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG });
+    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, RUNNER, LOG });
+    const STAGE = createStage({ LOG, WINDOW, viewOf: PAGE.viewOf });
     const API = createApi({
         CONFIG,
         STORAGE,
@@ -151,6 +153,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         COMMAND,
         MAIN_PROCESS,
         PAGE,
+        STAGE,
     });
     const starting = []; // what starts with deckit, before any mod launches: the shell on it
     let started = false;

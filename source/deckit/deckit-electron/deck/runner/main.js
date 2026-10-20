@@ -18,6 +18,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
     // mod id -> { mod, view, run, update, closing }: a mod's sandbox, the view its page is in, its latest run and how
     // what the core tells of it is kept, and whether it is going.
     const sandboxes = new Map();
+    const views = new WeakMap(); // a page a mod ran in -> the view it is in, kept while the page is
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
@@ -231,6 +232,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
     function openSandbox(mod) {
         const view = SANDBOX.view(webPreferences);
         const webContents = view.webContents;
+        views.set(webContents, view);
         const sandbox = { mod, view, run: null, update: null, closing: false };
         // Before identity's own, so a crash ends the run with its cause. A page that did not load runs no mod:
         // what loaded instead is an error page, never the mod's origin. An aborted load is one replaced by
@@ -304,9 +306,15 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
         );
     }
 
+    // The view a page a mod runs in, or ran in, is in.
+    function viewOf(page) {
+        return views.get(page) || null;
+    }
+
     return {
         start,
         runs,
+        viewOf,
         runOf,
         launchedOf,
         currentRun,
