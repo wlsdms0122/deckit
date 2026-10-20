@@ -105,7 +105,7 @@ Moving the panel is a re-parent: mods keep their sandboxes and what they hold, a
 
 ## 4. What connect answers
 
-What connect answers is all a host app, or the shell on deckit, reaches of deckit in main; deckit's shell is built with nothing else. It is the same object for a host app with a shell of its own. Every fact it hands out (a manifest, a run, its summary) is a frozen copy. A shell reaches nothing of Electron through it; what does hand out or take Electron's views and objects is for a host app alone, marked *host only* below: `window.place`, `pages.viewOf`, `pages.make`, `mods.runs()[].view` and `log.guard`.
+What connect answers is all a host app, or the shell on deckit, reaches of deckit in main; deckit's shell is built with nothing else. It is the same object for a host app with a shell of its own. Every fact it hands out (a manifest, a run, its summary) is a frozen copy. What a shell uses of it, of a stage and of what a page is handed is a part of it, declared in deckit's sources (`deckit-driver/layer`): `connect` checks its answer against that as it answers, and deckit's shell checks what it is handed as it is attached and as a page starts it, so a member missing fails at once. A shell reaches nothing of Electron through it; what does hand out or take Electron's views and objects is for a host app alone, marked *host only* below: `window.place`, `pages.viewOf`, `pages.make`, `mods.runs()[].view` and `log.guard`.
 
 | | |
 |---|---|
