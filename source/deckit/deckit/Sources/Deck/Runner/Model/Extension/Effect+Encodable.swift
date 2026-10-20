@@ -88,6 +88,10 @@ extension Effect: Encodable {
             try container.encode("extendsChanged", forKey: .effect)
             try container.encode(modId, forKey: .mod)
             try container.encode(points, forKey: .points)
+
+        case let .layer(effect, change):
+            try change.encode(to: encoder)
+            try container.encode(effect, forKey: .effect)
         }
     }
 

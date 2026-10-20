@@ -31,6 +31,8 @@ enum Effect: Sendable {
     case extensionsChanged(modId: String, run: Int, name: String, extensions: [String: Snapshot])
     // The scoped names of the points the mod extends now.
     case extendsChanged(modId: String, points: [String])
+    // What a layer on deck tells has changed of its own, by the effect's name.
+    case layer(effect: String, change: any Encodable & Sendable)
 
     // MARK: - Property
     // MARK: - Initializer

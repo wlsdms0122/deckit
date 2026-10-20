@@ -8,9 +8,9 @@
 import Foundation
 
 // A permission a manifest asks for, and why, as it says.
-struct PermissionRequest: Equatable, Sendable {
+public struct PermissionRequest: Equatable, Sendable {
     // MARK: - Property
-    let permission: Permission
+    public let permission: Permission
     let reason: String
 
     // MARK: - Initializer

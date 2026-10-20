@@ -24,7 +24,7 @@ extension Mod: Encodable {
 
     // MARK: - Initializer
     // MARK: - Public
-    func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(manifest, forKey: .manifest)
         try container.encode(folder.path(percentEncoded: false), forKey: .folder)

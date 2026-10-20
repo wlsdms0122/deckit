@@ -16,7 +16,7 @@ extension PermissionRequest: Encodable {
 
     // MARK: - Initializer
     // MARK: - Public
-    func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         try permission.encode(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(reason, forKey: .reason)

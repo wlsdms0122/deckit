@@ -54,6 +54,9 @@ extension Effect {
 
         case let .extendsChanged(modId, points):
             "extendsChanged \(modId) \(points.joined(separator: ","))"
+
+        case let .layer(effect, _):
+            "layer \(effect)"
         }
     }
 

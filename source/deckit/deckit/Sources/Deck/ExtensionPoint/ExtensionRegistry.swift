@@ -27,15 +27,11 @@ final class ExtensionRegistry {
     }
 
     // MARK: - Public
-    // What the `number`th run of `id` extends that it cannot: a point not named `<mod id>:<point>`, one of a mod it
-    // neither requires nor has as an optional dependency, or one a mod it requires does not open. An optional
-    // dependency may not run, or not open the point, and then nothing is wrong.
-    func problems(of id: String, run number: Int) -> [String] {
-        guard let mod = runner.mod(of: id),
-            let run = runner.run(of: id),
-            run.number == number,
-            let contributions = run.contributions
-        else { return [] }
+    // What `run` of `mod` extends that it cannot: a point not named `<mod id>:<point>`, one of a mod it neither requires
+    // nor has as an optional dependency, or one a mod it requires does not open. An optional dependency may not run, or
+    // not open the point, and then nothing is wrong.
+    func problems(of run: Run, mod: Mod) -> [String] {
+        guard let contributions = run.contributions else { return [] }
 
         return contributions.extensions.keys.sorted().compactMap { point in
             guard let scoped = ScopedName(point) else {

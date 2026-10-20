@@ -10,8 +10,9 @@ import Foundation
 // The kernel: what a mod is, what it keeps, how it runs and what it gives other mods.
 public final class Deck {
     // MARK: - Property
+    // The state deck keeps, which a layer keeps its own in beside deck's.
+    public let state: State
     private let record: Record
-    private let state: State
     private let setting: Setting
     private let dataFolder: DataFolder
     private let catalog: Catalog
@@ -20,6 +21,7 @@ public final class Deck {
     private let exportBroker: ExportBroker
     private let extensionRegistry: ExtensionRegistry
     private let eventBus: EventBus
+    private var layers: [any Layer] = []
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
@@ -69,6 +71,21 @@ public final class Deck {
     }
 
     // MARK: - Public
+    // The mods that load, as the catalog was last read, in the person's order.
+    public func mods() -> [Mod] {
+        catalog.lastRead.filter { mod in mod.problem == nil }
+    }
+
+    // The mod's latest run, while it has a sandbox.
+    public func run(of id: String) -> Run? {
+        runner.run(of: id)
+    }
+
+    // `layer` is asked of each run as it starts, and of what has changed once the runs have moved.
+    public func add(_ layer: any Layer) {
+        layers.append(layer)
+    }
+
     // What deck answers a call with, or nil for a method that is not deck's. A method that answers nothing else
     // answers true once it is done; one whose answer may be none answers it as an optional value, never as nil.
     public func answer(_ call: Call) throws -> (any Encodable & Sendable)? {
@@ -195,7 +212,7 @@ public final class Deck {
                 summary: params.summary,
                 contributions: params.contributions
             )
-            for problem in extensionRegistry.problems(of: params.mod, run: params.run) {
+            for problem in problems(of: params.mod, run: params.run) {
                 effects += try runner.record(params.mod, run: params.run, problem: problem)
             }
             return withChanges(effects)
@@ -250,8 +267,20 @@ public final class Deck {
     }
 
     // MARK: - Private
-    // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it.
+    // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, and
+    // what each layer tells has changed of its own.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
-        effects + exportBroker.changes() + extensionRegistry.changes()
+        effects
+            + exportBroker.changes()
+            + extensionRegistry.changes()
+            + layers.flatMap { layer in layer.changes() }.map(Effect.layer)
+    }
+
+    // What is wrong with what the `number`th run of `id` contributed, deck's and each layer's, once it has launched.
+    private func problems(of id: String, run number: Int) -> [String] {
+        guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
+
+        return extensionRegistry.problems(of: run, mod: mod)
+            + layers.flatMap { layer in layer.problems(of: run, mod: mod) }
     }
 }

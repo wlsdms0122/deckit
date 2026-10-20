@@ -29,7 +29,7 @@ extension Manifest: Encodable {
 
     // MARK: - Initializer
     // MARK: - Public
-    func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: Key.self)
         try container.encode(id, forKey: Key("id"))
         try container.encode(name, forKey: Key("name"))

@@ -8,7 +8,7 @@
 import Foundation
 
 // Where a run is: it launches as it is made and ends not running.
-enum RunState: String, Encodable, Sendable {
+public enum RunState: String, Encodable, Sendable {
     case launching
     case running
     case terminating
