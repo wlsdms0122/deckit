@@ -94,6 +94,7 @@ final class Server {
                 ship: params.ship.map { folder in URL(filePath: folder) },
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
+                name: params.name,
                 permissions: params.permissions
             )
             return JSONValue.object([:])

@@ -20,7 +20,7 @@ struct ServerTests {
     // MARK: - Initializer
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
-        initializeParams = #"{"home":"\#(home)","api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[]}"#
+        initializeParams = #"{"home":"\#(home)","name":"Deckit","api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[]}"#
         sut = Server()
     }
 
@@ -234,7 +234,7 @@ struct ServerTests {
 
         // When
         let response = try respond(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","name":"Deckit","api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#
         )
 
         // Then
