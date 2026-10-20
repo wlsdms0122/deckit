@@ -123,7 +123,7 @@ function watch(page) {
             }
         }
     };
-    carried().pages.watch(page, { ended: end, destroyed: end });
+    carried().pages.watch(page, { ended: end, gone: end, destroyed: end });
 }
 
 function settleAsked(channel, id, { value, error }) {

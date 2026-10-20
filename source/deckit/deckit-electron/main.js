@@ -96,12 +96,10 @@ function refuseUnknown(what, given, known) {
 
 // Deckit in main, made of deck's parts and its own, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
-    // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses.
-    const ENV = ENVIRONMENT.checked(
-        createEnvironment({ CONFIG, core, preload }),
-        ENVIRONMENT.MAIN,
-        'what Electron gives deck'
-    );
+    // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses. The rest
+    // of it is Electron's own, for what lays pages in a window.
+    const ELECTRON = createEnvironment({ CONFIG, core, preload });
+    const ENV = ENVIRONMENT.checked(ELECTRON, ENVIRONMENT.MAIN, 'what Electron gives deck');
     const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
     // Deck's log, and listening on Electron's objects with what a listener throws logged.
     const LOG = Object.freeze({
@@ -153,7 +151,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const MAIN_PROCESS = createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
-    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG });
+    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG, modViewOf: ELECTRON.viewOf });
     const STAGE = createStage({ LOG, WINDOW, viewOf: PAGE.viewOf });
     const API = createApi({
         CONFIG,

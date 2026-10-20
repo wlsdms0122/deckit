@@ -226,11 +226,11 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // The page is made, known as the mod's and set up before it loads, so what it asks as it starts is the mod's. A
     // page that did not load runs no mod: what loaded instead is never the mod's page.
     function openSandbox(mod) {
-        const page = PAGES.make({ mod: mod.id });
+        const page = PAGES.make({ modId: mod.id });
         const sandbox = { mod, page, run: null, update: null, closing: false };
         PAGES.watch(page, {
             failed: (why) => crash(sandbox.run, `its page did not load (${why})`),
-            ended: (why) => why !== null && crash(sandbox.run, endedProblem(why)),
+            gone: (why) => crash(sandbox.run, endedProblem({ gone: why })),
             consoleError: (message) => LOG.error(`${mod.id}: ${message}`),
         });
         IDENTITY.add(page, { mod });
@@ -243,13 +243,12 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     // The mod's stop() asked of its page. The page runs it once, however often it is asked. The core is told once it
-    // has answered, its time ran out or the page is gone.
+    // has answered, its time ran out or the page is gone, which refuses the question at once (deck/ipc).
     function stop(modId, number) {
         const page = sandboxes.get(modId)?.page;
-        const stopping =
-            page && !PAGES.isGone(page)
-                ? PROTOCOL.stop.invoke(page, {}, { timeout: STOP_LIMIT_MS }).catch(() => {})
-                : Promise.resolve();
+        const stopping = page
+            ? PROTOCOL.stop.invoke(page, {}, { timeout: STOP_LIMIT_MS }).catch(() => {})
+            : Promise.resolve();
         stopping.then(() => send('runner/stopped', { mod: modId, run: number }));
     }
 
@@ -260,9 +259,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     // A crash's problem says why the page's process ended, whichever of what watches the page hears it first; a page
-    // whose document was replaced, or that is gone, went away.
-    function endedProblem(why) {
-        return why === null ? 'its page went away' : `its page ended (${why})`;
+    // whose document was replaced, or that was destroyed, went away. `ending` is how its document ended
+    // (deck/identity).
+    function endedProblem(ending) {
+        return 'gone' in ending ? `its page ended (${ending.gone})` : 'its page went away';
     }
 
     function crash(run, problem) {
@@ -277,7 +277,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             const { id } = IDENTITY.modFrom(sender);
             await ask('runner/load', { mod: id });
             const { mod, run } = sandboxes.get(id);
-            IDENTITY.whenPageEnds(sender, (why) => crash(run, endedProblem(why)));
+            IDENTITY.whenPageEnds(sender, (ending) => crash(run, endedProblem(ending)));
             return {
                 manifest: mod.manifest,
                 source: await CATALOG.sourceOf(mod),

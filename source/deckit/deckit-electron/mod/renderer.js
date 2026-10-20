@@ -28,7 +28,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // What deckit gives a mod on deck (deck/runner/renderer.js): the web, opening addresses, the clipboard,
+    // What deckit gives a mod on deck (deckit-shell/deck/runner/renderer.js): the web, opening addresses, the clipboard,
     // notifications, keys, commands, main process modules, and the shell's. It reads how the mod is listed, its `icon`
     // and `keywords`, which every shell reads in its run's summary. `shellMod(context)` is what the shell on deckit, if
     // one is, gives the mod: `members`, what it reads of the entry; `deck`, the members it adds; `registrations`, the

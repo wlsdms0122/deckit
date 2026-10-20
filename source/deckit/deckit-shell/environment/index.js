@@ -25,17 +25,18 @@ const MAIN = Object.freeze({
         tell: 'function', // tell(page, message): dropped when the page is gone
     },
     pages: {
-        // make({ mod }) -> page: the page the mod runs in, at the mod's own origin, made and not loaded, so deck knows
-        // it as the mod's before it asks anything. It opens no window of its own, and runs at full speed off screen
+        // make({ modId }) -> page: the page the mod runs in, at the mod's own origin, made and not loaded, so deck
+        // knows it as the mod's before it asks anything. It opens no window of its own, and runs at full speed off
+        // screen
         make: 'function',
         load: 'function', // load(page): a page make() made, loaded at its address
         close: 'function', // close(page): the page closed, unless it is gone already
         isGone: 'function', // isGone(page): whether the page can no longer receive messages
-        // watch(page, { failed, ended, destroyed, consoleError }), each optional: `failed(why)` when the page's load
-        // did not complete, other than by another load replacing it; `ended(why)` each time the page's document is
-        // replaced, by a main-frame navigation that commits, its first load's included, `why` null, or its process
-        // ends, the page living on, `why` saying why; `destroyed()` once, as the page goes; `consoleError(message)`
-        // for what its console says as an error
+        // watch(page, { failed, ended, gone, destroyed, consoleError }), each optional: `failed(why)` when the page's
+        // load did not complete, other than by another load replacing it; `ended()` each time the page's document is
+        // replaced, by a main-frame navigation that commits, its first load's included; `gone(why)` each time its
+        // process ends, the page living on; `destroyed()` once, as the page goes; `consoleError(message)` for what its
+        // console says as an error
         watch: 'function',
         // pin(page): the page stays on the address its first load commits; a navigation of its own elsewhere, or a
         // redirect, is refused, and only main loading or reloading it moves it

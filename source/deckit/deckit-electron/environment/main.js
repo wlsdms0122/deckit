@@ -12,27 +12,31 @@ import { messages } from '../messages/main.js';
 const INPUT = { keyDown: 'keydown', mouseDown: 'mousedown', mouseUp: 'mouseup' };
 // Chromium's code for a load that another load replaced.
 const ERR_ABORTED = -3;
-const views = new WeakMap(); // a page a mod runs in, or ran in -> the view it is in, kept while the page is
-const mods = new WeakMap(); // a page a mod runs in -> the mod's id
 
 // MARK: - Initializer
 // MARK: - Public
 // What Electron gives deck for the host app's configuration: `core` is the core's executable, and `preload` the file
-// every page of deck's loads with.
+// every page of deck's loads with. `viewOf(page)`, the view a mod's page is in, is Electron's own, beside what deck is
+// given, for what lays pages in a window.
 function createEnvironment({ CONFIG, core, preload }) {
     const { app } = require('electron');
+    const views = new WeakMap(); // a page a mod runs in, or ran in -> the view it is in, kept while the page is
+    const mods = new WeakMap(); // a page a mod runs in -> the mod's id
     const clearStorageOf = (modId) => clearStorage(CONFIG, modId);
     // A mod's page shows the web in <webview>.
-    const make = ({ mod }) => {
+    const make = ({ modId }) => {
         const view = makeView({ CONFIG, preload, webPreferences: { webviewTag: true } });
         const page = view.webContents;
         views.set(page, view);
-        mods.set(page, mod);
+        mods.set(page, modId);
         page.setWindowOpenHandler(() => ({ action: 'deny' }));
         keepDrawing(page);
         return page;
     };
+    const load = (page) => page.loadURL(ORIGIN.addressOf(ORIGIN.originOf(mods.get(page))));
+    const viewOf = (page) => views.get(page) || null;
     return Object.freeze({
+        viewOf,
         messages,
         pages: Object.freeze({ make, load, close, isGone, watch, pin, watchInput, clearStorage: clearStorageOf }),
         core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
@@ -55,15 +59,6 @@ function createEnvironment({ CONFIG, core, preload }) {
     });
 }
 
-// The view a page a mod runs in, or ran in, is in.
-function viewOf(page) {
-    return views.get(page) || null;
-}
-
-function load(page) {
-    page.loadURL(ORIGIN.addressOf(ORIGIN.originOf(mods.get(page))));
-}
-
 function close(page) {
     if (!page.isDestroyed()) page.close();
 }
@@ -73,17 +68,15 @@ function isGone(page) {
     return page.isDestroyed() || page.isCrashed();
 }
 
-function watch(page, { failed = null, ended = null, destroyed = null, consoleError = null } = {}) {
+function watch(page, { failed = null, ended = null, gone = null, destroyed = null, consoleError = null } = {}) {
     if (failed)
         LISTENER.guard(page, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
             if (isMainFrame && code !== ERR_ABORTED) failed(description);
         });
-    if (ended) {
-        // A main-frame navigation that commits replaces the document, the first load's included; one refused before
-        // it commits leaves it be.
-        LISTENER.guard(page, 'did-navigate', () => ended(null));
-        LISTENER.guard(page, 'render-process-gone', (_event, { reason }) => ended(reason));
-    }
+    // A main-frame navigation that commits replaces the document, the first load's included; one refused before it
+    // commits leaves it be.
+    if (ended) LISTENER.guard(page, 'did-navigate', () => ended());
+    if (gone) LISTENER.guard(page, 'render-process-gone', (_event, { reason }) => gone(reason));
     if (destroyed) LISTENER.guard(page, 'destroyed', () => destroyed(), { once: true });
     if (consoleError)
         LISTENER.guard(page, 'console-message', ({ level, message }) => level === 'error' && consoleError(message));
@@ -118,4 +111,4 @@ function withoutFragment(url) {
     return String(url).split('#')[0];
 }
 
-export { createEnvironment, viewOf };
+export { createEnvironment };

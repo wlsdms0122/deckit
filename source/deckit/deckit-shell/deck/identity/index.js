@@ -24,18 +24,19 @@ export function createIdentity({ pages: PAGES }) {
         watchPresses(page);
         if (owner.mod) pages.set(owner.mod.id, page);
         ends.set(page, new Set());
-        // Each undo runs whatever another throws, told why the page's process ended, or null.
-        const end = (undos, why) => {
+        // Each undo runs whatever another throws, told how the document ended.
+        const end = (undos, ending) => {
             const due = [...undos];
             undos.clear();
-            for (const undo of due) LISTENER.wrap(undo, 'what a page set up')(why);
+            for (const undo of due) LISTENER.wrap(undo, 'what a page set up')(ending);
         };
         // A reload or a crashed renderer keeps the page, but the document that set things up is gone. A navigation
         // ends it only once it commits: one the environment refuses never does.
         PAGES.watch(page, {
-            ended: (why) => end(ends.get(page), why),
+            ended: () => end(ends.get(page), { replaced: true }),
+            gone: (why) => end(ends.get(page), { gone: why }),
             destroyed: () => {
-                end(ends.get(page), null);
+                end(ends.get(page), { destroyed: true });
                 ends.delete(page);
                 owners.delete(page);
                 if (owner.mod && pages.get(owner.mod.id) === page) pages.delete(owner.mod.id);
@@ -43,8 +44,9 @@ export function createIdentity({ pages: PAGES }) {
         });
     }
 
-    // What a page set up lasts as long as the page: `undo(why)` is called once, when the page navigates away, crashes
-    // or is gone, `why` saying why its process ended, or null. Calling what this returns drops `undo` uncalled.
+    // What a page set up lasts as long as the page: `undo(ending)` is called once, when the page navigates away, its
+    // process ends or it is destroyed, `ending` saying which: `{ replaced: true }`, `{ gone: why }` or
+    // `{ destroyed: true }`. Calling what this returns drops `undo` uncalled.
     function whenPageEnds(page, undo) {
         const undos = ends.get(page);
         if (!undos) throw new Error("whenEnds takes a page of deck's: a mod's, or one that runs none");
