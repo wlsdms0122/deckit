@@ -1,13 +1,13 @@
 //
 //  JSONValue.swift
-//  DeckitServer
+//  Deck
 //
 //  Created by JSilver on 10/20/26.
 //
 
 import Foundation
 
-enum JSONValue: Equatable, Sendable {
+public enum JSONValue: Equatable, Sendable {
     case null
     case bool(Bool)
     case number(Double)
@@ -18,7 +18,7 @@ enum JSONValue: Equatable, Sendable {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    func decode<Value: Decodable>(as type: Value.Type) throws -> Value {
+    public func decode<Value: Decodable>(as type: Value.Type) throws -> Value {
         let data = try JSONEncoder().encode(self)
         return try JSONDecoder().decode(type, from: data)
     }

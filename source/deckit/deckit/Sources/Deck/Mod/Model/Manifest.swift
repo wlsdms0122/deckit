@@ -25,5 +25,14 @@ struct Manifest: Sendable {
 
     // MARK: - Initializer
     // MARK: - Public
+    // Whether `other` is at a version its [optional] names for it.
+    func takesOptional(_ other: Manifest) -> Bool {
+        guard let wanted = optional[other.id].flatMap(Version.init),
+            let version = other.version.flatMap(Version.init)
+        else { return false }
+
+        return version.satisfies(wanted)
+    }
+
     // MARK: - Private
 }

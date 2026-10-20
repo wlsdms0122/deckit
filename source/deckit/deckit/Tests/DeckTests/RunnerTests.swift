@@ -460,41 +460,6 @@ struct RunnerTests {
     }
 
     private func describe(_ effects: [Effect]) -> [String] {
-        effects.map { effect in
-            switch effect {
-            case let .open(mod):
-                "open \(mod.manifest.id)"
-
-            case let .load(modId):
-                "load \(modId)"
-
-            case let .tell(notification, run):
-                [
-                    "tell",
-                    notification.rawValue,
-                    run.modId,
-                    String(run.number),
-                    run.state.rawValue,
-                    run.endReason?.rawValue
-                ]
-                    .compactMap { part in part }
-                    .joined(separator: " ")
-
-            case let .keep(run):
-                "keep \(run.modId) \(run.number) \(run.problem ?? "")"
-
-            case let .stop(modId, number):
-                "stop \(modId) \(number)"
-
-            case let .closing(modId):
-                "closing \(modId)"
-
-            case let .close(modId, reason):
-                "close \(modId) \(reason.rawValue)"
-
-            case .quit:
-                "quit"
-            }
-        }
+        effects.map(\.line)
     }
 }

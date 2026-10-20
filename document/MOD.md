@@ -168,7 +168,7 @@ An entry of `commands` has a `run` or a `submenu`; one with neither is left out.
 
 ### deck.exports(object)
 
-What a mod that requires this one receives as `deck.requires[id]`. Values are copied and frozen when the mod starts, and a value that cannot be copied (a Symbol, an object that holds itself) leaves the mod unstarted; functions are called through the main process and so return promises. Keep them working while the view is not on screen: the mod using them is not looking at it. While a function runs, until its first `await`, `deck.caller()` is the id of the mod that called it, and at any other time it throws: a function that answers each caller in its own way reads it first, before it waits on anything.
+What a mod that requires this one receives as `deck.requires[id]`. Values are copied as JSON and frozen when the mod starts: a value JSON does not hold (a BigInt, a Symbol, `NaN` or an infinity, an object that holds itself) leaves the mod unstarted, and an object is copied as its own enumerable properties, in their order; functions are called through the main process and so return promises. Keep them working while the view is not on screen: the mod using them is not looking at it. While a function runs, until its first `await`, `deck.caller()` is the id of the mod that called it, and at any other time it throws: a function that answers each caller in its own way reads it first, before it waits on anything.
 
 ### deck.extensionPoint(name)
 

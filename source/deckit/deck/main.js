@@ -35,9 +35,9 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE });
     const RECORD = createRecord({ CORE, IDENTITY });
     const SETTING = createSetting({ CORE, LOG, IDENTITY, RUNNER });
-    const EXPORT = createExport({ IDENTITY, RUNNER });
-    const EXTENSION = createExtension({ IDENTITY, RUNNER, EXPORT });
-    const EVENT = createEvent({ IDENTITY, RUNNER });
+    const EXPORT = createExport({ CORE, IDENTITY, RUNNER });
+    const EXTENSION = createExtension({ CORE, IDENTITY, RUNNER });
+    const EVENT = createEvent({ CORE, LOG, IDENTITY });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION });
 
     // MARK: - Initializer

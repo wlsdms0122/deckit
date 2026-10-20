@@ -1,9 +1,10 @@
 // Between a mod's page and main, about what mods export to each other.
 import * as IPC from '../ipc/index.js';
 
-// Answers once every mod it requires has started or failed: { requires: { [id]: { values, functions } or
-// { error } }, optional: { [id]: { values, functions } or null } }.
-export const dependencies = IPC.rendererToMain('deck:mod-dependencies', {}, { reply: true });
+// What the page's run is given of the mods it depends on, once every mod it requires has started, and refused once
+// one has ended for good: { requires: { [id]: { values, functions } }, optional: { [id]: { values, functions } or
+// null } }.
+export const dependencies = IPC.rendererToMain('deck:mod-dependencies', { run: 'number' }, { reply: true });
 export const callExport = IPC.rendererToMain(
     'deck:mod-call-export',
     { run: 'number', mod: 'string', path: 'array', args: 'array' },

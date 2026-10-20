@@ -1,0 +1,5 @@
+id = "broker-provider"
+name = "Broker Provider"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"

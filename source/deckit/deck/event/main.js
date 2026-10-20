@@ -1,30 +1,33 @@
 import * as PROTOCOL from './protocol.js';
-import * as SCOPED from '../mod/model/scoped-name.js';
 
-export function createEvent({ IDENTITY, RUNNER }) {
+// Events, as the core routes them: the core names an event after the mod that sent it and says which mods hear it, and
+// what it carries goes from page to page through here.
+export function createEvent({ CORE, LOG, IDENTITY }) {
     // MARK: - Property
-    const listening = new Map(); // a mod's page -> the event names it listens to
-
     // MARK: - Initializer
     // MARK: - Public
-    // Mods say what happened to them through deck, never to each other: an event is named after the mod that
-    // sent it, which main knows by the page it came from, so none speaks for another. It goes to the pages that
-    // listen to it, and only from a mod that is running.
+    // Mods say what happened to them through deck, never to each other, so none speaks for another. An event goes to
+    // the runs that listen to it, and only from a run that is running.
     function start() {
-        PROTOCOL.listen.on(({ names }, sender) => {
-            IDENTITY.modFrom(sender);
-            if (!listening.has(sender)) IDENTITY.whenPageEnds(sender, () => listening.delete(sender));
-            listening.set(sender, new Set(names));
+        PROTOCOL.listen.on(({ run, names }, sender) => {
+            const { id } = IDENTITY.modFrom(sender);
+            CORE.request('event/listen', { mod: id, run, names }).catch((error) =>
+                LOG.error(`${id}: the events it listens to were not taken`, error)
+            );
         });
-        // A run that has ended hears nothing, though its page may stay until the mod launches again.
-        RUNNER.observe('didTerminate', ({ mod }) => listening.delete(IDENTITY.pageOf(mod.id)));
-        PROTOCOL.emit.on(async ({ name, args }, sender) => {
-            const mod = IDENTITY.modFrom(sender);
-            await RUNNER.settled();
-            if (RUNNER.runOf(mod.id)?.state !== 'running') return;
-            const named = SCOPED.scopedName(mod.id, name);
-            for (const [page, names] of listening)
-                if (names.has(named)) PROTOCOL.event.send(page, { name: named, args });
+        PROTOCOL.emit.on(async ({ run, name, args }, sender) => {
+            const { id } = IDENTITY.modFrom(sender);
+            let delivery;
+            try {
+                delivery = await CORE.request('event/emit', { mod: id, run, name });
+            } catch (error) {
+                LOG.error(`${id}: its event ${name} was not sent`, error);
+                return;
+            }
+            for (const listener of delivery.listeners) {
+                const page = IDENTITY.pageOf(listener);
+                if (page) PROTOCOL.event.send(page, { name: delivery.name, args });
+            }
         });
     }
 

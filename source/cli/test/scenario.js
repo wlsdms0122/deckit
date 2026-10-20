@@ -341,6 +341,18 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             await panelShot('panel-' + id, id);
         }
 
+        // What mods give each other, judged by the core: a call into what one exports, a point another extends, an
+        // event one sends.
+        const provider = await page('deckit://broker-provider.mod');
+        const user = await page('deckit://broker-user.mod');
+        const mark = (session, name) => session?.evaluate(`document.documentElement.dataset.${name}`);
+        const asked = await until(async () => (await mark(user, 'asked')) === '42 broker-user', 4000);
+        check('a call reaches what a mod requires exports, which hears who called', asked, await mark(user, 'asked'));
+        const extended = await until(async () => (await mark(provider, 'extended')) === 'hello provider', 4000);
+        check("a point's mod calls what extends it", extended, await mark(provider, 'extended'));
+        const pinged = await until(async () => (await mark(user, 'pinged')) === '7', 4000);
+        check('an event reaches the mod that listens to it', pinged, await mark(user, 'pinged'));
+
         // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.
         await frame.press('[data-mod-id="region-parent"]');
         await until(async () => (await visibility('region-parent')) === 'visible', 3000);
