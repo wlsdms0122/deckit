@@ -98,7 +98,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const FOLDER = createFolder();
     const CATALOG = createCatalog({ CORE, LOG });
     const IDENTITY = createIdentity();
-    const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
+    const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE });
     const RECORD = createRecord({ CORE, IDENTITY });
     const SETTING = createSetting({ CORE, LOG, IDENTITY, RUNNER });
@@ -136,14 +136,13 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
-    const PAGE = createPage({ IDENTITY, PARTITION });
+    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG });
     const API = createApi({
         CONFIG,
         STORAGE,
         LOG,
         WINDOW,
         IDENTITY,
-        SANDBOX,
         CATALOG,
         RUNNER,
         PERMISSION,
@@ -151,6 +150,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         KEYMAP,
         COMMAND,
         MAIN_PROCESS,
+        PAGE,
     });
     const starting = []; // what starts with deckit, before any mod launches: the shell on it
     let started = false;

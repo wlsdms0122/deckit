@@ -51,8 +51,8 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
     }
 
     // What the key map asks the shell of a deckit page a keystroke landed in: `isActive(page)`, whether it is the
-    // page in front, where the mod's own keys and the shell's run; `monitor(page, input)`, the shell's look at the
-    // keystroke before any binding, taking it by answering true.
+    // page in front, where the mod's own keys and the shell's run; `monitor(page, keystroke)`, the shell's look at the
+    // key pressed before any binding, `{ code, meta, control, alt, shift }`, taking it by answering true.
     function delegate({ isActive, monitor }) {
         delegated = { isActive, monitor };
     }
@@ -138,7 +138,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
             taken.run();
             return true;
         }
-        if (page && delegated.monitor(page, input)) return true;
+        if (page && delegated.monitor(page, keystrokeOf(input))) return true;
         const active = keymap.bindings.filter((binding) => binding.active && matches(binding.keystroke, input));
         const global = active.find((binding) => binding.scope === 'global');
         if (global) return run(global, webContents);
@@ -183,14 +183,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
     function take(input) {
         if (input.type !== 'keyDown') return true;
         const asking = recording;
-        const keystroke = {
-            code: input.code,
-            meta: !!input.meta,
-            control: !!input.control,
-            shift: !!input.shift,
-            alt: !!input.alt,
-        };
-        CORE.request('keymap/record', { keystroke }).then(
+        CORE.request('keymap/record', { keystroke: keystrokeOf(input) }).then(
             (recorded) => {
                 if (recording !== asking) return;
                 if (!recorded.pending && !recorded.error) stopRecording(false);
@@ -199,6 +192,12 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
             (error) => LOG.error('a key typed to be bound was not read', error)
         );
         return true;
+    }
+
+    // A key pressed, as the core and a layer read it: copied as it lands, so nothing of Electron's input is kept or
+    // read after.
+    function keystrokeOf({ code, meta, control, alt, shift }) {
+        return Object.freeze({ code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift });
     }
 
     return { start, delegate, listen, register, chordOf: chordOfApp };

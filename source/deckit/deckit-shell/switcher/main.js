@@ -16,7 +16,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
     const OPEN = '@open:';
     // How long main waits on the list's exit before it goes on.
     const EXIT_LIMIT_MS = 400;
-    const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
+    const state = { page: null, view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
     const handed = new Map(); // entry id -> { mod, kind, group, label }, of what the list was given since it opened
     let session = null; // a promise of deckit's commands, asked for this list since it last opened, or of null
     let supplies = 0;
@@ -32,19 +32,19 @@ export function createSwitcher({ PANEL, deckit, host }) {
             run: (webContents) => host.summonSwitcher(deckit.web.pageFor(webContents) || webContents),
         });
         PROTOCOL.ready.on((_payload, sender) => {
-            if (sender !== state.view?.webContents) return;
+            if (sender !== state.page) return;
             state.ready = true;
             // A chord that came while the page was loading is answered now instead of lost.
             if (state.on) PROTOCOL.open.send(sender, {});
         });
-        PROTOCOL.close.on((_payload, sender) => sender === state.view?.webContents && close());
-        PROTOCOL.need.on((_payload, sender) => sender === state.view?.webContents && supply());
+        PROTOCOL.close.on((_payload, sender) => sender === state.page && close());
+        PROTOCOL.need.on((_payload, sender) => sender === state.page && supply());
         PROTOCOL.query.on(({ raw, submenu }, sender) => {
-            if (sender !== state.view?.webContents) return;
+            if (sender !== state.page) return;
             if (submenu) search(raw, submenu);
             else resolve(raw);
         });
-        PROTOCOL.pick.on(({ id }, sender) => sender === state.view?.webContents && pick(id));
+        PROTOCOL.pick.on(({ id }, sender) => sender === state.page && pick(id));
     }
 
     // Resolves true when put away (the keyboard is the host's to give back), false when it never opened or was
@@ -56,8 +56,8 @@ export function createSwitcher({ PANEL, deckit, host }) {
             state.closed = resolve;
             state.on = true;
             view.setVisible(true);
-            view.webContents.focus();
-            if (state.ready) PROTOCOL.open.send(view.webContents, {});
+            deckit.pages.focus(state.page);
+            if (state.ready) PROTOCOL.open.send(state.page, {});
         });
     }
 
@@ -68,7 +68,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
         const closed = state.closed;
         state.closed = null;
         // Main waits on the exit only so long: a page that is gone or stuck plays none.
-        const played = PROTOCOL.dismiss.invoke(state.view.webContents, {}, { timeout: EXIT_LIMIT_MS }).catch(() => {});
+        const played = PROTOCOL.dismiss.invoke(state.page, {}, { timeout: EXIT_LIMIT_MS }).catch(() => {});
         played.then(() => {
             if (state.on) return closed?.(false);
             state.view?.setVisible(false);
@@ -77,42 +77,37 @@ export function createSwitcher({ PANEL, deckit, host }) {
     }
 
     // MARK: - Private
-    // Made the first time it is asked for. A page that reloads cannot hold an open list.
+    // Made the first time it is asked for, and again once the one before is gone. A renderer that crashed is
+    // loaded again.
     function build() {
-        if (state.view) return state.view;
-        const view = deckit.pages.make(PAGE.PAGE_NAME);
-        const contents = view.webContents;
-        deckit.keymap.listen(contents, {
+        if (state.view && deckit.pages.isAlive(state.page)) return state.view;
+        const page = deckit.pages.open(PAGE.PAGE_NAME, { reloadsOnCrash: true });
+        const view = deckit.pages.viewOf(page);
+        watch(page);
+        deckit.keymap.listen(page, {
             keys: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => ({
                 key: 'mod+' + number,
-                run: () => PROTOCOL.number.send(contents, { number }),
+                run: () => PROTOCOL.number.send(page, { number }),
             })),
         });
-        deckit.log.guard(
-            contents,
-            'console-message',
-            ({ level, message }) => level === 'error' && deckit.log.error(`switcher: ${message}`)
-        );
-        deckit.log.guard(contents, 'did-start-loading', () => {
-            const was = state.ready;
-            state.ready = false;
-            // Only a page that was up: the first load starts after the first open, which must stay open.
-            if (was) drop();
-        });
-        deckit.log.guard(
-            contents,
-            'destroyed',
-            () => {
-                drop();
-                state.view = null;
-                state.ready = false;
-            },
-            { once: true }
-        );
         view.setBackgroundColor('#00000000');
         view.setVisible(false);
+        state.page = page;
         state.view = view;
         return view;
+    }
+
+    // A page that was up and loads again, crashes or goes cannot hold an open list, and one that goes before it is up
+    // takes the list it was to show with it. Its first load ends nothing: the first open waits for it. Its only reload
+    // is after a crash, which ends it first, so a list is never opened in a document about to be replaced.
+    function watch(page) {
+        deckit.pages.whenEnds(page, () => {
+            const was = state.ready;
+            state.ready = false;
+            const alive = deckit.pages.isAlive(page);
+            if (was || !alive) drop();
+            if (alive) watch(page);
+        });
     }
 
     // For a page that is going: there is no exit to wait for.
@@ -126,7 +121,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
     }
 
     function list() {
-        return state.view?.webContents || null;
+        return state.page;
     }
 
     // Every running mod's commands, each mod with a view opened by its name too, and what is happening now. A list
@@ -280,8 +275,8 @@ export function createSwitcher({ PANEL, deckit, host }) {
         control: {
             // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`).
             place: (window, options) => deckit.window.place(build(), window, options),
-            contains: (webContents) => !!state.view && state.view.webContents === webContents,
-            focus: () => state.view?.webContents.focus(),
+            contains: (webContents) => !!state.page && state.page === webContents,
+            focus: () => state.page && deckit.pages.focus(state.page),
             open,
             close,
             shown: () => state.on,

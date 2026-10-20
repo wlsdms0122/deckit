@@ -75,6 +75,8 @@ function connect({ port, shots }) {
         if (sessions.has(target.id)) return sessions.get(target.id);
         const socket = new WebSocket(target.webSocketDebuggerUrl);
         await new Promise((resolve, reject) => ((socket.onopen = resolve), (socket.onerror = reject)));
+        // A page whose renderer went away is asked again through a new session.
+        socket.onclose = () => sessions.get(target.id) === session && sessions.delete(target.id);
         let id = 0;
         const waiting = new Map();
         socket.onmessage = (event) => {

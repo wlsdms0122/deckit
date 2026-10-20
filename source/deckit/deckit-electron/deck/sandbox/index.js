@@ -1,6 +1,6 @@
 import * as ORIGIN from './model/origin.js';
 
-export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER }) {
+export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
     // MARK: - Property
     // Electron takes privileged schemes in one call to registerSchemesAsPrivileged, before the app is ready, and a
     // later call replaces an earlier one; the host app makes it, with deck's scheme beside its own.
@@ -50,8 +50,24 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER }) {
             throw new Error(`"${name}" is not a page name: a lower case letter, then letters, digits and -`);
         const made = view();
         IDENTITY.add(made.webContents, { page: name });
+        logConsole(made.webContents, name);
         made.webContents.loadURL(ORIGIN.addressOf(ORIGIN.pageOriginOf(name)));
         return made;
+    }
+
+    // What a page's console says as an error goes to deck's log under `name`: a mod's id, or a page's name.
+    function logConsole(webContents, name) {
+        LOG.guard(
+            webContents,
+            'console-message',
+            ({ level, message }) => level === 'error' && LOG.error(`${name}: ${message}`)
+        );
+    }
+
+    // The page runs at full speed off screen too. Chromium takes the preference back at each load, so it is given
+    // again as each one finishes.
+    function keepDrawing(webContents) {
+        LOG.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
     }
 
     // What a mod's pages kept: their storage in deck's own session.
@@ -99,5 +115,5 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER }) {
         }
     }
 
-    return { SCHEME, start, view, page, clearSessions };
+    return { SCHEME, start, view, page, logConsole, keepDrawing, clearSessions };
 }

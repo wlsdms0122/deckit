@@ -60,7 +60,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
 
     // Each mod's latest run, with the view its page is in.
     function runs() {
-        return [...sandboxes.values()].map(({ run, view }) => ({ run, view }));
+        return [...sandboxes.values()].map(({ run, view }) => ({ run, view, page: view?.webContents || null }));
     }
 
     function runOf(modId) {
@@ -245,14 +245,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
         // A page opens no window of its own: what it asked for is what is on deck's to answer.
         webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
         preparePage(webContents, mod);
-        LOG.guard(
-            webContents,
-            'console-message',
-            ({ level, message }) => level === 'error' && LOG.error(`${mod.id}: ${message}`)
-        );
-        // It runs at full speed off screen, since the mod runs there. Chromium takes the preference back at each
-        // load, so it is given again as each one finishes.
-        LOG.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
+        SANDBOX.logConsole(webContents, mod.id);
+        // It runs at full speed off screen, since the mod runs there.
+        SANDBOX.keepDrawing(webContents);
         sandboxes.set(mod.id, sandbox);
     }
 

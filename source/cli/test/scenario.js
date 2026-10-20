@@ -41,7 +41,11 @@ function seed({ data, files }) {
     fs.mkdirSync(path.join(data, 'deckit', 'state'), { recursive: true });
     fs.writeFileSync(path.join(data, 'deckit', 'state', 'mod-order.json'), JSON.stringify(['editor', 'settings']));
     fs.writeFileSync(path.join(data, 'deckit', 'state', 'uncleared.json'), JSON.stringify([REMOVED]));
-    for (const kept of [['records', REMOVED, 'tabs.json'], ['settings', `${REMOVED}.json`], ['data', REMOVED, 'a.txt']]) {
+    for (const kept of [
+        ['records', REMOVED, 'tabs.json'],
+        ['settings', `${REMOVED}.json`],
+        ['data', REMOVED, 'a.txt'],
+    ]) {
         fs.mkdirSync(path.dirname(path.join(data, 'deckit', ...kept)), { recursive: true });
         fs.writeFileSync(path.join(data, 'deckit', ...kept), '{}');
     }
@@ -415,6 +419,28 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await parent.evaluate('location.reload()');
         const relaunched = await until(async () => (await child.evaluate(started)) !== origin, 6000);
         check('a mod runs again once what it requires runs again', relaunched, '');
+
+        // The panel's frame is loaded again once its renderer crashes, and what its console says as an error is
+        // logged under its name.
+        const frameNow = `performance.timeOrigin + ':' + document.querySelectorAll('[data-mod-id]').length`;
+        const crashed = await frame.evaluate(frameNow);
+        await frame.send('Page.crash');
+        const reloaded = await until(async () => {
+            const now = await (await page('deckit://panel'))?.evaluate(frameNow);
+            return typeof now === 'string' && now !== crashed && now.endsWith(':' + (VIEWS + 1));
+        }, 8000);
+        check("a crashed frame is loaded again with the panel's list", reloaded, crashed);
+        // Its backdrop is opened again, once: the crashed page's is closed.
+        const backdrops = async () => {
+            let found = 0;
+            for (const surface of await pages('about:blank')) if ((await surface.evaluate('innerWidth')) > 100) found++;
+            return found;
+        };
+        const reopened = await until(async () => (await backdrops()) === 1, 4000);
+        check('a crashed frame opens its backdrop again, once', reopened, await backdrops());
+        await (await page('deckit://panel'))?.evaluate(`console.error('frame-probe')`);
+        const named = await until(() => /panel: frame-probe/.test(logged()), 3000);
+        check("a shell page's console errors are logged under its name", named, '');
     } catch (error) {
         check('scenario ran', false, error.stack);
     }
