@@ -7,7 +7,7 @@ import * as OPEN_PERMISSION from './open/model/permission.js';
 import * as MOD_PERMISSION from '../deckit-shell/deck/mod/permission.js';
 import * as ORIGIN from './deck/sandbox/model/origin.js';
 import * as CONTRACT from './deck/contract/index.js';
-import { createHome } from './deck/storage/home.js';
+import { createHome } from '../deckit-shell/deck/home/index.js';
 import { createStorage } from '../deckit-shell/deck/storage/index.js';
 import { createLog } from '../deckit-shell/deck/log/main.js';
 import { createPermission } from '../deckit-shell/deck/mod/permission.js';
@@ -96,17 +96,16 @@ function refuseUnknown(what, given, known) {
 
 // Deckit in main, made of deck's parts and its own, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
-    const HOME = createHome({ CONFIG, FOLDERS });
     // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses.
-    const ENV = ENVIRONMENT.checked(
-        createEnvironment({ CONFIG, HOME, core }),
-        ENVIRONMENT.MAIN,
-        'what Electron gives deck'
-    );
+    const ENV = ENVIRONMENT.checked(createEnvironment({ CONFIG, core }), ENVIRONMENT.MAIN, 'what Electron gives deck');
+    const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
     // Deck's log, and listening on Electron's objects with what a listener throws logged.
-    const LOG = Object.freeze({ ...createLog({ log: ENV.log, about: ENV.about }), guard: LISTENER.guard });
+    const LOG = Object.freeze({
+        ...createLog({ log: ENV.log, about: ENV.about, folder: HOME.logs, name: CONFIG.id }),
+        guard: LISTENER.guard,
+    });
     IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
-    const CORE = createCore({ CONFIG, FOLDERS, LOG, core: ENV.core, home: ENV.folders.home });
+    const CORE = createCore({ CONFIG, FOLDERS, LOG, core: ENV.core, home: HOME.folder });
     const STORAGE = createStorage({ CORE, LOG });
     const PERMISSION = createPermission();
     const FOLDER = createFolder();
@@ -119,7 +118,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const EXPORT = createExport({ CORE, IDENTITY, RUNNER });
     const EXTENSION = createExtension({ CORE, IDENTITY, RUNNER });
     const EVENT = createEvent({ CORE, LOG, IDENTITY });
-    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, storage: ENV.storage });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, pages: ENV.pages });
     const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
     const PARTITION = createPartition({ CONFIG });
     const SESSION = createSession({ STORAGE, LOG, PARTITION });

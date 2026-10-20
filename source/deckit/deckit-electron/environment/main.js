@@ -1,5 +1,5 @@
 // What Electron gives deck on main's side (deckit-shell/environment: MAIN): its IPC carries the messages, a page is its
-// webContents, the core is a child process, and the folders and the log are HOME's.
+// webContents, the core is a child process, and the log a file of its own.
 import * as LISTENER from '../deck/listener/index.js';
 import * as CONNECTION from '../core/connection.js';
 import * as LOG_FILE from '../deck/log/file.js';
@@ -12,24 +12,25 @@ const INPUT = { keyDown: 'keydown', mouseDown: 'mousedown', mouseUp: 'mouseup' }
 
 // MARK: - Initializer
 // MARK: - Public
-// What Electron gives deck for the host app's configuration: `HOME` its folders, `core` the core's executable.
-function createEnvironment({ CONFIG, HOME, core }) {
+// What Electron gives deck for the host app's configuration: `core` is the core's executable.
+function createEnvironment({ CONFIG, core }) {
+    const { app } = require('electron');
+    const clearStorageOf = (modId) => clearStorage(CONFIG, modId);
     return Object.freeze({
         messages,
-        pages: Object.freeze({ isGone, watch, pin, watchInput }),
+        pages: Object.freeze({ isGone, watch, pin, watchInput, clearStorage: clearStorageOf }),
         core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
-        folders: Object.freeze({ home: HOME.folder }),
+        folders: Object.freeze({ user: require('os').homedir() }),
         files: Object.freeze({ readText: (file) => require('fs').promises.readFile(file, 'utf8') }),
-        log: Object.freeze({ open: () => LOG_FILE.open({ folder: HOME.logs, name: CONFIG.id }) }),
-        about,
-        storage: Object.freeze({ clear: (modId) => clearStorage(CONFIG, modId) }),
+        log: Object.freeze({ open: ({ folder, name }) => LOG_FILE.open({ folder, name }) }),
+        about: Object.freeze({
+            app: Object.freeze({ name: app.getName(), version: app.getVersion() }),
+            engines: Object.freeze([
+                Object.freeze({ name: 'Electron', version: process.versions.electron }),
+                Object.freeze({ name: 'Chrome', version: process.versions.chrome }),
+            ]),
+        }),
     });
-}
-
-// The app and Electron, each with its version.
-function about() {
-    const { app } = require('electron');
-    return { app: `${app.getName()} ${app.getVersion()}`, engine: `Electron ${process.versions.electron}` };
 }
 
 // A destroyed page, or one whose renderer is gone, receives nothing.

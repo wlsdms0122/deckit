@@ -8,8 +8,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
 // again and counting what one stored.
-// `storage` is what the environment keeps of a mod's pages.
-export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, storage }) {
+// `pages` is the environment's, which keeps what a mod's pages stored.
+export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, pages }) {
     // MARK: - Property
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
@@ -166,7 +166,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECO
     async function erase(id) {
         const outcomes = await Promise.allSettled([
             CORE.request('erasure/erase', { mod: id }),
-            storage.clear(id),
+            pages.clearStorage(id),
             layer.clearSessions(id),
         ]);
         const failed = outcomes.find(({ status }) => status === 'rejected');

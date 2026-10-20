@@ -17,6 +17,7 @@
         "./deck/export/renderer.js": "./deck/export/renderer.js",
         "./deck/extension/main.js": "./deck/extension/main.js",
         "./deck/extension/renderer.js": "./deck/extension/renderer.js",
+        "./deck/home/index.js": "./deck/home/index.js",
         "./deck/identity/index.js": "./deck/identity/index.js",
         "./deck/ipc/main.js": "./deck/ipc/main.js",
         "./deck/ipc/renderer.js": "./deck/ipc/renderer.js",
