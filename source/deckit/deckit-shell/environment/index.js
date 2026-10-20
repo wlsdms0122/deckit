@@ -73,19 +73,24 @@ const MAIN = Object.freeze({
     // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
     mainProcess: {
         start: 'function', // start(mod, path) -> Promise of { path, methods }: the module, started once in a run
-        // call(modId, path, method, args) -> Promise of what the method answered, which can be copied
-        call: 'function',
-        prepare: 'function', // prepare(mod): its run is about to launch
-        end: 'function', // end(mod): its run ended, and its modules end with it
-        unload: 'function', // unload(modId, { running }): the mod was taken away, its run not ended when `running`
+        call: 'function', // call(modId, path, method, args) -> Promise of what the method answered
+        launching: 'function', // launching(mod): its run is about to launch
+        // ended(mod, { within }): its run ended, and its modules end with it, each given `within` ms to finish
+        // starting and to dispose
+        ended: 'function',
+        removed: 'function', // removed(modId, { running }): the mod was taken away, its run not ended when `running`
+        // installed(modId) -> Promise of { restart }: the mod installed again, once what ran in its place has ended,
+        // `restart` whether only a restart of the app brings its modules up to date
+        installed: 'function',
+        // stateOf(modId) -> { running, failure }: whether a module of its runs, and why those that did not start did
+        // not, or null
+        stateOf: 'function',
         onEvent: 'function', // onEvent(listener(modId, path, name, args)) -> off: what a module emits
-        // onChange(listener()) -> off: what `started`, `failure` or `restartPending` answer may have changed
-        onChange: 'function',
-        whenEnded: 'function', // whenEnded(modId) -> Promise: once the modules of its run that ended have ended
-        started: 'function', // started(modId): whether a module of its started
-        failure: 'function', // failure(modId): why its modules did not start, or null
-        restartPending: 'function', // restartPending() -> [{ id, why }]: what only a restart of the app finishes
-        reinstalled: 'function', // reinstalled(modId): the mod was installed again
+        onChange: 'function', // onChange(listener()) -> off: what `stateOf` or `restartPending` answer may have changed
+        // restartPending() -> [{ id, why }]: the mods whose modules only a restart of the app finishes, `why` one of
+        // `updated` (its code changed while a module stayed), `removed`, `reinstalled` (removed, then installed again)
+        // and `leftover` (a module with no dispose, or whose dispose failed or ran late, may have left what it made)
+        restartPending: 'function',
     },
     core: {
         // open({ onMessage(line), onLog(line), onEnd(why) }) -> { send(line) }: the core, started, a message a line
@@ -102,8 +107,15 @@ const MAIN = Object.freeze({
     // The file deck's log is written to: open({ folder, name }) -> { file, write(where, level, parts) }, `file` its
     // path, in `folder` and named for `name`. Writing never throws
     log: { open: 'function' },
-    // The host app, and what runs it, outermost first, each { name, version }
+    // The host app, `{ name, version }`, and what runs it, outermost first, each `{ key, name, version }`: `key` is
+    // the engine's name in lower case, which a mod reads its version by in `about()` (MOD.md), and `name` as a person
+    // reads it
     about: { app: { name: 'string', version: 'string' }, engines: 'array' },
+    reports: {
+        // listen(listener(level, parts)), once: what the environment's own parts say, `level` one of `info`, `warn` and
+        // `error`, and `parts` what is logged; what they said before is told as it starts listening
+        listen: 'function',
+    },
     app: {
         // onQuit(hold): `hold()` is asked as the app is about to quit, once the quit is decided; answering true keeps
         // it from quitting, until it is asked to quit again

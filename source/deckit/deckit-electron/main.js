@@ -16,7 +16,6 @@ import { createCatalog } from '../deckit-shell/deck/catalog/index.js';
 import * as ENVIRONMENT from '../deckit-shell/environment/index.js';
 import * as IPC from '../deckit-shell/deck/ipc/main.js';
 import { createIdentity } from '../deckit-shell/deck/identity/index.js';
-import * as LISTENER from './deck/listener/index.js';
 import { createEnvironment } from './environment/main.js';
 import { createSandbox } from './deck/sandbox/index.js';
 import { createRunner } from '../deckit-shell/deck/runner/main.js';
@@ -96,25 +95,14 @@ function refuseUnknown(what, given, known) {
 // Deckit in main, made of deck's parts and its own, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses. The rest
-    // of it is Electron's own, for what lays pages in a window. What Electron's own parts say goes to deck's log.
-    const ELECTRON = createEnvironment({
-        CONFIG,
-        core,
-        preload,
-        openWindow: (options) => host.openWindow(options),
-        log: Object.freeze({
-            info: (...parts) => LOG.info(...parts),
-            warn: (...parts) => LOG.warn(...parts),
-            error: (...parts) => LOG.error(...parts),
-            guard: LISTENER.guard,
-        }),
-    });
+    // of it is Electron's own, for what lays pages in a window.
+    const ELECTRON = createEnvironment({ CONFIG, core, preload, openWindow: (options) => host.openWindow(options) });
     const ENV = ENVIRONMENT.checked(ELECTRON, ENVIRONMENT.MAIN, 'what Electron gives deck');
     const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
     // Deck's log, and listening on Electron's objects with what a listener throws logged.
     const LOG = Object.freeze({
-        ...createLog({ log: ENV.log, about: ENV.about, folder: HOME.logs, name: CONFIG.id }),
-        guard: LISTENER.guard,
+        ...createLog({ log: ENV.log, reports: ENV.reports, about: ENV.about, folder: HOME.logs, name: CONFIG.id }),
+        guard: ELECTRON.guard,
     });
     IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
     const CORE = createCore({ CONFIG, FOLDERS, LOG, core: ENV.core, home: HOME.folder });
@@ -255,17 +243,10 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         EXTENSION.start();
         EVENT.start();
         MODS.start({
-            facts: (mod) => ({
-                mainProcess: { running: MAIN_PROCESS.started(mod.id), failure: MAIN_PROCESS.failure(mod.id) },
-            }),
+            facts: (mod) => ({ mainProcess: MAIN_PROCESS.stateOf(mod.id) }),
             onFactsChange: MAIN_PROCESS.onChange,
-            // Once what ran in its place has ended, modules and all.
-            installed: async (id) => {
-                await MAIN_PROCESS.whenEnded(id);
-                MAIN_PROCESS.reinstalled(id);
-                return { restart: MAIN_PROCESS.restartPending().some((pending) => pending.id === id) };
-            },
-            removed: MAIN_PROCESS.unload,
+            installed: MAIN_PROCESS.installed,
+            removed: MAIN_PROCESS.removed,
             clearSessions: SESSION.clearSessions,
         });
         RUNNER.start({ preparePage });

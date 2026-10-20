@@ -35,9 +35,9 @@ export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart, about: ABO
     }
 
     // MARK: - Private
-    // Each engine's version under its name in lower case, as a mod reads them (`electron`, `chrome`).
+    // Each engine's version under its key, as a mod reads them (`electron`, `chrome`).
     function enginesOf(engines) {
-        return Object.fromEntries(engines.map(({ name, version }) => [name.toLowerCase(), version]));
+        return Object.fromEntries(engines.map(({ key, version }) => [key, version]));
     }
 
     return { start };

@@ -1,7 +1,5 @@
-import * as LISTENER from '../deck/listener/index.js';
-
-// The system's notifications (deckit-shell/environment: notifications).
-export function createNotifications() {
+// The system's notifications (deckit-shell/environment: notifications). `guard` adds a listener on one.
+export function createNotifications({ guard }) {
     // MARK: - Property
     // A Notification nothing refers to is garbage collected, and macOS then withdraws it or never delivers it. The
     // cap covers a close that never comes.
@@ -24,11 +22,11 @@ export function createNotifications() {
             clearTimeout(cap);
             live.delete(notification);
         };
-        LISTENER.guard(notification, 'click', () => {
+        guard(notification, 'click', () => {
             onClick();
             letGo();
         });
-        LISTENER.guard(notification, 'close', letGo);
+        guard(notification, 'close', letGo);
         return new Promise((resolve, reject) => {
             let settled = false;
             const settle = (shown, why) => {
@@ -38,8 +36,8 @@ export function createNotifications() {
                 letGo();
                 reject(new Error(String(why || '')));
             };
-            LISTENER.guard(notification, 'show', () => settle(true), { once: true });
-            LISTENER.guard(notification, 'failed', (_event, error) => settle(false, error), { once: true });
+            guard(notification, 'show', () => settle(true), { once: true });
+            guard(notification, 'failed', (_event, error) => settle(false, error), { once: true });
             setTimeout(() => settle(true), SETTLE_MS);
             notification.show();
         });

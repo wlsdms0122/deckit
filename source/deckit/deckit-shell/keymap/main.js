@@ -11,7 +11,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     // MARK: - Property
     const RECORDING_MS = 20 * 1000;
     const runs = new Map(); // action -> run(page), of the keys registered through what connect answers
-    const typing = new Set(); // pages with a field focused
+    const typing = new WeakSet(); // pages with a field focused
     const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
     let keymap = { revision: 0, bindings: [] };
     let recording = null; // { page, drop, timer }
