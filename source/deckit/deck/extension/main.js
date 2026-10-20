@@ -60,12 +60,15 @@ export function createExtension({ IDENTITY, RUNNER, EXPORT }) {
         const owner = SCOPED.modOf(point);
         const optional = Object.hasOwn(run.mod.optional, owner);
         if (!Object.hasOwn(run.mod.requires, owner) && !optional) {
-            run.record(`deck.extend() names ${point}, but ${owner} is in neither [requires] nor [optional]`);
+            RUNNER.reportProblem(
+                run,
+                `deck.extend() names ${point}, but ${owner} is in neither [requires] nor [optional]`
+            );
             return null;
         }
         if (optional && (!EXPORT.usable(run.mod, owner) || !points.has(point))) return null;
         if (!points.has(point)) {
-            run.record(`deck.extend() names ${point}, which ${owner} does not open`);
+            RUNNER.reportProblem(run, `deck.extend() names ${point}, which ${owner} does not open`);
             return null;
         }
         points.get(point).set(run.mod.id, extension);

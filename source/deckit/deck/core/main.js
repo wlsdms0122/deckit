@@ -42,10 +42,10 @@ export function createCore({ CONFIG, HOME, LOG }) {
     }
 
     // MARK: - Private
-    // A core that ended is not started again: all that is asked of it is refused, saying the app is to be
-    // restarted, and so whatever asked shows it.
+    // A core that ended is not started again: all that is asked of it is refused, of kind ENDED, saying the app is
+    // to be restarted, and so whatever asked shows it.
     function end(why) {
-        ended = new Error(`deckit's core ended (${why}): restart the app`);
+        ended = Object.assign(new Error(`deckit's core ended (${why}): restart the app`), { kind: 'ENDED' });
         LOG.error(ended.message);
         for (const { reject } of pending.values()) reject(ended);
         pending.clear();

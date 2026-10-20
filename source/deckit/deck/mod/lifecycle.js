@@ -1,83 +1,9 @@
 // MARK: - Property
 // What a run tells as it moves, in the order a run that starts and stops tells them.
 const NOTIFICATIONS = ['willLaunch', 'didLaunch', 'didFailToLaunch', 'willTerminate', 'didTerminate'];
-// A run launches as it is made and ends notRunning. Each transition: the states it leaves, the state it
-// reaches, what it tells. A launch that fails ends as any run does, its stop() asked while it terminates. A
-// crash ends a run from any state, with no willTerminate before it.
-const TRANSITIONS = {
-    didLaunch: { from: ['launching'], to: 'running', tells: 'didLaunch' },
-    didFailToLaunch: { from: ['launching'], to: 'terminating', tells: 'didFailToLaunch' },
-    terminate: { from: ['launching', 'running'], to: 'terminating', tells: 'willTerminate' },
-    didTerminate: { from: ['terminating'], to: 'notRunning', tells: 'didTerminate' },
-    crash: { from: ['launching', 'running', 'terminating'], to: 'notRunning', tells: 'didTerminate' },
-};
-// Why a run terminates, weakest first: a stronger reason given while it terminates takes the place of a weaker
-// one. `relaunches`: the mod launches again once the run has ended. `requirement`: a mod it requires ended; it
-// launches again as that one does.
-const REASONS = {
-    relaunch: { relaunches: true },
-    requirement: { relaunches: false },
-    updated: { relaunches: true },
-    removed: { relaunches: false },
-    quit: { relaunches: false },
-};
-const STRENGTH = Object.keys(REASONS);
 
 // MARK: - Initializer
 // MARK: - Public
-// One run of `mod`'s entry, the `number`th, launching: `notify(name, run)` is told willLaunch, and then each
-// transition. A transition from a state it does not leave, or a reason the lifecycle does not have, throws.
-//
-// `summary` is what it contributes once running, as a person reads it, and `contributions` what deck joins of
-// it; `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed;
-// `endReason`, the reason it terminated for.
-function launch({ mod, number, notify }) {
-    const facts = { state: 'launching', summary: null, contributions: null, problem: null, endReason: null };
-    const move = (transition, change) => {
-        const { from, to, tells } = TRANSITIONS[transition];
-        if (!from.includes(facts.state)) throw new Error(`${mod.id} run ${number}: ${transition} while ${facts.state}`);
-        Object.assign(facts, change, { state: to });
-        notify(tells, run);
-    };
-    const failed = (problem) => ({ problem: facts.problem ?? problem });
-    const run = Object.freeze({
-        mod,
-        number,
-        get state() {
-            return facts.state;
-        },
-        get summary() {
-            return facts.summary;
-        },
-        get contributions() {
-            return facts.contributions;
-        },
-        get problem() {
-            return facts.problem;
-        },
-        get endReason() {
-            return facts.endReason;
-        },
-        get relaunches() {
-            return REASONS[facts.endReason]?.relaunches ?? false;
-        },
-        didLaunch: ({ summary, contributions }) => move('didLaunch', { summary, contributions }),
-        didFailToLaunch: (problem) => move('didFailToLaunch', failed(problem)),
-        terminate(reason) {
-            if (!Object.hasOwn(REASONS, reason)) throw new Error(`no terminate reason ${reason}`);
-            if (facts.state !== 'terminating') return move('terminate', { endReason: reason });
-            if (STRENGTH.indexOf(reason) > STRENGTH.indexOf(facts.endReason)) facts.endReason = reason;
-        },
-        didTerminate: () => move('didTerminate', {}),
-        crash: (problem) => move('crash', failed(problem)),
-        record(problem) {
-            if (facts.state === 'launching' || facts.state === 'running') facts.problem ??= problem;
-        },
-    });
-    notify('willLaunch', run);
-    return run;
-}
-
 // MARK: - Private
 
-export { NOTIFICATIONS, launch };
+export { NOTIFICATIONS };

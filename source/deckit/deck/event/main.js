@@ -18,8 +18,9 @@ export function createEvent({ IDENTITY, RUNNER }) {
         });
         // A run that has ended hears nothing, though its page may stay until the mod launches again.
         RUNNER.observe('didTerminate', ({ mod }) => listening.delete(IDENTITY.pageOf(mod.id)));
-        PROTOCOL.emit.on(({ name, args }, sender) => {
+        PROTOCOL.emit.on(async ({ name, args }, sender) => {
             const mod = IDENTITY.modFrom(sender);
+            await RUNNER.settled();
             if (RUNNER.runOf(mod.id)?.state !== 'running') return;
             const named = SCOPED.scopedName(mod.id, name);
             for (const [page, names] of listening)

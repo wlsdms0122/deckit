@@ -1,5 +1,6 @@
-// The mods as the core read them, kept here as it last gave them, so what asks at once is answered at once. Each is
-// what its manifest says, with `manifest` itself, and where it is, whether it loads and what it depends on.
+import * as MOD from './model/mod.js';
+
+// The mods as the core read them, kept here as it last gave them, so what asks at once is answered at once.
 export function createCatalog({ CORE, LOG }) {
     // MARK: - Property
     const fs = require('fs');
@@ -62,7 +63,7 @@ export function createCatalog({ CORE, LOG }) {
 
     // The mods read again, and whoever listens told.
     async function refresh() {
-        all = (await CORE.request('catalog/read')).map((mod) => ({ ...mod.manifest, ...mod }));
+        all = (await CORE.request('catalog/read')).map(MOD.read);
         loading = all.filter((mod) => !mod.problem);
         for (const listener of listeners) listener();
     }
