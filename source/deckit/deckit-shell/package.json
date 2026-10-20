@@ -62,7 +62,13 @@
         "./open/model/permission.js": "./open/model/permission.js",
         "./open/renderer.js": "./open/renderer.js",
         "./runtime/main.js": "./runtime/main.js",
-        "./runtime/renderer.js": "./runtime/renderer.js"
+        "./runtime/renderer.js": "./runtime/renderer.js",
+        "./web/main.js": "./web/main.js",
+        "./web/model/permission.js": "./web/model/permission.js",
+        "./web/model/session.js": "./web/model/session.js",
+        "./web/model/site-permission.js": "./web/model/site-permission.js",
+        "./web/model/site.js": "./web/model/site.js",
+        "./web/renderer.js": "./web/renderer.js"
     },
     "dependencies": {}
 }

@@ -10,6 +10,7 @@ import { createFolder } from '../deck/mod/folder.js';
 import { createWindow } from '../window/index.js';
 import { createNotifications } from '../notification/main.js';
 import { createMainProcess } from '../main-process/main.js';
+import { createWeb, windowOptions } from '../web/main.js';
 import { messages } from '../messages/main.js';
 
 // MARK: - Property
@@ -17,6 +18,8 @@ import { messages } from '../messages/main.js';
 const INPUT = { keyDown: 'keydown', keyUp: 'keyup', mouseDown: 'mousedown', mouseUp: 'mouseup' };
 // Chromium's code for a load that another load replaced.
 const ERR_ABORTED = -3;
+// Chromium's own schemes: its pages, its extensions' and its tools'.
+const CHROMIUM_SCHEMES = Object.freeze(['chrome', 'chrome-extension', 'devtools', 'view-source']);
 
 // MARK: - Initializer
 // MARK: - Public
@@ -40,6 +43,7 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
     MAIN_PROCESS.holdQuit();
     const views = new WeakMap(); // a page a mod runs in, or ran in -> the view it is in, kept while the page is
     const mods = new WeakMap(); // a page a mod runs in -> the mod's id
+    const WEB = createWeb({ CONFIG, LOG, WINDOW });
     const clearStorageOf = (modId) => clearStorage(CONFIG, modId);
     // A mod's page shows the web in <webview>.
     const make = ({ modId }) => {
@@ -53,6 +57,7 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
     };
     const load = (page) => page.loadURL(ORIGIN.addressOf(ORIGIN.originOf(mods.get(page))));
     const viewOf = (page) => views.get(page) || null;
+    const originOf = (page) => (mods.has(page) ? ORIGIN.originOf(mods.get(page)) : null);
     return Object.freeze({
         viewOf,
         window: WINDOW,
@@ -64,19 +69,41 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
             load,
             close,
             isGone,
-            watch: (page, watchers) => watch(guard, page, watchers),
+            watch: (page, watchers) => watch(guard, page, watchers, { origin: originOf(page) }),
             pin: (page) => pin(guard, page),
             watchInput: (page, listener) => watchInput(guard, page, listener),
             clearStorage: clearStorageOf,
         }),
         keys: Object.freeze({ capture: (page, handler) => capture(guard, page, handler) }),
-        open: Object.freeze({ url: openURL, file: openFile, reveal }),
+        open: Object.freeze({ url: openURL, file: openFile, reveal, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({
             readText: () => require('electron').clipboard.readText(),
             writeText: (text) => require('electron').clipboard.writeText(text),
         }),
         dialogs: Object.freeze({ chooseFolder }),
+        web: Object.freeze({
+            listen: WEB.listen,
+            embed: WEB.embed,
+            pageOf: WEB.pageOf,
+            holderOf: WEB.holderOf,
+            holdsKeyboard: WEB.holdsKeyboard,
+            openWindow: WEB.openWindow,
+            load: WEB.load,
+            navigate: WEB.navigate,
+            setMuted: WEB.setMuted,
+            find: WEB.find,
+            stopFind: WEB.stopFind,
+            close: WEB.close,
+            stateOf: WEB.stateOf,
+            clickNotification: WEB.clickNotification,
+            granted: WEB.granted,
+            fetchText: WEB.fetchText,
+            clear: WEB.clear,
+            trust: WEB.trust,
+            allow: WEB.allow,
+            revoke: WEB.revoke,
+        }),
         mainProcess: Object.freeze({
             start: MAIN_PROCESS.start,
             call: MAIN_PROCESS.call,
@@ -118,18 +145,47 @@ function isGone(page) {
     return page.isDestroyed() || page.isCrashed();
 }
 
-function watch(guard, page, { failed = null, ended = null, gone = null, destroyed = null, consoleError = null } = {}) {
+// `origin` is the page's own, a mod's, for what leaves it. Answers what stops watching, but for `opens`, which the page
+// then is refused.
+function watch(
+    guard,
+    page,
+    {
+        failed = null,
+        ended = null,
+        gone = null,
+        destroyed = null,
+        consoleError = null,
+        opens = null,
+        leaves = null,
+    } = {},
+    { origin }
+) {
+    const added = []; // [event, listener]
+    const on = (event, listener, options) => added.push([event, guard(page, event, listener, options)]);
     if (failed)
-        guard(page, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
+        on('did-fail-load', (_event, code, description, _url, isMainFrame) => {
             if (isMainFrame && code !== ERR_ABORTED) failed(description);
         });
     // A main-frame navigation that commits replaces the document, the first load's included; one refused before it
     // commits leaves it be.
-    if (ended) guard(page, 'did-navigate', () => ended());
-    if (gone) guard(page, 'render-process-gone', (_event, { reason }) => gone(reason));
-    if (destroyed) guard(page, 'destroyed', () => destroyed(), { once: true });
-    if (consoleError)
-        guard(page, 'console-message', ({ level, message }) => level === 'error' && consoleError(message));
+    if (ended) on('did-navigate', () => ended());
+    if (gone) on('render-process-gone', (_event, { reason }) => gone(reason));
+    if (destroyed) on('destroyed', () => destroyed(), { once: true });
+    if (consoleError) on('console-message', ({ level, message }) => level === 'error' && consoleError(message));
+    if (opens)
+        page.setWindowOpenHandler((details) => {
+            opens(details.url, windowOptions(details));
+            return { action: 'deny' };
+        });
+    if (leaves && origin)
+        on('will-frame-navigate', (details) => {
+            if (details.isMainFrame && !details.url.startsWith(origin + '/')) leaves(details.url);
+        });
+    return () => {
+        for (const [event, listener] of added.splice(0)) page.removeListener(event, listener);
+        if (opens && !page.isDestroyed()) page.setWindowOpenHandler(() => ({ action: 'deny' }));
+    };
 }
 
 // A navigation keeps the page, so a page that left its address would still be known as its owner while it ran
@@ -175,6 +231,15 @@ function reveal(file) {
     const found = existing(file);
     if (found) require('electron').shell.showItemInFolder(found);
     return !!found;
+}
+
+// An app's name as a person reads it. Chromium's own schemes open in no app.
+function appFor(url) {
+    const scheme = String(url).split(':')[0].toLowerCase();
+    if (CHROMIUM_SCHEMES.includes(scheme)) return '';
+    return require('electron')
+        .app.getApplicationNameForProtocol(String(url))
+        .replace(/\.app$/i, '');
 }
 
 async function chooseFolder({ title, buttonLabel, message }) {

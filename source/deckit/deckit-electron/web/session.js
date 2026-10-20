@@ -1,6 +1,5 @@
-export function createSession({ STORAGE, LOG, PARTITION }) {
+export function createSession({ PARTITION }) {
     // MARK: - Property
-    const SESSIONS = 'web-sessions';
     // A cookie with no expiry would sign the person out of every site at each launch; a browser restoring its
     // session keeps them, so here it is given a lifetime.
     const SESSION_COOKIE_TTL = 60 * 60 * 24 * 14;
@@ -18,7 +17,6 @@ export function createSession({ STORAGE, LOG, PARTITION }) {
         const session = require('electron').session.fromPartition(spelled);
         made.set(spelled, { session, mod: modId, name });
         keepSessionCookies(session);
-        remember(modId, name);
         for (const listener of created) listener(session, modId);
         return session;
     }
@@ -36,7 +34,6 @@ export function createSession({ STORAGE, LOG, PARTITION }) {
     // Read whole as bytes arrive, held to a limit: this is the app's process, and a huge answer would be held
     // whole first.
     async function fetchText(modId, name, url) {
-        if (!/^https?:\/\//i.test(url)) throw new Error('not a web address: ' + url);
         const response = await of(modId, name).fetch(url, { redirect: 'follow' });
         if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
         if (Number(response.headers.get('content-length')) > FETCH_LIMIT) {
@@ -67,23 +64,7 @@ export function createSession({ STORAGE, LOG, PARTITION }) {
         await session.clearAuthCache();
     }
 
-    // What a mod kept in the web sessions it made.
-    async function clearSessions(modId) {
-        const sessions = STORAGE.state.read(SESSIONS, {});
-        for (const name of sessions[modId] || []) await clear(modId, name);
-        delete sessions[modId];
-        STORAGE.state.write(SESSIONS, sessions);
-        LOG.info(`forgot the web sessions of ${modId}`);
-    }
-
     // MARK: - Private
-    function remember(modId, name) {
-        const sessions = STORAGE.state.read(SESSIONS, {});
-        if ((sessions[modId] || []).includes(name)) return;
-        sessions[modId] = [...(sessions[modId] || []), name];
-        STORAGE.state.write(SESSIONS, sessions);
-    }
-
     // Set on a session deckit made, as it is made, so the app's sessions are left as they are.
     function keepSessionCookies(session) {
         session.webRequest.onHeadersReceived((details, callback) => {
@@ -106,5 +87,5 @@ export function createSession({ STORAGE, LOG, PARTITION }) {
         return new Error(`response too large: more than ${FETCH_LIMIT} bytes (${bytes})`);
     }
 
-    return { of, partitionOf, onCreate, fetchText, clear, clearSessions };
+    return { of, partitionOf, onCreate, fetchText, clear };
 }
