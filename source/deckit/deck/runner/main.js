@@ -6,7 +6,7 @@ import * as RUN from './model/run.js';
 
 // The mods' runs, as the core runs them: what happens to a page is told the core, and what the core answers is done
 // here in order, its runs kept as it told them so what asks at once is answered at once.
-export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
+export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
     // MARK: - Property
     // How long a mod's stop() may take before its run ends anyway.
     const STOP_LIMIT_MS = 2000;
@@ -286,7 +286,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, CORE })
             return {
                 manifest: mod.manifest,
                 source: CATALOG.sourceOf(mod),
-                settings: await STORAGE.settings.read(id),
+                settings: await CORE.request('setting/read', { mod: id }),
                 run: run.number,
             };
         });

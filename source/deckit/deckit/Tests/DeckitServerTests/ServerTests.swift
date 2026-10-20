@@ -122,7 +122,23 @@ struct ServerTests {
         let response = try respond(#"{"jsonrpc":"2.0","id":2,"method":"record/keys","params":{"key":"a"}}"#)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"record/keys has no such params"}}"#)))
+        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"record/keys has no such params at mod"}}"#)))
+    }
+
+    @Test("params of the wrong shape say where")
+    func testThatWrongParamsSayWhere() throws {
+        // Given
+        try initialize()
+        let settings = #"[{"key":"wrap","type":"toggle","options":[],"computed":false},{"key":"size","type":"number","#
+            + #""label":5,"options":[],"computed":false}]"#
+
+        // When
+        let response = try respond(
+            #"{"jsonrpc":"2.0","id":2,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#
+        )
+
+        // Then
+        #expect(value(in: response, at: "error", "message") == .string("setting/declare has no such params at settings.1.label"))
     }
 
     @Test("a notification is not answered")
@@ -166,22 +182,31 @@ struct ServerTests {
         #expect(error["code"] == .number(-32600))
     }
 
-    @Test("settings written are read back as the JSON they were written as")
+    @Test("settings set as declared are read back as the JSON they were set as")
     func testThatSettingsRoundTrip() throws {
         // Given
         try initialize()
+        try mod("notes")
+        _ = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
+        _ = try respond(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#)
+        let settings = #"[{"key":"wrap","type":"toggle","options":[],"computed":false},"#
+            + #"{"key":"size","type":"number","max":12,"options":[],"computed":false}]"#
         _ = try respond(
-            #"{"jsonrpc":"2.0","id":2,"method":"setting/write","params":{"mod":"notes","key":"wrap","value":true}}"#
+            #"{"jsonrpc":"2.0","id":4,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#
         )
         _ = try respond(
-            #"{"jsonrpc":"2.0","id":3,"method":"setting/write","params":{"mod":"notes","key":"size","value":14}}"#
+            #"{"jsonrpc":"2.0","id":5,"method":"setting/set","params":{"mod":"notes","key":"wrap","value":true}}"#
         )
 
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":4,"method":"setting/read","params":{"mod":"notes"}}"#)
+        let set = try respond(
+            #"{"jsonrpc":"2.0","id":6,"method":"setting/set","params":{"mod":"notes","key":"size","value":14}}"#
+        )
+        let response = try respond(#"{"jsonrpc":"2.0","id":7,"method":"setting/read","params":{"mod":"notes"}}"#)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":4,"result":{"wrap":true,"size":14}}"#)))
+        #expect(set == (try json(#"{"jsonrpc":"2.0","id":6,"result":{"value":12,"changed":true}}"#)))
+        #expect(response == (try json(#"{"jsonrpc":"2.0","id":7,"result":{"wrap":true,"size":12}}"#)))
     }
 
     @Test("state written is read back by all, with no params asked")
@@ -243,7 +268,7 @@ struct ServerTests {
     }
 
     // MARK: - Private
-    private func mod(_ id: String, schemes: String) throws {
+    private func mod(_ id: String, schemes: String? = nil) throws {
         let folder = URL(filePath: home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let manifest = """
@@ -251,8 +276,7 @@ struct ServerTests {
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            url-schemes = \(schemes)
-            """
+            """ + (schemes.map { schemes in "\nurl-schemes = \(schemes)" } ?? "")
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
         try Data().write(to: folder.appending(path: "main.js"))
     }

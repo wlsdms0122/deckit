@@ -5,14 +5,6 @@ export function createStorage({ HOME, CORE, LOG }) {
     const kept = new Map();
     let unread = null; // why the state was not read, if it was not
 
-    // A mod's settings, which the core keeps outside the mod's folder, a value saved among the mod's others.
-    const settings = Object.freeze({
-        read: (modId) => CORE.request('setting/read', { mod: modId }),
-        // Whether the value changed.
-        write: (modId, key, value) => CORE.request('setting/write', { mod: modId, key, value }),
-        erase: (modId) => CORE.request('setting/erase', { mod: modId }),
-    });
-
     // What the person arranged and what deck and the layers on it keep between runs, one JSON file a key.
     const state = stateIn(null);
 
@@ -38,12 +30,6 @@ export function createStorage({ HOME, CORE, LOG }) {
     // hidden }.
     function count(modId) {
         return CORE.request('data/count', { mod: modId });
-    }
-
-    // The mod's data folder. Its records and settings are the core's to erase too, and its pages' storage and its web
-    // sessions their sessions' to clear.
-    function erase(modId) {
-        return CORE.request('data/erase', { mod: modId });
     }
 
     // The state in `folder`, a folder of its own one down for one who names its keys as it likes (the host app), or
@@ -87,5 +73,5 @@ export function createStorage({ HOME, CORE, LOG }) {
         }
     }
 
-    return { load, folderOf, settings, state, stateIn, count, erase };
+    return { load, folderOf, state, stateIn, count };
 }

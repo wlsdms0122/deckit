@@ -16,6 +16,7 @@ public final class Deck {
     private let dataFolder: DataFolder
     private let catalog: Catalog
     private let runner: Runner
+    private let erasure: Erasure
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
@@ -34,10 +35,8 @@ public final class Deck {
         let reader = try ManifestReader(api: api, permissions: permissions, fields: fields, store: store)
         let modFolder = ModFolder(reader: reader, store: store)
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)
-        self.record = Record(folder: home.appending(path: "records", directoryHint: .isDirectory), store: store)
-        self.state = state
-        self.setting = Setting(folder: home.appending(path: "settings", directoryHint: .isDirectory), store: store)
-        self.dataFolder = DataFolder(folder: home.appending(path: "data", directoryHint: .isDirectory), store: store)
+        let record = Record(folder: home.appending(path: "records", directoryHint: .isDirectory), store: store)
+        let dataFolder = DataFolder(folder: home.appending(path: "data", directoryHint: .isDirectory), store: store)
         let catalog = Catalog(
             folder: folder,
             sources: sources,
@@ -47,8 +46,20 @@ public final class Deck {
             state: state,
             store: store
         )
+        let runner = Runner(catalog: catalog)
+        let setting = Setting(
+            folder: home.appending(path: "settings", directoryHint: .isDirectory),
+            store: store,
+            catalog: catalog,
+            runner: runner
+        )
+        self.record = record
+        self.state = state
+        self.setting = setting
+        self.dataFolder = dataFolder
         self.catalog = catalog
-        self.runner = Runner(catalog: catalog)
+        self.runner = runner
+        self.erasure = Erasure(dataFolder: dataFolder, record: record, setting: setting, state: state, store: store)
     }
 
     // MARK: - Public
@@ -74,11 +85,6 @@ public final class Deck {
             let params = try call.params.decode(as: RecordKeysParams.self)
             return try record.keys(mod: params.mod)
 
-        case "record/erase":
-            let params = try call.params.decode(as: EraseRecordsParams.self)
-            try record.erase(mod: params.mod)
-            return true
-
         case "record/count":
             let params = try call.params.decode(as: CountRecordsParams.self)
             return try record.count(mod: params.mod)
@@ -95,17 +101,31 @@ public final class Deck {
             let params = try call.params.decode(as: ReadSettingsParams.self)
             return setting.read(mod: params.mod)
 
-        case "setting/write":
-            let params = try call.params.decode(as: WriteSettingParams.self)
-            return try setting.write(mod: params.mod, key: params.key, value: params.value)
+        case "setting/declare":
+            let params = try call.params.decode(as: DeclareSettingsParams.self)
+            return setting.declare(params.settings, mod: params.mod, run: params.run)
 
-        case "setting/erase":
-            let params = try call.params.decode(as: EraseSettingsParams.self)
-            try setting.erase(mod: params.mod)
+        case "setting/computed-choices":
+            let params = try call.params.decode(as: ComputedChoicesParams.self)
+            return setting.computedChoices(mod: params.mod)
+
+        case "setting/list":
+            let params = try call.params.decode(as: ListSettingsParams.self)
+            return setting.list(choices: params.choices)
+
+        case "setting/set":
+            let params = try call.params.decode(as: SetSettingParams.self)
+            return try setting.set(mod: params.mod, key: params.key, value: params.value, options: params.options)
+
+        case "setting/action":
+            let params = try call.params.decode(as: SettingActionParams.self)
+            try setting.action(mod: params.mod, key: params.key)
             return true
 
         case "catalog/read":
-            return catalog.read()
+            let mods = catalog.read()
+            setting.forget()
+            return mods
 
         case "catalog/arrange":
             let params = try call.params.decode(as: ArrangeCatalogParams.self)
@@ -131,9 +151,17 @@ public final class Deck {
             let params = try call.params.decode(as: CountDataParams.self)
             return try dataFolder.count(mod: params.mod)
 
-        case "data/erase":
-            let params = try call.params.decode(as: EraseDataParams.self)
-            try dataFolder.erase(mod: params.mod)
+        case "erasure/erase":
+            let params = try call.params.decode(as: ErasureParams.self)
+            try erasure.erase(mod: params.mod)
+            return true
+
+        case "erasure/uncleared":
+            return erasure.uncleared()
+
+        case "erasure/cleared":
+            let params = try call.params.decode(as: ErasureParams.self)
+            try erasure.cleared(mod: params.mod)
             return true
 
         case "runner/reconcile":

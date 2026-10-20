@@ -14,7 +14,6 @@ import { createSetting } from './setting/main.js';
 import { createExport } from './export/main.js';
 import { createExtension } from './extension/main.js';
 import { createEvent } from './event/main.js';
-import { createRemove } from './mods/remove.js';
 import { createMods } from './mods/main.js';
 
 // Deck in main, made of its parts, each handed what it uses. `id` names everything deck keeps; `home` is its folder,
@@ -33,14 +32,13 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     const CATALOG = createCatalog({ CORE, LOG });
     const IDENTITY = createIdentity();
     const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
-    const RUNNER = createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, CORE });
+    const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE });
     const RECORD = createRecord({ CORE, IDENTITY });
-    const SETTING = createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER });
+    const SETTING = createSetting({ CORE, LOG, IDENTITY, RUNNER });
     const EXPORT = createExport({ IDENTITY, RUNNER });
     const EXTENSION = createExtension({ IDENTITY, RUNNER, EXPORT });
     const EVENT = createEvent({ IDENTITY, RUNNER });
-    const REMOVE = createRemove({ STORAGE });
-    const MODS = createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION });
 
     // MARK: - Initializer
     // MARK: - Public

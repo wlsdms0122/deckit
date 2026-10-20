@@ -1,5 +1,5 @@
 //
-//  EraseRecordsParams.swift
+//  ErasureParams.swift
 //  Deck
 //
 //  Created by JSilver on 10/20/26.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct EraseRecordsParams: Decodable {
+struct ErasureParams: Decodable {
     // MARK: - Property
     let mod: String
 

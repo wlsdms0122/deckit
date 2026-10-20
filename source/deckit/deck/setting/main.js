@@ -1,24 +1,24 @@
 import * as PROTOCOL from './protocol.js';
-import * as SETTING_TYPE from './model/type.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 
-export function createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER }) {
+// The mods' settings, as the core judges and keeps them: what only a mod's page knows, the options it works out and
+// its actions, is asked of the page here and handed to the core.
+export function createSetting({ CORE, LOG, IDENTITY, RUNNER }) {
     // MARK: - Property
     // How long a mod has to work out a setting's options: a mod still starting answers once it has.
     const OPTIONS_LIMIT_MS = 5000;
-    const declared = new Map(); // mod id -> { name, settings: { key: declaration } }
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's settings stand from its entry's declaring them until it no longer loads, or until a later run of
-    // it declares them again: one whose start failed can still be set.
+    // A run's declarations the core cannot read are shown on its row.
     function start() {
         PROTOCOL.declare.on(({ run: number, settings }, sender) => {
-            if (RUNNER.currentRun(sender, number)?.state === 'launching') declare(IDENTITY.modFrom(sender), settings);
-        });
-        CATALOG.onChange(() => {
-            const loading = new Set(CATALOG.mods().map(({ id }) => id));
-            for (const id of declared.keys()) if (!loading.has(id)) forget(id);
+            const { id } = IDENTITY.modFrom(sender);
+            CORE.request('setting/declare', { mod: id, run: number, settings }).catch((error) => {
+                LOG.warn(`${id}: its settings were not declared`, error);
+                const run = RUNNER.currentRun(sender, number);
+                if (run) RUNNER.reportProblem(run, `its settings were not declared: ${error.message}`);
+            });
         });
         PROTOCOL.setSetting.handle(({ key, value }, sender) => set(IDENTITY.modFrom(sender).id, key, value));
         PROTOCOL.modSettings.handle((_payload, sender) => {
@@ -35,104 +35,39 @@ export function createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER }) {
         });
     }
 
-    // A value saved for a setting the mod no longer declares is not handed back.
-    async function valuesOf(modId) {
-        const saved = await STORAGE.settings.read(modId);
-        const settings = declared.get(modId)?.settings || {};
-        const values = {};
-        for (const [key, declaration] of Object.entries(settings)) {
-            if (declaration.type === 'action') continue;
-            values[key] = Object.hasOwn(saved, key) ? saved[key] : declaration.default;
-        }
-        return values;
-    }
-
     // MARK: - Private
-    // What a mod declares as its entry is read. A declaration of an unknown type is left out.
-    function declare(mod, settings) {
-        const kept = {};
-        for (const [key, declaration] of Object.entries(settings)) {
-            if (SETTING_TYPE.TYPES.has(declaration.type)) kept[key] = declaration;
-        }
-        declared.set(mod.id, { name: mod.name, settings: kept });
-    }
-
-    function forget(modId) {
-        declared.delete(modId);
-    }
-
+    // The mod's page is told of a value that changed.
     async function set(modId, key, value) {
-        const declaration = declared.get(modId)?.settings[key];
-        if (!declaration) throw new Error(`${modId} has no setting "${key}"`);
-        const next = await coerce(modId, key, declaration, value);
-        if (!(await STORAGE.settings.write(modId, key, next))) return next;
+        const choices = await CORE.request('setting/computed-choices', { mod: modId });
+        const options = choices.some((choice) => choice.key === key) ? await optionsOf(modId, key) : undefined;
+        const { value: next, changed } = await CORE.request('setting/set', { mod: modId, key, value, options });
         const webContents = IDENTITY.pageOf(modId);
-        if (webContents) PROTOCOL.settingChanged.send(webContents, { key, value: next });
+        if (changed && webContents) PROTOCOL.settingChanged.send(webContents, { key, value: next });
         return next;
     }
 
-    async function coerce(modId, key, declaration, value) {
-        switch (declaration.type) {
-            case 'toggle':
-                return !!value;
-            case 'text':
-                return String(value ?? '');
-            case 'number': {
-                const number = Number(value);
-                if (!Number.isFinite(number)) throw new Error(`not a number for ${key}: ${value}`);
-                return Math.min(declaration.max ?? Infinity, Math.max(declaration.min ?? -Infinity, number));
-            }
-            case 'choice': {
-                const options = await optionsOf(modId, key, declaration);
-                if (!options.some((option) => option.value === value))
-                    throw new Error(`not an option of ${key}: ${value}`);
-                return value;
-            }
-            default:
-                throw new Error(`${key} is a button, not a value`);
-        }
+    // A mod that cannot say its options now is listed with none.
+    async function list() {
+        const keys = await CORE.request('setting/computed-choices', {});
+        const choices = await Promise.all(
+            keys.map(async ({ mod, key }) => ({ mod, key, options: await optionsOf(mod, key).catch(() => []) }))
+        );
+        return CORE.request('setting/list', { choices });
     }
 
-    // Options worked out as they are read (the fonts on this Mac) are the mod's to answer.
-    async function optionsOf(modId, key, declaration) {
-        if (!declaration.computed) return declaration.options || [];
+    // Options worked out as they are read (the fonts on this Mac) are the mod's to answer: none while its page is not
+    // there.
+    async function optionsOf(modId, key) {
         const webContents = IDENTITY.pageOf(modId);
         return webContents ? PROTOCOL.settingOptions.invoke(webContents, { key }, { timeout: OPTIONS_LIMIT_MS }) : [];
     }
 
     async function runAction(modId, key) {
-        const declaration = declared.get(modId)?.settings[key];
-        if (declaration?.type !== 'action') throw new Error(`${modId} has no action "${key}"`);
+        await CORE.request('setting/action', { mod: modId, key });
         const webContents = IDENTITY.pageOf(modId);
         if (!webContents) throw new Error(`${modId} is not running`);
         return PROTOCOL.runSetting.invoke(webContents, { key });
     }
 
-    // A saved value no option offers now (one this machine lacks, or one an update took away) is offered
-    // marked absent, and left as it is.
-    async function list() {
-        const out = [];
-        for (const { id } of CATALOG.mods().filter(({ id }) => declared.has(id))) {
-            const { name, settings } = declared.get(id);
-            if (!Object.keys(settings).length) continue;
-            const values = await valuesOf(id);
-            const items = [];
-            for (const [key, declaration] of Object.entries(settings)) {
-                const value = values[key];
-                // A mod that cannot say its options now is listed with none, and the value kept marked absent.
-                const options =
-                    declaration.type === 'choice' ? await optionsOf(id, key, declaration).catch(() => []) : [];
-                const offered = options.some((option) => option.value === value)
-                    ? options
-                    : declaration.type === 'choice'
-                      ? [...options, { value, label: String(value), absent: true }]
-                      : [];
-                items.push({ key, ...declaration, value, options: offered });
-            }
-            out.push({ id, name, items });
-        }
-        return out;
-    }
-
-    return { start, valuesOf };
+    return { start };
 }

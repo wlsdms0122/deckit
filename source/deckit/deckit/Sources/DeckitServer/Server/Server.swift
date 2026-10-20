@@ -39,6 +39,24 @@ final class Server {
     }
 
     // MARK: - Private
+    // Where in the params what was not there, or not of its kind, is: ` at settings.2.label`, or nothing for the
+    // params whole.
+    private func place(of error: DecodingError) -> String {
+        let path = switch error {
+        case let .keyNotFound(key, context):
+            context.codingPath + [key]
+
+        case let .typeMismatch(_, context), let .valueNotFound(_, context), let .dataCorrupted(context):
+            context.codingPath
+
+        @unknown default:
+            [any CodingKey]()
+        }
+        guard !path.isEmpty else { return "" }
+
+        return " at " + path.map { key in key.intValue.map(String.init) ?? key.stringValue }.joined(separator: ".")
+    }
+
     private func answer(_ request: Request) -> Response? {
         let outcome: Result<any Encodable & Sendable, ResponseError>
         do {
@@ -47,8 +65,9 @@ final class Server {
             outcome = .failure(error)
         } catch let error as any CallError {
             outcome = .failure(ResponseError(code: .requestFailed, message: error.message, kind: error.kind))
-        } catch is DecodingError {
-            outcome = .failure(ResponseError(code: .invalidParams, message: "\(request.method) has no such params"))
+        } catch let error as DecodingError {
+            let message = "\(request.method) has no such params\(place(of: error))"
+            outcome = .failure(ResponseError(code: .invalidParams, message: message))
         } catch {
             outcome = .failure(ResponseError(code: .internalError, message: error.localizedDescription))
         }

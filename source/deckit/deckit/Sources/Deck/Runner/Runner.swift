@@ -26,6 +26,11 @@ final class Runner {
     }
 
     // MARK: - Public
+    // The mod's latest run, while it has a sandbox.
+    func run(of id: String) -> Run? {
+        sandbox(of: id)?.run
+    }
+
     // A mod runs as it arrives and goes as it leaves; one whose code changed goes and runs again, once its old sandbox
     // has closed. Nothing opens while the app quits.
     func reconcile() throws -> [Effect] {
