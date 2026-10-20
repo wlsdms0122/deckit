@@ -16,34 +16,31 @@ const PERMISSIONS = Object.freeze([
         reach: 'app',
     }),
 ]);
-const REACHES = ['system', 'app'];
 
 export function createPermission() {
     // MARK: - Property
-    const defined = new Map(); // id -> { id, name, means, reach }, in the order each was defined
-    let read = false; // a manifest has been read against them
+    const defined = []; // { id, name, means, reach }, in the order each was defined
+    let handed = false; // the core has them
 
     // MARK: - Initializer
     // MARK: - Public
-    // A permission a layer grants what it adds with: `name` and `means` are what a person reads before installing.
-    // Defined before any manifest is read: one read against the permissions there were is not read again.
+    // A permission a layer guards what it adds with: `name` and `means` are what a person reads before installing,
+    // and `reach` is `system`, past the app, or `app`, inside it. Defined before the core starts, which reads every
+    // manifest against them.
     function define({ id, name, means, reach }) {
-        if (read) throw new Error(`[deckit] ${id} is defined after manifests were read`);
-        if (defined.has(id)) throw new Error(`[deckit] ${id} is defined`);
-        if (!REACHES.includes(reach)) throw new Error(`[deckit] ${id} reaches ${reach}, not ${REACHES.join(' or ')}`);
-        defined.set(id, Object.freeze({ id, name, means, reach }));
+        if (handed) throw new Error(`[deckit] ${id} is defined after the core started`);
+        defined.push(Object.freeze({ id, name, means, reach }));
     }
 
-    // The widest first: those that reach past the app, then those inside it, each in the order defined.
+    // What the layers defined, for the core as it starts.
     function all() {
-        read = true;
-        const permissions = [...defined.values()];
-        return REACHES.flatMap((reach) => permissions.filter((permission) => permission.reach === reach));
+        handed = true;
+        return [...defined];
     }
 
     // MARK: - Private
 
-    return { MODS, MOD_SETTINGS, define, all };
+    return { define, all };
 }
 
 export { MODS, MOD_SETTINGS, PERMISSIONS };

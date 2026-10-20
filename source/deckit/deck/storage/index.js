@@ -1,8 +1,6 @@
 export function createStorage({ HOME, CORE, LOG }) {
     // MARK: - Property
-    const fs = require('fs');
     const path = require('path');
-    const COUNT_LIMIT = 1000;
     // The state the core keeps, as it gave it when deck prepared: folder (null for the state folder) -> key -> JSON.
     const kept = new Map();
     let unread = null; // why the state was not read, if it was not
@@ -36,17 +34,16 @@ export function createStorage({ HOME, CORE, LOG }) {
         return path.join(HOME.data, modId);
     }
 
-    // Every file of the mod's data folder counts, whatever wrote it: erasing takes them all.
-    async function count(modId) {
-        const seen = { count: 0, capped: false, hidden: false };
-        await walk(folderOf(modId), 0, seen);
-        return seen;
+    // Every file of the mod's data folder counts, whatever wrote it, as erasing takes them all: { count, capped,
+    // hidden }.
+    function count(modId) {
+        return CORE.request('data/count', { mod: modId });
     }
 
-    // The mod's data folder. What the core keeps for it is the core's to erase, and its pages' storage and its web
+    // The mod's data folder. Its records and settings are the core's to erase too, and its pages' storage and its web
     // sessions their sessions' to clear.
     function erase(modId) {
-        fs.rmSync(folderOf(modId), { recursive: true, force: true });
+        return CORE.request('data/erase', { mod: modId });
     }
 
     // The state in `folder`, a folder of its own one down for one who names its keys as it likes (the host app), or
@@ -87,17 +84,6 @@ export function createStorage({ HOME, CORE, LOG }) {
             return JSON.parse(text);
         } catch {
             return fallback;
-        }
-    }
-
-    async function walk(folder, depth, seen) {
-        const entries = await fs.promises.readdir(folder, { withFileTypes: true }).catch(() => []);
-        for (const entry of entries) {
-            if (seen.capped) return;
-            if (entry.name.startsWith('.')) seen.hidden = true;
-            else if (entry.isDirectory() && depth < 8) await walk(path.join(folder, entry.name), depth + 1, seen);
-            else if (entry.isFile() && seen.count >= COUNT_LIMIT) seen.capped = true;
-            else if (entry.isFile()) seen.count++;
         }
     }
 

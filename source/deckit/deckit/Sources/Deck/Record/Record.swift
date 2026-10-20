@@ -50,7 +50,10 @@ final class Record {
         try store.remove(folder(of: mod))
     }
 
+    // A mod that manages the mods asks for any id, so one that is no mod's is refused.
     func count(mod: String) throws -> RecordCount {
+        guard store.isName(mod) else { throw RecordError.notAMod(mod) }
+
         let names = try store.names(in: folder(of: mod))
         let hidden = names.filter { $0.hasPrefix(".") }
         return RecordCount(count: names.count - hidden.count, hidden: !hidden.isEmpty)

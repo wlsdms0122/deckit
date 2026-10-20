@@ -14,7 +14,11 @@ import Deckit
 final class Server {
     // MARK: - Property
     private let decoder = JSONDecoder()
-    private let encoder = JSONEncoder()
+    private let encoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        return encoder
+    }()
     private var deckit: Deckit?
 
     // MARK: - Initializer
@@ -66,7 +70,13 @@ final class Server {
             }
 
             let params = try call.params.decode(as: InitializeParams.self)
-            deckit = Deckit(home: URL(filePath: params.home, directoryHint: .isDirectory))
+            deckit = try Deckit(
+                home: URL(filePath: params.home, directoryHint: .isDirectory),
+                ship: params.ship.map { folder in URL(filePath: folder) },
+                sources: params.sources.map { folder in URL(filePath: folder) },
+                api: params.api,
+                permissions: params.permissions
+            )
             return JSONValue.object([:])
         }
 

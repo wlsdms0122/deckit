@@ -13,11 +13,6 @@ export function createHome({ CONFIG }) {
     return {
         folder,
         mods,
-        // Beside the mods, on the same disk so an install ends in a rename, and outside them so a copy
-        // half made is never read as a mod.
-        staging: path.join(folder, '.mods-installing'),
-        // Inside the mods, so what removes them removes the record too.
-        shipped: path.join(mods, '.shipped'),
         // A mod's data folder is the mod's own, whatever of it writes there; what deck keeps for a mod is beside
         // it.
         data: path.join(folder, 'data'),

@@ -1,7 +1,9 @@
 import * as CONNECTION from './connection.js';
 import * as MESSAGE from './message.js';
+import { API } from '../contract/index.js';
 
-// The core: deckit's own process, which keeps a mod's records and settings, and the state. `CONFIG.core` is its executable.
+// The core: deckit's own process, which reads and installs the mods, and keeps what they store and the state.
+// `CONFIG.core` is its executable.
 export function createCore({ CONFIG, HOME, LOG }) {
     // MARK: - Property
     const pending = new Map(); // request id -> { resolve, reject }
@@ -12,16 +14,26 @@ export function createCore({ CONFIG, HOME, LOG }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // Once the app is ready, before any mod launches.
-    function start() {
+    // Once the app is ready, before any mod launches: what the mods are read against is handed over then, `permissions`
+    // the layers' own.
+    function start({ permissions }) {
         connection = CONNECTION.open(CONFIG.core, {
             onMessage: receive,
             onLog: (line) => LOG.info('core:', line),
             onEnd: end,
         });
-        ready = send('initialize', { home: HOME.folder });
-        // A core that does not start is logged as it ends, and each request after it is refused with why.
-        ready.catch(() => {});
+        ready = send('initialize', {
+            home: HOME.folder,
+            api: API,
+            ship: CONFIG.ship,
+            sources: CONFIG.sources,
+            permissions,
+        });
+        // A core that does not start is logged, as it ends or as it refuses what it is handed, and each request after
+        // it is refused with why.
+        ready.catch((error) => {
+            if (!ended) LOG.error("deckit's core did not start", error);
+        });
     }
 
     // What the core answers. Asked before the core has answered initialize, it waits for that.

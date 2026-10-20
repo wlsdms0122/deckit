@@ -9,12 +9,16 @@ import Foundation
 
 enum RecordError: CallError, Equatable {
     case notAKey(String)
+    case notAMod(String)
 
     // MARK: - Property
     var kind: String {
         switch self {
         case .notAKey:
             "KEY"
+
+        case .notAMod:
+            "MOD"
         }
     }
 
@@ -22,6 +26,9 @@ enum RecordError: CallError, Equatable {
         switch self {
         case let .notAKey(key):
             "not a record key: \(key)"
+
+        case let .notAMod(mod):
+            "not a mod id: \(mod)"
         }
     }
 

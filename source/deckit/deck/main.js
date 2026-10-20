@@ -4,10 +4,7 @@ import { createStorage } from './storage/index.js';
 import { createLog } from './log/main.js';
 import { createCore } from './core/main.js';
 import { createPermission } from './mod/permission.js';
-import { createManifest } from './mod/manifest.js';
 import { createFolder } from './mod/folder.js';
-import { createInstall } from './install/index.js';
-import { createRemove } from './install/remove.js';
 import { createCatalog } from './catalog/index.js';
 import { createIdentity } from './identity/index.js';
 import { createSandbox } from './sandbox/index.js';
@@ -17,6 +14,7 @@ import { createSetting } from './setting/main.js';
 import { createExport } from './export/main.js';
 import { createExtension } from './extension/main.js';
 import { createEvent } from './event/main.js';
+import { createRemove } from './mods/remove.js';
 import { createMods } from './mods/main.js';
 
 // Deck in main, made of its parts, each handed what it uses. `id` names everything deck keeps; `home` is its folder,
@@ -31,56 +29,38 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     const STORAGE = createStorage({ HOME, CORE, LOG });
     const PERMISSION = createPermission();
     for (const permission of MOD_PERMISSION.PERMISSIONS) PERMISSION.define(permission);
-    const MANIFEST = createManifest({ MOD_PERMISSION: PERMISSION });
-    const FOLDER = createFolder({ MANIFEST });
-    const INSTALL = createInstall({ CONFIG, HOME, FOLDER });
-    const REMOVE = createRemove({ STORAGE, MANIFEST, INSTALL });
-    const CATALOG = createCatalog({ CONFIG, HOME, STORAGE, LOG, FOLDER, INSTALL });
+    const FOLDER = createFolder();
+    const CATALOG = createCatalog({ CORE, LOG });
     const IDENTITY = createIdentity();
     const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
-    const RUNNER = createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFEST });
+    const RUNNER = createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX });
     const RECORD = createRecord({ CORE, IDENTITY });
     const SETTING = createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER });
     const EXPORT = createExport({ IDENTITY, RUNNER });
     const EXTENSION = createExtension({ IDENTITY, RUNNER, EXPORT });
     const EVENT = createEvent({ IDENTITY, RUNNER });
-    const MODS = createMods({
-        LOG,
-        IDENTITY,
-        INSTALL,
-        REMOVE,
-        CATALOG,
-        RUNNER,
-        SANDBOX,
-        MANIFEST,
-        STORAGE,
-        RECORD,
-        EXTENSION,
-    });
+    const REMOVE = createRemove({ STORAGE });
+    const MODS = createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION });
 
     // MARK: - Initializer
     // MARK: - Public
     // Before any page of deck's loads, once the app is ready: `preload` is the file every page loads with. The log
-    // starts then, then the core, which hands over the state it keeps, and what the host app ships is installed,
-    // before anything reads the mods or the state.
+    // starts then, then the core, which is handed the permissions the layers defined and hands over the state it keeps,
+    // and installs what the host app ships and reads the mods, before anything reads the mods or the state.
     async function prepare({ preload }) {
         LOG.start({
             nameOf: (webContents) => IDENTITY.modOf(webContents)?.id || IDENTITY.pageNameOf(webContents) || 'page',
         });
-        CORE.start();
+        CORE.start({ permissions: PERMISSION.all() });
         await STORAGE.load();
+        await CATALOG.load();
         SANDBOX.start({ preload });
-        if (!CONFIG.ship.length) return;
-        for (const { id, outcome, problem } of INSTALL.installShipped())
-            if (problem) LOG.warn(`${outcome} ${id}: ${problem}`);
-            else LOG.info(`${outcome} ${id}`);
     }
 
     // What follows the mods' runs starts before the runner launches any. What is on deck adds to a mod's page's
     // `webPreferences` and is told of the page as it is made (`preparePage(webContents, mod)`); the rest it is told
     // and asked is the mods' (mods/main.js).
     function start({ webPreferences, preparePage, describe: facts, onFactsChange, installed, removed, clearSessions }) {
-        CATALOG.start();
         RECORD.start();
         SETTING.start();
         EXPORT.start();
@@ -123,9 +103,8 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
             launchedOf: RUNNER.launchedOf,
             relaunchAll: RUNNER.relaunchAll,
         }),
-        manifest: Object.freeze({ of: MANIFEST.of, define: MANIFEST.define }),
         permission: Object.freeze({ define: PERMISSION.define }),
-        folder: Object.freeze({ fileIn: FOLDER.fileIn, entryOf: FOLDER.entryOf }),
+        folder: Object.freeze({ fileIn: FOLDER.fileIn }),
         storage: Object.freeze({ state: STORAGE.state, stateIn: STORAGE.stateIn, folderOf: STORAGE.folderOf }),
         home: Object.freeze({ data: HOME.data, mods: HOME.mods }),
         log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, file: LOG.file, guard: LOG.guard }),

@@ -8,11 +8,20 @@ const { until, sleep, CTRL, META, SHIFT } = require('./devtools.js');
 const VIEWS = 7;
 const LINES = 'lines.txt';
 const FOUND = 'source/quick-open-target.js';
+const BROKEN = 'opens-everything';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
-// The test's own mods, installed, and Settings placed second, as a person would have arranged it.
+// The test's own mods, installed, one of them naming schemes it may not, and Settings placed second, as a person would
+// have arranged it.
 function seed({ data, files }) {
-    fs.cpSync(path.join(__dirname, 'mods'), path.join(data, 'deckit', 'mods'), { recursive: true });
+    const mods = path.join(data, 'deckit', 'mods');
+    fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
+    fs.mkdirSync(path.join(mods, BROKEN), { recursive: true });
+    fs.writeFileSync(
+        path.join(mods, BROKEN, 'manifest.toml'),
+        `id = "${BROKEN}"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\nurl-schemes = ["*", "https"]\n`
+    );
+    fs.writeFileSync(path.join(mods, BROKEN, 'main.js'), 'module.exports = { start() {} };\n');
     const contents = {
         [LINES]: Array.from({ length: 40 }, (_, index) => `line ${index + 1}`).join('\n') + '\n',
         [FOUND]: 'export {};\n',
@@ -188,6 +197,11 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             text.slice(0, 400)
         );
         check('settings lists the mods with versions', versions.test(text), '');
+        check(
+            "a mod's url-schemes are judged by the core",
+            text.includes('"*" already takes every scheme'),
+            text.slice(text.indexOf(BROKEN) - 100, text.indexOf(BROKEN) + 200)
+        );
         await settings?.shot('settings');
 
         // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away.

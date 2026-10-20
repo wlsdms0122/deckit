@@ -13,11 +13,13 @@ import Testing
 struct ServerTests {
     // MARK: - Property
     private let home: String
+    private let initializeParams: String
     private let sut: Server
 
     // MARK: - Initializer
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
+        initializeParams = #"{"home":"\#(home)","api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[]}"#
         sut = Server()
     }
 
@@ -26,7 +28,7 @@ struct ServerTests {
     func testThatInitializeAnswers() throws {
         // Given
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)"}}"#)
+        let response = try respond(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#)
 
         // Then
         #expect(response == (try json(#"{"jsonrpc":"2.0","id":1,"result":{}}"#)))
@@ -48,7 +50,7 @@ struct ServerTests {
         try initialize()
 
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"home":"\#(home)"}}"#)
+        let response = try respond(#"{"jsonrpc":"2.0","id":2,"method":"initialize","params":\#(initializeParams)}"#)
 
         // Then
         #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32600,"message":"the core is initialized once"}}"#)))
@@ -199,9 +201,71 @@ struct ServerTests {
         )
     }
 
+    @Test("initialize refuses a permission defined twice")
+    func testThatInitializeRefusesPermissionDefinedTwice() throws {
+        // Given
+        let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them.","reach":"app"}"#
+
+        // When
+        let response = try respond(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#
+        )
+
+        // Then
+        #expect(
+            response == (try json(#"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"message":"the permission deckit.mods is defined twice","data":{"kind":"PERMISSION"}}}"#))
+        )
+    }
+
+    @Test("the catalog reads a mod's url-schemes as deckit judges them")
+    func testThatCatalogReadsURLSchemes() throws {
+        // Given
+        try initialize()
+        try mod("opener", schemes: #"["https", "https"]"#)
+        try mod("broken", schemes: #"["https", "*"]"#)
+
+        // When
+        let response = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
+
+        // Then
+        guard case let .object(fields) = response, case let .array(mods)? = fields["result"] else {
+            Issue.record("no mods in \(response)")
+            return
+        }
+        let opener = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("opener") }
+        let broken = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("broken") }
+        #expect(opener.flatMap { mod in value(in: mod, at: "manifest", "urlSchemes") } == .array([.string("https")]))
+        #expect(opener.flatMap { mod in value(in: mod, at: "problem") } == nil)
+        #expect(
+            broken.flatMap { mod in value(in: mod, at: "problem") }
+                == .string(#"url-schemes: "*" already takes every scheme, so it stands alone"#)
+        )
+    }
+
     // MARK: - Private
+    private func mod(_ id: String, schemes: String) throws {
+        let folder = URL(filePath: home + "source").appending(path: id)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let manifest = """
+            id = "\(id)"
+            version = "1.0.0"
+            api = "1.0.0"
+            main = "main.js"
+            url-schemes = \(schemes)
+            """
+        try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
+        try Data().write(to: folder.appending(path: "main.js"))
+    }
+
     private func initialize() throws {
-        _ = try respond(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)"}}"#)
+        _ = try respond(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#)
+    }
+
+    private func value(in json: JSONValue, at path: String...) -> JSONValue? {
+        path.reduce(json as JSONValue?) { value, key in
+            guard case let .object(fields)? = value else { return nil }
+            return fields[key]
+        }
     }
 
     private func respond(_ message: String) throws -> JSONValue {

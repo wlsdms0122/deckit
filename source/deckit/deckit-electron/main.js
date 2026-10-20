@@ -4,7 +4,6 @@ import * as CLIPBOARD_PERMISSION from './clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from './notification/model/permission.js';
 import * as KEYMAP_PERMISSION from './keymap/model/permission.js';
 import * as OPEN_PERMISSION from './open/model/permission.js';
-import * as SCHEMES from './open/model/scheme.js';
 import * as DECK from '../deck/main.js';
 import { createWindow } from './window/index.js';
 import { createPartition } from './web/model/partition.js';
@@ -69,7 +68,7 @@ function refuseUnknown(what, given, known) {
 function make({ preload, core, host, config: CONFIG, folders }) {
     const deck = DECK.createDeck({ id: CONFIG.id, core, ...folders });
     const { log: LOG, home: HOME, storage: STORAGE, identity: IDENTITY, catalog: CATALOG, runner: RUNNER } = deck;
-    const { manifest: MANIFEST, permission: MOD_PERMISSION, folder: FOLDER } = deck;
+    const { permission: MOD_PERMISSION, folder: FOLDER } = deck;
     const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
     const PARTITION = createPartition({ CONFIG });
     const SESSION = createSession({ STORAGE, LOG, PARTITION });
@@ -110,7 +109,6 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         PAGES: deck.pages,
         CATALOG,
         RUNNER,
-        MANIFEST,
         MOD_PERMISSION,
         WEB,
         KEYMAP,
@@ -130,7 +128,6 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         OPEN_PERMISSION,
     ])
         for (const permission of model.PERMISSIONS) MOD_PERMISSION.define(permission);
-    MANIFEST.define(SCHEMES.FIELD, SCHEMES.field());
     require('electron')
         .app.whenReady()
         .then(() => start(preload));

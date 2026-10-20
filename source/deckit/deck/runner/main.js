@@ -3,7 +3,7 @@ import * as PROTOCOL from './protocol.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
 import * as LIFECYCLE from '../mod/lifecycle.js';
 
-export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFEST }) {
+export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX }) {
     // MARK: - Property
     // How long a mod's stop() may take before its run ends anyway.
     const STOP_LIMIT_MS = 2000;
@@ -284,7 +284,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
             const run = sandbox.run;
             IDENTITY.whenPageEnds(sender, () => crash(sandbox, run, 'its page went away'));
             return {
-                manifest: MANIFEST.of(sandbox.mod),
+                manifest: sandbox.mod.manifest,
                 source: CATALOG.sourceOf(sandbox.mod),
                 settings: await STORAGE.settings.read(sandbox.mod.id),
                 run: run.number,
