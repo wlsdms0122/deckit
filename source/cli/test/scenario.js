@@ -29,8 +29,8 @@ function seed({ data, files }) {
     fs.writeFileSync(record, JSON.stringify(session));
 }
 
-// `endCore()` kills the app's core, as a crash would.
-async function run({ page, pages, compose, targets, thrown, endCore }) {
+// `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far.
+async function run({ page, pages, compose, targets, thrown, endCore, logged }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
     // What main says is on screen, as the panel's frame shows it: the selected row of the mods' list.
@@ -316,22 +316,19 @@ async function run({ page, pages, compose, targets, thrown, endCore }) {
         await parent.key('\\', 'Backslash', META, 220);
         const back = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
         check('unfolding the sidebar brings the region back', back, await child.evaluate(seen));
-
-        // A core that ends is replaced, and every mod launches again, reading what it kept from the new one: the
-        // Editor opens its session again.
-        await frame.press('[data-mod-id="editor"]');
-        await until(async () => (await visibility('editor')) === 'visible', 3000);
-        await editor.evaluate('window.beforeTheCoreEnded = true');
-        endCore();
-        const relaunched = await until(async () => (await editor.evaluate('window.beforeTheCoreEnded')) !== true, 8000);
-        check('a core that ends is replaced, and the mods launch again', relaunched, '');
-        const content = `document.querySelector('.cm-content')?.textContent`;
-        const reopened = await until(async () => /^line 1line 2/.test((await editor.evaluate(content)) || ''), 8000);
-        check('a mod launched again reads its records from the new core', reopened, await editor.evaluate(content));
     } catch (error) {
         check('scenario ran', false, error.stack);
     }
     check('no page threw', !thrown.length, thrown.slice(0, 3).join(' | '));
+
+    // A core that ends is not started again: what it ended of is told, asking for the app to be restarted.
+    try {
+        endCore();
+        const told = await until(() => /deckit's core ended \(.+\): restart the app/.test(logged()), 5000);
+        check('a core that ends asks for the app to be restarted', told, '');
+    } catch (error) {
+        check('the core was ended', false, error.stack);
+    }
     return report;
 }
 
