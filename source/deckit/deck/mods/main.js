@@ -129,8 +129,10 @@ export function createMods({
     }
 
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
-    // nothing.
+    // nothing. What a removal of the same id left to clear is cleared first, so clearing it never reaches this one.
     async function install(from) {
+        const { id } = INSTALL.wouldInstall(from, shadowed);
+        if (REMOVE.uncleared().includes(id)) await clear(id);
         const manifest = INSTALL.install(from, shadowed);
         CATALOG.refresh({ installed: manifest.id });
         await RUNNER.whenClosed(manifest.id);
@@ -172,11 +174,16 @@ export function createMods({
     }
 
     // What a mod removed with its data kept outside its folders: its records, its pages' storage and its sessions.
-    // The note that it is to be cleared goes only once it is, so a failure is tried again at the next start.
+    // Each is cleared whether or not another fails; the note that it is to be cleared goes only once all are, so a
+    // failure is tried again at the next start.
     async function clear(id) {
-        await RECORD.erase(id);
-        await SANDBOX.clearSessions(id);
-        await layer.clearSessions(id);
+        const outcomes = await Promise.allSettled([
+            RECORD.erase(id),
+            SANDBOX.clearSessions(id),
+            layer.clearSessions(id),
+        ]);
+        const failed = outcomes.find(({ status }) => status === 'rejected');
+        if (failed) throw failed.reason;
         REMOVE.cleared(id);
     }
 
