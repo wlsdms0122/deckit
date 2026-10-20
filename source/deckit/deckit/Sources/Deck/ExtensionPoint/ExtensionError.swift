@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum ExtensionError: DeckError, Equatable {
+public enum ExtensionError: Refusal, Equatable {
     case notAPoint(String, of: String)
     case notRunning(String)
     case notExtending(mod: String, point: String)

@@ -406,6 +406,50 @@ struct ServerTests {
         #expect(value(in: held, at: "other", "app") == .bool(true))
     }
 
+    @Test("options a page answered that are not options read as none")
+    func testThatUnreadableOptionsReadAsNone() throws {
+        // Given
+        let text = #"[{"mod":"notes","key":"font","options":[{"value":null}]},{"mod":"notes","key":"size"}]"#
+
+        // When
+        let choices = try JSONDecoder().decode([ComputedChoice].self, from: Data(text.utf8))
+
+        // Then
+        #expect(choices.map(\.key) == ["font", "size"])
+        #expect(choices.allSatisfy { choice in choice.options.isEmpty })
+    }
+
+    @Test("a result that cannot be written is answered with an internal error, never dropped")
+    func testThatAnUnwritableResultIsAnswered() throws {
+        // Given
+        struct Unwritable: Encodable, Sendable {
+            func encode(to encoder: any Encoder) throws {
+                throw EncodingError.invalidValue(0, EncodingError.Context(codingPath: [], debugDescription: "none"))
+            }
+        }
+
+        // When
+        let response = try json(String(decoding: sut.written(.result(id: 7, Unwritable())), as: UTF8.self))
+
+        // Then
+        #expect(value(in: response, at: "id") == .number(7))
+        #expect(value(in: response, at: "error", "code") == .number(-32603))
+    }
+
+    @Test("a state key deckit keeps itself is refused to the driver")
+    func testThatAReservedStateKeyIsRefused() throws {
+        // Given
+        try initialize()
+
+        // When
+        let response = try respond(
+            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":null,"key":"keys","text":"[]"}}"#
+        )
+
+        // Then
+        #expect(value(in: response, at: "error", "data", "kind") == .string("RESERVED"))
+    }
+
     // MARK: - Private
     private func mod(_ id: String, schemes: String? = nil, requires: String? = nil) throws {
         let folder = URL(filePath: home + "source").appending(path: id)

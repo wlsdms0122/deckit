@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum ErasureError: DeckError, Equatable {
+public enum ErasureError: Refusal, Equatable {
     case notAMod(String)
 
     // MARK: - Property

@@ -101,8 +101,8 @@ struct RunnerTests {
         _ = try sut.reconcile()
 
         // When
-        let first = try sut.record("a", run: 1, problem: "a listener threw")
-        let second = try sut.record("a", run: 1, problem: "another threw")
+        let first = try sut.report("a", run: 1, problem: "a listener threw")
+        let second = try sut.report("a", run: 1, problem: "another threw")
 
         // Then
         #expect(describe(first) == ["keep a 1 a listener threw"])
@@ -121,7 +121,7 @@ struct RunnerTests {
         _ = try sut.started("b", run: 1)
 
         // When
-        let effects = try sut.crash("a", run: 1, problem: "its page ended (crashed)")
+        let effects = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
 
         // Then
         #expect(
@@ -145,7 +145,7 @@ struct RunnerTests {
         _ = try sut.started("b", run: 1)
 
         // When
-        let loaded = try sut.load("a")
+        let loaded = try sut.loaded("a")
         let stopped = try sut.stopped("b", run: 1)
 
         // Then
@@ -252,7 +252,7 @@ struct RunnerTests {
         _ = try sut.reconcile()
         _ = try sut.started("a", run: 1)
         _ = try sut.started("b", run: 1)
-        _ = try sut.crash("a", run: 1, problem: "its page ended (crashed)")
+        _ = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
 
         // When
         let stopped = try sut.stopped("b", run: 1)
@@ -290,7 +290,7 @@ struct RunnerTests {
         _ = catalog.read()
         _ = try sut.reconcile()
         _ = try sut.started("a", run: 1)
-        _ = try sut.crash("b", run: 1, problem: "its page ended (crashed)")
+        _ = try sut.crashed("b", run: 1, problem: "its page ended (crashed)")
 
         // When
         _ = catalog.read()
@@ -315,7 +315,7 @@ struct RunnerTests {
         let (sut, catalog) = try runner()
         _ = catalog.read()
         _ = try sut.reconcile()
-        _ = try sut.crash("a", run: 1, problem: "its page ended (crashed)")
+        _ = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
 
         // When
         // Then
@@ -334,7 +334,7 @@ struct RunnerTests {
         _ = try sut.started("a", run: 1)
 
         // When
-        let effects = try sut.load("a")
+        let effects = try sut.loaded("a")
 
         // Then
         #expect(describe(effects) == ["tell didTerminate a 1 notRunning", "tell willLaunch a 2 launching"])
@@ -359,7 +359,7 @@ struct RunnerTests {
         #expect(describe(effects) == ["closing a", "tell willTerminate a 1 terminating removed", "stop a 1"])
         #expect(describe(stopped) == ["tell didTerminate a 1 notRunning removed", "close a removed"])
         #expect(throws: RunnerError.noSandbox("a")) {
-            try sut.load("a")
+            try sut.loaded("a")
         }
     }
 
@@ -405,7 +405,7 @@ struct RunnerTests {
         try write("b")
         _ = catalog.read()
         let reconciled = try sut.reconcile()
-        let loaded = Result { try sut.load("a") }
+        let loaded = Result { try sut.loaded("a") }
         let stopped = try sut.stopped("a", run: 1)
 
         // Then

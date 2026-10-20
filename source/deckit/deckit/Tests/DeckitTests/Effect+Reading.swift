@@ -11,8 +11,8 @@ import Foundation
 
 extension [Effect] {
     // MARK: - Property
-    // The keymap the last `bindingsChanged` tells, or nil when none does.
-    var bindingsChanged: ResolvedKeymap? {
+    // The keymap the last change of the keymap tells, or nil when none does.
+    var keymapChange: ResolvedKeymap? {
         for case let .layer(keymap as ResolvedKeymap) in reversed() {
             return keymap
         }

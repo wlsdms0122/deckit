@@ -7,9 +7,10 @@
 
 import Foundation
 
-public enum StateError: DeckError, Equatable {
+public enum StateError: Refusal, Equatable {
     case notAKey(String)
     case notAFolder(String)
+    case reserved(String)
 
     // MARK: - Property
     public var message: String {
@@ -19,6 +20,9 @@ public enum StateError: DeckError, Equatable {
 
         case let .notAFolder(folder):
             "not a state folder: \(folder)"
+
+        case let .reserved(key):
+            "the state key \(key) is kept by deckit itself"
         }
     }
 

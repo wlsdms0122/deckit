@@ -9,7 +9,7 @@ import Foundation
 
 // A layer on deck that reads what the runs contributed for it, beside deck's own, under the keys of their
 // contributions that are the layer's.
-public struct Layer {
+package struct Layer {
     // MARK: - Property
     // What is wrong with what `run` of `mod` contributed for the layer, as it starts: each is recorded against the run.
     let problems: (Run, Mod) -> [String]
@@ -17,7 +17,7 @@ public struct Layer {
     let changes: () -> [any LayerChange]
 
     // MARK: - Initializer
-    public init(problems: @escaping (Run, Mod) -> [String], changes: @escaping () -> [any LayerChange] = { [] }) {
+    package init(problems: @escaping (Run, Mod) -> [String], changes: @escaping () -> [any LayerChange] = { [] }) {
         self.problems = problems
         self.changes = changes
     }

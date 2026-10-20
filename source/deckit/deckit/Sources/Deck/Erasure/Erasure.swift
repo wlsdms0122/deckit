@@ -8,8 +8,8 @@
 import Foundation
 
 // What deck keeps of a mod removed with its data is erased: its data folder, its records and its settings here, and
-// what its pages stored and its web sessions by main. The mod is noted as uncleared before any of it is erased, and
-// until main says it cleared its part, so whatever was not erased is erased again.
+// what its pages stored and its web sessions by the driver. The mod is noted as uncleared before any of it is erased,
+// and until the driver says it cleared its part, so whatever was not erased is erased again.
 public final class Erasure {
     // MARK: - Property
     private let key = "uncleared"
@@ -26,6 +26,7 @@ public final class Erasure {
         self.setting = setting
         self.state = state
         self.store = store
+        state.reserve(key)
     }
 
     // MARK: - Public
@@ -48,7 +49,7 @@ public final class Erasure {
         }
     }
 
-    // The mods erased whose pages' storage and web sessions main has not cleared yet.
+    // The mods erased whose pages' storage and web sessions the driver has not cleared yet.
     public func uncleared() -> [String] {
         guard let text = try? state.read(folder: nil, key: key) else { return [] }
         return (try? JSONDecoder().decode([String].self, from: Data(text.utf8))) ?? []
@@ -60,6 +61,6 @@ public final class Erasure {
 
     // MARK: - Private
     private func note(_ ids: [String]) throws {
-        try state.write(folder: nil, key: key, text: String(decoding: try JSONEncoder().encode(ids), as: UTF8.self))
+        try state.write(reserved: key, text: String(decoding: try JSONEncoder().encode(ids), as: UTF8.self))
     }
 }

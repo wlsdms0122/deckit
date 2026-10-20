@@ -12,7 +12,7 @@ import Deck
 // they type. A run offers each by registering it, which it contributed under its name.
 public final class CommandRegistry {
     // MARK: - Property
-    private unowned let deck: Deck
+    private let deck: Deck
 
     // MARK: - Initializer
     init(deck: Deck) {
@@ -22,7 +22,7 @@ public final class CommandRegistry {
     // MARK: - Public
     // In the person's order of the mods.
     public func sources() -> [CommandSource] {
-        deck.mods().compactMap { mod in
+        deck.catalog.loading.compactMap { mod in
             guard let contributions = deck.contributions(of: mod.manifest.id) else { return nil }
             let registered = { (name: String) in contributions.layers[name] == .bool(true) }
             guard registered("commands") || registered("now") || registered("resolve") else { return nil }

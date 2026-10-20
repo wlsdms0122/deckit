@@ -41,8 +41,7 @@ extension Manifest: Encodable {
         try container.encode(requires, forKey: Key("requires"))
         try container.encode(optional, forKey: Key("optional"))
         try container.encode(permissions, forKey: Key("permissions"))
-        let urlSchemes = URLSchemesField()
-        try container.encodeIfPresent(fields[urlSchemes.key] as? URLSchemesField.Value, forKey: Key(urlSchemes.key))
+        try container.encode(value(of: URLSchemesField()), forKey: Key("urlSchemes"))
     }
 
     // MARK: - Private

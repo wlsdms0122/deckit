@@ -23,6 +23,10 @@ public final class Catalog {
     private var installs: [String: Int] = [:]
     // The mods as they were last read: what runs.
     private(set) var lastRead: [Mod] = []
+    // Those of them that load, in the person's order.
+    public var loading: [Mod] {
+        lastRead.filter { mod in mod.problem == nil }
+    }
 
     // MARK: - Initializer
     // `folder` is deck's mods folder, `sources` the folders of mods read in place, and `ship` the folders of what the
@@ -43,6 +47,7 @@ public final class Catalog {
         self.installer = installer
         self.state = state
         self.store = store
+        state.reserve(orderKey)
     }
 
     // MARK: - Public
@@ -88,7 +93,7 @@ public final class Catalog {
         }
 
         let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try state.write(folder: nil, key: orderKey, text: text)
+        try state.write(reserved: orderKey, text: text)
     }
 
     public func wouldInstall(from source: URL) throws -> Manifest {

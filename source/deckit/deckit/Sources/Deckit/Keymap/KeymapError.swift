@@ -8,7 +8,7 @@
 import Foundation
 import Deck
 
-public enum KeymapError: DeckError, Equatable {
+public enum KeymapError: Refusal, Equatable {
     case noSuchBinding(String)
     case notAChord(String)
     case cannotBeGlobal(label: String)

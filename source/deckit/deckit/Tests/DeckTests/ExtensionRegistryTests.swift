@@ -100,7 +100,7 @@ struct ExtensionRegistryTests {
         _ = sut.changes()
 
         // When
-        _ = try runner.load("calendar")
+        _ = try runner.loaded("calendar")
         let reloaded = sut.changes()
         _ = try runner.started("calendar", run: 2, extensionPoints: ["accounts"])
         let opened = sut.changes()

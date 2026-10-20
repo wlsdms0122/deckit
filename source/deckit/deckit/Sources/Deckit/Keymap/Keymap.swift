@@ -23,7 +23,7 @@ public final class Keymap {
 
     private let contributionKey = "keys"
     private let overridesKey = "keys"
-    private unowned let deck: Deck
+    private let deck: Deck
     private let app: BindingOwner
     private var appKeys: [Key] = []
     // In the order they were made.
@@ -35,6 +35,7 @@ public final class Keymap {
     init(deck: Deck, appName: String) {
         self.deck = deck
         self.app = .app(name: appName)
+        deck.state.reserve(overridesKey)
         let saved = try? deck.state.read(folder: nil, key: overridesKey)
         self.overrides = saved.flatMap { text in try? JSONDecoder().decode([BindingOverride].self, from: Data(text.utf8)) }
             ?? []
@@ -91,20 +92,10 @@ public final class Keymap {
         return tell(resolved())
     }
 
-    // What a keystroke typed to be bound comes to.
-    public func record(_ keystroke: Keystroke) -> RecordedKey {
-        RecordedKey(keystroke)
-    }
-
-    // The keystrokes specs name, nil for one that names none.
-    public func keystrokes(of specs: [String]) -> [Keystroke?] {
-        specs.map(Keystroke.init(spec:))
-    }
-
     // MARK: - Private
     private func save(_ next: [BindingOverride]) throws {
         let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try deck.state.write(folder: nil, key: overridesKey, text: text)
+        try deck.state.write(reserved: overridesKey, text: text)
         overrides = next
     }
 
@@ -158,7 +149,7 @@ public final class Keymap {
     // order, then a mod's own, which wins in its page a chord it shares with the app's, then the app's. A mod's key is
     // global only with `system.global-keys`.
     private func ordered() -> [Binding] {
-        let mods = deck.mods().map { mod in
+        let mods = deck.catalog.loading.map { mod in
             (
                 owner: BindingOwner.mod(id: mod.manifest.id, name: mod.manifest.name),
                 keys: declared(in: deck.contributions(of: mod.manifest.id))

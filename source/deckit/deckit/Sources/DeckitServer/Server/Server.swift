@@ -35,7 +35,18 @@ final class Server {
             response = .error(id: nil, ResponseError(code: .invalidRequest, message: "not a request: \(error)"))
         }
 
-        return response.flatMap { try? encoder.encode($0) }
+        return response.map(written)
+    }
+
+    // The response as a line, or, for a result that cannot be written, the error that says so: a request is always
+    // answered.
+    func written(_ response: Response) -> Data {
+        do {
+            return try encoder.encode(response)
+        } catch {
+            let failure = ResponseError(code: .internalError, message: "the answer could not be written: \(error)")
+            return (try? encoder.encode(Response.error(id: response.id, failure))) ?? Data()
+        }
     }
 
     // MARK: - Private
@@ -63,7 +74,7 @@ final class Server {
             outcome = .success(try result(of: request))
         } catch let error as ResponseError {
             outcome = .failure(error)
-        } catch let error as any DeckError {
+        } catch let error as any Refusal {
             outcome = .failure(ResponseError(refusing: error))
         } catch let error as DecodingError {
             let message = "\(request.method) has no such params\(place(of: error))"
@@ -156,7 +167,7 @@ final class Server {
 
         case "setting/action":
             let params = try request.decodeParams(as: ModKeyParams.self)
-            try deck.settings.action(mod: params.mod, key: params.key)
+            _ = try deck.settings.action(mod: params.mod, key: params.key)
             return true
 
         case "catalog/read":
@@ -207,7 +218,7 @@ final class Server {
             return try deck.quit()
 
         case "runner/load":
-            return try deck.load(request.decodeParams(as: ModParams.self).mod)
+            return try deck.loaded(request.decodeParams(as: ModParams.self).mod)
 
         case "runner/started":
             let params = try request.decodeParams(as: StartedParams.self)
@@ -220,7 +231,7 @@ final class Server {
 
         case "runner/problem":
             let params = try request.decodeParams(as: RunProblemParams.self)
-            return try deck.record(params.mod, run: params.run, problem: params.problem)
+            return try deck.report(params.mod, run: params.run, problem: params.problem)
 
         case "runner/not-started":
             let params = try request.decodeParams(as: RunProblemParams.self)
@@ -228,7 +239,7 @@ final class Server {
 
         case "runner/crash":
             let params = try request.decodeParams(as: RunProblemParams.self)
-            return try deck.crash(params.mod, run: params.run, problem: params.problem)
+            return try deck.crashed(params.mod, run: params.run, problem: params.problem)
 
         case "runner/stopped":
             let params = try request.decodeParams(as: RunParams.self)
@@ -273,10 +284,10 @@ final class Server {
             return try deckit.keymap.reset(request.decodeParams(as: ResetKeyParams.self).id)
 
         case "keymap/record":
-            return deckit.keymap.record(try request.decodeParams(as: RecordKeyParams.self).keystroke)
+            return RecordedKey(try request.decodeParams(as: RecordKeyParams.self).keystroke)
 
         case "keymap/keystrokes":
-            return deckit.keymap.keystrokes(of: try request.decodeParams(as: KeystrokesParams.self).specs)
+            return try request.decodeParams(as: KeystrokesParams.self).specs.map(Keystroke.init(spec:))
 
         case "command/sources":
             return deckit.commands.sources()

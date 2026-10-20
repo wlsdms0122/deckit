@@ -7,16 +7,9 @@
 
 import Foundation
 
-// One of a mod's choices, with the options its page worked out for it. Options its page answered that are not
-// options read as none, so one mod's page never keeps another's settings from being listed.
-public struct ComputedChoice: Decodable, Sendable {
+// One of a mod's choices, with the options its page worked out for it.
+public struct ComputedChoice: Sendable {
     // MARK: - Property
-    private enum CodingKeys: String, CodingKey {
-        case mod
-        case key
-        case options
-    }
-
     public let mod: String
     public let key: String
     public let options: [SettingOption]
@@ -26,13 +19,6 @@ public struct ComputedChoice: Decodable, Sendable {
         self.mod = mod
         self.key = key
         self.options = options
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.mod = try container.decode(String.self, forKey: .mod)
-        self.key = try container.decode(String.self, forKey: .key)
-        self.options = (try? container.decode([SettingOption].self, forKey: .options)) ?? []
     }
 
     // MARK: - Public

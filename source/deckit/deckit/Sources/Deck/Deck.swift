@@ -72,19 +72,14 @@ public final class Deck {
     }
 
     // MARK: - Public
-    // The mods that load, as the catalog was last read, in the person's order.
-    public func mods() -> [Mod] {
-        catalog.lastRead.filter { mod in mod.problem == nil }
-    }
-
     // What the mod's run contributed, from its launch until it has ended.
-    public func contributions(of id: String) -> Contribution? {
+    package func contributions(of id: String) -> Contribution? {
         guard let run = runner.run(of: id), run.state == .running || run.state == .terminating else { return nil }
         return run.contributions
     }
 
     // `layer` is asked of each run as it starts, and of what has changed once the runs have moved.
-    public func add(_ layer: Layer) {
+    package func add(_ layer: Layer) {
         layers.append(layer)
     }
 
@@ -112,9 +107,9 @@ public final class Deck {
         try withChanges(runner.quit())
     }
 
-    // The mod's sandbox was made: its page is loaded.
-    public func load(_ id: String) throws -> [Effect] {
-        try withChanges(runner.load(id))
+    // The mod's page loaded.
+    public func loaded(_ id: String) throws -> [Effect] {
+        try withChanges(runner.loaded(id))
     }
 
     // The `run`th run of `id` started, with what its page reported: `summary` as a person reads it, and what it
@@ -122,22 +117,22 @@ public final class Deck {
     public func started(_ id: String, run: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
         var effects = try runner.started(id, run: run, summary: summary, contributions: contributions)
         for problem in problems(of: id, run: run) {
-            effects += try runner.record(id, run: run, problem: problem)
+            effects += try runner.report(id, run: run, problem: problem)
         }
         return withChanges(effects)
     }
 
     // A problem against the `run`th run of `id`.
-    public func record(_ id: String, run: Int, problem: String) throws -> [Effect] {
-        try withChanges(runner.record(id, run: run, problem: problem))
+    public func report(_ id: String, run: Int, problem: String) throws -> [Effect] {
+        try withChanges(runner.report(id, run: run, problem: problem))
     }
 
     public func notStarted(_ id: String, run: Int, problem: String) throws -> [Effect] {
         try withChanges(runner.notStarted(id, run: run, problem: problem))
     }
 
-    public func crash(_ id: String, run: Int, problem: String) throws -> [Effect] {
-        try withChanges(runner.crash(id, run: run, problem: problem))
+    public func crashed(_ id: String, run: Int, problem: String) throws -> [Effect] {
+        try withChanges(runner.crashed(id, run: run, problem: problem))
     }
 
     public func stopped(_ id: String, run: Int) throws -> [Effect] {

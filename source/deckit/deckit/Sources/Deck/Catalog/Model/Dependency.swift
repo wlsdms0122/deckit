@@ -8,7 +8,7 @@
 import Foundation
 
 // A mod one depends on, as it lists it: whether it is there in a version wanted, and whether it runs without it.
-public struct Dependency: Encodable, Equatable, Sendable {
+public struct Dependency: Equatable, Sendable {
     // MARK: - Property
     public let id: String
     public let want: String

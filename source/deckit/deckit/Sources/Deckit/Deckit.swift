@@ -18,8 +18,8 @@ public final class Deckit {
 
     // MARK: - Initializer
     // `name` is the app's, as a person reads it, `schemeHandlers`, by scheme, the mods it asks first to open an
-    // address, and `permissions` are those main defines, for what deck, deckit and the shell add; the core adds those
-    // it checks itself.
+    // address, and `permissions` are those the driver defines, for what deck, deckit and the shell add; deckit adds
+    // those it checks itself.
     public init(
         home: URL,
         ship: [URL],
@@ -40,8 +40,12 @@ public final class Deckit {
         )
         let keymap = Keymap(deck: deck, appName: name)
         let urlRouter = URLRouter(deck: deck, field: urlSchemes, schemeHandlers: schemeHandlers)
-        deck.add(Layer(problems: keymap.problems, changes: keymap.changes))
-        deck.add(Layer(problems: urlRouter.problems))
+        // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
+        deck.add(Layer(
+            problems: { [weak keymap] run, mod in keymap?.problems(of: run, mod: mod) ?? [] },
+            changes: { [weak keymap] in keymap?.changes() ?? [] }
+        ))
+        deck.add(Layer(problems: { [weak urlRouter] run, mod in urlRouter?.problems(of: run, mod: mod) ?? [] }))
         self.deck = deck
         self.keymap = keymap
         self.commands = CommandRegistry(deck: deck)

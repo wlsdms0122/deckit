@@ -1,5 +1,5 @@
 //
-//  ResponseError+DeckError.swift
+//  ResponseError+Refusal.swift
 //  DeckitServer
 //
 //  Created by JSilver on 10/20/26.
@@ -13,13 +13,13 @@ import Deckit
 extension ResponseError {
     // MARK: - Property
     // MARK: - Initializer
-    init(refusing error: any DeckError) {
+    init(refusing error: any Refusal) {
         self.init(code: .requestFailed, message: error.message, kind: Self.kind(of: error))
     }
 
     // MARK: - Public
     // MARK: - Private
-    private static func kind(of error: any DeckError) -> String? {
+    private static func kind(of error: any Refusal) -> String? {
         switch error {
         case let error as DataFolderError:
             switch error {
@@ -154,6 +154,9 @@ extension ResponseError {
 
             case .notAFolder:
                 "FOLDER"
+
+            case .reserved:
+                "RESERVED"
             }
 
         case let error as KeymapError:

@@ -256,19 +256,6 @@ struct SettingTests {
         #expect(declared == [size])
     }
 
-    @Test("options a page answered that are not options read as none")
-    func testThatUnreadableOptionsReadAsNone() throws {
-        // Given
-        let text = #"[{"mod":"notes","key":"font","options":[{"value":null}]},{"mod":"notes","key":"size"}]"#
-
-        // When
-        let choices = try JSONDecoder().decode([ComputedChoice].self, from: Data(text.utf8))
-
-        // Then
-        #expect(choices.map(\.key) == ["font", "size"])
-        #expect(choices.allSatisfy { choice in choice.options.isEmpty })
-    }
-
     // MARK: - Private
     private var settings: URL {
         home.appending(path: "settings")

@@ -8,7 +8,7 @@
 import Foundation
 
 // A mod the app ships, what became of it as what it ships was installed, and the version installed or why not.
-public struct InstallReport: Encodable, Equatable, Sendable {
+public struct InstallReport: Equatable, Sendable {
     // MARK: - Property
     public let id: String
     public let outcome: InstallOutcome

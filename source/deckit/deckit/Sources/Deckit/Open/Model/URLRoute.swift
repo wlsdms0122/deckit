@@ -9,7 +9,7 @@ import Foundation
 
 // Where an address goes: offered to `handlers` in turn, the first to take it ending it, then opened by `system`, if
 // deckit opens it by itself. `url` is the address as it is offered.
-public struct URLRoute: Encodable, Sendable {
+public struct URLRoute: Sendable {
     // MARK: - Property
     public let url: String
     public let handlers: [String]

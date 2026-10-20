@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum DataFolderError: DeckError, Equatable {
+public enum DataFolderError: Refusal, Equatable {
     case notAMod(String)
 
     // MARK: - Property

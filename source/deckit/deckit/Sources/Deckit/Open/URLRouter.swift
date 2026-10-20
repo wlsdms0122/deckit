@@ -16,7 +16,7 @@ public final class URLRouter {
     private let contributionKey = "handleURL"
     private let preferencesKey = "scheme-handlers"
     private let field: URLSchemesField
-    private unowned let deck: Deck
+    private let deck: Deck
     // Scheme -> the mods the app asks first.
     private let schemeHandlers: [String: [String]]
     // Scheme -> how the person arranged its handlers.
@@ -28,6 +28,7 @@ public final class URLRouter {
         self.deck = deck
         self.field = field
         self.schemeHandlers = schemeHandlers
+        deck.state.reserve(preferencesKey)
         let saved = try? deck.state.read(folder: nil, key: preferencesKey)
         self.preferences = saved.flatMap { text in
             try? JSONDecoder().decode([String: HandlerPreference].self, from: Data(text.utf8))
@@ -91,7 +92,7 @@ public final class URLRouter {
     // MARK: - Private
     private func save(_ next: [String: HandlerPreference]) throws {
         let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try deck.state.write(folder: nil, key: preferencesKey, text: text)
+        try deck.state.write(reserved: preferencesKey, text: text)
         preferences = next
     }
 
@@ -101,7 +102,7 @@ public final class URLRouter {
 
     // The mods that answer addresses, in the person's order, with the schemes each names.
     private func answering() -> [(mod: Mod, schemes: [String])] {
-        deck.mods().compactMap { mod in
+        deck.catalog.loading.compactMap { mod in
             let schemes = mod.manifest.value(of: field)
             guard !schemes.isEmpty, handlesURL(deck.contributions(of: mod.manifest.id)) else { return nil }
             return (mod, schemes)

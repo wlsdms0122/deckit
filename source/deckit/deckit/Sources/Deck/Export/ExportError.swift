@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum ExportError: DeckError, Equatable {
+public enum ExportError: Refusal, Equatable {
     case notADependency(mod: String, of: String)
     case notRunning(String)
     case ended(String, problem: String)

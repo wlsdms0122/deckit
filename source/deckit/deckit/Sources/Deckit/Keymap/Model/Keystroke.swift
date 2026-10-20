@@ -9,7 +9,7 @@ import Foundation
 
 // A key as it is pressed: the physical key, by its code, and the modifiers held with it. A chord is matched on the
 // physical key, since a modifier can change the character typed.
-public struct Keystroke: Codable, Equatable, Sendable {
+public struct Keystroke: Equatable, Sendable {
     // MARK: - Property
     // What a global key, one taken from every page, text fields included, needs of its chord.
     static let globalRule = "a global key needs ⌘, ⌃ or ⌥, and none a text field uses"

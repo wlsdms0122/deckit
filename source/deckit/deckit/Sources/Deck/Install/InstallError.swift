@@ -8,7 +8,7 @@
 import Foundation
 
 // Why a mod is not installed, or not removed.
-public enum InstallError: DeckError, Equatable {
+public enum InstallError: Refusal, Equatable {
     // A mod deck would not load, and why.
     case notLoadable(String)
     case installedThere

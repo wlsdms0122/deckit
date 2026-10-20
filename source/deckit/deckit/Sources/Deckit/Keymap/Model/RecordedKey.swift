@@ -19,7 +19,7 @@ public enum RecordedKey: Equatable, Sendable {
 
     // MARK: - Property
     // MARK: - Initializer
-    init(_ keystroke: Keystroke) {
+    public init(_ keystroke: Keystroke) {
         let bare = !keystroke.meta && !keystroke.control && !keystroke.alt
         if bare && !keystroke.shift && keystroke.code == "Escape" {
             self = .cancel

@@ -8,7 +8,7 @@
 import Foundation
 
 // Why a mod's page does not run, or the mod does not launch again.
-public enum RunnerError: DeckError, Equatable {
+public enum RunnerError: Refusal, Equatable {
     case noSandbox(String)
     case closing(String)
     case quitting(String)

@@ -29,10 +29,10 @@ struct KeymapTests {
         let b = try sut.started("b", run: 1, keys: [key("go", "mod+shift+g", global: true), key("bad", "mod+nope")])
 
         // Then
-        let keymap = try #require(a.bindingsChanged)
+        let keymap = try #require(a.keymapChange)
         #expect(keymap.line(of: "a.find") == "a.find active")
         #expect(keymap.line(of: "a.next") == "a.next active")
-        #expect(b.bindingsChanged == nil)
+        #expect(b.keymapChange == nil)
         #expect(b.problem == "key \"go\" cannot be global: that takes the system.global-keys permission")
     }
 
@@ -48,7 +48,7 @@ struct KeymapTests {
         let effects = try sut.started("a", run: 1, keys: [key("summon", "mod+shift+g", global: true), key("prev", "mod+[")])
 
         // Then
-        let keymap = try #require(effects.bindingsChanged)
+        let keymap = try #require(effects.keymapChange)
         #expect(keymap.bindings.map(\.binding.id) == ["@app.switch", "a.summon", "a.prev", "@app.back"])
         #expect(keymap.line(of: "a.summon") == "a.summon active shadowed:@app.switch")
         #expect(keymap.line(of: "@app.back") == "@app.back active hidden:a.prev")
@@ -126,8 +126,8 @@ struct KeymapTests {
         let ended = try sut.deck.stopped("a", run: 1)
 
         // Then
-        #expect(terminating.bindingsChanged == nil)
-        #expect(try #require(ended.bindingsChanged).bindings.isEmpty)
+        #expect(terminating.keymapChange == nil)
+        #expect(try #require(ended.keymapChange).bindings.isEmpty)
     }
 
     // MARK: - Private

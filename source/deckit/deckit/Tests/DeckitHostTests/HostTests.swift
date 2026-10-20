@@ -1,0 +1,114 @@
+//
+//  HostTests.swift
+//  DeckitHostTests
+//
+//  Created by JSilver on 10/20/26.
+//
+
+import Foundation
+import Testing
+import Deck
+import Deckit
+
+// A Swift host, which reaches deckit only through what Deck and Deckit make public.
+@Suite("Host")
+struct HostTests {
+    // MARK: - Property
+    private let root = FileManager.default.temporaryDirectory.appending(path: "host-tests-\(UUID().uuidString)")
+
+    // MARK: - Initializer
+    // MARK: - Test
+    @Test("a host builds a deckit, registers a key and reads the keymap, with no JSON")
+    func testThatAHostRegistersAKey() throws {
+        // Given
+        let sut = try deckit()
+
+        // When
+        let keymap = sut.keymap.register(Key(action: "find", spec: "mod+f", label: "Find", global: false))
+
+        // Then
+        let find = try #require(keymap.bindings.first)
+        #expect(find.binding.id == "@app.find")
+        #expect(find.binding.owner.name == "Host")
+        #expect(find.binding.keystroke == Keystroke(spec: "mod+f"))
+        #expect(find.active)
+        #expect(find.issues.isEmpty)
+    }
+
+    @Test("a mod's run started with the keys it contributed changes the keymap, which deck carries")
+    func testThatARunChangesTheKeymap() throws {
+        // Given
+        try writeMod("notes")
+        let sut = try deckit()
+        let contributions = Contribution(
+            exports: Snapshot(values: "{}", functions: []),
+            extensionPoints: [],
+            extensions: [:],
+            layers: [
+                "keys": .array([
+                    .object([
+                        "action": .string("next"),
+                        "key": .string("mod+j"),
+                        "label": .string("Next"),
+                        "global": .bool(false)
+                    ])
+                ])
+            ]
+        )
+
+        // When
+        let effects = try sut.deck.started("notes", run: 1, summary: .object([:]), contributions: contributions)
+
+        // Then
+        let changes = effects.compactMap { effect in
+            if case let .layer(change) = effect { change as? ResolvedKeymap } else { nil }
+        }
+        let keymap = try #require(changes.last)
+        #expect(keymap.bindings.map(\.binding.id) == ["notes.next"])
+        #expect(keymap.bindings.first?.binding.owner.name == "NOTES")
+    }
+
+    @Test("a part kept after the deckit it came from is let go still works")
+    func testThatAPartOutlivesItsDeckit() throws {
+        // Given
+        let keymap = try deckit().keymap
+
+        // When
+        let resolved = keymap.register(Key(action: "find", spec: "mod+f", label: "Find", global: false))
+
+        // Then
+        #expect(resolved.bindings.map(\.binding.id) == ["@app.find"])
+    }
+
+    // MARK: - Private
+    // A deckit named Host over the mods written, read and each that loads launching.
+    private func deckit() throws -> Deckit {
+        let deckit = try Deckit(
+            home: root.appending(path: "home"),
+            ship: [],
+            sources: [root.appending(path: "source")],
+            api: try #require(Version("1.0.0")),
+            name: "Host",
+            schemeHandlers: [:],
+            permissions: []
+        )
+        _ = deckit.deck.readCatalog()
+        _ = try deckit.deck.reconcile()
+
+        return deckit
+    }
+
+    private func writeMod(_ id: String) throws {
+        let folder = root.appending(path: "source").appending(path: id)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let manifest = """
+            id = "\(id)"
+            name = "\(id.uppercased())"
+            version = "1.0.0"
+            api = "1.0.0"
+            main = "main.js"
+            """
+        try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
+        try Data().write(to: folder.appending(path: "main.js"))
+    }
+}

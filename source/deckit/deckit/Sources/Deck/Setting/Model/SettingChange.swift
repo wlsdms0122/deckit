@@ -8,7 +8,7 @@
 import Foundation
 
 // What a setting was set to, and whether that changed it.
-public struct SettingChange: Encodable, Equatable, Sendable {
+public struct SettingChange: Equatable, Sendable {
     // MARK: - Property
     public let value: SettingValue
     public let changed: Bool
