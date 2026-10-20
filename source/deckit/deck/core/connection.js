@@ -2,7 +2,8 @@
 // MARK: - Initializer
 // MARK: - Public
 // The core's process, a message a line each way: what is sent goes to its stdin, and what it writes to stdout is
-// heard. Its stderr is its log. `onEnd` hears once that it ended, whether it exited or never started.
+// heard. Its stderr is its log. `onEnd` hears once that it ended, whether it exited or never started, after the last
+// of what it wrote was heard.
 function open(file, { onMessage, onLog, onEnd }) {
     const { spawn } = require('child_process');
     const child = spawn(file, [], { stdio: ['pipe', 'pipe', 'pipe'] });
@@ -17,7 +18,7 @@ function open(file, { onMessage, onLog, onEnd }) {
     linesOf(child.stdout, onMessage);
     linesOf(child.stderr, onLog);
     child.on('error', (error) => end(error.message));
-    child.on('exit', (code, signal) => end(signal ? `it was killed by ${signal}` : `it exited with ${code}`));
+    child.on('close', (code, signal) => end(signal ? `it was killed by ${signal}` : `it exited with ${code}`));
     return {
         send: (message) => {
             if (!ended) child.stdin.write(message + '\n');
