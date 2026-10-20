@@ -1,4 +1,5 @@
 import * as ORIGIN from './model/origin.js';
+import * as LISTENER from '../listener/index.js';
 
 export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
     // MARK: - Property
@@ -28,27 +29,12 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
         serve();
     }
 
-    // A view for a page of deck's: sandboxed, isolated, in deck's own session, with what the layers add to its
-    // `webPreferences`. How it looks where it is shown is for whoever shows it.
-    function view(webPreferences = {}) {
-        const { WebContentsView } = require('electron');
-        return new WebContentsView({
-            webPreferences: {
-                ...webPreferences,
-                preload,
-                session: session(),
-                sandbox: true,
-                contextIsolation: true,
-            },
-        });
-    }
-
     // A page that runs no mod, made for a layer on deck: at its own origin, it loads as every page of deck's does
     // and then asks main what it is.
     function page(name) {
         if (!PAGE_NAME.test(String(name)))
             throw new Error(`"${name}" is not a page name: a lower case letter, then letters, digits and -`);
-        const made = view();
+        const made = makeView({ CONFIG, preload });
         IDENTITY.add(made.webContents, { page: name });
         logConsole(made.webContents, name);
         made.webContents.loadURL(ORIGIN.addressOf(ORIGIN.pageOriginOf(name)));
@@ -62,12 +48,6 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
             'console-message',
             ({ level, message }) => level === 'error' && LOG.error(`${name}: ${message}`)
         );
-    }
-
-    // The page runs at full speed off screen too. Chromium takes the preference back at each load, so it is given
-    // again as each one finishes.
-    function keepDrawing(webContents) {
-        LOG.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
     }
 
     // MARK: - Private
@@ -109,7 +89,28 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
         }
     }
 
-    return { SCHEME, start, view, page, logConsole, keepDrawing };
+    return { SCHEME, start, page, logConsole, keepDrawing };
+}
+
+// A view for a page of deck's: sandboxed, isolated, in deck's own session, loading with `preload`, with what is added to
+// its `webPreferences`. How it looks where it is shown is for whoever shows it.
+export function makeView({ CONFIG, preload, webPreferences = {} }) {
+    const { WebContentsView } = require('electron');
+    return new WebContentsView({
+        webPreferences: {
+            ...webPreferences,
+            preload,
+            session: sessionOf(CONFIG),
+            sandbox: true,
+            contextIsolation: true,
+        },
+    });
+}
+
+// The page runs at full speed off screen too. Chromium takes the preference back at each load, so it is given again as
+// each one finishes.
+export function keepDrawing(webContents) {
+    LISTENER.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
 }
 
 // What a mod's pages kept: their storage in deck's own session.

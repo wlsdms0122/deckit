@@ -1,24 +1,22 @@
-import * as EVENT_BUS from '../../../deckit-shell/deck/event/bus.js';
-import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../../deckit-shell/deck/ipc/main.js';
+import * as EVENT_BUS from '../event/bus.js';
+import * as CHANNEL from '../channel/index.js';
+import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
-import * as ORIGIN from '../sandbox/model/origin.js';
-import * as MOD from '../../../deckit-shell/deck/catalog/model/mod.js';
+import * as MOD from '../catalog/model/mod.js';
 import * as RUN from './model/run.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods' runs, as the core runs them: what happens to a page is told the core, and what the core answers is done
-// here in order, its runs kept as it told them so what asks at once is answered at once.
-export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
+// here in order, its runs kept as it told them so what asks at once is answered at once. `pages` and `app` are the
+// environment's (environment/: MAIN.pages, MAIN.app).
+export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
     // How long a mod's stop() may take before its run ends anyway.
     const STOP_LIMIT_MS = 2000;
-    const ERR_ABORTED = -3;
-    // mod id -> { mod, view, run, update, closing }: a mod's sandbox, the view its page is in, its latest run and how
+    // mod id -> { mod, page, run, update, closing }: a mod's sandbox, the page it runs in, its latest run and how
     // what the core tells of it is kept, and whether it is going.
     const sandboxes = new Map();
-    const views = new WeakMap(); // a page a mod ran in -> the view it is in, kept while the page is
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
@@ -27,41 +25,37 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
     const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
     let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
     let preparePage = null;
-    let webPreferences = {};
     let quitHold = null; // 'held' while the runs terminate as the app quits, 'free' once nothing holds it
 
     // MARK: - Initializer
     // MARK: - Public
     // Every mod that loads runs in a sandbox of its own, whether or not it has anything to show.
-    // `preparePage(webContents, mod)` is what is on deck setting the page up, and `webPreferences` what it adds to
-    // the page's preferences as the page is made.
-    function start({ preparePage: prepare, webPreferences: preferences = {} }) {
+    // `preparePage(page, mod)` is what is on deck setting the page up, once deck knows it as the mod's.
+    function start({ preparePage: prepare }) {
         preparePage = prepare;
-        webPreferences = preferences;
         listen();
         CATALOG.onChange(reconcile);
         reconcile();
-        // The app quits once every run has ended. Held at will-quit, once every window has closed and the quit is
-        // decided, while a run has not; a quit asked again meanwhile waits too. Then the quit is asked again and
-        // goes on as any quit does, quit event and all. A quit the host app calls off leaves those runs ended, and
-        // the next quit terminates what launched since. A core that cannot be asked holds nothing.
-        const { app } = require('electron');
-        app.on('will-quit', (event) => {
+        // The app quits once every run has ended. Held as the app is about to quit, once the quit is decided, while
+        // a run has not; a quit asked again meanwhile waits too. Then the quit is asked again and goes on as any quit
+        // does. A quit the host app calls off leaves those runs ended, and the next quit terminates what launched
+        // since. A core that cannot be asked holds nothing.
+        APP.onQuit(() => {
             const live = [...sandboxes.values()].some(({ run }) => run.state !== 'notRunning');
-            if (quitHold === 'free' || (!quitHold && !live)) return;
-            event.preventDefault();
-            if (quitHold) return;
+            if (quitHold === 'free' || (!quitHold && !live)) return false;
+            if (quitHold) return true;
             quitHold = 'held';
             ask('runner/quit').catch((error) => {
                 LOG.error('the mods were not stopped as the app quit', error);
                 release(error);
             });
+            return true;
         });
     }
 
-    // Each mod's latest run, with the view its page is in.
+    // Each mod's latest run, with the page it runs in.
     function runs() {
-        return [...sandboxes.values()].map(({ run, view }) => ({ run, view, page: view?.webContents || null }));
+        return [...sandboxes.values()].map(({ run, page }) => ({ run, page }));
     }
 
     function runOf(modId) {
@@ -159,7 +153,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
         quitHold = 'free';
         for (const { reject } of waiting) reject(error);
         waiting.clear();
-        if (held) require('electron').app.quit();
+        if (held) APP.quit();
     }
 
     function send(method, params) {
@@ -192,7 +186,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
                     break;
                 case 'quit':
                     quitHold = null;
-                    require('electron').app.quit();
+                    APP.quit();
                     break;
                 default:
                     effectHandlers.get(effect.effect)?.(effect);
@@ -229,50 +223,46 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
         sandbox.update({ state, problem, endReason, relaunches, summary, contributions });
     }
 
+    // The page is made, known as the mod's and set up before it loads, so what it asks as it starts is the mod's. A
+    // page that did not load runs no mod: what loaded instead is never the mod's page.
     function openSandbox(mod) {
-        const view = SANDBOX.view(webPreferences);
-        const webContents = view.webContents;
-        views.set(webContents, view);
-        const sandbox = { mod, view, run: null, update: null, closing: false };
-        // Before identity's own, so a crash ends the run with its cause. A page that did not load runs no mod:
-        // what loaded instead is an error page, never the mod's origin. An aborted load is one replaced by
-        // another.
-        LOG.guard(webContents, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
-            if (isMainFrame && code !== ERR_ABORTED) crash(sandbox.run, `its page did not load (${description})`);
+        const page = PAGES.make({ mod: mod.id });
+        const sandbox = { mod, page, run: null, update: null, closing: false };
+        PAGES.watch(page, {
+            failed: (why) => crash(sandbox.run, `its page did not load (${why})`),
+            ended: (why) => why !== null && crash(sandbox.run, endedProblem(why)),
+            consoleError: (message) => LOG.error(`${mod.id}: ${message}`),
         });
-        LOG.guard(webContents, 'render-process-gone', (_event, { reason }) =>
-            crash(sandbox.run, `its page ended (${reason})`)
-        );
-        IDENTITY.add(webContents, { mod });
-        // A page opens no window of its own: what it asked for is what is on deck's to answer.
-        webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-        preparePage(webContents, mod);
-        SANDBOX.logConsole(webContents, mod.id);
-        // It runs at full speed off screen, since the mod runs there.
-        SANDBOX.keepDrawing(webContents);
+        IDENTITY.add(page, { mod });
+        preparePage(page, mod);
         sandboxes.set(mod.id, sandbox);
     }
 
     function load(sandbox) {
-        sandbox.view.webContents.loadURL(ORIGIN.addressOf(ORIGIN.originOf(sandbox.mod.id)));
+        PAGES.load(sandbox.page);
     }
 
     // The mod's stop() asked of its page. The page runs it once, however often it is asked. The core is told once it
     // has answered, its time ran out or the page is gone.
     function stop(modId, number) {
-        const webContents = sandboxes.get(modId)?.view.webContents;
+        const page = sandboxes.get(modId)?.page;
         const stopping =
-            webContents && !webContents.isDestroyed()
-                ? PROTOCOL.stop.invoke(webContents, {}, { timeout: STOP_LIMIT_MS }).catch(() => {})
+            page && !PAGES.isGone(page)
+                ? PROTOCOL.stop.invoke(page, {}, { timeout: STOP_LIMIT_MS }).catch(() => {})
                 : Promise.resolve();
         stopping.then(() => send('runner/stopped', { mod: modId, run: number }));
     }
 
     function closeSandbox(modId, reason) {
-        const { view } = sandboxes.get(modId);
-        if (!view.webContents.isDestroyed()) view.webContents.close();
+        PAGES.close(sandboxes.get(modId).page);
         sandboxes.delete(modId);
         if (reason === 'removed') lastLaunched.delete(modId);
+    }
+
+    // A crash's problem says why the page's process ended, whichever of what watches the page hears it first; a page
+    // whose document was replaced, or that is gone, went away.
+    function endedProblem(why) {
+        return why === null ? 'its page went away' : `its page ended (${why})`;
     }
 
     function crash(run, problem) {
@@ -287,7 +277,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
             const { id } = IDENTITY.modFrom(sender);
             await ask('runner/load', { mod: id });
             const { mod, run } = sandboxes.get(id);
-            IDENTITY.whenPageEnds(sender, () => crash(run, 'its page went away'));
+            IDENTITY.whenPageEnds(sender, (why) => crash(run, endedProblem(why)));
             return {
                 manifest: mod.manifest,
                 source: await CATALOG.sourceOf(mod),
@@ -306,15 +296,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
         );
     }
 
-    // The view a page a mod runs in, or ran in, is in.
-    function viewOf(page) {
-        return views.get(page) || null;
-    }
-
     return {
         start,
         runs,
-        viewOf,
         runOf,
         launchedOf,
         currentRun,

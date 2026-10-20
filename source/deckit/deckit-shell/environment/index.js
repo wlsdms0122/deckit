@@ -2,10 +2,9 @@ import * as CHANNEL from '../deck/channel/index.js';
 
 // What an environment gives deck, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files and
-// the log, and what only the environment knows: the person's home folder and what runs deckit. An environment gives at
-// least this, and deck is handed this alone (`checked`). Each leaf says what a member is: `function`, `object`,
-// `string`, or `array`, a list read. Of one page, what watches it is told in the order it began watching, before what
-// the environment itself watches after it: deck relies on that order (deck/identity).
+// the log, the pages a mod runs in and the app quitting, and what only the environment knows: the person's home folder
+// and what runs deckit. An environment gives at least this, and deck is handed this alone (`checked`). Each leaf says
+// what a member is: `function`, `object`, `string`, or `array`, a list read.
 // MARK: - Property
 /**
  * A page: a token deck keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -26,10 +25,17 @@ const MAIN = Object.freeze({
         tell: 'function', // tell(page, message): dropped when the page is gone
     },
     pages: {
+        // make({ mod }) -> page: the page the mod runs in, at the mod's own origin, made and not loaded, so deck knows
+        // it as the mod's before it asks anything. It opens no window of its own, and runs at full speed off screen
+        make: 'function',
+        load: 'function', // load(page): a page make() made, loaded at its address
+        close: 'function', // close(page): the page closed, unless it is gone already
         isGone: 'function', // isGone(page): whether the page can no longer receive messages
-        // watch(page, { ended, destroyed }): `ended()` each time the page's document is replaced, by a main-frame
-        // navigation that commits, its first load's included, or its process ends, the page living on;
-        // `destroyed()` once, as the page goes
+        // watch(page, { failed, ended, destroyed, consoleError }), each optional: `failed(why)` when the page's load
+        // did not complete, other than by another load replacing it; `ended(why)` each time the page's document is
+        // replaced, by a main-frame navigation that commits, its first load's included, `why` null, or its process
+        // ends, the page living on, `why` saying why; `destroyed()` once, as the page goes; `consoleError(message)`
+        // for what its console says as an error
         watch: 'function',
         // pin(page): the page stays on the address its first load commits; a navigation of its own elsewhere, or a
         // redirect, is refused, and only main loading or reloading it moves it
@@ -57,6 +63,12 @@ const MAIN = Object.freeze({
     log: { open: 'function' },
     // The host app, and what runs it, outermost first, each { name, version }
     about: { app: { name: 'string', version: 'string' }, engines: 'array' },
+    app: {
+        // onQuit(hold): `hold()` is asked as the app is about to quit, once the quit is decided; answering true keeps
+        // it from quitting, until it is asked to quit again
+        onQuit: 'function',
+        quit: 'function', // quit(): the app asked to quit
+    },
 });
 
 const PAGE = Object.freeze({
@@ -66,6 +78,11 @@ const PAGE = Object.freeze({
         tell: 'function', // tell(message): throws at once when the message cannot be cloned
         ask: 'function', // ask(message) -> Promise
         askSync: 'function', // askSync(message): what main's promise settled with
+    },
+    modules: {
+        // evaluate(source, { mod, file }) -> its exports: `source` run as a CommonJS module with only `module` and
+        // `exports` in reach, as the mod's `file`; throws what it throws
+        evaluate: 'function',
     },
 });
 

@@ -4,8 +4,8 @@ import * as LOG from '../deckit-shell/deck/log/renderer.js';
 import * as ORIGIN from './deck/sandbox/model/origin.js';
 import * as ENVIRONMENT from '../deckit-shell/environment/index.js';
 import { environment } from './environment/renderer.js';
-import { createRun } from './deck/runner/run.js';
-import { createRunner } from './deck/runner/renderer.js';
+import { createRun } from '../deckit-shell/deck/runner/run.js';
+import { createRunner } from '../deckit-shell/deck/runner/renderer.js';
 import { createRecord } from '../deckit-shell/deck/record/renderer.js';
 import { createExport } from '../deckit-shell/deck/export/renderer.js';
 import { createExtension } from '../deckit-shell/deck/extension/renderer.js';
@@ -26,18 +26,17 @@ function boot({ before, shell = null } = {}) {
     for (const name of Object.keys(window)) if (!before.has(name)) delete window[name];
     if (location.protocol !== ORIGIN.SCHEME.scheme + ':') return;
     // What a listener on the page's channels throws goes to deckit's log, as main's does.
-    IPC.carry(ENVIRONMENT.checked(environment, ENVIRONMENT.PAGE, 'what Electron gives deck'), {
-        report: (label, failure) => LOG.error(`${label} failed`, failure),
-    });
+    const ENV = ENVIRONMENT.checked(environment, ENVIRONMENT.PAGE, 'what Electron gives deck');
+    IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
     if (document.readyState === 'loading')
-        document.addEventListener('DOMContentLoaded', () => start(shell), { once: true });
-    else start(shell);
+        document.addEventListener('DOMContentLoaded', () => start(shell, ENV), { once: true });
+    else start(shell, ENV);
 }
 
 // MARK: - Private
 // Deckit in the page, made of deck's page parts and its own, each handed what it uses: deck's runner runs the mod,
 // with what deckit and the shell give it.
-function start(shell) {
+function start(shell, ENV) {
     const { page, sessionPrefix } = PAGE.setup();
     if (page) return shell?.page(page, { channels: IPC.layerChannels });
     const RUN = createRun();
@@ -47,6 +46,7 @@ function start(shell) {
         EXPORT: createExport({ RUN }),
         EXTENSION: createExtension({ RUN }),
         MODS: createMods({ RUN }),
+        modules: ENV.modules,
     });
     const MOD = createMod({
         WEB: createWeb({ sessionPrefix }),

@@ -1,18 +1,18 @@
-import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../../deckit-shell/deck/ipc/renderer.js';
+import * as CHANNEL from '../channel/index.js';
+import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as SETTINGS from '../../../deckit-shell/deck/setting/renderer.js';
-import * as EVENT from '../../../deckit-shell/deck/event/renderer.js';
-import * as ENTRY from '../../../deckit-shell/deck/mod/entry.js';
-import * as SCOPED from '../../../deckit-shell/deck/mod/model/scoped-name.js';
-import * as MOD_PERMISSION from '../../../deckit-shell/deck/mod/permission.js';
-import * as ORIGIN from '../sandbox/model/origin.js';
+import * as SETTINGS from '../setting/renderer.js';
+import * as EVENT from '../event/renderer.js';
+import * as ENTRY from '../mod/entry.js';
+import * as SCOPED from '../mod/model/scoped-name.js';
+import * as MOD_PERMISSION from '../mod/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The run of a mod in its page: its entry evaluated and started with the deck it is handed, and what it contributed
-// told to main. `RUN` is the page's run; `STORAGE`, `EXPORT`, `EXTENSION` and `MODS` are what deck gives it.
-export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS }) {
+// told to main. `RUN` is the page's run; `STORAGE`, `EXPORT`, `EXTENSION` and `MODS` are what deck gives it; `modules`
+// is the environment's (environment/: PAGE.modules).
+export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: MODULES }) {
     // MARK: - Property
     // What is on deck gives a mod when nothing is: nothing.
     const NOTHING = Object.freeze({
@@ -140,23 +140,19 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS }) {
     // the mod is comes from its manifest; `members` is what is on deck reads of it besides.
     function evaluate(source, members) {
         const { mod } = RUN;
-        const module = { exports: {} };
+        let exported = null;
         try {
-            new Function(
-                'module',
-                'exports',
-                `${source}\n//# sourceURL=${ORIGIN.SCHEME.scheme}://${mod.id}/${mod.main}`
-            )(module, module.exports);
+            exported = MODULES.evaluate(source, { mod: mod.id, file: mod.main });
         } catch (error) {
             RUN.fail(`${mod.main} failed to load: ${error.message || error}`);
             return null;
         }
-        const problem = ENTRY.problemOf(module.exports, members);
+        const problem = ENTRY.problemOf(exported, members);
         if (problem) {
             RUN.fail(`${mod.main}: ${problem}`);
             return null;
         }
-        return module.exports;
+        return exported;
     }
 
     // What start() registers, each once and only while it runs: deck contributes it all when start() ends, and

@@ -1,7 +1,7 @@
-import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../../deckit-shell/deck/ipc/renderer.js';
+import * as CHANNEL from '../channel/index.js';
+import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as LOG from '../../../deckit-shell/deck/log/renderer.js';
+import * as LOG from '../log/renderer.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
