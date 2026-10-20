@@ -61,6 +61,20 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             `document.querySelector('[data-mod-id][aria-selected="true"]')?.dataset.modId`
         );
     const visibility = async (id) => ((await current()) === id ? 'visible' : 'hidden');
+    // The pages laid in the panel's window, bottom to top, as a main process module of the region parent's finds
+    // them: { url, shown, width } each, or null when it finds no window.
+    const stackNow = async () => {
+        const parent = await page('deckit://region-parent.mod');
+        await parent?.evaluate(
+            `delete document.documentElement.dataset.stack; document.dispatchEvent(new CustomEvent('test-stack'))`
+        );
+        const read = async () => {
+            const written = await parent?.evaluate('document.documentElement.dataset.stack');
+            return typeof written === 'string' ? JSON.parse(written) : undefined;
+        };
+        return until(async () => ((await read()) === undefined ? false : (await read()) || 'none'), 4000);
+    };
+    const urlsOf = (stack) => (Array.isArray(stack) ? stack.map(({ url }) => url.replace(/\/$/, '')) : []);
 
     // The panel's window as a person sees it, its pages laid one over another from the bottom: the window's own page,
     // the backdrop, the mod on screen and the frame. The width's handle is left out.
@@ -253,9 +267,23 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         check('a setting set is kept by the core', settingKept, '');
         await settings?.evaluate(`${firstSelect}.click()`);
         await until(() => settings.evaluate(menus), 2000);
+        const floated = await stackNow();
+        check(
+            "a mod's menu draws over the frame and its handle",
+            urlsOf(floated).at(-1) === 'deckit://settings.mod' && floated.at(-1).shown !== false,
+            urlsOf(floated)
+        );
         await settings?.key('Escape', 'Escape', 0, 27);
         await sleep(400);
         check('Escape puts a menu away', !(await settings.evaluate(menus)), '');
+        const settled = await stackNow();
+        check('a main process module finds the window the panel is in', Array.isArray(settled), settled);
+        check(
+            'the backdrop is at the bottom, and the frame and its handle on top',
+            urlsOf(settled)[0] === 'about:blank' &&
+                JSON.stringify(urlsOf(settled).slice(-2)) === '["deckit://panel","about:blank"]',
+            urlsOf(settled)
+        );
         await settings?.evaluate(`${firstSelect}.click()`);
         await until(() => settings.evaluate(menus), 2000);
         await settings?.evaluate(
@@ -405,6 +433,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const seen = `document.documentElement.dataset.shown === 'yes' ? innerWidth + 'x' + innerHeight : 'hidden'`;
         const laid = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
         check('a region in the sidebar lays its child over it', laid, await child.evaluate(seen));
+        const regions = urlsOf(await stackNow());
+        check(
+            "a child shown in a region is over its parent's page",
+            regions.indexOf('deckit://region-child.mod') > regions.indexOf('deckit://region-parent.mod'),
+            regions
+        );
         await parent.key('\\', 'Backslash', META, 220);
         const gone = await until(async () => (await child.evaluate(seen)) === 'hidden', 3000);
         check('folding the sidebar takes its region away', gone, await child.evaluate(seen));

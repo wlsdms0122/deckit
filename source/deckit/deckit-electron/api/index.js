@@ -17,6 +17,7 @@ export function createApi({
     COMMAND,
     MAIN_PROCESS,
     PAGE,
+    STAGE,
 }) {
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
@@ -59,6 +60,7 @@ export function createApi({
             }),
             pages: Object.freeze({
                 open: PAGE.open,
+                stage: STAGE.create,
                 close: PAGE.close,
                 focus: PAGE.focus,
                 isAlive: PAGE.isAlive,

@@ -16,10 +16,11 @@ export function createSwitcher({ PANEL, deckit, host }) {
     const OPEN = '@open:';
     // How long main waits on the list's exit before it goes on.
     const EXIT_LIMIT_MS = 400;
-    const state = { page: null, view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
+    const state = { page: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
     const handed = new Map(); // entry id -> { mod, kind, group, label }, of what the list was given since it opened
     let session = null; // a promise of deckit's commands, asked for this list since it last opened, or of null
     let supplies = 0;
+    let stage = null; // where the list's page is laid, which the host app places
 
     // MARK: - Initializer
     // MARK: - Public
@@ -51,11 +52,11 @@ export function createSwitcher({ PANEL, deckit, host }) {
     // opened again during its exit.
     function open() {
         return new Promise((resolve) => {
-            const view = build();
+            build();
             state.closed?.(false);
             state.closed = resolve;
             state.on = true;
-            view.setVisible(true);
+            stage.show(true);
             deckit.pages.focus(state.page);
             if (state.ready) PROTOCOL.open.send(state.page, {});
         });
@@ -71,18 +72,21 @@ export function createSwitcher({ PANEL, deckit, host }) {
         const played = PROTOCOL.dismiss.invoke(state.page, {}, { timeout: EXIT_LIMIT_MS }).catch(() => {});
         played.then(() => {
             if (state.on) return closed?.(false);
-            state.view?.setVisible(false);
+            stage?.show(false);
             closed?.(true);
         });
     }
 
     // MARK: - Private
-    // Made the first time it is asked for, and again once the one before is gone. A renderer that crashed is
-    // loaded again.
+    // Made the first time it is asked for, and again once the one before is gone, on a stage of its own that it
+    // fills. A renderer that crashed is loaded again.
     function build() {
-        if (state.view && deckit.pages.isAlive(state.page)) return state.view;
+        if (!stage) {
+            stage = deckit.pages.stage();
+            stage.whenResized(lay);
+        }
+        if (state.page && deckit.pages.isAlive(state.page)) return;
         const page = deckit.pages.open(PAGE.PAGE_NAME, { reloadsOnCrash: true });
-        const view = deckit.pages.viewOf(page);
         watch(page);
         deckit.keymap.listen(page, {
             keys: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => ({
@@ -90,11 +94,12 @@ export function createSwitcher({ PANEL, deckit, host }) {
                 run: () => PROTOCOL.number.send(page, { number }),
             })),
         });
-        view.setBackgroundColor('#00000000');
-        view.setVisible(false);
         state.page = page;
-        state.view = view;
-        return view;
+        lay();
+    }
+
+    function lay() {
+        if (state.page) stage.lay([{ page: state.page, rect: { x: 0, y: 0, ...stage.size() } }]);
     }
 
     // A page that was up and loads again, crashes or goes cannot hold an open list, and one that goes before it is up
@@ -114,7 +119,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
     function drop() {
         if (!state.on) return;
         state.on = false;
-        state.view?.setVisible(false);
+        stage?.show(false);
         const closed = state.closed;
         state.closed = null;
         closed?.(true);
@@ -274,7 +279,10 @@ export function createSwitcher({ PANEL, deckit, host }) {
         // What the host drives of it.
         control: {
             // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`).
-            place: (window, options) => deckit.window.place(build(), window, options),
+            place: (window, options) => {
+                build();
+                stage.place(window, options);
+            },
             contains: (webContents) => !!state.page && state.page === webContents,
             focus: () => state.page && deckit.pages.focus(state.page),
             open,

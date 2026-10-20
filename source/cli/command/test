@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Checks the channels between main and a page, runs the core's tests, then drives Deckit.app, put together from the
-// archive the last build made, through the scenario, with data of its own that is thrown away. Exits 1 with a line for
-// each check that failed. Screenshots and the app's log are left in .build/test/.
+// Checks the channels between main and a page and the stage pages are laid on, runs the core's tests, then drives
+// Deckit.app, put together from the archive the last build made, through the scenario, with data of its own that is
+// thrown away. Exits 1 with a line for each check that failed. Screenshots and the app's log are left in .build/test/.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -24,9 +24,10 @@ if (!Number.isInteger(port) || port <= 0) {
 }
 
 const main = async () => {
-    execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', 'channels.js')], {
-        stdio: 'inherit',
-    });
+    for (const check of ['channels.js', 'stage.js'])
+        execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {
+            stdio: 'inherit',
+        });
     const archive = APP.builtArchive();
     const core = path.join(root, 'source', 'deckit', 'deckit');
     const scratch = path.join(root, '.build', 'core-test');
