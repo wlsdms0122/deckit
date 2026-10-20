@@ -146,45 +146,40 @@ export function createPanel({ REGION, deckit, host }) {
     // It lays the frame out off screen too, since the mods are laid by it, and the panel has no frame without it: a
     // page that crashed is loaded again.
     function makeFrame() {
-        const page = deckit.pages.open(PAGE.PAGE_NAME, { keepsDrawing: true, reloadsOnCrash: true, logAs: 'panel' });
+        const page = deckit.pages.open(PAGE.PAGE_NAME, {
+            keepsDrawing: true,
+            reloadsOnCrash: true,
+            surfaces: { names: Object.values(PAGE.SURFACE), onOpen: openSurface },
+        });
         const view = deckit.pages.viewOf(page);
         view.setBackgroundColor('#00000000');
         view.setVisible(false);
-        page.setWindowOpenHandler(({ frameName }) =>
-            Object.values(PAGE.SURFACE).includes(frameName) && !shell.surfaces.has(frameName)
-                ? { action: 'allow', createWindow: (options) => openSurface(frameName, options.webContents) }
-                : { action: 'deny' }
-        );
         deckit.keymap.listen(page);
-        deckit.pages.onFocus(page, focus);
+        deckit.pages.whenFocused(page, focus);
         container.addChildView(view);
         shell.page = page;
         shell.view = view;
     }
 
     // A document of the frame's page, laid as a view of its own. It runs no code and goes nowhere.
-    function openSurface(name, webContents) {
-        const { WebContentsView } = require('electron');
-        const view = new WebContentsView({ webContents });
+    function openSurface(name, page) {
+        const view = deckit.pages.viewOf(page);
         view.setBackgroundColor('#00000000');
         view.setVisible(false);
-        webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-        deckit.log.guard(webContents, 'will-frame-navigate', (details) => details.preventDefault());
-        deckit.pages.onFocus(webContents, focus);
-        shell.surfaces.set(name, view);
+        deckit.pages.whenFocused(page, focus);
+        shell.surfaces.set(name, page);
         if (name === PAGE.SURFACE.BACKDROP) container.addChildView(view, 0);
         else {
             container.addChildView(view);
             stack(true);
         }
         update();
-        return webContents;
     }
 
     function dropSurfaces() {
-        for (const view of shell.surfaces.values()) {
-            container.removeChildView(view);
-            if (!view.webContents.isDestroyed()) view.webContents.close();
+        for (const page of shell.surfaces.values()) {
+            container.removeChildView(deckit.pages.viewOf(page));
+            deckit.pages.close(page);
         }
         shell.surfaces.clear();
         clearTimeout(shell.settling);
@@ -389,9 +384,9 @@ export function createPanel({ REGION, deckit, host }) {
         }
         raised = new Set(children.keys());
         stack(lifted);
-        lay(shell.surfaces.get(PAGE.SURFACE.BACKDROP), { x: 0, y: 0, width, height }, width, height);
+        lay(surfaceView(PAGE.SURFACE.BACKDROP), { x: 0, y: 0, width, height }, width, height);
         lay(shell.view, shell.moving || shell.rects?.obscured, width, height);
-        lay(shell.surfaces.get(PAGE.SURFACE.HANDLE), shell.rects?.handle, width, height);
+        lay(surfaceView(PAGE.SURFACE.HANDLE), shell.rects?.handle, width, height);
     }
 
     // The frame's page and its handle stay over every mod's view, but for a dialog or a menu of the mod on screen,
@@ -402,8 +397,12 @@ export function createPanel({ REGION, deckit, host }) {
         if (next === front && !again) return;
         front = next;
         if (next !== shell.view) return container.addChildView(next);
-        for (const view of [shell.view, shell.surfaces.get(PAGE.SURFACE.HANDLE)])
-            if (view) container.addChildView(view);
+        for (const view of [shell.view, surfaceView(PAGE.SURFACE.HANDLE)]) if (view) container.addChildView(view);
+    }
+
+    function surfaceView(name) {
+        const page = shell.surfaces.get(name);
+        return page ? deckit.pages.viewOf(page) : null;
     }
 
     function lay(view, rect, width, height) {
@@ -586,7 +585,7 @@ export function createPanel({ REGION, deckit, host }) {
     // one of its mods' pages, or a web page in one.
     function contains(webContents) {
         if (webContents === frameContents()) return true;
-        if ([...shell.surfaces.values()].some((view) => view.webContents === webContents)) return true;
+        if ([...shell.surfaces.values()].includes(webContents)) return true;
         const page = deckit.web.pageFor(webContents);
         return [...pages.values()].includes(page);
     }

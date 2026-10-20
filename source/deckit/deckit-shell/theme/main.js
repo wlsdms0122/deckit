@@ -15,6 +15,7 @@ export function createTheme({ deckit }) {
             if (!draws(sender)) throw Object.assign(new Error('only a deckit page draws'), { kind: 'REFUSED' });
             if (!pages.has(sender)) {
                 pages.add(sender);
+                // A page that loads again leaves until its new document asks for the theme, and comes back then.
                 deckit.pages.whenEnds(sender, () => pages.delete(sender));
             }
             return { theme };

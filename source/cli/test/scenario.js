@@ -430,6 +430,14 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             return typeof now === 'string' && now !== crashed && now.endsWith(':' + (VIEWS + 1));
         }, 8000);
         check("a crashed frame is loaded again with the panel's list", reloaded, crashed);
+        // Its backdrop is opened again, once: the crashed page's is closed.
+        const backdrops = async () => {
+            let found = 0;
+            for (const surface of await pages('about:blank')) if ((await surface.evaluate('innerWidth')) > 100) found++;
+            return found;
+        };
+        const reopened = await until(async () => (await backdrops()) === 1, 4000);
+        check('a crashed frame opens its backdrop again, once', reopened, await backdrops());
         await (await page('deckit://panel'))?.evaluate(`console.error('frame-probe')`);
         const named = await until(() => /panel: frame-probe/.test(logged()), 3000);
         check("a shell page's console errors are logged under its name", named, '');

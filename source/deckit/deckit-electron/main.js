@@ -98,7 +98,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const FOLDER = createFolder();
     const CATALOG = createCatalog({ CORE, LOG });
     const IDENTITY = createIdentity();
-    const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
+    const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE });
     const RECORD = createRecord({ CORE, IDENTITY });
     const SETTING = createSetting({ CORE, LOG, IDENTITY, RUNNER });
@@ -143,7 +143,6 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         LOG,
         WINDOW,
         IDENTITY,
-        SANDBOX,
         CATALOG,
         RUNNER,
         PERMISSION,

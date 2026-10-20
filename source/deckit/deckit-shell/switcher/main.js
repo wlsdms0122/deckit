@@ -34,6 +34,11 @@ export function createSwitcher({ PANEL, deckit, host }) {
         PROTOCOL.ready.on((_payload, sender) => {
             if (sender !== state.page) return;
             state.ready = true;
+            // A page that loads again, crashes or goes cannot hold an open list.
+            deckit.pages.whenEnds(sender, () => {
+                state.ready = false;
+                drop();
+            });
             // A chord that came while the page was loading is answered now instead of lost.
             if (state.on) PROTOCOL.open.send(sender, {});
         });
@@ -77,28 +82,17 @@ export function createSwitcher({ PANEL, deckit, host }) {
     }
 
     // MARK: - Private
-    // Made the first time it is asked for. A page that reloads cannot hold an open list.
+    // Made the first time it is asked for, and again once the one before is gone. A renderer that crashed is
+    // loaded again.
     function build() {
-        if (state.view) return state.view;
-        const page = deckit.pages.open(PAGE.PAGE_NAME, { logAs: 'switcher' });
+        if (state.view && deckit.pages.isAlive(state.page)) return state.view;
+        const page = deckit.pages.open(PAGE.PAGE_NAME, { reloadsOnCrash: true });
         const view = deckit.pages.viewOf(page);
         deckit.keymap.listen(page, {
             keys: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => ({
                 key: 'mod+' + number,
                 run: () => PROTOCOL.number.send(page, { number }),
             })),
-        });
-        deckit.pages.onLoad(page, () => {
-            const was = state.ready;
-            state.ready = false;
-            // Only a page that was up: the first load starts after the first open, which must stay open.
-            if (was) drop();
-        });
-        deckit.pages.onGone(page, () => {
-            drop();
-            state.page = null;
-            state.view = null;
-            state.ready = false;
         });
         view.setBackgroundColor('#00000000');
         view.setVisible(false);

@@ -8,7 +8,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // keeps and hands back, never reads.
 export function createPage({ IDENTITY, PARTITION, SANDBOX, LOG }) {
     // MARK: - Property
-    const views = new WeakMap(); // a page opened here -> the view it is in, for the host app to place
+    const views = new WeakMap(); // a page opened here, or a surface one opened -> the view it is in
+    const surfacePages = new WeakMap(); // a surface a page opened here opened -> its leaving the opener's surfaces
 
     // MARK: - Initializer
     // MARK: - Public
@@ -21,67 +22,74 @@ export function createPage({ IDENTITY, PARTITION, SANDBOX, LOG }) {
         });
     }
 
-    // A page that runs no mod, at `deckit://<name>/`. `keepsDrawing`: it lays out while hidden too, which Chromium takes
-    // back at each load, so it is given again as each finishes. `reloadsOnCrash`: a renderer that crashed is loaded
-    // again. `logAs`: its console's errors go to deckit's log under that name.
-    function open(name, { keepsDrawing = false, reloadsOnCrash = false, logAs = '' } = {}) {
+    // A page that runs no mod, at `deckit://<name>/`, what its console says as an error logged under its name.
+    // `keepsDrawing`: it lays out while hidden too. `reloadsOnCrash`: a renderer that crashed is loaded again.
+    // `surfaces`: `{ names, onOpen(name, page) }`, the documents it may open by `window.open('', name)`, each once at
+    // a time, each laid as a page of its own that runs no code and goes nowhere; it opens nothing else.
+    function open(name, { keepsDrawing = false, reloadsOnCrash = false, surfaces = null } = {}) {
         const view = SANDBOX.page(name);
         const page = view.webContents;
         views.set(page, view);
-        if (keepsDrawing) LOG.guard(page, 'did-finish-load', () => page.setBackgroundThrottling(false));
+        if (keepsDrawing) SANDBOX.keepDrawing(page);
         if (reloadsOnCrash) LOG.guard(page, 'render-process-gone', () => !page.isDestroyed() && page.reload());
-        if (logAs)
-            LOG.guard(
-                page,
-                'console-message',
-                ({ level, message }) => level === 'error' && LOG.error(`${logAs}: ${message}`)
-            );
+        const opened = new Map(); // surface name -> its page, while it is there
+        page.setWindowOpenHandler(({ frameName }) =>
+            surfaces?.names.includes(frameName) && !opened.has(frameName)
+                ? { action: 'allow', createWindow: (options) => openSurface(frameName, options.webContents) }
+                : { action: 'deny' }
+        );
         return page;
+
+        function openSurface(surfaceName, surface) {
+            const { WebContentsView } = require('electron');
+            views.set(surface, new WebContentsView({ webContents: surface }));
+            opened.set(surfaceName, surface);
+            const leave = () => opened.get(surfaceName) === surface && opened.delete(surfaceName);
+            surfacePages.set(surface, leave);
+            surface.setWindowOpenHandler(() => ({ action: 'deny' }));
+            LOG.guard(surface, 'will-frame-navigate', (details) => details.preventDefault());
+            LOG.guard(surface, 'destroyed', leave, { once: true });
+            surfaces.onOpen(surfaceName, surface);
+            return surface;
+        }
     }
 
-    // The view a page opened here is in, until the host app places pages otherwise.
+    // The view a page opened here is in, for whoever places it: a bridge until pages are placed by deckit.
     function viewOf(page) {
         return views.get(page) || null;
     }
 
     // Whether the page is still there: it is gone once it is closed.
     function isAlive(page) {
-        return !page.isDestroyed();
+        if (page.isDestroyed()) return false;
+        known(page);
+        return true;
     }
 
     function focus(page) {
         if (isAlive(page)) page.focus();
     }
 
-    // Heard each time the page takes the keyboard, starts loading, or is gone: each answers its off.
-    function onFocus(page, listener) {
-        return offOf(
-            page,
-            'focus',
-            LOG.guard(page, 'focus', () => listener())
-        );
+    // A surface closed leaves its opener's surfaces at once, so the opener may open it again.
+    function close(page) {
+        if (!isAlive(page)) return;
+        surfacePages.get(page)?.();
+        page.close();
     }
 
-    function onLoad(page, listener) {
-        return offOf(
-            page,
-            'did-start-loading',
-            LOG.guard(page, 'did-start-loading', () => listener())
-        );
-    }
-
-    function onGone(page, listener) {
-        return offOf(
-            page,
-            'destroyed',
-            LOG.guard(page, 'destroyed', () => listener(), { once: true })
-        );
+    // Heard each time the page takes the keyboard: answers its off.
+    function whenFocused(page, listener) {
+        known(page);
+        const guarded = LOG.guard(page, 'focus', () => listener());
+        return () => page.removeListener('focus', guarded);
     }
 
     // MARK: - Private
-    function offOf(page, event, guarded) {
-        return () => page.removeListener(event, guarded);
+    // A page of deck's (a mod's, or one that runs none) or a surface one opened: any other is refused.
+    function known(page) {
+        if (IDENTITY.pageNameOf(page) || IDENTITY.modOf(page) || surfacePages.has(page)) return;
+        throw new Error("[deckit] it takes a page of deck's: a mod's, one that runs none, or a surface one opened");
     }
 
-    return { start, open, viewOf, isAlive, focus, onFocus, onLoad, onGone };
+    return { start, open, viewOf, isAlive, focus, close, whenFocused };
 }
