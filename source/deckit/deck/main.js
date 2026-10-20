@@ -59,9 +59,6 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     });
 
     // MARK: - Initializer
-    // A core that ended took what the mods were answered with: they launch again, on the core that replaces it.
-    CORE.onRestart(() => RUNNER.relaunchAll());
-
     // MARK: - Public
     // Before any page of deck's loads, once the app is ready: `preload` is the file every page loads with. The log
     // starts then, then the core, and what the host app ships is installed, before anything reads the mods.
