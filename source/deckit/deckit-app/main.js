@@ -33,7 +33,7 @@ if (!app.requestSingleInstanceLock()) {
     const host = createApp({ WINDOW: createWindow({ CONFIG: config, THEME }), THEME }).make({ restart });
     const deckit = DECKIT.connect({
         preload: path.join(__dirname, 'preload.js'),
-        core: path.join(__dirname, 'deckit', 'deckit'),
+        core: path.join(__dirname, 'deckit', require('./deckit/deckit.json').core),
         host,
         config,
         folders,
