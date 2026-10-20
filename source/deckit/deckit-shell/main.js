@@ -25,6 +25,7 @@ function attach(given, { host } = {}) {
     const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;
+    deckit.attach();
     for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
     const REGION = createRegion({ deckit });
     const PANEL = createPanel({ REGION, deckit, host });

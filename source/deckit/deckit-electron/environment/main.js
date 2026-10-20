@@ -103,6 +103,7 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
             trust: WEB.trust,
             allow: WEB.allow,
             revoke: WEB.revoke,
+            sessionsOf: WEB.sessionsOf,
         }),
         mainProcess: Object.freeze({
             start: MAIN_PROCESS.start,

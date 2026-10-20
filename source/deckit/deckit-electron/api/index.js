@@ -18,6 +18,7 @@ export function createApi({
     COMMAND,
     MAIN_PROCESS,
     PAGE,
+    SETUP,
     STAGE,
 }) {
     // MARK: - Property
@@ -36,6 +37,7 @@ export function createApi({
         const answer = Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
             onStart,
+            attach: SETUP.attach,
             mods: Object.freeze({
                 notifications: NOTIFICATIONS,
                 list: () => Object.freeze(CATALOG.mods().map(manifestOf)),

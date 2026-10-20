@@ -321,6 +321,7 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
         trust: (mod, session, entries) => CERTIFICATE.trust(PARTITION.spell(mod, session), entries),
         allow: (mod, session, entries) => SITE_PERMISSION.allow(PARTITION.spell(mod, session), entries),
         revoke: (mod, session, entries) => SITE_PERMISSION.revoke(PARTITION.spell(mod, session), entries),
+        sessionsOf: (mod) => PARTITION.prefixOf(mod),
     };
 }
 

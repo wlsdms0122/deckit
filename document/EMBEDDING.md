@@ -1,6 +1,6 @@
 # How a host app embeds deckit
 
-Deckit is a library a host app embeds, in three layers: deck, the engine that runs mods, deckit, the platform on deck, and a shell, the surface a person uses it through. A host app connects deckit and puts deckit's own shell on it (the panel, the switcher and the kit), or a shell of its own built on what connect answers. It brings what deckit cannot know: its configuration, its folders, its answers about the process and where the shell is shown, and the mods it ships. This is the line between them.
+Deckit is a library a host app embeds, in three layers: deck, the engine that runs mods, deckit, the platform on deck, and a shell, the surface a person uses it through. A host app connects deckit and puts deckit's own shell on it (the panel, the switcher and the kit). It brings what deckit cannot know: its configuration, its folders, its answers about the process and where the shell is shown, and the mods it ships. This is the line between them.
 
 ## 1. The archive
 
@@ -12,8 +12,8 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 | `deckit` | the core: deckit's own process, an executable for Macs of either kind (macOS 13 or later). Deckit starts it as the host app is ready and it ends with the host app's process |
 | `main.js` | deck and deckit in main, a CommonJS module: `{ SCHEME, connect }` |
 | `shell-main.js` | deckit's shell in main, a CommonJS module: `{ attach }` |
-| `renderer.js` | deck and deckit in the renderer of every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitRenderer`: `{ boot }` |
-| `shell-renderer.js` | deckit's shell in a renderer. It leaves one global, `DeckitShellRenderer`: `{ page, mod }` |
+| `renderer.js` | what Electron gives every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitRenderer`: `{ boot }` |
+| `shell-renderer.js` | deckit on a page: deck and deckit, and the shell's pages and what it gives a mod. It leaves one global, `DeckitShellRenderer`: `{ start }` |
 | `mods/<id>/` | deckit's own mods, each with its entry bundled, a catalog the host app picks from |
 | `document/` | this, MOD.md and UI.md |
 
@@ -22,10 +22,11 @@ In main the host app requires `main.js` and, to put deckit's shell on deckit, `s
 ```js
 const before = new Set(Object.keys(globalThis));
 // renderer.js, then shell-renderer.js, as they are
-DeckitRenderer.boot({ before, shell: DeckitShellRenderer });
+const environment = DeckitRenderer.boot({ before });
+if (environment) DeckitShellRenderer.start(environment);
 ```
 
-`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. A host app with a shell of its own puts its renderer side in place of `shell-renderer.js` and hands it to `boot` as `shell` (section 4); with no shell on deckit, it leaves `shell` out.
+`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. `boot` answers what Electron gives the page, or null on a page off deckit's scheme, and `start` runs deckit on the page with it.
 
 ## 2. The configuration
 
@@ -105,12 +106,13 @@ Moving the panel is a re-parent: mods keep their sandboxes and what they hold, a
 
 ## 4. What connect answers
 
-What connect answers is all a host app, or the shell on deckit, reaches of deckit in main; deckit's shell is built with nothing else. It is the same object for a host app with a shell of its own. Every fact it hands out (a manifest, a run, its summary) is a frozen copy. What a shell uses of it, of a stage and of what a page is handed is a part of it, declared in deckit's sources (`deckit-shell/layer`): `connect` checks its answer against that as it answers, and deckit's shell checks what it is handed as it is attached and as a page starts it, keeping only that, so a member missing, or of the wrong kind, fails at once. A shell reaches nothing of Electron through it; what does hand out or take Electron's views and objects is for a host app alone, marked *host only* below: `window.place`, `pages.viewOf`, `pages.make`, `mods.runs()[].view` and `log.guard`.
+What connect answers is all a host app, or the shell on deckit, reaches of deckit in main; deckit's shell is built with nothing else. Every fact it hands out (a manifest, a run, its summary) is a frozen copy. What a shell uses of it and of a stage is a part of it, declared in deckit's sources (`deckit-shell/layer`): `connect` checks its answer against that as it answers, and deckit's shell checks what it is handed as it is attached, and what the environment gives a page as the page starts, keeping only that, so a member missing, or of the wrong kind, fails at once. A shell reaches nothing of Electron through it; what does hand out or take Electron's views and objects is for a host app alone, marked *host only* below: `window.place`, `pages.viewOf`, `pages.make`, `mods.runs()[].view` and `log.guard`.
 
 | | |
 |---|---|
 | `config` | `{ id, name }` |
 | `onStart(listener)` | told once as deckit starts, before any mod launches; handed over before the host app is ready. One that throws is logged, and the mods run anyway |
+| `attach()` | the shell's, once, as it is attached: each mod's page that starts from then on wears the shell's part (the theme, the kit, its view laid by the panel). Without it the mods run with deck's and deckit's alone |
 | `permissions` | `define({ id, name, means, reach })`: a permission that grants what the shell adds, which a mod's manifest may then ask for. `reach` is `system` for what reaches past the app and `app` for what stays inside it; a person reads the first before the second. Defined before the host app is ready, when deckit's core starts and reads the manifests against them; after, it throws. One defined twice, or with another `reach`, is refused as the core starts: deckit logs why, and the core, not started, refuses all that is asked of it |
 | `mods` | `list()`, every loaded mod's manifest in the person's order, `onChange(listener)`, which answers its off, `arrange(ids)`, the mods named taking, in the order given, the places they held among themselves while the rest stay put, answering a promise settled once `list()` has the new order; `runs()`, each mod's latest run with its `page` and the `view` the page is in (*host only*) (deck sets nothing of how the view looks: whoever puts it in a window sets its background and whether it is visible), `runOf(id)`; `listingOf(id)`, how a mod is listed (`{ icon, keywords }`) as its latest run that launched said, kept while it launches again, or null; `observe(name, observer)` for a lifecycle notification (`notifications` lists them) of every run, answering its off; `modOf(page)`, the id of the mod a page is, or null; `managerFrom(page)`, the id of that mod if it has `deckit.mods`, and otherwise it throws; `relaunchAll()`, every running mod terminated and launched again; `restartPending()`, `[{ id, why }]`, the mods whose main process modules only a restart of the app finishes (MOD.md, A main process module), whose change `onChange` hears too. A run is `{ mod, number, state, summary, contributions, problem, relaunches }` (MOD.md, Lifecycle) |
 | `pages` | `stage()`, a stage to lay pages on (below). A page is a token: whatever answers or takes one hands it back and never reads it. Each of the rest takes a page of deck's (a mod's, or one that runs none) or a surface one opened, and throws for any other. `open(name, { keepsDrawing, reloadsOnCrash, surfaces })`, a page at `deckit://<name>/` that runs no mod, which the shell draws (`page(name, context)` on its renderer side), what its console says as an error logged under its name: `keepsDrawing`, it lays out while hidden too; `reloadsOnCrash`, a renderer that crashed is loaded again; `surfaces`, `{ names, onOpen(name, page) }`, the documents it may open with `window.open('', name)`, each once at a time, each a page of its own that runs no code and goes nowhere; it opens nothing else. `close(page)`; `focus(page)`; `isAlive(page)`, whether it is still there; `whenFocused(page, listener)`, heard each time it takes the keyboard, answering its off; `nameOf(page)`; `whenEnds(page, undo)`, `undo` called once as that page navigates away, crashes or goes, answering its off; `isPressing(page)`, whether a person is pressing in that page now or just pressed, so what it tells is theirs and not its code's; `isPointing(page)`, the same of the mouse alone. *Host only*: `viewOf(page)`, the Electron view a page of deck's, or a surface, is in; `make(name)`, `viewOf(open(name))` |
@@ -133,19 +135,7 @@ A stage, made by `pages.stage()`, is where the shell lays pages in a host app's 
 | `show(on)` | whether it is on screen |
 | `lay(layers)` | the pages on it, each `{ page, rect }`, laid at `rect` (`{ x, y, width, height }` on the stage), or `{ page, hidden: true }`, unseen. The pages laid are in the order given, bottom to top; a hidden one keeps the place it has, and a new one goes in over the layer before it. A page left out, or whose page is gone, is taken off; each is clear where it draws nothing. A layer with both a rect and `hidden`, or neither, and a page that is not one of deck's, are refused |
 
-On a page, the shell is what the host app hands `boot` as `shell`: `page(name, { channels })` draws a page it made, and `mod(context)` is what it gives each mod as deckit runs it. `channels` binds the shell's channels in the page, as `channels` does in main, the other way round: `invoke(payload)` or `send(payload)` toward main, `handle(answer)` or `on(listener)` for what main asks or tells. `context` is `{ mod, chordOf, deliver, fail, channels }`: the mod's manifest; `chordOf(action)`, the chord a key registered with `keymap.register` is bound to now, by its action; `deliver(what, listener, ...args)`, which calls a function of the mod's and records a throw or a rejection on the mod's row; and `fail(problem)`, which records a problem there. `mod(context)` answers:
-
-| | |
-|---|---|
-| `members` | the members of the entry it reads, besides deckit's `icon` and `keywords`; an entry with a member no layer reads does not start |
-| `deck` | the members it adds to `deck` |
-| `registrations` | the registrations it adds, by name, each a check that answers why a value is refused, or `''` |
-| `mods` | what it adds to `deck.mods` for a mod with `deckit.mods` |
-| `blocksKeys()` | whether a key pressed now is dropped, as while something floats over the page |
-| `keyProblem(key, parts)` | why a key would never run, or `''`, with `parts` what `start` registered |
-| `contribute(parts, entry)` | called once `start` has ended, with what it registered and the entry: mounts what the shell shows and answers `{ summary, contributions }`, what main is told of the mod, which a run carries as its `summary` and `contributions`. One that throws leaves the mod unstarted |
-
-That is how deckit's shell hands a mod `theme`, `ui`, `show`, `region`, `children`, the registrations `view` and `styles`, and the pins on `mods`, and how a view is laid in its page where the panel's frame leaves it room. What deckit gives a mod is never replaced by what the shell gives.
+On a page, deckit's shell is part of deckit: `shell-renderer.js` draws the pages the shell made and gives each mod the theme, the kit, `show`, `region`, `children`, the registrations `view` and `styles`, and the pins on `mods`, and a view is laid in its page where the panel's frame leaves it room. What deckit gives a mod is never replaced by what the shell gives.
 
 The host app and its shell reach deckit through these, and nothing else of deckit's: their own listeners and their own files are their own.
 

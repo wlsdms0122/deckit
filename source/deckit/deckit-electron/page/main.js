@@ -1,27 +1,13 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
-import * as DECLARED from './protocol.js';
-
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
 // The pages that run no mod, which a layer on deckit draws, and what any page of deck's is to that layer: a token it
-// keeps and hands back, never reads.
-export function createPage({ IDENTITY, PARTITION, SANDBOX, LOG, modViewOf }) {
+// keeps and hands back, never reads. `pages` is what the environment tells of a page (environment: MAIN.pages), by
+// which what a page's console says as an error reaches deck's log as a mod's page's does.
+export function createPage({ IDENTITY, SANDBOX, LOG, pages, modViewOf }) {
     // MARK: - Property
     const views = new WeakMap(); // a page opened here, or a surface one opened -> the view it is in
     const surfacePages = new WeakMap(); // a surface a page opened here opened -> its leaving the opener's surfaces
 
     // MARK: - Initializer
     // MARK: - Public
-    function start() {
-        PROTOCOL.setup.handle((_payload, sender) => {
-            const page = IDENTITY.pageNameOf(sender);
-            if (page) return { page };
-            // What a mod's page needs of the configuration, worked out here: how its web sessions are spelled.
-            return { sessionPrefix: PARTITION.prefixOf(IDENTITY.modOf(sender).id) };
-        });
-    }
-
     // A page that runs no mod, at `deckit://<name>/`, what its console says as an error logged under its name.
     // `keepsDrawing`: it lays out while hidden too. `reloadsOnCrash`: a renderer that crashed is loaded again.
     // `surfaces`: `{ names, onOpen(name, page) }`, the documents it may open by `window.open('', name)`, each once at
@@ -30,6 +16,7 @@ export function createPage({ IDENTITY, PARTITION, SANDBOX, LOG, modViewOf }) {
         const view = SANDBOX.page(name);
         const page = view.webContents;
         views.set(page, view);
+        pages.watch(page, { consoleError: (message) => LOG.error(`${name}: ${message}`) });
         if (keepsDrawing) SANDBOX.keepDrawing(page);
         if (reloadsOnCrash) LOG.guard(page, 'render-process-gone', () => !page.isDestroyed() && page.reload());
         const opened = new Map(); // surface name -> its page, while it is there
@@ -91,5 +78,5 @@ export function createPage({ IDENTITY, PARTITION, SANDBOX, LOG, modViewOf }) {
         throw new Error("[deckit] it takes a page of deck's: a mod's, one that runs none, or a surface one opened");
     }
 
-    return { start, open, viewOf, isAlive, focus, close, whenFocused };
+    return { open, viewOf, isAlive, focus, close, whenFocused };
 }

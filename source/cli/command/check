@@ -17,9 +17,6 @@ const MAY_DEPEND = {
 // nothing its bundles carry, and no Electron object it would hold or call.
 const SHELL = 'deckit-shell';
 const SHELL_BUNDLES = ['shell-main', 'shell-renderer'];
-// The shell's files an environment's bundles carry as well as the shell's: each bundle has its own copy, so they are
-// plain declarations and pure functions, which run on any side of any environment.
-const SHARED = sharedFiles();
 const ELECTRON = /\brequire\(\s*["'`]electron["'`]\s*\)/;
 // Electron's objects and their members, and its name for a page (`webContents`), which the shell calls a page. `View`
 // and `screen` are a page's words too (`window.screen`), so they are held only in what the shell's main bundle carries.
@@ -48,6 +45,10 @@ const PLACES = {
     renderer: 'renderer',
     'shell-renderer': 'renderer',
 };
+// The shell's files an environment's bundles carry as well as the shell's, and every one an environment's page bundle
+// carries: each bundle has its own copy, and deckit on a page is the shell's page bundle, so they are plain declarations
+// and pure functions, which run on any side of any environment.
+const SHARED = sharedFiles();
 const NODE_MODULES = [
     'fs',
     'fs/promises',
@@ -123,12 +124,12 @@ function checkFile(file) {
     for (const { spec, file: target } of imports.get(file)) checkImport(file, spec, target);
 }
 
-// What an environment's bundles and the shell's both carry holds nothing of either: no module, nothing of a process or
-// a page, and no state of its own. Read without its strings, so a channel's name or a word in one is not taken for a
+// What an environment's bundle carries of the shell's (SHARED) holds nothing of either: no module, nothing of a process
+// or a page, and no state of its own. Read without its strings, so a channel's name or a word in one is not taken for a
 // use.
 function checkPure(file, plain) {
     const bare = LIBRARY.bare(plain);
-    const shared = 'both an environment and the shell carry it';
+    const shared = "an environment's bundle carries it";
     if (/\brequire\s*\(/.test(bare)) say(file, `requires a module, but ${shared}: it is plain declarations`);
     if (/\b(?:globalThis|window|document|process|self)\s*[.[]/.test(bare))
         say(file, `reaches a process or a page, but ${shared}: it runs on any side of any environment`);
@@ -165,12 +166,17 @@ function checkShell(file, plain) {
         );
 }
 
-// The shell's files carried both by a bundle of the shell's and by one of an environment's.
+// The shell's files carried both by a bundle of the shell's and by one of an environment's that run in the same place,
+// and those an environment's bundle for a page carries.
 function sharedFiles() {
     const reached = (names) => new Set(names.flatMap((name) => [...LIBRARY.reach(LIBRARY.BUNDLES[name].entry)]));
-    const shell = reached(SHELL_BUNDLES);
-    const environment = reached(Object.keys(LIBRARY.BUNDLES).filter((name) => !SHELL_BUNDLES.includes(name)));
-    return new Set([...shell].filter((file) => packageOf(file) === SHELL && environment.has(file)));
+    const names = Object.keys(LIBRARY.BUNDLES);
+    const environmentIn = (place) => names.filter((name) => !SHELL_BUNDLES.includes(name) && PLACES[name] === place);
+    const shared = (place) => {
+        const shell = reached(SHELL_BUNDLES.filter((name) => PLACES[name] === place));
+        return [...reached(environmentIn(place))].filter((file) => place === 'renderer' || shell.has(file));
+    };
+    return new Set([...shared('main'), ...shared('renderer')].filter((file) => packageOf(file) === SHELL));
 }
 
 // A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no
