@@ -2,8 +2,9 @@ import * as SITE from '../../deckit-shell/web/model/site.js';
 
 // What a web page's Notification shows, and what it asks, are told to deck: `notified(embedder, id, { origin,
 // notification, title, body, silent })`, and `request(embedder, id, { origin, permissions })`, a promise of whether it
-// is allowed.
-export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION, notified, request }) {
+// is allowed. `permits(session, origin, name)` and `permitted(session, name)` are what deck says a site in a session may
+// have, and `sessionOf(page)` the session a page is in.
+export function createScript({ LOG, DEBUGGER, sessionOf, permits, permitted, notified, request }) {
     // MARK: - Property
     // Electron's own notification knows nothing of the page, so the page's Notification is replaced by a content
     // script, which reports through a binding only the DevTools session hears. Chromium does not tell an
@@ -16,22 +17,24 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION, notified
 
     // MARK: - Initializer
     // MARK: - Public
-    function start() {
-        SITE_PERMISSION.onChange(() => {
-            for (const install of scripts.values()) install();
-        });
+    // What deck lets sites have changed: each page's script is installed again with what they have now.
+    function permissionsChanged() {
+        for (const install of scripts.values()) install();
     }
 
     function attach(embedder, page, changed) {
-        const partition = SESSION.partitionOf(page);
-        const allowed = (origin) => SITE_PERMISSION.granted(partition, origin, 'notifications');
+        const session = sessionOf(page);
+        const allowed = (origin) => !!permits(session, origin, 'notifications');
         const evaluate = (expression) =>
             DEBUGGER.send(page, 'Runtime.evaluate', { expression, userGesture: true }).catch(() => {});
         let script = null;
         // Also run in the document already there: it is usually under way before the session is. The script
         // does nothing the second time.
         const install = () => {
-            const source = `(${inPage})(${JSON.stringify(BINDING)}, ${JSON.stringify(SITE_PERMISSION.notifications(partition))})`;
+            const granted = Object.fromEntries(
+                permitted(session, 'notifications').map((origin) => [origin, 'granted'])
+            );
+            const source = `(${inPage})(${JSON.stringify(BINDING)}, ${JSON.stringify(granted)})`;
             const dropped = script
                 ? DEBUGGER.send(page, 'Page.removeScriptToEvaluateOnNewDocument', { identifier: script })
                 : Promise.resolve();
@@ -307,5 +310,5 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION, notified
         });
     }
 
-    return { start, attach, clickNotification, captureOf, forget };
+    return { permissionsChanged, attach, clickNotification, captureOf, forget };
 }

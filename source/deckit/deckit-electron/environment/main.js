@@ -1,12 +1,12 @@
 // What Electron gives deck on main's side (deckit-shell/environment: MAIN): its IPC carries the messages, a page is its
 // webContents, in a view of its own, the core is a child process, and the log a file of its own.
-import * as LISTENER from '../deck/listener/index.js';
+import * as LISTENER from '../listener/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
-import * as LOG_FILE from '../deck/log/file.js';
-import * as ORIGIN from '../deck/sandbox/model/origin.js';
-import { clearStorage, makeView, keepDrawing, serve } from '../deck/sandbox/index.js';
-import { createFolder } from '../deck/mod/folder.js';
+import * as LOG_FILE from '../log/file.js';
+import * as ORIGIN from '../sandbox/model/origin.js';
+import { clearStorage, makeView, keepDrawing, serve } from '../sandbox/index.js';
+import { createFolder } from '../mod/folder.js';
 import { createWindow } from '../window/index.js';
 import { createStage } from '../stage/main.js';
 import { createNotifications } from '../notification/main.js';
@@ -56,6 +56,7 @@ function createEnvironment({ core, preload, openWindow }) {
     const views = new WeakMap();
     const origins = new WeakMap(); // a page deck made -> its origin
     const mods = new WeakSet(); // the pages mods run in
+    const openings = new WeakMap(); // a page -> { surfaces, opens }, what its window.open becomes (openingOf)
     const WEB = createWeb({ CONFIG, LOG, WINDOW });
     const FOLDER = createFolder();
     // A mod's page shows the web in <webview>; one that runs no mod is named as a host is, with no dot, so its origin
@@ -67,7 +68,7 @@ function createEnvironment({ core, preload, openWindow }) {
         views.set(page, view);
         origins.set(page, owned ? ORIGIN.originOf(modId) : ORIGIN.pageOriginOf(name));
         if (owned) mods.add(page);
-        page.setWindowOpenHandler(() => ({ action: 'deny' }));
+        openingOf(page);
         if (owned || keepsDrawing) keepDrawing(page, guard);
         return page;
     };
@@ -89,8 +90,10 @@ function createEnvironment({ core, preload, openWindow }) {
             isGone,
             isClosed: (page) => page.isDestroyed(),
             watch: (page, watchers) =>
-                watch(guard, page, watchers, { origin: mods.has(page) ? origins.get(page) : null }),
-            surfaces: (page, given) => surfaces(guard, page, given, views),
+                watch(guard, page, watchers, { origin: mods.has(page) ? origins.get(page) : null, openingOf }),
+            surfaces: (page, given) => {
+                openingOf(page).surfaces = given;
+            },
             serve: (folderOf) => serve({ id: CONFIG.id, folderOf, FOLDER }),
             pin: (page) => pin(guard, page),
             watchInput: (page, listener) => watchInput(guard, page, listener),
@@ -120,12 +123,11 @@ function createEnvironment({ core, preload, openWindow }) {
             close: WEB.close,
             stateOf: WEB.stateOf,
             clickNotification: WEB.clickNotification,
-            granted: WEB.granted,
+            sessionOf: WEB.sessionOf,
+            permissionsChanged: WEB.permissionsChanged,
             fetchText: WEB.fetchText,
             clear: WEB.clear,
             trust: WEB.trust,
-            allow: WEB.allow,
-            revoke: WEB.revoke,
             sessionsOf: WEB.sessionsOf,
         }),
         mainProcess: Object.freeze({
@@ -160,6 +162,35 @@ function createEnvironment({ core, preload, openWindow }) {
         }),
     });
 
+    // What a page's window.open becomes, decided in one place a page has: a surface it may open (`pages.surfaces`), or
+    // none, what it asked told to each watch hearing `opens`.
+    function openingOf(page) {
+        if (openings.has(page)) return openings.get(page);
+        const opening = { surfaces: null, opens: new Set() };
+        openings.set(page, opening);
+        page.setWindowOpenHandler((details) => {
+            const name = details.frameName;
+            if (opening.surfaces?.allow(name))
+                return {
+                    action: 'allow',
+                    createWindow: (options) => openSurface(name, options.webContents, opening.surfaces.opened),
+                };
+            for (const opens of opening.opens) opens(details.url, windowOptions(details));
+            return { action: 'deny' };
+        });
+        return opening;
+    }
+
+    // A surface a page opened: in a view of its own, it runs no code and goes nowhere.
+    function openSurface(name, surface, opened) {
+        const { WebContentsView } = require('electron');
+        views.set(surface, new WebContentsView({ webContents: surface }));
+        surface.setWindowOpenHandler(() => ({ action: 'deny' }));
+        guard(surface, 'will-frame-navigate', (details) => details.preventDefault());
+        opened(name, surface);
+        return surface;
+    }
+
     function configure({ id, agent }) {
         if (configured) throw new Error('[deckit] the environment is configured once');
         configured = Object.freeze({ id, agent: Object.freeze([...agent]) });
@@ -180,8 +211,8 @@ function isGone(page) {
     return page.isDestroyed() || page.isCrashed();
 }
 
-// `origin` is the page's own, a mod's, for what leaves it. Answers what stops watching, but for `opens`, which the page
-// then is refused.
+// `origin` is the page's own, a mod's, for what leaves it, and `openingOf(page)` what its window.open becomes. Answers
+// what stops this watch, and only it.
 function watch(
     guard,
     page,
@@ -195,7 +226,7 @@ function watch(
         opens = null,
         leaves = null,
     } = {},
-    { origin }
+    { origin, openingOf }
 ) {
     const added = []; // [event, listener]
     const on = (event, listener, options) => added.push([event, guard(page, event, listener, options)]);
@@ -210,38 +241,15 @@ function watch(
     if (destroyed) on('destroyed', () => destroyed(), { once: true });
     if (focused) on('focus', () => focused());
     if (consoleError) on('console-message', ({ level, message }) => level === 'error' && consoleError(message));
-    if (opens)
-        page.setWindowOpenHandler((details) => {
-            opens(details.url, windowOptions(details));
-            return { action: 'deny' };
-        });
+    if (opens) openingOf(page).opens.add(opens);
     if (leaves && origin)
         on('will-frame-navigate', (details) => {
             if (details.isMainFrame && !details.url.startsWith(origin + '/')) leaves(details.url);
         });
     return () => {
         for (const [event, listener] of added.splice(0)) page.removeListener(event, listener);
-        if (opens && !page.isDestroyed()) page.setWindowOpenHandler(() => ({ action: 'deny' }));
+        if (opens) openingOf(page).opens.delete(opens);
     };
-}
-
-// The documents a page may open by `window.open('', name)`, those `allow` answers true for, each in a view of its own
-// that runs no code and goes nowhere; it opens nothing else.
-function surfaces(guard, page, { allow, opened }, views) {
-    page.setWindowOpenHandler(({ frameName }) =>
-        allow(frameName)
-            ? { action: 'allow', createWindow: (options) => open(frameName, options.webContents) }
-            : { action: 'deny' }
-    );
-
-    function open(name, surface) {
-        const { WebContentsView } = require('electron');
-        views.set(surface, new WebContentsView({ webContents: surface }));
-        surface.setWindowOpenHandler(() => ({ action: 'deny' }));
-        guard(surface, 'will-frame-navigate', (details) => details.preventDefault());
-        opened(name, surface);
-        return surface;
-    }
 }
 
 // A navigation keeps the page, so a page that left its address would still be known as its owner while it ran

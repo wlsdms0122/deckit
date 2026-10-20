@@ -1,6 +1,6 @@
-// The packages as the build reads them: deckit-electron, deck and deckit in Electron, and deckit-shell, with what the
-// shell and a driver agree on, each a package of ES modules under source/deckit, and the bundles they are carried in. A
-// file is named by its path under source/deckit.
+// The packages as the build reads them: deckit-electron, the environment deckit runs on in Electron, and deckit-shell,
+// deck and deckit with the shell on them, each a package of ES modules under source/deckit, and the bundles they are
+// carried in. A file is named by its path under source/deckit.
 const fs = require('fs');
 const path = require('path');
 

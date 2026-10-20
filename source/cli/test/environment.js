@@ -112,6 +112,11 @@ async function main() {
     globalThis.DECKIT_VERSION = '0.0.0';
     globalThis.DECKIT_SOURCE = 'test';
     const SHELL = await import(url('deckit-shell', 'main.js'));
+    const uiHost = Object.fromEntries(
+        ['start', 'showsPanel', 'show', 'dismiss', 'summonSwitcher', 'panelTitled'].map((name) => [name, () => {}])
+    );
+    const early = thrown(() => SHELL.attach({}, { host: uiHost }));
+    check('attach before connect is refused, saying so', /attach comes after connect/.test(early), early);
     const { stage: _stage, ...stageless } = environment;
     const pageless = { ...stageless, pages: { ...environment.pages, serve: undefined } };
     const lacking = thrown(() => SHELL.connect(pageless, { host }));
@@ -136,6 +141,17 @@ async function main() {
         Object.keys(answer.pages)
     );
     check('connect is called once', /once/.test(thrown(() => SHELL.connect(environment, { host }))), '');
+    const other = thrown(() => SHELL.attach({ ...answer }, { host: uiHost }));
+    check('attach refuses what connect did not answer', /takes what connect answered/.test(other), other);
+    const unanswered = thrown(() => SHELL.attach(answer, { host: { start() {} } }));
+    check(
+        'attach refuses a host that does not answer the UI, naming what',
+        /does not answer showsPanel/.test(unanswered),
+        unanswered
+    );
+    const attached = thrown(() => SHELL.attach(answer, { host: uiHost }));
+    check('attach refused can be called again', attached === '', attached);
+    check('attach is called once', /once/.test(thrown(() => SHELL.attach(answer, { host: uiHost }))), '');
 
     for (const line of failed) console.error(line);
     if (failed.length) {

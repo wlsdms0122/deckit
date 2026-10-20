@@ -50,8 +50,8 @@ const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process is its own. And what it answers the UI: where it is shown.
 const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
 const ATTACH_ANSWERS = ['start', 'showsPanel', 'show', 'dismiss', 'summonSwitcher', 'panelTitled'];
-// Main's channels are the process's: deckit connects once, and the UI is attached once.
-let connected = false;
+// Main's channels are the process's: deckit connects once, and the UI is attached once, to what connect answered.
+let connected = null;
 let attached = false;
 
 // MARK: - Public
@@ -65,19 +65,21 @@ function connect(environment, { host, config = {}, folders = {} } = {}) {
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     refuseUnknown('config', config, Object.keys(CONFIG));
     refuseUnknown('folders', folders, Object.keys(FOLDERS));
-    connected = true;
-    return make({
+    connected = make({
         ENV,
         host,
         config: Object.freeze({ ...CONFIG, ...config }),
         folders: Object.freeze({ ...FOLDERS, ...folders }),
     });
+    return connected;
 }
 
 // How a host app puts deckit's UI on deckit, once, before it is ready: `deckit` is what connect answered, and `host`
 // answers where the UI is shown. The UI starts with deckit, before any mod launches.
 function attach(deckit, { host } = {}) {
     if (attached) throw new Error('[deckit] attach is called once');
+    if (!connected) throw new Error('[deckit] attach comes after connect');
+    if (deckit !== connected) throw new Error('[deckit] attach takes what connect answered');
     const missing = ATTACH_ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;

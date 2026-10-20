@@ -1,4 +1,4 @@
-import * as CONTRACT from './deck/contract/index.js';
+import * as CONTRACT from './contract/index.js';
 import { createEnvironment } from './environment/main.js';
 
 // MARK: - Property
