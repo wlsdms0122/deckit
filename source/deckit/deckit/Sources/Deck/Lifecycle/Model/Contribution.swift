@@ -12,12 +12,24 @@ import Foundation
 // carries and does not read.
 public struct Contribution: Sendable {
     // MARK: - Property
-    let exports: Snapshot
-    let extensionPoints: [String]
-    let extensions: [String: Snapshot]
+    public let exports: Snapshot
+    public let extensionPoints: [String]
+    public let extensions: [String: Snapshot]
     public let layers: [String: JSONValue]
 
     // MARK: - Initializer
+    public init(
+        exports: Snapshot,
+        extensionPoints: [String],
+        extensions: [String: Snapshot],
+        layers: [String: JSONValue]
+    ) {
+        self.exports = exports
+        self.extensionPoints = extensionPoints
+        self.extensions = extensions
+        self.layers = layers
+    }
+
     // MARK: - Public
     // MARK: - Private
 }

@@ -10,19 +10,21 @@ import Deck
 
 // The schemes whose addresses a mod opens, held under `urlSchemes`: `url-schemes = ["https"]`, or ["*"] for every
 // scheme.
-struct URLSchemesField: ManifestField {
+public struct URLSchemesField: ManifestField {
     // MARK: - Property
-    let name = "url-schemes"
-    let key = "urlSchemes"
+    public let name = "url-schemes"
+    public let key = "urlSchemes"
 
     // MARK: - Initializer
+    public init() {}
+
     // MARK: - Public
-    func read(_ written: TOMLValue?) -> [String] {
+    public func read(_ written: TOMLValue?) -> [String] {
         guard case let .array(values) = written else { return [] }
         return schemes(in: values)
     }
 
-    func problem(of written: TOMLValue) -> String? {
+    public func problem(of written: TOMLValue) -> String? {
         let example = "url-schemes = [\"https\"], or [\"*\"] for every scheme"
         guard case let .array(values) = written, !values.isEmpty else {
             return "url-schemes must be a list of schemes, as \(example)"

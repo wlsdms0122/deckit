@@ -8,7 +8,7 @@
 import Foundation
 
 // What a setting is set to: on or off, a number, or text.
-enum SettingValue: Equatable, Sendable {
+public enum SettingValue: Equatable, Sendable {
     case bool(Bool)
     case number(Double)
     case string(String)

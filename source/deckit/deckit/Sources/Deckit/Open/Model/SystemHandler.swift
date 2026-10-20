@@ -9,7 +9,7 @@ import Foundation
 
 // What deckit opens an address with by itself, after every mod that takes its scheme: the web in the system browser, a
 // file in its app.
-enum SystemHandler: String, Encodable, Sendable {
+public enum SystemHandler: String, Encodable, Sendable {
     case browser
     case file
 

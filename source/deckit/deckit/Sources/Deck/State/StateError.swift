@@ -7,28 +7,22 @@
 
 import Foundation
 
-enum StateError: CallError, Equatable {
+public enum StateError: Refusal, Equatable {
     case notAKey(String)
     case notAFolder(String)
+    case reserved(String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .notAKey:
-            "KEY"
-
-        case .notAFolder:
-            "FOLDER"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .notAKey(key):
             "not a state key: \(key)"
 
         case let .notAFolder(folder):
             "not a state folder: \(folder)"
+
+        case let .reserved(key):
+            "the state key \(key) is kept by deckit itself"
         }
     }
 

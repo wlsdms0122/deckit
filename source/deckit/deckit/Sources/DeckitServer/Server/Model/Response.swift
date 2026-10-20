@@ -13,6 +13,16 @@ enum Response {
     case error(id: Int?, ResponseError)
 
     // MARK: - Property
+    var id: Int? {
+        switch self {
+        case let .result(id, _):
+            id
+
+        case let .error(id, _):
+            id
+        }
+    }
+
     // MARK: - Initializer
     // MARK: - Public
     // MARK: - Private

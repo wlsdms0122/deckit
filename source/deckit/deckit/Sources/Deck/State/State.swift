@@ -15,6 +15,8 @@ public final class State {
     private let fileExtension = "json"
     private let root: URL
     private let store: Store
+    // Keys of the state folder a part of deck, or of a layer on it, keeps, which only it writes.
+    private var reserved: Set<String> = []
 
     // MARK: - Initializer
     init(root: URL, store: Store) {
@@ -28,12 +30,23 @@ public final class State {
         store.read(try file(in: folder, key: key))
     }
 
+    // A key of the state folder that is reserved is refused: what keeps it reads it once, as it starts.
     public func write(folder: String?, key: String, text: String) throws {
+        guard folder != nil || !reserved.contains(key) else { throw StateError.reserved(key) }
         try store.write(text, to: try file(in: folder, key: key))
     }
 
+    // `key` of the state folder is the caller's to keep, and only `write(reserved:text:)` writes it.
+    package func reserve(_ key: String) {
+        reserved.insert(key)
+    }
+
+    package func write(reserved key: String, text: String) throws {
+        try store.write(text, to: try file(in: nil, key: key))
+    }
+
     // Every key kept, those of the state folder first, then each folder's, by name.
-    func all() throws -> [StateEntry] {
+    public func all() throws -> [StateEntry] {
         let folders = try store.names(in: root)
             .filter { name in store.isName(name) && store.isFolder(root.appending(path: name)) }
             .sorted()

@@ -8,7 +8,7 @@
 import Foundation
 
 // What the driver does, in order, with what deck decided of the runs.
-enum Effect: Sendable {
+public enum Effect: Sendable {
     // Make the mod's sandbox, its page not loaded yet.
     case open(Mod)
     // Load the mod's page at its address.
@@ -31,8 +31,8 @@ enum Effect: Sendable {
     case extensionsChanged(modId: String, run: Int, name: String, extensions: [String: Snapshot])
     // The scoped names of the points the mod extends now.
     case extendsChanged(modId: String, points: [String])
-    // What a layer on deck tells has changed of its own, by the effect's name.
-    case layer(effect: String, change: any Encodable & Sendable)
+    // What a layer on deck tells has changed of its own.
+    case layer(any LayerChange)
 
     // MARK: - Property
     // MARK: - Initializer

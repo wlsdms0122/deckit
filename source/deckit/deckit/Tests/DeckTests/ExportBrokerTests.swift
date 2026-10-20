@@ -48,7 +48,7 @@ struct ExportBrokerTests {
         let sut = ExportBroker(runner: runner)
 
         // When
-        _ = try runner.crash("a", run: 1, problem: "its page ended")
+        _ = try runner.crashed("a", run: 1, problem: "its page ended")
 
         // Then
         #expect(throws: ExportError.needs("a", problem: "its page ended")) {
@@ -103,7 +103,7 @@ struct ExportBrokerTests {
         let launching = try sut.call(from: "b", run: 2, mod: "a", path: ["ask"])
         _ = try runner.started("a", run: 2, exports: [["ask"]])
         _ = try runner.started("b", run: 2)
-        _ = try runner.crash("a", run: 2, problem: "its page ended")
+        _ = try runner.crashed("a", run: 2, problem: "its page ended")
 
         // Then
         #expect(terminating.ready == true)

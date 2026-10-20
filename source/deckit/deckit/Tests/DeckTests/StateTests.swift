@@ -43,6 +43,23 @@ struct StateTests {
         )
     }
 
+    @Test("a reserved key of the state folder is written only by its keeper; one of the same name in a folder is not")
+    func testThatAReservedKeyIsRefused() throws {
+        // Given
+        sut.reserve("keys")
+
+        // When
+        try sut.write(reserved: "keys", text: "[]")
+        try sut.write(folder: "host", key: "keys", text: "1")
+
+        // Then
+        #expect(throws: StateError.reserved("keys")) {
+            try sut.write(folder: nil, key: "keys", text: "{}")
+        }
+        #expect(try sut.read(folder: nil, key: "keys") == "[]")
+        #expect(try sut.read(folder: "host", key: "keys") == "1")
+    }
+
     @Test("all reads none from a state folder that is not there")
     func testThatAllReadsNoneWithoutFolder() throws {
         // Given

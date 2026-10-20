@@ -8,10 +8,10 @@
 import Foundation
 
 // One of a mod's settings.
-struct SettingKey: Encodable, Equatable, Sendable {
+public struct SettingKey: Equatable, Sendable {
     // MARK: - Property
-    let mod: String
-    let key: String
+    public let mod: String
+    public let key: String
 
     // MARK: - Initializer
     // MARK: - Public

@@ -9,7 +9,7 @@ import Foundation
 
 // What a mod asks for to reach what a layer guards with it: `name` and `means` are what a person reads before
 // installing.
-public struct Permission: Codable, Equatable, Sendable {
+public struct Permission: Equatable, Sendable {
     // MARK: - Property
     public let id: String
     public let name: String

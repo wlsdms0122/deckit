@@ -8,26 +8,13 @@
 import Foundation
 import Deck
 
-enum KeymapError: CallError, Equatable {
+public enum KeymapError: Refusal, Equatable {
     case noSuchBinding(String)
     case notAChord(String)
     case cannotBeGlobal(label: String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .noSuchBinding:
-            "SHORTCUT"
-
-        case .notAChord:
-            "CHORD"
-
-        case .cannotBeGlobal:
-            "REFUSED"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .noSuchBinding(id):
             "no such shortcut: \(id)"

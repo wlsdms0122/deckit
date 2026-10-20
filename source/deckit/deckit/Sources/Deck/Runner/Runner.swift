@@ -83,7 +83,7 @@ final class Runner {
     }
 
     // A page that loaded again by itself runs again: the run it had ended with the document it ran in.
-    func load(_ id: String) throws -> [Effect] {
+    func loaded(_ id: String) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id) else { throw RunnerError.noSandbox(id) }
             guard sandbox.closing == nil else { throw RunnerError.closing(id) }
@@ -110,7 +110,7 @@ final class Runner {
         }
     }
 
-    func record(_ id: String, run number: Int, problem: String) throws -> [Effect] {
+    func report(_ id: String, run number: Int, problem: String) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id, run: number) else { return }
             sandbox.run.record(problem)
@@ -126,7 +126,7 @@ final class Runner {
         }
     }
 
-    func crash(_ id: String, run number: Int, problem: String) throws -> [Effect] {
+    func crashed(_ id: String, run number: Int, problem: String) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id, run: number), sandbox.run.state != .notRunning else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.crash(problem) }

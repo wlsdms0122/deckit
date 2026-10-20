@@ -8,18 +8,11 @@
 import Foundation
 import Deck
 
-enum URLRouterError: CallError, Equatable {
+public enum URLRouterError: Refusal, Equatable {
     case noHandlers(String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .noHandlers:
-            "SCHEME"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .noHandlers(scheme):
             "no mod handles \(scheme)"

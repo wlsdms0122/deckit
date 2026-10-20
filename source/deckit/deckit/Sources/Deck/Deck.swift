@@ -12,16 +12,17 @@ public final class Deck {
     // MARK: - Property
     // The state deck keeps, which a layer keeps its own in beside deck's.
     public let state: State
-    private let record: Record
-    private let setting: Setting
-    private let dataFolder: DataFolder
-    private let catalog: Catalog
+    public let records: Record
+    public let settings: Setting
+    public let dataFolder: DataFolder
+    // The mods found, installed and removed, and their order. Reading them again is deck's (`readCatalog()`).
+    public let catalog: Catalog
+    public let erasure: Erasure
+    public let exports: ExportBroker
+    public let extensions: ExtensionRegistry
+    public let events: EventBus
     private let runner: Runner
-    private let erasure: Erasure
-    private let exportBroker: ExportBroker
-    private let extensionRegistry: ExtensionRegistry
-    private let eventBus: EventBus
-    private var layers: [any Layer] = []
+    private var layers: [Layer] = []
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
@@ -58,213 +59,84 @@ public final class Deck {
             catalog: catalog,
             runner: runner
         )
-        self.record = record
+        self.records = record
         self.state = state
-        self.setting = setting
+        self.settings = setting
         self.dataFolder = dataFolder
         self.catalog = catalog
         self.runner = runner
         self.erasure = Erasure(dataFolder: dataFolder, record: record, setting: setting, state: state, store: store)
-        self.exportBroker = ExportBroker(runner: runner)
-        self.extensionRegistry = ExtensionRegistry(runner: runner)
-        self.eventBus = EventBus(runner: runner)
+        self.exports = ExportBroker(runner: runner)
+        self.extensions = ExtensionRegistry(runner: runner)
+        self.events = EventBus(runner: runner)
     }
 
     // MARK: - Public
-    // The mods that load, as the catalog was last read, in the person's order.
-    public func mods() -> [Mod] {
-        catalog.lastRead.filter { mod in mod.problem == nil }
-    }
-
     // What the mod's run contributed, from its launch until it has ended.
-    public func contributions(of id: String) -> Contribution? {
+    package func contributions(of id: String) -> Contribution? {
         guard let run = runner.run(of: id), run.state == .running || run.state == .terminating else { return nil }
         return run.contributions
     }
 
     // `layer` is asked of each run as it starts, and of what has changed once the runs have moved.
-    public func add(_ layer: any Layer) {
+    package func add(_ layer: Layer) {
         layers.append(layer)
     }
 
-    // What deck answers a call with, or nil for a method that is not deck's. A method that answers nothing else
-    // answers true once it is done; one whose answer may be none answers it as an optional value, never as nil.
-    public func answer(_ call: Call) throws -> (any Encodable & Sendable)? {
-        switch call.method {
-        case "record/read":
-            let params = try call.params.decode(as: ReadRecordParams.self)
-            return try record.read(mod: params.mod, key: params.key) as any Encodable & Sendable
+    // The mods read again, as the catalog reads them now.
+    public func readCatalog() -> [Mod] {
+        let mods = catalog.read()
+        settings.forget()
+        return mods
+    }
 
-        case "record/write":
-            let params = try call.params.decode(as: WriteRecordParams.self)
-            try record.write(mod: params.mod, key: params.key, text: params.text)
-            return true
+    // What the runs come to for the catalog as it was last read.
+    public func reconcile() throws -> [Effect] {
+        try withChanges(runner.reconcile())
+    }
 
-        case "record/remove":
-            let params = try call.params.decode(as: RemoveRecordParams.self)
-            try record.remove(mod: params.mod, key: params.key)
-            return true
+    public func relaunch(_ id: String) throws -> [Effect] {
+        try withChanges(runner.relaunch(id))
+    }
 
-        case "record/keys":
-            let params = try call.params.decode(as: RecordKeysParams.self)
-            return try record.keys(mod: params.mod)
+    public func relaunchAll() throws -> [Effect] {
+        try withChanges(runner.relaunchAll())
+    }
 
-        case "record/count":
-            let params = try call.params.decode(as: CountRecordsParams.self)
-            return try record.count(mod: params.mod)
+    public func quit() throws -> [Effect] {
+        try withChanges(runner.quit())
+    }
 
-        case "state/all":
-            return try state.all()
+    // The mod's page loaded.
+    public func loaded(_ id: String) throws -> [Effect] {
+        try withChanges(runner.loaded(id))
+    }
 
-        case "state/write":
-            let params = try call.params.decode(as: WriteStateParams.self)
-            try state.write(folder: params.folder, key: params.key, text: params.text)
-            return true
-
-        case "setting/read":
-            let params = try call.params.decode(as: ReadSettingsParams.self)
-            return setting.read(mod: params.mod)
-
-        case "setting/declare":
-            let params = try call.params.decode(as: DeclareSettingsParams.self)
-            return setting.declare(params.settings, mod: params.mod, run: params.run)
-
-        case "setting/computed-choices":
-            let params = try call.params.decode(as: ComputedChoicesParams.self)
-            return setting.computedChoices(mod: params.mod)
-
-        case "setting/list":
-            let params = try call.params.decode(as: ListSettingsParams.self)
-            return setting.list(choices: params.choices)
-
-        case "setting/set":
-            let params = try call.params.decode(as: SetSettingParams.self)
-            return try setting.set(mod: params.mod, key: params.key, value: params.value, options: params.options)
-
-        case "setting/action":
-            let params = try call.params.decode(as: SettingActionParams.self)
-            try setting.action(mod: params.mod, key: params.key)
-            return true
-
-        case "catalog/read":
-            let mods = catalog.read()
-            setting.forget()
-            return mods
-
-        case "catalog/arrange":
-            let params = try call.params.decode(as: ArrangeCatalogParams.self)
-            try catalog.arrange(params.ids)
-            return true
-
-        case "catalog/install-shipped":
-            return try catalog.installShipped()
-
-        case "catalog/would-install":
-            let params = try call.params.decode(as: InstallModParams.self)
-            return try catalog.wouldInstall(from: URL(filePath: params.from))
-
-        case "catalog/install":
-            let params = try call.params.decode(as: InstallModParams.self)
-            return try catalog.install(from: URL(filePath: params.from))
-
-        case "catalog/remove":
-            let params = try call.params.decode(as: RemoveModParams.self)
-            return try catalog.remove(params.id)
-
-        case "data/count":
-            let params = try call.params.decode(as: CountDataParams.self)
-            return try dataFolder.count(mod: params.mod)
-
-        case "erasure/erase":
-            let params = try call.params.decode(as: ErasureParams.self)
-            try erasure.erase(mod: params.mod)
-            return true
-
-        case "erasure/uncleared":
-            return erasure.uncleared()
-
-        case "erasure/cleared":
-            let params = try call.params.decode(as: ErasureParams.self)
-            try erasure.cleared(mod: params.mod)
-            return true
-
-        case "runner/reconcile":
-            return try withChanges(runner.reconcile())
-
-        case "runner/relaunch":
-            let params = try call.params.decode(as: SandboxParams.self)
-            return try withChanges(runner.relaunch(params.mod))
-
-        case "runner/relaunch-all":
-            return try withChanges(runner.relaunchAll())
-
-        case "runner/quit":
-            return try withChanges(runner.quit())
-
-        case "runner/load":
-            let params = try call.params.decode(as: SandboxParams.self)
-            return try withChanges(runner.load(params.mod))
-
-        case "runner/started":
-            let params = try call.params.decode(as: StartedParams.self)
-            var effects = try runner.started(
-                params.mod,
-                run: params.run,
-                summary: params.summary,
-                contributions: params.contributions
-            )
-            for problem in problems(of: params.mod, run: params.run) {
-                effects += try runner.record(params.mod, run: params.run, problem: problem)
-            }
-            return withChanges(effects)
-
-        case "runner/problem":
-            let params = try call.params.decode(as: RunProblemParams.self)
-            return try withChanges(runner.record(params.mod, run: params.run, problem: params.problem))
-
-        case "runner/not-started":
-            let params = try call.params.decode(as: RunProblemParams.self)
-            return try withChanges(runner.notStarted(params.mod, run: params.run, problem: params.problem))
-
-        case "runner/crash":
-            let params = try call.params.decode(as: RunProblemParams.self)
-            return try withChanges(runner.crash(params.mod, run: params.run, problem: params.problem))
-
-        case "runner/stopped":
-            let params = try call.params.decode(as: RunParams.self)
-            return try withChanges(runner.stopped(params.mod, run: params.run))
-
-        case "export/dependencies":
-            let params = try call.params.decode(as: RunParams.self)
-            return try exportBroker.dependencies(mod: params.mod, run: params.run)
-
-        case "export/call":
-            let params = try call.params.decode(as: CallExportParams.self)
-            return try exportBroker.call(from: params.caller, run: params.run, mod: params.mod, path: params.path)
-
-        case "extension/call":
-            let params = try call.params.decode(as: CallExtensionParams.self)
-            try extensionRegistry.call(
-                from: params.caller,
-                run: params.run,
-                mod: params.mod,
-                point: params.point,
-                path: params.path
-            )
-            return true
-
-        case "event/listen":
-            let params = try call.params.decode(as: ListenParams.self)
-            eventBus.listen(mod: params.mod, run: params.run, names: params.names)
-            return true
-
-        case "event/emit":
-            let params = try call.params.decode(as: EmitParams.self)
-            return eventBus.emit(mod: params.mod, run: params.run, name: params.name)
-
-        default:
-            return nil
+    // The `run`th run of `id` started, with what its page reported: `summary` as a person reads it, and what it
+    // contributed, which deck and each layer judge.
+    public func started(_ id: String, run: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
+        var effects = try runner.started(id, run: run, summary: summary, contributions: contributions)
+        for problem in problems(of: id, run: run) {
+            effects += try runner.report(id, run: run, problem: problem)
         }
+        return withChanges(effects)
+    }
+
+    // A problem against the `run`th run of `id`.
+    public func report(_ id: String, run: Int, problem: String) throws -> [Effect] {
+        try withChanges(runner.report(id, run: run, problem: problem))
+    }
+
+    public func notStarted(_ id: String, run: Int, problem: String) throws -> [Effect] {
+        try withChanges(runner.notStarted(id, run: run, problem: problem))
+    }
+
+    public func crashed(_ id: String, run: Int, problem: String) throws -> [Effect] {
+        try withChanges(runner.crashed(id, run: run, problem: problem))
+    }
+
+    public func stopped(_ id: String, run: Int) throws -> [Effect] {
+        try withChanges(runner.stopped(id, run: run))
     }
 
     // MARK: - Private
@@ -272,8 +144,8 @@ public final class Deck {
     // what each layer tells has changed of its own.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
         effects
-            + exportBroker.changes()
-            + extensionRegistry.changes()
+            + exports.changes()
+            + extensions.changes()
             + layers.flatMap { layer in layer.changes() }.map(Effect.layer)
     }
 
@@ -281,7 +153,7 @@ public final class Deck {
     private func problems(of id: String, run number: Int) -> [String] {
         guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
 
-        return extensionRegistry.problems(of: run, mod: mod)
-            + layers.flatMap { layer in layer.problems(of: run, mod: mod) }
+        return extensions.problems(of: run, mod: mod)
+            + layers.flatMap { layer in layer.problems(run, mod) }
     }
 }

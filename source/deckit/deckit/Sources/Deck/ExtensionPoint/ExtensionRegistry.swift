@@ -12,7 +12,7 @@ import Foundation
 // extends the point while both run, and runs on either way. A point is open from when its mod's run starts until it has
 // ended. A running mod extends it once it is open, until its own run has ended: one that is ending takes no point
 // opened since. What extends a point stays in its own page, which answers the calls the point's mod makes into it.
-final class ExtensionRegistry {
+public final class ExtensionRegistry {
     // MARK: - Property
     private let runner: Runner
     // Point mod id -> its run last told what extends its points, and as told, by point name: mod id -> the run of it
@@ -50,7 +50,7 @@ final class ExtensionRegistry {
 
     // A call from the `number`th run of `caller` into the function at `path` of what `id` extends `point`, one of the
     // caller's, with.
-    func call(
+    public func call(
         from caller: String,
         run number: Int,
         mod id: String,

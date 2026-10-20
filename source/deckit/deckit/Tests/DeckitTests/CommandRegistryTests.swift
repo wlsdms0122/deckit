@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-import Deck
+@testable import Deck
 @testable import Deckit
 
 @Suite("CommandRegistry")
@@ -29,14 +29,16 @@ struct CommandRegistryTests {
         _ = try sut.started("c", run: 1, contributing: ["resolve": .bool(true)])
         _ = try sut.started("b", run: 1, contributing: ["commands": .bool(false)])
         _ = try sut.started("a", run: 1, contributing: ["commands": .bool(true), "now": .bool(true)])
-        let sources = try sut.json("command/sources")
+        let sources = sut.commands.sources()
 
         // Then
-        let lines = sources.array.map { source in
-            [source["id"]?.string ?? ""] + ["commands", "now", "resolve"].filter { name in source[name]?.bool == true }
+        let lines = sources.map { source in
+            [source.id] + [("commands", source.commands), ("now", source.now), ("resolve", source.resolve)]
+                .filter { _, registered in registered }
+                .map { name, _ in name }
         }
         #expect(lines == [["a", "commands", "now"], ["c", "resolve"]])
-        #expect(sources.array.first?["name"]?.string == "A")
+        #expect(sources.first?.name == "A")
     }
 
     // MARK: - Private

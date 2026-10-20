@@ -9,7 +9,7 @@ import Foundation
 
 // Every mod deck reads: those read in place from a source folder, ahead of an installed one of the same id, and the
 // installed ones. Each loads or says why not, and those that load are in the person's order, kept in the state.
-final class Catalog {
+public final class Catalog {
     // MARK: - Property
     private let orderKey = "mod-order"
     private let sources: [URL]
@@ -23,6 +23,10 @@ final class Catalog {
     private var installs: [String: Int] = [:]
     // The mods as they were last read: what runs.
     private(set) var lastRead: [Mod] = []
+    // Those of them that load, in the person's order.
+    public var loading: [Mod] {
+        lastRead.filter { mod in mod.problem == nil }
+    }
 
     // MARK: - Initializer
     // `folder` is deck's mods folder, `sources` the folders of mods read in place, and `ship` the folders of what the
@@ -43,6 +47,7 @@ final class Catalog {
         self.installer = installer
         self.state = state
         self.store = store
+        state.reserve(orderKey)
     }
 
     // MARK: - Public
@@ -78,7 +83,7 @@ final class Catalog {
     }
 
     // The ids named take the places they held among themselves, in the order given; the rest stay put.
-    func arrange(_ ids: [String]) throws {
+    public func arrange(_ ids: [String]) throws {
         var next = mods().filter { mod in mod.problem == nil }.map(\.manifest.id)
         var seen: Set<String> = []
         let moved = ids.filter { id in next.contains(id) && seen.insert(id).inserted }
@@ -88,14 +93,14 @@ final class Catalog {
         }
 
         let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try state.write(folder: nil, key: orderKey, text: text)
+        try state.write(reserved: orderKey, text: text)
     }
 
-    func wouldInstall(from source: URL) throws -> Manifest {
+    public func wouldInstall(from source: URL) throws -> Manifest {
         try installer.wouldInstall(from: source, refuse: shadow)
     }
 
-    func install(from source: URL) throws -> Manifest {
+    public func install(from source: URL) throws -> Manifest {
         let manifest = try installer.install(from: source, refuse: shadow)
         installs[manifest.id, default: 0] += 1
 
@@ -104,7 +109,7 @@ final class Catalog {
 
     // A mod read in place is removed where it is read. Answers whether deck keeps anything under its id: one that is
     // no mod id never loaded, so it stored nothing.
-    func remove(_ id: String) throws -> Bool {
+    public func remove(_ id: String) throws -> Bool {
         if let mod = list().first(where: { mod in mod.manifest.id == id }), isReadInPlace(mod) {
             throw InstallError.readInPlace(id: id, folder: mod.folder.path(percentEncoded: false))
         }
@@ -113,7 +118,7 @@ final class Catalog {
         return store.isName(id)
     }
 
-    func installShipped() throws -> [InstallReport] {
+    public func installShipped() throws -> [InstallReport] {
         try installer.installShipped()
     }
 

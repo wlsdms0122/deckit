@@ -7,7 +7,8 @@
 
 import Foundation
 import Testing
-import Deck
+@testable import Deck
+import Deckit
 @testable import DeckitServer
 
 @Suite("Server")
@@ -299,6 +300,154 @@ struct ServerTests {
             value(in: dependencies, at: "result", "ready", "requires", "calendar")
                 == (try json(#"{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]}"#))
         )
+    }
+
+    @Test("deckit's own methods answer through the server, as deck's do")
+    func testThatDeckitMethodsAnswer() throws {
+        // Given
+        try mod("mail", schemes: #"["mailto"]"#)
+        try initialize()
+        _ = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
+        _ = try respond(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#)
+        let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{},"#
+            + #""handleURL":true,"commands":true}"#
+        _ = try respond(
+            #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
+                + #""contributions":\#(contributions)}}"#
+        )
+
+        // When
+        let registered = try respond(
+            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"action":"go","key":"mod+1","label":"Go","#
+                + #""global":false}}"#
+        )
+        let bound = try respond(
+            #"{"jsonrpc":"2.0","id":6,"method":"keymap/bind","params":{"id":"@app.go","spec":"cmd+2"}}"#
+        )
+        let set = try respond(
+            #"{"jsonrpc":"2.0","id":7,"method":"open/setHandlers","params":{"scheme":"mailto","order":["mail"],"#
+                + #""off":[]}}"#
+        )
+        let routed = try respond(
+            #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","userInitiated":true,"#
+                + #""usesDefaultApp":false}}"#
+        )
+        let sources = try respond(#"{"jsonrpc":"2.0","id":9,"method":"command/sources"}"#)
+
+        // Then
+        guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let go = bindings.first else {
+            Issue.record("no bindings in \(bound)")
+            return
+        }
+        #expect(value(in: registered, at: "result", "revision") != nil)
+        #expect(value(in: go, at: "id") == .string("@app.go"))
+        #expect(value(in: go, at: "spec") == .string("cmd+2"))
+        #expect(value(in: set, at: "result") == .bool(true))
+        #expect(value(in: routed, at: "result", "handlers") == .array([.string("mail")]))
+        #expect(sources == (try json(
+            #"{"jsonrpc":"2.0","id":9,"result":[{"id":"mail","name":"mail","commands":true,"now":false,"#
+                + #""resolve":false}]}"#
+        )))
+    }
+
+    @Test("a setting lists as Settings reads it: the declaration's fields, `default` as declared, value and options")
+    func testThatASettingItemIsJSON() throws {
+        // Given
+        let size = SettingDeclaration(key: "size", type: .number, label: "Size", defaultValue: .number(12), min: 8)
+        let item = SettingItem(declaration: size, value: .number(14), options: [])
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+
+        // When
+        let listed = String(decoding: try encoder.encode(item), as: UTF8.self)
+
+        // Then
+        #expect(
+            listed == #"{"computed":false,"default":12,"key":"size","label":"Size","min":8,"options":[],"#
+                + #""type":"number","value":14}"#
+        )
+    }
+
+    @Test("the keymap reads as the driver keeps it: each binding with its chord, its issues and its keystroke")
+    func testThatTheKeymapIsJSON() throws {
+        // Given
+        try initialize()
+        for (id, (action, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
+            _ = try respond(
+                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"action":"\#(action)","#
+                    + #""key":"\#(spec)","label":"","global":false}}"#
+            )
+        }
+
+        // When
+        let bound = try respond(
+            #"{"jsonrpc":"2.0","id":4,"method":"keymap/bind","params":{"id":"@app.two","spec":"cmd+1"}}"#
+        )
+
+        // Then
+        guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let two = bindings.last,
+            case let .array(issues)? = value(in: two, at: "issues"), let held = issues.first
+        else {
+            Issue.record("not a keymap: \(bound)")
+            return
+        }
+        #expect(value(in: bound, at: "result", "revision") == .number(3))
+        #expect(value(in: two, at: "id") == .string("@app.two"))
+        #expect(value(in: two, at: "key") == Keystroke(spec: "mod+2")?.spec.map(JSONValue.string))
+        #expect(value(in: two, at: "spec") == .string("cmd+1"))
+        #expect(value(in: two, at: "chord") == .string(try #require(Keystroke(spec: "cmd+1")).label))
+        #expect(value(in: two, at: "changed") == .bool(true))
+        #expect(value(in: two, at: "active") == .bool(false))
+        #expect(value(in: two, at: "keystroke", "code") == .string("Digit1"))
+        #expect(value(in: held, at: "level") == .string("error"))
+        #expect(value(in: held, at: "kind") == .string("held"))
+        #expect(value(in: held, at: "other", "id") == .string("@app.one"))
+        #expect(value(in: held, at: "other", "ownerName") == .string("Deckit"))
+        #expect(value(in: held, at: "other", "app") == .bool(true))
+    }
+
+    @Test("options a page answered that are not options read as none")
+    func testThatUnreadableOptionsReadAsNone() throws {
+        // Given
+        let text = #"[{"mod":"notes","key":"font","options":[{"value":null}]},{"mod":"notes","key":"size"}]"#
+
+        // When
+        let choices = try JSONDecoder().decode([ComputedChoice].self, from: Data(text.utf8))
+
+        // Then
+        #expect(choices.map(\.key) == ["font", "size"])
+        #expect(choices.allSatisfy { choice in choice.options.isEmpty })
+    }
+
+    @Test("a result that cannot be written is answered with an internal error, never dropped")
+    func testThatAnUnwritableResultIsAnswered() throws {
+        // Given
+        struct Unwritable: Encodable, Sendable {
+            func encode(to encoder: any Encoder) throws {
+                throw EncodingError.invalidValue(0, EncodingError.Context(codingPath: [], debugDescription: "none"))
+            }
+        }
+
+        // When
+        let response = try json(String(decoding: sut.written(.result(id: 7, Unwritable())), as: UTF8.self))
+
+        // Then
+        #expect(value(in: response, at: "id") == .number(7))
+        #expect(value(in: response, at: "error", "code") == .number(-32603))
+    }
+
+    @Test("a state key deckit keeps itself is refused to the driver")
+    func testThatAReservedStateKeyIsRefused() throws {
+        // Given
+        try initialize()
+
+        // When
+        let response = try respond(
+            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":null,"key":"keys","text":"[]"}}"#
+        )
+
+        // Then
+        #expect(value(in: response, at: "error", "data", "kind") == .string("RESERVED"))
     }
 
     // MARK: - Private

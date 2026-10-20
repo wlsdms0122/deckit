@@ -8,7 +8,7 @@
 import Foundation
 
 // What a run tells as it moves, in the order a run that starts and stops tells them.
-enum LifecycleNotification: String, Encodable, Sendable {
+public enum LifecycleNotification: String, Encodable, Sendable {
     case willLaunch
     case didLaunch
     case didFailToLaunch

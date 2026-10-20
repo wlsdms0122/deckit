@@ -8,6 +8,8 @@ let package = Package(
         .macOS(.v13)
     ],
     products: [
+        .library(name: "Deck", targets: ["Deck"]),
+        .library(name: "Deckit", targets: ["Deckit"]),
         .executable(name: "deckit", targets: ["DeckitServer"])
     ],
     targets: [
@@ -39,9 +41,19 @@ let package = Package(
             ]
         ),
         .testTarget(
+            name: "DeckitHostTests",
+            dependencies: [
+                "Deck",
+                "Deckit"
+            ]
+        ),
+        .testTarget(
             name: "DeckitServerTests",
             dependencies: [
                 "DeckitServer"
+            ],
+            resources: [
+                .copy("Golden")
             ]
         )
     ],

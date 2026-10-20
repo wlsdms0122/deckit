@@ -8,7 +8,7 @@
 import Foundation
 
 // Why a mod is not installed, or not removed.
-enum InstallError: CallError, Equatable {
+public enum InstallError: Refusal, Equatable {
     // A mod deck would not load, and why.
     case notLoadable(String)
     case installedThere
@@ -21,32 +21,7 @@ enum InstallError: CallError, Equatable {
     case readInPlace(id: String, folder: String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .notLoadable:
-            "NOT_LOADABLE"
-
-        case .installedThere:
-            "INSTALLED_THERE"
-
-        case .nested:
-            "NESTED"
-
-        case .occupied:
-            "OCCUPIED"
-
-        case .refused:
-            "REFUSED"
-
-        case .notInstalled:
-            "NOT_INSTALLED"
-
-        case .readInPlace:
-            "READ_IN_PLACE"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .notLoadable(problem):
             problem

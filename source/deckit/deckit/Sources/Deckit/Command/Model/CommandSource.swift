@@ -8,13 +8,13 @@
 import Foundation
 
 // A mod as a source of what a person may run: `commands`, `now` and `resolve`, whether its run registered each.
-struct CommandSource: Encodable, Sendable {
+public struct CommandSource: Sendable {
     // MARK: - Property
-    let id: String
-    let name: String
-    let commands: Bool
-    let now: Bool
-    let resolve: Bool
+    public let id: String
+    public let name: String
+    public let commands: Bool
+    public let now: Bool
+    public let resolve: Bool
 
     // MARK: - Initializer
     // MARK: - Public

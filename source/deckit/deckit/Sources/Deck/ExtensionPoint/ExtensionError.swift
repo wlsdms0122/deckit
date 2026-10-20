@@ -7,30 +7,14 @@
 
 import Foundation
 
-enum ExtensionError: CallError, Equatable {
+public enum ExtensionError: Refusal, Equatable {
     case notAPoint(String, of: String)
     case notRunning(String)
     case notExtending(mod: String, point: String)
     case noSuchFunction(mod: String, point: String, path: [String])
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .notAPoint:
-            "POINT"
-
-        case .notRunning:
-            "NOT_RUNNING"
-
-        case .notExtending:
-            "EXTENSION"
-
-        case .noSuchFunction:
-            "FUNCTION"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .notAPoint(point, mod):
             "\(point) is not a point of \(mod)"

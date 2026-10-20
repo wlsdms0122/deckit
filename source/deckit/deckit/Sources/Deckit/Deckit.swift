@@ -8,18 +8,18 @@
 import Foundation
 import Deck
 
-// The platform on deck: what it adds, and what deck answers under it.
+// The platform on deck: what it adds, and the deck it is on.
 public final class Deckit {
     // MARK: - Property
-    private let deck: Deck
-    private let keymap: Keymap
-    private let commandRegistry: CommandRegistry
-    private let urlRouter: URLRouter
+    public let deck: Deck
+    public let keymap: Keymap
+    public let commands: CommandRegistry
+    public let urlRouter: URLRouter
 
     // MARK: - Initializer
     // `name` is the app's, as a person reads it, `schemeHandlers`, by scheme, the mods it asks first to open an
-    // address, and `permissions` are those main defines, for what deck, deckit and the shell add; the core adds those
-    // it checks itself.
+    // address, and `permissions` are those the driver defines, for what deck, deckit and the shell add; deckit adds
+    // those it checks itself.
     public init(
         home: URL,
         ship: [URL],
@@ -40,52 +40,18 @@ public final class Deckit {
         )
         let keymap = Keymap(deck: deck, appName: name)
         let urlRouter = URLRouter(deck: deck, field: urlSchemes, schemeHandlers: schemeHandlers)
-        deck.add(keymap)
-        deck.add(urlRouter)
+        // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
+        deck.add(Layer(
+            problems: { [weak keymap] run, mod in keymap?.problems(of: run, mod: mod) ?? [] },
+            changes: { [weak keymap] in keymap?.changes() ?? [] }
+        ))
+        deck.add(Layer(problems: { [weak urlRouter] run, mod in urlRouter?.problems(of: run, mod: mod) ?? [] }))
         self.deck = deck
         self.keymap = keymap
-        self.commandRegistry = CommandRegistry(deck: deck)
+        self.commands = CommandRegistry(deck: deck)
         self.urlRouter = urlRouter
     }
 
     // MARK: - Public
-    public func answer(_ call: Call) throws -> (any Encodable & Sendable)? {
-        switch call.method {
-        case "keymap/register":
-            return keymap.register(try call.params.decode(as: Key.self))
-
-        case "keymap/bind":
-            let params = try call.params.decode(as: BindKeyParams.self)
-            return try keymap.bind(params.id, spec: params.spec)
-
-        case "keymap/reset":
-            let params = try call.params.decode(as: ResetKeyParams.self)
-            return try keymap.reset(params.id)
-
-        case "keymap/record":
-            let params = try call.params.decode(as: RecordKeyParams.self)
-            return keymap.record(params.keystroke)
-
-        case "keymap/keystrokes":
-            let params = try call.params.decode(as: KeystrokesParams.self)
-            return keymap.keystrokes(of: params.specs)
-
-        case "command/sources":
-            return commandRegistry.sources()
-
-        case "open/route":
-            return urlRouter.route(try call.params.decode(as: RouteParams.self))
-
-        case "open/handlerLists":
-            return urlRouter.handlerLists()
-
-        case "open/setHandlers":
-            return try urlRouter.setHandlers(try call.params.decode(as: SetHandlersParams.self))
-
-        default:
-            return try deck.answer(call)
-        }
-    }
-
     // MARK: - Private
 }

@@ -8,12 +8,12 @@
 import Foundation
 
 // A mod the app ships, what became of it as what it ships was installed, and the version installed or why not.
-struct InstallReport: Encodable, Equatable, Sendable {
+public struct InstallReport: Equatable, Sendable {
     // MARK: - Property
-    let id: String
-    let outcome: InstallOutcome
-    let version: String?
-    let problem: String?
+    public let id: String
+    public let outcome: InstallOutcome
+    public let version: String?
+    public let problem: String?
 
     // MARK: - Initializer
     init(id: String, outcome: InstallOutcome, version: String? = nil, problem: String? = nil) {

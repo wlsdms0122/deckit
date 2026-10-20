@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum ExportError: CallError, Equatable {
+public enum ExportError: Refusal, Equatable {
     case notADependency(mod: String, of: String)
     case notRunning(String)
     case ended(String, problem: String)
@@ -16,26 +16,7 @@ enum ExportError: CallError, Equatable {
     case needs(String, problem: String)
 
     // MARK: - Property
-    var kind: String {
-        switch self {
-        case .notADependency:
-            "DEPENDENCY"
-
-        case .notRunning, .ended:
-            "NOT_RUNNING"
-
-        case .otherVersion:
-            "VERSION"
-
-        case .noSuchFunction:
-            "FUNCTION"
-
-        case .needs:
-            "NEEDS"
-        }
-    }
-
-    var message: String {
+    public var message: String {
         switch self {
         case let .notADependency(mod, dependent):
             "\(mod) is in neither [requires] nor [optional] of \(dependent)"

@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-import Deck
+@testable import Deck
 @testable import Deckit
 
 @Suite("Keymap")
@@ -29,12 +29,11 @@ struct KeymapTests {
         let b = try sut.started("b", run: 1, keys: [key("go", "mod+shift+g", global: true), key("bad", "mod+nope")])
 
         // Then
-        let keymap = try #require(a.bindingsChanged)
+        let keymap = try #require(a.keymapChange)
         #expect(keymap.line(of: "a.find") == "a.find active")
         #expect(keymap.line(of: "a.next") == "a.next active")
-        #expect(b.bindingsChanged == nil)
-        let problem = b.array.compactMap { effect in effect["problem"]?.string }.first
-        #expect(problem == "key \"go\" cannot be global: that takes the system.global-keys permission")
+        #expect(b.keymapChange == nil)
+        #expect(b.problem == "key \"go\" cannot be global: that takes the system.global-keys permission")
     }
 
     @Test("bindings are listed as a keystroke tries them, and a mod's own key hides the app's in its page")
@@ -42,15 +41,15 @@ struct KeymapTests {
         // Given
         try mods.write("a", permissions: ["system.global-keys"])
         let sut = try mods.deckit()
-        _ = try sut.json("keymap/register", key("switch", "mod+shift+g", global: true))
-        _ = try sut.json("keymap/register", key("back", "mod+["))
+        _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
+        _ = sut.keymap.register(appKey("back", "mod+["))
 
         // When
         let effects = try sut.started("a", run: 1, keys: [key("summon", "mod+shift+g", global: true), key("prev", "mod+[")])
 
         // Then
-        let keymap = try #require(effects.bindingsChanged)
-        #expect(keymap.array.compactMap { binding in binding["id"]?.string } == ["@app.switch", "a.summon", "a.prev", "@app.back"])
+        let keymap = try #require(effects.keymapChange)
+        #expect(keymap.bindings.map(\.binding.id) == ["@app.switch", "a.summon", "a.prev", "@app.back"])
         #expect(keymap.line(of: "a.summon") == "a.summon active shadowed:@app.switch")
         #expect(keymap.line(of: "@app.back") == "@app.back active hidden:a.prev")
         #expect(keymap.line(of: "a.prev") == "a.prev active hides:@app.back")
@@ -61,58 +60,58 @@ struct KeymapTests {
         // Given
         let sut = try mods.deckit()
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
-            _ = try sut.json("keymap/register", key(action, chord))
+            _ = sut.keymap.register(appKey(action, chord))
         }
 
         // When
-        _ = try sut.json("keymap/bind", .object(["id": .string("@app.three"), "spec": .string("cmd+9")]))
-        let changed = try sut.json("keymap/bind", .object(["id": .string("@app.two"), "spec": .string("Shift+Cmd+9")]))
-        let revision = changed["revision"]
-        _ = try sut.json("keymap/bind", .object(["id": .string("@app.two"), "spec": .string("cmd+9")]))
+        _ = try sut.keymap.bind("@app.three", spec: "cmd+9")
+        let changed = try sut.keymap.bind("@app.two", spec: "Shift+Cmd+9")
+        _ = try sut.keymap.bind("@app.two", spec: "cmd+9")
         let restarted = try mods.deckit()
-        var keymap = JSONValue.array([])
+        var keymap = ResolvedKeymap(revision: 0, bindings: [])
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
-            keymap = try restarted.json("keymap/register", key(action, chord))["bindings"] ?? .null
+            keymap = restarted.keymap.register(appKey(action, chord))
         }
 
         // Then
-        #expect(revision == .number(5))
-        #expect(changed["bindings"]?.array.first { binding in binding["id"]?.string == "@app.two" }?["spec"]?.string == "shift+cmd+9")
+        #expect(changed.revision == 5)
+        #expect(changed.bindings.first { resolved in resolved.binding.id == "@app.two" }?.binding.keystroke?.spec == "shift+cmd+9")
         #expect(keymap.line(of: "@app.three") == "@app.three active")
         #expect(keymap.line(of: "@app.two") == "@app.two inactive held:@app.three")
     }
 
-    @Test("a binding back to its default keeps no change", arguments: ["keymap/reset", "keymap/bind"])
-    func testThatABindingGoesBackToItsDefault(method: String) throws {
+    @Test("a binding back to its default keeps no change", arguments: [true, false])
+    func testThatABindingGoesBackToItsDefault(resets: Bool) throws {
         // Given
         let sut = try mods.deckit()
-        _ = try sut.json("keymap/register", key("one", "mod+1"))
-        _ = try sut.json("keymap/bind", .object(["id": .string("@app.one"), "spec": .string("cmd+9")]))
+        _ = sut.keymap.register(appKey("one", "mod+1"))
+        _ = try sut.keymap.bind("@app.one", spec: "cmd+9")
 
         // When
-        let keymap = try sut.json(method, .object(["id": .string("@app.one"), "spec": .string("cmd+1")]))
+        let keymap = resets ? try sut.keymap.reset("@app.one") : try sut.keymap.bind("@app.one", spec: "cmd+1")
 
         // Then
-        let binding = try #require(keymap["bindings"]?.array.first)
-        #expect(binding["spec"]?.string == "cmd+1")
-        #expect(binding["changed"]?.bool == false)
+        let binding = try #require(keymap.bindings.first).binding
+        #expect(binding.keystroke?.spec == "cmd+1")
+        #expect(binding.changed == false)
     }
 
-    @Test("what cannot be bound is refused, of its kind")
+    @Test("what cannot be bound is refused, by why")
     func testThatBindRefuses() throws {
         // Given
         let sut = try mods.deckit()
-        _ = try sut.json("keymap/register", key("switch", "mod+shift+g", global: true))
+        _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
 
         // When
         let refusals = [("@app.none", "cmd+1"), ("@app.switch", "cmd+nope"), ("@app.switch", "cmd+c")].map { id, spec in
             #expect(throws: KeymapError.self) {
-                try sut.json("keymap/bind", .object(["id": .string(id), "spec": .string(spec)]))
+                try sut.keymap.bind(id, spec: spec)
             }
         }
 
         // Then
-        #expect(refusals.map { error in error?.kind } == ["SHORTCUT", "CHORD", "REFUSED"])
+        let copy = try #require(Keystroke(spec: "cmd+c")).label
+        #expect(refusals == [.noSuchBinding("@app.none"), .notAChord("cmd+nope"), .cannotBeGlobal(label: copy)])
     }
 
     @Test("a run that ends takes its keys with it")
@@ -123,16 +122,22 @@ struct KeymapTests {
         _ = try sut.started("a", run: 1, keys: [key("next", "mod+j")])
 
         // When
-        let terminating = try sut.json("runner/relaunch", .object(["mod": .string("a")]))
-        let ended = try sut.json("runner/stopped", .object(["mod": .string("a"), "run": .number(1)]))
+        let terminating = try sut.deck.relaunch("a")
+        let ended = try sut.deck.stopped("a", run: 1)
 
         // Then
-        #expect(terminating.bindingsChanged == nil)
-        #expect(try #require(ended.bindingsChanged).array.isEmpty)
+        #expect(terminating.keymapChange == nil)
+        #expect(try #require(ended.keymapChange).bindings.isEmpty)
     }
 
     // MARK: - Private
+    // A key as a run contributes it.
     private func key(_ action: String, _ spec: String, global: Bool = false) -> JSONValue {
         .object(["action": .string(action), "key": .string(spec), "label": .string(""), "global": .bool(global)])
+    }
+
+    // A key as the app registers it.
+    private func appKey(_ action: String, _ spec: String, global: Bool = false) -> Key {
+        Key(action: action, spec: spec, label: "", global: global)
     }
 }

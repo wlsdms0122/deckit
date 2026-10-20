@@ -8,12 +8,12 @@
 import Foundation
 
 // A key kept, and the folder of its own it is kept in, none for the state folder.
-struct StateEntry: Encodable, Equatable {
+public struct StateEntry: Equatable, Sendable {
     // MARK: - Property
-    let folder: String?
-    let key: String
+    public let folder: String?
+    public let key: String
     // JSON, as the key's file holds it.
-    let text: String
+    public let text: String
 
     // MARK: - Initializer
     // MARK: - Public

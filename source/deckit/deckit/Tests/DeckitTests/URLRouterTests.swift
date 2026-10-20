@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-import Deck
+@testable import Deck
 @testable import Deckit
 
 @Suite("URLRouter")
@@ -29,10 +29,10 @@ struct URLRouterTests {
         }
 
         // When
-        let pressed = try route(sut, " HTTPS://example.com ", userInitiated: true)
-        let unpressed = try route(sut, "https://example.com", userInitiated: false)
-        let other = try route(sut, "mailto:someone@example.com", userInitiated: true)
-        let ownApp = try route(sut, "https://example.com", userInitiated: true, usesDefaultApp: true)
+        let pressed = route(sut, " HTTPS://example.com ", userInitiated: true)
+        let unpressed = route(sut, "https://example.com", userInitiated: false)
+        let other = route(sut, "mailto:someone@example.com", userInitiated: true)
+        let ownApp = route(sut, "https://example.com", userInitiated: true, usesDefaultApp: true)
 
         // Then
         #expect(pressed == "HTTPS://example.com -> b a c, browser")
@@ -49,10 +49,10 @@ struct URLRouterTests {
         _ = try sut.started("a", run: 1, contributing: ["handleURL": .bool(true)])
 
         // When
-        let unpressed = try route(sut, "file:///tmp/a.txt", userInitiated: false)
-        let pressed = try route(sut, "file:///tmp/a.txt", userInitiated: true)
-        let script = try route(sut, "javascript:alert(1)", userInitiated: true)
-        let unschemed = try route(sut, "example.com", userInitiated: true)
+        let unpressed = route(sut, "file:///tmp/a.txt", userInitiated: false)
+        let pressed = route(sut, "file:///tmp/a.txt", userInitiated: true)
+        let script = route(sut, "javascript:alert(1)", userInitiated: true)
+        let unschemed = route(sut, "example.com", userInitiated: true)
 
         // Then
         #expect(unpressed == "file:///tmp/a.txt -> , none")
@@ -73,26 +73,23 @@ struct URLRouterTests {
         }
 
         // When
-        let set = try sut.json("open/setHandlers", handlers("https", order: ["a", "b"], off: ["c"]))
+        try sut.urlRouter.setHandlers(of: "https", order: ["a", "b"], off: ["c"])
         let restarted = try mods.deckit(schemeHandlers: ["https": ["b"]])
         for mod in ["a", "b", "c"] {
             _ = try restarted.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
         }
-        let lists = try restarted.json("open/handlerLists")
+        let lists = restarted.urlRouter.handlerLists()
 
         // Then
-        #expect(set == .bool(true))
-        let https = try #require(lists.array.first { list in list["scheme"]?.string == "https" })
-        let listed = https["handlers"]?.array.compactMap { handler in
-            handler["id"]?.string.map { id in id + (handler["on"]?.bool == true ? "" : " off") }
-        }
-        #expect(lists.array.compactMap { list in list["scheme"]?.string } == ["http", "https", "file"])
-        #expect(https["system"]?.string == "browser")
+        let https = try #require(lists.first { list in list.scheme == "https" })
+        let listed = https.handlers.map { handler in handler.id + (handler.on ? "" : " off") }
+        #expect(lists.map(\.scheme) == ["http", "https", "file"])
+        #expect(https.system == .browser)
         #expect(listed == ["a", "b", "c off"])
-        let routed = try route(restarted, "https://example.com", userInitiated: true)
+        let routed = route(restarted, "https://example.com", userInitiated: true)
         #expect(routed == "https://example.com -> a b, browser")
         #expect(throws: URLRouterError.noHandlers("mailto")) {
-            try restarted.answer(Call(method: "open/setHandlers", params: handlers("mailto", order: [], off: [])))
+            try restarted.urlRouter.setHandlers(of: "mailto", order: [], off: [])
         }
     }
 
@@ -108,44 +105,19 @@ struct URLRouterTests {
         let b = try sut.started("b", run: 1, contributing: ["handleURL": .bool(true)])
 
         // Then
-        #expect(problem(of: a) == "manifest.toml names url-schemes, but start() registered no deck.handleURL()")
+        #expect(a.problem == "manifest.toml names url-schemes, but start() registered no deck.handleURL()")
         #expect(
-            problem(of: b)
+            b.problem
                 == "start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"
         )
-        #expect(try route(sut, "https://example.com", userInitiated: true) == "https://example.com -> , browser")
+        #expect(route(sut, "https://example.com", userInitiated: true) == "https://example.com -> , browser")
     }
 
     // MARK: - Private
     // `url -> handlers, system` as a test compares a route.
-    private func route(
-        _ sut: Deckit,
-        _ url: String,
-        userInitiated: Bool,
-        usesDefaultApp: Bool = false
-    ) throws -> String {
-        let route = try sut.json(
-            "open/route",
-            .object([
-                "url": .string(url),
-                "userInitiated": .bool(userInitiated),
-                "usesDefaultApp": .bool(usesDefaultApp)
-            ])
-        )
-        let handlers = (route["handlers"]?.array ?? []).compactMap(\.string).joined(separator: " ")
+    private func route(_ sut: Deckit, _ url: String, userInitiated: Bool, usesDefaultApp: Bool = false) -> String {
+        let route = sut.urlRouter.route(url, userInitiated: userInitiated, usesDefaultApp: usesDefaultApp)
 
-        return "\(route["url"]?.string ?? "") -> \(handlers), \(route["system"]?.string ?? "none")"
-    }
-
-    private func handlers(_ scheme: String, order: [String], off: [String]) -> JSONValue {
-        .object([
-            "scheme": .string(scheme),
-            "order": .array(order.map(JSONValue.string)),
-            "off": .array(off.map(JSONValue.string))
-        ])
-    }
-
-    private func problem(of effects: JSONValue) -> String? {
-        effects.array.compactMap { effect in effect["problem"]?.string }.first
+        return "\(route.url) -> \(route.handlers.joined(separator: " ")), \(route.system?.rawValue ?? "none")"
     }
 }

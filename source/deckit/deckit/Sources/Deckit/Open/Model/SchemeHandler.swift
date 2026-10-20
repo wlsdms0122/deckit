@@ -8,11 +8,11 @@
 import Foundation
 
 // A mod that opens a scheme's addresses, asked unless the person switched it off.
-struct SchemeHandler: Encodable, Sendable {
+public struct SchemeHandler: Sendable {
     // MARK: - Property
-    let id: String
-    let name: String
-    let on: Bool
+    public let id: String
+    public let name: String
+    public let on: Bool
 
     // MARK: - Initializer
     // MARK: - Public

@@ -8,11 +8,11 @@
 import Foundation
 
 // A scheme's handlers in the order they are asked, `system` what deckit opens its addresses with after them.
-struct HandlerList: Encodable, Sendable {
+public struct HandlerList: Sendable {
     // MARK: - Property
-    let scheme: String
-    let system: SystemHandler?
-    let handlers: [SchemeHandler]
+    public let scheme: String
+    public let system: SystemHandler?
+    public let handlers: [SchemeHandler]
 
     // MARK: - Initializer
     // MARK: - Public

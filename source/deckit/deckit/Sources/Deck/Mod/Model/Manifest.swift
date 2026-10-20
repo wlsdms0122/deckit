@@ -12,16 +12,16 @@ public struct Manifest: Sendable {
     // MARK: - Property
     public let id: String
     public let name: String
-    let version: String?
-    let api: String?
-    let main: String?
+    public let version: String?
+    public let api: String?
+    public let main: String?
     // Mod id -> the version wanted: what it runs only with.
-    let requires: [String: String]
+    public let requires: [String: String]
     // Mod id -> the version wanted: what it runs without.
-    let optional: [String: String]
+    public let optional: [String: String]
     public let permissions: [PermissionRequest]
     // What the layers' fields hold, by the key each is held under.
-    let fields: [String: any Encodable & Sendable]
+    let fields: [String: any Sendable]
 
     // MARK: - Initializer
     // MARK: - Public

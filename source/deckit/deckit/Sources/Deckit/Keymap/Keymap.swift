@@ -11,7 +11,7 @@ import Deck
 // The keys of the app and of the mods that run, bound to chords a person may change, and how a keystroke is resolved
 // against them. A mod's keys are those its run contributed under `keys`, taken while it runs and as it terminates; the
 // app's are registered by the host app and the shell it puts on deckit.
-final class Keymap: Layer {
+public final class Keymap {
     // MARK: - Property
     // What a mod holds for keys that work wherever the keyboard is in the app.
     static let globalKeys = Permission(
@@ -23,7 +23,7 @@ final class Keymap: Layer {
 
     private let contributionKey = "keys"
     private let overridesKey = "keys"
-    private unowned let deck: Deck
+    private let deck: Deck
     private let app: BindingOwner
     private var appKeys: [Key] = []
     // In the order they were made.
@@ -35,6 +35,7 @@ final class Keymap: Layer {
     init(deck: Deck, appName: String) {
         self.deck = deck
         self.app = .app(name: appName)
+        deck.state.reserve(overridesKey)
         let saved = try? deck.state.read(folder: nil, key: overridesKey)
         self.overrides = saved.flatMap { text in try? JSONDecoder().decode([BindingOverride].self, from: Data(text.utf8)) }
             ?? []
@@ -46,23 +47,23 @@ final class Keymap: Layer {
     }
 
     // The keymap, once it resolves otherwise than the driver was last told.
-    func changes() -> [(effect: String, change: any Encodable & Sendable)] {
+    func changes() -> [any LayerChange] {
         let now = resolved()
         guard now != told.bindings else { return [] }
 
-        return [("bindingsChanged", tell(now))]
+        return [tell(now)]
     }
 
     // MARK: - Public
     // A key of the app's own, run by whoever registered it: a global one works anywhere a keystroke is heard, the rest
     // only in the page in front. Answers the keymap as it is resolved now.
-    func register(_ key: Key) -> ResolvedKeymap {
+    public func register(_ key: Key) -> ResolvedKeymap {
         appKeys.append(key)
         return tell(resolved())
     }
 
     // The binding of `id` bound to `spec`, or to none when it is empty. Answers the keymap as it is resolved now.
-    func bind(_ id: String, spec: String) throws -> ResolvedKeymap {
+    public func bind(_ id: String, spec: String) throws -> ResolvedKeymap {
         guard let binding = ordered().first(where: { binding in binding.id == id }) else {
             throw KeymapError.noSuchBinding(id)
         }
@@ -83,7 +84,7 @@ final class Keymap: Layer {
     }
 
     // The binding of `id` back to its default. Answers the keymap as it is resolved now.
-    func reset(_ id: String) throws -> ResolvedKeymap {
+    public func reset(_ id: String) throws -> ResolvedKeymap {
         if overrides.contains(where: { override in override.id == id }) {
             try save(overrides.filter { override in override.id != id })
         }
@@ -91,20 +92,10 @@ final class Keymap: Layer {
         return tell(resolved())
     }
 
-    // What a keystroke typed to be bound comes to.
-    func record(_ keystroke: Keystroke) -> RecordedKey {
-        RecordedKey(keystroke)
-    }
-
-    // The keystrokes specs name, nil for one that names none.
-    func keystrokes(of specs: [String]) -> [Keystroke?] {
-        specs.map(Keystroke.init(spec:))
-    }
-
     // MARK: - Private
     private func save(_ next: [BindingOverride]) throws {
         let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try deck.state.write(folder: nil, key: overridesKey, text: text)
+        try deck.state.write(reserved: overridesKey, text: text)
         overrides = next
     }
 
@@ -158,7 +149,7 @@ final class Keymap: Layer {
     // order, then a mod's own, which wins in its page a chord it shares with the app's, then the app's. A mod's key is
     // global only with `system.global-keys`.
     private func ordered() -> [Binding] {
-        let mods = deck.mods().map { mod in
+        let mods = deck.catalog.loading.map { mod in
             (
                 owner: BindingOwner.mod(id: mod.manifest.id, name: mod.manifest.name),
                 keys: declared(in: deck.contributions(of: mod.manifest.id))
