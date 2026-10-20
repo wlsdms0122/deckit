@@ -7,7 +7,7 @@
 
 import Foundation
 
-// The kernel: what a mod is and what it keeps.
+// The kernel: what a mod is, what it keeps and how it runs.
 public final class Deck {
     // MARK: - Property
     private let record: Record
@@ -15,6 +15,7 @@ public final class Deck {
     private let setting: Setting
     private let dataFolder: DataFolder
     private let catalog: Catalog
+    private let runner: Runner
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
@@ -37,7 +38,7 @@ public final class Deck {
         self.state = state
         self.setting = Setting(folder: home.appending(path: "settings", directoryHint: .isDirectory), store: store)
         self.dataFolder = DataFolder(folder: home.appending(path: "data", directoryHint: .isDirectory), store: store)
-        self.catalog = Catalog(
+        let catalog = Catalog(
             folder: folder,
             sources: sources,
             ship: ship,
@@ -46,6 +47,8 @@ public final class Deck {
             state: state,
             store: store
         )
+        self.catalog = catalog
+        self.runner = Runner(catalog: catalog)
     }
 
     // MARK: - Public
@@ -102,7 +105,7 @@ public final class Deck {
             return true
 
         case "catalog/read":
-            return catalog.mods()
+            return catalog.read()
 
         case "catalog/arrange":
             let params = try call.params.decode(as: ArrangeCatalogParams.self)
@@ -132,6 +135,43 @@ public final class Deck {
             let params = try call.params.decode(as: EraseDataParams.self)
             try dataFolder.erase(mod: params.mod)
             return true
+
+        case "runner/reconcile":
+            return try runner.reconcile()
+
+        case "runner/relaunch":
+            let params = try call.params.decode(as: SandboxParams.self)
+            return try runner.relaunch(params.mod)
+
+        case "runner/relaunch-all":
+            return try runner.relaunchAll()
+
+        case "runner/quit":
+            return try runner.quit()
+
+        case "runner/load":
+            let params = try call.params.decode(as: SandboxParams.self)
+            return try runner.load(params.mod)
+
+        case "runner/started":
+            let params = try call.params.decode(as: RunParams.self)
+            return try runner.started(params.mod, run: params.run)
+
+        case "runner/problem":
+            let params = try call.params.decode(as: RunProblemParams.self)
+            return try runner.record(params.mod, run: params.run, problem: params.problem)
+
+        case "runner/not-started":
+            let params = try call.params.decode(as: RunProblemParams.self)
+            return try runner.notStarted(params.mod, run: params.run, problem: params.problem)
+
+        case "runner/crash":
+            let params = try call.params.decode(as: RunProblemParams.self)
+            return try runner.crash(params.mod, run: params.run, problem: params.problem)
+
+        case "runner/stopped":
+            let params = try call.params.decode(as: RunParams.self)
+            return try runner.stopped(params.mod, run: params.run)
 
         default:
             return nil

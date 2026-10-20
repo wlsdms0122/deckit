@@ -21,6 +21,8 @@ final class Catalog {
     private let store: Store
     // Mod id -> how many times it was installed while deck ran.
     private var installs: [String: Int] = [:]
+    // The mods as they were last read: what runs.
+    private(set) var lastRead: [Mod] = []
 
     // MARK: - Initializer
     // `folder` is deck's mods folder, `sources` the folders of mods read in place, and `ship` the folders of what the
@@ -66,6 +68,13 @@ final class Catalog {
             .sorted { mod, other in mod.manifest.id < other.manifest.id }
 
         return loading + failing
+    }
+
+    // The mods, read and kept as read.
+    func read() -> [Mod] {
+        lastRead = mods()
+
+        return lastRead
     }
 
     // The ids named take the places they held among themselves, in the order given; the rest stay put.
