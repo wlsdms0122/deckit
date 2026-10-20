@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // The styles a page wears now, in order, the last winning: what mods give it and every page.
 export const current = CHANNEL.pageToMain('deckit-shell:style-current', {}, { reply: true, sync: true });

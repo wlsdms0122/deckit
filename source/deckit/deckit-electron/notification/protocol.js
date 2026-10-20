@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../../deckit-shell/channel/index.js';
 
 // Answers whether it was shown. `id` comes back with clicked.
 export const show = CHANNEL.pageToMain(

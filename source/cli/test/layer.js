@@ -1,4 +1,4 @@
-// What a layer on deckit and a driver agree on (deckit-driver/layer): how a given object is held to it, and that what
+// What a layer on deckit and a driver agree on (deckit-shell/layer): how a given object is held to it, and that what
 // deckit-electron's connect answers meets it. Exits 1 with a line for each check that failed. The packages are ES
 // modules, so they are imported as such.
 const path = require('path');
@@ -7,7 +7,7 @@ const { pathToFileURL } = require('url');
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
 async function main() {
-    const LAYER = await import(url('deckit-driver', 'layer', 'index.js'));
+    const LAYER = await import(url('deckit-shell', 'layer', 'index.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

@@ -1,5 +1,5 @@
 // Between a mod's page and main, about extension points and what extends them.
-import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/channel/index.js';
 
 // An extension point's mod calls a function of what another mod extends it with.
 export const callExtension = CHANNEL.pageToMain(

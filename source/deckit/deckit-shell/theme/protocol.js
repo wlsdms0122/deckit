@@ -1,5 +1,5 @@
 // Between main and every page the shell draws in, about the theme it draws in.
-import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // Answers { theme } at once: the host app's, or null until it gives one.
 export const setup = CHANNEL.pageToMain('deckit-shell:theme-setup', {}, { reply: true, sync: true });

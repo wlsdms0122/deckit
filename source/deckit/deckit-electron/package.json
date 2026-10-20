@@ -7,6 +7,6 @@
         "./deck/contract/index.js": "./deck/contract/index.js"
     },
     "dependencies": {
-        "deckit-driver": "file:../deckit-driver"
+        "deckit-shell": "file:../deckit-shell"
     }
 }

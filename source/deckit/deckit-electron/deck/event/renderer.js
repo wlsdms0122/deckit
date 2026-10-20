@@ -1,5 +1,5 @@
 import * as EVENT_BUS from './bus.js';
-import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as SCOPED from '../mod/model/scoped-name.js';

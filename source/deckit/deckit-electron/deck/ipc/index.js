@@ -1,7 +1,7 @@
 // Channels between main and a page, carried by Electron's IPC: every one crosses over the few in protocol.js, each
 // message carrying its channel's name. `ownChannels` binds deckit-electron's own, and `layerChannels`, handed to a
 // layer on deck, binds the layer's.
-import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/channel/index.js';
 import * as WIRE from './protocol.js';
 import * as LISTENER from '../listener/index.js';
 
@@ -28,10 +28,10 @@ if (inMain) listenInMain();
 else listenInPage();
 
 // MARK: - Public
-// A channel as deckit-driver declares it, carried over the channels in protocol.js: on main's side `handle` or `on`
-// for what a page asks or tells, `invoke` or `send` for what main asks or tells a page; on a page's side the other
-// way. What is bound is a copy of the declaration, read once, so nothing changes it after. A channel is declared
-// once: binding the same declaration again binds the same channel, and another declaration of its name is refused.
+// A channel as deckit-shell/channel declares it, carried over the channels in protocol.js: on main's side `handle` or
+// `on` for what a page asks or tells, `invoke` or `send` for what main asks or tells a page; on a page's side the other
+// way. What is bound is a copy of the declaration, read once, so nothing changes it after. A channel is declared once:
+// binding the same declaration again binds the same channel, and another declaration of its name is refused.
 function bindOwn(given) {
     return bindCopy(given, copyOf(given));
 }

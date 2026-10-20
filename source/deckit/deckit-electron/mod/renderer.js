@@ -1,5 +1,5 @@
-import * as MATCH from '../../deckit-driver/match/match.js';
-import * as RANKER from '../match/ranker.js';
+import * as MATCH from '../../deckit-shell/match/match.js';
+import * as RANKER from '../../deckit-shell/match/ranker.js';
 import * as CLIPBOARD from '../clipboard/renderer.js';
 import * as RUNTIME from '../runtime/renderer.js';
 import * as OPEN from '../open/renderer.js';

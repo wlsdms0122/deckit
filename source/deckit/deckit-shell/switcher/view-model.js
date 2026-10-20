@@ -1,4 +1,4 @@
-import * as MATCH from '../../deckit-driver/match/match.js';
+import * as MATCH from '../match/match.js';
 
 // MARK: - Property
 const { TIER, matchFields } = MATCH;

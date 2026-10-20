@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../../deckit-shell/channel/index.js';
 
 // A field has the keyboard, so a chord on a text editing key is the field's.
 export const typing = CHANNEL.pageToMain('deckit-electron:keymap-typing', { on: 'boolean' });

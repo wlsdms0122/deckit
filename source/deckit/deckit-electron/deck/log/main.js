@@ -1,6 +1,6 @@
 import * as LOG_FILE from './file.js';
 import * as LISTENER from '../listener/index.js';
-import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 
