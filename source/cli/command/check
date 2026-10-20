@@ -7,18 +7,18 @@ const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
 // What carries deck's messages over Electron's IPC, the only files that reach it.
 const IPC = ['deckit-electron/messages/main.js', 'deckit-electron/messages/renderer.js'];
-// The packages each may depend on. A driver stands on the shell, which declares what they agree on, and the shell knows
-// no driver.
+// The packages each may depend on. An environment stands on the shell, which declares what it provides, and the shell
+// knows no environment.
 const MAY_DEPEND = {
     'deckit-electron': ['deckit-shell'],
     'deckit-shell': [],
 };
-// The shell reaches a driver only through what it is handed, so nothing of Electron's is in it: no module, nothing its
-// bundles carry, and no Electron object it would hold or call.
+// The shell reaches an environment only through what it is handed, so nothing of Electron's is in it: no module,
+// nothing its bundles carry, and no Electron object it would hold or call.
 const SHELL = 'deckit-shell';
 const SHELL_BUNDLES = ['shell-main', 'shell-renderer'];
-// The shell's files a driver's bundles carry as well as the shell's: each bundle has its own copy, so they are plain
-// declarations and pure functions, which run on any side of any driver.
+// The shell's files an environment's bundles carry as well as the shell's: each bundle has its own copy, so they are
+// plain declarations and pure functions, which run on any side of any environment.
 const SHARED = sharedFiles();
 const ELECTRON = /\brequire\(\s*["'`]electron["'`]\s*\)/;
 // Electron's objects and their members. `View` and `screen` are a page's words too (`window.screen`), so they are held
@@ -123,21 +123,23 @@ function checkFile(file) {
     for (const { spec, file: target } of imports.get(file)) checkImport(file, spec, target);
 }
 
-// What a driver's bundles and the shell's both carry holds nothing of either: no module, nothing of a process or a
-// page, and no state of its own. Read without its strings, so a channel's name or a word in one is not taken for a use.
+// What an environment's bundles and the shell's both carry holds nothing of either: no module, nothing of a process or
+// a page, and no state of its own. Read without its strings, so a channel's name or a word in one is not taken for a
+// use.
 function checkPure(file, plain) {
     const bare = LIBRARY.bare(plain);
-    const shared = 'both a driver and the shell carry it';
+    const shared = 'both an environment and the shell carry it';
     if (/\brequire\s*\(/.test(bare)) say(file, `requires a module, but ${shared}: it is plain declarations`);
     if (/\b(?:globalThis|window|document|process|self)\s*[.[]/.test(bare))
-        say(file, `reaches a process or a page, but ${shared}: it runs on any side of any driver`);
+        say(file, `reaches a process or a page, but ${shared}: it runs on any side of any environment`);
     if (holdsState(bare)) say(file, `holds state, but ${shared}: it is plain declarations and pure functions`);
 }
 
-// Whether code, read without its strings, holds state of its own at its top: a binding it may assign again, or one
-// made by a call, `new` or a literal, which can be changed in place. What `Object.freeze` makes, and a function, are
-// not.
+// Whether code, read without its strings, holds state of its own at its top: a binding it may assign again, one made
+// by a call, `new` or a literal, which can be changed in place, or a collection made anywhere on a line at its top, as
+// freezing is shallow. What `Object.freeze` makes, and a function, are not.
 function holdsState(bare) {
+    if (/^\S[^\n]*\bnew\s+(?:Map|Set|WeakMap|WeakSet)\s*\(/m.test(bare)) return true;
     for (const [, kind, made] of bare.matchAll(/^(?:export\s+)?(const|let|var)\s+[^=\n]+?=\s*([^\n]*)/gm)) {
         if (kind !== 'const') return true;
         if (/^(?:new\b|\[|\{)/.test(made)) return true;
@@ -150,7 +152,7 @@ function holdsState(bare) {
 function checkShell(file, plain) {
     const bare = LIBRARY.bare(plain);
     const around = bare.match(AROUND);
-    if (around) say(file, `uses ${around[0]}, but ${SHELL}/ reaches a driver only through what it is handed`);
+    if (around) say(file, `uses ${around[0]}, but ${SHELL}/ reaches an environment only through what it is handed`);
     const named =
         bare.match(ELECTRON_NAMES) ||
         plain.match(ELECTRON_READ) ||
@@ -158,16 +160,17 @@ function checkShell(file, plain) {
     if (named)
         say(
             file,
-            `names ${named[0].trim()} of Electron's, but ${SHELL}/ reaches a driver only through what it is handed`
+            `names ${named[0].trim()} of Electron's, but ${SHELL}/ reaches an environment only through what it is ` +
+                'handed'
         );
 }
 
-// The shell's files carried both by a bundle of the shell's and by one of a driver's.
+// The shell's files carried both by a bundle of the shell's and by one of an environment's.
 function sharedFiles() {
     const reached = (names) => new Set(names.flatMap((name) => [...LIBRARY.reach(LIBRARY.BUNDLES[name].entry)]));
     const shell = reached(SHELL_BUNDLES);
-    const driver = reached(Object.keys(LIBRARY.BUNDLES).filter((name) => !SHELL_BUNDLES.includes(name)));
-    return new Set([...shell].filter((file) => packageOf(file) === SHELL && driver.has(file)));
+    const environment = reached(Object.keys(LIBRARY.BUNDLES).filter((name) => !SHELL_BUNDLES.includes(name)));
+    return new Set([...shell].filter((file) => packageOf(file) === SHELL && environment.has(file)));
 }
 
 // A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no
