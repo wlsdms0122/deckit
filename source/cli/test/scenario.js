@@ -368,6 +368,28 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const recorded = await until(async () => (await mark(keys, 'recorded')) === '{"spec":"cmd+k"}', 3000);
         check('a chord typed to be bound is recorded', recorded, await mark(keys, 'recorded'));
 
+        // Addresses and queries, as the core routes them: an address of a mod's scheme reaches it, and what the mod
+        // resolves is in the switcher and runs.
+        const opener = await page('deckit://open-user.mod');
+        await opener.evaluate(`document.dispatchEvent(new CustomEvent('test-open', { detail: ' TEST-OPEN:hello ' }))`);
+        const reached = await until(
+            async () =>
+                (await mark(opener, 'opened')) === 'TEST-OPEN:hello' && (await mark(opener, 'answered')) === 'true',
+            3000
+        );
+        check("an address of a mod's scheme reaches it", reached, await mark(opener, 'opened'));
+        await editor.key('g', 'KeyG', META | SHIFT, 71);
+        const query = await until(() => page('deckit://switcher'));
+        await until(async () => /Notes/.test((await query?.evaluate('document.body.innerText')) || ''));
+        await query?.type('probe open user');
+        const resolved = await until(
+            async () => /Open User Probe/.test((await query?.evaluate('document.body.innerText')) || ''),
+            4000
+        );
+        await query?.key('Enter', 'Enter', 0, 13);
+        const picked = await until(async () => (await mark(opener, 'ran')) === '1', 3000);
+        check('what a mod resolves is in the switcher and runs', resolved && picked, `${resolved} ${picked}`);
+
         // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.
         await frame.press('[data-mod-id="region-parent"]');
         await until(async () => (await visibility('region-parent')) === 'visible', 3000);
