@@ -1,4 +1,4 @@
-import * as IPC from '../../deck/ipc/index.js';
+import * as IPC from '../../deckit-electron/deck/ipc/index.js';
 
 // The page may finish loading after the chord that opened it.
 export const ready = IPC.rendererToMain('deckit-shell:switcher-ready', {});

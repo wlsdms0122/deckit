@@ -1,5 +1,5 @@
 import * as STYLE_PERMISSION from './style/model/permission.js';
-import * as LISTENER from '../deck/listener/index.js';
+import * as LISTENER from '../deckit-electron/deck/listener/index.js';
 import { createRegion } from './region/main.js';
 import { createPanel } from './panel/main.js';
 import { createSwitcher } from './switcher/main.js';
