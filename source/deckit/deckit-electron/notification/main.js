@@ -1,15 +1,8 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
-import * as DECLARED from './protocol.js';
-import * as NOTIFICATION_PERMISSION from './model/permission.js';
-
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
-// `clicked` is the app's answer to a clicked notification, which brings it forward before the mod hears of it.
-export function createNotification({ LOG, IDENTITY, clicked }) {
+// The system's notifications (deckit-shell/environment: notifications). `guard` adds a listener on one.
+export function createNotifications({ guard }) {
     // MARK: - Property
-    // A Notification nothing refers to is garbage collected, and macOS then withdraws it or never delivers it.
-    // The cap covers a close that never comes.
+    // A Notification nothing refers to is garbage collected, and macOS then withdraws it or never delivers it. The
+    // cap covers a close that never comes.
     const live = new Set();
     const HOLD_MS = 24 * 3600 * 1000;
     // A platform that says neither shown nor failed within this is taken as having shown it.
@@ -17,47 +10,40 @@ export function createNotification({ LOG, IDENTITY, clicked }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    function start() {
-        PROTOCOL.show.handle(({ id, title, body, silent }, sender) => {
-            IDENTITY.modFrom(sender, NOTIFICATION_PERMISSION.NOTIFICATIONS);
-            return show(sender, id, title, body, silent, clicked);
-        });
-    }
-
-    // MARK: - Private
-    function show(sender, id, title, body, silent, clicked) {
+    // Resolves true once shown, false where the system has none, and rejects with why when it says it did not show
+    // it. `onClick()` hears a click on it.
+    function show({ title, body, silent }, { onClick }) {
         const { Notification } = require('electron');
-        if (!Notification.isSupported()) return false;
-        const notification = new Notification({ title: title.slice(0, 200), body: body.slice(0, 400), silent });
+        if (!Notification.isSupported()) return Promise.resolve(false);
+        const notification = new Notification({ title, body, silent });
         live.add(notification);
         const cap = setTimeout(() => live.delete(notification), HOLD_MS);
         const letGo = () => {
             clearTimeout(cap);
             live.delete(notification);
         };
-        LOG.guard(notification, 'click', () => {
-            clicked();
-            PROTOCOL.clicked.send(sender, { id });
+        guard(notification, 'click', () => {
+            onClick();
             letGo();
         });
-        LOG.guard(notification, 'close', letGo);
-        return new Promise((resolve) => {
+        guard(notification, 'close', letGo);
+        return new Promise((resolve, reject) => {
             let settled = false;
             const settle = (shown, why) => {
                 if (settled) return;
                 settled = true;
-                if (!shown) {
-                    LOG.warn('a notification was not shown', why || '');
-                    letGo();
-                }
-                resolve(shown);
+                if (shown) return resolve(true);
+                letGo();
+                reject(new Error(String(why || '')));
             };
-            LOG.guard(notification, 'show', () => settle(true), { once: true });
-            LOG.guard(notification, 'failed', (_event, error) => settle(false, error), { once: true });
+            guard(notification, 'show', () => settle(true), { once: true });
+            guard(notification, 'failed', (_event, error) => settle(false, error), { once: true });
             setTimeout(() => settle(true), SETTLE_MS);
             notification.show();
         });
     }
 
-    return { start };
+    // MARK: - Private
+
+    return { show };
 }

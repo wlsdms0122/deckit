@@ -1,17 +1,10 @@
 import * as FILE from './file.js';
-import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
-import * as DECLARED from './protocol.js';
-import * as MOD_PERMISSION from '../../deckit-shell/deck/mod/permission.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
-export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER }) {
+// A mod's main process modules, run in Electron's main process as Node runs them (deckit-shell/environment:
+// mainProcess): which mod may start them, and when, is deck's. A mod is `{ id, folder, data, pageOf() }`: its folder,
+// its data folder, and the page it runs in now, or null.
+export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     // MARK: - Property
-    // What a module's dispose has, as a mod's stop() has, and what a module still starting as its run ends has to
-    // finish starting.
-    const END_LIMIT_MS = 2000;
     const fs = require('fs');
     const path = require('path');
     const crypto = require('crypto');
@@ -30,74 +23,62 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
     const windows = new Map(); // mod id -> the keys of the windows its modules opened
     const removing = new Set(); // mod ids taken away whose run has not ended yet
     const listeners = new Set(); // told when what a mod's facts say may have changed
+    const hearing = new Set(); // told what a module emits
 
     // MARK: - Initializer
     // MARK: - Public
     // The app quits once the modules of the runs that ended have ended too, each in its limit.
-    function start() {
-        RUNNER.observe('willLaunch', ({ mod }) => prepare(mod));
-        RUNNER.observe('didTerminate', ({ mod }) => end(mod));
+    function holdQuit() {
         const { app } = require('electron');
         app.on('will-quit', (event) => {
             if (!endings.size) return;
             event.preventDefault();
             Promise.allSettled([...endings.values()]).then(() => app.quit());
         });
-        PROTOCOL.start.handle(({ path: given }, sender) =>
-            load(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS), given)
-        );
-        PROTOCOL.call.handle(({ path: given, method, args }, sender) =>
-            call(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS), given, method, args)
-        );
-        PROTOCOL.restartPending.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return restartPending();
-        });
     }
 
-    // A mod taken away: what its modules started keeps going until the process ends, unless they end with its run,
-    // which is told once that run has ended.
-    function unload(modId) {
+    // A mod taken away, `running` whether its run has not ended: what its modules started keeps going until the
+    // process ends, unless they end with its run, which is told once that run has ended.
+    function removed(modId, { running = false } = {}) {
         failures.delete(modId);
-        const run = RUNNER.runOf(modId);
-        if (keysOf(modId).length && run && run.state !== 'notRunning') removing.add(modId);
+        if (keysOf(modId).length && running) removing.add(modId);
         else whenEnded(modId).then(() => loaded.has(modId) && setPending(modId, 'removed'));
     }
 
-    // `listener()` is told when what `started`, `failure` or `restartPending` answer may have changed. Answers its off.
+    // `listener(modId, path, name, args)` is told what a module emits. Answers its off.
+    function onEvent(listener) {
+        hearing.add(listener);
+        return () => hearing.delete(listener);
+    }
+
+    // `listener()` is told when what `stateOf` or `restartPending` answer may have changed. Answers its off.
     function onChange(listener) {
         listeners.add(listener);
         return () => listeners.delete(listener);
     }
 
-    // Once the modules of the mod's run that ended have ended too, or stayed.
-    function whenEnded(modId) {
-        return endings.get(modId) || Promise.resolve();
-    }
-
-    function started(modId) {
-        return live.has(modId);
-    }
-
-    function failure(modId) {
+    // Whether a module of the mod's runs, and why those that did not start did not, or null.
+    function stateOf(modId) {
         const failed = [...(failures.get(modId)?.values() || [])];
-        return failed.length ? failed.join('; ') : null;
+        return { running: live.has(modId), failure: failed.length ? failed.join('; ') : null };
     }
 
     function restartPending() {
         return [...pending].map(([id, why]) => ({ id, why }));
     }
 
-    // What was removed this run and stayed, installed again, is still a restart away: it is reinstalled.
-    function reinstalled(modId) {
+    // The mod installed again, once what ran in its place has ended, modules and all: what was removed this run and
+    // stayed is still a restart away, as reinstalled. Answers whether only a restart brings its modules up to date.
+    async function installed(modId) {
+        await whenEnded(modId);
         if (pending.get(modId) === 'removed') setPending(modId, 'reinstalled');
+        return { restart: pending.has(modId) };
     }
 
-    // MARK: - Private
     // Before a mod runs again: modules it started from code that has changed since, and that stayed, keep running
     // the old code until a restart. Its new run asks for its modules again, so what failed before is asked again too.
     // Code changed back to what runs is no update.
-    function prepare(mod) {
+    function launching(mod) {
         failures.delete(mod.id);
         whenEnded(mod.id).then(() => {
             const before = loaded.get(mod.id);
@@ -112,8 +93,8 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
     // Only when every one of them has a dispose: one with none stays while the app runs, and with it the files
     // they share in the cache. One still starting past the limit is let go, and may leave what it makes. Its windows
     // close first, while the module that opened them is there to hear it. A failed dispose leaves the mod pending
-    // until the app restarts.
-    function end(mod) {
+    // until the app restarts. `within` is the limit, in ms, a module has to finish starting, and each dispose.
+    function ended(mod, { within }) {
         const keys = keysOf(mod.id);
         if (!keys.length) return;
         const ending = (async () => {
@@ -124,7 +105,8 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
                         modules.get(key).then(
                             (made) => ({ made }),
                             () => ({ made: null })
-                        )
+                        ),
+                        within
                     )
                 )
             );
@@ -135,7 +117,7 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
             windows.delete(mod.id);
             let clean = true;
             for (const { relative, dispose } of made.reverse())
-                clean = (await disposed(mod, relative, dispose)) && clean;
+                clean = (await disposed(mod, relative, dispose, within)) && clean;
             // One still starting is let go: the next run starts its own rather than wait on one that may never be
             // done.
             for (const key of keys) modules.delete(key);
@@ -155,25 +137,6 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
         ending.finally(() => endings.get(mod.id) === ending && endings.delete(mod.id));
     }
 
-    // What `promise` resolves to, or null once the end's limit has passed.
-    function withinLimit(promise) {
-        let timer = null;
-        const late = new Promise((resolve) => (timer = setTimeout(() => resolve(null), END_LIMIT_MS)));
-        return Promise.race([promise, late]).finally(() => clearTimeout(timer));
-    }
-
-    // Whether the module ended what it made, in the limit.
-    async function disposed(mod, relative, dispose) {
-        try {
-            const ended = await withinLimit(Promise.resolve(dispose()).then(() => true));
-            if (!ended) throw new Error(`did not end in ${END_LIMIT_MS} ms`);
-            return true;
-        } catch (error) {
-            LOG.error(`${mod.id} ${relative}: dispose failed`, error);
-            return false;
-        }
-    }
-
     // One instance for each mod and file in a run: a module holds state (a token, a watcher), and starting it twice
     // makes two of everything. Answers { path, methods }, the paths of its functions.
     async function load(mod, given) {
@@ -187,6 +150,48 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
         }
         const { paths } = await modules.get(key);
         return { path: relative, methods: paths };
+    }
+
+    // What a module's method answers.
+    async function call(modId, given, method, args) {
+        const key = `${modId}\0${path.posix.normalize(String(given))}`;
+        if (!modules.has(key)) throw new Error(`${given} is not started; deck.mainProcess() starts it`);
+        const { methods } = await modules.get(key);
+        const found = methods.get(JSON.stringify(method));
+        if (!found) throw new Error(`${given} has no method ${method.join('.')}`);
+        try {
+            return await found(...args);
+        } finally {
+            noteCode(modId);
+        }
+    }
+
+    // MARK: - Private
+    // Once the modules of the mod's run that ended have ended too, or stayed.
+    function whenEnded(modId) {
+        return endings.get(modId) || Promise.resolve();
+    }
+
+    // What `promise` resolves to, or null once `limit` ms have passed.
+    function withinLimit(promise, limit) {
+        let timer = null;
+        const late = new Promise((resolve) => (timer = setTimeout(() => resolve(null), limit)));
+        return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+    }
+
+    // Whether the module ended what it made, in the limit.
+    async function disposed(mod, relative, dispose, limit) {
+        try {
+            const done = await withinLimit(
+                Promise.resolve(dispose()).then(() => true),
+                limit
+            );
+            if (!done) throw new Error(`did not end in ${limit} ms`);
+            return true;
+        } catch (error) {
+            LOG.error(`${mod.id} ${relative}: dispose failed`, error);
+            return false;
+        }
     }
 
     // Its files are what require() adds to the cache, and require() runs to its end before anything else does.
@@ -233,35 +238,14 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
         }
     }
 
-    async function call(mod, given, method, args) {
-        const key = `${mod.id}\0${path.posix.normalize(String(given))}`;
-        if (!modules.has(key)) throw new Error(`${given} is not started; deck.mainProcess() starts it`);
-        const { methods } = await modules.get(key);
-        const found = methods.get(JSON.stringify(method));
-        if (!found) throw new Error(`${given} has no method ${method.join('.')}`);
-        let answer;
-        try {
-            answer = await found(...args);
-        } finally {
-            noteCode(mod.id);
-        }
-        try {
-            structuredClone(answer);
-        } catch (error) {
-            throw new Error(`${given} ${method.join('.')} answered what cannot be copied: ${error.message}`);
-        }
-        return answer;
-    }
-
     // What a module is handed. The id is part of a window's key, so two mods asking for "log" get two windows
     // and neither closes the other's.
     function deckOf(mod, relative) {
         return Object.freeze({
             id: mod.id,
-            folder: HOME.dataOf(mod.id),
+            folder: mod.data,
             emit(name, ...args) {
-                const page = IDENTITY.pageOf(mod.id);
-                if (page) PROTOCOL.event.send(page, { path: relative, name: String(name), args });
+                for (const listener of [...hearing]) listener(mod.id, relative, String(name), args);
             },
             window: Object.freeze({
                 open: (options = {}) => {
@@ -273,7 +257,7 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
                 get: (key) => WINDOW.get(`${mod.id}:${key || 'main'}`),
                 close: (key) => WINDOW.close(`${mod.id}:${key || 'main'}`),
                 ofPage: () => {
-                    const page = IDENTITY.pageOf(mod.id);
+                    const page = mod.pageOf();
                     return page ? WINDOW.windowShowing(page) : null;
                 },
             }),
@@ -360,5 +344,17 @@ export function createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER 
         }
     }
 
-    return { start, unload, onChange, whenEnded, started, failure, restartPending, reinstalled };
+    return {
+        holdQuit,
+        start: load,
+        call,
+        launching,
+        ended,
+        removed,
+        installed,
+        stateOf,
+        onEvent,
+        onChange,
+        restartPending,
+    };
 }

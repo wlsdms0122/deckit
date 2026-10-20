@@ -1,15 +1,14 @@
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
+import * as CHANNEL from '../deck/channel/index.js';
+import * as IPC from '../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as OPEN_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-export function createOpen({ LOG, IDENTITY, CORE }) {
+// `open` is the environment's: what opens an address or a file outside the app.
+export function createOpen({ LOG, IDENTITY, CORE, open: SYSTEM }) {
     // MARK: - Property
-    const fs = require('fs');
-    const path = require('path');
     // A handler that has not answered by then passes, so one stuck page does not hold every link.
     const OFFER_MS = 3000;
 
@@ -26,7 +25,7 @@ export function createOpen({ LOG, IDENTITY, CORE }) {
         // Only on a person's click or key: otherwise any mod could open Finder at will, or learn which paths exist.
         PROTOCOL.reveal.handle(({ file }, sender) => {
             IDENTITY.modFrom(sender);
-            return spendsUserActivation(sender) && reveal(file);
+            return spendsUserActivation(sender) && SYSTEM.reveal(file);
         });
         PROTOCOL.handlerLists.handle((_payload, sender) => {
             IDENTITY.modFrom(sender, OPEN_PERMISSION.URL_SCHEMES);
@@ -45,6 +44,15 @@ export function createOpen({ LOG, IDENTITY, CORE }) {
         const options = { activates, userInitiated, target };
         if (await offer(route.handlers, route.url, options)) return true;
         return system(route.system, route.url, { activates });
+    }
+
+    // What a page asks to open outside itself, a window or an address its document leaves for, offered as `open`
+    // does, a press in the page making it the person's. `options` are what `open` takes.
+    function openFrom(page, url, options = {}) {
+        const userInitiated = IDENTITY.consumeUserActivation(page);
+        open(url, { ...options, userInitiated }).catch((error) =>
+            LOG.warn(`${IDENTITY.modOf(page)?.id || 'a page'}: ${url} did not open`, error)
+        );
     }
 
     // MARK: - Private
@@ -72,26 +80,13 @@ export function createOpen({ LOG, IDENTITY, CORE }) {
 
     // The web goes to the system browser, and a file to its app.
     async function system(handler, url, { activates }) {
-        const { shell } = require('electron');
         if (handler === 'browser') {
-            await shell.openExternal(url, { activate: activates });
+            await SYSTEM.url(url, { activate: activates });
             return true;
         }
         if (handler !== 'file') return false;
-        const file = existing(filePathOf(url));
-        return !!file && !(await shell.openPath(file));
-    }
-
-    function reveal(file) {
-        const found = existing(file);
-        if (found) require('electron').shell.showItemInFolder(found);
-        return !!found;
-    }
-
-    function existing(file) {
-        if (!path.isAbsolute(String(file))) return '';
-        const resolved = path.resolve(file);
-        return fs.existsSync(resolved) ? resolved : '';
+        const file = filePathOf(url);
+        return !!file && (await SYSTEM.file(file));
     }
 
     function filePathOf(url) {
@@ -100,5 +95,5 @@ export function createOpen({ LOG, IDENTITY, CORE }) {
         return decodeURIComponent(parsed.pathname);
     }
 
-    return { start, open };
+    return { start, open, openFrom };
 }

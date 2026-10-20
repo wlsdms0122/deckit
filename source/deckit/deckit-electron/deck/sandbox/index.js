@@ -1,5 +1,4 @@
 import * as ORIGIN from './model/origin.js';
-import * as LISTENER from '../listener/index.js';
 
 export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
     // MARK: - Property
@@ -89,7 +88,7 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
         }
     }
 
-    return { SCHEME, start, page, logConsole, keepDrawing };
+    return { SCHEME, start, page, logConsole, keepDrawing: (page) => keepDrawing(page, LOG.guard) };
 }
 
 // A view for a page of deck's: sandboxed, isolated, in deck's own session, loading with `preload`, with what is added to
@@ -108,9 +107,9 @@ export function makeView({ CONFIG, preload, webPreferences = {} }) {
 }
 
 // The page runs at full speed off screen too. Chromium takes the preference back at each load, so it is given again as
-// each one finishes.
-export function keepDrawing(webContents) {
-    LISTENER.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
+// each one finishes. `guard` adds the listener.
+export function keepDrawing(webContents, guard) {
+    guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
 }
 
 // What a mod's pages kept: their storage in deck's own session.

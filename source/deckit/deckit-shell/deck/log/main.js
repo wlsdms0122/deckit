@@ -4,9 +4,10 @@ import * as DECLARED from './protocol.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// Deck's log: what main and its pages say, on the console and in the file the environment keeps (`log`), in `folder`
-// and named for `name`, which it opens as deckit starts. `about` is what the environment says runs deckit.
-export function createLog({ log, about, folder, name }) {
+// Deck's log: what main, its pages and the environment say (`reports`), on the console and in the file the
+// environment keeps (`log`), in `folder` and named for `name`, which it opens as deckit starts. `about` is what the
+// environment says runs deckit.
+export function createLog({ log, reports, about, folder, name }) {
     // MARK: - Property
     const LEVELS = new Set(['info', 'warn', 'error']);
     let writer = null;
@@ -28,6 +29,7 @@ export function createLog({ log, about, folder, name }) {
     // `nameOf(page)` names the page a line came from, as main knows it: no page says who it is.
     function start({ nameOf }) {
         writer = log.open({ folder, name });
+        reports.listen((level, parts) => say('main', LEVELS.has(level) ? level : 'info', parts));
         PROTOCOL.line.on(({ level, parts }, sender) => say(nameOf(sender), LEVELS.has(level) ? level : 'info', parts));
         const named = [about.app, ...about.engines].map((each) => `${each.name} ${each.version}`);
         info(`start, ${named.join(', ')}`);

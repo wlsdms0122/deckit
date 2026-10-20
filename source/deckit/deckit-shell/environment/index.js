@@ -2,9 +2,10 @@ import * as CHANNEL from '../deck/channel/index.js';
 
 // What an environment gives deck, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files and
-// the log, the pages a mod runs in and the app quitting, and what only the environment knows: the person's home folder
-// and what runs deckit. An environment gives at least this, and deck is handed this alone (`checked`). Each leaf says
-// what a member is: `function`, `object`, `string`, or `array`, a list read.
+// the log, the pages a mod runs in and the app quitting, what deckit does through the system for a mod (keys,
+// opening, notifications, the clipboard, a folder chosen, main process modules), and what only the environment
+// knows: the person's home folder and what runs deckit. An environment gives at least this, and deck is handed this
+// alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a list read.
 // MARK: - Property
 /**
  * A page: a token deck keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -47,6 +48,50 @@ const MAIN = Object.freeze({
         // clearStorage(modId) -> Promise: what the mod's pages stored, the web's storage, taken
         clearStorage: 'function',
     },
+    keys: {
+        // capture(page, handler(pressed) -> boolean): each key pressed in the page, `{ type, code, meta, control, alt,
+        // shift }` with `type` as UI Events names it (`keydown`, `keyup`), told before the page has it and taken from
+        // the page when `handler` answers true, at once. Told after what `pages.watchInput` told of it, when that
+        // watch began first
+        capture: 'function',
+    },
+    // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the browser,
+    // brought forward unless `activate` is false; `file(path) -> Promise of boolean`, a file at an absolute path in
+    // its app, false when there is none there or it did not open; `reveal(path) -> boolean`, an absolute path shown
+    // where it lies, false when there is none there
+    open: { url: 'function', file: 'function', reveal: 'function' },
+    notifications: {
+        // show({ title, body, silent }, { onClick }) -> Promise: true once shown, false where the system has none;
+        // rejects with why when the system says it did not show it. `onClick()` hears a click on it
+        show: 'function',
+    },
+    // The clipboard's text: readText() -> string, writeText(text)
+    clipboard: { readText: 'function', writeText: 'function' },
+    // chooseFolder({ title, buttonLabel, message }) -> Promise of the folder the person chose, or null
+    dialogs: { chooseFolder: 'function' },
+    // A mod's main process modules, which the environment runs, deck saying which mod starts what and when. A mod is
+    // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
+    mainProcess: {
+        start: 'function', // start(mod, path) -> Promise of { path, methods }: the module, started once in a run
+        call: 'function', // call(modId, path, method, args) -> Promise of what the method answered
+        launching: 'function', // launching(mod): its run is about to launch
+        // ended(mod, { within }): its run ended, and its modules end with it, each given `within` ms to finish
+        // starting and to dispose
+        ended: 'function',
+        removed: 'function', // removed(modId, { running }): the mod was taken away, its run not ended when `running`
+        // installed(modId) -> Promise of { restart }: the mod installed again, once what ran in its place has ended,
+        // `restart` whether only a restart of the app brings its modules up to date
+        installed: 'function',
+        // stateOf(modId) -> { running, failure }: whether a module of its runs, and why those that did not start did
+        // not, or null
+        stateOf: 'function',
+        onEvent: 'function', // onEvent(listener(modId, path, name, args)) -> off: what a module emits
+        onChange: 'function', // onChange(listener()) -> off: what `stateOf` or `restartPending` answer may have changed
+        // restartPending() -> [{ id, why }]: the mods whose modules only a restart of the app finishes, `why` one of
+        // `updated` (its code changed while a module stayed), `removed`, `reinstalled` (removed, then installed again)
+        // and `leftover` (a module with no dispose, or whose dispose failed or ran late, may have left what it made)
+        restartPending: 'function',
+    },
     core: {
         // open({ onMessage(line), onLog(line), onEnd(why) }) -> { send(line) }: the core, started, a message a line
         // each way. `onLog` hears what it logs, and `onEnd` once that it ended, whether it ran or never started, after
@@ -62,8 +107,15 @@ const MAIN = Object.freeze({
     // The file deck's log is written to: open({ folder, name }) -> { file, write(where, level, parts) }, `file` its
     // path, in `folder` and named for `name`. Writing never throws
     log: { open: 'function' },
-    // The host app, and what runs it, outermost first, each { name, version }
+    // The host app, `{ name, version }`, and what runs it, outermost first, each `{ key, name, version }`: `key` is
+    // the engine's name in lower case, which a mod reads its version by in `about()` (MOD.md), and `name` as a person
+    // reads it
     about: { app: { name: 'string', version: 'string' }, engines: 'array' },
+    reports: {
+        // listen(listener(level, parts)), once: what the environment's own parts say, `level` one of `info`, `warn` and
+        // `error`, and `parts` what is logged; what they said before is told as it starts listening
+        listen: 'function',
+    },
     app: {
         // onQuit(hold): `hold()` is asked as the app is about to quit, once the quit is decided; answering true keeps
         // it from quitting, until it is asked to quit again

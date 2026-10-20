@@ -1,9 +1,9 @@
-import * as MAIN_PROCESS_PERMISSION from './main-process/model/permission.js';
+import * as MAIN_PROCESS_PERMISSION from '../deckit-shell/main-process/model/permission.js';
 import * as WEB_PERMISSION from './web/model/permission.js';
-import * as CLIPBOARD_PERMISSION from './clipboard/model/permission.js';
-import * as NOTIFICATION_PERMISSION from './notification/model/permission.js';
-import * as KEYMAP_PERMISSION from './keymap/model/permission.js';
-import * as OPEN_PERMISSION from './open/model/permission.js';
+import * as CLIPBOARD_PERMISSION from '../deckit-shell/clipboard/model/permission.js';
+import * as NOTIFICATION_PERMISSION from '../deckit-shell/notification/model/permission.js';
+import * as KEYMAP_PERMISSION from '../deckit-shell/keymap/model/permission.js';
+import * as OPEN_PERMISSION from '../deckit-shell/open/model/permission.js';
 import * as MOD_PERMISSION from '../deckit-shell/deck/mod/permission.js';
 import * as ORIGIN from './deck/sandbox/model/origin.js';
 import * as CONTRACT from './deck/contract/index.js';
@@ -16,7 +16,6 @@ import { createCatalog } from '../deckit-shell/deck/catalog/index.js';
 import * as ENVIRONMENT from '../deckit-shell/environment/index.js';
 import * as IPC from '../deckit-shell/deck/ipc/main.js';
 import { createIdentity } from '../deckit-shell/deck/identity/index.js';
-import * as LISTENER from './deck/listener/index.js';
 import { createEnvironment } from './environment/main.js';
 import { createSandbox } from './deck/sandbox/index.js';
 import { createRunner } from '../deckit-shell/deck/runner/main.js';
@@ -27,7 +26,6 @@ import { createExtension } from '../deckit-shell/deck/extension/main.js';
 import { createEvent } from '../deckit-shell/deck/event/main.js';
 import { createMods } from '../deckit-shell/deck/mods/main.js';
 import { createCore } from '../deckit-shell/deck/core/main.js';
-import { createWindow } from './window/index.js';
 import { createStage } from './stage/main.js';
 import { createPartition } from './web/model/partition.js';
 import { createSession } from './web/session.js';
@@ -38,14 +36,14 @@ import { createSitePermission } from './web/site-permission.js';
 import { createCertificate } from './web/certificate.js';
 import { createScript } from './web/script.js';
 import { createWeb } from './web/main.js';
-import { createKeymap } from './keymap/main.js';
-import { createOpen } from './open/main.js';
-import { createNotification } from './notification/main.js';
-import { createClipboard } from './clipboard/main.js';
-import { createCommand } from './command/main.js';
-import { createMainProcess } from './main-process/main.js';
-import { createModFolder } from './mod-folder/main.js';
-import { createRuntime } from './runtime/main.js';
+import { createKeymap } from '../deckit-shell/keymap/main.js';
+import { createOpen } from '../deckit-shell/open/main.js';
+import { createNotification } from '../deckit-shell/notification/main.js';
+import { createClipboard } from '../deckit-shell/clipboard/main.js';
+import { createCommand } from '../deckit-shell/command/main.js';
+import { createMainProcess } from '../deckit-shell/main-process/main.js';
+import { createModFolder } from '../deckit-shell/mod-folder/main.js';
+import { createRuntime } from '../deckit-shell/runtime/main.js';
 import { createPage } from './page/main.js';
 import { createApi } from './api/index.js';
 
@@ -98,13 +96,13 @@ function refuseUnknown(what, given, known) {
 function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses. The rest
     // of it is Electron's own, for what lays pages in a window.
-    const ELECTRON = createEnvironment({ CONFIG, core, preload });
+    const ELECTRON = createEnvironment({ CONFIG, core, preload, openWindow: (options) => host.openWindow(options) });
     const ENV = ENVIRONMENT.checked(ELECTRON, ENVIRONMENT.MAIN, 'what Electron gives deck');
     const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
     // Deck's log, and listening on Electron's objects with what a listener throws logged.
     const LOG = Object.freeze({
-        ...createLog({ log: ENV.log, about: ENV.about, folder: HOME.logs, name: CONFIG.id }),
-        guard: LISTENER.guard,
+        ...createLog({ log: ENV.log, reports: ENV.reports, about: ENV.about, folder: HOME.logs, name: CONFIG.id }),
+        guard: ELECTRON.guard,
     });
     IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
     const CORE = createCore({ CONFIG, FOLDERS, LOG, core: ENV.core, home: HOME.folder });
@@ -121,7 +119,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const EXTENSION = createExtension({ CORE, IDENTITY, RUNNER });
     const EVENT = createEvent({ CORE, LOG, IDENTITY });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, pages: ENV.pages });
-    const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
+    const WINDOW = ELECTRON.window;
     const PARTITION = createPartition({ CONFIG });
     const SESSION = createSession({ STORAGE, LOG, PARTITION });
     const REGISTRY = createRegistry();
@@ -130,7 +128,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const SITE_PERMISSION = createSitePermission({ IDENTITY, SESSION, REGISTRY });
     const CERTIFICATE = createCertificate({ LOG, SESSION, REGISTRY });
     const SCRIPT = createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION });
-    const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE });
+    const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: ENV.pages, keys: ENV.keys });
     const WEB = createWeb({
         WINDOW,
         LOG,
@@ -144,13 +142,26 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         CERTIFICATE,
         SCRIPT,
     });
-    const OPEN = createOpen({ LOG, IDENTITY, CORE });
-    const NOTIFICATION = createNotification({ LOG, IDENTITY, clicked: () => host.notificationClicked() });
-    const CLIPBOARD = createClipboard({ IDENTITY });
+    const OPEN = createOpen({ LOG, IDENTITY, CORE, open: ENV.open });
+    const NOTIFICATION = createNotification({
+        LOG,
+        IDENTITY,
+        clicked: () => host.notificationClicked(),
+        notifications: ENV.notifications,
+    });
+    const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
     const COMMAND = createCommand({ LOG, IDENTITY, CORE });
-    const MAIN_PROCESS = createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
-    const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
-    const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
+    const MAIN_PROCESS = createMainProcess({ IDENTITY, RUNNER, HOME, mainProcess: ENV.mainProcess });
+    const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
+    const RUNTIME = createRuntime({
+        CONFIG,
+        HOME,
+        LOG,
+        IDENTITY,
+        restart: () => host.restart(),
+        about: ENV.about,
+        user: ENV.folders.user,
+    });
     const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG, modViewOf: ELECTRON.viewOf });
     const STAGE = createStage({ LOG, WINDOW, viewOf: PAGE.viewOf });
     const API = createApi({
@@ -232,17 +243,10 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         EXTENSION.start();
         EVENT.start();
         MODS.start({
-            facts: (mod) => ({
-                mainProcess: { running: MAIN_PROCESS.started(mod.id), failure: MAIN_PROCESS.failure(mod.id) },
-            }),
+            facts: (mod) => ({ mainProcess: MAIN_PROCESS.stateOf(mod.id) }),
             onFactsChange: MAIN_PROCESS.onChange,
-            // Once what ran in its place has ended, modules and all.
-            installed: async (id) => {
-                await MAIN_PROCESS.whenEnded(id);
-                MAIN_PROCESS.reinstalled(id);
-                return { restart: MAIN_PROCESS.restartPending().some((pending) => pending.id === id) };
-            },
-            removed: MAIN_PROCESS.unload,
+            installed: MAIN_PROCESS.installed,
+            removed: MAIN_PROCESS.removed,
             clearSessions: SESSION.clearSessions,
         });
         RUNNER.start({ preparePage });
@@ -253,16 +257,13 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     function preparePage(webContents, mod) {
         WEB.prepareEmbedder(webContents);
         KEYMAP.listen(webContents, { page: WEB.pageFor(webContents) });
-        const pressed = () => ({ userInitiated: IDENTITY.consumeUserActivation(webContents) });
-        const unopened = (url) => (error) => LOG.warn(`${mod.id}: ${url} did not open`, error);
         webContents.setWindowOpenHandler((details) => {
-            OPEN.open(details.url, { ...WEB.windowOptions(details), ...pressed() }).catch(unopened(details.url));
+            OPEN.openFrom(webContents, details.url, WEB.windowOptions(details));
             return { action: 'deny' };
         });
         const origin = ORIGIN.originOf(mod.id);
         LOG.guard(webContents, 'will-frame-navigate', (details) => {
-            if (details.isMainFrame && !details.url.startsWith(origin + '/'))
-                OPEN.open(details.url, pressed()).catch(unopened(details.url));
+            if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.openFrom(webContents, details.url);
         });
     }
 }

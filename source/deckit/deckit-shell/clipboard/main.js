@@ -1,11 +1,12 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
+import * as CHANNEL from '../deck/channel/index.js';
+import * as IPC from '../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as CLIPBOARD_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-export function createClipboard({ IDENTITY }) {
+// `clipboard` is the environment's.
+export function createClipboard({ IDENTITY, clipboard: CLIPBOARD }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -13,16 +14,15 @@ export function createClipboard({ IDENTITY }) {
     // runs in a mod's page while that page has it. Copying is everyone's; reading what was copied is
     // system.clipboard.
     function start() {
-        const { clipboard } = require('electron');
         PROTOCOL.readText.handle((_payload, sender) => {
             IDENTITY.modFrom(sender, CLIPBOARD_PERMISSION.CLIPBOARD);
-            return clipboard.readText();
+            return CLIPBOARD.readText();
         });
         // Copying replaces what the person copied, so it is their act: during their click or key in the page.
         PROTOCOL.writeText.handle(({ text }, sender) => {
             IDENTITY.modFrom(sender);
             if (!IDENTITY.consumeUserActivation(sender)) return false;
-            clipboard.writeText(text);
+            CLIPBOARD.writeText(text);
             return true;
         });
     }

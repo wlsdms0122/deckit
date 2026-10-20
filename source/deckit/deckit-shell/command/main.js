@@ -1,5 +1,5 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
+import * as CHANNEL from '../deck/channel/index.js';
+import * as IPC from '../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as TONE from './model/tone.js';
 

@@ -4,6 +4,7 @@ import * as IPC from '../ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as MOD from '../catalog/model/mod.js';
 import * as RUN from './model/run.js';
+import * as LIMIT from './model/limit.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -12,8 +13,6 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // environment's (environment/: MAIN.pages, MAIN.app).
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
-    // How long a mod's stop() may take before its run ends anyway.
-    const STOP_LIMIT_MS = 2000;
     // mod id -> { mod, page, run, update, closing }: a mod's sandbox, the page it runs in, its latest run and how
     // what the core tells of it is kept, and whether it is going.
     const sandboxes = new Map();
@@ -247,7 +246,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     function stop(modId, number) {
         const page = sandboxes.get(modId)?.page;
         const stopping = page
-            ? PROTOCOL.stop.invoke(page, {}, { timeout: STOP_LIMIT_MS }).catch(() => {})
+            ? PROTOCOL.stop.invoke(page, {}, { timeout: LIMIT.END_LIMIT_MS }).catch(() => {})
             : Promise.resolve();
         stopping.then(() => send('runner/stopped', { mod: modId, run: number }));
     }

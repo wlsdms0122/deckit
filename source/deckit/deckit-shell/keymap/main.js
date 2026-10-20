@@ -1,20 +1,20 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
+import * as CHANNEL from '../deck/channel/index.js';
+import * as IPC from '../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Keys, as the core resolves them: the core keeps the keymap and says how each binding stands, and a keystroke is
-// resolved here against the copy it last told, where the keystroke lands.
-export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
+// resolved here against the copy it last told, where the keystroke lands. `pages` and `keys` are the environment's.
+export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGES, keys: KEYS }) {
     // MARK: - Property
     const RECORDING_MS = 20 * 1000;
-    const runs = new Map(); // action -> run(webContents), of the keys registered through what connect answers
-    const typing = new Set(); // webContents ids with a field focused
-    const local = new Map(); // webContents id -> [{ keystroke, run }], taken there before anything else
+    const runs = new Map(); // action -> run(page), of the keys registered through what connect answers
+    const typing = new WeakSet(); // pages with a field focused
+    const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
     let keymap = { revision: 0, bindings: [] };
-    let recording = null; // { webContents, drop, timer }
+    let recording = null; // { page, drop, timer }
     let delegated = { isActive: () => false, monitor: () => false };
 
     // MARK: - Initializer
@@ -22,13 +22,13 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
     function start() {
         RUNNER.handleEffect('bindingsChanged', ({ revision, bindings }) => keep({ revision, bindings }));
         PROTOCOL.typing.on(({ on }, sender) => {
-            if (on) typing.add(sender.id);
-            else typing.delete(sender.id);
+            if (on) typing.add(sender);
+            else typing.delete(sender);
         });
         PROTOCOL.record.on(({ on }, sender) => {
             IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
             if (on) startRecording(sender);
-            else if (recording?.webContents === sender) stopRecording(false);
+            else if (recording?.page === sender) stopRecording(false);
         });
         PROTOCOL.chord.handle(({ action, app }, sender) => {
             const owner = app ? null : IDENTITY.modFrom(sender).id;
@@ -57,36 +57,40 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
         delegated = { isActive, monitor };
     }
 
-    // Keystrokes in this webContents go through the key map. deckit listens on its own pages and the web pages they
+    // Keystrokes in `target`, a page, go through the key map. deckit listens on its own pages and the web pages they
     // show; an app hands its own where deckit's global keys should work too. `page` is the deckit page a keystroke
-    // here belongs to, as web answers it, or null: the keys of the page in front run only in one. `keys` are this
-    // webContents' own, taken there first: only a chord main catches wins over a meaning the app's menu gives it.
-    function listen(webContents, { keys = [], page = null } = {}) {
+    // here belongs to, as web answers it, or null: the keys of the page in front run only in one. `keys` are the
+    // target's own, taken there first: only a chord main catches wins over a meaning the app's menu gives it.
+    function listen(target, { keys = [], page = null } = {}) {
+        let destroyed = false;
         if (keys.length)
             CORE.request('keymap/keystrokes', { specs: keys.map(({ key }) => String(key)) }).then(
                 (keystrokes) => {
-                    if (webContents.isDestroyed()) return;
+                    if (destroyed) return;
                     const read = keys.map(({ run }, index) => ({ keystroke: keystrokes[index], run }));
                     local.set(
-                        webContents.id,
+                        target,
                         read.filter(({ keystroke }) => keystroke)
                     );
                 },
                 (error) => LOG.error("a page's own keys were not read", error)
             );
-        LOG.guard(webContents, 'before-input-event', (event, input) => {
-            if (handle(webContents, page, input)) event.preventDefault();
+        KEYS.capture(target, (keystroke) => handle(target, page, keystroke));
+        // A replaced document or an ended process keeps the page, but what the page had focused is gone.
+        const forget = () => typing.delete(target);
+        PAGES.watch(target, {
+            ended: forget,
+            gone: forget,
+            destroyed: () => {
+                destroyed = true;
+                local.delete(target);
+                forget();
+            },
         });
-        const forget = () => typing.delete(webContents.id);
-        webContents.once('destroyed', () => local.delete(webContents.id));
-        // A reload or a crashed renderer keeps the webContents and its id, but the page's state is gone.
-        LOG.guard(webContents, 'did-navigate', forget);
-        LOG.guard(webContents, 'render-process-gone', forget);
-        webContents.once('destroyed', forget);
     }
 
     // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
-    // on deckit. `global` ones work anywhere a webContents is listened to; the rest only in the page in front.
+    // on deckit. `global` ones work anywhere a page is listened to; the rest only in the page in front.
     function register({ action, key, label = '', global = false, run }) {
         runs.set(action, run);
         CORE.request('keymap/register', { action, key: String(key), label: String(label), global: !!global }).then(
@@ -117,41 +121,42 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
         }
     }
 
-    // `input` has Electron's before-input-event shape.
-    function matches(keystroke, input) {
+    // `pressed` is a key as the environment tells it (environment: keys).
+    function matches(keystroke, pressed) {
         return (
             !!keystroke &&
-            keystroke.code === input.code &&
-            keystroke.meta === !!input.meta &&
-            keystroke.control === !!input.control &&
-            keystroke.shift === !!input.shift &&
-            keystroke.alt === !!input.alt
+            keystroke.code === pressed.code &&
+            keystroke.meta === pressed.meta &&
+            keystroke.control === pressed.control &&
+            keystroke.shift === pressed.shift &&
+            keystroke.alt === pressed.alt
         );
     }
 
-    // The first that runs where the keystroke landed wins, in the order the core lists the bindings.
-    function handle(webContents, page, input) {
-        if (recording) return take(input);
-        if (input.type !== 'keyDown') return false;
-        const taken = local.get(webContents.id)?.find(({ keystroke }) => matches(keystroke, input));
+    // The first that runs where the keystroke landed wins, in the order the core lists the bindings. Answers whether
+    // it took the key.
+    function handle(target, page, pressed) {
+        if (recording) return take(pressed);
+        if (pressed.type !== 'keydown') return false;
+        const taken = local.get(target)?.find(({ keystroke }) => matches(keystroke, pressed));
         if (taken) {
             taken.run();
             return true;
         }
-        if (page && delegated.monitor(page, keystrokeOf(input))) return true;
-        const active = keymap.bindings.filter((binding) => binding.active && matches(binding.keystroke, input));
+        if (page && delegated.monitor(page, keystrokeOf(pressed))) return true;
+        const active = keymap.bindings.filter((binding) => binding.active && matches(binding.keystroke, pressed));
         const global = active.find((binding) => binding.scope === 'global');
-        if (global) return run(global, webContents);
+        if (global) return run(global, target);
         if (!page || !delegated.isActive(page)) return false;
-        if (typing.has(page.id) && active.some(({ editsText }) => editsText)) return false;
+        if (typing.has(page) && active.some(({ editsText }) => editsText)) return false;
         const mod = IDENTITY.modOf(page);
         const hit = active.find((binding) => binding.scope === 'app' || binding.owner === mod?.id);
-        return hit ? run(hit, webContents) : false;
+        return hit ? run(hit, target) : false;
     }
 
-    function run(binding, webContents) {
+    function run(binding, target) {
         if (binding.app) {
-            runs.get(binding.action)?.(webContents);
+            runs.get(binding.action)?.(target);
             return true;
         }
         const page = IDENTITY.pageOf(binding.owner);
@@ -162,42 +167,42 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE }) {
 
     // Recording happens here: a page never hears a chord already bound, and the app menu would act on
     // Command-W while a person types it into a field. It ends when the asking page goes.
-    function startRecording(webContents) {
+    function startRecording(page) {
         stopRecording(false);
-        const end = () => recording?.webContents === webContents && stopRecording(true);
-        const drop = IDENTITY.whenPageEnds(webContents, end);
-        recording = { webContents, drop, timer: setTimeout(end, RECORDING_MS) };
+        const end = () => recording?.page === page && stopRecording(true);
+        const drop = IDENTITY.whenPageEnds(page, end);
+        recording = { page, drop, timer: setTimeout(end, RECORDING_MS) };
     }
 
     function stopRecording(tell) {
         if (!recording) return;
-        const { webContents, drop, timer } = recording;
+        const { page, drop, timer } = recording;
         clearTimeout(timer);
         drop();
         recording = null;
-        if (tell) PROTOCOL.recorded.send(webContents, { cancel: true });
+        if (tell) PROTOCOL.recorded.send(page, { cancel: true });
     }
 
     // Every keystroke is taken while recording; what one comes to is the core's to say, and the recording ends on
     // one that is a chord, cancels or clears.
-    function take(input) {
-        if (input.type !== 'keyDown') return true;
+    function take(pressed) {
+        if (pressed.type !== 'keydown') return true;
         const asking = recording;
-        CORE.request('keymap/record', { keystroke: keystrokeOf(input) }).then(
+        CORE.request('keymap/record', { keystroke: keystrokeOf(pressed) }).then(
             (recorded) => {
                 if (recording !== asking) return;
                 if (!recorded.pending && !recorded.error) stopRecording(false);
-                PROTOCOL.recorded.send(asking.webContents, recorded);
+                PROTOCOL.recorded.send(asking.page, recorded);
             },
             (error) => LOG.error('a key typed to be bound was not read', error)
         );
         return true;
     }
 
-    // A key pressed, as the core and a layer read it: copied as it lands, so nothing of Electron's input is kept or
-    // read after.
+    // A key pressed, as the core and a layer read it: copied as it lands, so nothing of what the environment told is
+    // kept or read after.
     function keystrokeOf({ code, meta, control, alt, shift }) {
-        return Object.freeze({ code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift });
+        return Object.freeze({ code, meta, control, alt, shift });
     }
 
     return { start, delegate, listen, register, chordOf: chordOfApp };
