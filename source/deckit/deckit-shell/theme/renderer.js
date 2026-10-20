@@ -1,5 +1,5 @@
 import * as TOKEN from '../ui/token/index.js';
-import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/channel/index.js';
 
 // An event the page's run sends of its mod, to every mod that listens to it.
 export const emit = CHANNEL.pageToMain('deckit-electron:event-emit', { run: 'number', name: 'string', args: 'array' });

@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // `deliver(label, listener, ...args)` calls a listener of the mod's and records on its row what it throws; `channels`

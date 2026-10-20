@@ -1,5 +1,5 @@
 // Between main and the panel's pages: its frame, deckit://panel/, and the mods' pages it shows.
-import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../channel/index.js';
 
 // The frame's page.
 // Answers { glass, look, shown, state } at once: the frame is built in one pass.

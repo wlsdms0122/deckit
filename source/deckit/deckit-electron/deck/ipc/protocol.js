@@ -1,6 +1,6 @@
 // The channels every other crosses over, Electron's IPC knowing only these: each message carries the name of the
 // channel it is on beside what it says.
-import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/channel/index.js';
 
 // What a page tells main, and asks it, waiting for the answer when the channel is `sync`: { channel, payload }.
 export const pageTells = CHANNEL.pageToMain('deckit-electron:page-tells', { channel: 'string', payload: 'object' });

@@ -12,7 +12,7 @@ WORK="$(mktemp -d "$OUT/.building.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 LIB="$WORK/lib"
 mkdir -p "$LIB/document" "$LIB/mods"
-SOURCE_HASH="$({ find source/deckit/deckit source/deckit/deckit-driver source/deckit/deckit-electron source/deckit/deckit-shell source/deckit/mods source/cli/library.js source/cli/bundle.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -not -path '*/.build/*' -not -path '*/.swiftpm/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
+SOURCE_HASH="$({ find source/deckit/deckit source/deckit/deckit-electron source/deckit/deckit-shell source/deckit/mods source/cli/library.js source/cli/bundle.js source/cli/command/build -type f -not -name .DS_Store -not -path '*/node_modules/*' -not -path '*/.build/*' -not -path '*/.swiftpm/*' -print0 | LC_ALL=C sort -z | xargs -0 shasum -a 256; } | shasum -a 256 | cut -c1-12)"
 
 cp document/EMBEDDING.md document/MOD.md document/UI.md "$LIB/document/"
 

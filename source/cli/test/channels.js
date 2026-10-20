@@ -79,7 +79,7 @@ function pageNamed(name, WIRE) {
 }
 
 async function main() {
-    const CHANNEL = await import(url('deckit-driver', 'channel', 'index.js'));
+    const CHANNEL = await import(url('deckit-shell', 'channel', 'index.js'));
     const WIRE = await import(url('deckit-electron', 'deck', 'ipc', 'protocol.js'));
     const LISTENER = await import(url('deckit-electron', 'deck', 'listener', 'index.js'));
     const reported = [];

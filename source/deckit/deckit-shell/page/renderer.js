@@ -6,7 +6,7 @@ import * as SWITCHER_PAGE from '../switcher/model/page-name.js';
 import * as FRAME from '../panel/frame.js';
 import * as FRAME_PAGE from '../panel/model/page-name.js';
 import * as THEME from '../theme/renderer.js';
-import * as LAYER from '../../deckit-driver/layer/index.js';
+import * as LAYER from '../layer/index.js';
 
 // MARK: - Property
 // Every page the shell draws in: clear around what it draws, and no drag selection, so text meant to be copied

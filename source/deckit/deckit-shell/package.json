@@ -3,9 +3,11 @@
     "private": true,
     "exports": {
         "./main.js": "./main.js",
-        "./renderer.js": "./renderer.js"
+        "./renderer.js": "./renderer.js",
+        "./channel/index.js": "./channel/index.js",
+        "./layer/index.js": "./layer/index.js",
+        "./match/match.js": "./match/match.js",
+        "./match/ranker.js": "./match/ranker.js"
     },
-    "dependencies": {
-        "deckit-driver": "file:../deckit-driver"
-    }
+    "dependencies": {}
 }

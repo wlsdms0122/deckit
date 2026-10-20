@@ -1,4 +1,4 @@
-import * as LAYER from '../deckit-driver/layer/index.js';
+import * as LAYER from './layer/index.js';
 import * as STYLE_PERMISSION from './style/model/permission.js';
 import { createRegion } from './region/main.js';
 import { createPanel } from './panel/main.js';

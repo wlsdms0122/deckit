@@ -1,5 +1,5 @@
-import * as CHANNEL from '../../deckit-driver/channel/index.js';
-import * as LAYER from '../../deckit-driver/layer/index.js';
+import * as CHANNEL from '../channel/index.js';
+import * as LAYER from '../layer/index.js';
 import * as DECLARED from './protocol.js';
 import * as WIDTH from './model/width.js';
 import * as PAGE from './model/page-name.js';
