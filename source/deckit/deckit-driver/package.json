@@ -2,7 +2,9 @@
     "name": "deckit-driver",
     "private": true,
     "exports": {
-        "./channel/index.js": "./channel/index.js"
+        "./channel/index.js": "./channel/index.js",
+        "./layer/index.js": "./layer/index.js",
+        "./match/match.js": "./match/match.js"
     },
     "dependencies": {}
 }

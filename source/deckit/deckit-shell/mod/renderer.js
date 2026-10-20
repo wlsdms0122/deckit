@@ -2,6 +2,7 @@ import * as OVERLAY from '../ui/overlay/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as STYLE from '../style/renderer.js';
 import * as STYLE_PERMISSION from '../style/model/permission.js';
+import * as LAYER from '../../deckit-driver/layer/index.js';
 import { createPanel, viewProblem, keyProblem } from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion, parentProblem } from '../region/renderer.js';
@@ -13,7 +14,8 @@ import { createRegion, parentProblem } from '../region/renderer.js';
 // `region(element)`, `children`, the registrations `view` and, with deckit.styles, `styles`, and on deck.mods the
 // panel's pins. Once start() has ended, a view is laid where the panel's guide says, or a region's for a child.
 // `channels` binds the shell's channels in the page.
-function mod({ mod: running, deliver, channels }) {
+function mod(context) {
+    const { mod: running, deliver, channels } = LAYER.checked(context, LAYER.MOD_PAGE, "what a mod's page is handed");
     const REGION = createRegion({ deliver, channels });
     const PANEL = createPanel({ channels });
     const theme = PAGE.start({ channels, tell: (listener) => deliver('theme.onChange()', listener) });

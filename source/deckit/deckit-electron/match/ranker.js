@@ -1,4 +1,4 @@
-import * as MATCH from './match.js';
+import * as MATCH from '../../deckit-driver/match/match.js';
 
 // MARK: - Property
 const waiting = new Map(); // ask -> resolve, for the answers still to come

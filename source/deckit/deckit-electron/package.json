@@ -4,7 +4,6 @@
     "exports": {
         "./main.js": "./main.js",
         "./renderer.js": "./renderer.js",
-        "./match/match.js": "./match/match.js",
         "./deck/contract/index.js": "./deck/contract/index.js"
     },
     "dependencies": {

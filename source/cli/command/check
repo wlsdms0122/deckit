@@ -8,14 +8,19 @@ const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 const IPC = 'deckit-electron/deck/ipc/index.js';
 // What the shell and a driver agree on: plain declarations and pure functions, which run on any side of any driver.
 const DRIVER = 'deckit-driver';
-// The packages each may depend on. The shell and a driver both stand on what they agree on; the driver names nothing of
-// a shell.
+// The packages each may depend on. The shell and a driver both stand on what they agree on, and neither knows the other.
 const MAY_DEPEND = {
     'deckit-driver': [],
     'deckit-electron': ['deckit-driver'],
-    // deckit-electron's entries, until the shell reaches a driver only through what they agree on.
-    'deckit-shell': ['deckit-driver', 'deckit-electron'],
+    'deckit-shell': ['deckit-driver'],
 };
+// The shell reaches a driver only through what they agree on, so nothing of Electron's is in it: no module, nothing its
+// bundles carry, and no Electron object it would hold or call.
+const SHELL = 'deckit-shell';
+const SHELL_BUNDLES = ['shell-main', 'shell-renderer'];
+const ELECTRON = /\brequire\(\s*["'`]electron["'`]\s*\)/;
+const ELECTRON_NAMES =
+    /\b(?:View|WebContentsView|BrowserWindow|nativeTheme|screen|ipcMain|ipcRenderer)\b|\.(?:webContents|setBounds|setVisible|addChildView|removeChildView|setBackgroundColor|getBounds|isDestroyed|setWindowOpenHandler|setBackgroundThrottling)\b/;
 // A channel's declaration, whatever the module that declares it is imported as.
 const DECLARES = '\\b\\w+\\.(?:pageToMain|mainToPage)\\(';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
@@ -96,6 +101,7 @@ function checkFile(file) {
     if (file !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
     if (packageOf(file) === DRIVER) checkPure(file, plain);
+    if (packageOf(file) === SHELL) checkShell(file, plain);
     const protocol = file.endsWith('/protocol.js');
     if (!protocol && /["'`](deckit-electron|deckit-shell):(?!\/\/)/.test(plain))
         say(file, 'writes a channel; channels are declared in a protocol.js');
@@ -106,12 +112,25 @@ function checkFile(file) {
 // What the shell and a driver agree on holds nothing of either: no module, nothing of a process or a page, and no
 // state of its own. Read without its strings, so a channel's name or a word in one is not taken for a use.
 function checkPure(file, plain) {
-    const bare = plain.replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, "''");
+    const bare = bareOf(plain);
     if (/\brequire\s*\(/.test(bare)) say(file, `requires a module, but ${DRIVER}/ is plain declarations`);
     if (/\b(?:globalThis|window|document|process|self)\s*[.[]/.test(bare))
         say(file, `reaches a process or a page, but ${DRIVER}/ runs on any side of any driver`);
     if (/^(?:let|var)\b/m.test(bare) || /^\S[^\n]*\bnew\s+(?:Map|Set|WeakMap|WeakSet)\s*\(/m.test(bare))
         say(file, `holds state, but ${DRIVER}/ is plain declarations and pure functions`);
+}
+
+// The shell's code, read without its strings: nothing it requires, and no Electron object's name or member.
+function checkShell(file, plain) {
+    const bare = bareOf(plain);
+    if (/\brequire\s*\(/.test(bare)) say(file, `requires a module, but ${SHELL}/ reaches a driver only through ${DRIVER}/`);
+    const named = bare.match(ELECTRON_NAMES);
+    if (named) say(file, `names ${named[0]} of Electron's, but ${SHELL}/ reaches a driver only through ${DRIVER}/`);
+}
+
+// Code without its strings, so a word in one is not taken for a use.
+function bareOf(plain) {
+    return plain.replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, "''");
 }
 
 // A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no
@@ -182,6 +201,8 @@ function checkPlaces() {
                 say(file, `runs in main, but the ${name} bundle carries it`);
             if (place !== 'renderer' && /(^|\/)renderer\.js$/.test(file))
                 say(file, `runs in a renderer, but the ${name} bundle carries it`);
+            if (SHELL_BUNDLES.includes(name) && ELECTRON.test(plain))
+                say(file, `requires Electron, but the ${name} bundle carries it`);
             if (place !== 'main' && NODE.test(plain))
                 say(file, `requires a Node module, but the ${name} bundle carries it`);
         }

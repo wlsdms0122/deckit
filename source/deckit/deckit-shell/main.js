@@ -1,3 +1,4 @@
+import * as LAYER from '../deckit-driver/layer/index.js';
 import * as STYLE_PERMISSION from './style/model/permission.js';
 import { createRegion } from './region/main.js';
 import { createPanel } from './panel/main.js';
@@ -16,6 +17,7 @@ let attached = false;
 // `host` answers where the shell is shown. The shell starts with deckit, before any mod launches.
 function attach(deckit, { host } = {}) {
     if (attached) throw new Error('[deckit] attach is called once');
+    LAYER.checked(deckit, LAYER.MAIN, 'what the driver answers');
     const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;

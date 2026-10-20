@@ -1,4 +1,5 @@
-import * as MATCH from '../match/match.js';
+import * as MATCH from '../../deckit-driver/match/match.js';
+import * as LAYER from '../../deckit-driver/layer/index.js';
 import * as RANKER from '../match/ranker.js';
 import * as CLIPBOARD from '../clipboard/renderer.js';
 import * as RUNTIME from '../runtime/renderer.js';
@@ -14,16 +15,6 @@ import * as OPEN_PERMISSION from '../open/model/permission.js';
 // `CHANNELS` is what the shell's layer binds its channels with in the page.
 export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
     // MARK: - Property
-    // What the shell gives a mod where none is on deckit: nothing.
-    const NO_SHELL = Object.freeze({
-        members: [],
-        deck: {},
-        registrations: {},
-        mods: {},
-        blocksKeys: () => false,
-        keyProblem: () => '',
-        contribute: () => ({}),
-    });
 
     // MARK: - Initializer
     // MARK: - Public
@@ -41,8 +32,8 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
             NOTIFICATION.listen(deliver);
             const chordOf = (action) => KEYMAP.chord(action, { app: true });
             const given = shellMod
-                ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail, channels: CHANNELS }) }
-                : NO_SHELL;
+                ? { ...LAYER.NO_LAYER, ...shellMod({ mod, chordOf, deliver, fail, channels: CHANNELS }) }
+                : LAYER.NO_LAYER;
             const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
             const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
             return {
