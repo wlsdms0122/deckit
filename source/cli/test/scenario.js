@@ -342,6 +342,14 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await parent.key('\\', 'Backslash', META, 220);
         const back = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
         check('unfolding the sidebar brings the region back', back, await child.evaluate(seen));
+
+        // A mod runs again once what it requires runs again: the parent's page loading again by itself ends the child's
+        // run, and the child launches again in a new document.
+        const started = `performance.timeOrigin`;
+        const origin = await child.evaluate(started);
+        await parent.evaluate('location.reload()');
+        const relaunched = await until(async () => (await child.evaluate(started)) !== origin, 6000);
+        check('a mod runs again once what it requires runs again', relaunched, '');
     } catch (error) {
         check('scenario ran', false, error.stack);
     }

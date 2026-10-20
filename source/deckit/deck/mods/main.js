@@ -72,6 +72,7 @@ export function createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, ST
         CATALOG.onChange(tell);
         layer.onFactsChange?.(tell);
         for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, tell);
+        RUNNER.onProblem(tell);
     }
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.

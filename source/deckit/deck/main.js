@@ -33,7 +33,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     const CATALOG = createCatalog({ CORE, LOG });
     const IDENTITY = createIdentity();
     const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
-    const RUNNER = createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX });
+    const RUNNER = createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, CORE });
     const RECORD = createRecord({ CORE, IDENTITY });
     const SETTING = createSetting({ STORAGE, IDENTITY, CATALOG, RUNNER });
     const EXPORT = createExport({ IDENTITY, RUNNER });

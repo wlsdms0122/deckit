@@ -1,24 +1,29 @@
 import * as EVENT_BUS from '../event/bus.js';
 import * as PROTOCOL from './protocol.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
-import * as LIFECYCLE from '../mod/lifecycle.js';
+import * as MOD from '../catalog/model/mod.js';
+import * as RUN from './model/run.js';
 
-export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX }) {
+// The mods' runs, as the core runs them: what happens to a page is told the core, and what the core answers is done
+// here in order, its runs kept as it told them so what asks at once is answered at once.
+export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
     // MARK: - Property
     // How long a mod's stop() may take before its run ends anyway.
     const STOP_LIMIT_MS = 2000;
     const ERR_ABORTED = -3;
-    // mod id -> { mod, view, run, stopping, closing }: a mod's sandbox, the view its page is in, kept
-    // across its runs until the mod goes or its folder changes. `stopping` settles once its run's stop() has
-    // answered; `closing`, once the view has closed for good.
+    // mod id -> { mod, view, run, update, closing }: a mod's sandbox, the view its page is in, its latest run and how
+    // what the core tells of it is kept, and whether it is going.
     const sandboxes = new Map();
-    const numbers = new Map(); // mod id -> the number of its latest run, counted from 1
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
+    const reports = new Map(); // mod id -> what its page reported as its run started, { number, summary, contributions }
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
+    const problemListeners = new Set(); // told when a problem is kept against a run
+    const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
+    let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
     let preparePage = null;
     let webPreferences = {};
-    let quitting = null; // the runs terminating as the app quits
+    let quitHold = null; // 'held' while the runs terminate as the app quits, 'free' once nothing holds it
 
     // MARK: - Initializer
     // MARK: - Public
@@ -29,21 +34,22 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX }) {
         preparePage = prepare;
         webPreferences = preferences;
         listen();
-        follow();
         CATALOG.onChange(reconcile);
         reconcile();
         // The app quits once every run has ended. Held at will-quit, once every window has closed and the quit is
         // decided, while a run has not; a quit asked again meanwhile waits too. Then the quit is asked again and
         // goes on as any quit does, quit event and all. A quit the host app calls off leaves those runs ended, and
-        // the next quit terminates what launched since.
+        // the next quit terminates what launched since. A core that cannot be asked holds nothing.
         const { app } = require('electron');
         app.on('will-quit', (event) => {
-            const live = [...sandboxes.values()].filter(({ run }) => run.state !== 'notRunning');
-            if (!quitting && !live.length) return;
+            const live = [...sandboxes.values()].some(({ run }) => run.state !== 'notRunning');
+            if (quitHold === 'free' || (!quitHold && !live)) return;
             event.preventDefault();
-            quitting ??= Promise.all(live.map((sandbox) => terminate(sandbox, 'quit'))).then(() => {
-                quitting = null;
-                app.quit();
+            if (quitHold) return;
+            quitHold = 'held';
+            ask('runner/quit').catch((error) => {
+                LOG.error('the mods were not stopped as the app quit', error);
+                release(error);
             });
         });
     }
@@ -64,7 +70,8 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX }) {
     // The run a page's message is from, while it is that mod's latest: what an older run sent before it was
     // replaced, still on its way, is not the newer one's.
     function currentRun(sender, number) {
-        return sandboxFrom(sender, number)?.run || null;
+        const run = runOf(IDENTITY.modFrom(sender).id);
+        return run?.number === number ? run : null;
     }
 
     // `observer(run)` is told `name`, one of the lifecycle's notifications, for every run. Answers its off.
@@ -72,115 +79,159 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX }) {
         return notifications.on(name, observer);
     }
 
-    // Resolves once the mod's sandbox that is closing has closed, and whatever runs in its place has launched.
+    // A problem against the run, which a person reads on its row: the first one while it launches or runs is kept.
+    function reportProblem(run, problem) {
+        send('runner/problem', { mod: run.mod.id, run: run.number, problem });
+    }
+
+    // Told when a problem is kept against a run. Answers its off.
+    function onProblem(listener) {
+        problemListeners.add(listener);
+        return () => problemListeners.delete(listener);
+    }
+
+    // Resolves once the mod's sandbox that is closing has closed, and whatever runs in its place has opened.
     function whenClosed(modId) {
-        return sandboxes.get(modId)?.closing || Promise.resolve();
+        return asked.then(() => until(() => !sandboxes.get(modId)?.closing));
     }
 
-    // Every mod terminates and launches again, and a mod whose sandbox closed for a quit
-    // the host app called off opens again.
+    // Resolves once the core has answered all that was asked of it, and it was done: what a page says after it told
+    // main of its run is read as the core moved the run.
+    function settled() {
+        return asked;
+    }
+
     function relaunchAll() {
-        for (const sandbox of sandboxes.values()) if (!sandbox.closing) relaunchSandbox(sandbox);
-        reconcile();
+        send('runner/relaunch-all');
     }
 
-    // The mod terminates and launches again, or launches when it is not running. Throws while a mod it
-    // requires is not running. Resolves once the run in its place has launched, or failed to.
-    function relaunch(modId) {
-        const sandbox = sandboxes.get(modId);
-        if (!sandbox || sandbox.closing || quitting) return Promise.resolve();
-        const missing = notRunningRequirement(sandbox);
-        if (missing) throw new Error(`${modId} needs ${missing}, which is not running`);
-        return relaunchSandbox(sandbox);
+    // The mod terminates and launches again, or launches when it is not running. Refused while a mod it requires
+    // is not running. Resolves once the run in its place has launched, or failed to.
+    async function relaunch(modId) {
+        const effects = await ask('runner/relaunch', { mod: modId });
+        const told = effects.find((effect) => effect.effect === 'tell' && effect.mod === modId);
+        const before = told?.notification === 'willLaunch' ? told.run - 1 : (told?.run ?? runOf(modId)?.number);
+        return until(() => {
+            const sandbox = sandboxes.get(modId);
+            if (!sandbox || sandbox.closing) return true;
+            const { run } = sandbox;
+            return (run.number !== before || run.state === 'notRunning') && run.state !== 'launching';
+        });
     }
 
     // MARK: - Private
-    // A mod runs only while what it requires runs: it terminates as one of them ends, before that one's stop()
-    // is asked, and launches again as one of them launches. A run that crashed or did not launch ends with no
-    // willTerminate.
-    function follow() {
-        notifications.on('willTerminate', ({ mod }) => terminateDependents(mod.id));
-        notifications.on('didTerminate', ({ mod, endReason }) => !endReason && terminateDependents(mod.id));
-        notifications.on('willLaunch', ({ mod }) => {
-            for (const sandbox of dependentsOf(mod.id))
-                if (sandbox.run.state === 'notRunning' && !sandbox.closing && !quitting) launchAgain(sandbox);
-        });
-    }
-
-    function terminateDependents(modId) {
-        for (const sandbox of dependentsOf(modId)) if (!sandbox.closing) terminate(sandbox, 'requirement');
-    }
-
-    function dependentsOf(modId) {
-        return [...sandboxes.values()].filter(({ mod }) => Object.hasOwn(mod.requires, modId));
-    }
-
-    // The run terminates to relaunch, and the mod launches again once it has ended, unless the run was given
-    // a stronger reason meanwhile (a removal, a quit). One ended before launches again.
-    function relaunchSandbox(sandbox) {
-        const { run } = sandbox;
-        const live = run.state !== 'notRunning';
-        return terminate(sandbox, 'relaunch').then(() => {
-            if (quitting || sandboxes.get(sandbox.mod.id) !== sandbox || sandbox.closing) return;
-            if (sandbox.run !== run || (live && !run.relaunches)) return;
-            launchAgain(sandbox);
-            return launched(sandbox.run);
-        });
-    }
-
-    // Once the run is past launching: running, or ended.
-    function launched(run) {
-        if (run.state !== 'launching') return Promise.resolve();
-        return new Promise((resolve) => {
-            const offs = ['didLaunch', 'didFailToLaunch', 'didTerminate'].map((name) =>
-                notifications.on(name, (told) => {
-                    if (told !== run) return;
-                    for (const off of offs) off();
-                    resolve();
-                })
-            );
-        });
-    }
-
-    // At its page's own address. While a mod it requires is not running or launching, it launches with that one.
-    function launchAgain(sandbox) {
-        if (notRunningRequirement(sandbox)) return;
-        launch(sandbox);
-        sandbox.view.webContents.loadURL(addressOf(sandbox.mod));
-    }
-
-    // The id of a mod it requires whose run is neither launching nor running, or null.
-    function notRunningRequirement(sandbox) {
-        const live = (id) => ['launching', 'running'].includes(sandboxes.get(id)?.run.state);
-        return Object.keys(sandbox.mod.requires).find((id) => !live(id)) || null;
-    }
-
-    // A mod runs as it arrives and goes as it leaves; one whose code changed goes and runs again, once its old
-    // sandbox has closed. Nothing opens while the app quits.
     function reconcile() {
-        const mods = CATALOG.mods();
-        for (const sandbox of sandboxes.values()) {
-            if (sandbox.closing) continue;
-            const found = mods.find(({ id }) => id === sandbox.mod.id);
-            if (!found || found.revision !== sandbox.mod.revision) closeSandbox(sandbox, found ? 'updated' : 'removed');
+        send('runner/reconcile');
+    }
+
+    // What the core answers is done before anything asked after it is. Answers the effects.
+    function ask(method, params) {
+        const answered = CORE.request(method, params).then(
+            (effects) => {
+                apply(effects);
+                return effects;
+            },
+            (error) => {
+                if (error.kind === 'ENDED') release(error);
+                throw error;
+            }
+        );
+        asked = answered.catch(() => {});
+        return answered;
+    }
+
+    // A core that has ended moves no run again: what waits on it is refused with why, and it holds no quit.
+    function release(error) {
+        const held = quitHold === 'held';
+        quitHold = 'free';
+        for (const { reject } of waiting) reject(error);
+        waiting.clear();
+        if (held) require('electron').app.quit();
+    }
+
+    function send(method, params) {
+        ask(method, params).catch((error) => LOG.error(`the core did not take ${method}`, error));
+    }
+
+    function apply(effects) {
+        for (const effect of effects) {
+            switch (effect.effect) {
+                case 'open':
+                    openSandbox(MOD.read(effect.found));
+                    break;
+                case 'load':
+                    load(sandboxes.get(effect.mod));
+                    break;
+                case 'tell':
+                    tell(sandboxes.get(effect.mod), effect.notification, effect);
+                    break;
+                case 'keep':
+                    keep(sandboxes.get(effect.mod), effect);
+                    break;
+                case 'stop':
+                    stop(effect.mod, effect.run);
+                    break;
+                case 'closing':
+                    sandboxes.get(effect.mod).closing = true;
+                    break;
+                case 'close':
+                    closeSandbox(effect.mod, effect.reason);
+                    break;
+                case 'quit':
+                    quitHold = null;
+                    require('electron').app.quit();
+                    break;
+            }
         }
-        if (quitting) return;
-        for (const mod of mods) if (!sandboxes.has(mod.id)) openSandbox(mod);
+        for (const wait of waiting) {
+            if (!wait.done()) continue;
+            waiting.delete(wait);
+            wait.resolve();
+        }
+    }
+
+    function until(done) {
+        if (done()) return Promise.resolve();
+        return new Promise((resolve, reject) => waiting.add({ done, resolve, reject }));
+    }
+
+    // A run is one object from willLaunch on. What its page reported as it started is kept as it launches.
+    function tell(sandbox, name, told) {
+        if (name === 'willLaunch') Object.assign(sandbox, RUN.makeRun({ mod: sandbox.mod, number: told.run }));
+        update(sandbox, told);
+        const { run } = sandbox;
+        if (name === 'didLaunch') {
+            const reported = reports.get(run.mod.id);
+            reports.delete(run.mod.id);
+            if (reported?.number === run.number)
+                sandbox.update({ summary: reported.summary, contributions: reported.contributions });
+            lastLaunched.set(run.mod.id, run);
+        }
+        notifications.emit(name, run);
+    }
+
+    function keep(sandbox, told) {
+        update(sandbox, told);
+        for (const listener of problemListeners) listener(sandbox.run);
+    }
+
+    function update(sandbox, told) {
+        const { state, problem = null, endReason = null, relaunches } = told;
+        sandbox.update({ state, problem, endReason, relaunches });
     }
 
     function openSandbox(mod) {
         const view = SANDBOX.view(webPreferences);
         const webContents = view.webContents;
-        const sandbox = { mod, view, run: null, stopping: null, closing: null };
+        const sandbox = { mod, view, run: null, update: null, closing: false };
         // Before identity's own, so a crash ends the run with its cause. A page that did not load runs no mod:
         // what loaded instead is an error page, never the mod's origin. An aborted load is one replaced by
         // another.
         LOG.guard(webContents, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
-            if (isMainFrame && code !== ERR_ABORTED)
-                crash(sandbox, sandbox.run, `its page did not load (${description})`);
+            if (isMainFrame && code !== ERR_ABORTED) crash(sandbox.run, `its page did not load (${description})`);
         });
         LOG.guard(webContents, 'render-process-gone', (_event, { reason }) =>
-            crash(sandbox, sandbox.run, `its page ended (${reason})`)
+            crash(sandbox.run, `its page ended (${reason})`)
         );
         IDENTITY.add(webContents, { mod });
         // A page opens no window of its own: what it asked for is what is on deck's to answer.
@@ -195,113 +246,75 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX }) {
         // load, so it is given again as each one finishes.
         LOG.guard(webContents, 'did-finish-load', () => webContents.setBackgroundThrottling(false));
         sandboxes.set(mod.id, sandbox);
-        launch(sandbox);
-        webContents.loadURL(addressOf(mod));
     }
 
-    // What runs in its place opens once it has closed.
-    function closeSandbox(sandbox, reason) {
-        sandbox.closing = terminate(sandbox, reason).then(() => {
-            if (!sandbox.view.webContents.isDestroyed()) sandbox.view.webContents.close();
-            sandboxes.delete(sandbox.mod.id);
-            if (reason === 'removed') lastLaunched.delete(sandbox.mod.id);
-            reconcile();
-        });
+    function load(sandbox) {
+        sandbox.view.webContents.loadURL(ORIGIN.addressOf(ORIGIN.originOf(sandbox.mod.id)));
     }
 
-    // A run tells willLaunch as it is made, so it is the sandbox's run from the first thing it tells.
-    function launch(sandbox) {
-        const modId = sandbox.mod.id;
-        const number = (numbers.get(modId) || 0) + 1;
-        numbers.set(modId, number);
-        LIFECYCLE.launch({
-            mod: sandbox.mod,
-            number,
-            notify: (name, run) => {
-                sandbox.run = run;
-                if (name === 'didLaunch') lastLaunched.set(modId, run);
-                notifications.emit(name, run);
-            },
-        });
+    // The mod's stop() asked of its page. The page runs it once, however often it is asked. The core is told once it
+    // has answered, its time ran out or the page is gone.
+    function stop(modId, number) {
+        const webContents = sandboxes.get(modId)?.view.webContents;
+        const stopping =
+            webContents && !webContents.isDestroyed()
+                ? PROTOCOL.stop.invoke(webContents, {}, { timeout: STOP_LIMIT_MS }).catch(() => {})
+                : Promise.resolve();
+        stopping.then(() => send('runner/stopped', { mod: modId, run: number }));
     }
 
-    // `reason`: one the lifecycle has. Resolves once the run has ended: its stop() answered, its time ran out or
-    // its page is gone.
-    function terminate(sandbox, reason) {
-        const { run } = sandbox;
-        if (run.state === 'notRunning') return Promise.resolve();
-        const terminating = run.state === 'terminating';
-        run.terminate(reason);
-        return terminating ? sandbox.stopping : endAfterStop(sandbox);
+    function closeSandbox(modId, reason) {
+        const { view } = sandboxes.get(modId);
+        if (!view.webContents.isDestroyed()) view.webContents.close();
+        sandboxes.delete(modId);
+        if (reason === 'removed') lastLaunched.delete(modId);
     }
 
-    // A terminating run ends once its stop() has answered, asked once every mod that requires it has ended.
-    function endAfterStop(sandbox) {
-        const { run, view } = sandbox;
-        const dependents = dependentsOf(sandbox.mod.id).filter((dependent) => dependent.run.state === 'terminating');
-        sandbox.stopping = Promise.all(dependents.map(({ stopping }) => stopping))
-            .then(() => stop(view))
-            .then(() => run.state === 'terminating' && run.didTerminate());
-        return sandbox.stopping;
-    }
-
-    // The mod's stop() asked of its page. The page runs it once, however often it is asked. Resolves once it has
-    // answered, its time ran out or the page is gone.
-    function stop(view) {
-        if (view.webContents.isDestroyed()) return Promise.resolve();
-        return PROTOCOL.stop.invoke(view.webContents, {}, { timeout: STOP_LIMIT_MS }).catch(() => {});
-    }
-
-    function crash(sandbox, run, problem) {
-        if (sandbox.run !== run || run.state === 'notRunning') return;
+    function crash(run, problem) {
+        if (run.state === 'notRunning' || runOf(run.mod.id) !== run) return;
         LOG.warn(`${run.mod.id}: ${problem}`);
-        run.crash(problem);
-    }
-
-    function addressOf(mod) {
-        return ORIGIN.addressOf(ORIGIN.originOf(mod.id));
-    }
-
-    function sandboxFrom(sender, number) {
-        const sandbox = sandboxes.get(IDENTITY.modFrom(sender).id);
-        return sandbox?.run.number === number ? sandbox : null;
+        send('runner/crash', { mod: run.mod.id, run: run.number, problem });
     }
 
     // What a page says of its run carries the run's number.
     function listen() {
         PROTOCOL.load.handle(async (_payload, sender) => {
-            const sandbox = sandboxes.get(IDENTITY.modFrom(sender).id);
-            if (sandbox.closing) throw new Error(`${sandbox.mod.id} is going`);
-            // A page that loaded again by itself runs again: the run it had ended with the document it ran in.
-            // Nothing launches while the app quits, or while a mod it requires is not running.
-            if (sandbox.run.state !== 'launching') {
-                if (quitting) throw new Error(`${sandbox.mod.id} does not launch while the app quits`);
-                const missing = notRunningRequirement(sandbox);
-                if (missing) throw new Error(`${sandbox.mod.id} needs ${missing}, which is not running`);
-                crash(sandbox, sandbox.run, 'its page loaded again');
-                launch(sandbox);
-            }
-            const run = sandbox.run;
-            IDENTITY.whenPageEnds(sender, () => crash(sandbox, run, 'its page went away'));
+            const { id } = IDENTITY.modFrom(sender);
+            await ask('runner/load', { mod: id });
+            const { mod, run } = sandboxes.get(id);
+            IDENTITY.whenPageEnds(sender, () => crash(run, 'its page went away'));
             return {
-                manifest: sandbox.mod.manifest,
-                source: CATALOG.sourceOf(sandbox.mod),
-                settings: await STORAGE.settings.read(sandbox.mod.id),
+                manifest: mod.manifest,
+                source: CATALOG.sourceOf(mod),
+                settings: await STORAGE.settings.read(id),
                 run: run.number,
             };
         });
         PROTOCOL.started.on(({ run: number, contributions, summary }, sender) => {
-            const run = currentRun(sender, number);
-            if (run?.state === 'launching') run.didLaunch({ summary, contributions });
+            const { id } = IDENTITY.modFrom(sender);
+            reports.set(id, { number, summary, contributions });
+            send('runner/started', { mod: id, run: number });
         });
-        PROTOCOL.problem.on(({ run: number, problem }, sender) => currentRun(sender, number)?.record(problem));
-        PROTOCOL.notStarted.on(({ run: number, problem }, sender) => {
-            const sandbox = sandboxFrom(sender, number);
-            if (sandbox?.run.state !== 'launching') return;
-            sandbox.run.didFailToLaunch(problem);
-            endAfterStop(sandbox);
-        });
+        PROTOCOL.problem.on(({ run: number, problem }, sender) =>
+            send('runner/problem', { mod: IDENTITY.modFrom(sender).id, run: number, problem })
+        );
+        PROTOCOL.notStarted.on(({ run: number, problem }, sender) =>
+            send('runner/not-started', { mod: IDENTITY.modFrom(sender).id, run: number, problem })
+        );
     }
 
-    return { start, runs, runOf, launchedOf, currentRun, observe, whenClosed, relaunchAll, relaunch };
+    return {
+        start,
+        runs,
+        runOf,
+        launchedOf,
+        currentRun,
+        observe,
+        reportProblem,
+        onProblem,
+        settled,
+        whenClosed,
+        relaunchAll,
+        relaunch,
+    };
 }
