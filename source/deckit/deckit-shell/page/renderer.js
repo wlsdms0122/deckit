@@ -21,8 +21,8 @@ const PAGE_STYLE = `
 
 // MARK: - Initializer
 // MARK: - Public
-// What this page is: { page }, the name of a page the shell made, or for a mod's { sessions }, what its web sessions
-// are named by.
+// What this page is: { page }, the name of a page the shell made, or for a mod's { sessions, attached }, what its web
+// sessions are named by and whether the shell's UI is on deckit.
 function setup() {
     return PROTOCOL.setup.invoke();
 }

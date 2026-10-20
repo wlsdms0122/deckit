@@ -19,6 +19,7 @@ import * as ENVIRONMENT from '../environment/index.js';
 const CONNECTED = Object.freeze({
     config: { name: 'string' },
     onStart: 'function',
+    attach: 'function', // attach(), once: the layer is on deckit, so each mod's page that starts wears its part
     channels: { bind: 'function' },
     permissions: { define: 'function' },
     mods: {

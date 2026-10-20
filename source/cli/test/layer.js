@@ -67,7 +67,7 @@ async function main() {
     );
     const parts = Object.fromEntries(
         ['STORAGE', 'LOG', 'WINDOW', 'IDENTITY', 'CATALOG', 'RUNNER', 'PERMISSION', 'WEB', 'KEYMAP', 'COMMAND']
-            .concat(['MAIN_PROCESS', 'PAGE', 'STAGE'])
+            .concat(['MAIN_PROCESS', 'PAGE', 'SETUP', 'STAGE'])
             .map((name) => [name, part])
     );
     const made = thrown(() => createApi({ CONFIG: { id: 'test', name: 'Test' }, ...parts }).make({ onStart() {} }));

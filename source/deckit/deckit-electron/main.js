@@ -151,6 +151,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         COMMAND,
         MAIN_PROCESS,
         PAGE,
+        SETUP,
         STAGE,
     });
     const starting = []; // what starts with deckit, before any mod launches: the shell on it

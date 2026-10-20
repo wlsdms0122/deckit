@@ -28,10 +28,10 @@ function start(given) {
 }
 
 // MARK: - Private
-// The page the shell made is drawn; a mod's runs, deck's runner handed deckit's layer of `deck` with the shell's over
-// it, each part handed what it uses.
+// The page the shell made is drawn; a mod's runs, deck's runner handed deckit's layer of `deck` with the shell's UI
+// over it when it is on deckit, each part handed what it uses.
 function run(ENV) {
-    const { page, sessions } = PAGE.setup();
+    const { page, sessions, attached } = PAGE.setup();
     if (page) return PAGE.page(page, { channels: IPC.layerChannels });
     const RUN = createRun();
     const RUNNER = createRunner({
@@ -49,7 +49,7 @@ function run(ENV) {
         COMMAND: createCommand(),
         CHANNELS: IPC.layerChannels,
     });
-    RUNNER.start({ layer: MOD.layerOf(mod) });
+    RUNNER.start({ layer: MOD.layerOf(attached ? mod : null) });
 }
 
 export { start };
