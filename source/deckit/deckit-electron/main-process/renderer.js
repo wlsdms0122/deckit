@@ -1,4 +1,5 @@
-import * as DECK from '../../deck/renderer.js';
+import * as EVENT_BUS from '../deck/event/bus.js';
+import * as PROXY from '../deck/export/proxy.js';
 import * as PROTOCOL from './protocol.js';
 
 // MARK: - Property
@@ -13,16 +14,16 @@ function forMod({ deliver }) {
         if (!buses.has(path))
             buses.set(
                 path,
-                DECK.BUS.make({ call: (listener, args, name) => deliver(`on("${name}")`, listener, ...args) })
+                EVENT_BUS.make({ call: (listener, args, name) => deliver(`on("${name}")`, listener, ...args) })
             );
         return buses.get(path);
     };
     const started = new Map(); // the path asked for -> promise of the module's proxy
     PROTOCOL.event.on(({ path, name, args }) => busOf(path).emit(name, ...args));
     const moduleOf = ({ path, methods }) => {
-        const proxy = DECK.proxyOf(methods, {}, (method, args) => PROTOCOL.call.invoke({ path, method, args }));
+        const proxy = PROXY.proxyOf(methods, {}, (method, args) => PROTOCOL.call.invoke({ path, method, args }));
         proxy.on = (name, listener) => busOf(path).on(name, listener);
-        return DECK.deepFreeze(proxy);
+        return PROXY.deepFreeze(proxy);
     };
     return (path) => {
         const asked = String(path);

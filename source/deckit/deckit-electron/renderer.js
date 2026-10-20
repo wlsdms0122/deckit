@@ -1,5 +1,11 @@
 import * as PAGE from './page/renderer.js';
-import * as DECK from '../deck/renderer.js';
+import * as ORIGIN from './deck/sandbox/model/origin.js';
+import { createRun } from './deck/runner/run.js';
+import { createRunner } from './deck/runner/renderer.js';
+import { createRecord } from './deck/record/renderer.js';
+import { createExport } from './deck/export/renderer.js';
+import { createExtension } from './deck/extension/renderer.js';
+import { createMods } from './deck/mods/renderer.js';
 import { createWeb } from './web/renderer.js';
 import { createNotification } from './notification/renderer.js';
 import { createKeymap } from './keymap/renderer.js';
@@ -14,24 +20,33 @@ import { createMod } from './mod/renderer.js';
 // an error page too, which is no mod's.
 function boot({ before, shell = null } = {}) {
     for (const name of Object.keys(window)) if (!before.has(name)) delete window[name];
-    if (location.protocol !== DECK.SCHEME.scheme + ':') return;
+    if (location.protocol !== ORIGIN.SCHEME.scheme + ':') return;
     if (document.readyState === 'loading')
         document.addEventListener('DOMContentLoaded', () => start(shell), { once: true });
     else start(shell);
 }
 
 // MARK: - Private
-// Deckit in the page, made of deck and its own page parts, each handed what it uses.
+// Deckit in the page, made of deck's page parts and its own, each handed what it uses: deck's runner runs the mod,
+// with what deckit and the shell give it.
 function start(shell) {
     const { page, sessionPrefix } = PAGE.setup();
     if (page) return shell?.page(page);
+    const RUN = createRun();
+    const RUNNER = createRunner({
+        RUN,
+        STORAGE: createRecord(),
+        EXPORT: createExport({ RUN }),
+        EXTENSION: createExtension({ RUN }),
+        MODS: createMods({ RUN }),
+    });
     const MOD = createMod({
         WEB: createWeb({ sessionPrefix }),
         NOTIFICATION: createNotification(),
         KEYMAP: createKeymap(),
         COMMAND: createCommand(),
     });
-    DECK.createDeck().start({ layer: MOD.layerOf(shell?.mod || null) });
+    RUNNER.start({ layer: MOD.layerOf(shell?.mod || null) });
 }
 
 export { boot };

@@ -1,4 +1,4 @@
-import * as IPC from '../../deck/ipc/index.js';
+import * as IPC from '../deck/ipc/index.js';
 
 // Answers whether something took it.
 export const open = IPC.rendererToMain(

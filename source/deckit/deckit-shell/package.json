@@ -6,7 +6,6 @@
         "./renderer.js": "./renderer.js"
     },
     "dependencies": {
-        "deck": "file:../deck",
         "deckit-electron": "file:../deckit-electron"
     }
 }

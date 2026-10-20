@@ -1,5 +1,5 @@
 // Between main and the panel's pages: its frame, deckit://panel/, and the mods' pages it shows.
-import * as IPC from '../../deck/ipc/index.js';
+import * as IPC from '../../deckit-electron/deck/ipc/index.js';
 
 // The frame's page.
 // Answers { glass, look, shown, state } at once: the frame is built in one pass.

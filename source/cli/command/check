@@ -5,7 +5,7 @@ const path = require('path');
 
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
-const IPC = 'deck/ipc/index.js';
+const IPC = 'deckit-electron/deck/ipc/index.js';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];
@@ -84,7 +84,7 @@ function checkFile(file) {
     if (file !== IPC && /\bipc(Main|Renderer)\b/.test(plain))
         say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
     const protocol = file.endsWith('/protocol.js');
-    if (!protocol && /["'`](deck|deckit-electron|deckit-shell):(?!\/\/)/.test(plain))
+    if (!protocol && /["'`](deckit-electron|deckit-shell):(?!\/\/)/.test(plain))
         say(file, 'writes a channel; channels are declared in a protocol.js');
     if (protocol) checkChannels(file, plain);
     for (const { spec, file: target } of imports.get(file)) checkImport(file, spec, target);

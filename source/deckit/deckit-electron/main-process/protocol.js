@@ -1,5 +1,5 @@
 // Between a mod's page and main, about the mod's main process modules.
-import * as IPC from '../../deck/ipc/index.js';
+import * as IPC from '../deck/ipc/index.js';
 
 // A main process module of the mod's, by its path in the mod's folder: started once, answering
 // { path, methods }, the paths of its functions.

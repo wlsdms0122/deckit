@@ -1,7 +1,7 @@
 import * as FILE from './file.js';
 import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
 import * as PROTOCOL from './protocol.js';
-import * as DECK from '../../deck/main.js';
+import * as MOD_PERMISSION from '../deck/mod/permission.js';
 
 export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER }) {
     // MARK: - Property
@@ -46,7 +46,7 @@ export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLD
             call(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS), given, method, args)
         );
         PROTOCOL.restartPending.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, DECK.MODS);
+            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return restartPending();
         });
     }

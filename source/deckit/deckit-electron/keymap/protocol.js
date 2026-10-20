@@ -1,4 +1,4 @@
-import * as IPC from '../../deck/ipc/index.js';
+import * as IPC from '../deck/ipc/index.js';
 
 // A field has the keyboard, so a chord on a text editing key is the field's.
 export const typing = IPC.rendererToMain('deckit-electron:keymap-typing', { on: 'boolean' });

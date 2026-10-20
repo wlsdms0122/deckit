@@ -1,7 +1,8 @@
 export function createStorage({ HOME, CORE, LOG }) {
     // MARK: - Property
     const path = require('path');
-    // The state the core keeps, as it gave it when deck prepared: folder (null for the state folder) -> key -> JSON.
+    // The state the core keeps, as it gave it when `load()` read it: folder (null for the state folder) -> key ->
+    // JSON.
     const kept = new Map();
     let unread = null; // why the state was not read, if it was not
 

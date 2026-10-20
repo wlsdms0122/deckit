@@ -1,17 +1,17 @@
 import * as PROTOCOL from './protocol.js';
-import * as DECK from '../../deck/main.js';
+import * as MOD_PERMISSION from '../deck/mod/permission.js';
 
-export function createModFolder({ IDENTITY, CATALOG, deck }) {
+export function createModFolder({ IDENTITY, CATALOG, MODS }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
     function start() {
         PROTOCOL.pick.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, DECK.MODS);
+            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return pick();
         });
         PROTOCOL.reveal.handle(({ id }, sender) => {
-            IDENTITY.modFrom(sender, DECK.MODS);
+            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             const mod = CATALOG.found().find((candidate) => candidate.id === id);
             if (!mod) throw new Error('no mod ' + id);
             require('electron').shell.showItemInFolder(mod.folder);
@@ -30,7 +30,7 @@ export function createModFolder({ IDENTITY, CATALOG, deck }) {
             message: 'Pick the folder that has manifest.toml in it',
         });
         if (result.canceled || !result.filePaths[0]) return null;
-        return deck.wouldInstall(result.filePaths[0]);
+        return MODS.wouldInstall(result.filePaths[0]);
     }
 
     return { start };

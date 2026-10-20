@@ -1,5 +1,5 @@
 // Between main and a mod's page, about the regions it gives its children.
-import * as IPC from '../../deck/ipc/index.js';
+import * as IPC from '../../deckit-electron/deck/ipc/index.js';
 
 // The mods whose view names the sending mod as parent: [{ id, name, icon }], in the person's order.
 export const children = IPC.rendererToMain('deckit-shell:region-children', {}, { reply: true, sync: true });

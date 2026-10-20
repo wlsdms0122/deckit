@@ -4,7 +4,24 @@ import * as CLIPBOARD_PERMISSION from './clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from './notification/model/permission.js';
 import * as KEYMAP_PERMISSION from './keymap/model/permission.js';
 import * as OPEN_PERMISSION from './open/model/permission.js';
-import * as DECK from '../deck/main.js';
+import * as MOD_PERMISSION from './deck/mod/permission.js';
+import * as ORIGIN from './deck/sandbox/model/origin.js';
+import { createHome } from './deck/storage/home.js';
+import { createStorage } from './deck/storage/index.js';
+import { createLog } from './deck/log/main.js';
+import { createPermission } from './deck/mod/permission.js';
+import { createFolder } from './deck/mod/folder.js';
+import { createCatalog } from './deck/catalog/index.js';
+import { createIdentity } from './deck/identity/index.js';
+import { createSandbox } from './deck/sandbox/index.js';
+import { createRunner } from './deck/runner/main.js';
+import { createRecord } from './deck/record/main.js';
+import { createSetting } from './deck/setting/main.js';
+import { createExport } from './deck/export/main.js';
+import { createExtension } from './deck/extension/main.js';
+import { createEvent } from './deck/event/main.js';
+import { createMods } from './deck/mods/main.js';
+import { createCore } from './core/main.js';
 import { createWindow } from './window/index.js';
 import { createPartition } from './web/model/partition.js';
 import { createSession } from './web/session.js';
@@ -29,13 +46,14 @@ import { createApi } from './api/index.js';
 // MARK: - Property
 // The scheme deck's pages load from, for the host app's registerSchemesAsPrivileged: Electron takes privileged schemes
 // in one call, before the app is ready, so the host app makes it with this beside its own.
-const SCHEME = DECK.SCHEME;
-// What the host app hands deckit, and what deckit makes of what it leaves out. `config` is read by deck and deckit:
-// `id` names everything deckit keeps, `name` is what a person reads, `agent` the names the host app adds to its user
-// agent, taken out of a web page's, and `schemeHandlers`, by scheme, the mods asked first to open an address.
-// `folders` is deck's: `home`, `ship` and `sources`.
+const SCHEME = ORIGIN.SCHEME;
+// What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
+// keeps, `name` is what a person reads, `agent` the names the host app adds to its user agent, taken out of a web
+// page's, and `schemeHandlers`, by scheme, the mods asked first to open an address. `folders`: `home` is deckit's
+// folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships, installed at every start, and
+// `sources` folders of mods read in place, ahead of installed ones.
 const CONFIG = { id: 'deckit', name: 'Deckit', agent: [], schemeHandlers: {} };
-const FOLDERS = ['home', 'ship', 'sources'];
+const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the windows and the process are its own.
 const ANSWERS = ['openWindow', 'notificationClicked', 'restart'];
 // Main's channels and its sessions' protocols are the process's: deckit connects once.
@@ -52,9 +70,15 @@ function connect({ preload, core, host, config = {}, folders = {} } = {}) {
     if (!preload) throw new Error('[deckit] connect needs the preload deckit pages load with');
     if (!core) throw new Error("[deckit] connect needs the core: the archive's deckit executable");
     refuseUnknown('config', config, Object.keys(CONFIG));
-    refuseUnknown('folders', folders, FOLDERS);
+    refuseUnknown('folders', folders, Object.keys(FOLDERS));
     connected = true;
-    return make({ preload, core, host, config: Object.freeze({ ...CONFIG, ...config }), folders });
+    return make({
+        preload,
+        core,
+        host,
+        config: Object.freeze({ ...CONFIG, ...config }),
+        folders: Object.freeze({ ...FOLDERS, ...folders }),
+    });
 }
 
 // MARK: - Private
@@ -64,17 +88,24 @@ function refuseUnknown(what, given, known) {
     if (unknown.length) throw new Error(`[deckit] ${what} sets ${unknown.join(', ')}, which deckit does not read`);
 }
 
-// Deckit in main, made of deck and its own parts, each handed what it uses.
-function make({ preload, core, host, config: CONFIG, folders }) {
-    const deck = DECK.createDeck({
-        id: CONFIG.id,
-        name: CONFIG.name,
-        schemeHandlers: CONFIG.schemeHandlers,
-        core,
-        ...folders,
-    });
-    const { log: LOG, home: HOME, storage: STORAGE, identity: IDENTITY, catalog: CATALOG, runner: RUNNER } = deck;
-    const { permission: MOD_PERMISSION, folder: FOLDER } = deck;
+// Deckit in main, made of deck's parts and its own, each handed what it uses.
+function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
+    const HOME = createHome({ CONFIG, FOLDERS });
+    const LOG = createLog({ CONFIG, HOME });
+    const CORE = createCore({ CONFIG, FOLDERS, HOME, LOG, core });
+    const STORAGE = createStorage({ HOME, CORE, LOG });
+    const PERMISSION = createPermission();
+    const FOLDER = createFolder();
+    const CATALOG = createCatalog({ CORE, LOG });
+    const IDENTITY = createIdentity();
+    const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER });
+    const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE });
+    const RECORD = createRecord({ CORE, IDENTITY });
+    const SETTING = createSetting({ CORE, LOG, IDENTITY, RUNNER });
+    const EXPORT = createExport({ CORE, IDENTITY, RUNNER });
+    const EXTENSION = createExtension({ CORE, IDENTITY, RUNNER });
+    const EVENT = createEvent({ CORE, LOG, IDENTITY });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION });
     const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
     const PARTITION = createPartition({ CONFIG });
     const SESSION = createSession({ STORAGE, LOG, PARTITION });
@@ -84,7 +115,7 @@ function make({ preload, core, host, config: CONFIG, folders }) {
     const SITE_PERMISSION = createSitePermission({ IDENTITY, SESSION, REGISTRY });
     const CERTIFICATE = createCertificate({ LOG, SESSION, REGISTRY });
     const SCRIPT = createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION });
-    const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE: deck.core });
+    const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE });
     const WEB = createWeb({
         WINDOW,
         LOG,
@@ -98,12 +129,12 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         CERTIFICATE,
         SCRIPT,
     });
-    const OPEN = createOpen({ LOG, IDENTITY, CORE: deck.core });
+    const OPEN = createOpen({ LOG, IDENTITY, CORE });
     const NOTIFICATION = createNotification({ LOG, IDENTITY, clicked: () => host.notificationClicked() });
     const CLIPBOARD = createClipboard({ IDENTITY });
-    const COMMAND = createCommand({ LOG, IDENTITY, CORE: deck.core });
+    const COMMAND = createCommand({ LOG, IDENTITY, CORE });
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
-    const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, deck });
+    const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
     const PAGE = createPage({ IDENTITY, PARTITION });
     const API = createApi({
@@ -112,10 +143,10 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         LOG,
         WINDOW,
         IDENTITY,
-        PAGES: deck.pages,
+        SANDBOX,
         CATALOG,
         RUNNER,
-        MOD_PERMISSION,
+        PERMISSION,
         WEB,
         KEYMAP,
         COMMAND,
@@ -124,8 +155,9 @@ function make({ preload, core, host, config: CONFIG, folders }) {
     const starting = []; // what starts with deckit, before any mod launches: the shell on it
     let started = false;
 
-    // What each of deckit's concepts grants, in the order a person reads them.
+    // What deck and each of deckit's concepts grant, in the order a person reads them.
     for (const model of [
+        MOD_PERMISSION,
         MAIN_PROCESS_PERMISSION,
         WEB_PERMISSION,
         CLIPBOARD_PERMISSION,
@@ -133,7 +165,7 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         KEYMAP_PERMISSION,
         OPEN_PERMISSION,
     ])
-        for (const permission of model.PERMISSIONS) MOD_PERMISSION.define(permission);
+        for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
     require('electron')
         .app.whenReady()
         .then(() => start(preload));
@@ -146,8 +178,17 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         starting.push(listener);
     }
 
+    // The log starts first, then the core, which is handed the permissions the layers defined and hands over the
+    // state it keeps, and installs what the host app ships and reads the mods, before anything reads the mods or the
+    // state. What follows the mods' runs starts before the runner launches any.
     async function start(preload) {
-        await deck.prepare({ preload });
+        LOG.start({
+            nameOf: (webContents) => IDENTITY.modOf(webContents)?.id || IDENTITY.pageNameOf(webContents) || 'page',
+        });
+        CORE.start({ permissions: PERMISSION.all() });
+        await STORAGE.load();
+        await CATALOG.load();
+        SANDBOX.start({ preload });
         WEB.start();
         KEYMAP.start();
         OPEN.start();
@@ -166,13 +207,16 @@ function make({ preload, core, host, config: CONFIG, folders }) {
                 LOG.error('what starts with deckit did not start', error);
             }
         }
-        deck.start({
-            // A mod's page shows the web in <webview>.
-            webPreferences: { webviewTag: true },
-            preparePage,
-            describe: (mod) => ({
+        RECORD.start();
+        SETTING.start();
+        EXPORT.start();
+        EXTENSION.start();
+        EVENT.start();
+        MODS.start({
+            facts: (mod) => ({
                 mainProcess: { running: MAIN_PROCESS.started(mod.id), failure: MAIN_PROCESS.failure(mod.id) },
             }),
+            onFactsChange: MAIN_PROCESS.onChange,
             // Once what ran in its place has ended, modules and all.
             installed: async (id) => {
                 await MAIN_PROCESS.whenEnded(id);
@@ -180,9 +224,10 @@ function make({ preload, core, host, config: CONFIG, folders }) {
                 return { restart: MAIN_PROCESS.restartPending().some((pending) => pending.id === id) };
             },
             removed: MAIN_PROCESS.unload,
-            onFactsChange: MAIN_PROCESS.onChange,
             clearSessions: SESSION.clearSessions,
         });
+        // A mod's page shows the web in <webview>.
+        RUNNER.start({ preparePage, webPreferences: { webviewTag: true } });
     }
 
     // A mod's page shows the web, hears the key map, and offers what it opens to the scheme's handlers: a window it
@@ -196,7 +241,7 @@ function make({ preload, core, host, config: CONFIG, folders }) {
             OPEN.open(details.url, { ...WEB.windowOptions(details), ...pressed() }).catch(unopened(details.url));
             return { action: 'deny' };
         });
-        const origin = DECK.originOf(mod.id);
+        const origin = ORIGIN.originOf(mod.id);
         LOG.guard(webContents, 'will-frame-navigate', (details) => {
             if (details.isMainFrame && !details.url.startsWith(origin + '/'))
                 OPEN.open(details.url, pressed()).catch(unopened(details.url));
