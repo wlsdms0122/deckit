@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// Drives Deckit.app, put together from the archive the last build made, through the scenario, with data of its own
-// that is thrown away. Exits 1 with a line for each check that failed. Screenshots and the app's log are left in
-// .build/test/.
+// Runs the core's tests, then drives Deckit.app, put together from the archive the last build made, through the
+// scenario, with data of its own that is thrown away. Exits 1 with a line for each check that failed. Screenshots and
+// the app's log are left in .build/test/.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 const root = path.join(__dirname, '..', '..', '..');
 const APP = require(path.join(root, 'source', 'cli', 'app.js'));
+const { execFileSync, execSync } = require('child_process');
 const { launch } = require(path.join(root, 'source', 'cli', 'test', 'launch.js'));
 const { connect, sleep } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
 const SCENARIO = require(path.join(root, 'source', 'cli', 'test', 'scenario.js'));
@@ -24,6 +25,9 @@ if (!Number.isInteger(port) || port <= 0) {
 
 const main = async () => {
     const archive = APP.builtArchive();
+    execFileSync('swift', ['test', '--quiet', '--package-path', path.join(root, 'source', 'deckit', 'deckit')], {
+        stdio: 'inherit',
+    });
     fs.rmSync(OUT, { recursive: true, force: true });
     fs.mkdirSync(OUT, { recursive: true });
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-app-'));
@@ -37,7 +41,9 @@ const main = async () => {
     const log = path.join(OUT, 'log.txt');
     const app = launch({ app: folder, data, port, log, limit: LIMIT });
     const devtools = connect({ port, shots: OUT });
-    const report = await SCENARIO.run(devtools);
+    // The app may name its folder through /private: the core is matched by the end of its path.
+    const endCore = () => execSync(`pkill -9 -f -- '${path.basename(folder)}/deckit/deckit$'`);
+    const report = await SCENARIO.run({ ...devtools, endCore });
     devtools.close();
     app.stop();
     await sleep(1000);
