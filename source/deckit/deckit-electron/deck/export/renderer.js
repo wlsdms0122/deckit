@@ -3,7 +3,7 @@ import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as PROXY from './proxy.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // What a mod's page reaches of the mods it requires and uses optionally, and how it answers a call into its own
 // exports. `RUN` is the page's run.

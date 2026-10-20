@@ -77,7 +77,7 @@ export function createApi({
             window: Object.freeze({ place: WINDOW.place }),
             log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, guard: LOG.guard }),
             // How the shell binds its own channels: as deckit-driver declares them, never one of deckit's.
-            channels: IPC.channels,
+            channels: IPC.layerChannels,
         });
     }
 

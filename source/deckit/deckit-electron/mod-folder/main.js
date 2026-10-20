@@ -3,7 +3,7 @@ import * as IPC from '../deck/ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as MOD_PERMISSION from '../deck/mod/permission.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createModFolder({ IDENTITY, CATALOG, MODS }) {
     // MARK: - Property

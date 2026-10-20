@@ -3,7 +3,7 @@ import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods' settings, as the core judges and keeps them: what only a mod's page knows, the options it works out and
 // its actions, is asked of the page here and handed to the core.

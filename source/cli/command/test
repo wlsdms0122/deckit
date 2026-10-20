@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Runs the core's tests, then drives Deckit.app, put together from the archive the last build made, through the
-// scenario, with data of its own that is thrown away. Exits 1 with a line for each check that failed. Screenshots and
-// the app's log are left in .build/test/.
+// Checks the channels between main and a page, runs the core's tests, then drives Deckit.app, put together from the
+// archive the last build made, through the scenario, with data of its own that is thrown away. Exits 1 with a line for
+// each check that failed. Screenshots and the app's log are left in .build/test/.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -27,6 +27,9 @@ const main = async () => {
     const archive = APP.builtArchive();
     const core = path.join(root, 'source', 'deckit', 'deckit');
     const scratch = path.join(root, '.build', 'core-test');
+    execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', 'channels.mjs')], {
+        stdio: 'inherit',
+    });
     execFileSync('swift', ['test', '--quiet', '--package-path', core, '--scratch-path', scratch], { stdio: 'inherit' });
     fs.rmSync(OUT, { recursive: true, force: true });
     fs.mkdirSync(OUT, { recursive: true });

@@ -4,7 +4,7 @@ import * as DECLARED from './protocol.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 import * as LIFECYCLE from '../mod/lifecycle.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
 // again and counting what one stored.

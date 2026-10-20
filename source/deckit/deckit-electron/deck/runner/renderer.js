@@ -8,7 +8,7 @@ import * as SCOPED from '../mod/model/scoped-name.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The run of a mod in its page: its entry evaluated and started with the deck it is handed, and what it contributed
 // told to main. `RUN` is the page's run; `STORAGE`, `EXPORT`, `EXTENSION` and `MODS` are what deck gives it.

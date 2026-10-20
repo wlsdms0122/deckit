@@ -2,7 +2,7 @@ import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Extension points, as the core judges them: the core says whether a point's mod's call into what extends it goes, and
 // its arguments and what it answers go from page to page through here. A point's mod is told what extends its points

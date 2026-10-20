@@ -3,7 +3,7 @@ import * as IPC from '../deck/ipc/index.js';
 import * as DECLARED from './protocol.js';
 import * as TONE from './model/tone.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createCommand({ LOG, IDENTITY, CORE }) {
     // MARK: - Property

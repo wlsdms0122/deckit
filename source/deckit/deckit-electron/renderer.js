@@ -32,7 +32,7 @@ function boot({ before, shell = null } = {}) {
 // with what deckit and the shell give it.
 function start(shell) {
     const { page, sessionPrefix } = PAGE.setup();
-    if (page) return shell?.page(page, { channels: IPC.channels });
+    if (page) return shell?.page(page, { channels: IPC.layerChannels });
     const RUN = createRun();
     const RUNNER = createRunner({
         RUN,

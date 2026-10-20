@@ -4,7 +4,7 @@ import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 import * as PARTITION from './model/partition.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createWeb({ sessionPrefix }) {
     // MARK: - Property

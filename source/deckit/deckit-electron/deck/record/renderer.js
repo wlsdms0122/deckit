@@ -2,7 +2,7 @@ import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 import * as IPC from '../ipc/index.js';
 import * as DECLARED from './protocol.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createRecord() {
     // MARK: - Property

@@ -3,7 +3,7 @@ import * as IPC from '../deck/ipc/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 function about() {

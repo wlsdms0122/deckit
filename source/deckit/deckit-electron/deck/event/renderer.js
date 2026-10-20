@@ -5,7 +5,7 @@ import * as DECLARED from './protocol.js';
 import * as SCOPED from '../mod/model/scoped-name.js';
 
 // MARK: - Property
-const PROTOCOL = CHANNEL.bindAll(IPC, DECLARED);
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // What a mod's deck holds of events. `emit(name, ...args)` sends one of its own, which listeners hear named

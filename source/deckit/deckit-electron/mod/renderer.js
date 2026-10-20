@@ -41,7 +41,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
             NOTIFICATION.listen(deliver);
             const chordOf = (action) => KEYMAP.chord(action, { app: true });
             const given = shellMod
-                ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail, channels: IPC.channels }) }
+                ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail, channels: IPC.layerChannels }) }
                 : NO_SHELL;
             const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
             const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');

@@ -5,7 +5,7 @@ const path = require('path');
 
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
-const IPC = 'deckit-electron/deck/ipc/bind.js';
+const IPC = 'deckit-electron/deck/ipc/router.js';
 // What the shell and a driver agree on: plain declarations and pure functions, which run on any side of any driver.
 const DRIVER = 'deckit-driver';
 // The packages each may depend on. The shell and a driver both stand on what they agree on; the driver names nothing of
