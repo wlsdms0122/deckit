@@ -45,9 +45,9 @@ const PLACES = {
     renderer: 'renderer',
     'shell-renderer': 'renderer',
 };
-// The shell's files an environment's bundles carry as well as the shell's, and every one an environment's page bundle
-// carries: each bundle has its own copy, and deckit on a page is the shell's page bundle, so they are plain declarations
-// and pure functions, which run on any side of any environment.
+// Every file of the shell's an environment's bundles carry: deckit is the shell's bundles, and each bundle has its own
+// copy of what it carries, so what an environment carries of the shell is plain declarations and pure functions, which
+// run on any side of any environment.
 const SHARED = sharedFiles();
 const NODE_MODULES = [
     'fs',
@@ -166,17 +166,11 @@ function checkShell(file, plain) {
         );
 }
 
-// The shell's files carried both by a bundle of the shell's and by one of an environment's that run in the same place,
-// and those an environment's bundle for a page carries.
+// The shell's files an environment's bundles carry.
 function sharedFiles() {
-    const reached = (names) => new Set(names.flatMap((name) => [...LIBRARY.reach(LIBRARY.BUNDLES[name].entry)]));
-    const names = Object.keys(LIBRARY.BUNDLES);
-    const environmentIn = (place) => names.filter((name) => !SHELL_BUNDLES.includes(name) && PLACES[name] === place);
-    const shared = (place) => {
-        const shell = reached(SHELL_BUNDLES.filter((name) => PLACES[name] === place));
-        return [...reached(environmentIn(place))].filter((file) => place === 'renderer' || shell.has(file));
-    };
-    return new Set([...shared('main'), ...shared('renderer')].filter((file) => packageOf(file) === SHELL));
+    const environment = Object.keys(LIBRARY.BUNDLES).filter((name) => !SHELL_BUNDLES.includes(name));
+    const reached = environment.flatMap((name) => [...LIBRARY.reach(LIBRARY.BUNDLES[name].entry)]);
+    return new Set(reached.filter((file) => packageOf(file) === SHELL));
 }
 
 // A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no

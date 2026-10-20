@@ -2,11 +2,11 @@ import * as CHANNEL from '../deck/channel/index.js';
 
 // What an environment gives deck, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files and
-// the log, the pages a mod runs in and the app quitting, what deckit does through the system for a mod (keys,
-// opening, notifications, the clipboard, a folder chosen, main process modules, the web pages a mod shows), and what
-// only the environment knows: the person's home folder and what runs deckit. An environment gives at least this, and
-// deck is handed this alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a
-// list read.
+// the log, the pages deck makes and a stage to lay them on, the app starting and quitting, what deckit does through the
+// system for a mod (keys, opening, notifications, the clipboard, a folder chosen, main process modules, the web pages a
+// mod shows), and what only the environment knows: the person's home folder and what runs deckit. An environment gives
+// at least this, and deck is handed this alone (`checked`). Each leaf says what a member is: `function`, `object`,
+// `string`, or `array`, a list read.
 // MARK: - Property
 /**
  * A page: a token deck keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -16,9 +16,16 @@ import * as CHANNEL from '../deck/channel/index.js';
  * What crosses, cloned as it crosses: deck's router says what each message holds (deck/ipc/model/envelope.js), and
  * tells a question and an answer from a tell by what they hold.
  * @typedef {object} Message
+ *
+ * A page as a stage lays it, bottom to top: at `rect`, or hidden in the place it has.
+ * @typedef {{ page: Page, rect: { x: number, y: number, width: number, height: number } } | { page: Page, hidden: true }} Laid
  */
 
 const MAIN = Object.freeze({
+    // configure({ id, agent }), once, before anything else: `id` names what the environment keeps for deckit, apart from
+    // what another host app embedding deckit keeps, and `agent` the names the host app adds to its user agent, taken out
+    // of a web page's
+    configure: 'function',
     messages: {
         // listen({ told(page, message), asked(page, message) -> Promise, askedSync(page, message) -> Promise }),
         // once: what a page tells, asks and asks sync. A page asking sync waits until the promise settles, and is
@@ -27,14 +34,18 @@ const MAIN = Object.freeze({
         tell: 'function', // tell(page, message): dropped when the page is gone
     },
     pages: {
-        // make({ modId }) -> page: the page the mod runs in, at the mod's own origin, made and not loaded, so deck
-        // knows it as the mod's before it asks anything. It opens no window of its own, and runs at full speed off
-        // screen
+        // make({ modId }) or make({ name, keepsDrawing }) -> page, made and not loaded, so deck knows whose it is
+        // before it asks anything: the page a mod runs in, at the mod's own origin, running at full speed off screen;
+        // or one that runs no mod, at an origin of its own that is never a mod's, laid out while hidden too when
+        // `keepsDrawing`. Neither opens a window of its own
         make: 'function',
-        load: 'function', // load(page): a page make() made, loaded at its address
+        load: 'function', // load(page): a page make() made, loaded at its address, again after its process ended
         close: 'function', // close(page): the page closed, unless it is gone already
+        focus: 'function', // focus(page): the page takes the keyboard
         isGone: 'function', // isGone(page): whether the page can no longer receive messages
-        // watch(page, { failed, ended, gone, destroyed, consoleError, opens, leaves }), each optional: `failed(why)`
+        isClosed: 'function', // isClosed(page): whether the page is gone for good, closed or destroyed
+        // watch(page, { failed, ended, gone, destroyed, focused, consoleError, opens, leaves }), each optional:
+        // `focused()` each time the page takes the keyboard; `failed(why)`
         // when the page's load did not complete, other than by another load replacing it; `ended()` each time the
         // page's document is replaced, by a main-frame navigation that commits, its first load's included; `gone(why)`
         // each time its process ends, the page living on; `destroyed()` once, as the page goes; `consoleError(message)`
@@ -43,6 +54,13 @@ const MAIN = Object.freeze({
         // mod's page, `leaves(url)` when its main frame asks to go outside the mod's origin. Answers `off()`, which
         // stops what it watches
         watch: 'function',
+        // surfaces(page, { allow(name) -> boolean, opened(name, surface) }): the documents a page that runs no mod may
+        // open with `window.open('', name)`, those `allow` answers true for, each a page of its own (`surface`), laid
+        // as any page is, which runs no code and goes nowhere. The page opens nothing else
+        surfaces: 'function',
+        // serve(folderOf), once the app is ready, before any page loads: deck's pages served, a mod's page with the
+        // files of the folder `folderOf(modId)` answers, or none where it answers null
+        serve: 'function',
         // pin(page): the page stays on the address its first load commits; a navigation of its own elsewhere, or a
         // redirect, is refused, and only main loading or reloading it moves it
         pin: 'function',
@@ -75,6 +93,8 @@ const MAIN = Object.freeze({
     clipboard: { readText: 'function', writeText: 'function' },
     // chooseFolder({ title, buttonLabel, message }) -> Promise of the folder the person chose, or null
     dialogs: { chooseFolder: 'function' },
+    // stage() -> a stage (`STAGE`): where pages deck made are laid in one of the host app's windows
+    stage: 'function',
     // A mod's main process modules, which the environment runs, deck saying which mod starts what and when. A mod is
     // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
     mainProcess: {
@@ -167,6 +187,7 @@ const MAIN = Object.freeze({
         listen: 'function',
     },
     app: {
+        whenReady: 'function', // whenReady() -> Promise, settled once the app is ready to show pages
         // onQuit(hold): `hold()` is asked as the app is about to quit, once the quit is decided; answering true keeps
         // it from quitting, until it is asked to quit again
         onQuit: 'function',
@@ -198,6 +219,19 @@ const WEB_DECK = Object.freeze({
     notified: 'function',
     request: 'function',
     requestApp: 'function',
+});
+
+// What `MAIN.stage()` makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
+// a time, `bounds` a rect or a function of the window's content size that it follows, `front` over what is in the
+// window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`; `whenResized(listener)
+// -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one keeps the place it has, a new one
+// goes in over the layer before it, and a page left out, or gone, is taken off.
+const STAGE = Object.freeze({
+    place: 'function',
+    size: 'function',
+    whenResized: 'function',
+    show: 'function',
+    lay: 'function',
 });
 
 const PAGE = Object.freeze({
@@ -257,4 +291,4 @@ function copyOf(given, table) {
     );
 }
 
-export { MAIN, PAGE, WEB_DECK, missingIn, checked };
+export { MAIN, STAGE, PAGE, WEB_DECK, missingIn, checked };

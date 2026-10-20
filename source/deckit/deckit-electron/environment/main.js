@@ -5,9 +5,10 @@ import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
 import * as LOG_FILE from '../deck/log/file.js';
 import * as ORIGIN from '../deck/sandbox/model/origin.js';
-import { clearStorage, makeView, keepDrawing } from '../deck/sandbox/index.js';
+import { clearStorage, makeView, keepDrawing, serve } from '../deck/sandbox/index.js';
 import { createFolder } from '../deck/mod/folder.js';
 import { createWindow } from '../window/index.js';
+import { createStage } from '../stage/main.js';
 import { createNotifications } from '../notification/main.js';
 import { createMainProcess } from '../main-process/main.js';
 import { createWeb, windowOptions } from '../web/main.js';
@@ -23,13 +24,23 @@ const CHROMIUM_SCHEMES = Object.freeze(['chrome', 'chrome-extension', 'devtools'
 
 // MARK: - Initializer
 // MARK: - Public
-// What Electron gives deck for the host app's configuration: `core` is the core's executable, `preload` the file
-// every page of deck's loads with, and `openWindow` the host app's answer for a window. Beside what deck is given,
-// Electron's own for what lays pages in a window: `viewOf(page)`, the view a mod's page is in, `window`, the windows
-// deckit opens, and `guard`, how a listener on Electron's emitters is added, reported as what Electron's parts say is.
-function createEnvironment({ CONFIG, core, preload, openWindow }) {
+// What Electron gives deck for the host app: `core` is the core's executable, `preload` the file every page of deck's
+// loads with, and `openWindow` the host app's answer for a window. Beside what deck is given, Electron's own, for the
+// host app alone: `viewOf(page)`, the view a page of deck's, or a surface, is in, `window.place`, how a view is put in
+// one of the host app's windows, and `guard`, how a listener on Electron's emitters is added, reported as what
+// Electron's parts say is.
+function createEnvironment({ core, preload, openWindow }) {
     const { app } = require('electron');
     const REPORTS = createReports();
+    let configured = null; // { id, agent }, as deck configures it
+    const CONFIG = Object.freeze({
+        get id() {
+            return settled().id;
+        },
+        get agent() {
+            return settled().agent;
+        },
+    });
     const guard = LISTENER.createGuard((label, error) => REPORTS.report('error', `${label} failed`, error));
     const LOG = Object.freeze({
         info: (...parts) => REPORTS.report('info', ...parts),
@@ -41,38 +52,49 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
     const MAIN_PROCESS = createMainProcess({ WINDOW, LOG, FOLDER: createFolder() });
     const NOTIFICATIONS = createNotifications({ guard });
     MAIN_PROCESS.holdQuit();
-    const views = new WeakMap(); // a page a mod runs in, or ran in -> the view it is in, kept while the page is
-    const mods = new WeakMap(); // a page a mod runs in -> the mod's id
+    // A page deck made, or a surface one opened -> the view it is in, kept while the page is.
+    const views = new WeakMap();
+    const origins = new WeakMap(); // a page deck made -> its origin
+    const mods = new WeakSet(); // the pages mods run in
     const WEB = createWeb({ CONFIG, LOG, WINDOW });
-    const clearStorageOf = (modId) => clearStorage(CONFIG, modId);
-    // A mod's page shows the web in <webview>.
-    const make = ({ modId }) => {
-        const view = makeView({ CONFIG, preload, webPreferences: { webviewTag: true } });
+    const FOLDER = createFolder();
+    // A mod's page shows the web in <webview>; one that runs no mod is named as a host is, with no dot, so its origin
+    // is never a mod's.
+    const make = ({ modId = null, name = null, keepsDrawing = false } = {}) => {
+        const owned = modId !== null;
+        const view = makeView({ id: CONFIG.id, preload, webPreferences: owned ? { webviewTag: true } : {} });
         const page = view.webContents;
         views.set(page, view);
-        mods.set(page, modId);
+        origins.set(page, owned ? ORIGIN.originOf(modId) : ORIGIN.pageOriginOf(name));
+        if (owned) mods.add(page);
         page.setWindowOpenHandler(() => ({ action: 'deny' }));
-        keepDrawing(page, guard);
+        if (owned || keepsDrawing) keepDrawing(page, guard);
         return page;
     };
-    const load = (page) => page.loadURL(ORIGIN.addressOf(ORIGIN.originOf(mods.get(page))));
+    const load = (page) => page.loadURL(ORIGIN.addressOf(origins.get(page)));
     const viewOf = (page) => views.get(page) || null;
-    const originOf = (page) => (mods.has(page) ? ORIGIN.originOf(mods.get(page)) : null);
+    const STAGE = createStage({ LOG, WINDOW, viewOf });
     return Object.freeze({
         viewOf,
-        window: WINDOW,
+        window: Object.freeze({ place: WINDOW.place }),
         guard,
+        configure,
         reports: Object.freeze({ listen: REPORTS.listen }),
         messages,
         pages: Object.freeze({
             make,
             load,
             close,
+            focus: (page) => page.focus(),
             isGone,
-            watch: (page, watchers) => watch(guard, page, watchers, { origin: originOf(page) }),
+            isClosed: (page) => page.isDestroyed(),
+            watch: (page, watchers) =>
+                watch(guard, page, watchers, { origin: mods.has(page) ? origins.get(page) : null }),
+            surfaces: (page, given) => surfaces(guard, page, given, views),
+            serve: (folderOf) => serve({ id: CONFIG.id, folderOf, FOLDER }),
             pin: (page) => pin(guard, page),
             watchInput: (page, listener) => watchInput(guard, page, listener),
-            clearStorage: clearStorageOf,
+            clearStorage: (modId) => clearStorage(CONFIG.id, modId),
         }),
         keys: Object.freeze({ capture: (page, handler) => capture(guard, page, handler) }),
         open: Object.freeze({ url: openURL, file: openFile, reveal, appFor }),
@@ -82,6 +104,7 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
             writeText: (text) => require('electron').clipboard.writeText(text),
         }),
         dialogs: Object.freeze({ chooseFolder }),
+        stage: STAGE.stage,
         web: Object.freeze({
             listen: WEB.listen,
             embed: WEB.embed,
@@ -122,6 +145,7 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
         files: Object.freeze({ readText: (file) => require('fs').promises.readFile(file, 'utf8') }),
         log: Object.freeze({ open: ({ folder, name }) => LOG_FILE.open({ folder, name }) }),
         app: Object.freeze({
+            whenReady: () => app.whenReady(),
             onQuit: (hold) => {
                 guard(app, 'will-quit', (event) => hold() && event.preventDefault());
             },
@@ -135,6 +159,16 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
             ]),
         }),
     });
+
+    function configure({ id, agent }) {
+        if (configured) throw new Error('[deckit] the environment is configured once');
+        configured = Object.freeze({ id, agent: Object.freeze([...agent]) });
+    }
+
+    function settled() {
+        if (!configured) throw new Error('[deckit] the environment is configured before it keeps anything');
+        return configured;
+    }
 }
 
 function close(page) {
@@ -156,6 +190,7 @@ function watch(
         ended = null,
         gone = null,
         destroyed = null,
+        focused = null,
         consoleError = null,
         opens = null,
         leaves = null,
@@ -173,6 +208,7 @@ function watch(
     if (ended) on('did-navigate', () => ended());
     if (gone) on('render-process-gone', (_event, { reason }) => gone(reason));
     if (destroyed) on('destroyed', () => destroyed(), { once: true });
+    if (focused) on('focus', () => focused());
     if (consoleError) on('console-message', ({ level, message }) => level === 'error' && consoleError(message));
     if (opens)
         page.setWindowOpenHandler((details) => {
@@ -187,6 +223,25 @@ function watch(
         for (const [event, listener] of added.splice(0)) page.removeListener(event, listener);
         if (opens && !page.isDestroyed()) page.setWindowOpenHandler(() => ({ action: 'deny' }));
     };
+}
+
+// The documents a page may open by `window.open('', name)`, those `allow` answers true for, each in a view of its own
+// that runs no code and goes nowhere; it opens nothing else.
+function surfaces(guard, page, { allow, opened }, views) {
+    page.setWindowOpenHandler(({ frameName }) =>
+        allow(frameName)
+            ? { action: 'allow', createWindow: (options) => open(frameName, options.webContents) }
+            : { action: 'deny' }
+    );
+
+    function open(name, surface) {
+        const { WebContentsView } = require('electron');
+        views.set(surface, new WebContentsView({ webContents: surface }));
+        surface.setWindowOpenHandler(() => ({ action: 'deny' }));
+        guard(surface, 'will-frame-navigate', (details) => details.preventDefault());
+        opened(name, surface);
+        return surface;
+    }
 }
 
 // A navigation keeps the page, so a page that left its address would still be known as its owner while it ran
