@@ -24,9 +24,12 @@ final class State {
 
     // MARK: - Public
     // `folder` names the folder of its own a key is kept in, or nil for the state folder.
+    func read(folder: String?, key: String) throws -> String? {
+        store.read(try file(in: folder, key: key))
+    }
+
     func write(folder: String?, key: String, text: String) throws {
-        guard store.isName(key) else { throw StateError.notAKey(key) }
-        try store.write(text, to: try location(of: folder).appending(path: key).appendingPathExtension(fileExtension))
+        try store.write(text, to: try file(in: folder, key: key))
     }
 
     // Every key kept, those of the state folder first, then each folder's, by name.
@@ -54,6 +57,11 @@ final class State {
 
                 return StateEntry(folder: folder, key: key, text: text)
             }
+    }
+
+    private func file(in folder: String?, key: String) throws -> URL {
+        guard store.isName(key) else { throw StateError.notAKey(key) }
+        return try location(of: folder).appending(path: key).appendingPathExtension(fileExtension)
     }
 
     private func location(of folder: String?) throws -> URL {

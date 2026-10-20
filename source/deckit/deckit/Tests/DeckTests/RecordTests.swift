@@ -123,4 +123,12 @@ struct RecordTests {
             try sut.write(mod: "notes", key: key, text: "1")
         }
     }
+
+    @Test("count is refused for an id that is no mod's", arguments: ["../notes", "Notes"])
+    func testThatCountRefusesOtherIds(mod: String) {
+        // Given
+        // When
+        // Then
+        #expect(throws: RecordError.notAMod(mod)) { try sut.count(mod: mod) }
+    }
 }

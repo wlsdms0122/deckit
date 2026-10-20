@@ -14,8 +14,16 @@ public final class Deckit {
     private let deck: Deck
 
     // MARK: - Initializer
-    public init(home: URL) {
-        self.deck = Deck(home: home)
+    // `permissions` are those the layers on deck guard what they add with, deckit's own among them.
+    public init(home: URL, ship: [URL], sources: [URL], api: Version, permissions: [Permission]) throws {
+        self.deck = try Deck(
+            home: home,
+            ship: ship,
+            sources: sources,
+            api: api,
+            permissions: permissions,
+            fields: [URLSchemesField()]
+        )
     }
 
     // MARK: - Public
