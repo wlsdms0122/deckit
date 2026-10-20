@@ -131,8 +131,19 @@ function checkPure(file, plain) {
     if (/\brequire\s*\(/.test(bare)) say(file, `requires a module, but ${shared}: it is plain declarations`);
     if (/\b(?:globalThis|window|document|process|self)\s*[.[]/.test(bare))
         say(file, `reaches a process or a page, but ${shared}: it runs on any side of any driver`);
-    if (/^(?:let|var)\b/m.test(bare) || /^\S[^\n]*\bnew\s+(?:Map|Set|WeakMap|WeakSet)\s*\(/m.test(bare))
-        say(file, `holds state, but ${shared}: it is plain declarations and pure functions`);
+    if (holdsState(bare)) say(file, `holds state, but ${shared}: it is plain declarations and pure functions`);
+}
+
+// Whether code, read without its strings, holds state of its own at its top: a binding it may assign again, or one
+// made by a call, `new` or a literal, which can be changed in place. What `Object.freeze` makes, and a function, are
+// not.
+function holdsState(bare) {
+    for (const [, kind, made] of bare.matchAll(/^(?:export\s+)?(const|let|var)\s+[^=\n]+?=\s*([^\n]*)/gm)) {
+        if (kind !== 'const') return true;
+        if (/^(?:new\b|\[|\{)/.test(made)) return true;
+        if (/^[\w$.]+\s*\(/.test(made) && !/^(?:Object\.freeze|async)\b/.test(made)) return true;
+    }
+    return /^(?:export\s+)?(?:let|var)\b/m.test(bare);
 }
 
 // The shell's code, read without its strings: nothing it requires, and no Electron object's name or member.
@@ -141,9 +152,14 @@ function checkShell(file, plain) {
     const around = bare.match(AROUND);
     if (around) say(file, `uses ${around[0]}, but ${SHELL}/ reaches a driver only through what it is handed`);
     const named =
-        bare.match(ELECTRON_NAMES) || plain.match(ELECTRON_READ) || (SHELL_MAIN.has(file) && bare.match(ELECTRON_MAIN_NAMES));
+        bare.match(ELECTRON_NAMES) ||
+        plain.match(ELECTRON_READ) ||
+        (SHELL_MAIN.has(file) && bare.match(ELECTRON_MAIN_NAMES));
     if (named)
-        say(file, `names ${named[0].trim()} of Electron's, but ${SHELL}/ reaches a driver only through what it is handed`);
+        say(
+            file,
+            `names ${named[0].trim()} of Electron's, but ${SHELL}/ reaches a driver only through what it is handed`
+        );
 }
 
 // The shell's files carried both by a bundle of the shell's and by one of a driver's.

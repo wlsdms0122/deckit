@@ -2,7 +2,7 @@
 // it reads the same declaration.
 // MARK: - Property
 // What a field may be, written as is, or ending in `?` when it may be absent.
-const KINDS = ['string', 'number', 'boolean', 'object', 'array', 'any'];
+const KINDS = Object.freeze(['string', 'number', 'boolean', 'object', 'array', 'any']);
 
 // MARK: - Initializer
 // MARK: - Public
