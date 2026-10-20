@@ -10,6 +10,7 @@ import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
+import * as IPC from '../deck/ipc/index.js';
 
 export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
     // MARK: - Property
@@ -39,7 +40,9 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
             WEB.listen();
             NOTIFICATION.listen(deliver);
             const chordOf = (action) => KEYMAP.chord(action, { app: true });
-            const given = shellMod ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail }) } : NO_SHELL;
+            const given = shellMod
+                ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail, channels: IPC.forLayer }) }
+                : NO_SHELL;
             const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
             const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
             return {

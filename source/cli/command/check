@@ -17,7 +17,7 @@ const MAY_DEPEND = {
     'deckit-shell': ['deckit-driver', 'deckit-electron'],
 };
 // A channel's declaration, whatever the module that declares it is imported as.
-const DECLARES = '\\b\\w+\\.(?:rendererToMain|mainToRenderer|pageToMain|mainToPage)\\(';
+const DECLARES = '\\b\\w+\\.(?:pageToMain|mainToPage)\\(';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];

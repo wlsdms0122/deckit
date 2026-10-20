@@ -1,6 +1,8 @@
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = IPC.bindAll(DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // A folder the person picks to install, as it would install, or null when they did not pick one.

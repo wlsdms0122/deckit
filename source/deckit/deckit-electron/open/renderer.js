@@ -1,7 +1,9 @@
 import * as SCHEME from './model/scheme.js';
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = IPC.bindAll(DECLARED);
 const EVERY = SCHEME.EVERY;
 
 // MARK: - Initializer

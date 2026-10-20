@@ -4,9 +4,13 @@ import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
 import * as WIDTH from './model/width.js';
 import * as PAGE from './model/page-name.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNELS from '../channels/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = CHANNELS.bindAll(DECLARED);
+// What main asks the frame's page.
+const questions = [DECLARED.exit, DECLARED.leave];
 // The card's inset from the panel's edges, and how far the handle stands past it, over the content's edge.
 const INSET = 8;
 const HANDLE_OUT = 6;
@@ -405,4 +409,4 @@ function rounded({ x, y, width, height }) {
     return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
 }
 
-export { boot };
+export { boot, questions };

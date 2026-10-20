@@ -5,8 +5,6 @@
         "./main.js": "./main.js",
         "./renderer.js": "./renderer.js",
         "./match/match.js": "./match/match.js",
-        "./deck/ipc/index.js": "./deck/ipc/index.js",
-        "./deck/listener/index.js": "./deck/listener/index.js",
         "./deck/contract/index.js": "./deck/contract/index.js"
     },
     "dependencies": {

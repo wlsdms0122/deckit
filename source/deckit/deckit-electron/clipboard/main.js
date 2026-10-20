@@ -1,5 +1,8 @@
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 import * as CLIPBOARD_PERMISSION from './model/permission.js';
+
+const PROTOCOL = IPC.bindAll(DECLARED);
 
 export function createClipboard({ IDENTITY }) {
     // MARK: - Property

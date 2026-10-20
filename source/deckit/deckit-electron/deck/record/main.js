@@ -1,4 +1,7 @@
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../ipc/index.js';
+import * as DECLARED from './protocol.js';
+
+const PROTOCOL = IPC.bindAll(DECLARED);
 
 // A mod's records are the core's to keep: JSON by key, which the core keeps as the text it is handed.
 export function createRecord({ CORE, IDENTITY }) {

@@ -34,6 +34,16 @@ function problemOf({ channel, fields }, payload) {
     return '';
 }
 
+// Why `declared` is not a channel declared here, or '': what a driver binds may come from code it does not trust.
+function problemOfDeclaration(declared) {
+    if (kindOf(declared) !== 'object') return `a channel is declared as an object, not ${kindOf(declared)}`;
+    const { channel, to, fields } = declared;
+    if (typeof channel !== 'string' || !channel) return 'a channel is declared with its name';
+    if (to !== 'main' && to !== 'page') return `${channel} goes to main or to a page`;
+    if (to === 'main' && kindOf(fields) !== 'object') return `${channel} is declared with its fields`;
+    return '';
+}
+
 // MARK: - Private
 function kindOf(value) {
     if (value === null) return 'null';
@@ -41,4 +51,4 @@ function kindOf(value) {
     return typeof value;
 }
 
-export { pageToMain, mainToPage, problemOf };
+export { pageToMain, mainToPage, problemOf, problemOfDeclaration };

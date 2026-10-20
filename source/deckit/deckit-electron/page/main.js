@@ -1,4 +1,7 @@
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
+
+const PROTOCOL = IPC.bindAll(DECLARED);
 
 export function createPage({ IDENTITY, PARTITION }) {
     // MARK: - Property

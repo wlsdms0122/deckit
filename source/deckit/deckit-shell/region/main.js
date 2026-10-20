@@ -1,4 +1,7 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNELS from '../channels/index.js';
+import * as DECLARED from './protocol.js';
+
+const PROTOCOL = CHANNELS.bindAll(DECLARED);
 
 // `deckit` is what connect answered.
 export function createRegion({ deckit }) {

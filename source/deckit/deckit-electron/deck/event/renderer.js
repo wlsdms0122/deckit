@@ -1,8 +1,10 @@
 import * as EVENT_BUS from './bus.js';
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../ipc/index.js';
+import * as DECLARED from './protocol.js';
 import * as SCOPED from '../mod/model/scoped-name.js';
 
 // MARK: - Property
+const PROTOCOL = IPC.bindAll(DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // What a mod's deck holds of events. `emit(name, ...args)` sends one of its own, which listeners hear named

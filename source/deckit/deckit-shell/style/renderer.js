@@ -1,6 +1,8 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNELS from '../channels/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = CHANNELS.bindAll(DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // The page wears the styles mods give it, as its last style sheets: a sheet the kit or the mod's entry adopts

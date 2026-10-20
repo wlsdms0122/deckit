@@ -1,5 +1,8 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNELS from '../channels/index.js';
+import * as DECLARED from './protocol.js';
 import * as PAGE from './model/page-name.js';
+
+const PROTOCOL = CHANNELS.bindAll(DECLARED);
 
 // `deckit` is what connect answered, `host` the app's answers.
 export function createSwitcher({ PANEL, deckit, host }) {

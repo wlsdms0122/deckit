@@ -1,4 +1,7 @@
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../ipc/index.js';
+import * as DECLARED from './protocol.js';
+
+const PROTOCOL = IPC.bindAll(DECLARED);
 
 // `deck.mods` for a mod with deckit.mods. `RUN` is the page's run.
 export function createMods({ RUN }) {

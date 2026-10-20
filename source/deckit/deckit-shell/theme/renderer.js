@@ -1,7 +1,9 @@
 import * as TOKEN from '../ui/token/index.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNELS from '../channels/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = CHANNELS.bindAll(DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // The page's theme, worn as the token's custom properties and the page's color scheme, and taken in place

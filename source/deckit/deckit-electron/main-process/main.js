@@ -1,7 +1,10 @@
 import * as FILE from './file.js';
 import * as MAIN_PROCESS_PERMISSION from './model/permission.js';
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 import * as MOD_PERMISSION from '../deck/mod/permission.js';
+
+const PROTOCOL = IPC.bindAll(DECLARED);
 
 export function createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER }) {
     // MARK: - Property

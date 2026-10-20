@@ -4,16 +4,44 @@ import * as LISTENER from '../listener/index.js';
 // MARK: - Property
 const electron = require('electron');
 const inMain = process.type === 'browser';
+const bound = new Map(); // channel -> { declared, endpoint }: one endpoint for each channel in this bundle
 const pending = new Map(); // channel -> Map(id -> { resolve, reject, webContents, timer })
 const watched = new WeakSet(); // webContents whose page going away rejects what was asked of it
 let sequence = 0;
 
 // MARK: - Initializer
 // MARK: - Public
-// A channel as deckit-driver declares it, carried by Electron's IPC.
-function rendererToMain(channel, fields, declaring) {
-    const declared = CHANNEL.pageToMain(channel, fields, declaring);
-    const { reply, sync } = declared;
+// A channel as deckit-driver declares it, carried by Electron's IPC: on main's side `handle` or `on` for what a page
+// asks or tells, `invoke` or `send` for what main asks or tells a page; on a page's side the other way. A channel is
+// declared once, so binding one another declaration bound first is refused: what a layer on deckit binds never
+// answers for deckit's own.
+function bind(declared) {
+    const problem = CHANNEL.problemOfDeclaration(declared);
+    if (problem) throw new Error(`[deckit] ${problem}`);
+    const known = bound.get(declared.channel);
+    if (known) {
+        if (known.declared !== declared) throw new Error(`[deckit] ${declared.channel} is declared already`);
+        return known.endpoint;
+    }
+    const endpoint = Object.freeze(declared.to === 'main' ? toMain(declared) : toPage(declared));
+    bound.set(declared.channel, { declared, endpoint });
+    return endpoint;
+}
+
+// What a layer on deckit, the shell, is handed to bind its own channels with.
+const forLayer = Object.freeze({ bind });
+
+// Each of `declarations` (a protocol.js) bound, by its name.
+function bindAll(declarations) {
+    return Object.freeze(
+        Object.fromEntries(Object.entries(declarations).map(([name, declared]) => [name, bind(declared)]))
+    );
+}
+
+// MARK: - Private
+// A page runs code main does not trust, so main holds what arrives to the declaration's fields; nothing else checks.
+function toMain(declared) {
+    const { channel, reply, sync } = declared;
     if (inMain) {
         if (reply) return { handle: (answer) => handle(declared, answer) };
         return { on: (listener) => listen(declared, listener) };
@@ -24,8 +52,7 @@ function rendererToMain(channel, fields, declaring) {
     return { invoke: (payload = {}) => ipcRenderer.invoke(channel, payload).then(unwrap) };
 }
 
-function mainToRenderer(channel, declaring) {
-    const { reply } = CHANNEL.mainToPage(channel, declaring);
+function toPage({ channel, reply }) {
     if (inMain) {
         if (reply)
             return {
@@ -37,7 +64,6 @@ function mainToRenderer(channel, declaring) {
     return questionsFor(channel);
 }
 
-// MARK: - Private
 // Only a message crosses a process, so an error's kind travels beside it and is put back on the far side.
 function errorOf(error) {
     return { message: String(error?.message ?? error), kind: error?.kind ?? null };
@@ -184,4 +210,4 @@ function questionsFor(channel) {
     };
 }
 
-export { rendererToMain, mainToRenderer };
+export { bind, bindAll, forLayer };

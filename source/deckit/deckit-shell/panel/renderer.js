@@ -1,8 +1,12 @@
 import * as SCROLL from '../ui/scroll/index.js';
 import * as KIT from '../ui/kit/index.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNELS from '../channels/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = CHANNELS.bindAll(DECLARED);
+// What main asks a mod's page.
+const questions = [DECLARED.escape];
 // What a mod with deckit.mods reads and changes of the panel's list, on deck.mods: `pinned()`, the children the
 // person pinned to it, and `setPinned(id, pinned)`.
 const pins = Object.freeze({
@@ -195,4 +199,4 @@ function element(tag, className) {
     return made;
 }
 
-export { mount, show, pins, viewProblem, keyProblem };
+export { mount, show, pins, viewProblem, keyProblem, questions };

@@ -3,9 +3,13 @@ import * as ICON from '../ui/icon/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as VIEW_MODEL from './view-model.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNELS from '../channels/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = CHANNELS.bindAll(DECLARED);
+// What main asks the switcher's page.
+const questions = [DECLARED.dismiss];
 // How each tone looks on a row of the Now strip: its mark, its glyph, the row's wash and the colour it breathes
 // when it asks for attention. Only `alert` tints the row and `info` has no colour, so a colour still means
 // something.
@@ -409,4 +413,4 @@ function element(tag, className) {
     return made;
 }
 
-export { boot };
+export { boot, questions };

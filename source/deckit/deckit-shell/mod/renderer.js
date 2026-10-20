@@ -5,14 +5,17 @@ import * as STYLE_PERMISSION from '../style/model/permission.js';
 import * as PANEL from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion, parentProblem } from '../region/renderer.js';
+import * as CHANNELS from '../channels/index.js';
 
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
 // What the shell gives a mod's page, as deckit runs it (deckit-electron/mod/renderer): the theme, the kit, `show()`,
-// `region(element)`, `children`, the registrations `view` and, with deckit.styles, `styles`, and on deck.mods
-// the panel's pins. Once start() has ended, a view is laid where the panel's guide says, or a region's for a child.
-function mod({ mod: running, deliver }) {
+// `region(element)`, `children`, the registrations `view` and, with deckit.styles, `styles`, and on deck.mods the
+// panel's pins. Once start() has ended, a view is laid where the panel's guide says, or a region's for a child.
+// `channels` binds the shell's channels in the page.
+function mod({ mod: running, deliver, channels }) {
+    CHANNELS.use(channels);
     const REGION = createRegion({ deliver });
     const theme = PAGE.start({ tell: (listener) => deliver('theme.onChange()', listener) });
     const ui = KIT.make(theme);

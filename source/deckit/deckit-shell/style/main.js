@@ -1,5 +1,8 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNELS from '../channels/index.js';
+import * as DECLARED from './protocol.js';
 import * as STYLE_PERMISSION from './model/permission.js';
+
+const PROTOCOL = CHANNELS.bindAll(DECLARED);
 
 // `deckit` is what connect answered.
 export function createStyle({ deckit }) {

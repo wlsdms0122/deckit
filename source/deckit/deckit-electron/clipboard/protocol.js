@@ -1,4 +1,4 @@
-import * as IPC from '../deck/ipc/index.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 
-export const readText = IPC.rendererToMain('deckit-electron:clipboard-read', {}, { reply: true });
-export const writeText = IPC.rendererToMain('deckit-electron:clipboard-write', { text: 'string' }, { reply: true });
+export const readText = CHANNEL.pageToMain('deckit-electron:clipboard-read', {}, { reply: true });
+export const writeText = CHANNEL.pageToMain('deckit-electron:clipboard-write', { text: 'string' }, { reply: true });

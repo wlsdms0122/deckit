@@ -1,6 +1,9 @@
 import * as LOG_FILE from './file.js';
 import * as LISTENER from '../listener/index.js';
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../ipc/index.js';
+import * as DECLARED from './protocol.js';
+
+const PROTOCOL = IPC.bindAll(DECLARED);
 
 export function createLog({ CONFIG, HOME }) {
     // MARK: - Property

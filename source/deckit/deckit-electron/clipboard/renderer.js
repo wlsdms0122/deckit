@@ -1,6 +1,8 @@
-import * as PROTOCOL from './protocol.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = IPC.bindAll(DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 function readText() {
