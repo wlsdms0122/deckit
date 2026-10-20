@@ -9,7 +9,7 @@ import Foundation
 
 // A key as its owner declares it: the action it runs, its default chord as written, what a person reads it as, and
 // whether it works wherever the keyboard is in the app.
-struct Key: Decodable, Equatable, Sendable {
+public struct Key: Decodable, Equatable, Sendable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case action

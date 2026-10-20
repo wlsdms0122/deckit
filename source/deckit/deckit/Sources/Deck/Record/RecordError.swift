@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum RecordError: CallError, Equatable {
+enum RecordError: DeckError, Equatable {
     case notAKey(String)
     case notAMod(String)
 

@@ -56,16 +56,18 @@ final class URLRouter: Layer {
     // MARK: - Public
     // A file opens only on a person's click or key, whoever answers it, and deckit opens nothing by itself without one:
     // otherwise any mod could open apps at will, or learn which paths exist.
-    func route(_ params: RouteParams) -> URLRoute {
-        let address = params.url.trimmingCharacters(in: .whitespacesAndNewlines)
+    // `userInitiated` for an address a person's click or key asked for, and `usesDefaultApp` for one that skips the
+    // mods for what deckit opens it with by itself.
+    func route(_ url: String, userInitiated: Bool, usesDefaultApp: Bool) -> URLRoute {
+        let address = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let scheme = URLScheme(address: address), scheme.isPlace else {
             return URLRoute(url: address, handlers: [], system: nil)
         }
         let system = SystemHandler(scheme: scheme.name)
-        guard params.userInitiated || system != .file else { return URLRoute(url: address, handlers: [], system: nil) }
+        guard userInitiated || system != .file else { return URLRoute(url: address, handlers: [], system: nil) }
 
-        let handlers = params.usesDefaultApp ? [] : handlers(of: handledAs(scheme)).filter(\.on).map(\.id)
-        return URLRoute(url: address, handlers: handlers, system: params.userInitiated ? system : nil)
+        let handlers = usesDefaultApp ? [] : handlers(of: handledAs(scheme)).filter(\.on).map(\.id)
+        return URLRoute(url: address, handlers: handlers, system: userInitiated ? system : nil)
     }
 
     // Every scheme with a handler list: those deckit opens by itself, then each one a mod handles, then every other.
@@ -77,19 +79,17 @@ final class URLRouter: Layer {
 
     // The handlers in `order` take the places they held among themselves. One missing from the list now (failed to
     // load, or waiting on what it requires) keeps its place and switch: otherwise editing the list while it was gone
-    // would give its place to the app's.
-    func setHandlers(_ params: SetHandlersParams) throws -> Bool {
-        guard schemes().contains(params.scheme) else { throw URLRouterError.noHandlers(params.scheme) }
+    // would give its place to the app's. Those in `off` are switched off.
+    func setHandlers(of scheme: String, order: [String], off: [String]) throws {
+        guard schemes().contains(scheme) else { throw URLRouterError.noHandlers(scheme) }
 
-        let given = Set(params.order)
-        var next = params.order[...]
-        let placed = order(of: params.scheme).compactMap { id in given.contains(id) ? next.popFirst() : id } + next
-        let off = preference(of: params.scheme).off.filter { id in !given.contains(id) } + params.off
+        let given = Set(order)
+        var next = order[...]
+        let placed = self.order(of: scheme).compactMap { id in given.contains(id) ? next.popFirst() : id } + next
+        let off = preference(of: scheme).off.filter { id in !given.contains(id) } + off
         var preferences = preferences
-        preferences[params.scheme] = HandlerPreference(order: placed, off: off)
+        preferences[scheme] = HandlerPreference(order: placed, off: off)
         try save(preferences)
-
-        return true
     }
 
     // MARK: - Private

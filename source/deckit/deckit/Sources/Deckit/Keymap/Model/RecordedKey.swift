@@ -10,7 +10,7 @@ import Foundation
 // What a keystroke typed to be bound comes to: a modifier alone waits for the key, Escape cancels, Backspace or Delete
 // clears, a key that may not be bound says why, and any other is the chord typed. A bare key is refused: bound, it
 // would take that letter from every field on the screen. Function keys are allowed, since nothing types them.
-enum RecordedKey: Equatable, Sendable {
+public enum RecordedKey: Equatable, Sendable {
     case pending
     case refused(String)
     case spec(String)

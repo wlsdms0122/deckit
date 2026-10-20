@@ -9,7 +9,7 @@ import Foundation
 
 // What a mod declares the person can choose under `key`, as its page tells it: the data, without functions. Options
 // worked out as they are read are `computed`, and its page answers them.
-struct SettingDeclaration: Decodable, Equatable, Sendable {
+public struct SettingDeclaration: Decodable, Equatable, Sendable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case key
@@ -27,19 +27,19 @@ struct SettingDeclaration: Decodable, Equatable, Sendable {
         case button
     }
 
-    let key: String
-    let type: SettingType
-    let label: String?
-    let defaultValue: SettingValue?
-    let hint: String?
+    public let key: String
+    public let type: SettingType
+    public let label: String?
+    public let defaultValue: SettingValue?
+    public let hint: String?
     let options: [SettingOption]
-    let computed: Bool
-    let min: Double?
-    let max: Double?
-    let step: Double?
-    let unit: String?
-    let placeholder: String?
-    let button: String?
+    public let computed: Bool
+    public let min: Double?
+    public let max: Double?
+    public let step: Double?
+    public let unit: String?
+    public let placeholder: String?
+    public let button: String?
 
     // MARK: - Initializer
     init(

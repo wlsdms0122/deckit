@@ -10,7 +10,7 @@ import Foundation
 extension SettingValue: Codable {
     // MARK: - Property
     // MARK: - Initializer
-    init(from decoder: any Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let value = try? container.decode(Bool.self) {
             self = .bool(value)
@@ -22,7 +22,7 @@ extension SettingValue: Codable {
     }
 
     // MARK: - Public
-    func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
         case let .bool(value):

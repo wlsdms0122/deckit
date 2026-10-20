@@ -8,7 +8,7 @@
 import Foundation
 
 // Why a setting was not set, or an action not run.
-enum SettingError: CallError, Equatable {
+enum SettingError: DeckError, Equatable {
     case undeclared(mod: String, key: String)
     case notAnAction(mod: String, key: String)
     case isAnAction(String)

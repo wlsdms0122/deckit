@@ -8,7 +8,7 @@
 import Foundation
 import Deck
 
-enum URLRouterError: CallError, Equatable {
+enum URLRouterError: DeckError, Equatable {
     case noHandlers(String)
 
     // MARK: - Property

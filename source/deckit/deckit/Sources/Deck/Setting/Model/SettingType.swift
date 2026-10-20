@@ -8,7 +8,7 @@
 import Foundation
 
 // The kinds of setting a mod declares.
-enum SettingType: String, Codable, Sendable {
+public enum SettingType: String, Codable, Sendable {
     case toggle
     case number
     case text

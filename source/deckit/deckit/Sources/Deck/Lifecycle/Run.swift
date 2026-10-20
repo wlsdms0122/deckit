@@ -10,19 +10,19 @@ import Foundation
 // One run of a mod's entry, the `number`th, launching as it is made.
 public struct Run: Sendable {
     // MARK: - Property
-    let modId: String
-    let number: Int
+    public let modId: String
+    public let number: Int
     public private(set) var state: RunState = .launching
     // The first problem recorded against it while it launches or runs, or why it failed or crashed.
-    private(set) var problem: String?
+    public private(set) var problem: String?
     // The reason it terminated for: none for a run that crashed or did not launch.
-    private(set) var endReason: TerminateReason?
+    public private(set) var endReason: TerminateReason?
     // What its page reported as it started, once it launched: `summary`, what it contributes as a person reads it, is
     // carried and not read.
-    private(set) var summary: JSONValue?
+    public private(set) var summary: JSONValue?
     public private(set) var contributions: Contribution?
 
-    var relaunches: Bool {
+    public var relaunches: Bool {
         endReason?.relaunches ?? false
     }
 

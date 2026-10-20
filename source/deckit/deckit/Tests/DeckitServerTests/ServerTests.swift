@@ -7,7 +7,7 @@
 
 import Foundation
 import Testing
-import Deck
+@testable import Deck
 @testable import DeckitServer
 
 @Suite("Server")
@@ -298,6 +298,72 @@ struct ServerTests {
         #expect(
             value(in: dependencies, at: "result", "ready", "requires", "calendar")
                 == (try json(#"{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]}"#))
+        )
+    }
+
+    @Test("deckit's own methods answer through the server, as deck's do")
+    func testThatDeckitMethodsAnswer() throws {
+        // Given
+        try mod("mail", schemes: #"["mailto"]"#)
+        try initialize()
+        _ = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
+        _ = try respond(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#)
+        let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{},"#
+            + #""handleURL":true,"commands":true}"#
+        _ = try respond(
+            #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
+                + #""contributions":\#(contributions)}}"#
+        )
+
+        // When
+        let registered = try respond(
+            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"action":"go","key":"mod+1","label":"Go","#
+                + #""global":false}}"#
+        )
+        let bound = try respond(
+            #"{"jsonrpc":"2.0","id":6,"method":"keymap/bind","params":{"id":"@app.go","spec":"cmd+2"}}"#
+        )
+        let set = try respond(
+            #"{"jsonrpc":"2.0","id":7,"method":"open/setHandlers","params":{"scheme":"mailto","order":["mail"],"#
+                + #""off":[]}}"#
+        )
+        let routed = try respond(
+            #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","userInitiated":true,"#
+                + #""usesDefaultApp":false}}"#
+        )
+        let sources = try respond(#"{"jsonrpc":"2.0","id":9,"method":"command/sources"}"#)
+
+        // Then
+        guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let go = bindings.first else {
+            Issue.record("no bindings in \(bound)")
+            return
+        }
+        #expect(value(in: registered, at: "result", "revision") != nil)
+        #expect(value(in: go, at: "id") == .string("@app.go"))
+        #expect(value(in: go, at: "spec") == .string("cmd+2"))
+        #expect(value(in: set, at: "result") == .bool(true))
+        #expect(value(in: routed, at: "result", "handlers") == .array([.string("mail")]))
+        #expect(sources == (try json(
+            #"{"jsonrpc":"2.0","id":9,"result":[{"id":"mail","name":"mail","commands":true,"now":false,"#
+                + #""resolve":false}]}"#
+        )))
+    }
+
+    @Test("a setting lists as Settings reads it: the declaration's fields, `default` as declared, value and options")
+    func testThatASettingItemIsJSON() throws {
+        // Given
+        let size = SettingDeclaration(key: "size", type: .number, label: "Size", defaultValue: .number(12), min: 8)
+        let item = SettingItem(declaration: size, value: .number(14), options: [])
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+
+        // When
+        let listed = String(decoding: try encoder.encode(item), as: UTF8.self)
+
+        // Then
+        #expect(
+            listed == #"{"computed":false,"default":12,"key":"size","label":"Size","min":8,"options":[],"#
+                + #""type":"number","value":14}"#
         )
     }
 

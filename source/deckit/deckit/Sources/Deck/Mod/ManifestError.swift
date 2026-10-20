@@ -8,7 +8,7 @@
 import Foundation
 
 // What the layers on deck are refused with as they add to the manifest.
-enum ManifestError: CallError, Equatable {
+enum ManifestError: DeckError, Equatable {
     case permissionDefined(String)
     case fieldDefined(String)
 

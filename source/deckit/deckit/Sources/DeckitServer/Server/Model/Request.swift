@@ -17,5 +17,10 @@ struct Request: Decodable {
 
     // MARK: - Initializer
     // MARK: - Public
+    // Its params as `type` takes them, none read as null.
+    func decodeParams<Params: Decodable>(as type: Params.Type) throws -> Params {
+        try (params ?? .null).decode(as: type)
+    }
+
     // MARK: - Private
 }

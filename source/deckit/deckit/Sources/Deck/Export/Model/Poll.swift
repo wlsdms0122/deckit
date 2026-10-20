@@ -8,7 +8,7 @@
 import Foundation
 
 // What is asked, answered now, or pending on a run that has not decided it yet.
-enum Poll<Value: Sendable>: Sendable {
+public enum Poll<Value: Sendable>: Sendable {
     case ready(Value)
     case pending(Pending)
 

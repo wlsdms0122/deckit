@@ -8,10 +8,10 @@
 import Foundation
 import Deck
 
-// The platform on deck: what it adds, and what deck answers under it.
+// The platform on deck: what it adds, and the deck it is on.
 public final class Deckit {
     // MARK: - Property
-    private let deck: Deck
+    public let deck: Deck
     private let keymap: Keymap
     private let commandRegistry: CommandRegistry
     private let urlRouter: URLRouter
@@ -49,42 +49,49 @@ public final class Deckit {
     }
 
     // MARK: - Public
-    public func answer(_ call: Call) throws -> (any Encodable & Sendable)? {
-        switch call.method {
-        case "keymap/register":
-            return keymap.register(try call.params.decode(as: Key.self))
+    // A key of the app's own, run by whoever registered it: a global one works anywhere a keystroke is heard, the rest
+    // only in the page in front. Answers the keymap as it is resolved now.
+    public func registerKey(_ key: Key) -> ResolvedKeymap {
+        keymap.register(key)
+    }
 
-        case "keymap/bind":
-            let params = try call.params.decode(as: BindKeyParams.self)
-            return try keymap.bind(params.id, spec: params.spec)
+    // The binding of `id` bound to `spec`, or to none when it is empty. Answers the keymap as it is resolved now.
+    public func bindKey(_ id: String, spec: String) throws -> ResolvedKeymap {
+        try keymap.bind(id, spec: spec)
+    }
 
-        case "keymap/reset":
-            let params = try call.params.decode(as: ResetKeyParams.self)
-            return try keymap.reset(params.id)
+    // The binding of `id` back to its default. Answers the keymap as it is resolved now.
+    public func resetKey(_ id: String) throws -> ResolvedKeymap {
+        try keymap.reset(id)
+    }
 
-        case "keymap/record":
-            let params = try call.params.decode(as: RecordKeyParams.self)
-            return keymap.record(params.keystroke)
+    // What a keystroke typed to be bound comes to.
+    public func recordKey(_ keystroke: Keystroke) -> RecordedKey {
+        keymap.record(keystroke)
+    }
 
-        case "keymap/keystrokes":
-            let params = try call.params.decode(as: KeystrokesParams.self)
-            return keymap.keystrokes(of: params.specs)
+    // The keystrokes specs name, nil for one that names none.
+    public func keystrokes(of specs: [String]) -> [Keystroke?] {
+        keymap.keystrokes(of: specs)
+    }
 
-        case "command/sources":
-            return commandRegistry.sources()
+    // The mods whose runs offer what a person may run.
+    public func commandSources() -> [CommandSource] {
+        commandRegistry.sources()
+    }
 
-        case "open/route":
-            return urlRouter.route(try call.params.decode(as: RouteParams.self))
+    // Which mods `url` is offered to, in what order, and what deckit opens it with by itself after them.
+    public func route(_ url: String, userInitiated: Bool, usesDefaultApp: Bool) -> URLRoute {
+        urlRouter.route(url, userInitiated: userInitiated, usesDefaultApp: usesDefaultApp)
+    }
 
-        case "open/handlerLists":
-            return urlRouter.handlerLists()
+    public func handlerLists() -> [HandlerList] {
+        urlRouter.handlerLists()
+    }
 
-        case "open/setHandlers":
-            return try urlRouter.setHandlers(try call.params.decode(as: SetHandlersParams.self))
-
-        default:
-            return try deck.answer(call)
-        }
+    // The handlers of `scheme` in `order` take the places they held among themselves; those in `off` are switched off.
+    public func setHandlers(of scheme: String, order: [String], off: [String]) throws {
+        try urlRouter.setHandlers(of: scheme, order: order, off: off)
     }
 
     // MARK: - Private

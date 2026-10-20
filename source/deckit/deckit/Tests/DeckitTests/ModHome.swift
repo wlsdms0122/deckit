@@ -57,8 +57,8 @@ struct ModHome {
             schemeHandlers: schemeHandlers,
             permissions: []
         )
-        _ = try sut.json("catalog/read")
-        _ = try sut.json("runner/reconcile")
+        _ = sut.deck.readCatalog()
+        _ = try sut.deck.reconcile()
 
         return sut
     }

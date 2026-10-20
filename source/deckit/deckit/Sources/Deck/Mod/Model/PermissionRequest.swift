@@ -11,7 +11,7 @@ import Foundation
 public struct PermissionRequest: Equatable, Sendable {
     // MARK: - Property
     public let permission: Permission
-    let reason: String
+    public let reason: String
 
     // MARK: - Initializer
     // MARK: - Public

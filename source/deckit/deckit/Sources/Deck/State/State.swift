@@ -33,7 +33,7 @@ public final class State {
     }
 
     // Every key kept, those of the state folder first, then each folder's, by name.
-    func all() throws -> [StateEntry] {
+    public func all() throws -> [StateEntry] {
         let folders = try store.names(in: root)
             .filter { name in store.isName(name) && store.isFolder(root.appending(path: name)) }
             .sorted()

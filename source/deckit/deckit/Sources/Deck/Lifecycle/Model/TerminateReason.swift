@@ -8,7 +8,7 @@
 import Foundation
 
 // Why a run terminates, weakest first: a stronger reason given while it terminates takes the place of a weaker one.
-enum TerminateReason: String, Encodable, Sendable {
+public enum TerminateReason: String, Encodable, Sendable {
     case relaunch
     // A mod it requires ended: it launches again as that one does, or as it ends when that one already has.
     case requirement

@@ -8,11 +8,11 @@
 import Foundation
 
 // A mod's settings as Settings lists them, under the mod's name.
-struct SettingGroup: Encodable, Sendable {
+public struct SettingGroup: Sendable {
     // MARK: - Property
-    let id: String
-    let name: String
-    let items: [SettingItem]
+    public let id: String
+    public let name: String
+    public let items: [SettingItem]
 
     // MARK: - Initializer
     // MARK: - Public

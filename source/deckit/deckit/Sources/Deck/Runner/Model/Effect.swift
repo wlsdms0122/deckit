@@ -8,7 +8,7 @@
 import Foundation
 
 // What the driver does, in order, with what deck decided of the runs.
-enum Effect: Sendable {
+public enum Effect: Sendable {
     // Make the mod's sandbox, its page not loaded yet.
     case open(Mod)
     // Load the mod's page at its address.

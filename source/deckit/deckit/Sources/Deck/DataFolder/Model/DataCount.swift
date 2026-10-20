@@ -8,7 +8,7 @@
 import Foundation
 
 // How many files a mod's data folder holds, up to a limit: whether it holds more, and whether it holds hidden ones.
-struct DataCount: Encodable, Equatable {
+public struct DataCount: Encodable, Equatable, Sendable {
     // MARK: - Property
     var count = 0
     var capped = false

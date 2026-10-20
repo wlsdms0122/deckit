@@ -8,7 +8,7 @@
 import Foundation
 
 // A run moved from a state its step does not leave.
-enum LifecycleError: CallError, Equatable {
+enum LifecycleError: DeckError, Equatable {
     case transition(modId: String, number: Int, transition: Transition, state: RunState)
 
     // MARK: - Property

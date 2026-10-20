@@ -242,26 +242,18 @@ struct SettingTests {
         }
     }
 
-    @Test("a declaration reads as the page tells it, and an item lists it with its value and options")
-    func testThatDeclarationAndItemAreJSON() throws {
+    @Test("a declaration reads as the page tells it")
+    func testThatDeclarationIsJSON() throws {
         // Given
         let text = #"[{"key":"size","type":"number","label":"Size","default":12,"min":8,"options":[],"#
             + #""computed":false}]"#
 
         // When
         let declared = try JSONDecoder().decode([SettingDeclaration].self, from: Data(text.utf8))
-        let item = SettingItem(declaration: try #require(declared.first), value: .number(14), options: [])
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .sortedKeys
-        let listed = String(decoding: try encoder.encode(item), as: UTF8.self)
 
         // Then
         let size = SettingDeclaration(key: "size", type: .number, label: "Size", defaultValue: .number(12), min: 8)
         #expect(declared == [size])
-        #expect(
-            listed == #"{"computed":false,"default":12,"key":"size","label":"Size","min":8,"options":[],"#
-                + #""type":"number","value":14}"#
-        )
     }
 
     @Test("options a page answered that are not options read as none")

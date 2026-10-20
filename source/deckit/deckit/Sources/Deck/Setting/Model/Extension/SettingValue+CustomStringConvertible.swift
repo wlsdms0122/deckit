@@ -10,7 +10,7 @@ import Foundation
 // As a person reads it: a whole number with no fraction.
 extension SettingValue: CustomStringConvertible {
     // MARK: - Property
-    var description: String {
+    public var description: String {
         switch self {
         case let .bool(value):
             String(value)

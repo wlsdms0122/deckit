@@ -144,7 +144,7 @@ final class Installer {
                 let manifest = try install(from: source)
                 reports.append(InstallReport(id: id, outcome: .installed, version: manifest.version))
             } catch {
-                let problem = (error as? any CallError)?.message ?? error.localizedDescription
+                let problem = (error as? any DeckError)?.message ?? error.localizedDescription
                 failures[id] = InstallFailure(folder: source, problem: problem)
                 reports.append(InstallReport(id: id, outcome: .failed, problem: problem))
             }
