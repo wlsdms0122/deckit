@@ -1,10 +1,11 @@
 import * as CHANNEL from '../deck/channel/index.js';
 
-// What an environment gives deck, as plain data: what carries messages between main and a page, and what it tells of
-// a page, on main's side (`MAIN`) and on a page's (`PAGE`). An environment gives at least this, and deck is handed
-// this alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a list read.
-// Of one page, what watches it is told in the order it began watching, before what the environment itself watches
-// after it: deck relies on that order (deck/identity).
+// What an environment gives deck, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
+// messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files, the
+// log and the folder deckit keeps. An environment gives at least this, and deck is handed this alone (`checked`). Each
+// leaf says what a member is: `function`, `object`, `string`, or `array`, a list read. Of one page, what watches it is
+// told in the order it began watching, before what the environment itself watches after it: deck relies on that order
+// (deck/identity).
 // MARK: - Property
 /**
  * A page: a token deck keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -36,6 +37,26 @@ const MAIN = Object.freeze({
         // watchInput(page, listener({ type })): `keydown` before anything watching after it may take the key, and
         // `mousedown`, `mouseup`, as UI Events name them
         watchInput: 'function',
+    },
+    core: {
+        // open({ onMessage(line), onLog(line), onEnd(why) }) -> { send(line) }: the core, started, a message a line
+        // each way. `onLog` hears what it logs, and `onEnd` once that it ended, whether it ran or never started, after
+        // the last line it sent; what is sent after is dropped
+        open: 'function',
+    },
+    folders: {
+        home: 'string', // deckit's folder, where the core keeps the mods and what they store
+    },
+    files: {
+        readText: 'function', // readText(file) -> Promise of the file's text
+    },
+    // The file deck's log is written to: open() -> { file, write(where, level, parts) }, `file` its path. Writing never
+    // throws
+    log: { open: 'function' },
+    // about() -> { app, engine }: the host app and what runs it, each named with its version, as a person reads them
+    about: 'function',
+    storage: {
+        clear: 'function', // clear(modId) -> Promise: what the mod's pages stored, the web's storage, taken
     },
 });
 

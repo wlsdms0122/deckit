@@ -17,5 +17,7 @@ export function createHome({ CONFIG, FOLDERS }) {
         // it.
         data: path.join(folder, 'data'),
         logs: path.join(folder, 'logs'),
+        // Mod ids are held to their rule before a mod loads, so an id here is a folder name.
+        dataOf: (modId) => path.join(folder, 'data', modId),
     };
 }

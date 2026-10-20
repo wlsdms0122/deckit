@@ -4,27 +4,29 @@ import * as CLIPBOARD_PERMISSION from './clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from './notification/model/permission.js';
 import * as KEYMAP_PERMISSION from './keymap/model/permission.js';
 import * as OPEN_PERMISSION from './open/model/permission.js';
-import * as MOD_PERMISSION from './deck/mod/permission.js';
+import * as MOD_PERMISSION from '../deckit-shell/deck/mod/permission.js';
 import * as ORIGIN from './deck/sandbox/model/origin.js';
+import * as CONTRACT from './deck/contract/index.js';
 import { createHome } from './deck/storage/home.js';
-import { createStorage } from './deck/storage/index.js';
-import { createLog } from './deck/log/main.js';
-import { createPermission } from './deck/mod/permission.js';
+import { createStorage } from '../deckit-shell/deck/storage/index.js';
+import { createLog } from '../deckit-shell/deck/log/main.js';
+import { createPermission } from '../deckit-shell/deck/mod/permission.js';
 import { createFolder } from './deck/mod/folder.js';
-import { createCatalog } from './deck/catalog/index.js';
+import { createCatalog } from '../deckit-shell/deck/catalog/index.js';
 import * as ENVIRONMENT from '../deckit-shell/environment/index.js';
 import * as IPC from '../deckit-shell/deck/ipc/main.js';
 import { createIdentity } from '../deckit-shell/deck/identity/index.js';
-import { environment } from './environment/main.js';
+import * as LISTENER from './deck/listener/index.js';
+import { createEnvironment } from './environment/main.js';
 import { createSandbox } from './deck/sandbox/index.js';
 import { createRunner } from './deck/runner/main.js';
-import { createRecord } from './deck/record/main.js';
-import { createSetting } from './deck/setting/main.js';
-import { createExport } from './deck/export/main.js';
-import { createExtension } from './deck/extension/main.js';
-import { createEvent } from './deck/event/main.js';
-import { createMods } from './deck/mods/main.js';
-import { createCore } from './core/main.js';
+import { createRecord } from '../deckit-shell/deck/record/main.js';
+import { createSetting } from '../deckit-shell/deck/setting/main.js';
+import { createExport } from '../deckit-shell/deck/export/main.js';
+import { createExtension } from '../deckit-shell/deck/extension/main.js';
+import { createEvent } from '../deckit-shell/deck/event/main.js';
+import { createMods } from '../deckit-shell/deck/mods/main.js';
+import { createCore } from '../deckit-shell/deck/core/main.js';
 import { createWindow } from './window/index.js';
 import { createStage } from './stage/main.js';
 import { createPartition } from './web/model/partition.js';
@@ -50,7 +52,7 @@ import { createApi } from './api/index.js';
 // MARK: - Property
 // The scheme deck's pages load from, for the host app's registerSchemesAsPrivileged: Electron takes privileged schemes
 // in one call, before the app is ready, so the host app makes it with this beside its own.
-const SCHEME = ORIGIN.SCHEME;
+const SCHEME = CONTRACT.SCHEME;
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
 // keeps, `name` is what a person reads, `agent` the names the host app adds to its user agent, taken out of a web
 // page's, and `schemeHandlers`, by scheme, the mods asked first to open an address. `folders`: `home` is deckit's
@@ -95,15 +97,20 @@ function refuseUnknown(what, given, known) {
 // Deckit in main, made of deck's parts and its own, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const HOME = createHome({ CONFIG, FOLDERS });
-    const LOG = createLog({ CONFIG, HOME });
     // What Electron gives deck, held to what deck is given, carrying the channels before anything crosses.
-    const ENV = ENVIRONMENT.checked(environment, ENVIRONMENT.MAIN, 'what Electron gives deck');
+    const ENV = ENVIRONMENT.checked(
+        createEnvironment({ CONFIG, HOME, core }),
+        ENVIRONMENT.MAIN,
+        'what Electron gives deck'
+    );
+    // Deck's log, and listening on Electron's objects with what a listener throws logged.
+    const LOG = Object.freeze({ ...createLog({ log: ENV.log, about: ENV.about }), guard: LISTENER.guard });
     IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
-    const CORE = createCore({ CONFIG, FOLDERS, HOME, LOG, core });
-    const STORAGE = createStorage({ HOME, CORE, LOG });
+    const CORE = createCore({ CONFIG, FOLDERS, LOG, core: ENV.core, home: ENV.folders.home });
+    const STORAGE = createStorage({ CORE, LOG });
     const PERMISSION = createPermission();
     const FOLDER = createFolder();
-    const CATALOG = createCatalog({ CORE, LOG });
+    const CATALOG = createCatalog({ CORE, LOG, files: ENV.files });
     const IDENTITY = createIdentity({ pages: ENV.pages });
     const SANDBOX = createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE });
@@ -112,7 +119,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const EXPORT = createExport({ CORE, IDENTITY, RUNNER });
     const EXTENSION = createExtension({ CORE, IDENTITY, RUNNER });
     const EVENT = createEvent({ CORE, LOG, IDENTITY });
-    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, storage: ENV.storage });
     const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
     const PARTITION = createPartition({ CONFIG });
     const SESSION = createSession({ STORAGE, LOG, PARTITION });
@@ -140,7 +147,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const NOTIFICATION = createNotification({ LOG, IDENTITY, clicked: () => host.notificationClicked() });
     const CLIPBOARD = createClipboard({ IDENTITY });
     const COMMAND = createCommand({ LOG, IDENTITY, CORE });
-    const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
+    const MAIN_PROCESS = createMainProcess({ HOME, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
     const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, RUNNER, LOG });
@@ -194,7 +201,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     // state. What follows the mods' runs starts before the runner launches any.
     async function start(preload) {
         LOG.start({
-            nameOf: (webContents) => IDENTITY.modOf(webContents)?.id || IDENTITY.pageNameOf(webContents) || 'page',
+            nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
         CORE.start({ permissions: PERMISSION.all() });
         await STORAGE.load();
