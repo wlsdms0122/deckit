@@ -50,5 +50,8 @@ const mods = fs
     .readdirSync(path.join(folder, 'mods'))
     .filter((name) => !name.startsWith('.'))
     .sort();
-const described = { name: 'deckit', version, api, source, scheme, bundles, mods };
+// The core's executable, which the build put at the root.
+const core = 'deckit';
+if (!fs.existsSync(path.join(folder, core))) throw new Error('the library has no core');
+const described = { name: 'deckit', version, api, source, scheme, bundles, core, mods };
 fs.writeFileSync(path.join(folder, 'deckit.json'), JSON.stringify(described, null, 2) + '\n');
