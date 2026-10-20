@@ -1,4 +1,4 @@
-import * as CHANNEL from '../../deckit-shell/channel/index.js';
+import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
 
 // Each question carries the session it is for, whose entries the page keeps until it ends.
 export const collect = CHANNEL.mainToPage('deckit-electron:command-collect', { reply: true });

@@ -1,6 +1,6 @@
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
-import * as CHANNEL from '../../deckit-shell/channel/index.js';
-import * as IPC from '../deck/ipc/index.js';
+import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
+import * as IPC from '../../deckit-shell/deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as OPEN_PERMISSION from './model/permission.js';
 

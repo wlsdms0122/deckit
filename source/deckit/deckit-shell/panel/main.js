@@ -1,4 +1,4 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../deck/channel/index.js';
 import * as LAYER from '../layer/index.js';
 import * as DECLARED from './protocol.js';
 import * as WIDTH from './model/width.js';

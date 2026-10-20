@@ -1,5 +1,5 @@
 // MARK: - Property
-const ENGINE = makeEngine();
+const ENGINE = Object.freeze(makeEngine());
 const TIER = ENGINE.TIER;
 // The ranker's worker runs the engine from this source, so the engine reaches nothing outside itself.
 const script = `const MATCH = (${makeEngine})();`;

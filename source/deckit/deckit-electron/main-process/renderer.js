@@ -1,7 +1,7 @@
 import * as EVENT_BUS from '../deck/event/bus.js';
 import * as PROXY from '../deck/export/proxy.js';
-import * as CHANNEL from '../../deckit-shell/channel/index.js';
-import * as IPC from '../deck/ipc/index.js';
+import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
+import * as IPC from '../../deckit-shell/deck/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

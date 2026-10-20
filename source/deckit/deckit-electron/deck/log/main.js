@@ -1,7 +1,7 @@
 import * as LOG_FILE from './file.js';
 import * as LISTENER from '../listener/index.js';
-import * as CHANNEL from '../../../deckit-shell/channel/index.js';
-import * as IPC from '../ipc/index.js';
+import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
+import * as IPC from '../../../deckit-shell/deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
@@ -35,7 +35,6 @@ export function createLog({ CONFIG, HOME }) {
         const { app } = require('electron');
         writer = LOG_FILE.open({ folder: HOME.logs, name: CONFIG.id });
         file = writer.file;
-        LISTENER.reportTo((label, failure) => error(`${label} failed`, failure));
         PROTOCOL.line.on(({ level, parts }, sender) => say(nameOf(sender), LEVELS.has(level) ? level : 'info', parts));
         info(`start, ${app.getName()} ${app.getVersion()}, Electron ${process.versions.electron}`);
     }

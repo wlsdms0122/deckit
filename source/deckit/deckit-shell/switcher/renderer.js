@@ -3,7 +3,7 @@ import * as ICON from '../ui/icon/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as VIEW_MODEL from './view-model.js';
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

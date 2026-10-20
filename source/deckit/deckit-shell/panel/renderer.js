@@ -1,6 +1,6 @@
 import * as SCROLL from '../ui/scroll/index.js';
 import * as KIT from '../ui/kit/index.js';
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property

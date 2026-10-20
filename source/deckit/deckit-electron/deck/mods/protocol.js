@@ -1,5 +1,5 @@
 // Between a page of a mod with deckit.mods and main, about the mods.
-import * as CHANNEL from '../../../deckit-shell/channel/index.js';
+import * as CHANNEL from '../../../deckit-shell/deck/channel/index.js';
 
 export const mods = CHANNEL.pageToMain('deckit-electron:mods', {}, { reply: true, sync: true });
 export const install = CHANNEL.pageToMain('deckit-electron:mods-install', { from: 'string' }, { reply: true });

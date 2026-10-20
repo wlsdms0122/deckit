@@ -1,4 +1,4 @@
-import * as CHANNEL from '../channel/index.js';
+import * as CHANNEL from '../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // `deckit` is what connect answered.

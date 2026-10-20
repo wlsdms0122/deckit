@@ -1,33 +1,16 @@
-// MARK: - Property
-let report = (label, error) => console.error(`[deckit] ${label} failed`, error);
+import * as LISTENER from '../../../deckit-shell/deck/listener/index.js';
 
+// MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// An exception nobody catches in main ends the app with no dialog, and a library does not own the process
-// to catch it there. So every listener it adds goes through here, and a throw is reported instead.
+// A listener on one of Electron's emitters, reported as deck's listeners are when it throws: a library does not own
+// the process to catch it.
 function guard(emitter, event, listener, { once = false } = {}) {
-    const guarded = wrap(listener, event);
+    const guarded = LISTENER.wrap(listener, event);
     emitter[once ? 'once' : 'on'](event, guarded);
     return guarded;
 }
 
-function wrap(listener, label) {
-    return (...args) => {
-        try {
-            const result = listener(...args);
-            if (result instanceof Promise) result.catch((error) => report(label, error));
-            return result;
-        } catch (error) {
-            report(label, error);
-        }
-    };
-}
-
-// Where the listeners of the bundle that carries this report what they throw: a layer's bundle carries its own.
-function reportTo(reporter) {
-    report = reporter;
-}
-
 // MARK: - Private
 
-export { guard, wrap, reportTo };
+export { guard };
