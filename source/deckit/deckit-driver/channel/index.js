@@ -44,7 +44,7 @@ function declarationProblem(declared) {
     if (typeof channel !== 'string' || !channel) return 'a channel is declared with its name';
     if (to !== 'main' && to !== 'page') return `${channel} goes to main or to a page`;
     if (typeof reply !== 'boolean' || typeof sync !== 'boolean') return `${channel} says whether it is answered`;
-    if (sync && (to !== 'main' || !reply)) return `${channel} is answered at once only as a page asks main`;
+    if (sync && (to !== 'main' || !reply)) return `${channel} is sync only as a page asks main`;
     if (to === 'page') return '';
     if (kindOf(fields) !== 'object') return `${channel} is declared with its fields`;
     for (const [key, written] of Object.entries(fields))

@@ -24,12 +24,12 @@ if (!Number.isInteger(port) || port <= 0) {
 }
 
 const main = async () => {
+    execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', 'channels.js')], {
+        stdio: 'inherit',
+    });
     const archive = APP.builtArchive();
     const core = path.join(root, 'source', 'deckit', 'deckit');
     const scratch = path.join(root, '.build', 'core-test');
-    execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', 'channels.mjs')], {
-        stdio: 'inherit',
-    });
     execFileSync('swift', ['test', '--quiet', '--package-path', core, '--scratch-path', scratch], { stdio: 'inherit' });
     fs.rmSync(OUT, { recursive: true, force: true });
     fs.mkdirSync(OUT, { recursive: true });

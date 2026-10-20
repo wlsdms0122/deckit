@@ -2,9 +2,6 @@
 // channel it is on beside what it says.
 import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 
-// The names deckit-electron's channels start with: a layer's never do.
-export const OWN = 'deckit-electron:';
-
 // What a page tells main, and asks it, waiting for the answer when the channel is `sync`: { channel, payload }.
 export const pageTells = CHANNEL.pageToMain('deckit-electron:page-tells', { channel: 'string', payload: 'object' });
 export const pageAsks = CHANNEL.pageToMain(

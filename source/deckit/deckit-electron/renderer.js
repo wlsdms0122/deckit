@@ -1,5 +1,7 @@
 import * as PAGE from './page/renderer.js';
 import * as IPC from './deck/ipc/index.js';
+import * as LISTENER from './deck/listener/index.js';
+import * as LOG from './deck/log/renderer.js';
 import * as ORIGIN from './deck/sandbox/model/origin.js';
 import { createRun } from './deck/runner/run.js';
 import { createRunner } from './deck/runner/renderer.js';
@@ -22,6 +24,8 @@ import { createMod } from './mod/renderer.js';
 function boot({ before, shell = null } = {}) {
     for (const name of Object.keys(window)) if (!before.has(name)) delete window[name];
     if (location.protocol !== ORIGIN.SCHEME.scheme + ':') return;
+    // What a listener on the page's channels throws goes to deckit's log, as main's does.
+    LISTENER.reportTo((label, failure) => LOG.error(`${label} failed`, failure));
     if (document.readyState === 'loading')
         document.addEventListener('DOMContentLoaded', () => start(shell), { once: true });
     else start(shell);
@@ -46,6 +50,7 @@ function start(shell) {
         NOTIFICATION: createNotification(),
         KEYMAP: createKeymap(),
         COMMAND: createCommand(),
+        CHANNELS: IPC.layerChannels,
     });
     RUNNER.start({ layer: MOD.layerOf(shell?.mod || null) });
 }

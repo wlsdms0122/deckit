@@ -10,9 +10,9 @@ import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../open/model/permission.js';
-import * as IPC from '../deck/ipc/index.js';
 
-export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
+// `CHANNELS` is what the shell's layer binds its channels with in the page.
+export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
     // MARK: - Property
     // What the shell gives a mod where none is on deckit: nothing.
     const NO_SHELL = Object.freeze({
@@ -41,7 +41,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
             NOTIFICATION.listen(deliver);
             const chordOf = (action) => KEYMAP.chord(action, { app: true });
             const given = shellMod
-                ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail, channels: IPC.layerChannels }) }
+                ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail, channels: CHANNELS }) }
                 : NO_SHELL;
             const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
             const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
