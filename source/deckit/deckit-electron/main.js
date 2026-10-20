@@ -66,7 +66,13 @@ function refuseUnknown(what, given, known) {
 
 // Deckit in main, made of deck and its own parts, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders }) {
-    const deck = DECK.createDeck({ id: CONFIG.id, name: CONFIG.name, core, ...folders });
+    const deck = DECK.createDeck({
+        id: CONFIG.id,
+        name: CONFIG.name,
+        schemeHandlers: CONFIG.schemeHandlers,
+        core,
+        ...folders,
+    });
     const { log: LOG, home: HOME, storage: STORAGE, identity: IDENTITY, catalog: CATALOG, runner: RUNNER } = deck;
     const { permission: MOD_PERMISSION, folder: FOLDER } = deck;
     const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
@@ -92,10 +98,10 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         CERTIFICATE,
         SCRIPT,
     });
-    const OPEN = createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER });
+    const OPEN = createOpen({ LOG, IDENTITY, CORE: deck.core });
     const NOTIFICATION = createNotification({ LOG, IDENTITY, clicked: () => host.notificationClicked() });
     const CLIPBOARD = createClipboard({ IDENTITY });
-    const COMMAND = createCommand({ LOG, IDENTITY, CATALOG, RUNNER });
+    const COMMAND = createCommand({ LOG, IDENTITY, CORE: deck.core });
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, deck });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
@@ -147,7 +153,6 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         OPEN.start();
         NOTIFICATION.start();
         CLIPBOARD.start();
-        COMMAND.start();
         MAIN_PROCESS.start();
         MOD_FOLDER.start();
         RUNTIME.start();
@@ -186,13 +191,15 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         WEB.prepareEmbedder(webContents);
         KEYMAP.listen(webContents, { page: WEB.pageFor(webContents) });
         const pressed = () => ({ userInitiated: IDENTITY.consumeUserActivation(webContents) });
+        const unopened = (url) => (error) => LOG.warn(`${mod.id}: ${url} did not open`, error);
         webContents.setWindowOpenHandler((details) => {
-            OPEN.open(details.url, { ...WEB.windowOptions(details), ...pressed() });
+            OPEN.open(details.url, { ...WEB.windowOptions(details), ...pressed() }).catch(unopened(details.url));
             return { action: 'deny' };
         });
         const origin = DECK.originOf(mod.id);
         LOG.guard(webContents, 'will-frame-navigate', (details) => {
-            if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.open(details.url, pressed());
+            if (details.isMainFrame && !details.url.startsWith(origin + '/'))
+                OPEN.open(details.url, pressed()).catch(unopened(details.url));
         });
     }
 }

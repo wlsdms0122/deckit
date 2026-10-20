@@ -1,22 +1,13 @@
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
-import * as SCHEME from './model/scheme.js';
 import * as PROTOCOL from './protocol.js';
 import * as OPEN_PERMISSION from './model/permission.js';
 
-export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) {
+export function createOpen({ LOG, IDENTITY, CORE }) {
     // MARK: - Property
     const fs = require('fs');
     const path = require('path');
-    const CHOSEN = 'scheme-handlers';
     // A handler that has not answered by then passes, so one stuck page does not hold every link.
     const OFFER_MS = 3000;
-    // What deckit opens by itself, after every mod that takes the scheme: the answer that is always last.
-    const SYSTEM = new Map([
-        ['http', 'browser'],
-        ['https', 'browser'],
-        ['file', 'file'],
-    ]);
-    const answering = new Set(); // mod ids whose page answers offers
 
     // MARK: - Initializer
     // MARK: - Public
@@ -28,14 +19,6 @@ export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) 
                 userInitiated: spendsUserActivation(sender),
             });
         });
-        PROTOCOL.handles.on((_payload, sender) => {
-            const mod = IDENTITY.modFrom(sender);
-            answering.add(mod.id);
-            // A page being replaced ends after its successor is up: only the page on duty stops answering.
-            IDENTITY.whenPageEnds(sender, () => IDENTITY.pageOf(mod.id) === sender && answering.delete(mod.id));
-        });
-        // A run that has ended answers no offer, though its page may stay until the mod launches again.
-        RUNNER.observe('didTerminate', ({ mod }) => answering.delete(mod.id));
         // Only on a person's click or key: otherwise any mod could open Finder at will, or learn which paths exist.
         PROTOCOL.reveal.handle(({ file }, sender) => {
             IDENTITY.modFrom(sender);
@@ -43,29 +26,21 @@ export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) 
         });
         PROTOCOL.handlerLists.handle((_payload, sender) => {
             IDENTITY.modFrom(sender, OPEN_PERMISSION.URL_SCHEMES);
-            return schemes().map((scheme) => ({
-                scheme,
-                system: scheme === SCHEME.EVERY ? null : SYSTEM.get(scheme) || null,
-                handlers: handlersOf(scheme),
-            }));
+            return CORE.request('open/handlerLists');
         });
         PROTOCOL.setHandlers.handle(({ scheme, order, off }, sender) => {
             IDENTITY.modFrom(sender, OPEN_PERMISSION.URL_SCHEMES);
-            return setHandlers(scheme, order, off);
+            return CORE.request('open/setHandlers', { scheme, order, off });
         });
     }
 
-    // Each of the scheme's handlers is asked in turn and the first to take it ends it; then deckit's own answer. A
-    // file opens only during a person's click or key, whoever answers it, as reveal shows one: otherwise any mod
-    // could open apps at will, or learn which paths exist.
+    // Offered to each handler the core routes it to in turn, the first to take it ending it; then opened by what deckit
+    // opens it with by itself.
     async function open(url, { activates = true, userInitiated = false, usesDefaultApp = false, target = '' } = {}) {
-        const address = String(url).trim();
-        const scheme = schemeOf(address);
-        if (!scheme || SCHEME.NOT_PLACES.has(scheme)) return false;
-        if (scheme === 'file' && !userInitiated) return false;
+        const route = await CORE.request('open/route', { url: String(url), userInitiated, usesDefaultApp });
         const options = { activates, userInitiated, target };
-        if (!usesDefaultApp && (await offer(handledAs(scheme), address, options))) return true;
-        return system(scheme, address, options);
+        if (await offer(route.handlers, route.url, options)) return true;
+        return system(route.system, route.url, { activates });
     }
 
     // MARK: - Private
@@ -77,78 +52,13 @@ export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) 
         return IDENTITY.consumeUserActivation(sender);
     }
 
-    function schemeOf(url) {
-        const at = url.indexOf(':');
-        const scheme = at > 0 ? url.slice(0, at).toLowerCase() : '';
-        return SCHEME.SCHEME.test(scheme) ? scheme : '';
-    }
-
-    function chosen() {
-        return STORAGE.state.read(CHOSEN, {});
-    }
-
-    // Every scheme with a handler list: deckit's own, then each one a running mod names, then every other.
-    function schemes() {
-        const named = CATALOG.mods()
-            .filter(({ id }) => answering.has(id))
-            .flatMap(({ urlSchemes }) => urlSchemes);
-        const own = named.filter((scheme) => scheme !== SCHEME.EVERY);
-        return [...new Set([...SYSTEM.keys(), ...own, ...(named.includes(SCHEME.EVERY) ? [SCHEME.EVERY] : [])])];
-    }
-
-    // The scheme whose handlers an address is offered to: its own, or every scheme's when it has no list.
-    function handledAs(scheme) {
-        return scheme !== SCHEME.EVERY && schemes().includes(scheme) ? scheme : SCHEME.EVERY;
-    }
-
-    // What the app names first and the person has not placed, then what the person placed.
-    function orderOf(scheme) {
-        const saved = savedOf(scheme);
-        const appFirst = Object.hasOwn(CONFIG.schemeHandlers, scheme) ? CONFIG.schemeHandlers[scheme] : [];
-        return [...appFirst.filter((id) => !saved.order.includes(id)), ...saved.order];
-    }
-
-    function savedOf(scheme) {
-        return Object.hasOwn(chosen(), scheme) ? chosen()[scheme] : { order: [], off: [] };
-    }
-
-    // In the scheme's order; a mod no one placed comes after, by its id: the mods' order in the panel says nothing of
-    // who opens what.
-    function handlersOf(scheme) {
-        const order = orderOf(scheme);
-        const off = savedOf(scheme).off;
-        const rank = (id) => (order.includes(id) ? order.indexOf(id) : order.length);
-        return CATALOG.mods()
-            .filter(
-                (mod) =>
-                    answering.has(mod.id) && mod.urlSchemes.some((named) => named === SCHEME.EVERY || named === scheme)
-            )
-            .map((mod) => ({ id: mod.id, name: mod.name, on: !off.includes(mod.id) }))
-            .sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
-    }
-
-    // The ids given take the places they held among themselves. A mod missing from the list now (failed to
-    // load, or waiting on what it requires) keeps its place and switch: otherwise editing the list while it was
-    // gone would give its place to the app's default.
-    function setHandlers(scheme, order, off) {
-        if (!schemes().includes(scheme)) throw new Error('no mod handles ' + scheme);
-        const given = new Set(order);
-        const next = [...order];
-        const merged = orderOf(scheme).map((id) => (given.has(id) ? next.shift() : id));
-        merged.push(...next);
-        const offKept = savedOf(scheme).off.filter((id) => !given.has(id));
-        STORAGE.state.write(CHOSEN, { ...chosen(), [scheme]: { order: merged, off: [...offKept, ...off] } });
-        return true;
-    }
-
     // Only a plain true takes it, so a forgotten return passes it on rather than losing it.
-    async function offer(scheme, url, options) {
-        for (const handler of handlersOf(scheme)) {
-            if (!handler.on) continue;
-            const page = IDENTITY.pageOf(handler.id);
+    async function offer(handlers, url, options) {
+        for (const id of handlers) {
+            const page = IDENTITY.pageOf(id);
             if (!page) continue;
             const taken = await PROTOCOL.offer.invoke(page, { url, options }, { timeout: OFFER_MS }).catch((error) => {
-                LOG.warn(`${handler.id} could not open ${url}`, error);
+                LOG.warn(`${id} could not open ${url}`, error);
                 return false;
             });
             if (taken === true) return true;
@@ -156,15 +66,14 @@ export function createOpen({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER }) 
         return false;
     }
 
-    // The web goes to the system browser, and a file to its app: outside the app, so only when a person asked.
-    async function system(scheme, url, { activates, userInitiated }) {
-        if (!userInitiated) return false;
+    // The web goes to the system browser, and a file to its app.
+    async function system(handler, url, { activates }) {
         const { shell } = require('electron');
-        if (SYSTEM.get(scheme) === 'browser') {
+        if (handler === 'browser') {
             await shell.openExternal(url, { activate: activates });
             return true;
         }
-        if (SYSTEM.get(scheme) !== 'file') return false;
+        if (handler !== 'file') return false;
         const file = existing(filePathOf(url));
         return !!file && !(await shell.openPath(file));
     }

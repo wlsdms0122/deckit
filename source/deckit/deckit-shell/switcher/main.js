@@ -16,7 +16,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
     const EXIT_LIMIT_MS = 400;
     const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
     const handed = new Map(); // entry id -> { mod, kind, group, label }, of what the list was given since it opened
-    let session = null; // deckit's commands, asked for this list since it last opened
+    let session = null; // a promise of deckit's commands, asked for this list since it last opened, or of null
     let supplies = 0;
 
     // MARK: - Initializer
@@ -131,10 +131,16 @@ export function createSwitcher({ PANEL, deckit, host }) {
     // opened again asks in a session of its own, and what the last one was handed goes.
     async function supply() {
         const mine = ++supplies;
-        session?.end();
-        session = deckit.commands.session();
+        session?.then((ended) => ended?.end());
+        // Asked at once, so a query typed while it is on its way waits for it.
+        session = deckit.commands.session().catch((error) => {
+            deckit.log.warn("the switcher could not ask for deckit's commands", error);
+            return null;
+        });
         handed.clear();
-        const commands = await session.list();
+        const current = await session;
+        if (!current || mine !== supplies) return;
+        const commands = await current.list();
         if (mine !== supplies) return;
         const used = deckit.state.read(USE, {});
         // Each mod's own entry that opens it ahead of its commands.
@@ -144,7 +150,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             .flatMap(({ id }) => [opening.get(id), ...commands.filter((entry) => entry.mod.id === id).map(hand)])
             .filter(Boolean)
             .map((entry) => ({ ...entry, used: frecency(used[keyOf(handed.get(entry.id))]) }));
-        const nows = session.now();
+        const nows = current.now();
         const buckets = nows.map(() => []);
         let late = false;
         const landed = nows.map((rows, index) =>
@@ -185,8 +191,8 @@ export function createSwitcher({ PANEL, deckit, host }) {
 
     // Each answer is sent as it lands, so a slow resolver holds back nobody. A query no one answers still gets one
     // empty reply: the list shows the last query's entries until it hears otherwise.
-    function resolve(raw) {
-        const answers = session?.resolve(raw) || [];
+    async function resolve(raw) {
+        const answers = (await session)?.resolve(raw) || [];
         const gathered = [];
         let left = answers.length;
         const answer = () => list() && PROTOCOL.resolved.send(list(), { raw, entries: gathered });
@@ -202,7 +208,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
 
     // The entries of a submenu, answered by its mod.
     async function search(raw, submenu) {
-        const found = await session?.search(submenu, raw);
+        const found = await (await session)?.search(submenu, raw);
         if (found && list()) PROTOCOL.resolved.send(list(), { raw, entries: found.map(hand), submenu });
     }
 
@@ -212,7 +218,9 @@ export function createSwitcher({ PANEL, deckit, host }) {
         if (!entry) return;
         if (entry.kind === 'command') remember(entry);
         if (id.startsWith(OPEN)) return PANEL.bringToFront(entry.mod);
-        session.run(id).catch((error) => deckit.log.warn(`${entry.mod}: a switcher entry failed`, error));
+        session
+            .then((current) => current?.run(id))
+            .catch((error) => deckit.log.warn(`${entry.mod}: a switcher entry failed`, error));
     }
 
     // An entry as the list is handed it, its mod drawn with the mod's icon and found by its keywords; what it is,
