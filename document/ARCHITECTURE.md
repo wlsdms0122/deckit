@@ -59,7 +59,7 @@ The core is `source/deckit/deckit`, a Swift package: `Deck`, `Deckit` on `Deck`,
 
 Main starts the core once the app is ready, from the file the host app hands `connect` as `core` (`deck/core`), and asks nothing else of it until it has answered `initialize` with deckit's folder. They speak JSON-RPC 2.0, a message a line: main's requests on the core's stdin and its answers on its stdout, and what it writes to stderr is deckit's log. The core answers one message at a time in the order they come, and asks main nothing. A refusal crosses with its kind, as between main and a page. How the messages go is `deck/core/connection.js` and `DeckitServer/Connection`; what they are, `deck/core/message.js` and `DeckitServer/Server/Model`.
 
-A core that ends after it answered `initialize` is replaced: main starts another, and every mod launches again on it. One that ends before it answered never started, and all that is asked of it is refused with why. The core ends as its stdin does, when the host app's process ends, however that ends.
+A core that ends is not started again. Main logs why, and refuses all that is asked of it after, saying the app is to be restarted, so whatever asked shows it: a mod's write that did not land, on its row in Settings. The core ends as its stdin does, when the host app's process ends, however that ends.
 
 ## 4. One owner for each fact
 
