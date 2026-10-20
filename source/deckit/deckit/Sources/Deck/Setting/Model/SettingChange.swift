@@ -1,5 +1,5 @@
 //
-//  WriteSettingParams.swift
+//  SettingChange.swift
 //  Deck
 //
 //  Created by JSilver on 10/20/26.
@@ -7,11 +7,11 @@
 
 import Foundation
 
-struct WriteSettingParams: Decodable {
+// What a setting was set to, and whether that changed it.
+struct SettingChange: Encodable, Equatable, Sendable {
     // MARK: - Property
-    let mod: String
-    let key: String
     let value: SettingValue
+    let changed: Bool
 
     // MARK: - Initializer
     // MARK: - Public
