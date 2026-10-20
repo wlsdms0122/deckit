@@ -29,7 +29,7 @@ extension Contribution: Codable {
     }
 
     // MARK: - Initializer
-    init(from decoder: any Decoder) throws {
+    public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Key.self)
         exports = try container.decode(Snapshot.self, forKey: .exports)
         extensionPoints = try container.decode([String].self, forKey: .extensionPoints)
@@ -42,7 +42,7 @@ extension Contribution: Codable {
     }
 
     // MARK: - Public
-    func encode(to encoder: any Encoder) throws {
+    public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: Key.self)
         for (key, value) in layers {
             try container.encode(value, forKey: Key(stringValue: key))

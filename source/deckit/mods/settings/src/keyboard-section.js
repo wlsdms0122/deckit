@@ -135,10 +135,11 @@ function keyboardSection({ ui, keymap }) {
         const reset = ui.rowAction({
             icon: ui.icon('reload', { size: 13 }),
             title: '',
-            onClick: () => {
-                keymap.reset(current.id);
-                draw(keymap.list());
-            },
+            onClick: () =>
+                keymap.reset(current.id).then(
+                    () => draw(keymap.list()),
+                    () => draw(keymap.list())
+                ),
         });
 
         chord.type = 'button';

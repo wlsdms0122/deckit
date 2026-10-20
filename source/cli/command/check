@@ -10,13 +10,12 @@ const IPC = 'deck/ipc/index.js';
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];
 const SURFACES = new Map(LIBRARY.PACKAGES.map((name) => [name, LIBRARY.surfaceOf(name)]));
-// Where each bundle runs: main, a renderer, or anywhere (the chord, for a page of the host app's).
+// Where each bundle runs: main or a renderer.
 const PLACES = {
     main: 'main',
     'shell-main': 'main',
     renderer: 'renderer',
     'shell-renderer': 'renderer',
-    chord: 'anywhere',
 };
 const NODE_MODULES = [
     'fs',
@@ -31,7 +30,6 @@ const NODE_MODULES = [
     'worker_threads',
 ];
 const NODE = new RegExp(`\\brequire\\(\\s*["'](?:node:)?(${NODE_MODULES.join('|')})["']\\s*\\)`);
-const ELECTRON = /\brequire\(\s*["']electron["']\s*\)/;
 
 const problems = [];
 const channels = new Map(); // channel -> the protocol that declares it
@@ -148,8 +146,7 @@ function checkCycles() {
 }
 
 // Each bundle carries its entry and what that imports, and runs where its place says: main.js never in a renderer,
-// renderer.js never in main, and nothing a renderer or anywhere carries requires Node; what runs anywhere requires no
-// Electron either. Every file is in a bundle.
+// renderer.js never in main, and nothing a renderer carries requires Node. Every file is in a bundle.
 function checkPlaces() {
     const carried = new Set();
     for (const [name, { entry }] of Object.entries(LIBRARY.BUNDLES)) {
@@ -163,8 +160,6 @@ function checkPlaces() {
                 say(file, `runs in a renderer, but the ${name} bundle carries it`);
             if (place !== 'main' && NODE.test(plain))
                 say(file, `requires a Node module, but the ${name} bundle carries it`);
-            if (place === 'anywhere' && ELECTRON.test(plain))
-                say(file, `requires Electron, but the ${name} bundle carries it`);
         }
     }
     for (const file of files)

@@ -10,7 +10,7 @@ import Foundation
 // What the person arranged and what deck and the layers on it keep between runs: JSON by key, one file a key, in the
 // state folder or in a folder of its own one down, for one who names its keys as it likes. Deck keeps the text it is
 // handed and never reads what it says.
-final class State {
+public final class State {
     // MARK: - Property
     private let fileExtension = "json"
     private let root: URL
@@ -24,11 +24,11 @@ final class State {
 
     // MARK: - Public
     // `folder` names the folder of its own a key is kept in, or nil for the state folder.
-    func read(folder: String?, key: String) throws -> String? {
+    public func read(folder: String?, key: String) throws -> String? {
         store.read(try file(in: folder, key: key))
     }
 
-    func write(folder: String?, key: String, text: String) throws {
+    public func write(folder: String?, key: String, text: String) throws {
         try store.write(text, to: try file(in: folder, key: key))
     }
 

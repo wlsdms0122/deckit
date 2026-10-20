@@ -66,7 +66,7 @@ function refuseUnknown(what, given, known) {
 
 // Deckit in main, made of deck and its own parts, each handed what it uses.
 function make({ preload, core, host, config: CONFIG, folders }) {
-    const deck = DECK.createDeck({ id: CONFIG.id, core, ...folders });
+    const deck = DECK.createDeck({ id: CONFIG.id, name: CONFIG.name, core, ...folders });
     const { log: LOG, home: HOME, storage: STORAGE, identity: IDENTITY, catalog: CATALOG, runner: RUNNER } = deck;
     const { permission: MOD_PERMISSION, folder: FOLDER } = deck;
     const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
@@ -78,7 +78,7 @@ function make({ preload, core, host, config: CONFIG, folders }) {
     const SITE_PERMISSION = createSitePermission({ IDENTITY, SESSION, REGISTRY });
     const CERTIFICATE = createCertificate({ LOG, SESSION, REGISTRY });
     const SCRIPT = createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION });
-    const KEYMAP = createKeymap({ CONFIG, STORAGE, LOG, IDENTITY, CATALOG, RUNNER });
+    const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE: deck.core });
     const WEB = createWeb({
         WINDOW,
         LOG,

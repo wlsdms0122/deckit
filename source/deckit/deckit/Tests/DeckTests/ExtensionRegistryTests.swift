@@ -37,7 +37,7 @@ struct ExtensionRegistryTests {
         )
 
         // When
-        let problems = sut.problems(of: "google", run: 1)
+        let problems = sut.problems(of: try #require(runner.run(of: "google")), mod: try #require(runner.mod(of: "google")))
 
         // Then
         #expect(

@@ -15,7 +15,7 @@ export function createPanel({ REGION, deckit, host }) {
     // page is laid while the frame moves: what it covers before and after.
     // `animates` is the mod the move was told to.
     const shell = { view: null, surfaces: new Map(), rects: null, moving: null, settling: null, animates: null };
-    const keys = { back: null, forward: null }; // the ids of the panel's keys a tooltip names
+    const NAMED_KEYS = new Set(['back', 'forward']); // the actions of the panel's keys a tooltip names
     let raised = new Set(); // the children laid over their regions, lifted over the mod on screen
     let front = null; // what is lifted over every view: the frame, or the mod on screen while something floats in it
     const history = { list: [], at: -1 };
@@ -109,7 +109,7 @@ export function createPanel({ REGION, deckit, host }) {
             return { glass: GLASS, look: frameLook(), shown, state: stateOf() };
         });
         PROTOCOL.chord.handle(({ action }, sender) =>
-            fromFrame(sender) && Object.hasOwn(keys, action) ? deckit.keymap.chordOf(keys[action]) : ''
+            fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(action) : ''
         );
         PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
@@ -258,13 +258,13 @@ export function createPanel({ REGION, deckit, host }) {
             label: 'Toggle sidebar',
             run: () => setSidebar({ collapsed: !sidebar.collapsed }),
         });
-        keys.back = deckit.keymap.register({
+        deckit.keymap.register({
             action: 'back',
             key: 'ctrl+mod+[',
             label: 'Back to the previous mod',
             run: () => step(-1),
         });
-        keys.forward = deckit.keymap.register({
+        deckit.keymap.register({
             action: 'forward',
             key: 'ctrl+mod+]',
             label: 'Forward to the next mod',

@@ -16,12 +16,12 @@ import { createExtension } from './extension/main.js';
 import { createEvent } from './event/main.js';
 import { createMods } from './mods/main.js';
 
-// Deck in main, made of its parts, each handed what it uses. `id` names everything deck keeps; `home` is its folder,
-// ~/.config/<id> when none is given; `ship` the mod folders the host app ships, installed at every start; `sources`
-// folders of mods read in place, ahead of installed ones; `core` the core's executable. Answers what the layers on deck
-// reach of it.
-export function createDeck({ id = 'deckit', home = null, ship = [], sources = [], core } = {}) {
-    const CONFIG = Object.freeze({ id, home, ship, sources, core });
+// Deck in main, made of its parts, each handed what it uses. `id` names everything deck keeps, and `name` is the app's,
+// as a person reads it; `home` is its folder, ~/.config/<id> when none is given; `ship` the mod folders the host app
+// ships, installed at every start; `sources` folders of mods read in place, ahead of installed ones; `core` the core's
+// executable. Answers what the layers on deck reach of it.
+export function createDeck({ id = 'deckit', name = 'Deckit', home = null, ship = [], sources = [], core } = {}) {
+    const CONFIG = Object.freeze({ id, name, home, ship, sources, core });
     const HOME = createHome({ CONFIG });
     const LOG = createLog({ CONFIG, HOME });
     const CORE = createCore({ CONFIG, HOME, LOG });
@@ -68,8 +68,8 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         RUNNER.start({ preparePage, webPreferences });
     }
 
-    // What the layers on deck reach of it, and no more: who a page is, the mods and their runs, what a layer defines,
-    // where a mod's files and deck's state are, and the log.
+    // What the layers on deck reach of it, and no more: who a page is, the mods and their runs and what of the core's
+    // answers is theirs, the core, what a layer defines, where a mod's files and deck's state are, and the log.
     return Object.freeze({
         SCHEME: SANDBOX.SCHEME,
         prepare,
@@ -100,7 +100,9 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
             runOf: RUNNER.runOf,
             launchedOf: RUNNER.launchedOf,
             relaunchAll: RUNNER.relaunchAll,
+            handleEffect: RUNNER.handleEffect,
         }),
+        core: Object.freeze({ request: CORE.request }),
         permission: Object.freeze({ define: PERMISSION.define }),
         folder: Object.freeze({ fileIn: FOLDER.fileIn }),
         storage: Object.freeze({ state: STORAGE.state, stateIn: STORAGE.stateIn, folderOf: STORAGE.folderOf }),

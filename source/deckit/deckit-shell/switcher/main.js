@@ -16,14 +16,13 @@ export function createSwitcher({ PANEL, deckit, host }) {
     const EXIT_LIMIT_MS = 400;
     const state = { view: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
     const handed = new Map(); // entry id -> { mod, kind, group, label }, of what the list was given since it opened
-    let bindingId = null; // the switcher's key in the keymap
     let session = null; // deckit's commands, asked for this list since it last opened
     let supplies = 0;
 
     // MARK: - Initializer
     // MARK: - Public
     function start() {
-        bindingId = deckit.keymap.register({
+        deckit.keymap.register({
             action: 'switcher',
             key: 'mod+shift+g',
             label: 'Quick switcher',
@@ -277,7 +276,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             close,
             shown: () => state.on,
             // The chord that summons it now, as a person reads it, or '' when it has none.
-            chord: () => deckit.keymap.chordOf(bindingId),
+            chord: () => deckit.keymap.chordOf('switcher'),
         },
     };
 }

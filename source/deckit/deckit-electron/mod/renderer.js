@@ -6,7 +6,6 @@ import * as OPEN from '../open/renderer.js';
 import * as MAIN_PROCESS from '../main-process/renderer.js';
 import * as MOD_FOLDER from '../mod-folder/renderer.js';
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
-import * as BINDING_ID from '../keymap/model/binding-id.js';
 import * as CLIPBOARD_PERMISSION from '../clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../keymap/model/permission.js';
@@ -39,7 +38,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
         return ({ mod, deliver, fail }) => {
             WEB.listen();
             NOTIFICATION.listen(deliver);
-            const chordOf = (action) => KEYMAP.chord(BINDING_ID.idOf(BINDING_ID.APP_OWNER, action));
+            const chordOf = (action) => KEYMAP.chord(action, { app: true });
             const given = shellMod ? { ...NO_SHELL, ...shellMod({ mod, chordOf, deliver, fail }) } : NO_SHELL;
             const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
             const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
@@ -82,7 +81,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,
             about: RUNTIME.about,
-            chordOf: (action) => KEYMAP.chord(BINDING_ID.idOf(mod.id, action)),
+            chordOf: (action) => KEYMAP.chord(action),
             clipboard: Object.freeze(
                 has(CLIPBOARD_PERMISSION.CLIPBOARD)
                     ? { readText: CLIPBOARD.readText, writeText: CLIPBOARD.writeText }
@@ -130,14 +129,10 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND }) {
             resolve: typeof parts.resolve === 'function' ? (query) => parts.resolve(query) : null,
             fail,
         });
-        KEYMAP.scope(parts.keys, {
-            invalid: fail,
-            global: mod.permissions.some(({ id }) => id === KEYMAP_PERMISSION.GLOBAL_KEYS),
-            problemOf: (key) => given.keyProblem(key, parts),
-        });
+        const keys = KEYMAP.declare(parts.keys, { invalid: fail, problemOf: (key) => given.keyProblem(key, parts) });
         KEYMAP.hear({ deliver, blocksKeys: given.blocksKeys });
         return {
-            contributions: { ...reported.contributions },
+            contributions: { ...reported.contributions, keys },
             summary: {
                 ...reported.summary,
                 icon: String(entry.icon || ''),

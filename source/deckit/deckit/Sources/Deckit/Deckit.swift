@@ -12,23 +12,51 @@ import Deck
 public final class Deckit {
     // MARK: - Property
     private let deck: Deck
+    private let keymap: Keymap
 
     // MARK: - Initializer
-    // `permissions` are those the layers on deck guard what they add with, deckit's own among them.
-    public init(home: URL, ship: [URL], sources: [URL], api: Version, permissions: [Permission]) throws {
-        self.deck = try Deck(
+    // `name` is the app's, as a person reads it, and `permissions` are those main defines, for what deck, deckit and the
+    // shell add; the core adds those it checks itself.
+    public init(home: URL, ship: [URL], sources: [URL], api: Version, name: String, permissions: [Permission]) throws {
+        let deck = try Deck(
             home: home,
             ship: ship,
             sources: sources,
             api: api,
-            permissions: permissions,
+            permissions: permissions + [Keymap.globalKeys],
             fields: [URLSchemesField()]
         )
+        let keymap = Keymap(deck: deck, appName: name)
+        deck.add(keymap)
+        self.deck = deck
+        self.keymap = keymap
     }
 
     // MARK: - Public
     public func answer(_ call: Call) throws -> (any Encodable & Sendable)? {
-        try deck.answer(call)
+        switch call.method {
+        case "keymap/register":
+            return keymap.register(try call.params.decode(as: Key.self))
+
+        case "keymap/bind":
+            let params = try call.params.decode(as: BindKeyParams.self)
+            return try keymap.bind(params.id, spec: params.spec)
+
+        case "keymap/reset":
+            let params = try call.params.decode(as: ResetKeyParams.self)
+            return try keymap.reset(params.id)
+
+        case "keymap/record":
+            let params = try call.params.decode(as: RecordKeyParams.self)
+            return keymap.record(params.keystroke)
+
+        case "keymap/keystrokes":
+            let params = try call.params.decode(as: KeystrokesParams.self)
+            return keymap.keystrokes(of: params.specs)
+
+        default:
+            return try deck.answer(call)
+        }
     }
 
     // MARK: - Private

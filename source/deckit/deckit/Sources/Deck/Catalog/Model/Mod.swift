@@ -8,9 +8,9 @@
 import Foundation
 
 // A mod as deck found it: what its manifest says, where it is, and whether it loads.
-struct Mod: Sendable {
+public struct Mod: Sendable {
     // MARK: - Property
-    let manifest: Manifest
+    public let manifest: Manifest
     let folder: URL
     // Whether it is a copy in deck's mods folder.
     let installed: Bool
