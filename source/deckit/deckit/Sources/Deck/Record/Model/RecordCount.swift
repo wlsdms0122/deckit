@@ -7,7 +7,8 @@
 
 import Foundation
 
-// How many files a mod's records are, every one whatever wrote it, and whether a hidden one is among them.
+// How many files a mod's records are, every one whatever wrote it but the hidden ones, and whether there are any
+// of those.
 struct RecordCount: Encodable, Equatable {
     // MARK: - Property
     let count: Int

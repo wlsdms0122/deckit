@@ -99,7 +99,7 @@ struct RecordTests {
         #expect(try sut.read(mod: "finder", key: "a") == "2")
     }
 
-    @Test("count is every file of the mod's records, and says whether one is hidden")
+    @Test("count is every file of the mod's records but the hidden ones, and says whether there are any")
     func testThatCountIsEveryFile() throws {
         // Given
         try sut.write(mod: "notes", key: "a", text: "1")
@@ -110,7 +110,7 @@ struct RecordTests {
         let count = try sut.count(mod: "notes")
 
         // Then
-        #expect(count == RecordCount(count: 3, hidden: true))
+        #expect(count == RecordCount(count: 2, hidden: true))
         #expect(try sut.count(mod: "never") == RecordCount(count: 0, hidden: false))
     }
 

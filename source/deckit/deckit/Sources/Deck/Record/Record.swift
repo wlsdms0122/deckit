@@ -54,7 +54,8 @@ final class Record {
 
     func count(mod: String) throws -> RecordCount {
         let names = try store.names(in: folder(of: mod))
-        return RecordCount(count: names.count, hidden: names.contains { $0.hasPrefix(".") })
+        let hidden = names.filter { $0.hasPrefix(".") }
+        return RecordCount(count: names.count - hidden.count, hidden: !hidden.isEmpty)
     }
 
     // MARK: - Private
