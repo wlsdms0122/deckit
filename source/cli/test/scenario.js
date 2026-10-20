@@ -278,14 +278,16 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const backTip = `(() => { const button = document.querySelector('.deckit-sidebar-nav button[title^="Back"]'); button.dispatchEvent(new PointerEvent('pointerenter')); return button.title; })()`;
         const tip = await frame.evaluate(backTip);
         check('the Back button names its chord', /^Back \(.+\)$/.test(tip || ''), tip);
-        await editor.evaluate(`(() => {
+        const ran = await editor.evaluate(`new Promise((resolve) => {
             const image = document.createElement('img');
             image.setAttribute('onerror', 'window.ranInPage = true');
             image.src = 'deckit://editor.mod/missing';
             document.body.appendChild(image);
-        })()`);
-        await sleep(1500);
-        const ran = await editor.evaluate(`!!window.ranInPage`);
+            setTimeout(() => {
+                image.remove();
+                resolve(!!window.ranInPage);
+            }, 1500);
+        })`);
         check("nothing runs in a view's page world", ran === false, ran);
         const notices = await editor.evaluate(
             `navigator.permissions.query({ name: 'notifications' }).then((status) => status.state)`
