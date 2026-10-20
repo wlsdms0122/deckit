@@ -60,11 +60,13 @@ function bindAll(channels, declarations) {
     );
 }
 
-// MARK: - Private
+// What a value is, as a field names it: `null`, `array`, or what `typeof` says.
 function kindOf(value) {
     if (value === null) return 'null';
     if (Array.isArray(value)) return 'array';
     return typeof value;
 }
 
-export { pageToMain, mainToPage, problemOf, declarationProblem, bindAll };
+// MARK: - Private
+
+export { pageToMain, mainToPage, problemOf, declarationProblem, bindAll, kindOf };

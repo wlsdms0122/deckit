@@ -72,6 +72,57 @@ function code(text) {
     return out;
 }
 
+// Code without its comments, its strings or its regular expressions, each left empty, so a word in one is not taken
+// for a use. What a template puts in with `${...}` is code, and stays.
+function bare(text) {
+    let out = '';
+    let at = 0;
+    const plain = code(text);
+    const last = () => out.trimEnd().slice(-1);
+    while (at < plain.length) {
+        const character = plain[at];
+        if (character === '"' || character === "'") {
+            at++;
+            while (at < plain.length && plain[at] !== character) at += plain[at] === '\\' ? 2 : 1;
+            at++;
+            out += "''";
+        } else if (character === '`') {
+            at++;
+            out += '`';
+            while (at < plain.length && plain[at] !== '`') {
+                if (plain[at] === '\\') at += 2;
+                else if (plain[at] === '$' && plain[at + 1] === '{') {
+                    let depth = 1;
+                    const start = (at += 2);
+                    while (at < plain.length && depth) {
+                        if (plain[at] === '{') depth++;
+                        else if (plain[at] === '}') depth--;
+                        at++;
+                    }
+                    out += '${' + bare(plain.slice(start, at - 1)) + '}';
+                } else at++;
+            }
+            at++;
+            out += '`';
+        } else if (character === '/' && (last() === '' || VALUE_BEFORE.includes(last()))) {
+            at++;
+            let inClass = false;
+            while (at < plain.length && (inClass || plain[at] !== '/') && plain[at] !== '\n') {
+                if (plain[at] === '\\') at++;
+                else if (plain[at] === '[') inClass = true;
+                else if (plain[at] === ']') inClass = false;
+                at++;
+            }
+            at++;
+            out += '/(?:)/';
+        } else {
+            out += character;
+            at++;
+        }
+    }
+    return out;
+}
+
 // What a package says of itself in its package.json: its entries, what a package that depends on it imports of it,
 // by their paths under source/deckit, and the packages it depends on.
 function surfaceOf(name) {
@@ -117,4 +168,4 @@ function reach(entry) {
     return seen;
 }
 
-module.exports = { DECKIT, PACKAGES, MODS, APP, ESBUILD, BUNDLES, code, surfaceOf, files, importsOf, reach };
+module.exports = { DECKIT, PACKAGES, MODS, APP, ESBUILD, BUNDLES, code, bare, surfaceOf, files, importsOf, reach };

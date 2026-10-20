@@ -2,6 +2,7 @@ import * as MOD_PERMISSION from '../deck/mod/permission.js';
 import * as LIFECYCLE from '../deck/mod/lifecycle.js';
 import * as PROXY from '../deck/export/proxy.js';
 import * as IPC from '../deck/ipc/index.js';
+import * as LAYER from '../../deckit-driver/layer/index.js';
 
 export function createApi({
     CONFIG,
@@ -32,7 +33,7 @@ export function createApi({
     // of deckit is theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what
     // starts with it.
     function make({ onStart }) {
-        return Object.freeze({
+        const answer = Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
             onStart,
             mods: Object.freeze({
@@ -89,6 +90,9 @@ export function createApi({
             // How the shell binds its own channels: as deckit-driver declares them, never one of deckit's.
             channels: IPC.layerChannels,
         });
+        // A layer is given at least what a driver and a layer agree on: one this answer lacks fails at once.
+        LAYER.checked(answer, LAYER.CONNECTED, "connect's answer");
+        return answer;
     }
 
     // MARK: - Private
