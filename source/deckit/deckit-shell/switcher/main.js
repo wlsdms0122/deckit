@@ -34,11 +34,6 @@ export function createSwitcher({ PANEL, deckit, host }) {
         PROTOCOL.ready.on((_payload, sender) => {
             if (sender !== state.page) return;
             state.ready = true;
-            // A page that loads again, crashes or goes cannot hold an open list.
-            deckit.pages.whenEnds(sender, () => {
-                state.ready = false;
-                drop();
-            });
             // A chord that came while the page was loading is answered now instead of lost.
             if (state.on) PROTOCOL.open.send(sender, {});
         });
@@ -88,6 +83,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
         if (state.view && deckit.pages.isAlive(state.page)) return state.view;
         const page = deckit.pages.open(PAGE.PAGE_NAME, { reloadsOnCrash: true });
         const view = deckit.pages.viewOf(page);
+        watch(page);
         deckit.keymap.listen(page, {
             keys: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((number) => ({
                 key: 'mod+' + number,
@@ -99,6 +95,19 @@ export function createSwitcher({ PANEL, deckit, host }) {
         state.page = page;
         state.view = view;
         return view;
+    }
+
+    // A page that was up and loads again, crashes or goes cannot hold an open list, and one that goes before it is up
+    // takes the list it was to show with it. Its first load ends nothing: the first open waits for it. Its only reload
+    // is after a crash, which ends it first, so a list is never opened in a document about to be replaced.
+    function watch(page) {
+        deckit.pages.whenEnds(page, () => {
+            const was = state.ready;
+            state.ready = false;
+            const alive = deckit.pages.isAlive(page);
+            if (was || !alive) drop();
+            if (alive) watch(page);
+        });
     }
 
     // For a page that is going: there is no exit to wait for.
