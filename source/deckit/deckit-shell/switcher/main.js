@@ -31,7 +31,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             key: 'mod+shift+g',
             label: 'Quick switcher',
             global: true,
-            run: (webContents) => host.summonSwitcher(deckit.web.pageFor(webContents) || webContents),
+            run: (page) => host.summonSwitcher(deckit.web.pageFor(page) || page),
         });
         PROTOCOL.ready.on((_payload, sender) => {
             if (sender !== state.page) return;
@@ -289,7 +289,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
                 build();
                 stage.place(window, options);
             },
-            contains: (webContents) => !!state.page && state.page === webContents,
+            contains: (page) => !!state.page && state.page === page,
             focus: () => state.page && deckit.pages.focus(state.page),
             open,
             close,

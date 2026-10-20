@@ -21,12 +21,12 @@ const SHELL_BUNDLES = ['shell-main', 'shell-renderer'];
 // plain declarations and pure functions, which run on any side of any environment.
 const SHARED = sharedFiles();
 const ELECTRON = /\brequire\(\s*["'`]electron["'`]\s*\)/;
-// Electron's objects and their members. `View` and `screen` are a page's words too (`window.screen`), so they are held
-// only in what the shell's main bundle carries.
+// Electron's objects and their members, and its name for a page (`webContents`), which the shell calls a page. `View`
+// and `screen` are a page's words too (`window.screen`), so they are held only in what the shell's main bundle carries.
 const ELECTRON_MEMBERS =
     'webContents|setBounds|setVisible|addChildView|removeChildView|setBackgroundColor|getBounds|isDestroyed|setWindowOpenHandler|setBackgroundThrottling';
 const ELECTRON_NAMES = new RegExp(
-    `\\b(?:WebContentsView|BrowserWindow|nativeTheme|ipcMain|ipcRenderer)\\b|\\.(?:${ELECTRON_MEMBERS})\\b|[{,]\\s*(?:${ELECTRON_MEMBERS})\\s*[,}:]`
+    `\\b(?:WebContentsView|BrowserWindow|nativeTheme|ipcMain|ipcRenderer|webContents)\\b|\\.(?:${ELECTRON_MEMBERS})\\b|[{,]\\s*(?:${ELECTRON_MEMBERS})\\s*[,}:]`
 );
 // One read in brackets, with its name as a string.
 const ELECTRON_READ = new RegExp(`\\[\\s*["'\`](?:${ELECTRON_MEMBERS})["'\`]\\s*\\]`);

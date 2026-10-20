@@ -524,13 +524,12 @@ export function createPanel({ REGION, deckit, host }) {
         return pages.has(id) && listed(id);
     }
 
-    // Whether a keystroke or a request in this webContents is the panel's: its frame, a surface the frame opened,
-    // one of its mods' pages, or a web page in one.
-    function contains(webContents) {
-        if (webContents === frameContents()) return true;
-        if ([...shell.surfaces.values()].includes(webContents)) return true;
-        const page = deckit.web.pageFor(webContents);
-        return [...pages.values()].includes(page);
+    // Whether a keystroke or a request in this page is the panel's: its frame, a surface the frame opened, one of its
+    // mods' pages, or a web page in one.
+    function contains(page) {
+        if (page === frameContents()) return true;
+        if ([...shell.surfaces.values()].includes(page)) return true;
+        return [...pages.values()].includes(deckit.web.pageFor(page));
     }
 
     function currentContents() {

@@ -45,8 +45,8 @@ export function createSetting({ CORE, LOG, IDENTITY, RUNNER }) {
         const choices = await CORE.request('setting/computed-choices', { mod: modId });
         const options = choices.some((choice) => choice.key === key) ? await optionsOf(modId, key) : undefined;
         const { value: next, changed } = await CORE.request('setting/set', { mod: modId, key, value, options });
-        const webContents = IDENTITY.pageOf(modId);
-        if (changed && webContents) PROTOCOL.settingChanged.send(webContents, { key, value: next });
+        const page = IDENTITY.pageOf(modId);
+        if (changed && page) PROTOCOL.settingChanged.send(page, { key, value: next });
         return next;
     }
 
@@ -62,15 +62,15 @@ export function createSetting({ CORE, LOG, IDENTITY, RUNNER }) {
     // Options worked out as they are read (the fonts on this Mac) are the mod's to answer: none while its page is not
     // there.
     async function optionsOf(modId, key) {
-        const webContents = IDENTITY.pageOf(modId);
-        return webContents ? PROTOCOL.settingOptions.invoke(webContents, { key }, { timeout: OPTIONS_LIMIT_MS }) : [];
+        const page = IDENTITY.pageOf(modId);
+        return page ? PROTOCOL.settingOptions.invoke(page, { key }, { timeout: OPTIONS_LIMIT_MS }) : [];
     }
 
     async function runAction(modId, key) {
         await CORE.request('setting/action', { mod: modId, key });
-        const webContents = IDENTITY.pageOf(modId);
-        if (!webContents) throw new Error(`${modId} is not running`);
-        return PROTOCOL.runSetting.invoke(webContents, { key });
+        const page = IDENTITY.pageOf(modId);
+        if (!page) throw new Error(`${modId} is not running`);
+        return PROTOCOL.runSetting.invoke(page, { key });
     }
 
     return { start };
