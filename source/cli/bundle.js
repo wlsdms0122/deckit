@@ -39,10 +39,10 @@ for (const [name, options] of Object.entries(LIBRARY.BUNDLES)) {
     bundles[name] = { file: name + '.js', ...(options.global ? { global: options.global } : {}) };
 }
 
-// The contract it speaks and the scheme its pages load from, read from deck's entry for them. The scheme is here as
-// data for a host app that registers schemes before it loads a bundle.
+// The contract it speaks and the scheme its pages load from, read from deckit-electron's entry for them. The scheme is
+// here as data for a host app that registers schemes before it loads a bundle.
 const facts = path.join(folder, '.facts.cjs');
-esbuild('deck/contract/index.js', facts, { format: 'cjs', platform: 'node', target: 'node22' });
+esbuild('deckit-electron/deck/contract/index.js', facts, { format: 'cjs', platform: 'node', target: 'node22' });
 const { API: api, SCHEME: scheme } = require(facts);
 fs.rmSync(facts);
 
