@@ -44,17 +44,18 @@ let connected = false;
 
 // MARK: - Public
 // How a host app starts deckit, once, before it is ready: `preload` is the file it put together around deckit's page
-// bundles, `host` answers what of deckit is the app's, and `config` and `folders` are its configuration. Answers what
-// the app and its shell reach of deckit (api/index.js).
-function connect({ preload, host, config = {}, folders = {} } = {}) {
+// bundles, `core` the core's executable as the archive holds it, `host` answers what of deckit is the app's, and
+// `config` and `folders` are its configuration. Answers what the app and its shell reach of deckit (api/index.js).
+function connect({ preload, core, host, config = {}, folders = {} } = {}) {
     if (connected) throw new Error('[deckit] connect is called once');
     const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     if (!preload) throw new Error('[deckit] connect needs the preload deckit pages load with');
+    if (!core) throw new Error("[deckit] connect needs the core: the archive's deckit executable");
     refuseUnknown('config', config, Object.keys(CONFIG));
     refuseUnknown('folders', folders, FOLDERS);
     connected = true;
-    return make({ preload, host, config: Object.freeze({ ...CONFIG, ...config }), folders });
+    return make({ preload, core, host, config: Object.freeze({ ...CONFIG, ...config }), folders });
 }
 
 // MARK: - Private
@@ -65,8 +66,8 @@ function refuseUnknown(what, given, known) {
 }
 
 // Deckit in main, made of deck and its own parts, each handed what it uses.
-function make({ preload, host, config: CONFIG, folders }) {
-    const deck = DECK.createDeck({ id: CONFIG.id, ...folders });
+function make({ preload, core, host, config: CONFIG, folders }) {
+    const deck = DECK.createDeck({ id: CONFIG.id, core, ...folders });
     const { log: LOG, home: HOME, storage: STORAGE, identity: IDENTITY, catalog: CATALOG, runner: RUNNER } = deck;
     const { manifest: MANIFEST, permission: MOD_PERMISSION, folder: FOLDER } = deck;
     const WINDOW = createWindow({ LOG, openWindow: (options) => host.openWindow(options) });
