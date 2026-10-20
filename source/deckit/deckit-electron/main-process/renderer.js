@@ -1,8 +1,11 @@
 import * as EVENT_BUS from '../deck/event/bus.js';
 import * as PROXY from '../deck/export/proxy.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 // deck.mainProcess(path): the module started once, its methods called through main, `on(name, listener)` for

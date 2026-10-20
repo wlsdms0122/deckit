@@ -1,8 +1,11 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as DECLARED from './protocol.js';
 
-// `deliver(label, listener, ...args)` calls a listener of the mod's and records on its row what it throws.
-export function createRegion({ deliver }) {
+// `deliver(label, listener, ...args)` calls a listener of the mod's and records on its row what it throws; `channels`
+// binds the regions' channels in the page.
+export function createRegion({ deliver, channels }) {
     // MARK: - Property
+    const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const listeners = new Set();
     let known = null; // [{ id, name, icon }]: asked for once, then told
     let count = 0;

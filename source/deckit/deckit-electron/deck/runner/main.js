@@ -1,8 +1,12 @@
 import * as EVENT_BUS from '../event/bus.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as IPC from '../ipc/index.js';
+import * as DECLARED from './protocol.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
 import * as MOD from '../catalog/model/mod.js';
 import * as RUN from './model/run.js';
+
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods' runs, as the core runs them: what happens to a page is told the core, and what the core answers is done
 // here in order, its runs kept as it told them so what asks at once is answered at once.

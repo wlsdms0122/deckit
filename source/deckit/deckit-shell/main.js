@@ -1,5 +1,4 @@
 import * as STYLE_PERMISSION from './style/model/permission.js';
-import * as LISTENER from '../deckit-electron/deck/listener/index.js';
 import { createRegion } from './region/main.js';
 import { createPanel } from './panel/main.js';
 import { createSwitcher } from './switcher/main.js';
@@ -20,14 +19,12 @@ function attach(deckit, { host } = {}) {
     const missing = ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;
-    // This bundle's listeners report to deckit's log, as deckit's own do.
-    LISTENER.reportTo((label, failure) => deckit.log.error(`${label} failed`, failure));
     for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
     const REGION = createRegion({ deckit });
     const PANEL = createPanel({ REGION, deckit, host });
     const SWITCHER = createSwitcher({ PANEL, deckit, host });
     const STYLE = createStyle({ deckit });
-    const THEME = createTheme();
+    const THEME = createTheme({ deckit });
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         STYLE.start();

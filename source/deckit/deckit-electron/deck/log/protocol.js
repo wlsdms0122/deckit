@@ -1,4 +1,4 @@
-import * as IPC from '../ipc/index.js';
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
 
 // `level`: info, warn or error. `parts`: what was said, as text.
-export const line = IPC.rendererToMain('deckit-electron:log', { level: 'string', parts: 'array' });
+export const line = CHANNEL.pageToMain('deckit-electron:log', { level: 'string', parts: 'array' });

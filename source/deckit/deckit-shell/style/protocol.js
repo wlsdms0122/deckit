@@ -1,6 +1,6 @@
-import * as IPC from '../../deckit-electron/deck/ipc/index.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
 
 // The styles a page wears now, in order, the last winning: what mods give it and every page.
-export const current = IPC.rendererToMain('deckit-shell:style-current', {}, { reply: true, sync: true });
+export const current = CHANNEL.pageToMain('deckit-shell:style-current', {}, { reply: true, sync: true });
 // They changed: { styles }.
-export const changed = IPC.mainToRenderer('deckit-shell:style-changed');
+export const changed = CHANNEL.mainToPage('deckit-shell:style-changed');

@@ -17,19 +17,20 @@ const PAGE_STYLE = `
 
 // MARK: - Initializer
 // MARK: - Public
-// A page the shell made: the switcher's, or the panel's frame.
-function page(name) {
-    if (name === SWITCHER_PAGE.PAGE_NAME) SWITCHER.boot(start());
-    else if (name === FRAME_PAGE.PAGE_NAME) FRAME.boot(start());
+// A page the shell made: the switcher's, or the panel's frame. `channels` binds the shell's channels in the page.
+function page(name, { channels }) {
+    if (name === SWITCHER_PAGE.PAGE_NAME) SWITCHER.boot(start({ channels }), channels);
+    else if (name === FRAME_PAGE.PAGE_NAME) FRAME.boot(start({ channels }), channels);
 }
 
 // Every page the shell draws in starts the same: its look, the pointer and what floats, in the app's theme.
-// `tell(listener)` calls a listener of the theme's, on a mod's page through the mod's own record of what throws.
-function start({ tell } = {}) {
+// `tell(listener)` calls a listener of the theme's, on a mod's page through the mod's own record of what throws, and
+// `channels` binds the theme's channels in the page.
+function start({ channels, tell }) {
     KIT.addStyle(PAGE_STYLE);
     POINTER.start();
     OVERLAY.start();
-    return THEME.start({ tell });
+    return THEME.start({ channels, tell });
 }
 
 // MARK: - Private

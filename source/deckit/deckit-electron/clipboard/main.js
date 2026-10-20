@@ -1,5 +1,9 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 import * as CLIPBOARD_PERMISSION from './model/permission.js';
+
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createClipboard({ IDENTITY }) {
     // MARK: - Property

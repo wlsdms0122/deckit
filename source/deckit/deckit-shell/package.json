@@ -6,6 +6,7 @@
         "./renderer.js": "./renderer.js"
     },
     "dependencies": {
+        "deckit-driver": "file:../deckit-driver",
         "deckit-electron": "file:../deckit-electron"
     }
 }

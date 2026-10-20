@@ -1,6 +1,10 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as IPC from '../ipc/index.js';
+import * as DECLARED from './protocol.js';
 import * as SCOPED from '../mod/model/scoped-name.js';
 import * as PROXY from '../export/proxy.js';
+
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // A mod's extension points in its page, and how it answers a call into what it extends another's with. `RUN` is the
 // page's run.

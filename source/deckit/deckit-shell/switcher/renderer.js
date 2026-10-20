@@ -3,7 +3,8 @@ import * as ICON from '../ui/icon/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as VIEW_MODEL from './view-model.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
 // How each tone looks on a row of the Now strip: its mark, its glyph, the row's wash and the colour it breathes
@@ -154,10 +155,12 @@ const GIVE_UP_MILLISECONDS = 4000;
 
 // MARK: - Initializer
 // MARK: - Public
-function boot(theme) {
+// The switcher's page, in the app's theme, its channels bound with `channels`.
+function boot(theme, channels) {
+    const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const ui = KIT.make(theme);
     KIT.addStyle(STYLE);
-    MOD_STYLE.wear();
+    MOD_STYLE.wear({ channels });
     let switcher = null;
     // Reported from the close itself: Escape and a click away close here first and main hears afterwards. It
     // answers the dismiss main waits on, and an exit overtaken by a reopen never answers, or it would answer the

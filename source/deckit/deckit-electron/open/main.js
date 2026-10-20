@@ -1,6 +1,10 @@
 import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 import * as OPEN_PERMISSION from './model/permission.js';
+
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createOpen({ LOG, IDENTITY, CORE }) {
     // MARK: - Property

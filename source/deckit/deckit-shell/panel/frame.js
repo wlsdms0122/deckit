@@ -4,7 +4,8 @@ import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
 import * as WIDTH from './model/width.js';
 import * as PAGE from './model/page-name.js';
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
 // The card's inset from the panel's edges, and how far the handle stands past it, over the content's edge.
@@ -72,8 +73,9 @@ const STYLE = `
 // room. This page covers only the frame's top over the mod on screen; what lies under the mod, the glass and
 // the card, is drawn in the backdrop, and the width's handle in a surface of its own, both opened from here, so
 // one pass changes all three. Where the parts land is told to main, which lays the views and the mods' rooms
-// by it.
-function boot(theme) {
+// by it. `channels` binds the panel's channels in the page.
+function boot(theme, channels) {
+    const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const ui = KIT.make(theme);
     KIT.addStyle(CARD + STYLE);
     const setup = PROTOCOL.frameSetup.invoke();
@@ -119,7 +121,7 @@ function boot(theme) {
 
     dressSurfaces();
     theme.onChange(dressSurfaces);
-    MOD_STYLE.wear({ onChange: dressSurfaces });
+    MOD_STYLE.wear({ channels, onChange: dressSurfaces });
     sidebar.update(state);
     dress();
     apply(false);

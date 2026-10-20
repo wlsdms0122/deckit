@@ -1,6 +1,9 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../deckit-driver/channel/index.js';
+import * as IPC from '../deck/ipc/index.js';
+import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
 function readText() {

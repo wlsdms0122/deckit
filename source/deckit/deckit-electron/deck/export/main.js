@@ -1,4 +1,8 @@
-import * as PROTOCOL from './protocol.js';
+import * as CHANNEL from '../../../deckit-driver/channel/index.js';
+import * as IPC from '../ipc/index.js';
+import * as DECLARED from './protocol.js';
+
+const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // What mods export to each other, as the core judges it: the core says whether a call goes, and its arguments and what
 // it answers go from page to page through here.
