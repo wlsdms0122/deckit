@@ -1,11 +1,9 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
-import * as DECLARED from './protocol.js';
-import * as WEB_PERMISSION from './model/permission.js';
+import * as SITE from '../../deckit-shell/web/model/site.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
-export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
+// What a site was allowed in a mod's session, and what Chromium asks of a web page's permissions. Deck decides what is
+// asked: `request(embedder, id, { origin, permissions })` and `requestApp(embedder, id, { url, origin })` answer, each
+// a promise, whether the web page of that id, or the tab it answers to, may have it.
+export function createSitePermission({ SESSION, REGISTRY, request, requestApp }) {
     // MARK: - Property
     // partition|origin|permission. Allowances live until exit: the mod hands them back through allow(). A
     // refusal is not kept, so a page refused by mistake can ask again once reloaded.
@@ -25,29 +23,9 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
         'keyboardLock',
         'mediaKeySystem',
     ]);
-    // Asked per scheme, so a site allowed one app is not allowed every app.
-    const NEVER_OUT = new Set([
-        'javascript',
-        'data',
-        'blob',
-        'file',
-        'filesystem',
-        'about',
-        'chrome',
-        'chrome-extension',
-        'devtools',
-        'view-source',
-        'http',
-        'https',
-        'ws',
-        'wss',
-    ]);
     // Nothing follows a local network check to ask, and Electron does not block the connection either.
     const LOCAL_NETWORK = new Set(['local-network-access', 'local-network', 'loopback-network']);
-    const questions = new Map(); // ask id -> { embedder, key, tab, gone, waiting: [resolve] }
-    const questionFor = new Map(); // tab|origin|permissions -> ask id
     const listeners = new Set();
-    let sequence = 0;
 
     // MARK: - Initializer
     // MARK: - Public
@@ -56,57 +34,10 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
             session.setPermissionRequestHandler(onRequest);
             session.setPermissionCheckHandler(onCheck);
         });
-        PROTOCOL.permit.on(({ ask: id, allow }, sender) => {
-            if (questions.get(id)?.embedder === sender) settle(id, allow);
-        });
     }
 
     function granted(partition, origin, permission) {
         return !!partition && !!origin && GRANTED.has(keyOf(partition, origin, permission));
-    }
-
-    // One question per page, site and set of permissions: a page asking again before it is answered joins the
-    // question already up. Only a mod holding system.site-permissions is asked; for any other the site is refused.
-    function ask(embedder, tab, origin, permissions, about = {}) {
-        return new Promise((resolve) => {
-            if (!origin || !permissions.length || !decides(embedder)) return resolve(false);
-            const partition = SESSION.partitionOf(tab);
-            if (permissions.every((permission) => granted(partition, origin, permission))) return resolve(true);
-            const key = [tab.id, origin, ...[...permissions].sort()].join('|');
-            const up = questions.get(questionFor.get(key));
-            if (up) {
-                up.waiting.push(resolve);
-                return;
-            }
-            const id = ++sequence;
-            const gone = () => settle(id, false);
-            questions.set(id, { embedder, key, tab, gone, waiting: [resolve] });
-            questionFor.set(key, id);
-            tab.once('destroyed', gone);
-            PROTOCOL.asking.send(embedder, { id: tab.id, ask: id, origin, permissions, ...about });
-        });
-    }
-
-    // Asked of the top document's site whichever frame wants the app: that is the site the person sees.
-    function mayOpenApp(embedder, tab, url, asking = tab) {
-        const { app } = require('electron');
-        const scheme = schemeOf(url);
-        if (!scheme || NEVER_OUT.has(scheme)) return Promise.resolve(false);
-        const name = app.getApplicationNameForProtocol(String(url));
-        if (!name) return Promise.resolve(false);
-        return ask(embedder, tab, originOf(asking.getURL()), ['open:' + scheme], {
-            app: name.replace(/\.app$/i, ''),
-            url: String(url),
-        });
-    }
-
-    function originOf(url) {
-        try {
-            const parsed = new URL(url);
-            return /^https?:$/.test(parsed.protocol) ? parsed.origin : '';
-        } catch {
-            return '';
-        }
     }
 
     function onChange(listener) {
@@ -134,35 +65,13 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
     }
 
     // MARK: - Private
-    function decides(embedder) {
-        const mod = IDENTITY.modOf(embedder);
-        return !!mod && mod.permissions.some(({ id }) => id === WEB_PERMISSION.SITE_PERMISSIONS);
-    }
-
     function keyOf(partition, origin, permission) {
         return `${partition}|${origin}|${permission}`;
     }
 
-    function schemeOf(url) {
-        try {
-            return new URL(String(url)).protocol.replace(/:$/, '').toLowerCase();
-        } catch {
-            return '';
-        }
-    }
-
-    function settle(id, allowed) {
-        const question = questions.get(id);
-        if (!question) return;
-        questions.delete(id);
-        questionFor.delete(question.key);
-        question.tab.removeListener('destroyed', question.gone);
-        for (const resolve of question.waiting) resolve(!!allowed);
-    }
-
     function change(partition, entries, apply) {
         for (const entry of entries) {
-            const origin = originOf(entry?.origin);
+            const origin = SITE.originOf(entry?.origin);
             if (origin && entry.permission) apply(keyOf(partition, origin, String(entry.permission)));
         }
         for (const listener of listeners) listener();
@@ -174,9 +83,12 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
         const at = REGISTRY.tabOf(page);
         if (!at) return callback(false);
         if (UNASKED.has(permission)) return callback(true);
-        const origin = originOf(details?.securityOrigin || details?.requestingUrl || page.getURL());
+        const origin = SITE.originOf(details?.securityOrigin || details?.requestingUrl || page.getURL());
         if (permission === 'openExternal') {
-            mayOpenApp(at.embedder, at.tab, details?.externalURL, page).then(callback);
+            requestApp(at.embedder, at.tab.id, {
+                url: details?.externalURL,
+                origin: SITE.originOf(page.getURL()),
+            }).then(callback);
             return;
         }
         const permissions =
@@ -186,7 +98,7 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
                   ? [ASKED[permission]]
                   : [];
         if (!permissions.length) return callback(false);
-        ask(at.embedder, at.tab, origin, permissions).then(callback);
+        request(at.embedder, at.tab.id, { origin, permissions }).then(callback);
     }
 
     // A check has no way to ask, and a page told no stops before it ever asks, so media says yes and the
@@ -196,10 +108,10 @@ export function createSitePermission({ IDENTITY, SESSION, REGISTRY }) {
         if (!Object.hasOwn(ASKED, permission) || !page) return false;
         return granted(
             SESSION.partitionOf(page),
-            originOf(details?.securityOrigin || requestingOrigin),
+            SITE.originOf(details?.securityOrigin || requestingOrigin),
             ASKED[permission]
         );
     }
 
-    return { start, granted, ask, mayOpenApp, originOf, onChange, notifications, allow, revoke };
+    return { start, granted, onChange, notifications, allow, revoke };
 }

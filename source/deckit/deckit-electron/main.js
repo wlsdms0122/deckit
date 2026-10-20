@@ -1,11 +1,10 @@
 import * as MAIN_PROCESS_PERMISSION from '../deckit-shell/main-process/model/permission.js';
-import * as WEB_PERMISSION from './web/model/permission.js';
+import * as WEB_PERMISSION from '../deckit-shell/web/model/permission.js';
 import * as CLIPBOARD_PERMISSION from '../deckit-shell/clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../deckit-shell/notification/model/permission.js';
 import * as KEYMAP_PERMISSION from '../deckit-shell/keymap/model/permission.js';
 import * as OPEN_PERMISSION from '../deckit-shell/open/model/permission.js';
 import * as MOD_PERMISSION from '../deckit-shell/deck/mod/permission.js';
-import * as ORIGIN from './deck/sandbox/model/origin.js';
 import * as CONTRACT from './deck/contract/index.js';
 import { createHome } from '../deckit-shell/deck/home/index.js';
 import { createStorage } from '../deckit-shell/deck/storage/index.js';
@@ -28,14 +27,7 @@ import { createMods } from '../deckit-shell/deck/mods/main.js';
 import { createCore } from '../deckit-shell/deck/core/main.js';
 import { createStage } from './stage/main.js';
 import { createPartition } from './web/model/partition.js';
-import { createSession } from './web/session.js';
-import { createRegistry } from './web/registry.js';
-import { createDebugger } from './web/debugger.js';
-import { createAgent } from './web/agent.js';
-import { createSitePermission } from './web/site-permission.js';
-import { createCertificate } from './web/certificate.js';
-import { createScript } from './web/script.js';
-import { createWeb } from './web/main.js';
+import { createWeb } from '../deckit-shell/web/main.js';
 import { createKeymap } from '../deckit-shell/keymap/main.js';
 import { createOpen } from '../deckit-shell/open/main.js';
 import { createNotification } from '../deckit-shell/notification/main.js';
@@ -121,27 +113,8 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, pages: ENV.pages });
     const WINDOW = ELECTRON.window;
     const PARTITION = createPartition({ CONFIG });
-    const SESSION = createSession({ STORAGE, LOG, PARTITION });
-    const REGISTRY = createRegistry();
-    const DEBUGGER = createDebugger({ LOG });
-    const AGENT = createAgent({ CONFIG, DEBUGGER, LOG });
-    const SITE_PERMISSION = createSitePermission({ IDENTITY, SESSION, REGISTRY });
-    const CERTIFICATE = createCertificate({ LOG, SESSION, REGISTRY });
-    const SCRIPT = createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION });
     const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: ENV.pages, keys: ENV.keys });
-    const WEB = createWeb({
-        WINDOW,
-        LOG,
-        KEYMAP,
-        IDENTITY,
-        SESSION,
-        REGISTRY,
-        PARTITION,
-        AGENT,
-        SITE_PERMISSION,
-        CERTIFICATE,
-        SCRIPT,
-    });
+    const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, open: ENV.open });
     const OPEN = createOpen({ LOG, IDENTITY, CORE, open: ENV.open });
     const NOTIFICATION = createNotification({
         LOG,
@@ -247,23 +220,19 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
             onFactsChange: MAIN_PROCESS.onChange,
             installed: MAIN_PROCESS.installed,
             removed: MAIN_PROCESS.removed,
-            clearSessions: SESSION.clearSessions,
+            clearSessions: WEB.clearSessions,
         });
         RUNNER.start({ preparePage });
     }
 
     // A mod's page shows the web, hears the key map, and offers what it opens to the scheme's handlers: a window it
     // asks for, and a link that leaves its origin, which deck holds it to.
-    function preparePage(webContents, mod) {
-        WEB.prepareEmbedder(webContents);
-        KEYMAP.listen(webContents, { page: WEB.pageFor(webContents) });
-        webContents.setWindowOpenHandler((details) => {
-            OPEN.openFrom(webContents, details.url, WEB.windowOptions(details));
-            return { action: 'deny' };
-        });
-        const origin = ORIGIN.originOf(mod.id);
-        LOG.guard(webContents, 'will-frame-navigate', (details) => {
-            if (details.isMainFrame && !details.url.startsWith(origin + '/')) OPEN.openFrom(webContents, details.url);
+    function preparePage(page) {
+        WEB.prepare(page);
+        KEYMAP.listen(page, { page: WEB.pageFor(page) });
+        ENV.pages.watch(page, {
+            opens: (url, options) => OPEN.openFrom(page, url, options),
+            leaves: (url) => OPEN.openFrom(page, url),
         });
     }
 }

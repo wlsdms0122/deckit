@@ -1,10 +1,5 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
-import * as DECLARED from './protocol.js';
-
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
-export function createCertificate({ LOG, SESSION, REGISTRY }) {
+// `refused(embedder, id, certificate)` tells deck what was refused in a web page it shows.
+export function createCertificate({ LOG, SESSION, REGISTRY, refused: tell }) {
     // MARK: - Property
     // partition|host|fingerprint
     const TRUSTED = new Set();
@@ -29,16 +24,13 @@ export function createCertificate({ LOG, SESSION, REGISTRY }) {
             }
             callback(false);
             remember(key, page, url);
-            PROTOCOL.refused.send(at.embedder, {
-                id: at.tab.id,
-                certificate: {
-                    url,
-                    host,
-                    error,
-                    fingerprint: certificate.fingerprint,
-                    subject: certificate.subjectName,
-                    issuer: certificate.issuerName,
-                },
+            tell(at.embedder, at.tab.id, {
+                url,
+                host,
+                error,
+                fingerprint: certificate.fingerprint,
+                subject: certificate.subjectName,
+                issuer: certificate.issuerName,
             });
         });
     }

@@ -10,6 +10,7 @@ import { createFolder } from '../deck/mod/folder.js';
 import { createWindow } from '../window/index.js';
 import { createNotifications } from '../notification/main.js';
 import { createMainProcess } from '../main-process/main.js';
+import { createWeb, windowOptions } from '../web/main.js';
 import { messages } from '../messages/main.js';
 
 // MARK: - Property
@@ -40,6 +41,7 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
     MAIN_PROCESS.holdQuit();
     const views = new WeakMap(); // a page a mod runs in, or ran in -> the view it is in, kept while the page is
     const mods = new WeakMap(); // a page a mod runs in -> the mod's id
+    const WEB = createWeb({ CONFIG, LOG, WINDOW, modIdOf: (page) => mods.get(page) || null });
     const clearStorageOf = (modId) => clearStorage(CONFIG, modId);
     // A mod's page shows the web in <webview>.
     const make = ({ modId }) => {
@@ -53,6 +55,7 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
     };
     const load = (page) => page.loadURL(ORIGIN.addressOf(ORIGIN.originOf(mods.get(page))));
     const viewOf = (page) => views.get(page) || null;
+    const originOf = (page) => (mods.has(page) ? ORIGIN.originOf(mods.get(page)) : null);
     return Object.freeze({
         viewOf,
         window: WINDOW,
@@ -64,19 +67,42 @@ function createEnvironment({ CONFIG, core, preload, openWindow }) {
             load,
             close,
             isGone,
-            watch: (page, watchers) => watch(guard, page, watchers),
+            watch: (page, watchers) => watch(guard, page, watchers, { origin: originOf(page) }),
             pin: (page) => pin(guard, page),
             watchInput: (page, listener) => watchInput(guard, page, listener),
             clearStorage: clearStorageOf,
         }),
         keys: Object.freeze({ capture: (page, handler) => capture(guard, page, handler) }),
-        open: Object.freeze({ url: openURL, file: openFile, reveal }),
+        open: Object.freeze({ url: openURL, file: openFile, reveal, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({
             readText: () => require('electron').clipboard.readText(),
             writeText: (text) => require('electron').clipboard.writeText(text),
         }),
         dialogs: Object.freeze({ chooseFolder }),
+        web: Object.freeze({
+            listen: WEB.listen,
+            embed: WEB.embed,
+            pageOf: WEB.pageOf,
+            holderOf: WEB.holderOf,
+            holdsKeyboard: WEB.holdsKeyboard,
+            openWindow: WEB.openWindow,
+            load: WEB.load,
+            navigate: WEB.navigate,
+            setMuted: WEB.setMuted,
+            find: WEB.find,
+            stopFind: WEB.stopFind,
+            close: WEB.close,
+            stateOf: WEB.stateOf,
+            clickNotification: WEB.clickNotification,
+            granted: WEB.granted,
+            whenGone: WEB.whenGone,
+            fetchText: WEB.fetchText,
+            clear: WEB.clear,
+            trust: WEB.trust,
+            allow: WEB.allow,
+            revoke: WEB.revoke,
+        }),
         mainProcess: Object.freeze({
             start: MAIN_PROCESS.start,
             call: MAIN_PROCESS.call,
@@ -118,7 +144,21 @@ function isGone(page) {
     return page.isDestroyed() || page.isCrashed();
 }
 
-function watch(guard, page, { failed = null, ended = null, gone = null, destroyed = null, consoleError = null } = {}) {
+// `origin` is the page's own, a mod's, for what leaves it.
+function watch(
+    guard,
+    page,
+    {
+        failed = null,
+        ended = null,
+        gone = null,
+        destroyed = null,
+        consoleError = null,
+        opens = null,
+        leaves = null,
+    } = {},
+    { origin }
+) {
     if (failed)
         guard(page, 'did-fail-load', (_event, code, description, _url, isMainFrame) => {
             if (isMainFrame && code !== ERR_ABORTED) failed(description);
@@ -130,6 +170,15 @@ function watch(guard, page, { failed = null, ended = null, gone = null, destroye
     if (destroyed) guard(page, 'destroyed', () => destroyed(), { once: true });
     if (consoleError)
         guard(page, 'console-message', ({ level, message }) => level === 'error' && consoleError(message));
+    if (opens)
+        page.setWindowOpenHandler((details) => {
+            opens(details.url, windowOptions(details));
+            return { action: 'deny' };
+        });
+    if (leaves && origin)
+        guard(page, 'will-frame-navigate', (details) => {
+            if (details.isMainFrame && !details.url.startsWith(origin + '/')) leaves(details.url);
+        });
 }
 
 // A navigation keeps the page, so a page that left its address would still be known as its owner while it ran
@@ -175,6 +224,10 @@ function reveal(file) {
     const found = existing(file);
     if (found) require('electron').shell.showItemInFolder(found);
     return !!found;
+}
+
+function appFor(url) {
+    return require('electron').app.getApplicationNameForProtocol(String(url));
 }
 
 async function chooseFolder({ title, buttonLabel, message }) {

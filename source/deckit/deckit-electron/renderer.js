@@ -10,7 +10,7 @@ import { createRecord } from '../deckit-shell/deck/record/renderer.js';
 import { createExport } from '../deckit-shell/deck/export/renderer.js';
 import { createExtension } from '../deckit-shell/deck/extension/renderer.js';
 import { createMods } from '../deckit-shell/deck/mods/renderer.js';
-import { createWeb } from './web/renderer.js';
+import { createWeb } from '../deckit-shell/web/renderer.js';
 import { createNotification } from '../deckit-shell/notification/renderer.js';
 import { createKeymap } from '../deckit-shell/keymap/renderer.js';
 import { createCommand } from '../deckit-shell/command/renderer.js';
@@ -49,7 +49,7 @@ function start(shell, ENV) {
         modules: ENV.modules,
     });
     const MOD = createMod({
-        WEB: createWeb({ sessionPrefix }),
+        WEB: createWeb({ sessions: sessionPrefix, web: ENV.web }),
         NOTIFICATION: createNotification(),
         KEYMAP: createKeymap(),
         COMMAND: createCommand(),

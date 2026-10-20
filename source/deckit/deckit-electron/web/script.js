@@ -1,10 +1,8 @@
-import * as CHANNEL from '../../deckit-shell/deck/channel/index.js';
-import * as IPC from '../../deckit-shell/deck/ipc/main.js';
-import * as DECLARED from './protocol.js';
+import * as SITE from '../../deckit-shell/web/model/site.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
-export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
+// What a web page's Notification shows, and what it asks, are told to deck: `notified(embedder, id, { notification,
+// title, body, silent })`, and `request(embedder, id, { origin, permissions })`, a promise of whether it is allowed.
+export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION, notified, request }) {
     // MARK: - Property
     // Electron's own notification knows nothing of the page, so the page's Notification is replaced by a content
     // script, which reports through a binding only the DevTools session hears. Chromium does not tell an
@@ -44,7 +42,7 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
         };
         scripts.set(page.id, () => {
             install();
-            if (allowed(SITE_PERMISSION.originOf(page.getURL())))
+            if (allowed(SITE.originOf(page.getURL())))
                 evaluate('window.__deckitNotification?.permission(0, "granted")');
         });
         page.once('destroyed', () => {
@@ -56,7 +54,7 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
             if (method !== 'Runtime.bindingCalled' || sessionId || params?.name !== BINDING) return;
             const message = JSON.parse(params.payload);
             const id = Number(message.id) || 0;
-            const origin = SITE_PERMISSION.originOf(page.getURL());
+            const origin = SITE.originOf(page.getURL());
             if (message.op === 'capture') {
                 capturing.set(page.id, {
                     microphone: !!message.microphone,
@@ -65,15 +63,14 @@ export function createScript({ LOG, DEBUGGER, SESSION, SITE_PERMISSION }) {
                 });
                 changed();
             } else if (message.op === 'show' && allowed(origin)) {
-                PROTOCOL.notified.send(embedder, {
-                    id: page.id,
+                notified(embedder, page.id, {
                     notification: id,
-                    title: String(message.title).slice(0, 200),
-                    body: String(message.body).slice(0, 400),
+                    title: String(message.title),
+                    body: String(message.body),
                     silent: !!message.silent,
                 });
             } else if (message.op === 'request') {
-                SITE_PERMISSION.ask(embedder, page, origin, ['notifications']).then((ok) =>
+                request(embedder, page.id, { origin, permissions: ['notifications'] }).then((ok) =>
                     evaluate(`window.__deckitNotification?.permission(${id}, "${ok ? 'granted' : 'denied'}")`)
                 );
             }

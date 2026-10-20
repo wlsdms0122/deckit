@@ -3,9 +3,10 @@ import * as CHANNEL from '../deck/channel/index.js';
 // What an environment gives deck, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files and
 // the log, the pages a mod runs in and the app quitting, what deckit does through the system for a mod (keys,
-// opening, notifications, the clipboard, a folder chosen, main process modules), and what only the environment
-// knows: the person's home folder and what runs deckit. An environment gives at least this, and deck is handed this
-// alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a list read.
+// opening, notifications, the clipboard, a folder chosen, main process modules, the web pages a mod shows), and what
+// only the environment knows: the person's home folder and what runs deckit. An environment gives at least this, and
+// deck is handed this alone (`checked`). Each leaf says what a member is: `function`, `object`, `string`, or `array`, a
+// list read.
 // MARK: - Property
 /**
  * A page: a token deck keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -33,11 +34,13 @@ const MAIN = Object.freeze({
         load: 'function', // load(page): a page make() made, loaded at its address
         close: 'function', // close(page): the page closed, unless it is gone already
         isGone: 'function', // isGone(page): whether the page can no longer receive messages
-        // watch(page, { failed, ended, gone, destroyed, consoleError }), each optional: `failed(why)` when the page's
-        // load did not complete, other than by another load replacing it; `ended()` each time the page's document is
-        // replaced, by a main-frame navigation that commits, its first load's included; `gone(why)` each time its
-        // process ends, the page living on; `destroyed()` once, as the page goes; `consoleError(message)` for what its
-        // console says as an error
+        // watch(page, { failed, ended, gone, destroyed, consoleError, opens, leaves }), each optional: `failed(why)`
+        // when the page's load did not complete, other than by another load replacing it; `ended()` each time the
+        // page's document is replaced, by a main-frame navigation that commits, its first load's included; `gone(why)`
+        // each time its process ends, the page living on; `destroyed()` once, as the page goes; `consoleError(message)`
+        // for what its console says as an error; `opens(url, { activates, target })` when it asks for a window, which
+        // it is not given, `activates` whether what opens comes forward and `target` the name it targets; and, for a
+        // mod's page, `leaves(url)` when its main frame asks to go outside the mod's origin
         watch: 'function',
         // pin(page): the page stays on the address its first load commits; a navigation of its own elsewhere, or a
         // redirect, is refused, and only main loading or reloading it moves it
@@ -55,11 +58,12 @@ const MAIN = Object.freeze({
         // watch began first
         capture: 'function',
     },
-    // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the browser,
-    // brought forward unless `activate` is false; `file(path) -> Promise of boolean`, a file at an absolute path in
-    // its app, false when there is none there or it did not open; `reveal(path) -> boolean`, an absolute path shown
-    // where it lies, false when there is none there
-    open: { url: 'function', file: 'function', reveal: 'function' },
+    // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that
+    // opens its scheme, the browser for the web, brought forward unless `activate` is false; `file(path) -> Promise of
+    // boolean`, a file at an absolute path in its app, false when there is none there or it did not open;
+    // `reveal(path) -> boolean`, an absolute path shown where it lies, false when there is none there;
+    // `appFor(url) -> string`, the name of the app that opens an address of its scheme, or ''
+    open: { url: 'function', file: 'function', reveal: 'function', appFor: 'function' },
     notifications: {
         // show({ title, body, silent }, { onClick }) -> Promise: true once shown, false where the system has none;
         // rejects with why when the system says it did not show it. `onClick()` hears a click on it
@@ -91,6 +95,57 @@ const MAIN = Object.freeze({
         // `updated` (its code changed while a module stayed), `removed`, `reinstalled` (removed, then installed again)
         // and `leftover` (a module with no dispose, or whose dispose failed or ran late, may have left what it made)
         restartPending: 'function',
+    },
+    // The web pages a mod's page shows, each in one of the mod's web sessions, by name, which the environment keeps
+    // apart from every other mod's. A web page is a page too, kept and handed back, and has an id, a number the mod's
+    // page is told, which `pageOf` answers the page of. A web page is shown in the mod's page, or in a window of the
+    // app's, as a mod's page or a web page asks for one; a web page in a window answers to the tab that opened it,
+    // which is itself for a web page the mod asked for. `mod` is a mod's id and `session` a session's name.
+    web: {
+        // listen(deck), once, before any web page is shown: what deck answers and is told of the web pages a mod shows.
+        // Answered at once: `mayShow(embedder, url, { inPage })`, whether the address loads in a web page `embedder`
+        // shows, in its page or in a window; `leavesFile(from, to)`, whether a document at `from` asking for `to`
+        // stays where it is and is `leaving` instead; `attaching(embedder, sessions)`, whether a web page with these
+        // sessions, each `{ mod, name }` or null for one that is no mod's, is shown in `embedder`'s page;
+        // `adopted(embedder, page)`, a web page now shown, in its page or in a window; and `windowOpen(embedder, page,
+        // { url, tab, from, inPage, ownWindow, activates, target })`, whether a web page's window.open is given a
+        // window of its own, `tab` the id of the tab it answers to, `from` the address it is at and `ownWindow` whether
+        // it asked for a window rather than a tab. Told: `changed(embedder, id, state)`, `found(embedder, id,
+        // { matches, active, final })`, `leaving(embedder, id, url)`, `closed(embedder, id)` for a window gone,
+        // `refused(embedder, id, certificate)` and `notified(embedder, id, { notification, title, body, silent })`.
+        // Asked, each a promise of whether it is allowed: `request(embedder, id, { origin, permissions })` and
+        // `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks
+        listen: 'function',
+        embed: 'function', // embed(page): the page shows web pages, as elements of its own
+        pageOf: 'function', // pageOf(id) -> the web page of that id, while it is there, or null
+        // holderOf(page) -> { embedder, id, tab, inPage }: the page showing it, its id, the id of the tab it answers
+        // to, and whether it is an element of that page; null for a page that is no web page
+        holderOf: 'function',
+        // holdsKeyboard(page) -> whether the page, or a web page shown in it, has the keyboard
+        holdsKeyboard: 'function',
+        // openWindow(embedder, { mod, session, url, title }) -> the id of a web page in a window
+        openWindow: 'function',
+        load: 'function', // load(page, url)
+        navigate: 'function', // navigate(page, to): `back`, `forward`, `reload` or `stop`
+        setMuted: 'function', // setMuted(page, on)
+        // find(page, text, { start, back, matchCase }): `start` a new search, otherwise the next match
+        find: 'function',
+        stopFind: 'function', // stopFind(page, { keepSelection })
+        close: 'function', // close(page): a web page in a window, with its window
+        // stateOf(page) -> { url, title, icon, loading, canGoBack, canGoForward, audible, muted, capture }, or null
+        // once it is gone; `capture` is `{ microphone, camera, screen }`, what the page says it captures
+        stateOf: 'function',
+        clickNotification: 'function', // clickNotification(page, notification): one it showed, clicked
+        granted: 'function', // granted(page, origin, permission) -> whether the site was allowed it in its session
+        whenGone: 'function', // whenGone(page, listener) -> off: heard once as the page goes
+        fetchText: 'function', // fetchText(mod, session, url) -> Promise of the text at a web address
+        clear: 'function', // clear(mod, session) -> Promise: what the session stored, taken
+        // trust(mod, session, entries) -> how many are trusted: `[{ host, fingerprint }]`, certificates trusted
+        trust: 'function',
+        // allow(mod, session, entries) and revoke(mod, session, entries) -> how many are allowed: `[{ origin,
+        // permission }]`, what a site may have
+        allow: 'function',
+        revoke: 'function',
     },
     core: {
         // open({ onMessage(line), onLog(line), onEnd(why) }) -> { send(line) }: the core, started, a message a line
@@ -136,6 +191,13 @@ const PAGE = Object.freeze({
         // evaluate(source, { mod, file }) -> its exports: `source` run as a CommonJS module with only `module` and
         // `exports` in reach, as the mod's `file`; throws what it throws
         evaluate: 'function',
+    },
+    web: {
+        // view({ sessions, session, url }, { closing, focused }) -> { element, id }: a web page shown in this page, in
+        // the mod's session by that name, `sessions` what main told this page its mod's sessions are named by.
+        // `element` is put where it shows, and `id` a promise of its id once it has one. `closing()` when the web page
+        // asks to close itself, `focused()` when it takes focus
+        view: 'function',
     },
 });
 
