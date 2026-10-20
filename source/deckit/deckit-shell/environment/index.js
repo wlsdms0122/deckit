@@ -138,6 +138,9 @@ const MAIN = Object.freeze({
         // permission }]`, what a site may have
         allow: 'function',
         revoke: 'function',
+        // sessionsOf(mod) -> what a mod's page is told its mod's sessions are named by, a string it hands `view` (PAGE)
+        // as `sessions`, unread
+        sessionsOf: 'function',
     },
     core: {
         // open({ onMessage(line), onLog(line), onEnd(why) }) -> { send(line) }: the core, started, a message a line
@@ -212,7 +215,8 @@ const PAGE = Object.freeze({
     },
     web: {
         // view({ sessions, session, url }, { closing, focused }) -> { element, id }: a web page shown in this page, in
-        // the mod's session by that name, `sessions` what main told this page its mod's sessions are named by.
+        // the mod's session by that name, `sessions` what main told this page its mod's sessions are named by
+        // (`sessionsOf`, MAIN).
         // `element` is put where it shows, and `id` a promise of its id once it has one. `closing()` when the web page
         // asks to close itself, `focused()` when it takes focus
         view: 'function',

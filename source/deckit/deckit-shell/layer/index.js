@@ -1,7 +1,7 @@
 import * as ENVIRONMENT from '../environment/index.js';
 
 // What a layer on deckit, a shell, and a driver agree on, as plain data: what the layer is given in main (what connect
-// answers), of a stage, and on a page. A driver gives at least this, and the layer is handed this alone (`checked`).
+// answers) and of a stage. A driver gives at least this, and the layer is handed this alone (`checked`).
 // Each leaf says what a member is: `function`, `object`, `string`, or `array`, a list the layer reads.
 // MARK: - Property
 /**
@@ -64,10 +64,6 @@ const STAGE = Object.freeze({
     lay: 'function',
 });
 
-// On a page: what a page the layer made is handed (`page(name, context)`), and what a mod's page is (`mod(context)`).
-const PAGE_CONTEXT = Object.freeze({ channels: { bind: 'function' } });
-const MOD_CONTEXT = Object.freeze({ mod: 'object', deliver: 'function', channels: { bind: 'function' } });
-
 // MARK: - Initializer
 // MARK: - Public
 // How a layer is held to what it is given: as an environment is (environment/).
@@ -75,4 +71,4 @@ const { missingIn, checked } = ENVIRONMENT;
 
 // MARK: - Private
 
-export { CONNECTED, NOTIFIED, STAGE, PAGE_CONTEXT, MOD_CONTEXT, missingIn, checked };
+export { CONNECTED, NOTIFIED, STAGE, missingIn, checked };

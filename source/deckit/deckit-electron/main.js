@@ -26,7 +26,6 @@ import { createEvent } from '../deckit-shell/deck/event/main.js';
 import { createMods } from '../deckit-shell/deck/mods/main.js';
 import { createCore } from '../deckit-shell/deck/core/main.js';
 import { createStage } from './stage/main.js';
-import { createPartition } from './web/model/partition.js';
 import { createWeb } from '../deckit-shell/web/main.js';
 import { createKeymap } from '../deckit-shell/keymap/main.js';
 import { createOpen } from '../deckit-shell/open/main.js';
@@ -37,6 +36,7 @@ import { createMainProcess } from '../deckit-shell/main-process/main.js';
 import { createModFolder } from '../deckit-shell/mod-folder/main.js';
 import { createRuntime } from '../deckit-shell/runtime/main.js';
 import { createPage } from './page/main.js';
+import { createSetup } from '../deckit-shell/page/main.js';
 import { createApi } from './api/index.js';
 
 // MARK: - Property
@@ -112,7 +112,6 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const EVENT = createEvent({ CORE, LOG, IDENTITY });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, pages: ENV.pages });
     const WINDOW = ELECTRON.window;
-    const PARTITION = createPartition({ CONFIG });
     const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: ENV.pages, keys: ENV.keys });
     const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
     const OPEN = createOpen({ LOG, IDENTITY, CORE, open: ENV.open });
@@ -135,7 +134,8 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         about: ENV.about,
         user: ENV.folders.user,
     });
-    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG, modViewOf: ELECTRON.viewOf });
+    const SETUP = createSetup({ IDENTITY, web: ENV.web });
+    const PAGE = createPage({ IDENTITY, SANDBOX, LOG, pages: ENV.pages, modViewOf: ELECTRON.viewOf });
     const STAGE = createStage({ LOG, WINDOW, viewOf: PAGE.viewOf });
     const API = createApi({
         CONFIG,
@@ -200,7 +200,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         MAIN_PROCESS.start();
         MOD_FOLDER.start();
         RUNTIME.start();
-        PAGE.start();
+        SETUP.start();
         started = true;
         // What fails to start with deckit fails alone: the mods run whatever it did.
         for (const listener of starting) {

@@ -35,18 +35,8 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
             throw new Error(`"${name}" is not a page name: a lower case letter, then letters, digits and -`);
         const made = makeView({ CONFIG, preload });
         IDENTITY.add(made.webContents, { page: name });
-        logConsole(made.webContents, name);
         made.webContents.loadURL(ORIGIN.addressOf(ORIGIN.pageOriginOf(name)));
         return made;
-    }
-
-    // What a page's console says as an error goes to deck's log under `name`: a mod's id, or a page's name.
-    function logConsole(webContents, name) {
-        LOG.guard(
-            webContents,
-            'console-message',
-            ({ level, message }) => level === 'error' && LOG.error(`${name}: ${message}`)
-        );
     }
 
     // MARK: - Private
@@ -88,7 +78,7 @@ export function createSandbox({ CONFIG, IDENTITY, CATALOG, FOLDER, LOG }) {
         }
     }
 
-    return { SCHEME, start, page, logConsole, keepDrawing: (page) => keepDrawing(page, LOG.guard) };
+    return { SCHEME, start, page, keepDrawing: (page) => keepDrawing(page, LOG.guard) };
 }
 
 // A view for a page of deck's: sandboxed, isolated, in deck's own session, loading with `preload`, with what is added to
