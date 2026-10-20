@@ -11,8 +11,6 @@ import Foundation
 // handed and never reads what it says.
 final class Record {
     // MARK: - Property
-    // A key names a file, and a Mac's disk is blind to case: lower case only, as a mod id is.
-    private let keyPattern = #/[a-z0-9][a-z0-9._-]{0,63}/#
     private let fileExtension = "json"
     private let folder: URL
     private let store: Store
@@ -43,7 +41,7 @@ final class Record {
                 guard file.pathExtension == fileExtension else { return nil }
 
                 let key = file.deletingPathExtension().lastPathComponent
-                return isKey(key) ? key : nil
+                return store.isName(key) ? key : nil
             }
             .sorted()
     }
@@ -65,11 +63,7 @@ final class Record {
     }
 
     private func file(mod: String, key: String) throws -> URL {
-        guard isKey(key) else { throw RecordError.notAKey(key) }
+        guard store.isName(key) else { throw RecordError.notAKey(key) }
         return folder(of: mod).appending(path: key).appendingPathExtension(fileExtension)
-    }
-
-    private func isKey(_ key: String) -> Bool {
-        key.wholeMatch(of: keyPattern) != nil && !key.contains("..")
     }
 }

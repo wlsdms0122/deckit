@@ -26,9 +26,9 @@ import { createMods } from './mods/main.js';
 export function createDeck({ id = 'deckit', home = null, ship = [], sources = [], core } = {}) {
     const CONFIG = Object.freeze({ id, home, ship, sources, core });
     const HOME = createHome({ CONFIG });
-    const STORAGE = createStorage({ HOME });
     const LOG = createLog({ CONFIG, HOME });
     const CORE = createCore({ CONFIG, HOME, LOG });
+    const STORAGE = createStorage({ HOME, CORE, LOG });
     const PERMISSION = createPermission();
     for (const permission of MOD_PERMISSION.PERMISSIONS) PERMISSION.define(permission);
     const MANIFEST = createManifest({ MOD_PERMISSION: PERMISSION });
@@ -61,12 +61,14 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
     // MARK: - Initializer
     // MARK: - Public
     // Before any page of deck's loads, once the app is ready: `preload` is the file every page loads with. The log
-    // starts then, then the core, and what the host app ships is installed, before anything reads the mods.
-    function prepare({ preload }) {
+    // starts then, then the core, which hands over the state it keeps, and what the host app ships is installed,
+    // before anything reads the mods or the state.
+    async function prepare({ preload }) {
         LOG.start({
             nameOf: (webContents) => IDENTITY.modOf(webContents)?.id || IDENTITY.pageNameOf(webContents) || 'page',
         });
         CORE.start();
+        await STORAGE.load();
         SANDBOX.start({ preload });
         if (!CONFIG.ship.length) return;
         for (const { id, outcome, problem } of INSTALL.installShipped())
@@ -125,7 +127,7 @@ export function createDeck({ id = 'deckit', home = null, ship = [], sources = []
         permission: Object.freeze({ define: PERMISSION.define }),
         folder: Object.freeze({ fileIn: FOLDER.fileIn, entryOf: FOLDER.entryOf }),
         storage: Object.freeze({ state: STORAGE.state, stateIn: STORAGE.stateIn, folderOf: STORAGE.folderOf }),
-        home: Object.freeze({ data: HOME.data, mods: HOME.mods, state: HOME.state }),
+        home: Object.freeze({ data: HOME.data, mods: HOME.mods }),
         log: Object.freeze({ info: LOG.info, warn: LOG.warn, error: LOG.error, file: LOG.file, guard: LOG.guard }),
     });
 }

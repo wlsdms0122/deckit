@@ -164,6 +164,41 @@ struct ServerTests {
         #expect(error["code"] == .number(-32600))
     }
 
+    @Test("settings written are read back as the JSON they were written as")
+    func testThatSettingsRoundTrip() throws {
+        // Given
+        try initialize()
+        _ = try respond(
+            #"{"jsonrpc":"2.0","id":2,"method":"setting/write","params":{"mod":"notes","key":"wrap","value":true}}"#
+        )
+        _ = try respond(
+            #"{"jsonrpc":"2.0","id":3,"method":"setting/write","params":{"mod":"notes","key":"size","value":14}}"#
+        )
+
+        // When
+        let response = try respond(#"{"jsonrpc":"2.0","id":4,"method":"setting/read","params":{"mod":"notes"}}"#)
+
+        // Then
+        #expect(response == (try json(#"{"jsonrpc":"2.0","id":4,"result":{"wrap":true,"size":14}}"#)))
+    }
+
+    @Test("state written is read back by all, with no params asked")
+    func testThatStateRoundTrips() throws {
+        // Given
+        try initialize()
+        _ = try respond(
+            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":"host","key":"pinned","text":"[]"}}"#
+        )
+
+        // When
+        let response = try respond(#"{"jsonrpc":"2.0","id":3,"method":"state/all"}"#)
+
+        // Then
+        #expect(
+            response == (try json(#"{"jsonrpc":"2.0","id":3,"result":[{"folder":"host","key":"pinned","text":"[]"}]}"#))
+        )
+    }
+
     // MARK: - Private
     private func initialize() throws {
         _ = try respond(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)"}}"#)

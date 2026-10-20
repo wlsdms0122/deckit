@@ -269,7 +269,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
 
     // What a page says of its run carries the run's number.
     function listen() {
-        PROTOCOL.load.handle((_payload, sender) => {
+        PROTOCOL.load.handle(async (_payload, sender) => {
             const sandbox = sandboxes.get(IDENTITY.modFrom(sender).id);
             if (sandbox.closing) throw new Error(`${sandbox.mod.id} is going`);
             // A page that loaded again by itself runs again: the run it had ended with the document it ran in.
@@ -286,7 +286,7 @@ export function createRunner({ STORAGE, LOG, IDENTITY, CATALOG, SANDBOX, MANIFES
             return {
                 manifest: MANIFEST.of(sandbox.mod),
                 source: CATALOG.sourceOf(sandbox.mod),
-                settings: STORAGE.settings.read(sandbox.mod.id),
+                settings: await STORAGE.settings.read(sandbox.mod.id),
                 run: run.number,
             };
         });

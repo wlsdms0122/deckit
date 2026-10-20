@@ -12,6 +12,12 @@ import Foundation
 struct Connection {
     // MARK: - Property
     // MARK: - Initializer
+    // Once the driver has ended, what it sent before is still read and kept: an answer to no one is dropped, rather
+    // than ending the core with SIGPIPE.
+    init() {
+        signal(SIGPIPE, SIG_IGN)
+    }
+
     // MARK: - Public
     // The next message, or nil once stdin has ended: the driver closed it, or its process ended.
     func receive() -> Data? {
@@ -19,7 +25,7 @@ struct Connection {
     }
 
     func send(_ message: Data) {
-        FileHandle.standardOutput.write(message + Data("\n".utf8))
+        try? FileHandle.standardOutput.write(contentsOf: message + Data("\n".utf8))
     }
 
     // MARK: - Private

@@ -143,8 +143,8 @@ function make({ preload, core, host, config: CONFIG, folders }) {
         starting.push(listener);
     }
 
-    function start(preload) {
-        deck.prepare({ preload });
+    async function start(preload) {
+        await deck.prepare({ preload });
         WEB.start();
         KEYMAP.start();
         OPEN.start();

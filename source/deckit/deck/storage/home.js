@@ -21,8 +21,6 @@ export function createHome({ CONFIG }) {
         // A mod's data folder is the mod's own, whatever of it writes there; what deck keeps for a mod is beside
         // it.
         data: path.join(folder, 'data'),
-        settings: path.join(folder, 'settings'),
-        state: path.join(folder, 'state'),
         logs: path.join(folder, 'logs'),
     };
 }
