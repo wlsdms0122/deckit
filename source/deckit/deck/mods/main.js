@@ -4,19 +4,7 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
 // again and counting what one stored.
-export function createMods({
-    LOG,
-    IDENTITY,
-    INSTALL,
-    REMOVE,
-    CATALOG,
-    RUNNER,
-    SANDBOX,
-    MANIFEST,
-    STORAGE,
-    RECORD,
-    EXTENSION,
-}) {
+export function createMods({ LOG, IDENTITY, REMOVE, CATALOG, RUNNER, SANDBOX, STORAGE, RECORD, EXTENSION }) {
     // MARK: - Property
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
@@ -35,11 +23,11 @@ export function createMods({
     }
 
     // What a folder would install, asked before the person is: its manifest, and whether it replaces an installed
-    // mod. Throws for a folder install refuses, with why.
-    function wouldInstall(from) {
-        const manifest = INSTALL.wouldInstall(from, shadowed);
+    // mod. Refused with why for a folder install refuses.
+    async function wouldInstall(from) {
+        const manifest = await CATALOG.wouldInstall(from);
         return {
-            ...MANIFEST.of(manifest),
+            ...manifest,
             from,
             replaces: CATALOG.found().some((mod) => mod.id === manifest.id && mod.installed),
         };
@@ -70,9 +58,6 @@ export function createMods({
         });
         PROTOCOL.count.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            // A mod id names a folder of deck's and nothing outside it.
-            const problem = MANIFEST.idProblem(id);
-            if (problem) throw Object.assign(new Error(problem), { kind: 'REFUSED' });
             return stored(id);
         });
         PROTOCOL.watchMods.on((_payload, sender) => {
@@ -100,7 +85,7 @@ export function createMods({
             found: [...CATALOG.mods(), ...CATALOG.found().filter((mod) => mod.problem)].map((mod) => {
                 const run = RUNNER.runOf(mod.id);
                 return {
-                    ...MANIFEST.of(mod),
+                    ...mod.manifest,
                     folder: mod.folder,
                     installed: mod.installed,
                     shipped: mod.shipped,
@@ -131,33 +116,25 @@ export function createMods({
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards
     // nothing. What a removal of the same id left to clear is cleared first, so clearing it never reaches this one.
     async function install(from) {
-        const { id } = INSTALL.wouldInstall(from, shadowed);
+        const { id } = await CATALOG.wouldInstall(from);
         if (REMOVE.uncleared().includes(id)) await clear(id);
-        const manifest = INSTALL.install(from, shadowed);
-        CATALOG.refresh({ installed: manifest.id });
+        const manifest = await CATALOG.install(from);
+        await CATALOG.refresh();
         await RUNNER.whenClosed(manifest.id);
-        return { ...(await layer.installed(manifest.id)), ...MANIFEST.of(manifest) };
+        return { ...(await layer.installed(manifest.id)), ...manifest };
     }
 
-    // A source folder of the same id would hide the installed copy.
-    function shadowed(manifest) {
-        const source = CATALOG.found().find((mod) => mod.id === manifest.id && !mod.installed);
-        return source ? `${manifest.id} is read from ${source.folder}, which would hide the installed copy` : '';
-    }
-
-    // Its run has ended, stop() and all, and its page closed, before what it stored is taken, so nothing writes it
-    // back.
+    // What runs in its place is told before its run ends. Its run has ended, stop() and all, and its page closed,
+    // before what it stored is taken, so nothing writes it back.
     async function remove(id, data) {
-        const mod = CATALOG.found().find((candidate) => candidate.id === id);
-        if (mod && !mod.installed)
-            throw new Error(`${id} is read from ${mod.folder}, not installed, so it is removed there`);
-        REMOVE.remove(id);
+        const keeps = await CATALOG.remove(id);
         layer.removed(id);
-        CATALOG.refresh();
+        await CATALOG.refresh();
         await RUNNER.whenClosed(id);
-        const removed = { data: data && REMOVE.eraseData(id) };
-        if (removed.data) await clear(id);
-        return removed;
+        if (!data || !keeps) return { data: false };
+        await REMOVE.eraseData(id);
+        await clear(id);
+        return { data: true };
     }
 
     // What a mod stored, in its data folder and its records: `{ count, capped, hidden }`.

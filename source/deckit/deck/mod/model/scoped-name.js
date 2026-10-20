@@ -1,5 +1,5 @@
 // A name scoped by the mod that owns it, as another mod names it: `<mod id>:<name>`. An event, an extension point and
-// a command entry are named so. A mod id holds no colon (manifest.js), so the first one ends it.
+// a command entry are named so. A mod id holds no colon, as the core reads ids, so the first one ends it.
 const SEPARATOR = ':';
 
 function scopedName(modId, name) {
