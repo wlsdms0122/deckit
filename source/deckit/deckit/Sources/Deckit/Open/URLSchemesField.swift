@@ -15,14 +15,10 @@ struct URLSchemesField: ManifestField {
     let name = "url-schemes"
     let key = "urlSchemes"
 
-    private let every = "*"
-    // What a page runs or holds itself: nothing opens these.
-    private let notPlaces: Set<String> = ["javascript", "data", "blob", "about"]
-
     // MARK: - Initializer
     // MARK: - Public
-    func read(_ written: TOMLValue?) -> any Encodable & Sendable {
-        guard case let .array(values) = written else { return [String]() }
+    func read(_ written: TOMLValue?) -> [String] {
+        guard case let .array(values) = written else { return [] }
         return schemes(in: values)
     }
 
@@ -42,13 +38,13 @@ struct URLSchemesField: ManifestField {
         }
 
         let schemes = schemes(in: values)
-        let unplaced = schemes.filter(notPlaces.contains)
+        let unplaced = schemes.filter { scheme in URLScheme(name: scheme)?.isPlace == false }
         guard unplaced.isEmpty else {
             let named = unplaced.map { scheme in "\"\(scheme)\"" }.joined(separator: ", ")
             return "url-schemes: \(named) is not a place; nothing opens it"
         }
-        guard !schemes.contains(every) || schemes.count == 1 else {
-            return "url-schemes: \"\(every)\" already takes every scheme, so it stands alone"
+        guard !schemes.contains(URLScheme.every) || schemes.count == 1 else {
+            return "url-schemes: \"\(URLScheme.every)\" already takes every scheme, so it stands alone"
         }
 
         return nil
@@ -64,8 +60,7 @@ struct URLSchemesField: ManifestField {
         }
     }
 
-    // RFC 3986, lower case as compared.
     private func isScheme(_ scheme: String) -> Bool {
-        scheme == every || scheme.wholeMatch(of: #/[a-z][a-z0-9+.-]*/#) != nil
+        scheme == URLScheme.every || URLScheme(name: scheme) != nil
     }
 }

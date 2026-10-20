@@ -9,11 +9,13 @@ import Foundation
 
 // A field a layer on deck adds to the manifest: `name` as a manifest writes it, `key` as a manifest holds it.
 public protocol ManifestField: Sendable {
+    associatedtype Value: Encodable & Sendable
+
     var name: String { get }
     var key: String { get }
 
     // What a manifest holds of the field as a mod wrote it, or of none written.
-    func read(_ written: TOMLValue?) -> any Encodable & Sendable
+    func read(_ written: TOMLValue?) -> Value
     // What is wrong with the field as a mod wrote it, or nil.
     func problem(of written: TOMLValue) -> String?
 }

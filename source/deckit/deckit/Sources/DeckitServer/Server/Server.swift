@@ -95,6 +95,7 @@ final class Server {
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
                 name: params.name,
+                schemeHandlers: params.schemeHandlers,
                 permissions: params.permissions
             )
             return JSONValue.object([:])

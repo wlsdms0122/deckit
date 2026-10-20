@@ -13,23 +13,39 @@ public final class Deckit {
     // MARK: - Property
     private let deck: Deck
     private let keymap: Keymap
+    private let commandRegistry: CommandRegistry
+    private let urlRouter: URLRouter
 
     // MARK: - Initializer
-    // `name` is the app's, as a person reads it, and `permissions` are those main defines, for what deck, deckit and the
-    // shell add; the core adds those it checks itself.
-    public init(home: URL, ship: [URL], sources: [URL], api: Version, name: String, permissions: [Permission]) throws {
+    // `name` is the app's, as a person reads it, `schemeHandlers`, by scheme, the mods it asks first to open an
+    // address, and `permissions` are those main defines, for what deck, deckit and the shell add; the core adds those
+    // it checks itself.
+    public init(
+        home: URL,
+        ship: [URL],
+        sources: [URL],
+        api: Version,
+        name: String,
+        schemeHandlers: [String: [String]],
+        permissions: [Permission]
+    ) throws {
+        let urlSchemes = URLSchemesField()
         let deck = try Deck(
             home: home,
             ship: ship,
             sources: sources,
             api: api,
             permissions: permissions + [Keymap.globalKeys],
-            fields: [URLSchemesField()]
+            fields: [urlSchemes]
         )
         let keymap = Keymap(deck: deck, appName: name)
+        let urlRouter = URLRouter(deck: deck, field: urlSchemes, schemeHandlers: schemeHandlers)
         deck.add(keymap)
+        deck.add(urlRouter)
         self.deck = deck
         self.keymap = keymap
+        self.commandRegistry = CommandRegistry(deck: deck)
+        self.urlRouter = urlRouter
     }
 
     // MARK: - Public
@@ -53,6 +69,18 @@ public final class Deckit {
         case "keymap/keystrokes":
             let params = try call.params.decode(as: KeystrokesParams.self)
             return keymap.keystrokes(of: params.specs)
+
+        case "command/sources":
+            return commandRegistry.sources()
+
+        case "open/route":
+            return urlRouter.route(try call.params.decode(as: RouteParams.self))
+
+        case "open/handlerLists":
+            return urlRouter.handlerLists()
+
+        case "open/setHandlers":
+            return try urlRouter.setHandlers(try call.params.decode(as: SetHandlersParams.self))
 
         default:
             return try deck.answer(call)
