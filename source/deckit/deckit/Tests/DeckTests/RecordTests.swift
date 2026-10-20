@@ -18,7 +18,7 @@ struct RecordTests {
     // MARK: - Initializer
     init() {
         folder = FileManager.default.temporaryDirectory.appending(path: "record-tests-\(UUID().uuidString)")
-        sut = Record(folder: folder)
+        sut = Record(folder: folder, store: Store())
     }
 
     // MARK: - Test
@@ -99,12 +99,27 @@ struct RecordTests {
         #expect(try sut.read(mod: "finder", key: "a") == "2")
     }
 
+    @Test("count is every file of the mod's records, and says whether one is hidden")
+    func testThatCountIsEveryFile() throws {
+        // Given
+        try sut.write(mod: "notes", key: "a", text: "1")
+        try sut.write(mod: "notes", key: "b", text: "2")
+        try Data().write(to: folder.appending(path: "notes/.hidden"))
+
+        // When
+        let count = try sut.count(mod: "notes")
+
+        // Then
+        #expect(count == RecordCount(count: 3, hidden: true))
+        #expect(try sut.count(mod: "never") == RecordCount(count: 0, hidden: false))
+    }
+
     @Test("a key that would not name a file is refused as KEY", arguments: ["", "Tabs", "a/b", "a..b", ".a"])
     func testThatBadKeyIsRefused(key: String) {
         // Given
         // When
         // Then
-        #expect(throws: CallError(kind: "KEY", message: "not a record key: \(key)")) {
+        #expect(throws: RecordError.notAKey(key)) {
             try sut.write(mod: "notes", key: key, text: "1")
         }
     }

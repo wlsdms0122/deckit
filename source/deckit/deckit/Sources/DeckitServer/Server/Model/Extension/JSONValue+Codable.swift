@@ -1,6 +1,6 @@
 //
 //  JSONValue+Codable.swift
-//  Deck
+//  DeckitServer
 //
 //  Created by JSilver on 10/20/26.
 //
@@ -9,7 +9,7 @@ import Foundation
 
 extension JSONValue: Codable {
     // MARK: - Initializer
-    public init(from decoder: any Decoder) throws {
+    init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
         if container.decodeNil() {
             self = .null
@@ -27,7 +27,7 @@ extension JSONValue: Codable {
     }
 
     // MARK: - Public
-    public func encode(to encoder: any Encoder) throws {
+    func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         switch self {
         case .null:

@@ -21,6 +21,7 @@ let package = Package(
         .executableTarget(
             name: "DeckitServer",
             dependencies: [
+                "Deck",
                 "Deckit"
             ]
         ),

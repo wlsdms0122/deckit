@@ -8,7 +8,7 @@
 import Foundation
 
 // JSON-RPC's codes, with the Language Server Protocol's for a server not yet initialized and a request that failed.
-enum ErrorCode: Int, Equatable {
+enum ErrorCode: Int {
     case parseError = -32700
     case invalidRequest = -32600
     case methodNotFound = -32601
@@ -16,4 +16,9 @@ enum ErrorCode: Int, Equatable {
     case internalError = -32603
     case serverNotInitialized = -32002
     case requestFailed = -32803
+
+    // MARK: - Property
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
 }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct ResponseError: Error, Equatable {
+struct ResponseError: Error {
     // MARK: - Property
     let code: ErrorCode
     let message: String

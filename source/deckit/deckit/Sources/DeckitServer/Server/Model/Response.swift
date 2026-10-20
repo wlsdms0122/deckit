@@ -6,10 +6,14 @@
 //
 
 import Foundation
-import Deck
 
-// A JSON-RPC response: a result, or an error. An error with no id answers a message that could not be read.
-enum Response: Equatable {
-    case result(id: Int, JSONValue)
+// A JSON-RPC response: a result, or an error. An error with no id answers a message whose id could not be read.
+enum Response {
+    case result(id: Int, any Encodable & Sendable)
     case error(id: Int?, ResponseError)
+
+    // MARK: - Property
+    // MARK: - Initializer
+    // MARK: - Public
+    // MARK: - Private
 }

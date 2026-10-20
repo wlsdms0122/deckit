@@ -24,8 +24,11 @@ final class Server {
         let response: Response?
         do {
             response = answer(try decoder.decode(Request.self, from: message))
+        } catch let DecodingError.dataCorrupted(context) where context.codingPath.isEmpty {
+            let error = ResponseError(code: .parseError, message: "not JSON: \(context.debugDescription)")
+            response = .error(id: nil, error)
         } catch {
-            response = .error(id: nil, ResponseError(code: .parseError, message: "not a request: \(error)"))
+            response = .error(id: nil, ResponseError(code: .invalidRequest, message: "not a request: \(error)"))
         }
 
         return response.flatMap { try? encoder.encode($0) }
@@ -33,12 +36,12 @@ final class Server {
 
     // MARK: - Private
     private func answer(_ request: Request) -> Response? {
-        let outcome: Result<JSONValue, ResponseError>
+        let outcome: Result<any Encodable & Sendable, ResponseError>
         do {
             outcome = .success(try result(of: Call(method: request.method, params: request.params ?? .null)))
         } catch let error as ResponseError {
             outcome = .failure(error)
-        } catch let error as CallError {
+        } catch let error as any CallError {
             outcome = .failure(ResponseError(code: .requestFailed, message: error.message, kind: error.kind))
         } catch is DecodingError {
             outcome = .failure(ResponseError(code: .invalidParams, message: "\(request.method) has no such params"))
@@ -56,7 +59,7 @@ final class Server {
         }
     }
 
-    private func result(of call: Call) throws -> JSONValue {
+    private func result(of call: Call) throws -> any Encodable & Sendable {
         if call.method == "initialize" {
             guard deckit == nil else {
                 throw ResponseError(code: .invalidRequest, message: "the core is initialized once")
@@ -64,7 +67,7 @@ final class Server {
 
             let params = try call.params.decode(as: InitializeParams.self)
             deckit = Deckit(home: URL(filePath: params.home, directoryHint: .isDirectory))
-            return .object([:])
+            return JSONValue.object([:])
         }
 
         guard let deckit else {

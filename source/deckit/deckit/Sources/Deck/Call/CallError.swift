@@ -7,18 +7,8 @@
 
 import Foundation
 
-// A call refused, with the kind the far side reads it by.
-public struct CallError: Error, Equatable, Sendable {
-    // MARK: - Property
-    public let kind: String?
-    public let message: String
-
-    // MARK: - Initializer
-    public init(kind: String? = nil, message: String) {
-        self.kind = kind
-        self.message = message
-    }
-
-    // MARK: - Public
-    // MARK: - Private
+// What a call is refused with: `kind` is how whoever asked tells one refusal from another.
+public protocol CallError: Error {
+    var kind: String { get }
+    var message: String { get }
 }

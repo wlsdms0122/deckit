@@ -19,7 +19,7 @@ public final class Deckit {
     }
 
     // MARK: - Public
-    public func answer(_ call: Call) throws -> JSONValue? {
+    public func answer(_ call: Call) throws -> (any Encodable & Sendable)? {
         try deck.answer(call)
     }
 

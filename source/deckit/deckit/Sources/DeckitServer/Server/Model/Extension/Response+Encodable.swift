@@ -8,6 +8,8 @@
 import Foundation
 
 extension Response: Encodable {
+    // MARK: - Property
+    // MARK: - Initializer
     // MARK: - Public
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)

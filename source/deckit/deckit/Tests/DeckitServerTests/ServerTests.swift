@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-import Deck
 @testable import DeckitServer
 
 @Suite("Server")
@@ -60,7 +59,7 @@ struct ServerTests {
         // Given
         try initialize()
         _ = try respond(
-            #"{"jsonrpc":"2.0","id":2,"method":"record/write","params":{"mod":"notes","key":"tabs","value":"[1,\"a\"]"}}"#
+            #"{"jsonrpc":"2.0","id":2,"method":"record/write","params":{"mod":"notes","key":"tabs","text":"[1,\"a\"]"}}"#
         )
 
         // When
@@ -70,6 +69,20 @@ struct ServerTests {
 
         // Then
         #expect(response == .object(["jsonrpc": .string("2.0"), "id": .number(3), "result": .string(#"[1,"a"]"#)]))
+    }
+
+    @Test("a record never written is read as null")
+    func testThatMissingRecordIsNull() throws {
+        // Given
+        try initialize()
+
+        // When
+        let response = try respond(
+            #"{"jsonrpc":"2.0","id":2,"method":"record/read","params":{"mod":"notes","key":"tabs"}}"#
+        )
+
+        // Then
+        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"result":null}"#)))
     }
 
     @Test("a refusal carries its kind")
@@ -135,6 +148,20 @@ struct ServerTests {
         }
         #expect(fields["id"] == .null)
         #expect(error["code"] == .number(-32700))
+    }
+
+    @Test("JSON that is no request is an invalid request")
+    func testThatShapelessMessageIsInvalidRequest() throws {
+        // Given
+        // When
+        let response = try respond(#"{"jsonrpc":"2.0","id":"one"}"#)
+
+        // Then
+        guard case let .object(fields) = response, case let .object(error)? = fields["error"] else {
+            Issue.record("no error in \(response)")
+            return
+        }
+        #expect(error["code"] == .number(-32600))
     }
 
     // MARK: - Private

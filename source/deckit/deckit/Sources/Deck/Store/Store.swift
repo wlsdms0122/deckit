@@ -31,5 +31,11 @@ struct Store {
         try FileManager.default.removeItem(at: file)
     }
 
+    // The names of what a folder holds, none for a folder that is not there.
+    func names(in folder: URL) throws -> [String] {
+        guard FileManager.default.fileExists(atPath: folder.path(percentEncoded: false)) else { return [] }
+        return try FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false))
+    }
+
     // MARK: - Private
 }
