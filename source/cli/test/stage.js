@@ -15,6 +15,8 @@ class View {
         this.children = [];
         this.bounds = { x: 0, y: 0, width: 0, height: 0 };
         this.visible = true;
+        this.gone = false;
+        this.webContents = { isDestroyed: () => this.gone };
     }
     addChildView(view, index) {
         const at = this.children.indexOf(view);
@@ -60,10 +62,10 @@ async function main() {
         return name;
     };
     const stage = createStage({
-        LOG: { guard: () => () => {} },
+        LOG: { guard: () => () => {}, info: () => {} },
         WINDOW: { place: () => {} },
         viewOf: (name) => views.get(name) || null,
-    }).create();
+    }).stage();
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
@@ -77,53 +79,84 @@ async function main() {
         return lifts - before;
     };
 
-    laid(['backdrop', 'a', 'b', 'frame', 'handle']);
-    check('pages go on the stage bottom to top', orderOf() === 'backdrop a b frame handle', orderOf());
+    const lay = (layers) => {
+        const before = lifts;
+        stage.lay(
+            layers.map((layer) =>
+                typeof layer === 'string'
+                    ? { page: page(layer), rect: { x: 0, y: 0, width: 1, height: 1 } }
+                    : { page: page(layer.hidden), hidden: true }
+            )
+        );
+        return lifts - before;
+    };
+    const refusal = (layers) => {
+        try {
+            stage.lay(layers);
+            return '';
+        } catch (error) {
+            return error.message;
+        }
+    };
+
+    lay(['backdrop', 'a', 'frame', 'handle']);
+    check('pages go on the stage bottom to top', orderOf() === 'backdrop a frame handle', orderOf());
     check('a new stage lifts nothing', lifts === 0, lifts);
+    check('the same layers move nothing', lay(['backdrop', 'a', 'frame', 'handle']) === 0, orderOf());
+    lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']);
+    check('a new hidden page goes in over the layer before it', orderOf() === 'backdrop b a frame handle', orderOf());
     check(
-        'the same layers move nothing',
-        laid(['backdrop', 'a', 'b', 'frame', 'handle']) === 0 && orderOf() === 'backdrop a b frame handle',
+        'showing either of two hidden pages lifts nothing',
+        lay(['backdrop', { hidden: 'a' }, 'b', 'frame', 'handle']) === 0 &&
+            lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']) === 0,
         orderOf()
     );
     check(
         'a page put over the frame is lifted alone',
-        laid(['backdrop', 'b', 'frame', 'handle', 'a']) === 1 && orderOf() === 'backdrop b frame handle a',
+        lay(['backdrop', { hidden: 'b' }, 'frame', 'handle', 'a']) === 1 && orderOf() === 'backdrop b frame handle a',
         orderOf()
     );
     check(
         'back under the frame, what goes over it is lifted, not the page',
-        laid(['backdrop', 'b', 'a', 'frame', 'handle']) === 2 && orderOf() === 'backdrop b a frame handle',
+        lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']) === 2 && orderOf() === 'backdrop b a frame handle',
         orderOf()
     );
     check(
-        'a new page goes in at its place, lifting nothing',
-        laid(['backdrop', 'c', 'b', 'a', 'frame', 'handle']) === 0 && orderOf() === 'backdrop c b a frame handle',
+        'a new page laid goes in over the one before it, lifting nothing',
+        lay(['backdrop', { hidden: 'b' }, 'a', 'c', 'frame', 'handle']) === 0 &&
+            orderOf() === 'backdrop b a c frame handle',
         orderOf()
     );
-    laid(['backdrop', 'c', 'a', 'frame', 'handle']);
-    check('a page left out is taken off', orderOf() === 'backdrop c a frame handle', orderOf());
+    lay(['backdrop', 'a', 'frame', 'handle']);
+    check('a page left out is taken off', orderOf() === 'backdrop a frame handle', orderOf());
     stage.lay([
         { page: 'backdrop', rect: { x: 0, y: 0, width: 5, height: 5 } },
-        { page: 'c', hidden: true },
-        { page: 'a', rect: { x: 1, y: 2, width: 3, height: 4 } },
+        { page: 'a', hidden: true },
+        { page: 'frame', rect: { x: 1, y: 2, width: 3, height: 4 } },
     ]);
     check(
         'a hidden page keeps its place and its bounds, unseen',
-        orderOf() === 'backdrop c a' && !views.get('c').visible && views.get('c').bounds.width === 1,
+        orderOf() === 'backdrop a frame' && !views.get('a').visible && views.get('a').bounds.width === 1,
         orderOf()
     );
+    check('a laid page is where it is laid, seen', views.get('frame').visible && views.get('frame').bounds.y === 2, '');
+    views.get('a').gone = true;
     check(
-        'a laid page is where it is laid, seen',
-        views.get('a').visible && views.get('a').bounds.y === 2,
-        views.get('a')
+        'a page whose page is gone is taken off',
+        refusal([
+            { page: 'backdrop', rect: { x: 0, y: 0, width: 1, height: 1 } },
+            { page: 'a', hidden: true },
+        ]) === '' && orderOf() === 'backdrop',
+        orderOf()
     );
-    let refused = '';
-    try {
-        stage.lay([{ page: 'nowhere', rect: { x: 0, y: 0, width: 1, height: 1 } }]);
-    } catch (error) {
-        refused = error.message;
-    }
-    check('a stage lays only pages it knows', /a stage lays/.test(refused), refused);
+    const unknown = refusal([{ page: 'nowhere', rect: { x: 0, y: 0, width: 1, height: 1 } }]);
+    check("a stage lays only pages of deck's", /a stage lays/.test(unknown), unknown);
+    const both = refusal([{ page: 'backdrop', rect: { x: 0, y: 0, width: 1, height: 1 }, hidden: true }]);
+    const neither = refusal([{ page: 'backdrop' }]);
+    check('a layer is laid or hidden, one of the two', /a layer is/.test(both) && /a layer is/.test(neither), [
+        both,
+        neither,
+    ]);
 
     for (const line of failed) console.error(line);
     if (failed.length) {

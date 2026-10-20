@@ -137,13 +137,8 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
-    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG });
-    // A page on a stage is a mod's, in the view its run is in, or one that runs none, in the view it was opened in.
-    const STAGE = createStage({
-        LOG,
-        WINDOW,
-        viewOf: (page) => PAGE.viewOf(page) || RUNNER.runs().find((run) => run.page === page)?.view || null,
-    });
+    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, RUNNER, LOG });
+    const STAGE = createStage({ LOG, WINDOW, viewOf: PAGE.viewOf });
     const API = createApi({
         CONFIG,
         STORAGE,

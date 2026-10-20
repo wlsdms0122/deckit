@@ -60,7 +60,7 @@ export function createApi({
             }),
             pages: Object.freeze({
                 open: PAGE.open,
-                stage: STAGE.create,
+                stage: STAGE.stage,
                 close: PAGE.close,
                 focus: PAGE.focus,
                 isAlive: PAGE.isAlive,

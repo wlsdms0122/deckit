@@ -27,7 +27,6 @@ export function createPanel({ REGION, deckit, host }) {
     const NAMED_KEYS = new Set(['back', 'forward']); // the actions of the panel's keys a tooltip names
     const history = { list: [], at: -1 };
     let stage = null; // where the pages are laid, which the host app places
-    let stacked = []; // the mods' pages as they were last laid, bottom to top, by mod id
     let current = null;
     let returning = null; // the mod that was on screen while its page runs again
     let inList = new Set(); // the mods in the list as it was last sent
@@ -326,32 +325,25 @@ export function createPanel({ REGION, deckit, host }) {
         if (holder && !sent.onScreen.has(holder)) focus();
     }
 
-    // From the bottom: the backdrop over the whole stage, the mods' pages, the mod on screen among them, the children
-    // it shows over their regions, then the frame's page and its handle where they draw; the rest are hidden. A dialog
-    // or a menu of the mod on screen comes over the frame and its handle, as it did over the page's own. A page stays
-    // where it was laid unless it has to be over another (the stage lifts it there), so putting another mod on screen
-    // moves nothing.
+    // From the bottom: the backdrop over the whole stage, the mod on screen, the children it shows over their
+    // regions, then the frame's page and its handle where they draw; the mods' other pages are hidden. A dialog or a
+    // menu of the mod on screen comes over the frame and its handle, as it did over the page's own.
     function layout() {
         const { width, height } = stage.size();
         const full = { x: 0, y: 0, width, height };
         const children = childrenOnScreen();
         const floats = floating.has(currentContents());
-        const mods = [
-            ...stacked.filter((id) => pages.has(id)),
-            ...[...pages.keys()].filter((id) => !stacked.includes(id)),
-        ].filter((id) => !children.has(id) && !(floats && id === current));
-        const lifted = floats ? [current] : [];
-        stacked = [...mods, ...children.keys(), ...lifted];
+        const hidden = [...pages].filter(([id]) => id !== current && !children.has(id));
+        const shownCurrent = pages.has(current) ? [{ page: pages.get(current), rect: full }] : [];
         stage.lay(
             [
                 at(shell.surfaces.get(PAGE.SURFACE.BACKDROP), full),
-                ...mods.map((id) =>
-                    id === current ? { page: pages.get(id), rect: full } : { page: pages.get(id), hidden: true }
-                ),
+                ...hidden.map(([, page]) => ({ page, hidden: true })),
+                ...(floats ? [] : shownCurrent),
                 ...[...children].map(([id, rect]) => ({ page: pages.get(id), rect: clip(rect, width, height) })),
                 at(shell.page, shell.moving || shell.rects?.obscured),
                 at(shell.surfaces.get(PAGE.SURFACE.HANDLE), shell.rects?.handle),
-                ...lifted.map((id) => ({ page: pages.get(id), rect: full })),
+                ...(floats ? shownCurrent : []),
             ].filter(Boolean)
         );
 

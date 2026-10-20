@@ -6,9 +6,13 @@ const { until, sleep, CTRL, META, SHIFT } = require('./devtools.js');
 
 // The mods Deckit.app ships with a view: every one but Deckit, which is commands only.
 const VIEWS = 7;
+// The test's own mods with a view: the region parent and the window probe. Its region child is in no list.
+const TEST_VIEWS = 2;
 const LINES = 'lines.txt';
 const FOUND = 'source/quick-open-target.js';
 const BROKEN = 'opens-everything';
+// Where the region child's next revision is, which the window probe installs over the one there.
+const NEXT_CHILD = 'region-child-next';
 // A mod removed with its data whose web sessions were not cleared then, so what deck keeps of it is erased at start.
 const REMOVED = 'removed-with-data';
 
@@ -18,6 +22,9 @@ const REMOVED = 'removed-with-data';
 function seed({ data, files }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
+    const next = path.join(data, NEXT_CHILD);
+    fs.cpSync(path.join(__dirname, 'mods', 'region-child'), next, { recursive: true });
+    fs.appendFileSync(path.join(next, 'main.js'), '// The next revision.\n');
     fs.mkdirSync(path.join(mods, BROKEN), { recursive: true });
     fs.writeFileSync(
         path.join(mods, BROKEN, 'manifest.toml'),
@@ -61,18 +68,20 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             `document.querySelector('[data-mod-id][aria-selected="true"]')?.dataset.modId`
         );
     const visibility = async (id) => ((await current()) === id ? 'visible' : 'hidden');
-    // The pages laid in the panel's window, bottom to top, as a main process module of the region parent's finds
-    // them: { url, shown, width } each, or null when it finds no window.
+    // The pages laid with the panel's frame, bottom to top, as a main process module of the window probe's finds
+    // them: { url, shown, width } each; and whether it finds the window its own page is shown in.
     const stackNow = async () => {
-        const parent = await page('deckit://region-parent.mod');
-        await parent?.evaluate(
+        const probe = await page('deckit://window-probe.mod');
+        await probe?.evaluate(
             `delete document.documentElement.dataset.stack; document.dispatchEvent(new CustomEvent('test-stack'))`
         );
         const read = async () => {
-            const written = await parent?.evaluate('document.documentElement.dataset.stack');
+            const written = await probe?.evaluate('document.documentElement.dataset.stack');
             return typeof written === 'string' ? JSON.parse(written) : undefined;
         };
-        return until(async () => ((await read()) === undefined ? false : (await read()) || 'none'), 4000);
+        const stack = (await until(async () => (await read()) || false, 4000)) || [];
+        stack.found = (await probe?.evaluate('document.documentElement.dataset.found')) === 'true';
+        return stack;
     };
     const urlsOf = (stack) => (Array.isArray(stack) ? stack.map(({ url }) => url.replace(/\/$/, '')) : []);
 
@@ -102,7 +111,11 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             `[...document.querySelectorAll('[data-mod-id]')].map((row) => row.dataset.modId)`
         );
         // The shipped views and the test's region parent: its child is in no list.
-        check(`nav lists ${VIEWS + 1} mods`, Array.isArray(rows) && rows.length === VIEWS + 1, JSON.stringify(rows));
+        check(
+            `nav lists ${VIEWS + TEST_VIEWS} mods`,
+            Array.isArray(rows) && rows.length === VIEWS + TEST_VIEWS,
+            JSON.stringify(rows)
+        );
         check('the order kept is read back from the core', rows?.[1] === 'settings', JSON.stringify(rows));
         // The test's region parent has no icon.
         const heights = await frame.evaluate(
@@ -277,7 +290,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await sleep(400);
         check('Escape puts a menu away', !(await settings.evaluate(menus)), '');
         const settled = await stackNow();
-        check('a main process module finds the window the panel is in', Array.isArray(settled), settled);
+        check('a main process module finds the window its page is shown in, in the panel', settled.found, settled);
         check(
             'the backdrop is at the bottom, and the frame and its handle on top',
             urlsOf(settled)[0] === 'about:blank' &&
@@ -454,6 +467,33 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const relaunched = await until(async () => (await child.evaluate(started)) !== origin, 6000);
         check('a mod runs again once what it requires runs again', relaunched, '');
 
+        // A shown mod's next revision installed over it: its page is replaced while the panel lays it, the new one
+        // loads, and the panel goes on laying it in its region. The probe's row lies past what the frame's page
+        // covers on screen, so it is picked as a click in the page.
+        await frame.evaluate(`document.querySelector('[data-mod-id="window-probe"]').click()`);
+        await until(async () => (await visibility('window-probe')) === 'visible', 3000);
+        const probe = await page('deckit://window-probe.mod');
+        const was = await child.evaluate(started);
+        const next = JSON.stringify(path.join(home, '..', NEXT_CHILD));
+        await probe.evaluate(`document.dispatchEvent(new CustomEvent('test-install-from', { detail: ${next} }))`);
+        await probe.press('#install');
+        const installed = await until(
+            async () => (await probe.evaluate('document.documentElement.dataset.installed')) || false,
+            8000
+        );
+        check("a mod's next revision installs over it", installed === 'region-child', installed);
+        const loaded = await until(async () => {
+            const now = await (await page('deckit://region-child.mod'))?.evaluate(started);
+            return typeof now === 'number' && now !== was;
+        }, 8000);
+        check("a shown mod's next revision loads in a page of its own", loaded, '');
+        await frame.evaluate(`document.querySelector('[data-mod-id="region-parent"]').click()`);
+        const relaid = await until(async () => {
+            const fresh = await page('deckit://region-child.mod');
+            return (await fresh?.evaluate(seen)) === (await parent.evaluate(slot));
+        }, 4000);
+        check('the panel lays the new page in its region', relaid, `${await current()}`);
+
         // The panel's frame is loaded again once its renderer crashes, and what its console says as an error is
         // logged under its name.
         const frameNow = `performance.timeOrigin + ':' + document.querySelectorAll('[data-mod-id]').length`;
@@ -461,7 +501,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await frame.send('Page.crash');
         const reloaded = await until(async () => {
             const now = await (await page('deckit://panel'))?.evaluate(frameNow);
-            return typeof now === 'string' && now !== crashed && now.endsWith(':' + (VIEWS + 1));
+            return typeof now === 'string' && now !== crashed && now.endsWith(':' + (VIEWS + TEST_VIEWS));
         }, 8000);
         check("a crashed frame is loaded again with the panel's list", reloaded, crashed);
         // Its backdrop is opened again, once: the crashed page's is closed.

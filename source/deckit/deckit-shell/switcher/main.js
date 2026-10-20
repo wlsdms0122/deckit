@@ -56,7 +56,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             state.closed?.(false);
             state.closed = resolve;
             state.on = true;
-            stage.show(true);
+            lay();
             deckit.pages.focus(state.page);
             if (state.ready) PROTOCOL.open.send(state.page, {});
         });
@@ -72,7 +72,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
         const played = PROTOCOL.dismiss.invoke(state.page, {}, { timeout: EXIT_LIMIT_MS }).catch(() => {});
         played.then(() => {
             if (state.on) return closed?.(false);
-            stage?.show(false);
+            lay();
             closed?.(true);
         });
     }
@@ -84,6 +84,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
         if (!stage) {
             stage = deckit.pages.stage();
             stage.whenResized(lay);
+            stage.show(true);
         }
         if (state.page && deckit.pages.isAlive(state.page)) return;
         const page = deckit.pages.open(PAGE.PAGE_NAME, { reloadsOnCrash: true });
@@ -99,7 +100,11 @@ export function createSwitcher({ PANEL, deckit, host }) {
     }
 
     function lay() {
-        if (state.page) stage.lay([{ page: state.page, rect: { x: 0, y: 0, ...stage.size() } }]);
+        if (!stage || !state.page) return;
+        // Closed, its page is hidden, as a page off screen is.
+        stage.lay([
+            state.on ? { page: state.page, rect: { x: 0, y: 0, ...stage.size() } } : { page: state.page, hidden: true },
+        ]);
     }
 
     // A page that was up and loads again, crashes or goes cannot hold an open list, and one that goes before it is up
@@ -119,7 +124,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
     function drop() {
         if (!state.on) return;
         state.on = false;
-        stage?.show(false);
+        lay();
         const closed = state.closed;
         state.closed = null;
         closed?.(true);
