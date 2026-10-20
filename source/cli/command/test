@@ -44,7 +44,7 @@ const main = async () => {
     // The app may name its folder through /private: the core is matched by the end of its path.
     const endCore = () => execSync(`pkill -9 -f -- '${path.basename(folder)}/deckit/deckit$'`);
     const logged = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '');
-    const report = await SCENARIO.run({ ...devtools, endCore, logged });
+    const report = await SCENARIO.run({ ...devtools, endCore, logged, home: path.join(data, 'deckit') });
     devtools.close();
     app.stop();
     await sleep(1000);

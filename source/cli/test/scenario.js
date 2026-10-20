@@ -10,7 +10,7 @@ const LINES = 'lines.txt';
 const FOUND = 'source/quick-open-target.js';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
-// And the test's own mods, installed.
+// The test's own mods, installed, and Settings placed second, as a person would have arranged it.
 function seed({ data, files }) {
     fs.cpSync(path.join(__dirname, 'mods'), path.join(data, 'deckit', 'mods'), { recursive: true });
     const contents = {
@@ -27,10 +27,12 @@ function seed({ data, files }) {
     const record = path.join(data, 'deckit', 'records', 'editor', 'session.json');
     fs.mkdirSync(path.dirname(record), { recursive: true });
     fs.writeFileSync(record, JSON.stringify(session));
+    fs.mkdirSync(path.join(data, 'deckit', 'state'), { recursive: true });
+    fs.writeFileSync(path.join(data, 'deckit', 'state', 'mod-order.json'), JSON.stringify(['editor', 'settings']));
 }
 
-// `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far.
-async function run({ page, pages, compose, targets, thrown, endCore, logged }) {
+// `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder.
+async function run({ page, pages, compose, targets, thrown, endCore, logged, home }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
     // What main says is on screen, as the panel's frame shows it: the selected row of the mods' list.
@@ -67,6 +69,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged }) {
         );
         // The shipped views and the test's region parent: its child is in no list.
         check(`nav lists ${VIEWS + 1} mods`, Array.isArray(rows) && rows.length === VIEWS + 1, JSON.stringify(rows));
+        check('the order kept is read back from the core', rows?.[1] === 'settings', JSON.stringify(rows));
         // The test's region parent has no icon.
         const heights = await frame.evaluate(
             `[...new Set([...document.querySelectorAll('[data-mod-id]')].map((row) => row.offsetHeight))].join()`
@@ -161,6 +164,9 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged }) {
         await note?.key('\\', 'Backslash', META, 220);
         await sleep(700);
         check('unfolding lays them back', (await note?.evaluate(room)) === open, await note?.evaluate(room));
+        const frameKept = path.join(home, 'state', 'host', 'panel-frame.json');
+        const sidebarKept = await until(() => fs.existsSync(frameKept), 2000);
+        check("the shell's state is kept by the core", sidebarKept, frameKept);
         await note?.shot('note');
         check(
             'nothing is left floating in a view',
@@ -207,6 +213,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged }) {
             after !== before && !(await settings.evaluate(menus)),
             `${before} -> ${after}`
         );
+        const settingsFolder = path.join(home, 'settings');
+        const settingKept = await until(
+            () => fs.existsSync(settingsFolder) && fs.readdirSync(settingsFolder).length,
+            2000
+        );
+        check('a setting set is kept by the core', settingKept, '');
         await settings?.evaluate(`${firstSelect}.click()`);
         await until(() => settings.evaluate(menus), 2000);
         await settings?.key('Escape', 'Escape', 0, 27);
