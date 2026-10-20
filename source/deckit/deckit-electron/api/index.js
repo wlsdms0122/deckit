@@ -17,6 +17,7 @@ export function createApi({
     KEYMAP,
     COMMAND,
     MAIN_PROCESS,
+    PAGE,
 }) {
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
@@ -44,7 +45,9 @@ export function createApi({
                 },
                 arrange: CATALOG.arrange,
                 runs: () =>
-                    Object.freeze(RUNNER.runs().map(({ run, view }) => Object.freeze({ run: factsOf(run), view }))),
+                    Object.freeze(
+                        RUNNER.runs().map(({ run, view, page }) => Object.freeze({ run: factsOf(run), page, view }))
+                    ),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),
                 listingOf,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
@@ -56,6 +59,13 @@ export function createApi({
                 restartPending: () => frozen(MAIN_PROCESS.restartPending()),
             }),
             pages: Object.freeze({
+                open: PAGE.open,
+                focus: PAGE.focus,
+                isAlive: PAGE.isAlive,
+                onFocus: PAGE.onFocus,
+                onLoad: PAGE.onLoad,
+                onGone: PAGE.onGone,
+                viewOf: PAGE.viewOf,
                 make: SANDBOX.page,
                 nameOf: IDENTITY.pageNameOf,
                 whenEnds: IDENTITY.whenPageEnds,

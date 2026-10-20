@@ -136,7 +136,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
     const MAIN_PROCESS = createMainProcess({ STORAGE, WINDOW, LOG, IDENTITY, RUNNER, FOLDER });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS });
     const RUNTIME = createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart: () => host.restart() });
-    const PAGE = createPage({ IDENTITY, PARTITION });
+    const PAGE = createPage({ IDENTITY, PARTITION, SANDBOX, LOG });
     const API = createApi({
         CONFIG,
         STORAGE,
@@ -151,6 +151,7 @@ function make({ preload, core, host, config: CONFIG, folders: FOLDERS }) {
         KEYMAP,
         COMMAND,
         MAIN_PROCESS,
+        PAGE,
     });
     const starting = []; // what starts with deckit, before any mod launches: the shell on it
     let started = false;

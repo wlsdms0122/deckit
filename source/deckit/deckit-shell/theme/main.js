@@ -15,7 +15,7 @@ export function createTheme({ deckit }) {
             if (!draws(sender)) throw Object.assign(new Error('only a deckit page draws'), { kind: 'REFUSED' });
             if (!pages.has(sender)) {
                 pages.add(sender);
-                sender.once('destroyed', () => pages.delete(sender));
+                deckit.pages.whenEnds(sender, () => pages.delete(sender));
             }
             return { theme };
         });

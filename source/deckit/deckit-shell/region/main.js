@@ -5,7 +5,7 @@ import * as DECLARED from './protocol.js';
 export function createRegion({ deckit }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    // `${webContents id}:${number}` -> { parent, rect, child }: a place in a mod's page that shows a child's view
+    // a mod's page -> number -> { parent, rect, child }: a place in the page that shows a child's view
     const regions = new Map();
     // mod id -> { parent }: the view its run that last started has, kept while the mod launches again
     const known = new Map();
@@ -34,7 +34,7 @@ export function createRegion({ deckit }) {
         });
         PROTOCOL.rect.on(({ region, ...rect }, sender) => deckit.mods.modOf(sender) && setRect(sender, region, rect));
         PROTOCOL.place.handle(({ region, id }, sender) => place(sender, region, id ?? null));
-        PROTOCOL.end.on(({ region }, sender) => end(sender.id + ':' + region));
+        PROTOCOL.end.on(({ region }, sender) => end(sender, region));
     }
 
     // The mod whose regions the mod's view is shown in, or null.
@@ -45,7 +45,7 @@ export function createRegion({ deckit }) {
     // child id -> its rect: the children `parent`'s regions show, of those `shown(id)` lets on screen, laid out.
     function laidOut(parent, shown) {
         const laid = new Map();
-        for (const { parent: owner, rect, child } of regions.values()) {
+        for (const { parent: owner, rect, child } of every()) {
             if (owner !== parent || !child || parentOf(child) !== parent || !shown(child)) continue;
             if (rect.width > 0 && rect.height > 0) laid.set(child, rect);
         }
@@ -54,7 +54,7 @@ export function createRegion({ deckit }) {
 
     // The rect of the region that shows the child, or null.
     function rectOf(child) {
-        return [...regions.values()].find((region) => region.child === child)?.rect || null;
+        return [...every()].find((region) => region.child === child)?.rect || null;
     }
 
     // Hears each change to where children are: answers its off.
@@ -66,12 +66,13 @@ export function createRegion({ deckit }) {
     // MARK: - Private
     // A region is its page's: it ends with the page, run by run, or when its element leaves the page.
     function setRect(page, number, rect) {
-        const key = page.id + ':' + number;
-        if (!regions.has(key)) {
-            regions.set(key, { parent: deckit.mods.modOf(page), rect, child: null });
-            deckit.pages.whenEnds(page, () => end(key));
+        if (!regions.has(page)) {
+            regions.set(page, new Map());
+            deckit.pages.whenEnds(page, () => regions.delete(page) && tell());
         }
-        regions.get(key).rect = rect;
+        const inPage = regions.get(page);
+        if (!inPage.has(number)) inPage.set(number, { parent: deckit.mods.modOf(page), rect, child: null });
+        inPage.get(number).rect = rect;
         tell();
     }
 
@@ -80,20 +81,23 @@ export function createRegion({ deckit }) {
         const parent = deckit.mods.modOf(page);
         if (!parent) throw new Error('only a mod has regions');
         if (id !== null && parentOf(id) !== parent) throw new Error(`${id} is not a child of ${parent}`);
-        const key = page.id + ':' + number;
-        if (!regions.has(key)) setRect(page, number, { x: 0, y: 0, width: 0, height: 0 });
+        if (!regions.get(page)?.has(number)) setRect(page, number, { x: 0, y: 0, width: 0, height: 0 });
         if (id !== null) leave(id);
-        regions.get(key).child = id;
+        regions.get(page).get(number).child = id;
         tell();
     }
 
-    function end(key) {
-        if (regions.delete(key)) tell();
+    function end(page, number) {
+        if (regions.get(page)?.delete(number)) tell();
     }
 
     // Out of every region it is in.
     function leave(id) {
-        for (const region of regions.values()) if (region.child === id) region.child = null;
+        for (const region of every()) if (region.child === id) region.child = null;
+    }
+
+    function* every() {
+        for (const inPage of regions.values()) yield* inPage.values();
     }
 
     // A mod gone from the catalog is no one's child; each parent hears its children as they change.
@@ -107,7 +111,7 @@ export function createRegion({ deckit }) {
             const written = JSON.stringify(children);
             if ((sentChildren.get(parent) ?? '[]') === written) continue;
             sentChildren.set(parent, written);
-            const page = deckit.mods.runs().find(({ run }) => run.mod.id === parent)?.view?.webContents;
+            const page = deckit.mods.runs().find(({ run }) => run.mod.id === parent)?.page;
             if (page) PROTOCOL.childrenChanged.send(page, { children });
         }
         tell();

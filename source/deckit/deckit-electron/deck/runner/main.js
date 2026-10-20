@@ -60,7 +60,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, SANDBOX, CORE }) {
 
     // Each mod's latest run, with the view its page is in.
     function runs() {
-        return [...sandboxes.values()].map(({ run, view }) => ({ run, view }));
+        return [...sandboxes.values()].map(({ run, view }) => ({ run, view, page: view?.webContents || null }));
     }
 
     function runOf(modId) {
