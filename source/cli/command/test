@@ -25,9 +25,9 @@ if (!Number.isInteger(port) || port <= 0) {
 
 const main = async () => {
     const archive = APP.builtArchive();
-    execFileSync('swift', ['test', '--quiet', '--package-path', path.join(root, 'source', 'deckit', 'deckit')], {
-        stdio: 'inherit',
-    });
+    const core = path.join(root, 'source', 'deckit', 'deckit');
+    const scratch = path.join(root, '.build', 'core-test');
+    execFileSync('swift', ['test', '--quiet', '--package-path', core, '--scratch-path', scratch], { stdio: 'inherit' });
     fs.rmSync(OUT, { recursive: true, force: true });
     fs.mkdirSync(OUT, { recursive: true });
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-app-'));
