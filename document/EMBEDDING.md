@@ -140,7 +140,7 @@ What the environment answers beside what deckit is handed, for a host app alone:
 | `window.place(view, window, { bounds, front, onClose })` | puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
 | `guard(emitter, event, listener)` | an Electron emitter's listener whose throw is logged |
 
-What Electron lets one set per webContents, deckit sets on its own and they stay its: what a `window.open` becomes (`setWindowOpenHandler`), where it may navigate, and what its sessions grant. A host app that sets these on every webContents it is told of (`app`'s `web-contents-created`) leaves those `owns` answers true for. `owns` answers from the moment Electron tells of a webContents, in that event too.
+What Electron lets one set per webContents, deckit sets on its own and they stay its: what a `window.open` becomes (`setWindowOpenHandler`), where it may navigate, and what its sessions grant. A host app that sets these on every webContents it is told of (`app`'s `web-contents-created`) leaves those `owns` answers true for. `owns` answers from the moment Electron tells of a webContents, in that event too. Deckit sets each of them once, after that event. Its webContents are its to load as well: a host app that reloads every webContents, as a watcher may in development, leaves those `owns` answers true for too, since a mod whose page anyone but deckit loads again has ended, its page gone.
 
 A stage, made by `pages.stage()`, is where the shell lays pages in a host app's window, each a page of deck's or a surface one opened:
 
