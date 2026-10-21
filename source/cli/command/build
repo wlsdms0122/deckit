@@ -44,8 +44,10 @@ CORE_SWIFT=(swift build --package-path source/deckit/deckit --product deckit -c 
 "${CORE_SWIFT[@]}" --quiet || { echo "the core could not be built: stopping" >&2; exit 1; }
 cp "$("${CORE_SWIFT[@]}" --show-bin-path)/deckit" "$LIB/deckit"
 
-# The packages' bundles, each from its entry, and deckit.json, which says what they are.
-node source/cli/bundle.js "$LIB" "$VERSION" "$SOURCE_HASH" || { echo "deckit could not be bundled: stopping" >&2; exit 1; }
+# The packages' bundles, each from its entry, and deckit.json, which says what they are and which Swift built the core.
+SWIFT="$(swift --version 2>/dev/null | sed -n 's/.*\(Swift version [^)]*)\).*/\1/p' | head -1)"
+[ -n "$SWIFT" ] || { echo "which Swift builds the core is not known: stopping" >&2; exit 1; }
+node source/cli/bundle.js "$LIB" "$VERSION" "$SOURCE_HASH" "$SWIFT" || { echo "deckit could not be bundled: stopping" >&2; exit 1; }
 
 # Byte for byte the same from the same sources, wherever built with the same Swift: the archive's hash is which deckit it
 # is.
@@ -64,5 +66,5 @@ rm -f "$OUT"/deckit-[0-9]*.tgz*
 mv "$WORK/$NAME" "$WORK/$NAME.sha256" "$OUT/"
 ARCHIVE="$OUT/$NAME"
 
-echo "built deckit $VERSION (sources $SOURCE_HASH)"
+echo "built deckit $VERSION (sources $SOURCE_HASH, $SWIFT)"
 echo "  $ARCHIVE  $(cut -c1-12 < "$ARCHIVE.sha256")  $(du -h "$ARCHIVE" | cut -f1 | tr -d ' ')"

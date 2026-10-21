@@ -15,6 +15,7 @@ struct DeckitServer {
     // MARK: - Public
     static func main() {
         let connection = Connection()
+        connection.log("started, pid \(getpid())")
         let server = Server()
         while let message = connection.receive() {
             guard let response = server.respond(to: message) else { continue }

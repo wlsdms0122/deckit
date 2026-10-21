@@ -28,5 +28,10 @@ struct Connection {
         try? FileHandle.standardOutput.write(contentsOf: message + Data("\n".utf8))
     }
 
+    // A line of the core's log, which the driver keeps in deckit's log.
+    func log(_ line: String) {
+        try? FileHandle.standardError.write(contentsOf: Data((line + "\n").utf8))
+    }
+
     // MARK: - Private
 }
