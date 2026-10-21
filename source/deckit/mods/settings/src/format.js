@@ -10,6 +10,11 @@ function usageParts({ data, records, settings }, id) {
     ].filter(Boolean);
 }
 
+// `A, B and C`.
+function listText(items) {
+    return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items[0] || '';
+}
+
 function filesText({ count, capped = false, hidden }, noun) {
     if (count === 0 && hidden) return `hidden ${noun}s`;
     const nouns = count === 1 && !capped ? noun : noun + 's';
@@ -48,4 +53,4 @@ function nameAndVersion(mod) {
     return `${mod.name} ${mod.version || ''}`.trim();
 }
 
-module.exports = { NO_VALUE, usageParts, schemeName, ordinal, contributionsOf, nameAndVersion };
+module.exports = { NO_VALUE, usageParts, listText, schemeName, ordinal, contributionsOf, nameAndVersion };

@@ -1,5 +1,5 @@
 const { chip } = require('./chip.js');
-const { NO_VALUE, contributionsOf, nameAndVersion, usageParts } = require('./format.js');
+const { NO_VALUE, contributionsOf, nameAndVersion, usageParts, listText } = require('./format.js');
 const { PERMISSION_LIST_STYLE, permissionList } = require('./permission-list.js');
 const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
@@ -260,14 +260,13 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     }
 
     async function askRemove(mod) {
-        let stored;
+        let places;
         try {
-            stored = usageParts(await mods.usage(mod.id), mod.id);
+            places = usageParts(await mods.usage(mod.id), mod.id);
         } catch (error) {
             return showNotice('Could not tell what it stores: ' + error.message);
         }
-        const hasData = stored.length > 0;
-        const kept = stored.length > 1 ? `${stored.slice(0, -1).join(', ')} and ${stored.at(-1)}` : stored[0];
+        const hasData = places.length > 0;
         const requiring = mods
             .list()
             .found.filter((other) => other.requires && other.requires[mod.id])
@@ -279,7 +278,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             title: `Remove ${mod.name}?`,
             message: [
                 hasData
-                    ? `This deletes the mod's code. Its ${kept} will be kept unless you say otherwise: keeping ` +
+                    ? `This deletes the mod's code. Its ${listText(places)} will be kept unless you say otherwise: keeping ` +
                       'them means a reinstall picks up where you left off.'
                     : "This deletes the mod's code. It has nothing stored.",
                 breaks,
