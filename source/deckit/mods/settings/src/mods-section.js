@@ -267,12 +267,10 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             return showNotice('Could not tell what it stores: ' + error.message);
         }
         const hasData = places.length > 0;
-        const requiring = mods
-            .list()
-            .found.filter((other) => other.requires && other.requires[mod.id])
-            .map((other) => other.name);
+        const names = new Map(mods.list().found.map((other) => [other.id, other.name]));
+        const requiring = mod.dependents.map((id) => names.get(id) ?? id);
         const breaks = requiring.length
-            ? `${requiring.join(', ')} ${requiring.length === 1 ? 'requires' : 'require'} it and will stop loading.`
+            ? `${requiring.join(', ')} ${requiring.length === 1 ? 'needs' : 'need'} it and will stop loading.`
             : '';
         ui.dialog({
             title: `Remove ${mod.name}?`,

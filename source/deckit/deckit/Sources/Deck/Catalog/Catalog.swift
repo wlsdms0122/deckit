@@ -168,7 +168,7 @@ public final class Catalog {
             )
         }
 
-        return withRequirements(found)
+        return DependencyGraph(found).resolved()
     }
 
     private func mod(_ manifest: Manifest, in source: URL, installed: Bool, shipped: Bool, problem: String?) -> Mod {
@@ -188,6 +188,7 @@ public final class Catalog {
             hides: [],
             revision: revision.joined(separator: "\n"),
             dependencies: [],
+            dependents: [],
             entry: manifest.main.flatMap { main in modFolder.entry(of: source, main: main) }
         )
     }
@@ -209,100 +210,5 @@ public final class Catalog {
 
     private func isReadInPlace(_ mod: Mod) -> Bool {
         !mod.installed && !mod.shipped
-    }
-
-    // A cycle fails every mod in it; then a failure spreads to whoever requires it, until nothing changes. Each lists
-    // what it requires, then its optional dependencies, which stop nothing.
-    private func withRequirements(_ found: [Mod]) -> [Mod] {
-        var found = found
-        let places = Dictionary(found.enumerated().map { place, mod in (mod.manifest.id, place) }) { first, _ in first }
-        for loop in cycles(in: found, places: places) {
-            for id in loop {
-                guard let place = places[id], found[place].problem == nil else { continue }
-                found[place].problem = "requires itself: " + loop.joined(separator: " → ")
-            }
-        }
-
-        var changed = true
-        while changed {
-            changed = false
-            for place in found.indices where found[place].problem == nil {
-                for (id, want) in found[place].manifest.requires.sorted(by: { one, other in one.key < other.key }) {
-                    guard let problem = dependencyProblem(id, want: want, provider: places[id].map { found[$0] }) else {
-                        continue
-                    }
-
-                    found[place].problem = problem
-                    changed = true
-                    break
-                }
-            }
-        }
-
-        let provided = found
-        for place in found.indices {
-            let manifest = found[place].manifest
-            found[place].dependencies = dependencies(manifest.requires, optional: false, in: provided, places: places)
-                + dependencies(manifest.optional, optional: true, in: provided, places: places)
-        }
-
-        return found
-    }
-
-    private func dependencies(
-        _ wanted: [String: String],
-        optional: Bool,
-        in found: [Mod],
-        places: [String: Int]
-    ) -> [Dependency] {
-        wanted.sorted { one, other in one.key < other.key }.map { id, want in
-            let provider = places[id].map { place in found[place] }
-            return Dependency(
-                id: id,
-                want: want,
-                name: provider?.manifest.name ?? id,
-                ok: dependencyProblem(id, want: want, provider: provider) == nil,
-                optional: optional
-            )
-        }
-    }
-
-    private func dependencyProblem(_ id: String, want: String, provider: Mod?) -> String? {
-        guard let provider else { return "needs \(id), which is not installed" }
-        guard provider.problem == nil else { return "needs \(id), which did not load" }
-        guard let version = provider.manifest.version.flatMap(Version.init),
-            let wanted = Version(want),
-            version.satisfies(wanted)
-        else {
-            return "needs \(id) \(want), and \(id) is \(provider.manifest.version ?? "of no version")"
-        }
-
-        return nil
-    }
-
-    private func cycles(in found: [Mod], places: [String: Int]) -> [[String]] {
-        var visiting: Set<String> = []
-        var visited: Set<String> = []
-        var loops: [[String]] = []
-        func visit(_ id: String, trail: [String]) {
-            guard !visited.contains(id) else { return }
-            if visiting.contains(id), let start = trail.firstIndex(of: id) {
-                loops.append(Array(trail[start...]) + [id])
-                return
-            }
-
-            visiting.insert(id)
-            for other in found[places[id]!].manifest.requires.keys.sorted() where places[other] != nil {
-                visit(other, trail: trail + [id])
-            }
-            visiting.remove(id)
-            visited.insert(id)
-        }
-
-        for mod in found {
-            visit(mod.manifest.id, trail: [])
-        }
-
-        return loops
     }
 }

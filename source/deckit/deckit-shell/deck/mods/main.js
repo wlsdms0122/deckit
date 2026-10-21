@@ -103,6 +103,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
                         ...dependency,
                         ok: dependency.ok && running(dependency.id),
                     })),
+                    dependents: mod.dependents,
                 };
             }),
             running: CATALOG.mods()
