@@ -21,7 +21,6 @@ struct ModStorageTests {
         home = FileManager.default.temporaryDirectory.appending(path: "storage-tests-\(UUID().uuidString)")
         let store = Store()
         record = Record(folder: home.appending(path: "records"), store: store)
-        let state = State(root: home.appending(path: "state"), store: store)
         let reader = try ManifestReader(api: try #require(Version("1.0.0")), permissions: [], fields: [], store: store)
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
@@ -33,7 +32,6 @@ struct ModStorageTests {
             modFolder: modFolder,
             dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            state: state,
             store: store
         )
         sut = ModStorage(

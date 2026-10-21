@@ -37,7 +37,6 @@ struct ErasureTests {
             modFolder: modFolder,
             dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            state: state,
             store: store
         )
         let setting = Setting(folder: settings, store: store, catalog: catalog, runner: Runner(catalog: catalog))

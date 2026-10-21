@@ -302,7 +302,6 @@ struct SettingTests {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            state: State(root: home.appending(path: "state"), store: store),
             store: store
         )
         let runner = Runner(catalog: catalog)

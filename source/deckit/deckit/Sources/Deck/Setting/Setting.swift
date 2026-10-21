@@ -75,7 +75,7 @@ public final class Setting {
             }
     }
 
-    // Every loading mod's that declared any, in the person's order, with `choices`, the options their pages worked out.
+    // Every loading mod's that declared any, in the mods' order, with `choices`, the options their pages worked out.
     // A choice a page gave none for offers none. A saved value no option offers now (one this machine lacks, or one an
     // update took away) is offered marked absent, and left as it is.
     public func list(choices: [ComputedChoice]) -> [SettingGroup] {
