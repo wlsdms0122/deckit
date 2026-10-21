@@ -28,9 +28,10 @@ function createWindow({ CONFIG, THEME }) {
     // is the view's, below the bar. `glass`, for a view drawn as glass, is the strength it lays its colour over the
     // blur at: the window blurs what is behind it, and the bar lays the same colour at the same strength, so the
     // two read as one surface. `fullSize`: the view fills the window, the bar's height included, and draws and
-    // drags what lies under the bar itself (TITLE_BAR); the page below is the window's colour alone. A window with
-    // a `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to
-    // the view, which macOS otherwise gives the bar each time the window comes forward.
+    // drags what lies under the bar itself (TITLE_BAR); the page below has no bar, and is clear under a glass view,
+    // which lays its colour itself. A window with a `key` opens where it was last left; another opens over the window
+    // in front. `focus` hands the keyboard to the view, which macOS otherwise gives the bar each time the window comes
+    // forward.
     function open({
         view = null,
         title = '',
@@ -180,11 +181,16 @@ function createWindow({ CONFIG, THEME }) {
     }
 
     // The bar's room on the left is the window buttons'; the title stays centred on the window. Under a view that
-    // covers it the page is the window's colour alone: a region it marked to drag would drag the window through the
-    // view, whatever the view drew there.
+    // covers it the page has no bar: a region it marked to drag would drag the window through the view, whatever the
+    // view drew there.
     function barPage({ glass, covered }) {
         const { bar: colour } = THEME.now();
-        const background = glass !== null ? `rgba(${colour.background}, ${glass})` : `rgb(${colour.background})`;
+        const background =
+            glass === null
+                ? `rgb(${colour.background})`
+                : covered
+                  ? 'transparent'
+                  : `rgba(${colour.background}, ${glass})`;
         const page = `html,body{margin:0;height:100%;overflow:hidden;background:${background};cursor:default;-webkit-user-select:none;user-select:none}`;
         const bar = `
 #bar{position:absolute;left:0;right:0;top:0;height:${BAR.height}px;display:flex;align-items:center;justify-content:center;padding:0 88px;box-sizing:border-box;-webkit-app-region:drag;color:${colour.color};font:600 13px ${THEME.FONT}}
