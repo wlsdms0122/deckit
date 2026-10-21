@@ -8,6 +8,7 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
     const pending = new Map(); // request id -> { resolve, reject }
     let connection = null;
     let ready = null; // settled once the core has answered initialize
+    let kept = null; // where deck keeps the mods it installed and their data folders, as initialize answered
     let ended = null; // why the core is gone, once it is
     let sequence = 0;
 
@@ -29,6 +30,8 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
             ship: FOLDERS.ship,
             sources: FOLDERS.sources,
             permissions,
+        }).then((folders) => {
+            kept = folders;
         });
         // A core that does not start is logged, as it ends or as it refuses what it is handed, and each request after
         // it is refused with why.
@@ -40,6 +43,12 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
     // What the core answers. Asked before the core has answered initialize, it waits for that.
     function request(method, params) {
         return ready.then(() => send(method, params));
+    }
+
+    // Where deck keeps the mods it installed and their data folders, `{ mods, data }`, once the core has started: a
+    // mod's data folder is the one in `data` named by its id.
+    function folders() {
+        return kept;
     }
 
     // MARK: - Private
@@ -75,5 +84,5 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
         else asked.resolve(response.result);
     }
 
-    return { start, request };
+    return { start, request, folders };
 }

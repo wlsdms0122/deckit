@@ -14,7 +14,7 @@ public final class Catalog {
     private let orderKey = "mod-order"
     private let sources: [URL]
     private let ship: [URL]
-    private let folder: URL
+    public let folder: URL
     private let modFolder: ModFolder
     private let installer: Installer
     private let state: State

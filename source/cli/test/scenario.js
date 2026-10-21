@@ -214,6 +214,9 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const frameKept = path.join(home, 'state', 'host', 'panel-frame.json');
         const sidebarKept = await until(() => fs.existsSync(frameKept), 2000);
         check("the shell's state is kept by the core", sidebarKept, frameKept);
+        const notesKept = path.join(home, 'data', 'note');
+        const notesMade = await until(() => fs.existsSync(notesKept), 3000);
+        check("a main process module keeps what it keeps in its mod's data folder", notesMade, notesKept);
         const left = () =>
             [`records/${REMOVED}`, `data/${REMOVED}`, `settings/${REMOVED}.json`].filter((kept) =>
                 fs.existsSync(path.join(home, kept))

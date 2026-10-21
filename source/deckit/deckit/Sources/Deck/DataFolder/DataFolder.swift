@@ -12,7 +12,7 @@ public final class DataFolder {
     // MARK: - Property
     private let countLimit = 1000
     private let depthLimit = 8
-    private let folder: URL
+    public let folder: URL
     private let store: Store
 
     // MARK: - Initializer

@@ -138,11 +138,11 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     });
     const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
     const COMMAND = createCommand({ LOG, IDENTITY, CORE });
-    const MAIN_PROCESS = createMainProcess({ IDENTITY, RUNNER, HOME, mainProcess: ENV.mainProcess });
+    const MAIN_PROCESS = createMainProcess({ IDENTITY, RUNNER, CORE, mainProcess: ENV.mainProcess });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
     const RUNTIME = createRuntime({
         CONFIG,
-        HOME,
+        CORE,
         LOG,
         IDENTITY,
         restart: () => host.restart(),
