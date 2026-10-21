@@ -77,7 +77,8 @@ struct RunnerTests {
             describe(relaunched) == [
                 "tell willTerminate a 1 terminating relaunch",
                 "tell willTerminate b 1 terminating requirement",
-                "stop b 1"
+                "stop b 1",
+                "waitsForChanged b a"
             ]
         )
         #expect(describe(dependentStopped) == ["tell didTerminate b 1 notRunning requirement", "stop a 1"])
@@ -87,7 +88,8 @@ struct RunnerTests {
                 "tell willLaunch a 2 launching",
                 "tell willLaunch b 2 launching",
                 "load b",
-                "load a"
+                "load a",
+                "waitsForChanged b "
             ]
         )
     }
@@ -109,7 +111,7 @@ struct RunnerTests {
         #expect(describe(second) == ["keep a 1 a listener threw"])
     }
 
-    @Test("a mod whose requirement crashed terminates")
+    @Test("a mod whose requirement crashed terminates, and waits for it")
     func crashEndsDependents() throws {
         // Given
         try write("a")
@@ -128,7 +130,8 @@ struct RunnerTests {
             describe(effects) == [
                 "tell didTerminate a 1 notRunning",
                 "tell willTerminate b 1 terminating requirement",
-                "stop b 1"
+                "stop b 1",
+                "waitsForChanged b a"
             ]
         )
     }

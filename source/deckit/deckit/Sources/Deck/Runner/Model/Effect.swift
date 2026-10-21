@@ -29,6 +29,9 @@ public enum Effect: Sendable {
     case optionalChanged(modId: String, dependency: String, exports: Snapshot?)
     // Tell the mod's `run`th run what extends its extension point `name` now, by the id of the mod that extends it.
     case extensionsChanged(modId: String, run: Int, name: String, extensions: [String: Snapshot])
+    // The ids of the mods the mod requires that are neither launching nor running now: it does not launch until they
+    // do.
+    case waitsForChanged(modId: String, requirements: [String])
     // The scoped names of the points the mod extends now.
     case extendsChanged(modId: String, points: [String])
     // What a layer on deck tells has changed of its own.
