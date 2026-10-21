@@ -30,14 +30,17 @@ export function createRun() {
         }
     }
 
+    // A problem is recorded against the run. A page whose load main refused has no run, so its problem is only
+    // logged.
     function fail(problem) {
         LOG.warn(`${mod?.id ?? 'a mod'}: ${problem}`);
         failures.push(problem);
-        PROTOCOL.problem.send({ run: number, problem: String(problem) });
+        if (number !== null) PROTOCOL.problem.send({ run: number, problem: String(problem) });
     }
 
     // It did not start, and why: what the mods that require it are told.
     function notStarted() {
+        if (number === null) return;
         PROTOCOL.notStarted.send({ run: number, problem: String(failures.at(-1) || 'it did not start') });
     }
 
