@@ -99,7 +99,7 @@ public final class Catalog {
         try state.write(reserved: orderKey, text: text)
     }
 
-    public func wouldInstall(from source: URL) throws -> Manifest {
+    public func wouldInstall(from source: URL) throws -> InstallPlan {
         try installer.wouldInstall(from: source, refuse: shadow)
     }
 

@@ -117,7 +117,7 @@ struct CatalogTests {
         #expect(try state.read(folder: nil, key: "mod-order") == #"["a","d","c","b"]"#)
     }
 
-    @Test("installing copies the folder as mods/<id>, takes every copy before it away, and changes the revision")
+    @Test("installing copies the folder as mods/<id>, replacing every copy before it, and changes the revision")
     func installReplacesCopies() throws {
         // Given
         try write("a", in: home.appending(path: "mods"), folder: "old-a")
@@ -126,10 +126,12 @@ struct CatalogTests {
         let before = try #require(sut.mods().first)
 
         // When
+        let plan = try sut.wouldInstall(from: source.appending(path: "a"))
         let manifest = try sut.install(from: source.appending(path: "a"))
 
         // Then
         let after = try #require(sut.mods().first)
+        #expect(plan.replaces)
         #expect(manifest.version == "2.0.0")
         #expect(after.folder.lastPathComponent == "a")
         #expect(after.manifest.version == "2.0.0")
@@ -199,7 +201,8 @@ struct CatalogTests {
 
         // Then
         #expect(mods.map(\.problem) == [#"did not install: main = "missing.js" names no file in the mod's folder"#])
-        #expect(installing.id == "b")
+        #expect(installing.manifest.id == "b")
+        #expect(!installing.replaces)
         #expect(throws: InstallError.notInstalled("b")) { try removed.get() }
     }
 
