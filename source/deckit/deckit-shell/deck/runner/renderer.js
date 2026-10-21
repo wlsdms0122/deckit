@@ -74,7 +74,7 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
             deliver,
             fail,
         });
-        SETTINGS.declare(RUN.number, entry.settings, fail);
+        SETTINGS.declare(RUN.number, entry.settings);
         const optional = EXPORT.optionalOf();
         const requires = await EXPORT.requiresOf(optional);
         if (!requires) {
