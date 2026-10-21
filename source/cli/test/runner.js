@@ -1,7 +1,8 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: a run's page
 // made, known as the mod's and set up before it loads, what the core is told as the page fails, crashes or is
-// replaced, a run's stop() asked of its page, the page closed, and the quit held while a run has not ended. Exits 1
-// with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// replaced, a run's stop() asked of its page, what it waits for kept, the page closed, and the quit held while a run
+// has not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as
+// such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -124,7 +125,14 @@ async function main() {
     check('the core is told at once when the page is gone', methods('runner/stopped').length === 3, asked);
     gone = false;
 
-    answers.set('runner/crash', [[{ effect: 'close', mod: 'a', reason: 'removed' }]]);
+    // What a mod waits for is kept as the core told it, with its sandbox.
+    answers.set('runner/crash', [
+        [{ effect: 'waitsForChanged', mod: 'a', requirements: ['b'] }],
+        [{ effect: 'close', mod: 'a', reason: 'removed' }],
+    ]);
+    watching.get(page).gone('killed');
+    await tick();
+    check('what a mod waits for is kept as told', RUNNER.waitsForOf('a').join() === 'b', RUNNER.waitsForOf('a'));
     watching.get(page).gone('killed');
     await tick();
     check(
@@ -140,6 +148,11 @@ async function main() {
     ]);
     RUNNER.relaunch('a').catch(() => {});
     await tick();
+    check(
+        'a sandbox opened anew waits for nothing until told',
+        RUNNER.waitsForOf('a').length === 0,
+        RUNNER.waitsForOf('a')
+    );
     let end = null;
     answers.set('runner/quit', [
         () =>

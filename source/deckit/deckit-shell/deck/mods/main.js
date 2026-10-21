@@ -99,11 +99,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
                             ? entryOf(mod, RUNNER.launchedOf(mod.id))
                             : null,
                     ...layer.facts(mod),
-                    dependencies: mod.dependencies.map((dependency) => ({
-                        ...dependency,
-                        ok: dependency.ok && running(dependency.id),
-                    })),
+                    dependencies: mod.dependencies,
                     dependents: mod.dependents,
+                    waitsFor: RUNNER.waitsForOf(mod.id),
                 };
             }),
             running: CATALOG.mods()
