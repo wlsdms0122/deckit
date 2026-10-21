@@ -22,7 +22,8 @@ export function createRuntime({ CONFIG, CORE, LOG, IDENTITY, restart, about: ABO
                 home: user,
                 app: `${ABOUT.app.name} ${ABOUT.app.version}`,
                 ...enginesOf(ABOUT.engines),
-                ...CORE.folders(),
+                mods: CORE.folders().mods,
+                data: CORE.folders().data,
                 log: LOG.file(),
             };
         });
