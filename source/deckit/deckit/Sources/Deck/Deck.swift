@@ -158,6 +158,7 @@ public final class Deck {
         guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
 
         return extensions.problems(of: run, mod: mod)
+            + settings.problems(of: id)
             + layers.flatMap { layer in layer.problems(run, mod) }
     }
 }

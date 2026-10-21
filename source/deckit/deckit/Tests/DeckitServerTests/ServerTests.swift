@@ -141,17 +141,15 @@ struct ServerTests {
     func wrongParamsSayWhere() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        let settings = #"[{"key":"wrap","type":"toggle","options":[],"computed":false},{"key":"size","type":"number","#
-            + #""label":5,"options":[],"computed":false}]"#
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#,
+            #"{"jsonrpc":"2.0","id":2,"method":"keymap/keystrokes","params":{"specs":["mod+k",5]}}"#,
             to: sut
         )
 
         // Then
-        #expect(value(in: response, at: "error", "message") == .string("setting/declare has no such params at settings.1.label"))
+        #expect(value(in: response, at: "error", "message") == .string("keymap/keystrokes has no such params at specs.1"))
     }
 
     @Test("a notification is not answered")
@@ -317,6 +315,35 @@ struct ServerTests {
             value(in: dependencies, at: "result", "ready", "requires", "calendar")
                 == (try json(#"{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]}"#))
         )
+    }
+
+    @Test("a setting declared that deck does not read is a problem of the run as it starts")
+    func unreadSettingIsAProblem() throws {
+        // Given
+        _ = try send(initializeRequest, to: sut)
+        try mod("notes")
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
+        let settings = #"[{"key":"shade","type":"slider","options":[],"computed":false}]"#
+        let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{}}"#
+        let started = #"{"mod":"notes","run":1,"summary":{},"contributions":\#(contributions)}"#
+
+        // When
+        let declared = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#,
+            to: sut
+        )
+        let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
+
+        // Then
+        guard case let .array(effects)? = value(in: response, at: "result") else {
+            Issue.record("no effects in \(response)")
+            return
+        }
+        #expect(value(in: declared, at: "result") == .bool(true))
+        #expect(effects.contains { effect in
+            value(in: effect, at: "problem") == .string(#"setting "shade" has no type deck knows: slider"#)
+        })
     }
 
     @Test("deckit's own methods answer through the server, as deck's do")

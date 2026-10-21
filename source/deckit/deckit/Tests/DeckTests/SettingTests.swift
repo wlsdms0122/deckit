@@ -123,6 +123,29 @@ struct SettingTests {
         #expect(throws: SettingError.undeclared(mod: "finder", key: "hidden")) { try hidden.get() }
     }
 
+    @Test("a declaration deck does not read is left out, and is a problem of the run, the rest kept")
+    func unreadDeclarationIsAProblem() throws {
+        // Given
+        let (sut, _, _) = try setting(["notes"])
+        let declared: [JSONValue] = [
+            declaration(["key": .string("wrap"), "type": .string("toggle")]),
+            declaration(["key": .string("shade"), "type": .string("slider")]),
+            declaration(["key": .string("font"), "type": .string("text"), "label": .number(1)])
+        ]
+
+        // When
+        let kept = sut.declare(declared, mod: "notes", run: 1)
+        let wrap = Result { try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil) }
+
+        // Then
+        #expect(kept)
+        #expect(throws: Never.self) { try wrap.get() }
+        #expect(sut.problems(of: "notes") == [
+            #"setting "shade" has no type deck knows: slider"#,
+            #"setting "font" is not one deck reads"#
+        ])
+    }
+
     @Test("a value is set as its declaration takes it, and a number within its bounds")
     func valueIsSetAsDeclared() throws {
         // Given
@@ -306,6 +329,11 @@ struct SettingTests {
     private func prepared(_ name: String) throws -> URL {
         try FileManager.default.createDirectory(at: settings, withIntermediateDirectories: true)
         return settings.appending(path: name)
+    }
+
+    // A declaration as a page sends it, with `fields` over what it always has.
+    private func declaration(_ fields: [String: JSONValue]) -> JSONValue {
+        .object(["options": .array([]), "computed": .bool(false)].merging(fields) { _, field in field })
     }
 
     private func toggle(_ key: String) -> SettingDeclaration {

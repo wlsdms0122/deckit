@@ -13,7 +13,7 @@ struct DeclareSettingsParams: Decodable {
     // MARK: - Property
     let mod: String
     let run: Int
-    let settings: [SettingDeclaration]
+    let settings: [JSONValue]
 
     // MARK: - Initializer
     // MARK: - Public

@@ -18,6 +18,8 @@ public final class Setting {
     private let runner: Runner
     // Mod id -> what its run declared, in the order declared.
     private var declarations: [String: [SettingDeclaration]] = [:]
+    // Mod id -> what is wrong with what its run declared.
+    private var problems: [String: [String]] = [:]
 
     // MARK: - Initializer
     init(folder: URL, store: Store, catalog: Catalog, runner: Runner) {
@@ -30,18 +32,40 @@ public final class Setting {
     // MARK: - Public
     // A mod's settings stand from its run's declaring them as it launches until a later run declares them again, or
     // until the mod no longer loads: one whose start failed can still be set. Whether they were kept: what an older
-    // run declared, or a run past launching, is not.
-    public func declare(_ settings: [SettingDeclaration], mod: String, run number: Int) -> Bool {
+    // run declared, or a run past launching, is not. A declaration deck does not read is left out, and is a problem of
+    // the run.
+    public func declare(_ declared: [JSONValue], mod: String, run number: Int) -> Bool {
+        var settings: [SettingDeclaration] = []
+        var problems: [String] = []
+        for item in declared {
+            guard let setting = try? item.decode(as: SettingDeclaration.self) else {
+                problems.append(problem(of: item))
+                continue
+            }
+            settings.append(setting)
+        }
+
+        return declare(settings, problems: problems, mod: mod, run: number)
+    }
+
+    func declare(_ settings: [SettingDeclaration], problems: [String] = [], mod: String, run number: Int) -> Bool {
         guard let run = runner.run(of: mod), run.number == number, run.state == .launching else { return false }
         declarations[mod] = settings
+        self.problems[mod] = problems
 
         return true
+    }
+
+    // What is wrong with what the mod's run declared.
+    func problems(of mod: String) -> [String] {
+        problems[mod] ?? []
     }
 
     // What a mod that does not load, as the catalog was last read, declared.
     func forget() {
         let loading = Set(catalog.lastRead.filter { mod in mod.problem == nil }.map(\.manifest.id))
         declarations = declarations.filter { id, _ in loading.contains(id) }
+        problems = problems.filter { id, _ in loading.contains(id) }
     }
 
     // The choices of `mod`, or of every mod, whose options its page works out as they are read.
@@ -114,6 +138,18 @@ public final class Setting {
     }
 
     // MARK: - Private
+    // Named by its key, and by its type when that is one deck does not know.
+    private func problem(of declared: JSONValue) -> String {
+        guard case let .object(fields) = declared, case let .string(key)? = fields["key"] else {
+            return "a setting is not one deck reads"
+        }
+        if case let .string(type)? = fields["type"], SettingType(rawValue: type) == nil {
+            return "setting \"\(key)\" has no type deck knows: \(type)"
+        }
+
+        return "setting \"\(key)\" is not one deck reads"
+    }
+
     private func declaration(mod: String, key: String) throws(SettingError) -> SettingDeclaration {
         guard let declaration = declarations[mod]?.first(where: { declaration in declaration.key == key }) else {
             throw .undeclared(mod: mod, key: key)
