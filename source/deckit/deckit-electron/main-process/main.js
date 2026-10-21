@@ -243,7 +243,7 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     function deckOf(mod, relative) {
         return Object.freeze({
             id: mod.id,
-            folder: mod.data,
+            data: mod.data,
             emit(name, ...args) {
                 for (const listener of [...hearing]) listener(mod.id, relative, String(name), args);
             },

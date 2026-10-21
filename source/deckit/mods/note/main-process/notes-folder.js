@@ -1,8 +1,8 @@
-module.exports = ({ folder, emit, files }) => {
+module.exports = ({ data, emit, files }) => {
     const fs = require('fs');
     const path = require('path');
 
-    const ROOT = path.resolve(folder);
+    const ROOT = path.resolve(data);
     const EXTENSION = '.md';
     const READ_LIMIT = 5 * 1024 * 1024;
     const DEPTH_LIMIT = 16;

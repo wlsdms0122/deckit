@@ -320,7 +320,7 @@ Apart from both, a mod says what happened to it, for whoever cares, as **events*
 ## A main process module
 
 ```js
-module.exports = ({ id, folder, emit, window, files }) => ({
+module.exports = ({ id, data, emit, window, files }) => ({
     async start(...args) { /* answers daemon.start(…) */ },
     // emit('died', reason) is heard by daemon.on('died', …)
     async dispose() { /* ends what it made: timers, watchers, servers, processes, ipcMain handlers */ },
@@ -329,7 +329,7 @@ module.exports = ({ id, folder, emit, window, files }) => ({
 
 A module exports a function that deck calls once, with what the module is handed, and that returns (or resolves to) its methods: an object of functions, nested objects walked, as exports are. A method may not be named `on`, which is how its events are heard, and `dispose` is no method: deckit calls it as the module ends. Arguments and results cross by structured clone.
 
-`folder` is the mod's data folder; anything a module keeps goes there, never in the mod's own folder, which an update replaces.
+`data` is the mod's data folder; anything a module keeps goes there, never in the mod's folder, which an update replaces.
 
 `files` changes a person's files without losing one: `fresh(folder, base, make, extension)` makes something new under the first free name, `rename(path, name)` and `move(path, folder)` never put anything over another entry, `name(text)` checks a typed name, `trash(path)` is the macOS Trash. A refusal is `files.refuse(kind, message)`, an error whose `kind` (`NAME`, `EXISTS`, `GONE`, `INTO_ITSELF`, `OTHER_DISK`, or one of the mod's own) reaches the sandbox as `error.kind`.
 
