@@ -152,7 +152,7 @@ final class Server {
 
         case "setting/declare":
             let params = try request.decodeParams(as: DeclareSettingsParams.self)
-            return deck.settings.declare(params.settings, mod: params.mod, run: params.run)
+            return try deck.declared(params.mod, run: params.run, settings: params.settings)
 
         case "setting/computed-choices":
             return deck.settings.computedChoices(mod: try request.decodeParams(as: ComputedChoicesParams.self).mod)

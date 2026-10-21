@@ -18,8 +18,6 @@ public final class Setting {
     private let runner: Runner
     // Mod id -> what its run declared, in the order declared.
     private var declarations: [String: [SettingDeclaration]] = [:]
-    // Mod id -> what is wrong with what its run declared.
-    private var problems: [String: [String]] = [:]
 
     // MARK: - Initializer
     init(folder: URL, store: Store, catalog: Catalog, runner: Runner) {
@@ -32,9 +30,17 @@ public final class Setting {
     // MARK: - Public
     // A mod's settings stand from its run's declaring them as it launches until a later run declares them again, or
     // until the mod no longer loads: one whose start failed can still be set. Whether they were kept: what an older
-    // run declared, or a run past launching, is not. A declaration deck does not read is left out, and is a problem of
-    // the run.
-    public func declare(_ declared: [JSONValue], mod: String, run number: Int) -> Bool {
+    // run declared, or a run past launching, is not.
+    func declare(_ settings: [SettingDeclaration], mod: String, run number: Int) -> Bool {
+        guard let run = runner.run(of: mod), run.number == number, run.state == .launching else { return false }
+        declarations[mod] = settings
+
+        return true
+    }
+
+    // Declared as a page sends them: a declaration deck does not read is left out, and what is wrong with each answered,
+    // or nil when they were not kept.
+    func declare(_ declared: [JSONValue], mod: String, run number: Int) -> [String]? {
         var settings: [SettingDeclaration] = []
         var problems: [String] = []
         for item in declared {
@@ -44,28 +50,15 @@ public final class Setting {
             }
             settings.append(setting)
         }
+        guard declare(settings, mod: mod, run: number) else { return nil }
 
-        return declare(settings, problems: problems, mod: mod, run: number)
-    }
-
-    func declare(_ settings: [SettingDeclaration], problems: [String] = [], mod: String, run number: Int) -> Bool {
-        guard let run = runner.run(of: mod), run.number == number, run.state == .launching else { return false }
-        declarations[mod] = settings
-        self.problems[mod] = problems
-
-        return true
-    }
-
-    // What is wrong with what the mod's run declared.
-    func problems(of mod: String) -> [String] {
-        problems[mod] ?? []
+        return problems
     }
 
     // What a mod that does not load, as the catalog was last read, declared.
     func forget() {
         let loading = Set(catalog.lastRead.filter { mod in mod.problem == nil }.map(\.manifest.id))
         declarations = declarations.filter { id, _ in loading.contains(id) }
-        problems = problems.filter { id, _ in loading.contains(id) }
     }
 
     // The choices of `mod`, or of every mod, whose options its page works out as they are read.

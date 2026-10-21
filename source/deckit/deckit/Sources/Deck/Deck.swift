@@ -126,6 +126,18 @@ public final class Deck {
         return withChanges(effects)
     }
 
+    // The `run`th run of `id` declared its settings as its entry was read: a declaration deck does not read is a problem
+    // of the run.
+    public func declared(_ id: String, run number: Int, settings: [JSONValue]) throws -> [Effect] {
+        guard let problems = self.settings.declare(settings, mod: id, run: number) else { return [] }
+
+        var effects: [Effect] = []
+        for problem in problems {
+            effects += try runner.report(id, run: number, problem: problem)
+        }
+        return withChanges(effects)
+    }
+
     // A problem against the `run`th run of `id`.
     public func report(_ id: String, run: Int, problem: String) throws -> [Effect] {
         try withChanges(runner.report(id, run: run, problem: problem))
@@ -158,7 +170,6 @@ public final class Deck {
         guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
 
         return extensions.problems(of: run, mod: mod)
-            + settings.problems(of: id)
             + layers.flatMap { layer in layer.problems(run, mod) }
     }
 }

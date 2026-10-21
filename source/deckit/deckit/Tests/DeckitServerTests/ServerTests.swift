@@ -317,7 +317,7 @@ struct ServerTests {
         )
     }
 
-    @Test("a setting declared that deck does not read is a problem of the run as it starts")
+    @Test("a setting declared that deck does not read is a problem of the run as it is declared")
     func unreadSettingIsAProblem() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
@@ -325,22 +325,18 @@ struct ServerTests {
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
         let settings = #"[{"key":"shade","type":"slider","options":[],"computed":false}]"#
-        let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{}}"#
-        let started = #"{"mod":"notes","run":1,"summary":{},"contributions":\#(contributions)}"#
 
         // When
-        let declared = try send(
+        let response = try send(
             #"{"jsonrpc":"2.0","id":4,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#,
             to: sut
         )
-        let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
 
         // Then
         guard case let .array(effects)? = value(in: response, at: "result") else {
             Issue.record("no effects in \(response)")
             return
         }
-        #expect(value(in: declared, at: "result") == .bool(true))
         #expect(effects.contains { effect in
             value(in: effect, at: "problem") == .string(#"setting "shade" has no type deck knows: slider"#)
         })

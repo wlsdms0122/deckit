@@ -123,7 +123,7 @@ struct SettingTests {
         #expect(throws: SettingError.undeclared(mod: "finder", key: "hidden")) { try hidden.get() }
     }
 
-    @Test("a declaration deck does not read is left out, and is a problem of the run, the rest kept")
+    @Test("a declaration deck does not read is left out, and what is wrong with it answered, the rest kept")
     func unreadDeclarationIsAProblem() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
@@ -134,13 +134,12 @@ struct SettingTests {
         ]
 
         // When
-        let kept = sut.declare(declared, mod: "notes", run: 1)
+        let problems = sut.declare(declared, mod: "notes", run: 1)
         let wrap = Result { try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil) }
 
         // Then
-        #expect(kept)
         #expect(throws: Never.self) { try wrap.get() }
-        #expect(sut.problems(of: "notes") == [
+        #expect(problems == [
             #"setting "shade" has no type deck knows: slider"#,
             #"setting "font" is not one deck reads"#
         ])
@@ -217,7 +216,7 @@ struct SettingTests {
         let size = SettingDeclaration(key: "size", type: .number, defaultValue: .number(12))
         let run = SettingDeclaration(key: "rebuild", type: .action, button: "Rebuild")
         _ = sut.declare([theme, size, run], mod: "notes", run: 1)
-        _ = sut.declare([], mod: "finder", run: 1)
+        _ = sut.declare([SettingDeclaration](), mod: "finder", run: 1)
         _ = sut.declare([toggle("wrap")], mod: "editor", run: 1)
         try Data(#"{"size":14,"gone":true}"#.utf8).write(to: prepared("notes.json"))
 
