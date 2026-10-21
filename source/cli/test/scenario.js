@@ -17,8 +17,8 @@ const NEXT_CHILD = 'region-child-next';
 const REMOVED = 'removed-with-data';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
-// The test's own mods, installed, one of them naming schemes it may not, Settings placed second, as a person would
-// have arranged it, and what REMOVED left.
+// The test's own mods, installed, one of them naming schemes it may not, Settings placed second in the panel's list,
+// as a person would have arranged it, and what REMOVED left.
 function seed({ data, files }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -45,8 +45,11 @@ function seed({ data, files }) {
     const record = path.join(data, 'deckit', 'records', 'editor', 'session.json');
     fs.mkdirSync(path.dirname(record), { recursive: true });
     fs.writeFileSync(record, JSON.stringify(session));
-    fs.mkdirSync(path.join(data, 'deckit', 'state'), { recursive: true });
-    fs.writeFileSync(path.join(data, 'deckit', 'state', 'mod-order.json'), JSON.stringify(['editor', 'settings']));
+    fs.mkdirSync(path.join(data, 'deckit', 'state', 'host'), { recursive: true });
+    fs.writeFileSync(
+        path.join(data, 'deckit', 'state', 'host', 'panel-order.json'),
+        JSON.stringify(['editor', 'settings'])
+    );
     fs.writeFileSync(path.join(data, 'deckit', 'state', 'uncleared.json'), JSON.stringify([REMOVED]));
     for (const kept of [
         ['records', REMOVED, 'tabs.json'],
@@ -118,7 +121,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             Array.isArray(rows) && rows.length === VIEWS + TEST_VIEWS,
             JSON.stringify(rows)
         );
-        check('the order kept is read back from the core', rows?.[1] === 'settings', JSON.stringify(rows));
+        check("the panel's order is read back from the core", rows?.[1] === 'settings', JSON.stringify(rows));
         // The test's region parent has no icon.
         const heights = await frame.evaluate(
             `[...new Set([...document.querySelectorAll('[data-mod-id]')].map((row) => row.offsetHeight))].join()`

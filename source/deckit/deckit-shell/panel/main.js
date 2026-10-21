@@ -2,6 +2,7 @@ import * as CHANNEL from '../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as WIDTH from './model/width.js';
 import * as PAGE from './model/page-name.js';
+import * as LIST_ORDER from './model/list-order.js';
 
 // `deckit` is what connect answered, `host` the app's answers.
 export function createPanel({ REGION, deckit, host }) {
@@ -9,6 +10,7 @@ export function createPanel({ REGION, deckit, host }) {
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const SIDEBAR = 'panel-frame';
     const PINNED = 'panel-pinned';
+    const ORDER = 'panel-order';
     const HISTORY_LIMIT = 50;
     const pages = new Map(); // mod id -> its page, while the mod has something to show
     const floating = new Map(); // a mod's page with something floating -> its end's off
@@ -42,6 +44,7 @@ export function createPanel({ REGION, deckit, host }) {
     let look = { floating: false, dismissible: false, titleBar: null };
     let sidebar = { width: WIDTH.MIN, collapsed: false, navHeight: null }; // as the person left it
     let pinned = new Set(); // the children the person pinned to the panel's list
+    let order = []; // the ids of the mods, as the person arranged the panel's list
 
     // MARK: - Initializer
     // MARK: - Public
@@ -51,6 +54,7 @@ export function createPanel({ REGION, deckit, host }) {
     function start() {
         sidebar = { ...sidebar, ...deckit.state.read(SIDEBAR, {}) };
         pinned = new Set(deckit.state.read(PINNED, []));
+        order = deckit.state.read(ORDER, []);
         stage = deckit.pages.stage();
         stage.whenResized(update);
         listen();
@@ -124,7 +128,7 @@ export function createPanel({ REGION, deckit, host }) {
         );
         PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
-        PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && deckit.mods.arrange(ids));
+        PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && arrange(ids));
         PROTOCOL.layout.on((change, sender) => fromFrame(sender) && setSidebar(change));
         PROTOCOL.rects.on((rects, sender) => fromFrame(sender) && setRects(rects));
         PROTOCOL.setup.handle((_payload, sender) => ({ guide: guideOf(sender), shown: sent.onScreen.has(sender) }));
@@ -303,11 +307,27 @@ export function createPanel({ REGION, deckit, host }) {
         return run.state !== 'notRunning' || run.relaunches;
     }
 
-    // In the person's order: the first mod that has something to show, or may have once it has started, of those
-    // in the list. One still starting is waited for, so the panel lands where the order says and not on whoever
-    // started first.
+    // In the list's order: the first mod that has something to show, or may have once it has started, of those in
+    // the list. One still starting is waited for, so the panel lands where the order says and not on whoever started
+    // first.
     function firstShown() {
-        return deckit.mods.list().find(({ id }) => mayShow(id) && listed(id))?.id;
+        return inOrder().find(({ id }) => mayShow(id) && listed(id))?.id;
+    }
+
+    // The mods in the list's order: those the person placed, as they placed them, then the rest in the mods' order.
+    function inOrder() {
+        const mods = new Map(deckit.mods.list().map((mod) => [mod.id, mod]));
+        return LIST_ORDER.sorted([...mods.keys()], order).map((id) => mods.get(id));
+    }
+
+    // The ids named take the places they held among themselves, in the order given; the rest stay put.
+    function arrange(ids) {
+        order = LIST_ORDER.arranged(
+            inOrder().map(({ id }) => id),
+            ids
+        );
+        deckit.state.write(ORDER, order);
+        broadcast();
     }
 
     // In the panel's list: a mod that is no child, or a child the person pinned.
@@ -477,8 +497,7 @@ export function createPanel({ REGION, deckit, host }) {
     // A mod listed stays listed while it launches again, in this page or a new one (a replace), until its new run
     // says whether it has something to show.
     function stateOf() {
-        const mods = deckit.mods
-            .list()
+        const mods = inOrder()
             .filter(({ id }) => shownInList(id) || (inList.has(id) && listed(id) && mayShow(id)))
             .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));
         inList = new Set(mods.map(({ id }) => id));
