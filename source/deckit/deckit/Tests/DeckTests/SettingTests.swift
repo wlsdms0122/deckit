@@ -28,7 +28,7 @@ struct SettingTests {
     func valueIsSavedAmongOthers() throws {
         // Given
         let (sut, _, _) = try setting(["notes", "finder"])
-        #expect(sut.declare([toggle("wrap"), number("size"), text("font")], mod: "notes", run: 1))
+        #expect(sut.keep([toggle("wrap"), number("size"), text("font")], mod: "notes", run: 1))
         _ = try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil)
         _ = try sut.set(mod: "notes", key: "size", value: .number(14), options: nil)
 
@@ -44,7 +44,7 @@ struct SettingTests {
     func setSaysWhetherChanged() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
-        _ = sut.declare([number("size")], mod: "notes", run: 1)
+        _ = sut.keep([number("size")], mod: "notes", run: 1)
         _ = try sut.set(mod: "notes", key: "size", value: .number(14), options: nil)
 
         // When
@@ -60,7 +60,7 @@ struct SettingTests {
     func fileIsJSON() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
-        _ = sut.declare([number("size")], mod: "notes", run: 1)
+        _ = sut.keep([number("size")], mod: "notes", run: 1)
         try Data(#"{"wrap":false,"size":12.5,"font":"Menlo"}"#.utf8).write(to: prepared("notes.json"))
 
         // When
@@ -88,8 +88,8 @@ struct SettingTests {
     func eraseTakesOnlyTheModsValues() throws {
         // Given
         let (sut, _, _) = try setting(["notes", "finder"])
-        _ = sut.declare([toggle("wrap")], mod: "notes", run: 1)
-        _ = sut.declare([toggle("wrap")], mod: "finder", run: 1)
+        _ = sut.keep([toggle("wrap")], mod: "notes", run: 1)
+        _ = sut.keep([toggle("wrap")], mod: "finder", run: 1)
         _ = try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil)
         _ = try sut.set(mod: "finder", key: "wrap", value: .bool(false), options: nil)
 
@@ -108,10 +108,10 @@ struct SettingTests {
         let (sut, runner, _) = try setting(["notes", "finder"])
 
         // When
-        let older = sut.declare([toggle("wrap")], mod: "notes", run: 0)
-        let launching = sut.declare([toggle("wrap")], mod: "finder", run: 1)
+        let older = sut.keep([toggle("wrap")], mod: "notes", run: 0)
+        let launching = sut.keep([toggle("wrap")], mod: "finder", run: 1)
         _ = try runner.started("finder", run: 1)
-        let running = sut.declare([toggle("hidden")], mod: "finder", run: 1)
+        let running = sut.keep([toggle("hidden")], mod: "finder", run: 1)
         let wrap = Result { try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil) }
         let hidden = Result { try sut.set(mod: "finder", key: "hidden", value: .bool(true), options: nil) }
 
@@ -140,8 +140,8 @@ struct SettingTests {
         // Then
         #expect(throws: Never.self) { try wrap.get() }
         #expect(problems == [
-            #"setting "shade" has no type deck knows: slider"#,
-            #"setting "font" is not one deck reads"#
+            #"setting "shade": deck does not read its type"#,
+            #"setting "font": deck does not read its label"#
         ])
     }
 
@@ -151,7 +151,7 @@ struct SettingTests {
         let (sut, _, _) = try setting(["notes"])
         let choice = SettingDeclaration(key: "theme", type: .choice, options: [option("light"), option("dark")])
         let run = SettingDeclaration(key: "rebuild", type: .action, button: "Rebuild")
-        _ = sut.declare([toggle("wrap"), number("size"), text("font"), choice, run], mod: "notes", run: 1)
+        _ = sut.keep([toggle("wrap"), number("size"), text("font"), choice, run], mod: "notes", run: 1)
 
         // When
         let size = try sut.set(mod: "notes", key: "size", value: .number(99), options: nil)
@@ -177,7 +177,7 @@ struct SettingTests {
         let (sut, _, _) = try setting(["notes"])
         let choice = SettingDeclaration(key: "theme", type: .choice, options: [option("light"), option("dark")])
         let run = SettingDeclaration(key: "rebuild", type: .action, button: "Rebuild")
-        _ = sut.declare([toggle("wrap"), number("size"), text("font"), choice, run], mod: "notes", run: 1)
+        _ = sut.keep([toggle("wrap"), number("size"), text("font"), choice, run], mod: "notes", run: 1)
 
         // When
         let set = Result { try sut.set(mod: "notes", key: key, value: value, options: nil) }
@@ -191,8 +191,8 @@ struct SettingTests {
         // Given
         let (sut, _, _) = try setting(["notes", "finder"])
         let font = SettingDeclaration(key: "font", type: .choice, computed: true)
-        _ = sut.declare([font, toggle("wrap")], mod: "notes", run: 1)
-        _ = sut.declare([SettingDeclaration(key: "icon", type: .choice, computed: true)], mod: "finder", run: 1)
+        _ = sut.keep([font, toggle("wrap")], mod: "notes", run: 1)
+        _ = sut.keep([SettingDeclaration(key: "icon", type: .choice, computed: true)], mod: "finder", run: 1)
 
         // When
         let set = try sut.set(mod: "notes", key: "font", value: .string("Menlo"), options: [option("Menlo")])
@@ -215,9 +215,9 @@ struct SettingTests {
         let theme = SettingDeclaration(key: "theme", type: .choice, defaultValue: .string("light"), computed: true)
         let size = SettingDeclaration(key: "size", type: .number, defaultValue: .number(12))
         let run = SettingDeclaration(key: "rebuild", type: .action, button: "Rebuild")
-        _ = sut.declare([theme, size, run], mod: "notes", run: 1)
-        _ = sut.declare([SettingDeclaration](), mod: "finder", run: 1)
-        _ = sut.declare([toggle("wrap")], mod: "editor", run: 1)
+        _ = sut.keep([theme, size, run], mod: "notes", run: 1)
+        _ = sut.keep([], mod: "finder", run: 1)
+        _ = sut.keep([toggle("wrap")], mod: "editor", run: 1)
         try Data(#"{"size":14,"gone":true}"#.utf8).write(to: prepared("notes.json"))
 
         // When
@@ -237,8 +237,8 @@ struct SettingTests {
     func forgetTakesWhatNoLongerLoads() throws {
         // Given
         let (sut, _, catalog) = try setting(["notes", "finder"])
-        _ = sut.declare([toggle("wrap")], mod: "notes", run: 1)
-        _ = sut.declare([toggle("wrap")], mod: "finder", run: 1)
+        _ = sut.keep([toggle("wrap")], mod: "notes", run: 1)
+        _ = sut.keep([toggle("wrap")], mod: "finder", run: 1)
         try FileManager.default.removeItem(at: source.appending(path: "notes"))
 
         // When
@@ -255,7 +255,7 @@ struct SettingTests {
     func actionIsOnlyForAnAction() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
-        _ = sut.declare([toggle("wrap"), SettingDeclaration(key: "rebuild", type: .action)], mod: "notes", run: 1)
+        _ = sut.keep([toggle("wrap"), SettingDeclaration(key: "rebuild", type: .action)], mod: "notes", run: 1)
 
         // When
         try sut.action(mod: "notes", key: "rebuild")

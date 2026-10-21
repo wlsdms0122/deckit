@@ -338,7 +338,7 @@ struct ServerTests {
             return
         }
         #expect(effects.contains { effect in
-            value(in: effect, at: "problem") == .string(#"setting "shade" has no type deck knows: slider"#)
+            value(in: effect, at: "problem") == .string(#"setting "shade": deck does not read its type"#)
         })
     }
 
