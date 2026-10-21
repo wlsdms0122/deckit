@@ -4,7 +4,7 @@ Deckit is a library a host app embeds, in three layers: deck, the engine that ru
 
 ## 1. The archive
 
-A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it, in an Electron of its own: deckit is made against Electron 44. It keeps the archive as built and unpacks it where it builds and runs. The same sources, built with the same Swift, make the same archive, byte for byte, so its hash says which deckit it is. Deckit's log says which as it starts, and the core's first line, `core: started, pid <pid>`, that the core is running.
+A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it, in an Electron of its own: deckit is made against Electron 44. It keeps the archive as built and unpacks it where it builds and runs. Its sha256 checks that the archive is the one sent. Which deckit it is, `deckit.json` says, by its version and the hash of its sources (`source`), and deckit's log says the same as it starts, and the core's first line, `core: started, pid <pid>`, that the core is running.
 
 | In the archive | |
 |---|---|
