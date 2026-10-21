@@ -88,6 +88,11 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return () => problemListeners.delete(listener);
     }
 
+    // What the core answers to `method` that moves runs, done in order with what else moves them. Answers the effects.
+    function request(method, params) {
+        return ask(method, params);
+    }
+
     // Resolves once the mod's sandbox that is closing has closed, and whatever runs in its place has opened.
     function whenClosed(modId) {
         return asked.then(() => until(() => !sandboxes.get(modId)?.closing));
@@ -303,6 +308,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         currentRun,
         observe,
         reportProblem,
+        request,
         onProblem,
         handleEffect,
         whenMoved,
