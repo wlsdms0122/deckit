@@ -60,8 +60,8 @@ module.exports = {
             },
         ]);
 
-        // One not running is launched. One deck would refuse to restart is a readout saying why: one that did not
-        // load, one stopping, one whose required mod is not running. A refusal all the same is told in a notice.
+        // One not running is launched. One that does not restart is a readout saying why: one that did not load, one
+        // stopping, one waiting for a mod it requires. A refusal all the same is told in a notice.
         function modEntries() {
             const STATES = { launching: 'Starting', running: 'Running', notRunning: 'Not running' };
             const { found, running } = deck.mods.list();
@@ -69,7 +69,7 @@ module.exports = {
             return found.map((mod) => {
                 const entry = { label: mod.name, icon: icons.get(mod.id) || icon('puzzle') };
                 const missing = mod.dependencies
-                    .filter((dependency) => !dependency.optional && !dependency.ok)
+                    .filter((dependency) => mod.waitsFor.includes(dependency.id))
                     .map((dependency) => dependency.name);
                 if (!mod.state) return { ...entry, hint: mod.problem || 'Did not load' };
                 if (mod.state === 'terminating') return { ...entry, hint: 'Stopping' };

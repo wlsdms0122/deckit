@@ -96,14 +96,17 @@ function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
-        // An optional dependency missing stops nothing, so it is drawn quiet, not as a fault.
+        // A required one is short while it does not load at the version wanted or the mod waits for it, an optional
+        // one while it does not load at that version or is not running. An optional one short stops nothing, so it is
+        // drawn quiet, not as a fault.
         const dependencyChips = (optional) =>
             (mod.dependencies || [])
                 .filter((dependency) => !!dependency.optional === optional)
                 .map((dependency) => {
                     const text = `${dependency.name} ${dependency.want}`;
-                    if (optional && !dependency.ok) return chip({ ui, text, muted: true }).element;
-                    return statusChip({ ui, text, ok: dependency.ok }).element;
+                    const ok = dependency.ok && (optional ? dependency.running : !mod.waitsFor.includes(dependency.id));
+                    if (optional && !ok) return chip({ ui, text, muted: true }).element;
+                    return statusChip({ ui, text, ok }).element;
                 });
         for (const [label, optional] of [
             ['Requires', false],

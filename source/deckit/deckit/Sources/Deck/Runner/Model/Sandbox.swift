@@ -16,6 +16,8 @@ final class Sandbox {
     // Why it closes, once it is going: it closes once its run has ended.
     var closing: TerminateReason?
     var stopAsked = false
+    // What it waits for, as the driver was last told.
+    var waitsFor: [String] = []
 
     // MARK: - Initializer
     init(mod: Mod, run: Run) {

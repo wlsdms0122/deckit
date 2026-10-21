@@ -65,7 +65,7 @@ final class Runner {
     func relaunch(_ id: String) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id), sandbox.closing == nil, !quitting else { return }
-            if let missing = notRunningRequirement(of: sandbox) {
+            if let missing = waitsFor(sandbox).first {
                 throw RunnerError.needs(mod: id, requirement: missing)
             }
             try relaunch(sandbox)
@@ -89,7 +89,7 @@ final class Runner {
             guard sandbox.closing == nil else { throw RunnerError.closing(id) }
             guard sandbox.run.state != .launching else { return }
             guard !quitting else { throw RunnerError.quitting(id) }
-            if let missing = notRunningRequirement(of: sandbox) {
+            if let missing = waitsFor(sandbox).first {
                 throw RunnerError.needs(mod: id, requirement: missing)
             }
 
@@ -142,12 +142,13 @@ final class Runner {
     }
 
     // MARK: - Private
-    // What one fact comes to. A terminating run's stop() is asked once every mod that requires it has ended, and a
-    // quit goes on once every run has.
+    // What one fact comes to. A terminating run's stop() is asked once every mod that requires it has ended, a quit
+    // goes on once every run has, and what each mod waits for is told where it changed.
     private func decide(_ fact: () throws -> Void) throws -> [Effect] {
         effects = []
         try fact()
         askStops()
+        tellWaits()
         if quitting && sandboxes.allSatisfy({ sandbox in sandbox.run.state == .notRunning }) {
             quitting = false
             effects.append(.quit)
@@ -210,7 +211,7 @@ final class Runner {
 
     // While a mod it requires is neither launching nor running, it waits to launch with that one.
     private func launchAgain(_ sandbox: Sandbox) throws {
-        guard notRunningRequirement(of: sandbox) == nil else { return }
+        guard waitsFor(sandbox).isEmpty else { return }
         try launch(sandbox)
         effects.append(.load(modId: sandbox.mod.manifest.id))
     }
@@ -286,6 +287,15 @@ final class Runner {
         }
     }
 
+    private func tellWaits() {
+        for sandbox in sandboxes {
+            let requirements = waitsFor(sandbox)
+            guard requirements != sandbox.waitsFor else { continue }
+            sandbox.waitsFor = requirements
+            effects.append(.waitsForChanged(modId: sandbox.mod.manifest.id, requirements: requirements))
+        }
+    }
+
     private func nextRun(of id: String) -> Run {
         let number = runNumbers[id, default: 0] + 1
         runNumbers[id] = number
@@ -297,9 +307,9 @@ final class Runner {
         sandboxes.filter { sandbox in sandbox.mod.manifest.requires[id] != nil }
     }
 
-    // The id of a mod it requires whose run is neither launching nor running, or nil.
-    private func notRunningRequirement(of sandbox: Sandbox) -> String? {
-        sandbox.mod.manifest.requires.keys.sorted().first { id in
+    // The ids of the mods it requires whose runs are neither launching nor running, by id.
+    private func waitsFor(_ sandbox: Sandbox) -> [String] {
+        sandbox.mod.manifest.requires.keys.sorted().filter { id in
             let state = self.sandbox(of: id)?.run.state
             return state != .launching && state != .running
         }

@@ -52,6 +52,9 @@ extension Effect {
         case let .extensionsChanged(modId, run, name, extensions):
             "extensionsChanged \(modId) \(run) \(name) \(extensions.keys.sorted().joined(separator: ","))"
 
+        case let .waitsForChanged(modId, requirements):
+            "waitsForChanged \(modId) \(requirements.joined(separator: ","))"
+
         case let .extendsChanged(modId, points):
             "extendsChanged \(modId) \(points.joined(separator: ","))"
 

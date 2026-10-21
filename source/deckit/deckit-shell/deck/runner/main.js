@@ -13,8 +13,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // environment's (environment/: MAIN.pages, MAIN.app).
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
-    // mod id -> { mod, page, run, update, closing }: a mod's sandbox, the page it runs in, its latest run and how
-    // what the core tells of it is kept, and whether it is going.
+    // mod id -> { mod, page, run, update, closing, waitsFor }: a mod's sandbox, the page it runs in, its latest run and
+    // how what the core tells of it is kept, whether it is going, and what it waits for.
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
@@ -59,6 +59,12 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     function runOf(modId) {
         return sandboxes.get(modId)?.run || null;
+    }
+
+    // The ids of the mods it requires that are neither launching nor running, as the core told it: it does not launch
+    // until they do.
+    function waitsForOf(modId) {
+        return sandboxes.get(modId)?.waitsFor || [];
     }
 
     function launchedOf(modId) {
@@ -183,6 +189,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
                 case 'close':
                     closeSandbox(effect.mod, effect.reason);
                     break;
+                // It changes only as a run moves, which comes with it.
+                case 'waitsForChanged':
+                    sandboxes.get(effect.mod).waitsFor = effect.requirements;
+                    break;
                 case 'quit':
                     quitHold = null;
                     APP.quit();
@@ -226,7 +236,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // page that did not load runs no mod: what loaded instead is never the mod's page.
     function openSandbox(mod) {
         const page = PAGES.make({ modId: mod.id });
-        const sandbox = { mod, page, run: null, update: null, closing: false };
+        const sandbox = { mod, page, run: null, update: null, closing: false, waitsFor: [] };
         PAGES.watch(page, {
             failed: (why) => crash(sandbox.run, `its page did not load (${why})`),
             gone: (why) => crash(sandbox.run, endedProblem({ gone: why })),
@@ -299,6 +309,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         start,
         runs,
         runOf,
+        waitsForOf,
         launchedOf,
         currentRun,
         observe,
