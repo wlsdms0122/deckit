@@ -49,8 +49,7 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
         return ready.then(() => send(method, params));
     }
 
-    // Where deck keeps the mods it installed and their data folders, `{ mods, data }`, once the core has started: a
-    // mod's data folder is the one in `data` named by its id.
+    // Where deck keeps the mods it installed and their data folders, `{ mods, data }`, once the core has started.
     function folders() {
         return kept;
     }

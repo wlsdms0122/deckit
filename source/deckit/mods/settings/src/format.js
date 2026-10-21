@@ -1,10 +1,10 @@
 // What an empty cell shows.
 const NO_VALUE = '–';
 
-// What `deck.mods.usage` found of the mod `id`, in words: a phrase for each place it has something in.
-function usageParts({ data, records, settings }, id) {
+// What `deck.mods.usage` found of a mod, in words: a phrase for each place it has something in.
+function usageParts({ data, records, settings }) {
     return [
-        data.count || data.hidden ? `${filesText(data, 'file')} in data/${id}/` : '',
+        data.count || data.hidden ? filesText(data, 'data file') : '',
         records.count || records.hidden ? filesText(records, 'record') : '',
         settings ? 'settings' : '',
     ].filter(Boolean);

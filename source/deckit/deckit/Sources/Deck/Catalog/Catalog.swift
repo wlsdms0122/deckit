@@ -16,6 +16,7 @@ public final class Catalog {
     private let ship: [URL]
     public let folder: URL
     private let modFolder: ModFolder
+    private let dataFolder: DataFolder
     private let installer: Installer
     private let state: State
     private let store: Store
@@ -36,6 +37,7 @@ public final class Catalog {
         sources: [URL],
         ship: [URL],
         modFolder: ModFolder,
+        dataFolder: DataFolder,
         installer: Installer,
         state: State,
         store: Store
@@ -44,6 +46,7 @@ public final class Catalog {
         self.sources = sources
         self.ship = ship
         self.modFolder = modFolder
+        self.dataFolder = dataFolder
         self.installer = installer
         self.state = state
         self.store = store
@@ -178,6 +181,7 @@ public final class Catalog {
         return Mod(
             manifest: manifest,
             folder: source,
+            data: dataFolder.folder(of: manifest.id),
             installed: installed,
             shipped: shipped,
             problem: problem,

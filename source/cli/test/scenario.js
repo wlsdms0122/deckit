@@ -326,9 +326,8 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const usage = await until(() => settings.evaluate(usageLine), 3000);
         await settings?.evaluate(`${editorRow}.querySelector('.settings-mod-row').click()`);
         const counted = (count, noun) => (count ? `${count} ${noun}${count === 1 ? '' : 's'}` : '');
-        const dataFiles = filesIn(path.join(home, 'data', 'editor'));
         const told = [
-            dataFiles ? `${counted(dataFiles, 'file')} in data/editor/` : '',
+            counted(filesIn(path.join(home, 'data', 'editor')), 'data file'),
             counted(filesIn(path.join(home, 'records', 'editor')), 'record'),
             fs.existsSync(path.join(home, 'settings', 'editor.json')) ? 'settings' : '',
         ].filter(Boolean);

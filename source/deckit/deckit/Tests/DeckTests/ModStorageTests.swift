@@ -25,17 +25,19 @@ struct ModStorageTests {
         let reader = try ManifestReader(api: try #require(Version("1.0.0")), permissions: [], fields: [], store: store)
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
+        let dataFolder = DataFolder(folder: home.appending(path: "data"), store: store)
         let catalog = Catalog(
             folder: folder,
             sources: [],
             ship: [],
             modFolder: modFolder,
+            dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
             state: state,
             store: store
         )
         sut = ModStorage(
-            dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
+            dataFolder: dataFolder,
             record: record,
             setting: Setting(
                 folder: home.appending(path: "settings"),
