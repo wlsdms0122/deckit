@@ -5,8 +5,8 @@ const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
 const { section } = require('./section.js');
 
-// The Mods section: every mod found, what each contributes, and installing and removing them. `onChange` hears that
-// a mod was installed, removed, restarted or pinned here. Failures and what was done are told in the notice under the
+// The Mods section: every mod found in the load order, what each contributes, installing and removing them, and
+// putting them in another order. `onChange` hears that a mod was installed, removed, restarted, pinned or moved here. Failures and what was done are told in the notice under the
 // list.
 function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
@@ -16,11 +16,12 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     const STATE_WORDS = { launching: 'starting', terminating: 'stopping', notRunning: 'stopped' };
     const BUSY = ['launching', 'terminating'];
     const DESCRIPTION =
-        'Install a mod from its folder, or remove one you no longer need. Open a row to see what it adds, what it ' +
-        'needs and where its files are.';
+        'Install a mod from its folder, or remove one you no longer need. Drag a row to change the order mods load ' +
+        'in. Open a row to see what it adds, what it needs and where its files are.';
     const COLUMNS = ['NAME', 'VERSION', 'CONTRIBUTES', ''];
 
     const rowFills = new WeakMap(); // row element -> its fill(mod)
+    let ids = []; // the mods' ids, as the list was last drawn
 
     ui.addStyle(`
         .settings-mod-columns {
@@ -99,6 +100,14 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         create: modRow,
         update: (row, mod) => rowFills.get(row)(mod),
     });
+    // Deck puts a mod after what it requires, and refuses an order that does not.
+    ui.sortable(rows, {
+        onReorder: (id, toId) => {
+            const next = [...ids];
+            next.splice(next.indexOf(toId), 0, next.splice(next.indexOf(id), 1)[0]);
+            mods.arrange(next).then(onChange, (error) => showNotice('Could not move it: ' + error.message));
+        },
+    });
     const restart = restartNotice({ ui, mods, appName, onFailure: showNotice });
     const notice = ui.element('div', { className: 'settings-notice' });
     const headings = COLUMNS.map((text) => ui.element('div', { text }));
@@ -115,6 +124,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     function draw({ found, running, shortcuts, handlerLists }) {
         restart.draw(found);
         const pinned = new Set(mods.pinned ? mods.pinned() : []);
+        ids = found.map(({ id }) => id);
         rows.set(modRowsOf({ found, running, shortcuts, handlerLists, pinned }));
     }
 
@@ -311,7 +321,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         onChange();
     }
 
-    // One row per mod, in the order deck finds them (the person's, then those that did not load), each in its place
+    // One row per mod, in the order deck finds them (the load order, then those that did not load), each in its place
     // whatever its run is doing: one starting or stopping is in `running` as it last ran, and says so by its
     // spinner. `notLoaded` is why one is not running, `problem` what went wrong with one that is. Permissions are
     // read from the folder, so one that did not load still shows the permissions it asks for.
