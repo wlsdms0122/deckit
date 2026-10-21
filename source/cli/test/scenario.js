@@ -555,6 +555,13 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         endCore();
         const told = await until(() => /deckit's core ended \(.+\): restart the app/.test(logged()), 5000);
         check('a core that ends asks for the app to be restarted', told, '');
+        const notice = `(() => { const down = document.querySelector('.deckit-panel-down'); return down && !down.hidden ? down.textContent : ''; })()`;
+        const asked = await until(
+            async () => /needs a restart/.test((await (await page('deckit://panel'))?.evaluate(notice)) || ''),
+            3000
+        );
+        check('the panel asks the person to restart once the core is down', asked, '');
+        await (await page('deckit://panel'))?.shot('panel-down');
     } catch (error) {
         check('the core was ended', false, error.stack);
     }

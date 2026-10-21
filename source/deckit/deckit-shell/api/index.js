@@ -7,6 +7,7 @@ import * as ENVIRONMENT from '../environment/index.js';
 // What connect answers. `stage` is the environment's (environment: MAIN.stage).
 export function createApi({
     CONFIG,
+    CORE,
     STORAGE,
     LOG,
     IDENTITY,
@@ -31,12 +32,16 @@ export function createApi({
     // MARK: - Public
     // What a host app and the shell's UI on deckit reach of deckit, in main: the mods and their runs, pages that run
     // no mod, keys, commands, permissions for what the UI adds, their own state, and the log. No more of deckit is
-    // theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it.
-    function make({ onStart }) {
+    // theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it,
+    // and `restart()` the host app's.
+    function make({ onStart, restart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
             onStart,
             attach: SETUP.attach,
+            // The core that answers nothing more, told once with why, so a person can be asked to restart the app.
+            core: Object.freeze({ onDown: CORE.onDown }),
+            restart,
             mods: Object.freeze({
                 notifications: NOTIFICATIONS,
                 list: () => Object.freeze(CATALOG.mods().map(manifestOf)),

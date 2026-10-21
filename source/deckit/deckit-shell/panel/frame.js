@@ -27,6 +27,8 @@ const STYLE = `
     .deckit-panel { position: fixed; left: 0; top: 0; overflow: hidden; color: var(--deckit-text); font: 15px var(--deckit-font); }
     .deckit-panel-backdrop { inset: 0; box-sizing: border-box; }
     .deckit-panel-buttons { position: absolute; top: 0; left: 0; -webkit-app-region: drag; }
+    .deckit-panel-down { position: absolute; inset: 0; display: flex; background: var(--deckit-background); }
+    .deckit-panel-down[hidden] { display: none; }
     .deckit-sidebar {
         position: absolute;
         box-sizing: border-box;
@@ -111,7 +113,15 @@ function boot(theme, channels) {
         onMove: () => report(false),
     });
     card.append(sidebar.element, titleBarRoom);
-    root.append(card, buttonsRoom);
+    // Over all of the panel once deckit's core answers nothing more: nothing on deckit works until the app restarts.
+    const down = element(document, 'div', 'deckit-panel-down');
+    const downNote = ui.emptyState({
+        actions: [
+            ui.button({ label: 'Restart', variant: 'primary', onClick: () => PROTOCOL.restart.send({}) }).element,
+        ],
+    });
+    down.append(downNote.element);
+    root.append(card, down, buttonsRoom);
     document.body.append(root);
 
     const handle = element(handleSurface.document, 'button', 'deckit-sidebar-handle');
@@ -123,6 +133,7 @@ function boot(theme, channels) {
     theme.onChange(dressSurfaces);
     MOD_STYLE.wear({ channels, onChange: dressSurfaces });
     sidebar.update(state);
+    showDown();
     dress();
     apply(false);
     if (open) enterAtOnce();
@@ -134,6 +145,7 @@ function boot(theme, channels) {
         state = next;
         if (!dragging) width = null;
         sidebar.update(state);
+        showDown();
         apply(moved);
     });
     PROTOCOL.look.on((next) => {
@@ -163,6 +175,12 @@ function boot(theme, channels) {
     );
     PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut(() => {}) : fadeIn()));
     PROTOCOL.leave.handle(() => new Promise((resolve) => fadeOut(resolve)));
+
+    function showDown() {
+        down.hidden = !state.down;
+        if (state.down)
+            downNote.set({ title: `${state.down.name} needs a restart`, hint: `Its core ${state.down.why}.` });
+    }
 
     // A document of this page's, laid where main puts it. It draws nothing of its own: what is in it is drawn from
     // here, in this page's styles. One the last document of this page drew is found by its name and drawn anew.

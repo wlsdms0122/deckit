@@ -10,6 +10,8 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
     let ready = null; // settled once the core has answered initialize
     let kept = null; // where deck keeps the mods it installed and their data folders, as initialize answered
     let ended = null; // why the core is gone, once it is
+    let down = null; // why the core answers nothing more, once it does not: it ended, or did not start
+    const downListeners = [];
     let sequence = 0;
 
     // MARK: - Initializer
@@ -36,7 +38,9 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
         // A core that does not start is logged, as it ends or as it refuses what it is handed, and each request after
         // it is refused with why.
         ready.catch((error) => {
-            if (!ended) LOG.error("deckit's core did not start", error);
+            if (ended) return;
+            LOG.error("deckit's core did not start", error);
+            tellDown(`did not start: ${error.message || error}`);
         });
     }
 
@@ -51,6 +55,13 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
         return kept;
     }
 
+    // `listener(why)` is told once the core answers nothing more: it ended, or it did not start. Told at once when that
+    // is so already.
+    function onDown(listener) {
+        if (down) listener(down);
+        else downListeners.push(listener);
+    }
+
     // MARK: - Private
     // A core that ended is not started again: all that is asked of it is refused, of kind ENDED, saying the app is
     // to be restarted, and so whatever asked shows it.
@@ -59,6 +70,19 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
         LOG.error(ended.message);
         for (const { reject } of pending.values()) reject(ended);
         pending.clear();
+        tellDown(`ended (${why})`);
+    }
+
+    function tellDown(why) {
+        if (down) return;
+        down = why;
+        for (const listener of downListeners.splice(0)) {
+            try {
+                listener(why);
+            } catch (error) {
+                LOG.error('what heard the core go down failed', error);
+            }
+        }
     }
 
     function send(method, params) {
@@ -84,5 +108,5 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
         else asked.resolve(response.result);
     }
 
-    return { start, request, folders };
+    return { start, request, folders, onDown };
 }
