@@ -39,7 +39,7 @@ final class Installer {
     // What installing a folder would do, or a throw that says why not: a mod deck would not load, or a
     // folder that holds the installed copy or is held by it, as copying would take the source with it. `refuse` adds
     // the caller's own reason, or nil.
-    func wouldInstall(from source: URL, refuse: (Manifest) -> String? = { _ in nil }) throws -> InstallPlan {
+    func planInstall(from source: URL, refuse: (Manifest) -> String? = { _ in nil }) throws -> InstallPlan {
         if let problem = modFolder.problem(of: source) {
             throw InstallError.notLoadable(problem)
         }
@@ -68,7 +68,7 @@ final class Installer {
     // Installed as mods/<id>, every copy before it taken away wherever it was, so a file the new version dropped is
     // not left to load. Only a whole staged copy takes the old one's place.
     func install(from source: URL, refuse: (Manifest) -> String? = { _ in nil }) throws -> Manifest {
-        let manifest = try wouldInstall(from: source, refuse: refuse).manifest
+        let manifest = try planInstall(from: source, refuse: refuse).manifest
         let staged = staging.appending(path: manifest.id)
         try store.remove(staged)
         try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)

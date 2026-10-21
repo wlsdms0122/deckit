@@ -104,8 +104,8 @@ public final class Catalog {
         try loadOrder.write(next.map(\.manifest.id))
     }
 
-    public func wouldInstall(from source: URL) throws -> InstallPlan {
-        try installer.wouldInstall(from: source, refuse: shadow)
+    public func planInstall(from source: URL) throws -> InstallPlan {
+        try installer.planInstall(from: source, refuse: shadow)
     }
 
     public func install(from source: URL) throws -> Manifest {

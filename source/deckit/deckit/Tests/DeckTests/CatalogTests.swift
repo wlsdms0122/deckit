@@ -164,7 +164,7 @@ struct CatalogTests {
         let before = try #require(sut.mods().first)
 
         // When
-        let plan = try sut.wouldInstall(from: source.appending(path: "a"))
+        let plan = try sut.planInstall(from: source.appending(path: "a"))
         let manifest = try sut.install(from: source.appending(path: "a"))
 
         // Then
@@ -189,9 +189,9 @@ struct CatalogTests {
         let sut = try catalog(sources: [source])
 
         // When
-        let installed = Result { try sut.wouldInstall(from: home.appending(path: "mods/a")) }
-        let unloadable = Result { try sut.wouldInstall(from: root.appending(path: "b")) }
-        let hidden = Result { try sut.wouldInstall(from: root.appending(path: "other/c")) }
+        let installed = Result { try sut.planInstall(from: home.appending(path: "mods/a")) }
+        let unloadable = Result { try sut.planInstall(from: root.appending(path: "b")) }
+        let hidden = Result { try sut.planInstall(from: root.appending(path: "other/c")) }
 
         // Then
         #expect(throws: InstallError.installedThere) { try installed.get() }
@@ -234,7 +234,7 @@ struct CatalogTests {
         // When
         _ = try sut.installShipped()
         let mods = sut.mods()
-        let installing = try sut.wouldInstall(from: source.appending(path: "b"))
+        let installing = try sut.planInstall(from: source.appending(path: "b"))
         let removed = Result { try sut.remove("b") }
 
         // Then

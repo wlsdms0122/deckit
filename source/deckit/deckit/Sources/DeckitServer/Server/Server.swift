@@ -161,9 +161,9 @@ final class Server {
         case "catalog/install-shipped":
             return try deck.catalog.installShipped()
 
-        case "catalog/would-install":
+        case "catalog/plan-install":
             let folder = URL(filePath: try request.decodeParams(as: InstallModParams.self).from)
-            return try deck.catalog.wouldInstall(from: folder)
+            return try deck.catalog.planInstall(from: folder)
 
         case "catalog/install":
             let folder = URL(filePath: try request.decodeParams(as: InstallModParams.self).from)
