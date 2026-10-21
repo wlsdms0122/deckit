@@ -21,6 +21,7 @@ extension Mod: Encodable {
         case hides
         case revision
         case dependencies
+        case dependents
         case entry
     }
 
@@ -37,6 +38,7 @@ extension Mod: Encodable {
         try container.encode(hides.map { hidden in hidden.path(percentEncoded: false) }, forKey: .hides)
         try container.encode(revision, forKey: .revision)
         try container.encode(dependencies, forKey: .dependencies)
+        try container.encode(dependents, forKey: .dependents)
         try container.encodeIfPresent(entry?.path(percentEncoded: false), forKey: .entry)
     }
 

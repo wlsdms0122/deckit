@@ -101,6 +101,21 @@ struct CatalogTests {
         #expect(problems["e"] == .some(nil))
     }
 
+    @Test("a mod lists the mods that require it, directly or through another")
+    func dependentsReachThrough() throws {
+        // Given
+        try write("x", in: source)
+        try write("y", in: source, requires: ["x": "1.0.0"])
+        try write("z", in: source, requires: ["y": "1.0.0"])
+        let sut = try catalog(sources: [source])
+
+        // When
+        let dependents = Dictionary(uniqueKeysWithValues: sut.mods().map { mod in (mod.manifest.id, mod.dependents) })
+
+        // Then
+        #expect(dependents == ["x": ["y", "z"], "y": ["z"], "z": []])
+    }
+
     @Test("arranging moves the ids named among the places they held, and keeps the order in the state")
     func arrangeKeepsOrder() throws {
         // Given
