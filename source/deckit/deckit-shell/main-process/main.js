@@ -9,7 +9,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // A mod's main process modules, which the environment runs (`mainProcess`): a mod with system.main-process starts
 // and calls its own, they start anew with each run and end with it, and what they emit goes to the mod's page.
-export function createMainProcess({ IDENTITY, RUNNER, CORE, mainProcess: MODULES }) {
+export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -44,7 +44,7 @@ export function createMainProcess({ IDENTITY, RUNNER, CORE, mainProcess: MODULES
         return Object.freeze({
             id: mod.id,
             folder: mod.folder,
-            data: `${CORE.folders().data}/${mod.id}`,
+            data: mod.data,
             pageOf: () => IDENTITY.pageOf(mod.id),
         });
     }
