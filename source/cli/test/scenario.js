@@ -515,6 +515,33 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         };
         const reopened = await until(async () => (await backdrops()) === 1, 4000);
         check('a crashed frame opens its backdrop again, once', reopened, await backdrops());
+        // Under and over the frame: its backdrop at the bottom, its handle on top.
+        const surfacesLaid = async () => {
+            const urls = urlsOf(await stackNow());
+            return urls[0] === 'about:blank' && JSON.stringify(urls.slice(-2)) === '["deckit://panel","about:blank"]';
+        };
+        check('a crashed frame lays its backdrop and its handle again', await until(surfacesLaid, 4000), '');
+        // Loaded again from main, as a host app may: the new document lays its surfaces as the first did, drawn anew.
+        const backdropDrawn = async () => {
+            for (const surface of await pages('about:blank'))
+                if ((await surface.evaluate('innerWidth')) > 100)
+                    return surface.evaluate('document.head.children.length + ":" + document.body.innerHTML.length');
+        };
+        const drawnBefore = await backdropDrawn();
+        const beforeReload = await (await page('deckit://panel'))?.evaluate(frameNow);
+        await (await page('deckit://panel'))?.send('Page.reload');
+        const reloadedAgain = await until(async () => {
+            const now = await (await page('deckit://panel'))?.evaluate(frameNow);
+            return typeof now === 'string' && now !== beforeReload && now.endsWith(':' + (VIEWS + TEST_VIEWS));
+        }, 8000);
+        check("a frame loaded again draws the panel's list", reloadedAgain, beforeReload);
+        check('a frame loaded again lays its backdrop and its handle again', await until(surfacesLaid, 4000), '');
+        const drawnAgain = await until(async () => (await backdropDrawn()) === drawnBefore, 3000);
+        check(
+            'a frame loaded again draws its backdrop once, as before',
+            drawnAgain,
+            `${drawnBefore} -> ${await backdropDrawn()}`
+        );
         await (await page('deckit://panel'))?.evaluate(`console.error('frame-probe')`);
         const named = await until(() => /panel: frame-probe/.test(logged()), 3000);
         check("a shell page's console errors are logged under its name", named, '');

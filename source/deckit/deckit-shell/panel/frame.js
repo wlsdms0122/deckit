@@ -165,11 +165,12 @@ function boot(theme, channels) {
     PROTOCOL.leave.handle(() => new Promise((resolve) => fadeOut(resolve)));
 
     // A document of this page's, laid where main puts it. It draws nothing of its own: what is in it is drawn from
-    // here, in this page's styles.
+    // here, in this page's styles. One the last document of this page drew is found by its name and drawn anew.
     function surface(name) {
         const opened = window.open('', name);
         const style = opened.document.createElement('style');
-        opened.document.head.append(style);
+        opened.document.head.replaceChildren(style);
+        opened.document.body.replaceChildren();
         return { window: opened, document: opened.document, style };
     }
 
