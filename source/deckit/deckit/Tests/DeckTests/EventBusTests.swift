@@ -17,7 +17,7 @@ struct EventBusTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("an event goes, named after its mod, to the runs that listen to it, and only from a run that is running")
-    func testThatAnEventGoesToItsListeners() throws {
+    func eventGoesToItsListeners() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b")
@@ -40,7 +40,7 @@ struct EventBusTests {
     }
 
     @Test("a run that has ended hears nothing, and what an older run listens to is not taken")
-    func testThatAnEndedRunHearsNothing() throws {
+    func endedRunHearsNothing() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b")

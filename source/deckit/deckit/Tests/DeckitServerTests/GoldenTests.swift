@@ -22,7 +22,7 @@ struct GoldenTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("each method answers as the driver reads it")
-    func testThatEachMethodAnswersAsPinned() throws {
+    func eachMethodAnswersAsPinned() throws {
         // Given
         try writeMod(
             "a",
@@ -50,7 +50,7 @@ struct GoldenTests {
     }
 
     @Test("every refusal crosses with the kind the driver tells it by")
-    func testThatEveryRefusalHasItsKind() {
+    func everyRefusalHasItsKind() {
         // Given
         let refusals: [(any Refusal, String)] = [
             (DataFolderError.notAMod("x"), "MOD"),

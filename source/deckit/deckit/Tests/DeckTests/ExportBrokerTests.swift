@@ -17,7 +17,7 @@ struct ExportBrokerTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("what a run requires is pending while that one launches, and given once it has started")
-    func testThatDependenciesWaitForWhatIsRequired() throws {
+    func dependenciesWaitForWhatIsRequired() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b", requires: ["a": "1.0.0"], optional: ["c": "1.0.0"])
@@ -40,7 +40,7 @@ struct ExportBrokerTests {
     }
 
     @Test("a run is refused what it requires once that one has ended for good")
-    func testThatDependenciesAreRefusedOnceARequirementEnded() throws {
+    func dependenciesAreRefusedOnceARequirementEnded() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b", requires: ["a": "1.0.0"])
@@ -60,7 +60,7 @@ struct ExportBrokerTests {
     }
 
     @Test("a call goes to a function of what the caller requires, and to nothing else")
-    func testThatACallReachesOnlyWhatIsRequired() throws {
+    func callReachesOnlyWhatIsRequired() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b", requires: ["a": "1.0.0"])
@@ -86,7 +86,7 @@ struct ExportBrokerTests {
     }
 
     @Test("a call reaches a run that terminates, waits for one launching again, and an ending caller does not wait")
-    func testThatACallFollowsTheRunsOfWhatItCalls() throws {
+    func callFollowsTheRunsOfWhatItCalls() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b", requires: ["a": "1.0.0"])
@@ -114,7 +114,7 @@ struct ExportBrokerTests {
     }
 
     @Test("an optional dependency is reached only while it runs at a version the mod names")
-    func testThatAnOptionalDependencyIsReachedAtItsVersion() throws {
+    func optionalDependencyIsReachedAtItsVersion() throws {
         // Given
         try fixture.write("a", version: "2.0.0")
         try fixture.write("b", optional: ["a": "1.0.0"])
@@ -140,7 +140,7 @@ struct ExportBrokerTests {
     }
 
     @Test("a run is told what an optional dependency exports as that one starts and as it begins to end, a new run not")
-    func testThatOptionalDependentsAreToldOfChanges() throws {
+    func optionalDependentsAreToldOfChanges() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b", optional: ["a": "1.0.0"])

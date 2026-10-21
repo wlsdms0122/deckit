@@ -45,7 +45,7 @@ struct ErasureTests {
 
     // MARK: - Test
     @Test("erasing takes the mod's data folder, records and settings, and notes it until it is cleared")
-    func testThatEraseTakesWhatDeckKeeps() throws {
+    func eraseTakesWhatDeckKeeps() throws {
         // Given
         try keep("notes")
         try keep("finder")
@@ -65,7 +65,7 @@ struct ErasureTests {
     }
 
     @Test("what can be erased is, though one fails, and the mod stays noted")
-    func testThatEraseTriesEach() throws {
+    func eraseTriesEach() throws {
         // Given
         try keep("notes")
         let data = home.appending(path: "data").path(percentEncoded: false)
@@ -84,7 +84,7 @@ struct ErasureTests {
     }
 
     @Test("a mod cleared is no longer noted, and what another is stays")
-    func testThatClearedTakesTheNote() throws {
+    func clearedTakesTheNote() throws {
         // Given
         try sut.erase(mod: "notes")
         try sut.erase(mod: "finder")
@@ -98,7 +98,7 @@ struct ErasureTests {
     }
 
     @Test("an id that is no mod's is refused, and nothing is noted")
-    func testThatNoModIsRefused() throws {
+    func noModIsRefused() throws {
         // Given
         try keep("notes")
 

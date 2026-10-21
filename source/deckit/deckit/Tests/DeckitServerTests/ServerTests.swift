@@ -27,7 +27,7 @@ struct ServerTests {
 
     // MARK: - Test
     @Test("initialize answers an empty result")
-    func testThatInitializeAnswers() throws {
+    func initializeAnswers() throws {
         // Given
         // When
         let response = try respond(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#)
@@ -37,7 +37,7 @@ struct ServerTests {
     }
 
     @Test("a call before initialize is refused")
-    func testThatCallBeforeInitializeIsRefused() throws {
+    func callBeforeInitializeIsRefused() throws {
         // Given
         // When
         let response = try respond(#"{"jsonrpc":"2.0","id":1,"method":"record/keys","params":{"mod":"notes"}}"#)
@@ -47,7 +47,7 @@ struct ServerTests {
     }
 
     @Test("initialize twice is refused")
-    func testThatSecondInitializeIsRefused() throws {
+    func secondInitializeIsRefused() throws {
         // Given
         try initialize()
 
@@ -59,7 +59,7 @@ struct ServerTests {
     }
 
     @Test("a record written is read back as its text")
-    func testThatRecordRoundTrips() throws {
+    func recordRoundTrips() throws {
         // Given
         try initialize()
         _ = try respond(
@@ -76,7 +76,7 @@ struct ServerTests {
     }
 
     @Test("a record never written is read as null")
-    func testThatMissingRecordIsNull() throws {
+    func missingRecordIsNull() throws {
         // Given
         try initialize()
 
@@ -90,7 +90,7 @@ struct ServerTests {
     }
 
     @Test("a refusal carries its kind")
-    func testThatRefusalCarriesItsKind() throws {
+    func refusalCarriesItsKind() throws {
         // Given
         try initialize()
 
@@ -104,7 +104,7 @@ struct ServerTests {
     }
 
     @Test("an unknown method is not found")
-    func testThatUnknownMethodIsNotFound() throws {
+    func unknownMethodIsNotFound() throws {
         // Given
         try initialize()
 
@@ -116,7 +116,7 @@ struct ServerTests {
     }
 
     @Test("params of the wrong shape are invalid")
-    func testThatWrongParamsAreInvalid() throws {
+    func wrongParamsAreInvalid() throws {
         // Given
         try initialize()
 
@@ -128,7 +128,7 @@ struct ServerTests {
     }
 
     @Test("params of the wrong shape say where")
-    func testThatWrongParamsSayWhere() throws {
+    func wrongParamsSayWhere() throws {
         // Given
         try initialize()
         let settings = #"[{"key":"wrap","type":"toggle","options":[],"computed":false},{"key":"size","type":"number","#
@@ -144,7 +144,7 @@ struct ServerTests {
     }
 
     @Test("a notification is not answered")
-    func testThatNotificationIsNotAnswered() throws {
+    func notificationIsNotAnswered() throws {
         // Given
         try initialize()
 
@@ -156,7 +156,7 @@ struct ServerTests {
     }
 
     @Test("a line that is no request is a parse error with no id")
-    func testThatUnreadableLineIsParseError() throws {
+    func unreadableLineIsParseError() throws {
         // Given
         // When
         let response = try respond("not json")
@@ -171,7 +171,7 @@ struct ServerTests {
     }
 
     @Test("JSON that is no request is an invalid request")
-    func testThatShapelessMessageIsInvalidRequest() throws {
+    func shapelessMessageIsInvalidRequest() throws {
         // Given
         // When
         let response = try respond(#"{"jsonrpc":"2.0","id":"one"}"#)
@@ -185,7 +185,7 @@ struct ServerTests {
     }
 
     @Test("settings set as declared are read back as the JSON they were set as")
-    func testThatSettingsRoundTrip() throws {
+    func settingsRoundTrip() throws {
         // Given
         try initialize()
         try mod("notes")
@@ -212,7 +212,7 @@ struct ServerTests {
     }
 
     @Test("state written is read back by all, with no params asked")
-    func testThatStateRoundTrips() throws {
+    func stateRoundTrips() throws {
         // Given
         try initialize()
         _ = try respond(
@@ -229,7 +229,7 @@ struct ServerTests {
     }
 
     @Test("initialize refuses a permission defined twice")
-    func testThatInitializeRefusesPermissionDefinedTwice() throws {
+    func initializeRefusesPermissionDefinedTwice() throws {
         // Given
         let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them.","reach":"app"}"#
 
@@ -245,7 +245,7 @@ struct ServerTests {
     }
 
     @Test("the catalog reads a mod's url-schemes as deckit judges them")
-    func testThatCatalogReadsURLSchemes() throws {
+    func catalogReadsURLSchemes() throws {
         // Given
         try initialize()
         try mod("opener", schemes: #"["https", "https"]"#)
@@ -270,7 +270,7 @@ struct ServerTests {
     }
 
     @Test("what a run contributed comes back with it, the layers' too, and is what the mods that require it are given")
-    func testThatContributionsRoundTrip() throws {
+    func contributionsRoundTrip() throws {
         // Given
         try initialize()
         try mod("calendar")
@@ -303,7 +303,7 @@ struct ServerTests {
     }
 
     @Test("deckit's own methods answer through the server, as deck's do")
-    func testThatDeckitMethodsAnswer() throws {
+    func deckitMethodsAnswer() throws {
         // Given
         try mod("mail", schemes: #"["mailto"]"#)
         try initialize()
@@ -351,7 +351,7 @@ struct ServerTests {
     }
 
     @Test("a setting lists as Settings reads it: the declaration's fields, `default` as declared, value and options")
-    func testThatASettingItemIsJSON() throws {
+    func settingItemIsJSON() throws {
         // Given
         let size = SettingDeclaration(key: "size", type: .number, label: "Size", defaultValue: .number(12), min: 8)
         let item = SettingItem(declaration: size, value: .number(14), options: [])
@@ -369,7 +369,7 @@ struct ServerTests {
     }
 
     @Test("the keymap reads as the driver keeps it: each binding with its chord, its issues and its keystroke")
-    func testThatTheKeymapIsJSON() throws {
+    func keymapIsJSON() throws {
         // Given
         try initialize()
         for (id, (action, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
@@ -407,7 +407,7 @@ struct ServerTests {
     }
 
     @Test("options a page answered that are not options read as none")
-    func testThatUnreadableOptionsReadAsNone() throws {
+    func unreadableOptionsReadAsNone() throws {
         // Given
         let text = #"[{"mod":"notes","key":"font","options":[{"value":null}]},{"mod":"notes","key":"size"}]"#
 
@@ -420,7 +420,7 @@ struct ServerTests {
     }
 
     @Test("a result that cannot be written is answered with an internal error, never dropped")
-    func testThatAnUnwritableResultIsAnswered() throws {
+    func unwritableResultIsAnswered() throws {
         // Given
         struct Unwritable: Encodable, Sendable {
             func encode(to encoder: any Encoder) throws {
@@ -437,7 +437,7 @@ struct ServerTests {
     }
 
     @Test("a state key deckit keeps itself is refused to the driver")
-    func testThatAReservedStateKeyIsRefused() throws {
+    func reservedStateKeyIsRefused() throws {
         // Given
         try initialize()
 

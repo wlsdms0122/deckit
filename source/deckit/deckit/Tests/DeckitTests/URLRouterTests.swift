@@ -18,7 +18,7 @@ struct URLRouterTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("an address is offered to its scheme's handlers, the app's first, then to what deckit opens by itself")
-    func testThatAnAddressIsRouted() throws {
+    func addressIsRouted() throws {
         // Given
         try fixture.write("a", urlSchemes: ["https"])
         try fixture.write("b", urlSchemes: ["https"])
@@ -42,7 +42,7 @@ struct URLRouterTests {
     }
 
     @Test("a file opens only on a press, and an address that is not a place opens nowhere")
-    func testThatWhatIsNotAPlaceOrUnpressedOpensNowhere() throws {
+    func whatIsNotAPlaceOrUnpressedOpensNowhere() throws {
         // Given
         try fixture.write("a", urlSchemes: ["*"])
         let sut = try fixture.deckit()
@@ -62,7 +62,7 @@ struct URLRouterTests {
     }
 
     @Test("the person's order and switches stand over the app's, and stay over a restart")
-    func testThatThePersonOrdersHandlers() throws {
+    func personOrdersHandlers() throws {
         // Given
         try fixture.write("a", urlSchemes: ["https"])
         try fixture.write("b", urlSchemes: ["https"])
@@ -94,7 +94,7 @@ struct URLRouterTests {
     }
 
     @Test("a mod that names schemes and registers no handleURL, or the other way, is told so and asked nothing")
-    func testThatAnUnpairedHandlerIsAProblem() throws {
+    func unpairedHandlerIsAProblem() throws {
         // Given
         try fixture.write("a", urlSchemes: ["https"])
         try fixture.write("b")

@@ -28,7 +28,7 @@ struct ManifestReaderTests {
 
     // MARK: - Test
     @Test("a manifest is read with the permissions it asks for, the widest first, and why")
-    func testThatManifestIsRead() throws {
+    func manifestIsRead() throws {
         // Given
         let text = """
             id = "notes"
@@ -59,7 +59,7 @@ struct ManifestReaderTests {
     }
 
     @Test("a manifest that is no manifest is read by the folder's name, and says why")
-    func testThatBrokenManifestIsReadByFallback() {
+    func brokenManifestIsReadByFallback() {
         // Given
         let text = "id = "
 
@@ -99,7 +99,7 @@ struct ManifestReaderTests {
             )
         ]
     )
-    func testThatProblemIsSaid(text: String, problem: String) {
+    func problemIsSaid(text: String, problem: String) {
         // Given
         // When
         let said = sut.problem(of: text)
@@ -109,7 +109,7 @@ struct ManifestReaderTests {
     }
 
     @Test("a permission or a field defined twice is refused")
-    func testThatDefinitionTwiceIsRefused() throws {
+    func definitionTwiceIsRefused() throws {
         // Given
         let api = try #require(Version("1.0.0"))
 

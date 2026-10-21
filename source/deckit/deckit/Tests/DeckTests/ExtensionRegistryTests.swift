@@ -17,7 +17,7 @@ struct ExtensionRegistryTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("what a run extends that it cannot is a problem, and a point of an optional dependency never is")
-    func testThatExtendingWhatCannotBeIsAProblem() throws {
+    func extendingWhatCannotBeIsAProblem() throws {
         // Given
         try fixture.write("calendar")
         try fixture.write("google", requires: ["calendar": "1.0.0"], optional: ["outlook": "1.0.0"])
@@ -50,7 +50,7 @@ struct ExtensionRegistryTests {
     }
 
     @Test("a point's mod is told what extends it as a mod that extends it starts and once that one has ended")
-    func testThatAPointsModIsToldWhatExtendsIt() throws {
+    func pointsModIsToldWhatExtendsIt() throws {
         // Given
         try fixture.write("calendar")
         try fixture.write("google", requires: ["calendar": "1.0.0"])
@@ -89,7 +89,7 @@ struct ExtensionRegistryTests {
     }
 
     @Test("a mod that is ending takes no point opened since, and keeps one it extends until it has ended")
-    func testThatAnEndingModTakesNoNewPoint() throws {
+    func endingModTakesNoNewPoint() throws {
         // Given
         try fixture.write("calendar")
         try fixture.write("google", requires: ["calendar": "1.0.0"])
@@ -114,7 +114,7 @@ struct ExtensionRegistryTests {
     }
 
     @Test("an optional dependency's point is extended only at a version the mod names")
-    func testThatAnOptionalDependencysPointIsExtendedAtItsVersion() throws {
+    func optionalDependencyPointIsExtendedAtItsVersion() throws {
         // Given
         try fixture.write("calendar")
         try fixture.write("a", optional: ["calendar": "1.0.0"])
@@ -136,7 +136,7 @@ struct ExtensionRegistryTests {
     }
 
     @Test("a point's mod calls a function of what extends its point, and nothing else")
-    func testThatAPointsModCallsWhatExtendsIt() throws {
+    func pointsModCallsWhatExtendsIt() throws {
         // Given
         try fixture.write("calendar")
         try fixture.write("google", requires: ["calendar": "1.0.0"])

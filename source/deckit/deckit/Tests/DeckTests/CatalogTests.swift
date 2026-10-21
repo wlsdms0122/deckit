@@ -29,7 +29,7 @@ struct CatalogTests {
 
     // MARK: - Test
     @Test("those that load come in the person's order, then as the app ships them, then by id; then the rest")
-    func testThatModsComeInOrder() throws {
+    func modsComeInOrder() throws {
         // Given
         try write("c", in: home.appending(path: "mods"))
         try write("b", in: home.appending(path: "mods"))
@@ -49,7 +49,7 @@ struct CatalogTests {
     }
 
     @Test("a mod read in place comes before an installed copy of its id, which it hides")
-    func testThatSourceHidesInstalled() throws {
+    func sourceHidesInstalled() throws {
         // Given
         try write("a", in: source)
         try write("a", in: home.appending(path: "mods"))
@@ -66,7 +66,7 @@ struct CatalogTests {
     }
 
     @Test("a cycle fails every mod in it, and a failure spreads to whoever requires it")
-    func testThatRequirementsFail() throws {
+    func requirementsFail() throws {
         // Given
         try write("a", in: source, requires: ["b": "1.0.0"])
         try write("b", in: source, requires: ["a": "1.0.0"])
@@ -87,7 +87,7 @@ struct CatalogTests {
     }
 
     @Test("arranging moves the ids named among the places they held, and keeps the order in the state")
-    func testThatArrangeKeepsOrder() throws {
+    func arrangeKeepsOrder() throws {
         // Given
         for id in ["a", "b", "c", "d"] {
             try write(id, in: source)
@@ -103,7 +103,7 @@ struct CatalogTests {
     }
 
     @Test("installing copies the folder as mods/<id>, takes every copy before it away, and changes the revision")
-    func testThatInstallReplacesCopies() throws {
+    func installReplacesCopies() throws {
         // Given
         try write("a", in: home.appending(path: "mods"), folder: "old-a")
         try write("a", in: source, version: "2.0.0")
@@ -125,7 +125,7 @@ struct CatalogTests {
     }
 
     @Test("a folder that does not load, the installed one, or one a source hides is not installed")
-    func testThatInstallRefuses() throws {
+    func installRefuses() throws {
         // Given
         try write("a", in: home.appending(path: "mods"))
         try write("b", in: root, main: nil)
@@ -149,7 +149,7 @@ struct CatalogTests {
     }
 
     @Test("what the app ships is installed, but not again once the person removed it")
-    func testThatShippedRemovedStaysOut() throws {
+    func shippedRemovedStaysOut() throws {
         // Given
         try write("a", in: ship)
         try write("b", in: ship, main: nil)
@@ -174,7 +174,7 @@ struct CatalogTests {
     }
 
     @Test("removing a mod whose manifest names no mod id answers that deck keeps nothing under it")
-    func testThatRemoveAnswersWhetherIdKeepsData() throws {
+    func removeAnswersWhetherIdKeepsData() throws {
         // Given
         try write("Note", in: home.appending(path: "mods"))
         try write("note", in: home.appending(path: "mods"), folder: "note-copy")

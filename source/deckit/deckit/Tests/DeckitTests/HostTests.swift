@@ -19,7 +19,7 @@ struct HostTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("a host builds a deckit, registers a key and reads the keymap, with no JSON")
-    func testThatAHostRegistersAKey() throws {
+    func hostRegistersAKey() throws {
         // Given
         let sut = try deckit()
 
@@ -36,7 +36,7 @@ struct HostTests {
     }
 
     @Test("a mod's run started with the keys it contributed changes the keymap, which deck carries")
-    func testThatARunChangesTheKeymap() throws {
+    func runChangesTheKeymap() throws {
         // Given
         try writeMod("notes")
         let sut = try deckit()
@@ -69,7 +69,7 @@ struct HostTests {
     }
 
     @Test("a part kept after the deckit it came from is let go still works")
-    func testThatAPartOutlivesItsDeckit() throws {
+    func partOutlivesItsDeckit() throws {
         // Given
         let keymap = try deckit().keymap
 

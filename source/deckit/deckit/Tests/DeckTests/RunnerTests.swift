@@ -25,7 +25,7 @@ struct RunnerTests {
 
     // MARK: - Test
     @Test("each mod that loads opens, launches and loads its page, in the person's order")
-    func testThatReconcileOpensEachMod() throws {
+    func reconcileOpensEachMod() throws {
         // Given
         try write("a")
         try write("b", main: nil)
@@ -40,7 +40,7 @@ struct RunnerTests {
     }
 
     @Test("a run launches once its page says it started, and what an older run says is not the newer one's")
-    func testThatStartedLaunchesTheLatestRun() throws {
+    func startedLaunchesTheLatestRun() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -57,7 +57,7 @@ struct RunnerTests {
     }
 
     @Test("a mod terminates before what it requires, whose stop() is asked once it has ended, and both launch again")
-    func testThatDependentsEndFirst() throws {
+    func dependentsEndFirst() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -93,7 +93,7 @@ struct RunnerTests {
     }
 
     @Test("the first problem recorded against a run is kept, and told with no step")
-    func testThatAProblemIsKept() throws {
+    func problemIsKept() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -110,7 +110,7 @@ struct RunnerTests {
     }
 
     @Test("a mod whose requirement crashed terminates")
-    func testThatACrashEndsDependents() throws {
+    func crashEndsDependents() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -134,7 +134,7 @@ struct RunnerTests {
     }
 
     @Test("a mod whose requirement ran again while it terminated launches again as it ends")
-    func testThatADependentLaunchesAfterItsRequirement() throws {
+    func dependentLaunchesAfterItsRequirement() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -167,7 +167,7 @@ struct RunnerTests {
     }
 
     @Test("a run that did not start terminates, its stop() asked, and ends once that answered")
-    func testThatAFailedLaunchEnds() throws {
+    func failedLaunchEnds() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -184,7 +184,7 @@ struct RunnerTests {
     }
 
     @Test("a stronger reason given while a run terminates takes the place of the one it has")
-    func testThatAStrongerReasonWins() throws {
+    func strongerReasonWins() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -203,7 +203,7 @@ struct RunnerTests {
     }
 
     @Test("relaunching every mod launches nothing while the app quits")
-    func testThatRelaunchAllWaitsForTheQuit() throws {
+    func relaunchAllWaitsForTheQuit() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -220,7 +220,7 @@ struct RunnerTests {
     }
 
     @Test("a run that did not start launches again when it is relaunched while it terminates")
-    func testThatAFailedLaunchRelaunches() throws {
+    func failedLaunchRelaunches() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -243,7 +243,7 @@ struct RunnerTests {
     }
 
     @Test("a mod whose requirement is down stays down as it ends, and does not say it launches again")
-    func testThatADependentWaitsForItsRequirement() throws {
+    func dependentWaitsForItsRequirement() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -267,7 +267,7 @@ struct RunnerTests {
     }
 
     @Test("what runs is the catalog as it was last read")
-    func testThatTheLastReadRuns() throws {
+    func lastReadRuns() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -282,7 +282,7 @@ struct RunnerTests {
     }
 
     @Test("every mod terminates and launches again, and one not running launches now")
-    func testThatRelaunchAllRelaunchesEveryMod() throws {
+    func relaunchAllRelaunchesEveryMod() throws {
         // Given
         try write("a")
         try write("b")
@@ -308,7 +308,7 @@ struct RunnerTests {
     }
 
     @Test("a mod does not launch again while what it requires is not running")
-    func testThatRelaunchNeedsRequirements() throws {
+    func relaunchNeedsRequirements() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -325,7 +325,7 @@ struct RunnerTests {
     }
 
     @Test("a page that loaded again by itself runs again")
-    func testThatALoadAgainLaunchesAgain() throws {
+    func loadAgainLaunchesAgain() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -341,7 +341,7 @@ struct RunnerTests {
     }
 
     @Test("a mod removed goes once its run has ended")
-    func testThatARemovedModCloses() throws {
+    func removedModCloses() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -364,7 +364,7 @@ struct RunnerTests {
     }
 
     @Test("a mod whose code changed runs again in a new sandbox once its old one has closed")
-    func testThatAnUpdatedModOpensAgain() throws {
+    func updatedModOpensAgain() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
@@ -392,7 +392,7 @@ struct RunnerTests {
     }
 
     @Test("the app quits once every run has ended, and nothing opens meanwhile")
-    func testThatQuitWaitsForEveryRun() throws {
+    func quitWaitsForEveryRun() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()

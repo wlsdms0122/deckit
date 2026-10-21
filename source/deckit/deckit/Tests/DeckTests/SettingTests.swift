@@ -25,7 +25,7 @@ struct SettingTests {
 
     // MARK: - Test
     @Test("a value set is saved among the mod's others")
-    func testThatValueIsSavedAmongOthers() throws {
+    func valueIsSavedAmongOthers() throws {
         // Given
         let (sut, _, _) = try setting(["notes", "finder"])
         #expect(sut.declare([toggle("wrap"), number("size"), text("font")], mod: "notes", run: 1))
@@ -41,7 +41,7 @@ struct SettingTests {
     }
 
     @Test("setting says what the value is now and whether that changed it")
-    func testThatSetSaysWhetherChanged() throws {
+    func setSaysWhetherChanged() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
         _ = sut.declare([number("size")], mod: "notes", run: 1)
@@ -57,7 +57,7 @@ struct SettingTests {
     }
 
     @Test("the file holds the values as JSON, so what deck saved before reads the same")
-    func testThatFileIsJSON() throws {
+    func fileIsJSON() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
         _ = sut.declare([number("size")], mod: "notes", run: 1)
@@ -72,7 +72,7 @@ struct SettingTests {
     }
 
     @Test("a file that is not a table of values reads as none saved")
-    func testThatUnreadableFileReadsAsNone() throws {
+    func unreadableFileReadsAsNone() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
         try Data("[1,2]".utf8).write(to: prepared("notes.json"))
@@ -85,7 +85,7 @@ struct SettingTests {
     }
 
     @Test("erasing takes the mod's values and no other's")
-    func testThatEraseTakesOnlyTheModsValues() throws {
+    func eraseTakesOnlyTheModsValues() throws {
         // Given
         let (sut, _, _) = try setting(["notes", "finder"])
         _ = sut.declare([toggle("wrap")], mod: "notes", run: 1)
@@ -103,7 +103,7 @@ struct SettingTests {
     }
 
     @Test("only the mod's latest run declares, while it launches")
-    func testThatOnlyTheLaunchingRunDeclares() throws {
+    func onlyTheLaunchingRunDeclares() throws {
         // Given
         let (sut, runner, _) = try setting(["notes", "finder"])
 
@@ -126,7 +126,7 @@ struct SettingTests {
     }
 
     @Test("a value is set as its declaration takes it, and a number within its bounds")
-    func testThatValueIsSetAsDeclared() throws {
+    func valueIsSetAsDeclared() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
         let choice = SettingDeclaration(key: "theme", type: .choice, options: [option("light"), option("dark")])
@@ -158,7 +158,7 @@ struct SettingTests {
     }
 
     @Test("a choice whose options are computed takes what its page worked out")
-    func testThatComputedChoiceTakesWorkedOutOptions() throws {
+    func computedChoiceTakesWorkedOutOptions() throws {
         // Given
         let (sut, _, _) = try setting(["notes", "finder"])
         let font = SettingDeclaration(key: "font", type: .choice, computed: true)
@@ -181,7 +181,7 @@ struct SettingTests {
     }
 
     @Test("the list has every loading mod's that declared any, in the catalog's order, values over defaults")
-    func testThatListHasDeclaredSettings() throws {
+    func listHasDeclaredSettings() throws {
         // Given
         let (sut, _, _) = try setting(["notes", "finder", "editor"])
         let theme = SettingDeclaration(key: "theme", type: .choice, defaultValue: .string("light"), computed: true)
@@ -206,7 +206,7 @@ struct SettingTests {
     }
 
     @Test("what a mod that no longer loads declared is forgotten")
-    func testThatForgetTakesWhatNoLongerLoads() throws {
+    func forgetTakesWhatNoLongerLoads() throws {
         // Given
         let (sut, _, catalog) = try setting(["notes", "finder"])
         _ = sut.declare([toggle("wrap")], mod: "notes", run: 1)
@@ -225,7 +225,7 @@ struct SettingTests {
     }
 
     @Test("an action is run only for a key declared as one")
-    func testThatActionIsOnlyForAnAction() throws {
+    func actionIsOnlyForAnAction() throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
         _ = sut.declare([toggle("wrap"), SettingDeclaration(key: "rebuild", type: .action)], mod: "notes", run: 1)
@@ -243,7 +243,7 @@ struct SettingTests {
     }
 
     @Test("a declaration reads as the page tells it")
-    func testThatDeclarationIsJSON() throws {
+    func declarationIsJSON() throws {
         // Given
         let text = #"[{"key":"size","type":"number","label":"Size","default":12,"min":8,"options":[],"#
             + #""computed":false}]"#
