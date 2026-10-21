@@ -44,8 +44,8 @@ export function createCatalog({ CORE, LOG, files }) {
 
     // What a folder would install, `{ manifest, replaces }`: whether it takes the place of an installed copy. Refused
     // with why for a folder install refuses.
-    function wouldInstall(from) {
-        return CORE.request('catalog/would-install', { from });
+    function planInstall(from) {
+        return CORE.request('catalog/plan-install', { from });
     }
 
     // Answers the manifest of what it installed. What is read here changes at the next refresh.
@@ -84,7 +84,7 @@ export function createCatalog({ CORE, LOG, files }) {
         found,
         mods,
         arrange,
-        wouldInstall,
+        planInstall,
         install,
         remove,
         refresh,
