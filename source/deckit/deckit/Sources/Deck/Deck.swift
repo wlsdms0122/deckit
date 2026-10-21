@@ -49,6 +49,7 @@ public final class Deck {
             sources: sources,
             ship: ship,
             modFolder: modFolder,
+            dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
             state: state,
             store: store

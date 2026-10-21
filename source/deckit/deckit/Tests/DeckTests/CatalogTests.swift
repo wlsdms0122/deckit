@@ -66,6 +66,20 @@ struct CatalogTests {
         #expect(throws: InstallError.self) { try removed.get() }
     }
 
+    @Test("a mod's data folder is deck's, named by its id, wherever the mod is read from")
+    func dataFolderIsNamedById() throws {
+        // Given
+        try write("a", in: source, folder: "a-source")
+        try write("b", in: home.appending(path: "mods"))
+        let sut = try catalog(sources: [source])
+
+        // When
+        let mods = sut.mods()
+
+        // Then
+        #expect(mods.map(\.data) == ["a", "b"].map { id in home.appending(path: "data/\(id)") })
+    }
+
     @Test("a cycle fails every mod in it, and a failure spreads to whoever requires it")
     func requirementsFail() throws {
         // Given
@@ -216,6 +230,7 @@ struct CatalogTests {
             sources: sources,
             ship: ship,
             modFolder: modFolder,
+            dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
             state: state,
             store: store

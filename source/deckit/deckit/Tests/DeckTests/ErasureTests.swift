@@ -35,6 +35,7 @@ struct ErasureTests {
             sources: [],
             ship: [],
             modFolder: modFolder,
+            dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
             state: state,
             store: store

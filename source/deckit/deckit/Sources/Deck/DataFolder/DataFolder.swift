@@ -22,15 +22,19 @@ public final class DataFolder {
     }
 
     // MARK: - Public
+    func folder(of mod: String) -> URL {
+        folder.appending(path: mod)
+    }
+
     // Every file in the mod's data folder counts, whatever wrote it: erasing takes them all.
     func count(mod: String) -> DataCount {
         var count = DataCount()
-        walk(folder.appending(path: mod), depth: 0, count: &count)
+        walk(folder(of: mod), depth: 0, count: &count)
         return count
     }
 
     func erase(mod: String) throws {
-        try store.remove(folder.appending(path: mod))
+        try store.remove(folder(of: mod))
     }
 
     // MARK: - Private

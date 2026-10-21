@@ -14,6 +14,7 @@ extension Mod: Encodable {
     private enum CodingKeys: String, CodingKey {
         case manifest
         case folder
+        case data
         case installed
         case shipped
         case problem
@@ -29,6 +30,7 @@ extension Mod: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(manifest, forKey: .manifest)
         try container.encode(folder.path(percentEncoded: false), forKey: .folder)
+        try container.encode(data.path(percentEncoded: false), forKey: .data)
         try container.encode(installed, forKey: .installed)
         try container.encode(shipped, forKey: .shipped)
         try container.encodeIfPresent(problem, forKey: .problem)

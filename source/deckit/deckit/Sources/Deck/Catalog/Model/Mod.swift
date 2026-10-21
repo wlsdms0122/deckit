@@ -12,6 +12,8 @@ public struct Mod: Sendable {
     // MARK: - Property
     public let manifest: Manifest
     public let folder: URL
+    // The folder it keeps its own data in, which is not there until it writes.
+    public let data: URL
     // Whether it is a copy in deck's mods folder.
     public let installed: Bool
     // Whether the app ships it: a copy installed of what it shipped, or what it ships and did not install, read where
