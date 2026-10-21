@@ -1,5 +1,5 @@
 //
-//  ModHome.swift
+//  DeckitFixture.swift
 //  DeckitTests
 //
 //  Created by JSilver on 10/20/26.
@@ -10,8 +10,8 @@ import Testing
 @testable import Deck
 @testable import Deckit
 
-// Deckit's folder and a folder of mods read in place, as a test writes them.
-struct ModHome {
+// The mods a test writes into a source folder, and a deckit over them.
+struct DeckitFixture {
     // MARK: - Property
     private let home: URL
     private let source: URL

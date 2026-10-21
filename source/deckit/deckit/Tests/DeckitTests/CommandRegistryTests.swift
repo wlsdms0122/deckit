@@ -13,17 +13,17 @@ import Testing
 @Suite("CommandRegistry")
 struct CommandRegistryTests {
     // MARK: - Property
-    private let mods = ModHome("command-registry-tests")
+    private let fixture = DeckitFixture("command-registry-tests")
 
     // MARK: - Initializer
     // MARK: - Test
     @Test("the sources are the mods whose runs registered what a person may run, in the mods' order")
     func testThatSourcesAreTheRunsThatRegistered() throws {
         // Given
-        try mods.write("a")
-        try mods.write("b")
-        try mods.write("c")
-        let sut = try mods.deckit()
+        try fixture.write("a")
+        try fixture.write("b")
+        try fixture.write("c")
+        let sut = try fixture.deckit()
 
         // When
         _ = try sut.started("c", run: 1, contributing: ["resolve": .bool(true)])

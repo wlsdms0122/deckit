@@ -13,16 +13,16 @@ import Testing
 @Suite("Keymap")
 struct KeymapTests {
     // MARK: - Property
-    private let mods = ModHome("keymap-tests")
+    private let fixture = DeckitFixture("keymap-tests")
 
     // MARK: - Initializer
     // MARK: - Test
     @Test("a mod's keys are those its run contributed, a global one only with system.global-keys")
     func testThatModKeysComeFromItsRun() throws {
         // Given
-        try mods.write("a", permissions: ["system.global-keys"])
-        try mods.write("b")
-        let sut = try mods.deckit()
+        try fixture.write("a", permissions: ["system.global-keys"])
+        try fixture.write("b")
+        let sut = try fixture.deckit()
 
         // When
         let a = try sut.started("a", run: 1, keys: [key("find", "mod+shift+f", global: true), key("next", "mod+j")])
@@ -39,8 +39,8 @@ struct KeymapTests {
     @Test("bindings are listed as a keystroke tries them, and a mod's own key hides the app's in its page")
     func testThatKeystrokesResolveInOrder() throws {
         // Given
-        try mods.write("a", permissions: ["system.global-keys"])
-        let sut = try mods.deckit()
+        try fixture.write("a", permissions: ["system.global-keys"])
+        let sut = try fixture.deckit()
         _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
         _ = sut.keymap.register(appKey("back", "mod+["))
 
@@ -58,7 +58,7 @@ struct KeymapTests {
     @Test("a change landing on a chord taken is held, by the order changes were made in, which a restart keeps")
     func testThatALaterChangeIsHeld() throws {
         // Given
-        let sut = try mods.deckit()
+        let sut = try fixture.deckit()
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
             _ = sut.keymap.register(appKey(action, chord))
         }
@@ -67,7 +67,7 @@ struct KeymapTests {
         _ = try sut.keymap.bind("@app.three", spec: "cmd+9")
         let changed = try sut.keymap.bind("@app.two", spec: "Shift+Cmd+9")
         _ = try sut.keymap.bind("@app.two", spec: "cmd+9")
-        let restarted = try mods.deckit()
+        let restarted = try fixture.deckit()
         var keymap = ResolvedKeymap(revision: 0, bindings: [])
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
             keymap = restarted.keymap.register(appKey(action, chord))
@@ -83,7 +83,7 @@ struct KeymapTests {
     @Test("a binding back to its default keeps no change", arguments: [true, false])
     func testThatABindingGoesBackToItsDefault(resets: Bool) throws {
         // Given
-        let sut = try mods.deckit()
+        let sut = try fixture.deckit()
         _ = sut.keymap.register(appKey("one", "mod+1"))
         _ = try sut.keymap.bind("@app.one", spec: "cmd+9")
 
@@ -99,7 +99,7 @@ struct KeymapTests {
     @Test("what cannot be bound is refused, by why")
     func testThatBindRefuses() throws {
         // Given
-        let sut = try mods.deckit()
+        let sut = try fixture.deckit()
         _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
 
         // When
@@ -117,8 +117,8 @@ struct KeymapTests {
     @Test("a run that ends takes its keys with it")
     func testThatAnEndedRunTakesItsKeys() throws {
         // Given
-        try mods.write("a")
-        let sut = try mods.deckit()
+        try fixture.write("a")
+        let sut = try fixture.deckit()
         _ = try sut.started("a", run: 1, keys: [key("next", "mod+j")])
 
         // When

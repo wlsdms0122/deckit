@@ -41,13 +41,6 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "DeckitHostTests",
-            dependencies: [
-                "Deck",
-                "Deckit"
-            ]
-        ),
-        .testTarget(
             name: "DeckitServerTests",
             dependencies: [
                 "DeckitServer"

@@ -12,17 +12,17 @@ import Testing
 @Suite("EventBus")
 struct EventBusTests {
     // MARK: - Property
-    private let mods = ModSource("event-bus-tests")
+    private let fixture = RunnerFixture("event-bus-tests")
 
     // MARK: - Initializer
     // MARK: - Test
     @Test("an event goes, named after its mod, to the runs that listen to it, and only from a run that is running")
     func testThatAnEventGoesToItsListeners() throws {
         // Given
-        try mods.write("a")
-        try mods.write("b")
-        try mods.write("c")
-        let runner = try mods.runner()
+        try fixture.write("a")
+        try fixture.write("b")
+        try fixture.write("c")
+        let runner = try fixture.runner()
         let sut = EventBus(runner: runner)
         sut.listen(mod: "b", run: 1, names: ["a:status"])
         sut.listen(mod: "c", run: 1, names: ["a:other"])
@@ -42,9 +42,9 @@ struct EventBusTests {
     @Test("a run that has ended hears nothing, and what an older run listens to is not taken")
     func testThatAnEndedRunHearsNothing() throws {
         // Given
-        try mods.write("a")
-        try mods.write("b")
-        let runner = try mods.runner()
+        try fixture.write("a")
+        try fixture.write("b")
+        let runner = try fixture.runner()
         let sut = EventBus(runner: runner)
         _ = try runner.started("a", run: 1)
         _ = try runner.started("b", run: 1)

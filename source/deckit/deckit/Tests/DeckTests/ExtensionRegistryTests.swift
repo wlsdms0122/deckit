@@ -12,16 +12,16 @@ import Testing
 @Suite("ExtensionRegistry")
 struct ExtensionRegistryTests {
     // MARK: - Property
-    private let mods = ModSource("extension-registry-tests")
+    private let fixture = RunnerFixture("extension-registry-tests")
 
     // MARK: - Initializer
     // MARK: - Test
     @Test("what a run extends that it cannot is a problem, and a point of an optional dependency never is")
     func testThatExtendingWhatCannotBeIsAProblem() throws {
         // Given
-        try mods.write("calendar")
-        try mods.write("google", requires: ["calendar": "1.0.0"], optional: ["outlook": "1.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("calendar")
+        try fixture.write("google", requires: ["calendar": "1.0.0"], optional: ["outlook": "1.0.0"])
+        let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.started("calendar", run: 1, extensionPoints: ["accounts"])
         _ = try runner.started(
@@ -52,9 +52,9 @@ struct ExtensionRegistryTests {
     @Test("a point's mod is told what extends it as a mod that extends it starts and once that one has ended")
     func testThatAPointsModIsToldWhatExtendsIt() throws {
         // Given
-        try mods.write("calendar")
-        try mods.write("google", requires: ["calendar": "1.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("calendar")
+        try fixture.write("google", requires: ["calendar": "1.0.0"])
+        let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = sut.changes()
 
@@ -91,9 +91,9 @@ struct ExtensionRegistryTests {
     @Test("a mod that is ending takes no point opened since, and keeps one it extends until it has ended")
     func testThatAnEndingModTakesNoNewPoint() throws {
         // Given
-        try mods.write("calendar")
-        try mods.write("google", requires: ["calendar": "1.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("calendar")
+        try fixture.write("google", requires: ["calendar": "1.0.0"])
+        let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.started("calendar", run: 1, extensionPoints: ["accounts"])
         _ = try runner.started("google", run: 1, extensions: ["calendar:accounts": [["events"]]])
@@ -116,10 +116,10 @@ struct ExtensionRegistryTests {
     @Test("an optional dependency's point is extended only at a version the mod names")
     func testThatAnOptionalDependencysPointIsExtendedAtItsVersion() throws {
         // Given
-        try mods.write("calendar")
-        try mods.write("a", optional: ["calendar": "1.0.0"])
-        try mods.write("b", optional: ["calendar": "2.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("calendar")
+        try fixture.write("a", optional: ["calendar": "1.0.0"])
+        try fixture.write("b", optional: ["calendar": "2.0.0"])
+        let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.started("a", run: 1, extensions: ["calendar:accounts": []])
         _ = try runner.started("b", run: 1, extensions: ["calendar:accounts": []])
@@ -138,10 +138,10 @@ struct ExtensionRegistryTests {
     @Test("a point's mod calls a function of what extends its point, and nothing else")
     func testThatAPointsModCallsWhatExtendsIt() throws {
         // Given
-        try mods.write("calendar")
-        try mods.write("google", requires: ["calendar": "1.0.0"])
-        try mods.write("notes", requires: ["calendar": "1.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("calendar")
+        try fixture.write("google", requires: ["calendar": "1.0.0"])
+        try fixture.write("notes", requires: ["calendar": "1.0.0"])
+        let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.started("calendar", run: 1, extensionPoints: ["accounts"])
         _ = try runner.started("google", run: 1, extensions: ["calendar:accounts": [["events"]]])
