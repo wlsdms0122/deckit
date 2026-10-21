@@ -1,5 +1,5 @@
 //
-//  ModSource.swift
+//  RunnerFixture.swift
 //  DeckTests
 //
 //  Created by JSilver on 10/20/26.
@@ -9,8 +9,8 @@ import Foundation
 import Testing
 @testable import Deck
 
-// A folder of mods read in place, written for a test, and the runner that runs what of them loads.
-struct ModSource {
+// The mods a test writes into a source folder, and a runner over them.
+struct RunnerFixture {
     // MARK: - Property
     private let home: URL
     private let source: URL

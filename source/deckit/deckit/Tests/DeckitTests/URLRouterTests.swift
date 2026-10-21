@@ -13,17 +13,17 @@ import Testing
 @Suite("URLRouter")
 struct URLRouterTests {
     // MARK: - Property
-    private let mods = ModHome("url-router-tests")
+    private let fixture = DeckitFixture("url-router-tests")
 
     // MARK: - Initializer
     // MARK: - Test
     @Test("an address is offered to its scheme's handlers, the app's first, then to what deckit opens by itself")
     func testThatAnAddressIsRouted() throws {
         // Given
-        try mods.write("a", urlSchemes: ["https"])
-        try mods.write("b", urlSchemes: ["https"])
-        try mods.write("c", urlSchemes: ["*"])
-        let sut = try mods.deckit(schemeHandlers: ["https": ["b"]])
+        try fixture.write("a", urlSchemes: ["https"])
+        try fixture.write("b", urlSchemes: ["https"])
+        try fixture.write("c", urlSchemes: ["*"])
+        let sut = try fixture.deckit(schemeHandlers: ["https": ["b"]])
         for mod in ["a", "b", "c"] {
             _ = try sut.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
         }
@@ -44,8 +44,8 @@ struct URLRouterTests {
     @Test("a file opens only on a press, and an address that is not a place opens nowhere")
     func testThatWhatIsNotAPlaceOrUnpressedOpensNowhere() throws {
         // Given
-        try mods.write("a", urlSchemes: ["*"])
-        let sut = try mods.deckit()
+        try fixture.write("a", urlSchemes: ["*"])
+        let sut = try fixture.deckit()
         _ = try sut.started("a", run: 1, contributing: ["handleURL": .bool(true)])
 
         // When
@@ -64,17 +64,17 @@ struct URLRouterTests {
     @Test("the person's order and switches stand over the app's, and stay over a restart")
     func testThatThePersonOrdersHandlers() throws {
         // Given
-        try mods.write("a", urlSchemes: ["https"])
-        try mods.write("b", urlSchemes: ["https"])
-        try mods.write("c", urlSchemes: ["https"])
-        let sut = try mods.deckit(schemeHandlers: ["https": ["b"]])
+        try fixture.write("a", urlSchemes: ["https"])
+        try fixture.write("b", urlSchemes: ["https"])
+        try fixture.write("c", urlSchemes: ["https"])
+        let sut = try fixture.deckit(schemeHandlers: ["https": ["b"]])
         for mod in ["a", "b", "c"] {
             _ = try sut.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
         }
 
         // When
         try sut.urlRouter.setHandlers(of: "https", order: ["a", "b"], off: ["c"])
-        let restarted = try mods.deckit(schemeHandlers: ["https": ["b"]])
+        let restarted = try fixture.deckit(schemeHandlers: ["https": ["b"]])
         for mod in ["a", "b", "c"] {
             _ = try restarted.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
         }
@@ -96,9 +96,9 @@ struct URLRouterTests {
     @Test("a mod that names schemes and registers no handleURL, or the other way, is told so and asked nothing")
     func testThatAnUnpairedHandlerIsAProblem() throws {
         // Given
-        try mods.write("a", urlSchemes: ["https"])
-        try mods.write("b")
-        let sut = try mods.deckit()
+        try fixture.write("a", urlSchemes: ["https"])
+        try fixture.write("b")
+        let sut = try fixture.deckit()
 
         // When
         let a = try sut.started("a", run: 1, contributing: [:])

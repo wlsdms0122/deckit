@@ -12,17 +12,17 @@ import Testing
 @Suite("ExportBroker")
 struct ExportBrokerTests {
     // MARK: - Property
-    private let mods = ModSource("export-tests")
+    private let fixture = RunnerFixture("export-tests")
 
     // MARK: - Initializer
     // MARK: - Test
     @Test("what a run requires is pending while that one launches, and given once it has started")
     func testThatDependenciesWaitForWhatIsRequired() throws {
         // Given
-        try mods.write("a")
-        try mods.write("b", requires: ["a": "1.0.0"], optional: ["c": "1.0.0"])
-        try mods.write("c", version: "2.0.0")
-        let runner = try mods.runner()
+        try fixture.write("a")
+        try fixture.write("b", requires: ["a": "1.0.0"], optional: ["c": "1.0.0"])
+        try fixture.write("c", version: "2.0.0")
+        let runner = try fixture.runner()
         let sut = ExportBroker(runner: runner)
         _ = try runner.started("c", run: 1)
 
@@ -42,9 +42,9 @@ struct ExportBrokerTests {
     @Test("a run is refused what it requires once that one has ended for good")
     func testThatDependenciesAreRefusedOnceARequirementEnded() throws {
         // Given
-        try mods.write("a")
-        try mods.write("b", requires: ["a": "1.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("a")
+        try fixture.write("b", requires: ["a": "1.0.0"])
+        let runner = try fixture.runner()
         let sut = ExportBroker(runner: runner)
 
         // When
@@ -62,9 +62,9 @@ struct ExportBrokerTests {
     @Test("a call goes to a function of what the caller requires, and to nothing else")
     func testThatACallReachesOnlyWhatIsRequired() throws {
         // Given
-        try mods.write("a")
-        try mods.write("b", requires: ["a": "1.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("a")
+        try fixture.write("b", requires: ["a": "1.0.0"])
+        let runner = try fixture.runner()
         let sut = ExportBroker(runner: runner)
         _ = try runner.started("a", run: 1, exports: [["ask"]])
         _ = try runner.started("b", run: 1)
@@ -88,9 +88,9 @@ struct ExportBrokerTests {
     @Test("a call reaches a run that terminates, waits for one launching again, and an ending caller does not wait")
     func testThatACallFollowsTheRunsOfWhatItCalls() throws {
         // Given
-        try mods.write("a")
-        try mods.write("b", requires: ["a": "1.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("a")
+        try fixture.write("b", requires: ["a": "1.0.0"])
+        let runner = try fixture.runner()
         let sut = ExportBroker(runner: runner)
         _ = try runner.started("a", run: 1, exports: [["ask"]])
         _ = try runner.started("b", run: 1)
@@ -116,10 +116,10 @@ struct ExportBrokerTests {
     @Test("an optional dependency is reached only while it runs at a version the mod names")
     func testThatAnOptionalDependencyIsReachedAtItsVersion() throws {
         // Given
-        try mods.write("a", version: "2.0.0")
-        try mods.write("b", optional: ["a": "1.0.0"])
-        try mods.write("c", optional: ["a": "2.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("a", version: "2.0.0")
+        try fixture.write("b", optional: ["a": "1.0.0"])
+        try fixture.write("c", optional: ["a": "2.0.0"])
+        let runner = try fixture.runner()
         let sut = ExportBroker(runner: runner)
         _ = try runner.started("b", run: 1)
         _ = try runner.started("c", run: 1)
@@ -142,9 +142,9 @@ struct ExportBrokerTests {
     @Test("a run is told what an optional dependency exports as that one starts and as it begins to end, a new run not")
     func testThatOptionalDependentsAreToldOfChanges() throws {
         // Given
-        try mods.write("a")
-        try mods.write("b", optional: ["a": "1.0.0"])
-        let runner = try mods.runner()
+        try fixture.write("a")
+        try fixture.write("b", optional: ["a": "1.0.0"])
+        let runner = try fixture.runner()
         let sut = ExportBroker(runner: runner)
         _ = try runner.started("b", run: 1)
         _ = sut.changes()
