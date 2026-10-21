@@ -114,7 +114,7 @@ state/host/     what the host app and its shell keep, one JSON file a key
 logs/
 ```
 
-The core lays out all but `logs/`, which is main's, and answers `initialize` with where it keeps the mods and the data folders; main hands a main process module its mod's data folder from that answer.
+The core lays out all but `logs/`, which is main's, and answers `initialize` with where it keeps the mods and the data folders, and each mod it reads with its own data folder (`data`), which main hands the mod's main process modules.
 
 Everything deckit keeps is named from its configured id, so two host apps that embed deckit keep their data apart.
 
