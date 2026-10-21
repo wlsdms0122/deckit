@@ -10,8 +10,9 @@ import { createScript } from './script.js';
 
 // The web pages a mod's page shows, as Electron shows them (deckit-shell/environment: MAIN.web): a <webview> in the
 // mod's page, or a page in a window of the app's, each in a session of the mod's, its web page id its webContents id.
-// `made(make)` makes a webContents as deckit's, so it is known as deckit's as Electron tells of it.
-export function createWeb({ CONFIG, LOG, WINDOW, made }) {
+// `made(make)` makes a webContents as deckit's, and `claim()` claims what Electron makes until it is released, so each
+// is known as deckit's as Electron tells of it.
+export function createWeb({ CONFIG, LOG, WINDOW, made, claim }) {
     // MARK: - Property
     const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
     const icons = new Map(); // page id -> the icon it last announced
@@ -253,6 +254,10 @@ export function createWeb({ CONFIG, LOG, WINDOW, made }) {
                 ...windowOptions({ disposition, frameName }),
             };
             if (!deck.windowOpen(modPage, page, asked)) return { action: 'deny' };
+            // Electron makes the popup before it calls createWindow, in this same turn; one it does not make is let go
+            // at the next.
+            const release = claim();
+            setImmediate(release);
             return {
                 action: 'allow',
                 overrideBrowserWindowOptions: {
@@ -263,7 +268,10 @@ export function createWeb({ CONFIG, LOG, WINDOW, made }) {
                         nodeIntegration: false,
                     },
                 },
-                createWindow: (options) => openPopup(modPage, page, options),
+                createWindow: (options) => {
+                    release();
+                    return openPopup(modPage, page, options);
+                },
             };
         });
     }
