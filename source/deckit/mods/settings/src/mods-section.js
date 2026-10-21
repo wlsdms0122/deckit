@@ -100,11 +100,15 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         create: modRow,
         update: (row, mod) => rowFills.get(row)(mod),
     });
-    // Deck puts a mod after what it requires, and refuses an order that does not.
+    // Deck puts a mod that loads after what it requires, refuses an order that does not, and leaves out one that does
+    // not load.
     ui.sortable(rows, {
         onReorder: (id, toId) => {
             const next = [...ids];
-            next.splice(next.indexOf(toId), 0, next.splice(next.indexOf(id), 1)[0]);
+            const from = next.indexOf(id);
+            const to = next.indexOf(toId);
+            if (from < 0 || to < 0) return;
+            next.splice(to, 0, next.splice(from, 1)[0]);
             mods.arrange(next).then(onChange, (error) => showNotice('Could not move it: ' + error.message));
         },
     });
