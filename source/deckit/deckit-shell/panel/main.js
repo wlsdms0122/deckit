@@ -314,7 +314,7 @@ export function createPanel({ REGION, deckit, host }) {
         return inOrder().find(({ id }) => mayShow(id) && listed(id))?.id;
     }
 
-    // The mods in the list's order: those the person placed, as they placed them, then the rest in the mods' order.
+    // The mods in the list's order: those the person placed, as they placed them, then the rest in the load order.
     function inOrder() {
         const mods = new Map(deckit.mods.list().map((mod) => [mod.id, mod]));
         return LIST_ORDER.sorted([...mods.keys()], order).map((id) => mods.get(id));

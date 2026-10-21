@@ -19,6 +19,7 @@ const USED = {
         notifications: 'array',
         list: 'function',
         onChange: 'function',
+        arrange: 'function',
         runs: 'function',
         runOf: 'function',
         listingOf: 'function',
