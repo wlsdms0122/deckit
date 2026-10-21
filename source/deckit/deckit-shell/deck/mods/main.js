@@ -7,9 +7,9 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
-// again and counting what one stored.
+// again and what one has where deck keeps it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
-export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, pages }) {
+export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pages }) {
     // MARK: - Property
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
@@ -61,9 +61,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECO
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return RUNNER.relaunch(id);
         });
-        PROTOCOL.count.handle(({ id }, sender) => {
+        PROTOCOL.usage.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return stored(id);
+            return CORE.request('storage/usage', { mod: id });
         });
         PROTOCOL.watchMods.on((_payload, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -140,12 +140,6 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECO
         if (!data || !keeps) return { data: false };
         await erase(id);
         return { data: true };
-    }
-
-    // What a mod stored, in its data folder and its records: `{ count, capped, hidden }`.
-    async function stored(id) {
-        const [data, records] = await Promise.all([STORAGE.count(id), RECORD.count(id)]);
-        return { count: data.count + records.count, capped: data.capped, hidden: data.hidden || records.hidden };
     }
 
     // A mod removed with its data, whose pages' storage and sessions were not cleared then, or what the core keeps of

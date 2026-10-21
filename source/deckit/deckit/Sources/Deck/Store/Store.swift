@@ -33,8 +33,12 @@ struct Store {
         try Data(text.utf8).write(to: file, options: .atomic)
     }
 
+    func exists(_ file: URL) -> Bool {
+        FileManager.default.fileExists(atPath: file.path(percentEncoded: false))
+    }
+
     func remove(_ file: URL) throws {
-        guard FileManager.default.fileExists(atPath: file.path(percentEncoded: false)) else { return }
+        guard exists(file) else { return }
         try FileManager.default.removeItem(at: file)
     }
 

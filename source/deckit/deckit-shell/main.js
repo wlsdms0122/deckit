@@ -127,7 +127,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const EXPORT = createExport({ CORE, IDENTITY, RUNNER });
     const EXTENSION = createExtension({ CORE, IDENTITY, RUNNER });
     const EVENT = createEvent({ CORE, LOG, IDENTITY });
-    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, STORAGE, RECORD, EXTENSION, pages: ENV.pages });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pages: ENV.pages });
     const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: ENV.pages, keys: ENV.keys });
     const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
     const OPEN = createOpen({ LOG, IDENTITY, CORE, open: ENV.open });

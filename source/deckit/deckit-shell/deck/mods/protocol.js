@@ -9,7 +9,7 @@ export const remove = CHANNEL.pageToMain(
     { reply: true }
 );
 export const relaunch = CHANNEL.pageToMain('deckit-shell:mods-relaunch', { id: 'string' }, { reply: true });
-export const count = CHANNEL.pageToMain('deckit-shell:mods-count', { id: 'string' }, { reply: true });
+export const usage = CHANNEL.pageToMain('deckit-shell:mods-usage', { id: 'string' }, { reply: true });
 // The sending page hears modsChanged from then on, while it lasts.
 export const watchMods = CHANNEL.pageToMain('deckit-shell:mods-watch', {});
 // What `mods` answers may have changed: a mod found or gone, a run that moved.

@@ -1,5 +1,5 @@
 const { chip, statusChip } = require('./chip.js');
-const { ordinal, schemeName, storedFilesText } = require('./format.js');
+const { ordinal, schemeName, usageParts } = require('./format.js');
 const { permissionList } = require('./permission-list.js');
 
 // The rules of an opened row. The Mods section adopts them once.
@@ -70,7 +70,7 @@ const MOD_DETAILS_STYLE = `
 function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
     let mod = null;
     let open = false;
-    let counted = false;
+    let usageRead = false;
     let drawn = ''; // what was last drawn, as `set` was handed it
     let mainFailure = '';
     let statusLine = null;
@@ -84,13 +84,13 @@ function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
     element.append(clip);
     return { element, set, setOpen };
 
-    // Drawn again only when what it shows changed, and then counted again when it is open.
+    // Drawn again only when what it shows changed, and then its usage read again when it is open.
     function set(next) {
         const facts = JSON.stringify(next);
         mod = next;
         if (facts === drawn) return;
         drawn = facts;
-        counted = false;
+        usageRead = false;
         // A main process module starts when the mod asks for it, so none running is no fault: only a start that
         // failed is told.
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
@@ -121,29 +121,30 @@ function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
         if (mod.folder) location.append(detailsLine(util.tildify(mod.folder)));
         location.append(statusLine);
         addPart('Location', location);
-        if (open) count();
+        if (open) readUsage();
     }
 
     function setOpen(on, animate) {
         open = on;
-        if (open) count();
+        if (open) readUsage();
         if (!animate) element.style.transition = 'none';
         element.toggleAttribute('data-open', open);
         if (!animate) requestAnimationFrame(() => (element.style.transition = ''));
     }
 
-    // Counted when the row is open: it walks the data folder, and most rows are never opened.
-    function count() {
-        if (counted) return;
-        counted = true;
+    // Read when the row is open: it walks the data folder, and most rows are never opened.
+    function readUsage() {
+        if (usageRead) return;
+        usageRead = true;
         const { id } = mod;
         const line = statusLine;
         const failure = mainFailure;
-        mods.count(id).then(
-            (stored) => {
-                const found =
-                    stored.count || stored.hidden ? `${storedFilesText(stored)} in data/${id}/` : 'Nothing stored';
-                line.textContent = line.title = [failure, found].filter(Boolean).join(' · ');
+        mods.usage(id).then(
+            (usage) => {
+                const found = usageParts(usage, id);
+                line.textContent = line.title = [failure, ...(found.length ? found : ['Nothing stored'])]
+                    .filter(Boolean)
+                    .join(' · ');
             },
             () => {}
         );

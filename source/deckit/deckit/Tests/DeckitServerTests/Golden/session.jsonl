@@ -16,7 +16,7 @@
 {"id":16,"jsonrpc":"2.0","method":"record/write","params":{"key":"tabs","mod":"a","text":"[1]"}}
 {"id":17,"jsonrpc":"2.0","method":"record/read","params":{"key":"tabs","mod":"a"}}
 {"id":18,"jsonrpc":"2.0","method":"record/keys","params":{"mod":"a"}}
-{"id":19,"jsonrpc":"2.0","method":"record/count","params":{"mod":"a"}}
+{"id":19,"jsonrpc":"2.0","method":"storage/usage","params":{"mod":"a"}}
 {"id":20,"jsonrpc":"2.0","method":"record/remove","params":{"key":"tabs","mod":"a"}}
 {"id":21,"jsonrpc":"2.0","method":"record/read","params":{"key":"tabs","mod":"a"}}
 {"id":22,"jsonrpc":"2.0","method":"record/read","params":{"key":"Bad Key","mod":"a"}}
@@ -31,7 +31,7 @@
 {"id":31,"jsonrpc":"2.0","method":"setting/set","params":{"key":"size","mod":"a","options":null,"value":"12"}}
 {"id":32,"jsonrpc":"2.0","method":"setting/action","params":{"key":"reset","mod":"a"}}
 {"id":33,"jsonrpc":"2.0","method":"setting/action","params":{"key":"size","mod":"a"}}
-{"id":34,"jsonrpc":"2.0","method":"data/count","params":{"mod":"a"}}
+{"id":34,"jsonrpc":"2.0","method":"storage/usage","params":{"mod":"a"}}
 {"id":35,"jsonrpc":"2.0","method":"keymap/register","params":{"action":"switch","global":true,"key":"mod+shift+g","label":"Switch"}}
 {"id":36,"jsonrpc":"2.0","method":"keymap/bind","params":{"id":"@app.switch","spec":"cmd+j"}}
 {"id":37,"jsonrpc":"2.0","method":"keymap/reset","params":{"id":"@app.switch"}}

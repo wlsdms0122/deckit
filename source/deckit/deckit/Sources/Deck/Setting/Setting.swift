@@ -105,6 +105,10 @@ public final class Setting {
         return (try? JSONDecoder().decode([String: SettingValue].self, from: Data(text.utf8))) ?? [:]
     }
 
+    func isKept(mod: String) -> Bool {
+        store.exists(file(of: mod))
+    }
+
     func erase(mod: String) throws {
         try store.remove(file(of: mod))
     }

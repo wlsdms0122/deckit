@@ -123,14 +123,4 @@ struct RecordTests {
         // Then
         #expect(throws: RecordError.notAKey(key)) { try written.get() }
     }
-
-    @Test("count is refused for an id that is no mod's", arguments: ["../notes", "Notes"])
-    func countRefusesOtherIds(mod: String) {
-        // Given
-        // When
-        let counted = Result { try sut.count(mod: mod) }
-
-        // Then
-        #expect(throws: RecordError.notAMod(mod)) { try counted.get() }
-    }
 }

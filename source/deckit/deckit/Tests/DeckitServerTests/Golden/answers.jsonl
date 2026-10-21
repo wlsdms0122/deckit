@@ -16,7 +16,7 @@
 {"id":16,"jsonrpc":"2.0","result":true}
 {"id":17,"jsonrpc":"2.0","result":"[1]"}
 {"id":18,"jsonrpc":"2.0","result":["tabs"]}
-{"id":19,"jsonrpc":"2.0","result":{"count":1,"hidden":false}}
+{"id":19,"jsonrpc":"2.0","result":{"data":{"capped":false,"count":0,"hidden":false},"records":{"count":1,"hidden":false},"settings":false}}
 {"id":20,"jsonrpc":"2.0","result":true}
 {"id":21,"jsonrpc":"2.0","result":null}
 {"error":{"code":-32803,"data":{"kind":"KEY"},"message":"not a record key: Bad Key"},"id":22,"jsonrpc":"2.0"}
@@ -31,7 +31,7 @@
 {"error":{"code":-32803,"data":{"kind":"TYPE"},"message":"size is a number"},"id":31,"jsonrpc":"2.0"}
 {"id":32,"jsonrpc":"2.0","result":true}
 {"error":{"code":-32803,"data":{"kind":"NOT_AN_ACTION"},"message":"a has no action \"size\""},"id":33,"jsonrpc":"2.0"}
-{"id":34,"jsonrpc":"2.0","result":{"capped":false,"count":0,"hidden":false}}
+{"id":34,"jsonrpc":"2.0","result":{"data":{"capped":false,"count":0,"hidden":false},"records":{"count":0,"hidden":false},"settings":true}}
 {"id":35,"jsonrpc":"2.0","result":{"bindings":[{"action":"switch","active":true,"app":true,"changed":false,"chord":"⇧⌘G","defaultChord":"⇧⌘G","editsText":false,"id":"@app.switch","issues":[],"key":"shift+cmd+g","keystroke":{"alt":false,"code":"KeyG","control":false,"meta":true,"shift":true},"label":"Switch","owner":"@app","ownerName":"Deckit","scope":"global","spec":"shift+cmd+g"},{"action":"next","active":true,"app":false,"changed":false,"chord":"⌘J","defaultChord":"⌘J","editsText":false,"id":"a.next","issues":[],"key":"cmd+j","keystroke":{"alt":false,"code":"KeyJ","control":false,"meta":true,"shift":false},"label":"Next","owner":"a","ownerName":"A","scope":"mod","spec":"cmd+j"}],"revision":2}}
 {"id":36,"jsonrpc":"2.0","result":{"bindings":[{"action":"switch","active":false,"app":true,"changed":true,"chord":"⌘J","defaultChord":"⇧⌘G","editsText":false,"id":"@app.switch","issues":[{"kind":"held","level":"error","other":{"app":false,"chord":"⌘J","id":"a.next","label":"Next","owner":"a","ownerName":"A","scope":"mod"}}],"key":"shift+cmd+g","keystroke":{"alt":false,"code":"KeyJ","control":false,"meta":true,"shift":false},"label":"Switch","owner":"@app","ownerName":"Deckit","scope":"global","spec":"cmd+j"},{"action":"next","active":true,"app":false,"changed":false,"chord":"⌘J","defaultChord":"⌘J","editsText":false,"id":"a.next","issues":[],"key":"cmd+j","keystroke":{"alt":false,"code":"KeyJ","control":false,"meta":true,"shift":false},"label":"Next","owner":"a","ownerName":"A","scope":"mod","spec":"cmd+j"}],"revision":3}}
 {"id":37,"jsonrpc":"2.0","result":{"bindings":[{"action":"switch","active":true,"app":true,"changed":false,"chord":"⇧⌘G","defaultChord":"⇧⌘G","editsText":false,"id":"@app.switch","issues":[],"key":"shift+cmd+g","keystroke":{"alt":false,"code":"KeyG","control":false,"meta":true,"shift":true},"label":"Switch","owner":"@app","ownerName":"Deckit","scope":"global","spec":"shift+cmd+g"},{"action":"next","active":true,"app":false,"changed":false,"chord":"⌘J","defaultChord":"⌘J","editsText":false,"id":"a.next","issues":[],"key":"cmd+j","keystroke":{"alt":false,"code":"KeyJ","control":false,"meta":true,"shift":false},"label":"Next","owner":"a","ownerName":"A","scope":"mod","spec":"cmd+j"}],"revision":4}}

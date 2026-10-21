@@ -22,11 +22,8 @@ public final class DataFolder {
     }
 
     // MARK: - Public
-    // Every file in the mod's data folder counts, whatever wrote it: erasing takes them all. A mod that manages the
-    // mods asks for any id, so one that is no mod's is refused.
-    public func count(mod: String) throws -> DataCount {
-        guard store.isName(mod) else { throw DataFolderError.notAMod(mod) }
-
+    // Every file in the mod's data folder counts, whatever wrote it: erasing takes them all.
+    func count(mod: String) -> DataCount {
         var count = DataCount()
         walk(folder.appending(path: mod), depth: 0, count: &count)
         return count
