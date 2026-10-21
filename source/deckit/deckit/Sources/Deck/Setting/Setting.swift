@@ -31,11 +31,30 @@ public final class Setting {
     // A mod's settings stand from its run's declaring them as it launches until a later run declares them again, or
     // until the mod no longer loads: one whose start failed can still be set. Whether they were kept: what an older
     // run declared, or a run past launching, is not.
-    public func declare(_ settings: [SettingDeclaration], mod: String, run number: Int) -> Bool {
+    func keep(_ settings: [SettingDeclaration], mod: String, run number: Int) -> Bool {
         guard let run = runner.run(of: mod), run.number == number, run.state == .launching else { return false }
         declarations[mod] = settings
 
         return true
+    }
+
+    // Declared as a page sends them: a declaration deck does not read is left out, and what is wrong with each answered,
+    // or nil when they were not kept.
+    func declare(_ declared: [JSONValue], mod: String, run number: Int) -> [String]? {
+        var settings: [SettingDeclaration] = []
+        var problems: [String] = []
+        for item in declared {
+            switch Result(catching: { try item.decode(as: SettingDeclaration.self) }) {
+            case let .success(setting):
+                settings.append(setting)
+
+            case let .failure(error):
+                problems.append(problem(of: item, error))
+            }
+        }
+        guard keep(settings, mod: mod, run: number) else { return nil }
+
+        return problems
     }
 
     // What a mod that does not load, as the catalog was last read, declared.
@@ -114,6 +133,18 @@ public final class Setting {
     }
 
     // MARK: - Private
+    // Named by its key, and by the field the decoding failed at.
+    private func problem(of declared: JSONValue, _ error: any Error) -> String {
+        guard case let .object(fields) = declared, case let .string(key)? = fields["key"] else {
+            return "deck does not read a setting declared"
+        }
+        guard let place = (error as? DecodingError)?.place else {
+            return "setting \"\(key)\": deck does not read it"
+        }
+
+        return "setting \"\(key)\": deck does not read its \(place)"
+    }
+
     private func declaration(mod: String, key: String) throws(SettingError) -> SettingDeclaration {
         guard let declaration = declarations[mod]?.first(where: { declaration in declaration.key == key }) else {
             throw .undeclared(mod: mod, key: key)

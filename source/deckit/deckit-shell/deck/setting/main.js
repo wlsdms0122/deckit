@@ -18,7 +18,7 @@ export function createSetting({ CORE, LOG, IDENTITY, RUNNER }) {
     function start() {
         PROTOCOL.declare.on(({ run: number, settings }, sender) => {
             const { id } = IDENTITY.modFrom(sender);
-            CORE.request('setting/declare', { mod: id, run: number, settings }).catch((error) => {
+            RUNNER.ask('setting/declare', { mod: id, run: number, settings }).catch((error) => {
                 LOG.warn(`${id}: its settings were not declared`, error);
                 const run = RUNNER.currentRun(sender, number);
                 if (run) RUNNER.reportProblem(run, `its settings were not declared: ${error.message}`);

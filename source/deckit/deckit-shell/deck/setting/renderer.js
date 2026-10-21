@@ -1,7 +1,6 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as SETTING_TYPE from './model/type.js';
 
 // MARK: - Property
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
@@ -45,20 +44,17 @@ function of({ declared, saved, deck, deliver, fail }) {
     };
 }
 
-// What main is told of the declarations: their data, without functions, in the order declared. A type deck does not
-// know is left out and told to `invalid`.
-function declarationsOf(declared, invalid) {
+// What main is told of the declarations: their data, in the order declared. A function cannot cross, so a field that
+// is one crosses as an empty object, which no field takes: the core tells it as a field of the wrong kind.
+function declarationsOf(declared) {
     const out = [];
     for (const [key, declaration] of Object.entries(declared || {})) {
-        if (!SETTING_TYPE.TYPES.has(declaration?.type)) {
-            invalid(`setting "${key}" has no type deck knows: ${declaration?.type}`);
-            continue;
-        }
-        const { run, options, ...data } = declaration;
+        const { run, options, ...fields } = declaration ?? {};
+        const data = Object.entries(fields).map(([name, value]) => [name, typeof value === 'function' ? {} : value]);
         out.push({
-            ...data,
+            ...Object.fromEntries(data),
             key,
-            options: Array.isArray(options) ? options : [],
+            options: typeof options === 'function' ? [] : (options ?? []),
             computed: typeof options === 'function',
         });
     }
@@ -77,8 +73,8 @@ function modSettingsTool() {
 }
 
 // Main is told what a run declares as soon as its entry is read: the declarations, without functions.
-function declare(run, declared, invalid) {
-    PROTOCOL.declare.send({ run, settings: declarationsOf(declared, invalid) });
+function declare(run, declared) {
+    PROTOCOL.declare.send({ run, settings: declarationsOf(declared) });
 }
 
 export { of, declare, modSettingsTool };

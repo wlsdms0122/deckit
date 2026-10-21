@@ -303,6 +303,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         currentRun,
         observe,
         reportProblem,
+        ask,
         onProblem,
         handleEffect,
         whenMoved,
