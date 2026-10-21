@@ -4,11 +4,11 @@ Deckit is a library a host app embeds, in three layers: deck, the engine that ru
 
 ## 1. The archive
 
-A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it, in an Electron of its own: deckit is made against Electron 44. It keeps the archive as built and unpacks it where it builds and runs. The same sources, built with the same Swift, make the same archive, byte for byte, so its hash says which deckit it is.
+A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it, in an Electron of its own: deckit is made against Electron 44. It keeps the archive as built and unpacks it where it builds and runs. The same sources, built with the same Swift, make the same archive, byte for byte, so its hash says which deckit it is. Deckit's log says which as it starts, and the core's first line, `core: started, pid <pid>`, that the core is running.
 
 | In the archive | |
 |---|---|
-| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a renderer's, the global it leaves, the core's executable (`core`), the mods |
+| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the Swift that built the core (`swift`), the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a renderer's, the global it leaves, the core's executable (`core`), the mods |
 | `deckit` | the core: deckit's own process, an executable for Macs of either kind (macOS 13 or later). Deckit starts it as the host app is ready and it ends with the host app's process |
 | `main.js` | the environment deckit runs on in main, Electron's, a CommonJS module: `{ SCHEME, environment }` |
 | `shell-main.js` | deckit in main: deck, deckit and its shell, a CommonJS module: `{ connect, attach }` |

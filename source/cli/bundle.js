@@ -1,11 +1,11 @@
 // Deckit's bundles into a built library folder, and deckit.json beside them: what a host app reads to load it.
-// usage: node bundle.js <library folder> <version> <source hash>
+// usage: node bundle.js <library folder> <version> <source hash> <swift>
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const LIBRARY = require('./library.js');
 
-const [given, version, source] = process.argv.slice(2);
+const [given, version, source, swift] = process.argv.slice(2);
 const folder = path.resolve(given);
 
 function esbuild(entry, outfile, options) {
@@ -53,5 +53,5 @@ const mods = fs
 // The core's executable, which the build put at the root.
 const core = 'deckit';
 if (!fs.existsSync(path.join(folder, core))) throw new Error('the library has no core');
-const described = { name: 'deckit', version, api, source, scheme, bundles, core, mods };
+const described = { name: 'deckit', version, api, source, swift, scheme, bundles, core, mods };
 fs.writeFileSync(path.join(folder, 'deckit.json'), JSON.stringify(described, null, 2) + '\n');

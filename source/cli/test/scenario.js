@@ -545,6 +545,11 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await (await page('deckit://panel'))?.evaluate(`console.error('frame-probe')`);
         const named = await until(() => /panel: frame-probe/.test(logged()), 3000);
         check("a shell page's console errors are logged under its name", named, '');
+        check(
+            'the log says which deckit runs, and that its core started',
+            /deckit \d+\.\d+\.\d+ \(sources [0-9a-f]+\)/.test(logged()) && /core: started, pid \d+/.test(logged()),
+            ''
+        );
     } catch (error) {
         check('scenario ran', false, error.stack);
     }

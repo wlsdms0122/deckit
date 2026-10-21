@@ -10,6 +10,7 @@ import * as ENVIRONMENT from './environment/index.js';
 import * as IPC from './deck/ipc/main.js';
 import { createHome } from './deck/home/index.js';
 import { createStorage } from './deck/storage/index.js';
+import * as BUILD from './build/index.js';
 import { createLog } from './deck/log/main.js';
 import { createPermission } from './deck/mod/permission.js';
 import { createCatalog } from './deck/catalog/index.js';
@@ -201,6 +202,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         LOG.start({
             nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
+        LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
         CORE.start({ permissions: PERMISSION.all() });
         await STORAGE.load();
         await CATALOG.load();
