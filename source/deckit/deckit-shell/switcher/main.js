@@ -84,7 +84,6 @@ export function createSwitcher({ PANEL, deckit, host }) {
         if (!stage) {
             stage = deckit.pages.stage();
             stage.whenResized(lay);
-            stage.show(true);
         }
         if (state.page && deckit.pages.isAlive(state.page)) return;
         const page = deckit.pages.open(PAGE.PAGE_NAME, { reloadsOnCrash: true });
@@ -99,9 +98,12 @@ export function createSwitcher({ PANEL, deckit, host }) {
         lay();
     }
 
+    // Closed, the stage is hidden with its page: a stage shown over the window takes its clicks where it draws
+    // nothing too.
     function lay() {
-        if (!stage || !state.page || !deckit.pages.isAlive(state.page)) return;
-        // Closed, its page is hidden, as a page off screen is.
+        if (!stage) return;
+        stage.show(state.on);
+        if (!state.page || !deckit.pages.isAlive(state.page)) return;
         stage.lay([
             state.on ? { page: state.page, rect: { x: 0, y: 0, ...stage.size() } } : { page: state.page, hidden: true },
         ]);
