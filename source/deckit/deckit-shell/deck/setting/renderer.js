@@ -48,9 +48,10 @@ function of({ declared, saved, deck, deliver, fail }) {
 function declarationsOf(declared) {
     const out = [];
     for (const [key, declaration] of Object.entries(declared || {})) {
-        const { run, options, ...data } = declaration ?? {};
+        const { run, options, ...fields } = declaration ?? {};
+        const data = Object.entries(fields).filter(([, value]) => typeof value !== 'function');
         out.push({
-            ...data,
+            ...Object.fromEntries(data),
             key,
             options: Array.isArray(options) ? options : [],
             computed: typeof options === 'function',
