@@ -9,16 +9,12 @@ import Foundation
 
 public enum RecordError: Refusal, Equatable {
     case notAKey(String)
-    case notAMod(String)
 
     // MARK: - Property
     public var message: String {
         switch self {
         case let .notAKey(key):
             "not a record key: \(key)"
-
-        case let .notAMod(mod):
-            "not a mod id: \(mod)"
         }
     }
 

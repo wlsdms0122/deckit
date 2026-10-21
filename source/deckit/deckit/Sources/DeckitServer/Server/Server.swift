@@ -139,9 +139,6 @@ final class Server {
         case "record/keys":
             return try deck.records.keys(mod: request.decodeParams(as: ModParams.self).mod)
 
-        case "record/count":
-            return try deck.records.count(mod: request.decodeParams(as: ModParams.self).mod)
-
         case "state/all":
             return try deck.state.all()
 
@@ -193,8 +190,8 @@ final class Server {
         case "catalog/remove":
             return try deck.catalog.remove(request.decodeParams(as: RemoveModParams.self).id)
 
-        case "data/count":
-            return try deck.dataFolder.count(mod: request.decodeParams(as: ModParams.self).mod)
+        case "storage/usage":
+            return try deck.storage.usage(mod: request.decodeParams(as: ModParams.self).mod)
 
         case "erasure/erase":
             try deck.erasure.erase(mod: request.decodeParams(as: ModParams.self).mod)

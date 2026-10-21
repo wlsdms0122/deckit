@@ -21,12 +21,6 @@ export function createStorage({ CORE, LOG }) {
         for (const { folder = null, key, text } of entries) textsIn(folder).set(key, text);
     }
 
-    // Every file of the mod's data folder counts, whatever wrote it, as erasing takes them all: { count, capped,
-    // hidden }.
-    function count(modId) {
-        return CORE.request('data/count', { mod: modId });
-    }
-
     // The state in `folder`, a folder of its own one down for one who names its keys as it likes (the host app), or
     // null for the state folder. A read answers from what the core keeps at once. A write answers once the core has
     // kept it, and one it refused is taken back, unless the key was written again since.
@@ -68,5 +62,5 @@ export function createStorage({ CORE, LOG }) {
         }
     }
 
-    return { load, state, stateIn, count };
+    return { load, state, stateIn };
 }

@@ -15,6 +15,7 @@ public final class Deck {
     public let records: Record
     public let settings: Setting
     public let dataFolder: DataFolder
+    public let storage: ModStorage
     // The mods found, installed and removed, and their order. Reading them again is deck's (`readCatalog()`).
     public let catalog: Catalog
     public let erasure: Erasure
@@ -59,13 +60,15 @@ public final class Deck {
             catalog: catalog,
             runner: runner
         )
+        let storage = ModStorage(dataFolder: dataFolder, record: record, setting: setting, store: store)
         self.records = record
         self.state = state
         self.settings = setting
         self.dataFolder = dataFolder
+        self.storage = storage
         self.catalog = catalog
         self.runner = runner
-        self.erasure = Erasure(dataFolder: dataFolder, record: record, setting: setting, state: state, store: store)
+        self.erasure = Erasure(storage: storage, state: state, store: store)
         self.exports = ExportBroker(runner: runner)
         self.extensions = ExtensionRegistry(runner: runner)
         self.events = EventBus(runner: runner)

@@ -21,12 +21,6 @@ extension ResponseError {
     // MARK: - Private
     private static func kind(of error: any Refusal) -> String? {
         switch error {
-        case let error as DataFolderError:
-            switch error {
-            case .notAMod:
-                "MOD"
-            }
-
         case let error as ErasureError:
             switch error {
             case .notAMod:
@@ -105,13 +99,16 @@ extension ResponseError {
                 "FIELD"
             }
 
+        case let error as ModStorageError:
+            switch error {
+            case .notAMod:
+                "MOD"
+            }
+
         case let error as RecordError:
             switch error {
             case .notAKey:
                 "KEY"
-
-            case .notAMod:
-                "MOD"
             }
 
         case let error as RunnerError:

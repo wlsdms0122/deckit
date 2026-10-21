@@ -309,6 +309,34 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         );
         await sleep(400);
         check('a press outside puts a menu away', !(await settings.evaluate(menus)), '');
+        // A mod's row, opened, tells what the mod has in each place deck keeps it, as the disk holds it.
+        const filesIn = (folder) =>
+            fs.existsSync(folder)
+                ? fs
+                      .readdirSync(folder, { withFileTypes: true })
+                      .filter((entry) => !entry.name.startsWith('.'))
+                      .reduce(
+                          (sum, entry) => sum + (entry.isDirectory() ? filesIn(path.join(folder, entry.name)) : 1),
+                          0
+                      )
+                : 0;
+        const editorRow = `[...document.querySelectorAll('.settings-mod')].find((row) => row.querySelector('.settings-mod-name')?.textContent === 'Editor')`;
+        await settings?.evaluate(`${editorRow}.querySelector('.settings-mod-row').click()`);
+        const usageLine = `${editorRow}.querySelector('.settings-details-location > :last-child')?.textContent || ''`;
+        const usage = await until(() => settings.evaluate(usageLine), 3000);
+        await settings?.evaluate(`${editorRow}.querySelector('.settings-mod-row').click()`);
+        const counted = (count, noun) => (count ? `${count} ${noun}${count === 1 ? '' : 's'}` : '');
+        const dataFiles = filesIn(path.join(home, 'data', 'editor'));
+        const told = [
+            dataFiles ? `${counted(dataFiles, 'file')} in data/editor/` : '',
+            counted(filesIn(path.join(home, 'records', 'editor')), 'record'),
+            fs.existsSync(path.join(home, 'settings', 'editor.json')) ? 'settings' : '',
+        ].filter(Boolean);
+        check(
+            "a mod's row tells what it has where deck keeps it",
+            usage === (told.length ? told : ['Nothing stored']).join(' · '),
+            `${usage} (the disk holds ${JSON.stringify(told)})`
+        );
         const browser = await page('deckit://browser.mod');
         const webview = await browser?.evaluate(`document.querySelector('webview')?.getAttribute('partition')`);
         check('browser web page is in its own session', /:browser:web$/.test(webview || ''), webview);

@@ -1,11 +1,24 @@
 // What an empty cell shows.
 const NO_VALUE = '–';
 
-// What `deck.mods.count` found in a mod's data folder, in words.
-function storedFilesText({ count, capped, hidden }) {
-    if (count === 0 && hidden) return 'hidden files';
-    const files = count === 1 && !capped ? 'file' : 'files';
-    return `${count}${capped ? '+' : ''} ${files}${hidden ? ' and hidden ones' : ''}`;
+// What `deck.mods.usage` found of the mod `id`, in words: a phrase for each place it has something in.
+function usageParts({ data, records, settings }, id) {
+    return [
+        data.count || data.hidden ? `${filesText(data, 'file')} in data/${id}/` : '',
+        records.count || records.hidden ? filesText(records, 'record') : '',
+        settings ? 'settings' : '',
+    ].filter(Boolean);
+}
+
+// `A, B and C`.
+function listText(items) {
+    return items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : items[0] || '';
+}
+
+function filesText({ count, capped = false, hidden }, noun) {
+    if (count === 0 && hidden) return `hidden ${noun}s`;
+    const nouns = count === 1 && !capped ? noun : noun + 's';
+    return `${count}${capped ? '+' : ''} ${nouns}${hidden ? ' and hidden ones' : ''}`;
 }
 
 function schemeName(scheme, everyScheme) {
@@ -40,4 +53,4 @@ function nameAndVersion(mod) {
     return `${mod.name} ${mod.version || ''}`.trim();
 }
 
-module.exports = { NO_VALUE, storedFilesText, schemeName, ordinal, contributionsOf, nameAndVersion };
+module.exports = { NO_VALUE, usageParts, listText, schemeName, ordinal, contributionsOf, nameAndVersion };

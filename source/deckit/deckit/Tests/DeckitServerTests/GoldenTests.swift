@@ -12,13 +12,11 @@ import Deckit
 @testable import DeckitServer
 
 // What the driver reads, pinned: `Golden/session.jsonl` asks every method, with its refusals, and
-// `Golden/answers.jsonl` is each answer as the core wrote it before its vocabulary moved to the server. Folders are
-// written `@HOME@`, `@SOURCE@`, `@SHIP@` and `@SPARE@`.
+// `Golden/answers.jsonl` is each answer. Folders are written `@HOME@`, `@SOURCE@`, `@SHIP@` and `@SPARE@`.
 @Suite("Golden")
 struct GoldenTests {
     // MARK: - Property
     private static let refusals: [(any Refusal, String)] = [
-        (DataFolderError.notAMod("x"), "MOD"),
         (ErasureError.notAMod("x"), "MOD"),
         (ExportError.notADependency(mod: "a", of: "b"), "DEPENDENCY"),
         (ExportError.notRunning("a"), "NOT_RUNNING"),
@@ -40,8 +38,8 @@ struct GoldenTests {
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
         (ManifestError.permissionDefined("p"), "PERMISSION"),
         (ManifestError.fieldDefined("f"), "FIELD"),
+        (ModStorageError.notAMod("x"), "MOD"),
         (RecordError.notAKey("k"), "KEY"),
-        (RecordError.notAMod("m"), "MOD"),
         (RunnerError.noSandbox("a"), "NO_SANDBOX"),
         (RunnerError.closing("a"), "CLOSING"),
         (RunnerError.quitting("a"), "QUITTING"),

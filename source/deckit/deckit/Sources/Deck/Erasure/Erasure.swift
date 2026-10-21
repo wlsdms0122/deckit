@@ -7,31 +7,26 @@
 
 import Foundation
 
-// What deck keeps of a mod removed with its data is erased: its data folder, its records and its settings here, and
-// what its pages stored and its web sessions by the driver. The mod is noted as uncleared before any of it is erased,
+// What deck keeps of a mod removed with its data is erased: what its storage holds here, and what its pages stored and
+// its web sessions by the driver. The mod is noted as uncleared before any of it is erased,
 // and until the driver says it cleared its part, so whatever was not erased is erased again.
 public final class Erasure {
     // MARK: - Property
     private let key = "uncleared"
-    private let dataFolder: DataFolder
-    private let record: Record
-    private let setting: Setting
+    private let storage: ModStorage
     private let state: State
     private let store: Store
 
     // MARK: - Initializer
-    init(dataFolder: DataFolder, record: Record, setting: Setting, state: State, store: Store) {
-        self.dataFolder = dataFolder
-        self.record = record
-        self.setting = setting
+    init(storage: ModStorage, state: State, store: Store) {
+        self.storage = storage
         self.state = state
         self.store = store
         state.reserve(key)
     }
 
     // MARK: - Public
-    // An id outside the mod id rule is refused: it names files here. Each is erased whether or not another fails, and
-    // the first failure is thrown once all were tried.
+    // An id outside the mod id rule is refused: it names files here.
     public func erase(mod: String) throws {
         guard store.isName(mod) else { throw ErasureError.notAMod(mod) }
 
@@ -39,14 +34,7 @@ public final class Erasure {
         if !noted.contains(mod) {
             try note(noted + [mod])
         }
-        let failures = [
-            Result { try dataFolder.erase(mod: mod) },
-            Result { try record.erase(mod: mod) },
-            Result { try setting.erase(mod: mod) }
-        ]
-        for case let .failure(error) in failures {
-            throw error
-        }
+        try storage.erase(mod: mod)
     }
 
     // The mods erased whose pages' storage and web sessions the driver has not cleared yet.

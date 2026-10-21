@@ -92,8 +92,9 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | what the switcher lists, and what was picked before | `deckit-shell/switcher/main.js` |
 | which styles each page wears, in what order | `deckit-shell/style/main.js` |
 | a mod's records, and the values of its settings | the core, `Deck/Record` and `Deck/Setting`, under deckit's folder (below) |
-| a mod's data | whatever of the mod writes it; the core counts it, `Deck/DataFolder`, under deckit's folder (below) |
-| erasing what a mod removed with its data kept | the core, `Deck/Erasure`: its data folder, records and settings, noted until main has cleared its pages' storage and its web sessions (`deckit-shell/deck/mods/main.js`, the web sessions it used from `deckit-shell/web/main.js`, the environment clearing what they stored) |
+| a mod's data | whatever of the mod writes it, under deckit's folder (below) |
+| what a mod has in each place deck keeps it: its data folder, records and settings | the core, `Deck/ModStorage` |
+| erasing what a mod removed with its data kept | the core, `Deck/Erasure`: what `Deck/ModStorage` holds of it, noted until main has cleared its pages' storage and its web sessions (`deckit-shell/deck/mods/main.js`, the web sessions it used from `deckit-shell/web/main.js`, the environment clearing what they stored) |
 | what loads in the web pages a mod shows, which sessions attach there, the web sessions a mod used, and what a site asks of it | `deckit-shell/web/main.js`; showing them, their sessions and what a site was allowed, the environment's (`web`, `deckit-electron/web`) |
 | a mod's web sign-ins | its own sessions, `persist:<id>:<mod>:<name>` |
 | what deck and deckit keep for themselves between runs (the web sessions each mod made) | the core, `Deck/State`, in `state/`; the mods' order (`Deck/Catalog`), the mods still to erase (`Deck/Erasure`), the chords the person gave keys (`Deckit/Keymap`) and each scheme's handlers as the person arranged them (`Deckit/Open`) are the core's own, there too |

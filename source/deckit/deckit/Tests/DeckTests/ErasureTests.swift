@@ -40,7 +40,8 @@ struct ErasureTests {
             store: store
         )
         let setting = Setting(folder: settings, store: store, catalog: catalog, runner: Runner(catalog: catalog))
-        sut = Erasure(dataFolder: dataFolder, record: record, setting: setting, state: state, store: store)
+        let storage = ModStorage(dataFolder: dataFolder, record: record, setting: setting, store: store)
+        sut = Erasure(storage: storage, state: state, store: store)
     }
 
     // MARK: - Test

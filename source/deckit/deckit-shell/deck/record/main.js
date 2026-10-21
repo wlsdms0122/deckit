@@ -28,11 +28,6 @@ export function createRecord({ CORE, IDENTITY }) {
         );
     }
 
-    // How many files the mod's records are, `{ count, hidden }`.
-    function count(modId) {
-        return CORE.request('record/count', { mod: modId });
-    }
-
     // MARK: - Private
     // A record whose file is not JSON (one edited by hand) holds no value.
     function valueOf(text) {
@@ -43,5 +38,5 @@ export function createRecord({ CORE, IDENTITY }) {
         }
     }
 
-    return { start, count };
+    return { start };
 }

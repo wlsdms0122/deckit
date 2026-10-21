@@ -1,13 +1,13 @@
 //
-//  DataFolderError.swift
+//  ModStorageError.swift
 //  Deck
 //
-//  Created by JSilver on 10/20/26.
+//  Created by JSilver on 10/21/26.
 //
 
 import Foundation
 
-public enum DataFolderError: Refusal, Equatable {
+public enum ModStorageError: Refusal, Equatable {
     case notAMod(String)
 
     // MARK: - Property
