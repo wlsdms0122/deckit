@@ -13,8 +13,8 @@ export const started = CHANNEL.pageToMain('deckit-shell:mod-started', {
     summary: 'object',
 });
 // A problem recorded against the mod, which a person reads on its row.
-export const problem = CHANNEL.pageToMain('deckit-shell:mod-problem', { run: 'number?', problem: 'string' });
+export const problem = CHANNEL.pageToMain('deckit-shell:mod-problem', { run: 'number', problem: 'string' });
 // It did not start, and why: what the mods that require it are told.
-export const notStarted = CHANNEL.pageToMain('deckit-shell:mod-not-started', { run: 'number?', problem: 'string' });
+export const notStarted = CHANNEL.pageToMain('deckit-shell:mod-not-started', { run: 'number', problem: 'string' });
 // Its run is ending: answered once the mod's stop() has run.
 export const stop = CHANNEL.mainToPage('deckit-shell:mod-stop', { reply: true });
