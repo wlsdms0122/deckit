@@ -58,7 +58,7 @@ function createEnvironment({ core, preload, openWindow }) {
     const mods = new WeakSet(); // the pages mods run in
     const openings = new WeakMap(); // a page -> { surfaces, opens }, what its window.open becomes (openingOf)
     let making = 0; // how many of deckit's webContents are being made now
-    const WEB = createWeb({ CONFIG, LOG, WINDOW, made });
+    const WEB = createWeb({ CONFIG, LOG, WINDOW, made, claim });
     const FOLDER = createFolder();
     // A mod's page shows the web in <webview>; one that runs no mod is named as a host is, with no dot, so its origin
     // is never a mod's.
@@ -79,7 +79,7 @@ function createEnvironment({ core, preload, openWindow }) {
     const viewOf = (page) => views.get(page) || null;
     // A page deck made, a web page a mod shows, and what one of those opened: their handlers and guards are deckit's.
     // Told from the moment Electron tells of the webContents, before deckit has set anything on it: one made while
-    // deckit makes one, one shown in a page of deckit's, or one a page of deckit's opened.
+    // deckit makes or claims one, one shown in a page of deckit's, or one a page of deckit's opened.
     const owns = (page) => {
         if (making > 0 || views.has(page) || WEB.has(page)) return true;
         const { webContents } = require('electron');
@@ -204,13 +204,24 @@ function createEnvironment({ core, preload, openWindow }) {
         return surface;
     }
 
-    // What `make()` answers, made as one of deckit's webContents: Electron tells of it while it is made.
-    function made(make) {
+    // What Electron makes from now until `release()` is called is deckit's, as Electron tells of it then.
+    function claim() {
         making += 1;
+        let held = true;
+        return () => {
+            if (!held) return;
+            held = false;
+            making -= 1;
+        };
+    }
+
+    // What `make()` answers, made as one of deckit's webContents.
+    function made(make) {
+        const release = claim();
         try {
             return make();
         } finally {
-            making -= 1;
+            release();
         }
     }
 
