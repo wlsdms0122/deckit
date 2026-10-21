@@ -326,6 +326,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             permissions: mod?.permissions,
             mainProcessFailure: mod?.mainProcess.failure,
             dependencies: mod?.dependencies,
+            waitsFor: mod?.waitsFor,
             hides: mod?.hides,
         });
         return found.map((mod) => {
