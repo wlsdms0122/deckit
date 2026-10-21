@@ -20,7 +20,7 @@ public final class CommandRegistry {
     }
 
     // MARK: - Public
-    // In the person's order of the mods.
+    // In the mods' order.
     public func sources() -> [CommandSource] {
         deck.catalog.loading.compactMap { mod in
             guard let contributions = deck.contributions(of: mod.manifest.id) else { return nil }

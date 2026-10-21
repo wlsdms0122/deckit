@@ -16,7 +16,7 @@ public final class Deck {
     public let settings: Setting
     public let dataFolder: DataFolder
     public let storage: ModStorage
-    // The mods found, installed and removed, and their order. Reading them again is deck's (`readCatalog()`).
+    // The mods found, installed and removed. Reading them again is deck's (`readCatalog()`).
     public let catalog: Catalog
     public let erasure: Erasure
     public let exports: ExportBroker
@@ -51,7 +51,6 @@ public final class Deck {
             modFolder: modFolder,
             dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
-            state: state,
             store: store
         )
         let runner = Runner(catalog: catalog)

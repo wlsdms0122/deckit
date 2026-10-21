@@ -26,9 +26,9 @@ struct StateTests {
     func allReadsBackEveryKey() throws {
         // Given
         try sut.write(folder: "host", key: "pinned", text: #"["notes"]"#)
-        try sut.write(folder: nil, key: "mod-order", text: #"["b","a"]"#)
+        try sut.write(folder: nil, key: "panel-order", text: #"["b","a"]"#)
         try sut.write(folder: "app", key: "size", text: "1")
-        try sut.write(folder: nil, key: "mod-order", text: #"["a","b"]"#)
+        try sut.write(folder: nil, key: "panel-order", text: #"["a","b"]"#)
 
         // When
         let entries = try sut.all()
@@ -36,7 +36,7 @@ struct StateTests {
         // Then
         #expect(
             entries == [
-                StateEntry(folder: nil, key: "mod-order", text: #"["a","b"]"#),
+                StateEntry(folder: nil, key: "panel-order", text: #"["a","b"]"#),
                 StateEntry(folder: "app", key: "size", text: "1"),
                 StateEntry(folder: "host", key: "pinned", text: #"["notes"]"#)
             ]

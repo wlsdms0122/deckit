@@ -8,23 +8,21 @@
 import Foundation
 
 // Every mod deck reads: those read in place from a source folder, ahead of an installed one of the same id, and the
-// installed ones. Each loads or says why not, and those that load are in the person's order, kept in the state.
+// installed ones. Each loads or says why not, and those that load come as the app ships them, then by id.
 public final class Catalog {
     // MARK: - Property
-    private let orderKey = "mod-order"
     private let sources: [URL]
     private let ship: [URL]
     public let folder: URL
     private let modFolder: ModFolder
     private let dataFolder: DataFolder
     private let installer: Installer
-    private let state: State
     private let store: Store
     // Mod id -> how many times it was installed while deck ran.
     private var installs: [String: Int] = [:]
     // The mods as they were last read: what runs.
     private(set) var lastRead: [Mod] = []
-    // Those of them that load, in the person's order.
+    // Those of them that load, in their order.
     public var loading: [Mod] {
         lastRead.filter { mod in mod.problem == nil }
     }
@@ -39,7 +37,6 @@ public final class Catalog {
         modFolder: ModFolder,
         dataFolder: DataFolder,
         installer: Installer,
-        state: State,
         store: Store
     ) {
         self.folder = folder
@@ -48,23 +45,15 @@ public final class Catalog {
         self.modFolder = modFolder
         self.dataFolder = dataFolder
         self.installer = installer
-        self.state = state
         self.store = store
-        state.reserve(orderKey)
     }
 
     // MARK: - Public
-    // Those that load, in the person's order, then those that do not, by id. One never placed goes where the app ships
-    // it, and one the app does not ship goes last, by id.
+    // Those that load, as the app ships them, then those it does not ship, by id; then those that do not load, by id.
     func mods() -> [Mod] {
         let found = list()
-        let placed = order()
         let shipOrder = ship.map { source in modFolder.manifest(of: source).id }
-        let rank = { (id: String) in
-            if let place = placed.firstIndex(of: id) { return place }
-            if let place = shipOrder.firstIndex(of: id) { return placed.count + place }
-            return placed.count + shipOrder.count
-        }
+        let rank = { (id: String) in shipOrder.firstIndex(of: id) ?? shipOrder.count }
 
         let loading = found
             .filter { mod in mod.problem == nil }
@@ -83,20 +72,6 @@ public final class Catalog {
         lastRead = mods()
 
         return lastRead
-    }
-
-    // The ids named take the places they held among themselves, in the order given; the rest stay put.
-    public func arrange(_ ids: [String]) throws {
-        var next = mods().filter { mod in mod.problem == nil }.map(\.manifest.id)
-        var seen: Set<String> = []
-        let moved = ids.filter { id in next.contains(id) && seen.insert(id).inserted }
-        let places = next.indices.filter { place in moved.contains(next[place]) }
-        for (place, id) in zip(places, moved) {
-            next[place] = id
-        }
-
-        let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
-        try state.write(reserved: orderKey, text: text)
     }
 
     public func wouldInstall(from source: URL) throws -> InstallPlan {
@@ -191,11 +166,6 @@ public final class Catalog {
             dependents: [],
             entry: manifest.main.flatMap { main in modFolder.entry(of: source, main: main) }
         )
-    }
-
-    private func order() -> [String] {
-        guard let text = try? state.read(folder: nil, key: orderKey) else { return [] }
-        return (try? JSONDecoder().decode([String].self, from: Data(text.utf8))) ?? []
     }
 
     // A source folder of the same id would hide the installed copy.

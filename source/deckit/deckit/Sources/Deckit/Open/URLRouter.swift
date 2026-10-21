@@ -100,7 +100,7 @@ public final class URLRouter {
         contributions?.layers[contributionKey] == .bool(true)
     }
 
-    // The mods that answer addresses, in the person's order, with the schemes each names.
+    // The mods that answer addresses, in the mods' order, with the schemes each names.
     private func answering() -> [(mod: Mod, schemes: [String])] {
         deck.catalog.loading.compactMap { mod in
             let schemes = mod.manifest.value(of: field)

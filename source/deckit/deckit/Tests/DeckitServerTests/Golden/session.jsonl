@@ -46,7 +46,6 @@
 {"id":46,"jsonrpc":"2.0","method":"open/setHandlers","params":{"off":[],"order":[],"scheme":"nope"}}
 {"id":47,"jsonrpc":"2.0","method":"catalog/would-install","params":{"from":"@SPARE@/d"}}
 {"id":48,"jsonrpc":"2.0","method":"catalog/install","params":{"from":"@SPARE@/d"}}
-{"id":49,"jsonrpc":"2.0","method":"catalog/arrange","params":{"ids":["b","a"]}}
 {"id":50,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":51,"jsonrpc":"2.0","method":"runner/reconcile"}
 {"id":52,"jsonrpc":"2.0","method":"runner/problem","params":{"mod":"a","problem":"slow","run":1}}

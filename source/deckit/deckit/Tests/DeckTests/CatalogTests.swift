@@ -16,7 +16,6 @@ struct CatalogTests {
     private let home: URL
     private let source: URL
     private let ship: URL
-    private let state: State
 
     // MARK: - Initializer
     init() {
@@ -24,11 +23,10 @@ struct CatalogTests {
         home = root.appending(path: "home")
         source = root.appending(path: "source")
         ship = root.appending(path: "ship")
-        state = State(root: home.appending(path: "state"), store: Store())
     }
 
     // MARK: - Test
-    @Test("those that load come in the person's order, then as the app ships them, then by id; then the rest")
+    @Test("those that load come as the app ships them, then by id; then the rest, by id")
     func modsComeInOrder() throws {
         // Given
         try write("c", in: home.appending(path: "mods"))
@@ -36,7 +34,6 @@ struct CatalogTests {
         try write("a", in: home.appending(path: "mods"))
         try write("d", in: home.appending(path: "mods"), main: nil)
         try write("e", in: ship)
-        try state.write(folder: nil, key: "mod-order", text: #"["c"]"#)
         let sut = try catalog(ship: [ship.appending(path: "e")])
         _ = try sut.installShipped()
 
@@ -44,7 +41,7 @@ struct CatalogTests {
         let mods = sut.mods()
 
         // Then
-        #expect(mods.map(\.manifest.id) == ["c", "e", "a", "b", "d"])
+        #expect(mods.map(\.manifest.id) == ["e", "a", "b", "c", "d"])
         #expect(mods.last?.problem == #"main = "missing.js" names no file in the mod's folder"#)
     }
 
@@ -115,22 +112,6 @@ struct CatalogTests {
 
         // Then
         #expect(dependents == ["x": ["y", "z"], "y": ["z"], "z": [], "w": []])
-    }
-
-    @Test("arranging moves the ids named among the places they held, and keeps the order in the state")
-    func arrangeKeepsOrder() throws {
-        // Given
-        for id in ["a", "b", "c", "d"] {
-            try write(id, in: source)
-        }
-        let sut = try catalog(sources: [source])
-
-        // When
-        try sut.arrange(["d", "b", "x", "d"])
-
-        // Then
-        #expect(sut.mods().map(\.manifest.id) == ["a", "d", "c", "b"])
-        #expect(try state.read(folder: nil, key: "mod-order") == #"["a","d","c","b"]"#)
     }
 
     @Test("installing copies the folder as mods/<id>, replacing every copy before it, and changes the revision")
@@ -251,7 +232,6 @@ struct CatalogTests {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
-            state: state,
             store: store
         )
     }

@@ -35,6 +35,7 @@ const main = async () => {
         'keymap.js',
         'web.js',
         'page.js',
+        'panel.js',
     ];
     for (const check of checks)
         execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {
