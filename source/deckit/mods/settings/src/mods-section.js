@@ -262,7 +262,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     async function askRemove(mod) {
         let places;
         try {
-            places = usageParts(await mods.usage(mod.id), mod.id);
+            places = usageParts(await mods.usage(mod.id));
         } catch (error) {
             return showNotice('Could not tell what it stores: ' + error.message);
         }

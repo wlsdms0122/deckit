@@ -141,7 +141,7 @@ function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
         const failure = mainFailure;
         mods.usage(id).then(
             (usage) => {
-                const found = usageParts(usage, id);
+                const found = usageParts(usage);
                 line.textContent = line.title = [failure, ...(found.length ? found : ['Nothing stored'])]
                     .filter(Boolean)
                     .join(' · ');
