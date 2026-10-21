@@ -26,9 +26,9 @@ const CHROMIUM_SCHEMES = Object.freeze(['chrome', 'chrome-extension', 'devtools'
 // MARK: - Public
 // What Electron gives deck for the host app: `core` is the core's executable, `preload` the file every page of deck's
 // loads with, and `openWindow` the host app's answer for a window. Beside what deck is given, Electron's own, for the
-// host app alone: `viewOf(page)`, the view a page of deck's, or a surface, is in, `window.place`, how a view is put in
-// one of the host app's windows, and `guard`, how a listener on Electron's emitters is added, reported as what
-// Electron's parts say is.
+// host app alone: `viewOf(page)`, the view a page of deck's, or a surface, is in, `owns(webContents)`, whether a
+// webContents is one of deckit's, `window.place`, how a view is put in one of the host app's windows, and `guard`, how a
+// listener on Electron's emitters is added, reported as what Electron's parts say is.
 function createEnvironment({ core, preload, openWindow }) {
     const { app } = require('electron');
     const REPORTS = createReports();
@@ -74,9 +74,13 @@ function createEnvironment({ core, preload, openWindow }) {
     };
     const load = (page) => page.loadURL(ORIGIN.addressOf(origins.get(page)));
     const viewOf = (page) => views.get(page) || null;
+    // A page deck made, a surface one opened, and a web page a mod shows or one that opened: their handlers and guards
+    // are deckit's.
+    const owns = (page) => views.has(page) || WEB.has(page);
     const STAGE = createStage({ LOG, WINDOW, viewOf });
     return Object.freeze({
         viewOf,
+        owns,
         window: Object.freeze({ place: WINDOW.place }),
         guard,
         configure,

@@ -66,7 +66,7 @@ const deckit = DECKIT.connect(environment, { host, config, folders });
 DECKIT.attach(deckit, { host });
 ```
 
-`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1), and `core` the archive's `deckit` where the host app unpacked it, executable. A host app that signs what it ships signs `deckit` with it, as any executable of its own; one in the App Sandbox gives it `com.apple.security.inherit`. Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
+`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1), and `core` the archive's `deckit` where the host app unpacked it, executable. A host app that signs what it ships signs `deckit` with it, as any executable of its own; one in the App Sandbox gives it the two keys of a child, `com.apple.security.app-sandbox` and `com.apple.security.inherit`. Under the hardened runtime it needs no entitlement. Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
 
 `environment` is called once, with `preload`, `core` and the host app's answer for a window; `connect`, once, with what `environment` answered, the host app's answers about what of deckit is its own and its configuration (section 2), which it hands the environment what it needs of; `attach`, once, with what connect answered and the host app's answers about where the shell is shown. One object may answer all three. Each throws and names what is missing: `connect` holds what it is handed to what deckit needs of an environment (`deckit-shell/environment`).
 
@@ -134,8 +134,11 @@ What the environment answers beside what deckit is handed, for a host app alone:
 | | |
 |---|---|
 | `viewOf(page)` | the Electron view a page of deck's, or a surface, is in: `viewOf(run.page)` for a mod's page from `mods.runs()`, and `viewOf(deckit.pages.open(name))` for a page that runs no mod. Deck sets nothing of how the view looks: whoever puts it in a window sets its background and whether it is visible |
+| `owns(webContents)` | whether a webContents is one of deckit's: a page of deck's, a surface, or a web page a mod shows and the ones it opens |
 | `window.place(view, window, { bounds, front, onClose })` | puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
 | `guard(emitter, event, listener)` | an Electron emitter's listener whose throw is logged |
+
+What Electron lets one set per webContents, deckit sets on its own and they stay its: what a `window.open` becomes (`setWindowOpenHandler`), where it may navigate, and what its sessions grant. A host app that sets these on every webContents it is told of (`app`'s `web-contents-created`) leaves those `owns` answers true for, asking as it sets them: deckit claims a webContents as soon as it has made it, after Electron tells of it.
 
 A stage, made by `pages.stage()`, is where the shell lays pages in a host app's window, each a page of deck's or a surface one opened:
 
