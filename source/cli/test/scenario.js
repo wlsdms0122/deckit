@@ -545,9 +545,17 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await (await page('deckit://panel'))?.evaluate(`console.error('frame-probe')`);
         const named = await until(() => /panel: frame-probe/.test(logged()), 3000);
         check("a shell page's console errors are logged under its name", named, '');
+        const leftOut = (setter) =>
+            new RegExp(`${setter} on a webContents or session of deckit's: left as deckit set it`);
         check(
-            "a host app's handlers set on deckit's webContents later leave deckit's",
-            /setWindowOpenHandler on a webContents or session of deckit's: left as deckit set it/.test(logged()),
+            "a host app's window open handler set on deckit's webContents later leaves deckit's",
+            leftOut('setWindowOpenHandler').test(logged()),
+            ''
+        );
+        check(
+            "a host app's permission handlers set on deckit's sessions later leave deckit's",
+            leftOut('setPermissionRequestHandler').test(logged()) &&
+                leftOut('setPermissionCheckHandler').test(logged()),
             ''
         );
         check(
