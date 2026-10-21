@@ -28,14 +28,15 @@ struct ServerTests {
     }
 
     // MARK: - Test
-    @Test("initialize answers an empty result")
-    func initializeAnswers() throws {
+    @Test("initialize answers where deck keeps the mods it installed and their data folders")
+    func initializeAnswersFolders() throws {
         // Given
         // When
         let response = try send(initializeRequest, to: sut)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":1,"result":{}}"#)))
+        #expect(value(in: response, at: "result", "mods") == .string(home + "/mods"))
+        #expect(value(in: response, at: "result", "data") == .string(home + "/data"))
     }
 
     @Test("a call before initialize is refused")

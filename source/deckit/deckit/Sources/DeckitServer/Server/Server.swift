@@ -102,7 +102,7 @@ final class Server {
             }
 
             let params = try request.decodeParams(as: InitializeParams.self)
-            deckit = try Deckit(
+            let deckit = try Deckit(
                 home: URL(filePath: params.home, directoryHint: .isDirectory),
                 ship: params.ship.map { folder in URL(filePath: folder) },
                 sources: params.sources.map { folder in URL(filePath: folder) },
@@ -111,7 +111,9 @@ final class Server {
                 schemeHandlers: params.schemeHandlers,
                 permissions: params.permissions
             )
-            return JSONValue.object([:])
+            self.deckit = deckit
+
+            return InitializeResult(mods: deckit.deck.catalog.folder, data: deckit.deck.dataFolder.folder)
         }
 
         guard let deckit else {

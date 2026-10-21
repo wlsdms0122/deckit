@@ -8,7 +8,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // `restart` is the app's: the process is its own. `about` and `user` are the environment's: the host app, what runs
 // it, and the person's home folder.
-export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart, about: ABOUT, user }) {
+export function createRuntime({ CONFIG, CORE, LOG, IDENTITY, restart, about: ABOUT, user }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -22,8 +22,7 @@ export function createRuntime({ CONFIG, HOME, LOG, IDENTITY, restart, about: ABO
                 home: user,
                 app: `${ABOUT.app.name} ${ABOUT.app.version}`,
                 ...enginesOf(ABOUT.engines),
-                mods: HOME.mods,
-                data: HOME.data,
+                ...CORE.folders(),
                 log: LOG.file(),
             };
         });
