@@ -153,6 +153,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const PAGE = createPage({ IDENTITY, LOG, pages: ENV.pages });
     const API = createApi({
         CONFIG,
+        CORE,
         STORAGE,
         LOG,
         IDENTITY,
@@ -181,7 +182,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         OPEN_PERMISSION,
     ])
         for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
-    const answer = API.make({ onStart });
+    const answer = API.make({ onStart, restart: () => host.restart() });
     ENV.app.whenReady().then(start);
     return answer;
 

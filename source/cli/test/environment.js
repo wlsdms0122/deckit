@@ -11,6 +11,8 @@ const USED = {
     config: { name: 'string' },
     onStart: 'function',
     attach: 'function',
+    core: { onDown: 'function' },
+    restart: 'function',
     channels: { bind: 'function' },
     permissions: { define: 'function' },
     mods: {

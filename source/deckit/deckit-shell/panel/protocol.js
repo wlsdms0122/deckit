@@ -26,7 +26,8 @@ export const rects = CHANNEL.pageToMain('deckit-shell:panel-rects', {
     handle: 'object',
     animation: 'object?',
 });
-// { mods: [{ id, name, icon }], current, canBack, canForward, sidebar: { width, collapsed, navHeight } }
+// { mods: [{ id, name, icon }], current, canBack, canForward, sidebar: { width, collapsed, navHeight }, down }: `down`
+// is `{ name, why }` once deckit's core answers nothing more, or null
 export const state = CHANNEL.mainToPage('deckit-shell:panel-state');
 // { floating, titleBar, size }: drawn over something, the window's title bar over the panel's top, and the panel's
 // { width, height }.
@@ -63,3 +64,5 @@ export const setPinned = CHANNEL.pageToMain(
     { id: 'string', pinned: 'boolean' },
     { reply: true }
 );
+// The person asks for the app to restart, deckit's core having gone down.
+export const restart = CHANNEL.pageToMain('deckit-shell:panel-restart', {});

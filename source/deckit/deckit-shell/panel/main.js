@@ -38,6 +38,7 @@ export function createPanel({ REGION, deckit, host }) {
     let shown = false;
     let moves = 0; // counts the hides and moves, so a newer one takes the place of one still waiting
     let titled = null; // the title the host was last told
+    let down = null; // why deckit's core answers nothing more, once it does not
     let look = { floating: false, dismissible: false, titleBar: null };
     let sidebar = { width: WIDTH.MIN, collapsed: false, navHeight: null }; // as the person left it
     let pinned = new Set(); // the children the person pinned to the panel's list
@@ -60,6 +61,12 @@ export function createPanel({ REGION, deckit, host }) {
         REGION.onChange(update);
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
         reconcile();
+        // With the core down nothing on deckit works, so the frame covers the panel and asks for a restart.
+        deckit.core.onDown((why) => {
+            down = why;
+            update();
+            broadcast();
+        });
     }
 
     // Whether a deckit page is the panel's in front, the frame's included; whether the panel is what is in front
@@ -130,6 +137,7 @@ export function createPanel({ REGION, deckit, host }) {
             deckit.mods.managerFrom(sender);
             setPinned(id, on);
         });
+        PROTOCOL.restart.on((_payload, sender) => fromFrame(sender) && down && deckit.restart());
     }
 
     // The frame's page is the shell's own, made once, over every mod's view where it draws.
@@ -342,7 +350,7 @@ export function createPanel({ REGION, deckit, host }) {
                 ...hidden.map(([, page]) => ({ page, hidden: true })),
                 ...(floats ? [] : shownCurrent),
                 ...[...children].map(([id, rect]) => ({ page: pages.get(id), rect: clip(rect, width, height) })),
-                at(shell.page, shell.moving || shell.rects?.obscured),
+                at(shell.page, down ? full : shell.moving || shell.rects?.obscured),
                 at(shell.surfaces.get(PAGE.SURFACE.HANDLE), shell.rects?.handle),
                 ...(floats ? shownCurrent : []),
             ].filter(Boolean)
@@ -469,6 +477,7 @@ export function createPanel({ REGION, deckit, host }) {
             canBack: history.at > 0,
             canForward: history.at < history.list.length - 1,
             sidebar,
+            down: down && { name: deckit.config.name, why: down },
         };
     }
 
