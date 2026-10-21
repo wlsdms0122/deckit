@@ -546,17 +546,17 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const named = await until(() => /panel: frame-probe/.test(logged()), 3000);
         check("a shell page's console errors are logged under its name", named, '');
         const leftOut = (setter) =>
-            new RegExp(`${setter} on a webContents or session of deckit's: left as deckit set it`);
+            logged().match(new RegExp(`${setter} on deckit's webContents and sessions: left as deckit set it`, 'g'))
+                ?.length ?? 0;
         check(
-            "a host app's window open handler set on deckit's webContents later leaves deckit's",
-            leftOut('setWindowOpenHandler').test(logged()),
-            ''
+            "a host app's window open handler set on deckit's webContents later leaves deckit's, logged once",
+            leftOut('setWindowOpenHandler') === 1,
+            String(leftOut('setWindowOpenHandler'))
         );
         check(
-            "a host app's permission handlers set on deckit's sessions later leave deckit's",
-            leftOut('setPermissionRequestHandler').test(logged()) &&
-                leftOut('setPermissionCheckHandler').test(logged()),
-            ''
+            "a host app's permission handlers set on deckit's sessions later leave deckit's, logged once",
+            leftOut('setPermissionRequestHandler') === 1 && leftOut('setPermissionCheckHandler') === 1,
+            `${leftOut('setPermissionRequestHandler')}, ${leftOut('setPermissionCheckHandler')}`
         );
         check(
             'the log says which deckit runs, and that its core started',

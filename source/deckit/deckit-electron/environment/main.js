@@ -50,7 +50,7 @@ function createEnvironment({ core, preload, openWindow }) {
         guard,
     });
     const hold = HANDLER.createHold((setter) =>
-        REPORTS.report('warn', `${setter} on a webContents or session of deckit's: left as deckit set it`)
+        REPORTS.report('warn', `${setter} on deckit's webContents and sessions: left as deckit set it, on every one`)
     );
     const WINDOW = createWindow({ LOG, openWindow });
     const MAIN_PROCESS = createMainProcess({ WINDOW, LOG, FOLDER: createFolder() });
