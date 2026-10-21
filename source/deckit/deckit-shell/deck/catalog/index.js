@@ -45,7 +45,8 @@ export function createCatalog({ CORE, LOG, files }) {
         }
     }
 
-    // What a folder would install: its manifest. Refused with why for a folder install refuses.
+    // What a folder would install, `{ manifest, replaces }`: whether it takes the place of an installed copy. Refused
+    // with why for a folder install refuses.
     function wouldInstall(from) {
         return CORE.request('catalog/would-install', { from });
     }
