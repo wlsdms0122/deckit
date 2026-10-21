@@ -27,7 +27,7 @@ struct InitializeResult: Encodable, Sendable {
     }
 
     // MARK: - Private
-    // A folder as a path that a mod's id is joined to, so with no slash at its end.
+    // A folder as the wire writes every path, with no slash at its end.
     private func written(_ folder: URL) -> String {
         let path = folder.path(percentEncoded: false)
         return path.hasSuffix("/") ? String(path.dropLast()) : path
