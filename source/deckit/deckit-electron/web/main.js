@@ -299,7 +299,13 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
         return window;
     }
 
+    // Whether a page is a web page a mod shows, or one such a page opened.
+    function has(page) {
+        return REGISTRY.get(page.id) !== null;
+    }
+
     return {
+        has,
         listen,
         embed,
         pageOf,
