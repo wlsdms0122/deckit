@@ -56,10 +56,17 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
     }
 
     // `listener(why)` is told once the core answers nothing more: it ended, or it did not start. Told at once when that
-    // is so already.
+    // is so already. Answers its off.
     function onDown(listener) {
-        if (down) listener(down);
-        else downListeners.push(listener);
+        if (down) {
+            tell(listener, down);
+            return () => {};
+        }
+        downListeners.push(listener);
+        return () => {
+            const at = downListeners.indexOf(listener);
+            if (at >= 0) downListeners.splice(at, 1);
+        };
     }
 
     // MARK: - Private
@@ -76,12 +83,14 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
     function tellDown(why) {
         if (down) return;
         down = why;
-        for (const listener of downListeners.splice(0)) {
-            try {
-                listener(why);
-            } catch (error) {
-                LOG.error('what heard the core go down failed', error);
-            }
+        for (const listener of downListeners.splice(0)) tell(listener, why);
+    }
+
+    function tell(listener, why) {
+        try {
+            listener(why);
+        } catch (error) {
+            LOG.error('what heard the core go down failed', error);
         }
     }
 

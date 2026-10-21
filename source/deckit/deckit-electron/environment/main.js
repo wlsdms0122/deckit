@@ -57,13 +57,16 @@ function createEnvironment({ core, preload, openWindow }) {
     const origins = new WeakMap(); // a page deck made -> its origin
     const mods = new WeakSet(); // the pages mods run in
     const openings = new WeakMap(); // a page -> { surfaces, opens }, what its window.open becomes (openingOf)
-    const WEB = createWeb({ CONFIG, LOG, WINDOW });
+    let making = 0; // how many of deckit's webContents are being made now
+    const WEB = createWeb({ CONFIG, LOG, WINDOW, made });
     const FOLDER = createFolder();
     // A mod's page shows the web in <webview>; one that runs no mod is named as a host is, with no dot, so its origin
     // is never a mod's.
     const make = ({ modId = null, name = null, keepsDrawing = false } = {}) => {
         const owned = modId !== null;
-        const view = makeView({ id: CONFIG.id, preload, webPreferences: owned ? { webviewTag: true } : {} });
+        const view = made(() =>
+            makeView({ id: CONFIG.id, preload, webPreferences: owned ? { webviewTag: true } : {} })
+        );
         const page = view.webContents;
         views.set(page, view);
         origins.set(page, owned ? ORIGIN.originOf(modId) : ORIGIN.pageOriginOf(name));
@@ -74,9 +77,15 @@ function createEnvironment({ core, preload, openWindow }) {
     };
     const load = (page) => page.loadURL(ORIGIN.addressOf(origins.get(page)));
     const viewOf = (page) => views.get(page) || null;
-    // A page deck made, a surface one opened, and a web page a mod shows or one that opened: their handlers and guards
-    // are deckit's.
-    const owns = (page) => views.has(page) || WEB.has(page);
+    // A page deck made, a web page a mod shows, and what one of those opened: their handlers and guards are deckit's.
+    // Told from the moment Electron tells of the webContents, before deckit has set anything on it: one made while
+    // deckit makes one, one shown in a page of deckit's, or one a page of deckit's opened.
+    const owns = (page) => {
+        if (making > 0 || views.has(page) || WEB.has(page)) return true;
+        const { webContents } = require('electron');
+        const by = page.hostWebContents || (page.opener && webContents.fromFrame(page.opener));
+        return !!by && by !== page && owns(by);
+    };
     const STAGE = createStage({ LOG, WINDOW, viewOf });
     return Object.freeze({
         viewOf,
@@ -193,6 +202,16 @@ function createEnvironment({ core, preload, openWindow }) {
         guard(surface, 'will-frame-navigate', (details) => details.preventDefault());
         opened(name, surface);
         return surface;
+    }
+
+    // What `make()` answers, made as one of deckit's webContents: Electron tells of it while it is made.
+    function made(make) {
+        making += 1;
+        try {
+            return make();
+        } finally {
+            making -= 1;
+        }
     }
 
     function configure({ id, agent }) {

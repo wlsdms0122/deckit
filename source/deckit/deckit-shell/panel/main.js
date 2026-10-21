@@ -66,6 +66,7 @@ export function createPanel({ REGION, deckit, host }) {
             down = why;
             update();
             broadcast();
+            if (shown) focus();
         });
     }
 
@@ -336,10 +337,20 @@ export function createPanel({ REGION, deckit, host }) {
 
     // From the bottom: the backdrop over the whole stage, the mod on screen, the children it shows over their
     // regions, then the frame's page and its handle where they draw; the mods' other pages are hidden. A dialog or a
-    // menu of the mod on screen comes over the frame and its handle, as it did over the page's own.
+    // menu of the mod on screen comes over the frame and its handle, as it did over the page's own. With deckit's
+    // core down the frame alone covers the panel.
     function layout() {
         const { width, height } = stage.size();
         const full = { x: 0, y: 0, width, height };
+        if (down) {
+            stage.lay([
+                ...[...pages.values(), shell.surfaces.get(PAGE.SURFACE.HANDLE)]
+                    .filter(Boolean)
+                    .map((page) => ({ page, hidden: true })),
+                { page: shell.page, rect: full },
+            ]);
+            return;
+        }
         const children = childrenOnScreen();
         const floats = floating.has(currentContents());
         const hidden = [...pages].filter(([id]) => id !== current && !children.has(id));
@@ -350,7 +361,7 @@ export function createPanel({ REGION, deckit, host }) {
                 ...hidden.map(([, page]) => ({ page, hidden: true })),
                 ...(floats ? [] : shownCurrent),
                 ...[...children].map(([id, rect]) => ({ page: pages.get(id), rect: clip(rect, width, height) })),
-                at(shell.page, down ? full : shell.moving || shell.rects?.obscured),
+                at(shell.page, shell.moving || shell.rects?.obscured),
                 at(shell.surfaces.get(PAGE.SURFACE.HANDLE), shell.rects?.handle),
                 ...(floats ? shownCurrent : []),
             ].filter(Boolean)
@@ -593,7 +604,7 @@ export function createPanel({ REGION, deckit, host }) {
 
     // The keyboard is the mod's on screen, or the frame's while there is none.
     function focus() {
-        const page = currentContents() || frameContents();
+        const page = (!down && currentContents()) || frameContents();
         if (page) deckit.pages.focus(page);
     }
 
