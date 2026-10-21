@@ -114,6 +114,47 @@ struct CatalogTests {
         #expect(dependents == ["x": ["y", "z"], "y": ["z"], "z": [], "w": []])
     }
 
+    @Test("each loads after what it requires, otherwise as the load order kept places it, which reading keeps as it comes")
+    func loadOrderPutsRequirementsFirst() throws {
+        // Given
+        try write("a", in: source)
+        try write("b", in: source, requires: ["a": "1.0.0"])
+        try write("c", in: source)
+        try write("d", in: source, main: nil)
+        let settings = home.appending(path: "deck.json")
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        try Data(#"{"loadOrder":["c","b","a"],"other":1}"#.utf8).write(to: settings)
+        let sut = try catalog(sources: [source])
+
+        // When
+        let mods = sut.read()
+
+        // Then
+        #expect(mods.map(\.manifest.id) == ["c", "a", "b", "d"])
+        let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+        #expect(kept == .object(["loadOrder": .array(["c", "a", "b", "d"].map(JSONValue.string)), "other": .number(1)]))
+    }
+
+    @Test("arranging moves the ids named among the places they held, and refuses a mod before one it requires")
+    func arrangeKeepsRequirementsFirst() throws {
+        // Given
+        for id in ["a", "c", "d"] {
+            try write(id, in: source)
+        }
+        try write("b", in: source, requires: ["a": "1.0.0"])
+        let sut = try catalog(sources: [source])
+
+        // When
+        try sut.arrange(["d", "c", "x", "d"])
+        let arranged = sut.mods().map(\.manifest.id)
+        let refused = Result { try sut.arrange(["b", "a"]) }
+
+        // Then
+        #expect(arranged == ["a", "b", "d", "c"])
+        #expect(throws: LoadOrderError.requiredLater(mod: "b", requirement: "a")) { try refused.get() }
+        #expect(sut.mods().map(\.manifest.id) == arranged)
+    }
+
     @Test("installing copies the folder as mods/<id>, replacing every copy before it, and changes the revision")
     func installReplacesCopies() throws {
         // Given
@@ -232,6 +273,7 @@ struct CatalogTests {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
+            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
     }

@@ -154,6 +154,10 @@ final class Server {
         case "catalog/read":
             return deck.readCatalog()
 
+        case "catalog/arrange":
+            try deck.catalog.arrange(request.decodeParams(as: ArrangeCatalogParams.self).ids)
+            return true
+
         case "catalog/install-shipped":
             return try deck.catalog.installShipped()
 

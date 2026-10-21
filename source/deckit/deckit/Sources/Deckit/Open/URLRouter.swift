@@ -100,7 +100,7 @@ public final class URLRouter {
         contributions?.layers[contributionKey] == .bool(true)
     }
 
-    // The mods that answer addresses, in the mods' order, with the schemes each names.
+    // The mods that answer addresses, in the load order, with the schemes each names.
     private func answering() -> [(mod: Mod, schemes: [String])] {
         deck.catalog.loading.compactMap { mod in
             let schemes = mod.manifest.value(of: field)
@@ -133,7 +133,7 @@ public final class URLRouter {
         preferences[scheme] ?? HandlerPreference(order: [], off: [])
     }
 
-    // In the scheme's order; a mod no one placed comes after, by its id: the mods' order says nothing of who opens
+    // In the scheme's order; a mod no one placed comes after, by its id: the load order says nothing of who opens
     // what.
     private func handlers(of scheme: String) -> [SchemeHandler] {
         let order = order(of: scheme)

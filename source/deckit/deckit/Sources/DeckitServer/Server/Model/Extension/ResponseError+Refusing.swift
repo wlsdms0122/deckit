@@ -90,6 +90,12 @@ extension ResponseError {
                 "TRANSITION"
             }
 
+        case let error as LoadOrderError:
+            switch error {
+            case .requiredLater:
+                "REQUIRED_LATER"
+            }
+
         case let error as ManifestError:
             switch error {
             case .permissionDefined:
