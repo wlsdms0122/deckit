@@ -112,17 +112,15 @@ struct SettingTests {
         let launching = sut.declare([toggle("wrap")], mod: "finder", run: 1)
         _ = try runner.started("finder", run: 1)
         let running = sut.declare([toggle("hidden")], mod: "finder", run: 1)
+        let wrap = Result { try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil) }
+        let hidden = Result { try sut.set(mod: "finder", key: "hidden", value: .bool(true), options: nil) }
 
         // Then
         #expect(!older)
         #expect(launching)
         #expect(!running)
-        #expect(throws: SettingError.undeclared(mod: "notes", key: "wrap")) {
-            try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil)
-        }
-        #expect(throws: SettingError.undeclared(mod: "finder", key: "hidden")) {
-            try sut.set(mod: "finder", key: "hidden", value: .bool(true), options: nil)
-        }
+        #expect(throws: SettingError.undeclared(mod: "notes", key: "wrap")) { try wrap.get() }
+        #expect(throws: SettingError.undeclared(mod: "finder", key: "hidden")) { try hidden.get() }
     }
 
     @Test("a value is set as its declaration takes it, and a number within its bounds")
@@ -140,21 +138,30 @@ struct SettingTests {
         // Then
         #expect(size.value == .number(32))
         #expect(theme.value == .string("dark"))
-        #expect(throws: SettingError.notOfType(key: "wrap", type: .toggle)) {
-            try sut.set(mod: "notes", key: "wrap", value: .number(1), options: nil)
-        }
-        #expect(throws: SettingError.notOfType(key: "size", type: .number)) {
-            try sut.set(mod: "notes", key: "size", value: .string("12"), options: nil)
-        }
-        #expect(throws: SettingError.notOfType(key: "font", type: .text)) {
-            try sut.set(mod: "notes", key: "font", value: nil, options: nil)
-        }
-        #expect(throws: SettingError.notAnOption(key: "theme", value: .string("blue"))) {
-            try sut.set(mod: "notes", key: "theme", value: .string("blue"), options: nil)
-        }
-        #expect(throws: SettingError.isAnAction("rebuild")) {
-            try sut.set(mod: "notes", key: "rebuild", value: .bool(true), options: nil)
-        }
+    }
+
+    @Test(
+        "a value its declaration does not take is refused",
+        arguments: [
+            ("wrap", SettingValue?.some(.number(1)), SettingError.notOfType(key: "wrap", type: .toggle)),
+            ("size", .string("12"), .notOfType(key: "size", type: .number)),
+            ("font", nil, .notOfType(key: "font", type: .text)),
+            ("theme", .string("blue"), .notAnOption(key: "theme", value: .string("blue"))),
+            ("rebuild", .bool(true), .isAnAction("rebuild"))
+        ]
+    )
+    func valueOutsideItsDeclarationIsRefused(key: String, value: SettingValue?, refusal: SettingError) throws {
+        // Given
+        let (sut, _, _) = try setting(["notes"])
+        let choice = SettingDeclaration(key: "theme", type: .choice, options: [option("light"), option("dark")])
+        let run = SettingDeclaration(key: "rebuild", type: .action, button: "Rebuild")
+        _ = sut.declare([toggle("wrap"), number("size"), text("font"), choice, run], mod: "notes", run: 1)
+
+        // When
+        let set = Result { try sut.set(mod: "notes", key: key, value: value, options: nil) }
+
+        // Then
+        #expect(throws: refusal) { try set.get() }
     }
 
     @Test("a choice whose options are computed takes what its page worked out")
@@ -167,6 +174,7 @@ struct SettingTests {
 
         // When
         let set = try sut.set(mod: "notes", key: "font", value: .string("Menlo"), options: [option("Menlo")])
+        let unoffered = Result { try sut.set(mod: "notes", key: "font", value: .string("Menlo"), options: nil) }
 
         // Then
         #expect(set.value == .string("Menlo"))
@@ -175,9 +183,7 @@ struct SettingTests {
             sut.computedChoices(mod: nil)
                 == [SettingKey(mod: "finder", key: "icon"), SettingKey(mod: "notes", key: "font")]
         )
-        #expect(throws: SettingError.notAnOption(key: "font", value: .string("Menlo"))) {
-            try sut.set(mod: "notes", key: "font", value: .string("Menlo"), options: nil)
-        }
+        #expect(throws: SettingError.notAnOption(key: "font", value: .string("Menlo"))) { try unoffered.get() }
     }
 
     @Test("the list has every loading mod's that declared any, in the catalog's order, values over defaults")
@@ -216,12 +222,11 @@ struct SettingTests {
         // When
         _ = catalog.read()
         sut.forget()
+        let wrap = Result { try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil) }
 
         // Then
         #expect(sut.list(choices: []).map(\.id) == ["finder"])
-        #expect(throws: SettingError.undeclared(mod: "notes", key: "wrap")) {
-            try sut.set(mod: "notes", key: "wrap", value: .bool(true), options: nil)
-        }
+        #expect(throws: SettingError.undeclared(mod: "notes", key: "wrap")) { try wrap.get() }
     }
 
     @Test("an action is run only for a key declared as one")
@@ -232,14 +237,12 @@ struct SettingTests {
 
         // When
         try sut.action(mod: "notes", key: "rebuild")
+        let wrap = Result { try sut.action(mod: "notes", key: "wrap") }
+        let never = Result { try sut.action(mod: "notes", key: "never") }
 
         // Then
-        #expect(throws: SettingError.notAnAction(mod: "notes", key: "wrap")) {
-            try sut.action(mod: "notes", key: "wrap")
-        }
-        #expect(throws: SettingError.undeclared(mod: "notes", key: "never")) {
-            try sut.action(mod: "notes", key: "never")
-        }
+        #expect(throws: SettingError.notAnAction(mod: "notes", key: "wrap")) { try wrap.get() }
+        #expect(throws: SettingError.undeclared(mod: "notes", key: "never")) { try never.get() }
     }
 
     @Test("a declaration reads as the page tells it")
@@ -249,11 +252,11 @@ struct SettingTests {
             + #""computed":false}]"#
 
         // When
-        let declared = try JSONDecoder().decode([SettingDeclaration].self, from: Data(text.utf8))
+        let sut = try JSONDecoder().decode([SettingDeclaration].self, from: Data(text.utf8))
 
         // Then
         let size = SettingDeclaration(key: "size", type: .number, label: "Size", defaultValue: .number(12), min: 8)
-        #expect(declared == [size])
+        #expect(sut == [size])
     }
 
     // MARK: - Private

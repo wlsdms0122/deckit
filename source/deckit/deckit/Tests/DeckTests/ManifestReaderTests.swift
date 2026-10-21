@@ -114,13 +114,14 @@ struct ManifestReaderTests {
         let api = try #require(Version("1.0.0"))
 
         // When
-        // Then
-        #expect(throws: ManifestError.permissionDefined("deckit.mods")) {
+        let permissionTwice = Result {
             try ManifestReader(api: api, permissions: [mods, mods], fields: [], store: Store())
         }
-        #expect(throws: ManifestError.fieldDefined("main")) {
-            try ManifestReader(api: api, permissions: [], fields: [MainField()], store: Store())
-        }
+        let fieldTwice = Result { try ManifestReader(api: api, permissions: [], fields: [MainField()], store: Store()) }
+
+        // Then
+        #expect(throws: ManifestError.permissionDefined("deckit.mods")) { try permissionTwice.get() }
+        #expect(throws: ManifestError.fieldDefined("main")) { try fieldTwice.get() }
     }
 }
 

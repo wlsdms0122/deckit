@@ -17,6 +17,49 @@ import Deckit
 @Suite("Golden")
 struct GoldenTests {
     // MARK: - Property
+    private static let refusals: [(any Refusal, String)] = [
+        (DataFolderError.notAMod("x"), "MOD"),
+        (ErasureError.notAMod("x"), "MOD"),
+        (ExportError.notADependency(mod: "a", of: "b"), "DEPENDENCY"),
+        (ExportError.notRunning("a"), "NOT_RUNNING"),
+        (ExportError.ended("a", problem: "p"), "NOT_RUNNING"),
+        (ExportError.otherVersion(mod: "a", version: "1.0.0", dependent: "b", wanted: "2.0.0"), "VERSION"),
+        (ExportError.noSuchFunction(mod: "a", path: ["f"]), "FUNCTION"),
+        (ExportError.needs("a", problem: "p"), "NEEDS"),
+        (ExtensionError.notAPoint("p", of: "a"), "POINT"),
+        (ExtensionError.notRunning("a"), "NOT_RUNNING"),
+        (ExtensionError.notExtending(mod: "a", point: "b:p"), "EXTENSION"),
+        (ExtensionError.noSuchFunction(mod: "a", point: "b:p", path: ["f"]), "FUNCTION"),
+        (InstallError.notLoadable("p"), "NOT_LOADABLE"),
+        (InstallError.installedThere, "INSTALLED_THERE"),
+        (InstallError.nested, "NESTED"),
+        (InstallError.occupied(id: "a", folder: "/a"), "OCCUPIED"),
+        (InstallError.refused("p"), "REFUSED"),
+        (InstallError.notInstalled("a"), "NOT_INSTALLED"),
+        (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
+        (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
+        (ManifestError.permissionDefined("p"), "PERMISSION"),
+        (ManifestError.fieldDefined("f"), "FIELD"),
+        (RecordError.notAKey("k"), "KEY"),
+        (RecordError.notAMod("m"), "MOD"),
+        (RunnerError.noSandbox("a"), "NO_SANDBOX"),
+        (RunnerError.closing("a"), "CLOSING"),
+        (RunnerError.quitting("a"), "QUITTING"),
+        (RunnerError.needs(mod: "a", requirement: "b"), "NEEDS"),
+        (SettingError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
+        (SettingError.notAnAction(mod: "a", key: "k"), "NOT_AN_ACTION"),
+        (SettingError.isAnAction("k"), "ACTION"),
+        (SettingError.notOfType(key: "k", type: .number), "TYPE"),
+        (SettingError.notAnOption(key: "k", value: nil), "OPTION"),
+        (StateError.notAKey("k"), "KEY"),
+        (StateError.notAFolder("f"), "FOLDER"),
+        (StateError.reserved("keys"), "RESERVED"),
+        (KeymapError.noSuchBinding("@app.x"), "SHORTCUT"),
+        (KeymapError.notAChord("x"), "CHORD"),
+        (KeymapError.cannotBeGlobal(label: "C"), "REFUSED"),
+        (URLRouterError.noHandlers("x"), "SCHEME")
+    ]
+
     private let root = FileManager.default.temporaryDirectory.appending(path: "golden-tests-\(UUID().uuidString)")
 
     // MARK: - Initializer
@@ -49,59 +92,16 @@ struct GoldenTests {
         }
     }
 
-    @Test("every refusal crosses with the kind the driver tells it by")
-    func everyRefusalHasItsKind() {
+    @Test("a refusal crosses with the kind the driver tells it by", arguments: refusals)
+    func refusalHasItsKind(refusal: any Refusal, kind: String) {
         // Given
-        let refusals: [(any Refusal, String)] = [
-            (DataFolderError.notAMod("x"), "MOD"),
-            (ErasureError.notAMod("x"), "MOD"),
-            (ExportError.notADependency(mod: "a", of: "b"), "DEPENDENCY"),
-            (ExportError.notRunning("a"), "NOT_RUNNING"),
-            (ExportError.ended("a", problem: "p"), "NOT_RUNNING"),
-            (ExportError.otherVersion(mod: "a", version: "1.0.0", dependent: "b", wanted: "2.0.0"), "VERSION"),
-            (ExportError.noSuchFunction(mod: "a", path: ["f"]), "FUNCTION"),
-            (ExportError.needs("a", problem: "p"), "NEEDS"),
-            (ExtensionError.notAPoint("p", of: "a"), "POINT"),
-            (ExtensionError.notRunning("a"), "NOT_RUNNING"),
-            (ExtensionError.notExtending(mod: "a", point: "b:p"), "EXTENSION"),
-            (ExtensionError.noSuchFunction(mod: "a", point: "b:p", path: ["f"]), "FUNCTION"),
-            (InstallError.notLoadable("p"), "NOT_LOADABLE"),
-            (InstallError.installedThere, "INSTALLED_THERE"),
-            (InstallError.nested, "NESTED"),
-            (InstallError.occupied(id: "a", folder: "/a"), "OCCUPIED"),
-            (InstallError.refused("p"), "REFUSED"),
-            (InstallError.notInstalled("a"), "NOT_INSTALLED"),
-            (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
-            (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
-            (ManifestError.permissionDefined("p"), "PERMISSION"),
-            (ManifestError.fieldDefined("f"), "FIELD"),
-            (RecordError.notAKey("k"), "KEY"),
-            (RecordError.notAMod("m"), "MOD"),
-            (RunnerError.noSandbox("a"), "NO_SANDBOX"),
-            (RunnerError.closing("a"), "CLOSING"),
-            (RunnerError.quitting("a"), "QUITTING"),
-            (RunnerError.needs(mod: "a", requirement: "b"), "NEEDS"),
-            (SettingError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
-            (SettingError.notAnAction(mod: "a", key: "k"), "NOT_AN_ACTION"),
-            (SettingError.isAnAction("k"), "ACTION"),
-            (SettingError.notOfType(key: "k", type: .number), "TYPE"),
-            (SettingError.notAnOption(key: "k", value: nil), "OPTION"),
-            (StateError.notAKey("k"), "KEY"),
-            (StateError.notAFolder("f"), "FOLDER"),
-            (StateError.reserved("keys"), "RESERVED"),
-            (KeymapError.noSuchBinding("@app.x"), "SHORTCUT"),
-            (KeymapError.notAChord("x"), "CHORD"),
-            (KeymapError.cannotBeGlobal(label: "C"), "REFUSED"),
-            (URLRouterError.noHandlers("x"), "SCHEME")
-        ]
-
         // When
-        let errors = refusals.map { refusal, _ in ResponseError(refusing: refusal) }
+        let sut = ResponseError(refusing: refusal)
 
         // Then
-        #expect(errors.map(\.kind) == refusals.map { _, kind in kind })
-        #expect(errors.allSatisfy { error in error.code == .requestFailed })
-        #expect(zip(errors, refusals).allSatisfy { error, refusal in error.message == refusal.0.message })
+        #expect(sut.kind == kind)
+        #expect(sut.code == .requestFailed)
+        #expect(sut.message == refusal.message)
     }
 
     // MARK: - Private

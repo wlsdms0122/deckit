@@ -73,10 +73,10 @@ struct ErasureTests {
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: data) }
 
         // When
-        let erase = { try sut.erase(mod: "notes") }
+        let erased = Result { try sut.erase(mod: "notes") }
 
         // Then
-        #expect(throws: (any Error).self, performing: erase)
+        #expect(throws: (any Error).self) { try erased.get() }
         #expect(exists("data/notes"))
         #expect(!exists("records/notes"))
         #expect(!exists("settings/notes.json"))
@@ -103,10 +103,10 @@ struct ErasureTests {
         try keep("notes")
 
         // When
-        let erase = { try sut.erase(mod: "../notes") }
+        let erased = Result { try sut.erase(mod: "../notes") }
 
         // Then
-        #expect(throws: ErasureError.notAMod("../notes"), performing: erase)
+        #expect(throws: ErasureError.notAMod("../notes")) { try erased.get() }
         #expect(sut.uncleared().isEmpty)
         #expect(exists("data/notes"))
     }

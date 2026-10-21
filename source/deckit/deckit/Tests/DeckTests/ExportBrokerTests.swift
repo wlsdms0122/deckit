@@ -49,14 +49,12 @@ struct ExportBrokerTests {
 
         // When
         _ = try runner.crashed("a", run: 1, problem: "its page ended")
+        let ended = Result { try sut.dependencies(mod: "b", run: 1) }
+        let otherRun = Result { try sut.dependencies(mod: "b", run: 2) }
 
         // Then
-        #expect(throws: ExportError.needs("a", problem: "its page ended")) {
-            try sut.dependencies(mod: "b", run: 1)
-        }
-        #expect(throws: ExportError.notRunning("b")) {
-            try sut.dependencies(mod: "b", run: 2)
-        }
+        #expect(throws: ExportError.needs("a", problem: "its page ended")) { try ended.get() }
+        #expect(throws: ExportError.notRunning("b")) { try otherRun.get() }
     }
 
     @Test("a call goes to a function of what the caller requires, and to nothing else")
@@ -71,18 +69,15 @@ struct ExportBrokerTests {
 
         // When
         let called = try sut.call(from: "b", run: 1, mod: "a", path: ["ask"])
+        let missing = Result { try sut.call(from: "b", run: 1, mod: "a", path: ["tell"]) }
+        let unrequired = Result { try sut.call(from: "a", run: 1, mod: "b", path: ["ask"]) }
+        let otherRun = Result { try sut.call(from: "b", run: 2, mod: "a", path: ["ask"]) }
 
         // Then
         #expect(called.ready == true)
-        #expect(throws: ExportError.noSuchFunction(mod: "a", path: ["tell"])) {
-            try sut.call(from: "b", run: 1, mod: "a", path: ["tell"])
-        }
-        #expect(throws: ExportError.notADependency(mod: "b", of: "a")) {
-            try sut.call(from: "a", run: 1, mod: "b", path: ["ask"])
-        }
-        #expect(throws: ExportError.notRunning("b")) {
-            try sut.call(from: "b", run: 2, mod: "a", path: ["ask"])
-        }
+        #expect(throws: ExportError.noSuchFunction(mod: "a", path: ["tell"])) { try missing.get() }
+        #expect(throws: ExportError.notADependency(mod: "b", of: "a")) { try unrequired.get() }
+        #expect(throws: ExportError.notRunning("b")) { try otherRun.get() }
     }
 
     @Test("a call reaches a run that terminates, waits for one launching again, and an ending caller does not wait")
@@ -104,13 +99,12 @@ struct ExportBrokerTests {
         _ = try runner.started("a", run: 2, exports: [["ask"]])
         _ = try runner.started("b", run: 2)
         _ = try runner.crashed("a", run: 2, problem: "its page ended")
+        let crashed = Result { try sut.call(from: "b", run: 2, mod: "a", path: ["ask"]) }
 
         // Then
         #expect(terminating.ready == true)
         #expect(launching.pending == Pending(mod: "a", run: 2, state: .launching))
-        #expect(throws: ExportError.notRunning("a")) {
-            try sut.call(from: "b", run: 2, mod: "a", path: ["ask"])
-        }
+        #expect(throws: ExportError.notRunning("a")) { try crashed.get() }
     }
 
     @Test("an optional dependency is reached only while it runs at a version the mod names")
@@ -128,14 +122,13 @@ struct ExportBrokerTests {
         let launching = Result { try sut.call(from: "c", run: 1, mod: "a", path: ["ask"]) }
         _ = try runner.started("a", run: 1, exports: [["ask"]])
         let running = try sut.call(from: "c", run: 1, mod: "a", path: ["ask"])
+        let otherVersion = Result { try sut.call(from: "b", run: 1, mod: "a", path: ["ask"]) }
 
         // Then
-        #expect(throws: ExportError.notRunning("a")) {
-            try launching.get()
-        }
+        #expect(throws: ExportError.notRunning("a")) { try launching.get() }
         #expect(running.ready == true)
         #expect(throws: ExportError.otherVersion(mod: "a", version: "2.0.0", dependent: "b", wanted: "1.0.0")) {
-            try sut.call(from: "b", run: 1, mod: "a", path: ["ask"])
+            try otherVersion.get()
         }
     }
 

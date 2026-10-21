@@ -79,6 +79,8 @@ struct URLRouterTests {
             _ = try restarted.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
         }
         let lists = restarted.urlRouter.handlerLists()
+        let routed = route(restarted, "https://example.com", userInitiated: true)
+        let unhandled = Result { try restarted.urlRouter.setHandlers(of: "mailto", order: [], off: []) }
 
         // Then
         let https = try #require(lists.first { list in list.scheme == "https" })
@@ -86,11 +88,8 @@ struct URLRouterTests {
         #expect(lists.map(\.scheme) == ["http", "https", "file"])
         #expect(https.system == .browser)
         #expect(listed == ["a", "b", "c off"])
-        let routed = route(restarted, "https://example.com", userInitiated: true)
         #expect(routed == "https://example.com -> a b, browser")
-        #expect(throws: URLRouterError.noHandlers("mailto")) {
-            try restarted.urlRouter.setHandlers(of: "mailto", order: [], off: [])
-        }
+        #expect(throws: URLRouterError.noHandlers("mailto")) { try unhandled.get() }
     }
 
     @Test("a mod that names schemes and registers no handleURL, or the other way, is told so and asked nothing")

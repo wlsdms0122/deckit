@@ -96,22 +96,24 @@ struct KeymapTests {
         #expect(binding.changed == false)
     }
 
-    @Test("what cannot be bound is refused, by why")
-    func bindRefuses() throws {
+    @Test(
+        "what cannot be bound is refused, by why",
+        arguments: [
+            ("@app.none", "cmd+1", KeymapError.noSuchBinding("@app.none")),
+            ("@app.switch", "cmd+nope", .notAChord("cmd+nope")),
+            ("@app.switch", "cmd+c", .cannotBeGlobal(label: "⌘C"))
+        ]
+    )
+    func bindRefuses(id: String, spec: String, refusal: KeymapError) throws {
         // Given
         let sut = try fixture.deckit()
         _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
 
         // When
-        let refusals = [("@app.none", "cmd+1"), ("@app.switch", "cmd+nope"), ("@app.switch", "cmd+c")].map { id, spec in
-            #expect(throws: KeymapError.self) {
-                try sut.keymap.bind(id, spec: spec)
-            }
-        }
+        let bound = Result { try sut.keymap.bind(id, spec: spec) }
 
         // Then
-        let copy = try #require(Keystroke(spec: "cmd+c")).label
-        #expect(refusals == [.noSuchBinding("@app.none"), .notAChord("cmd+nope"), .cannotBeGlobal(label: copy)])
+        #expect(throws: refusal) { try bound.get() }
     }
 
     @Test("a run that ends takes its keys with it")

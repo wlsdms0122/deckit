@@ -46,9 +46,10 @@ struct DataFolderTests {
 
         // When
         try sut.erase(mod: "notes")
+        let counted = Result { try sut.count(mod: "../x") }
 
         // Then
-        #expect(throws: DataFolderError.notAMod("../x")) { try sut.count(mod: "../x") }
+        #expect(throws: DataFolderError.notAMod("../x")) { try counted.get() }
         #expect(!FileManager.default.fileExists(atPath: notes.path(percentEncoded: false)))
     }
 }

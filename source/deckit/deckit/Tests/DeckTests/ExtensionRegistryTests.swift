@@ -104,13 +104,14 @@ struct ExtensionRegistryTests {
         let reloaded = sut.changes()
         _ = try runner.started("calendar", run: 2, extensionPoints: ["accounts"])
         let opened = sut.changes()
+        let called = Result {
+            try sut.call(from: "calendar", run: 2, mod: "google", point: "calendar:accounts", path: ["events"])
+        }
 
         // Then
         #expect(reloaded.map(\.line) == ["extendsChanged google "])
         #expect(opened.isEmpty)
-        #expect(throws: ExtensionError.notExtending(mod: "google", point: "calendar:accounts")) {
-            try sut.call(from: "calendar", run: 2, mod: "google", point: "calendar:accounts", path: ["events"])
-        }
+        #expect(throws: ExtensionError.notExtending(mod: "google", point: "calendar:accounts")) { try called.get() }
     }
 
     @Test("an optional dependency's point is extended only at a version the mod names")
@@ -151,23 +152,27 @@ struct ExtensionRegistryTests {
         let called = Result {
             try sut.call(from: "calendar", run: 1, mod: "google", point: "calendar:accounts", path: ["events"])
         }
-
-        // Then
-        #expect(throws: Never.self) {
-            try called.get()
-        }
-        #expect(throws: ExtensionError.noSuchFunction(mod: "google", point: "calendar:accounts", path: ["other"])) {
+        let missing = Result {
             try sut.call(from: "calendar", run: 1, mod: "google", point: "calendar:accounts", path: ["other"])
         }
-        #expect(throws: ExtensionError.notExtending(mod: "notes", point: "calendar:accounts")) {
+        let unextended = Result {
             try sut.call(from: "calendar", run: 1, mod: "notes", point: "calendar:accounts", path: ["events"])
         }
-        #expect(throws: ExtensionError.notAPoint("calendar:accounts", of: "google")) {
+        let fromExtender = Result {
             try sut.call(from: "google", run: 1, mod: "google", point: "calendar:accounts", path: ["events"])
         }
-        #expect(throws: ExtensionError.notRunning("calendar")) {
+        let otherRun = Result {
             try sut.call(from: "calendar", run: 2, mod: "google", point: "calendar:accounts", path: ["events"])
         }
+
+        // Then
+        #expect(throws: Never.self) { try called.get() }
+        #expect(throws: ExtensionError.noSuchFunction(mod: "google", point: "calendar:accounts", path: ["other"])) {
+            try missing.get()
+        }
+        #expect(throws: ExtensionError.notExtending(mod: "notes", point: "calendar:accounts")) { try unextended.get() }
+        #expect(throws: ExtensionError.notAPoint("calendar:accounts", of: "google")) { try fromExtender.get() }
+        #expect(throws: ExtensionError.notRunning("calendar")) { try otherRun.get() }
     }
 
     // MARK: - Private

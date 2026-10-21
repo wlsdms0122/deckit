@@ -16,12 +16,14 @@ struct ServerTests {
     // MARK: - Property
     private let home: String
     private let initializeParams: String
+    private let initializeRequest: String
     private let sut: Server
 
     // MARK: - Initializer
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
         initializeParams = #"{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[]}"#
+        initializeRequest = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#
         sut = Server()
     }
 
@@ -30,7 +32,7 @@ struct ServerTests {
     func initializeAnswers() throws {
         // Given
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#)
+        let response = try send(initializeRequest, to: sut)
 
         // Then
         #expect(response == (try json(#"{"jsonrpc":"2.0","id":1,"result":{}}"#)))
@@ -40,7 +42,7 @@ struct ServerTests {
     func callBeforeInitializeIsRefused() throws {
         // Given
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":1,"method":"record/keys","params":{"mod":"notes"}}"#)
+        let response = try send(#"{"jsonrpc":"2.0","id":1,"method":"record/keys","params":{"mod":"notes"}}"#, to: sut)
 
         // Then
         #expect(response == (try json(#"{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"record/keys before initialize"}}"#)))
@@ -49,10 +51,13 @@ struct ServerTests {
     @Test("initialize twice is refused")
     func secondInitializeIsRefused() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
 
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":2,"method":"initialize","params":\#(initializeParams)}"#)
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":2,"method":"initialize","params":\#(initializeParams)}"#,
+            to: sut
+        )
 
         // Then
         #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32600,"message":"the core is initialized once"}}"#)))
@@ -61,14 +66,16 @@ struct ServerTests {
     @Test("a record written is read back as its text")
     func recordRoundTrips() throws {
         // Given
-        try initialize()
-        _ = try respond(
-            #"{"jsonrpc":"2.0","id":2,"method":"record/write","params":{"mod":"notes","key":"tabs","text":"[1,\"a\"]"}}"#
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":2,"method":"record/write","params":{"mod":"notes","key":"tabs","text":"[1,\"a\"]"}}"#,
+            to: sut
         )
 
         // When
-        let response = try respond(
-            #"{"jsonrpc":"2.0","id":3,"method":"record/read","params":{"mod":"notes","key":"tabs"}}"#
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":3,"method":"record/read","params":{"mod":"notes","key":"tabs"}}"#,
+            to: sut
         )
 
         // Then
@@ -78,11 +85,12 @@ struct ServerTests {
     @Test("a record never written is read as null")
     func missingRecordIsNull() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
 
         // When
-        let response = try respond(
-            #"{"jsonrpc":"2.0","id":2,"method":"record/read","params":{"mod":"notes","key":"tabs"}}"#
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":2,"method":"record/read","params":{"mod":"notes","key":"tabs"}}"#,
+            to: sut
         )
 
         // Then
@@ -92,11 +100,12 @@ struct ServerTests {
     @Test("a refusal carries its kind")
     func refusalCarriesItsKind() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
 
         // When
-        let response = try respond(
-            #"{"jsonrpc":"2.0","id":2,"method":"record/read","params":{"mod":"notes","key":"A"}}"#
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":2,"method":"record/read","params":{"mod":"notes","key":"A"}}"#,
+            to: sut
         )
 
         // Then
@@ -106,10 +115,10 @@ struct ServerTests {
     @Test("an unknown method is not found")
     func unknownMethodIsNotFound() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
 
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":2,"method":"record/burn","params":{}}"#)
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"record/burn","params":{}}"#, to: sut)
 
         // Then
         #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"no method record/burn"}}"#)))
@@ -118,10 +127,10 @@ struct ServerTests {
     @Test("params of the wrong shape are invalid")
     func wrongParamsAreInvalid() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
 
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":2,"method":"record/keys","params":{"key":"a"}}"#)
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"record/keys","params":{"key":"a"}}"#, to: sut)
 
         // Then
         #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"record/keys has no such params at mod"}}"#)))
@@ -130,13 +139,14 @@ struct ServerTests {
     @Test("params of the wrong shape say where")
     func wrongParamsSayWhere() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
         let settings = #"[{"key":"wrap","type":"toggle","options":[],"computed":false},{"key":"size","type":"number","#
             + #""label":5,"options":[],"computed":false}]"#
 
         // When
-        let response = try respond(
-            #"{"jsonrpc":"2.0","id":2,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":2,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#,
+            to: sut
         )
 
         // Then
@@ -146,7 +156,7 @@ struct ServerTests {
     @Test("a notification is not answered")
     func notificationIsNotAnswered() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
 
         // When
         let response = sut.respond(to: Data(#"{"jsonrpc":"2.0","method":"record/keys","params":{"mod":"notes"}}"#.utf8))
@@ -159,7 +169,7 @@ struct ServerTests {
     func unreadableLineIsParseError() throws {
         // Given
         // When
-        let response = try respond("not json")
+        let response = try send("not json", to: sut)
 
         // Then
         guard case let .object(fields) = response, case let .object(error)? = fields["error"] else {
@@ -174,7 +184,7 @@ struct ServerTests {
     func shapelessMessageIsInvalidRequest() throws {
         // Given
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":"one"}"#)
+        let response = try send(#"{"jsonrpc":"2.0","id":"one"}"#, to: sut)
 
         // Then
         guard case let .object(fields) = response, case let .object(error)? = fields["error"] else {
@@ -187,24 +197,27 @@ struct ServerTests {
     @Test("settings set as declared are read back as the JSON they were set as")
     func settingsRoundTrip() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
         try mod("notes")
-        _ = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
-        _ = try respond(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
         let settings = #"[{"key":"wrap","type":"toggle","options":[],"computed":false},"#
             + #"{"key":"size","type":"number","max":12,"options":[],"computed":false}]"#
-        _ = try respond(
-            #"{"jsonrpc":"2.0","id":4,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#,
+            to: sut
         )
-        _ = try respond(
-            #"{"jsonrpc":"2.0","id":5,"method":"setting/set","params":{"mod":"notes","key":"wrap","value":true}}"#
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"setting/set","params":{"mod":"notes","key":"wrap","value":true}}"#,
+            to: sut
         )
 
         // When
-        let set = try respond(
-            #"{"jsonrpc":"2.0","id":6,"method":"setting/set","params":{"mod":"notes","key":"size","value":14}}"#
+        let set = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"setting/set","params":{"mod":"notes","key":"size","value":14}}"#,
+            to: sut
         )
-        let response = try respond(#"{"jsonrpc":"2.0","id":7,"method":"setting/read","params":{"mod":"notes"}}"#)
+        let response = try send(#"{"jsonrpc":"2.0","id":7,"method":"setting/read","params":{"mod":"notes"}}"#, to: sut)
 
         // Then
         #expect(set == (try json(#"{"jsonrpc":"2.0","id":6,"result":{"value":12,"changed":true}}"#)))
@@ -214,13 +227,14 @@ struct ServerTests {
     @Test("state written is read back by all, with no params asked")
     func stateRoundTrips() throws {
         // Given
-        try initialize()
-        _ = try respond(
-            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":"host","key":"pinned","text":"[]"}}"#
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":"host","key":"pinned","text":"[]"}}"#,
+            to: sut
         )
 
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":3,"method":"state/all"}"#)
+        let response = try send(#"{"jsonrpc":"2.0","id":3,"method":"state/all"}"#, to: sut)
 
         // Then
         #expect(
@@ -234,8 +248,9 @@ struct ServerTests {
         let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them.","reach":"app"}"#
 
         // When
-        let response = try respond(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#,
+            to: sut
         )
 
         // Then
@@ -247,12 +262,12 @@ struct ServerTests {
     @Test("the catalog reads a mod's url-schemes as deckit judges them")
     func catalogReadsURLSchemes() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
         try mod("opener", schemes: #"["https", "https"]"#)
         try mod("broken", schemes: #"["https", "*"]"#)
 
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
+        let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
 
         // Then
         guard case let .object(fields) = response, case let .array(mods)? = fields["result"] else {
@@ -272,19 +287,20 @@ struct ServerTests {
     @Test("what a run contributed comes back with it, the layers' too, and is what the mods that require it are given")
     func contributionsRoundTrip() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
         try mod("calendar")
         try mod("google", requires: #"calendar = "1.0.0""#)
-        _ = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
-        _ = try respond(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
         let contributions = #"{"exports":{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]},"#
             + #""extensionPoints":["accounts"],"extensions":{},"styles":["a.css"]}"#
         let started = #"{"mod":"calendar","run":1,"summary":{"view":true},"contributions":\#(contributions)}"#
 
         // When
-        let response = try respond(#"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":\#(started)}"#)
-        let dependencies = try respond(
-            #"{"jsonrpc":"2.0","id":5,"method":"export/dependencies","params":{"mod":"google","run":1}}"#
+        let response = try send(#"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":\#(started)}"#, to: sut)
+        let dependencies = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"export/dependencies","params":{"mod":"google","run":1}}"#,
+            to: sut
         )
 
         // Then
@@ -306,33 +322,38 @@ struct ServerTests {
     func deckitMethodsAnswer() throws {
         // Given
         try mod("mail", schemes: #"["mailto"]"#)
-        try initialize()
-        _ = try respond(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#)
-        _ = try respond(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#)
+        _ = try send(initializeRequest, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
         let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{},"#
             + #""handleURL":true,"commands":true}"#
-        _ = try respond(
+        _ = try send(
             #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
-                + #""contributions":\#(contributions)}}"#
+                + #""contributions":\#(contributions)}}"#,
+            to: sut
         )
 
         // When
-        let registered = try respond(
+        let registered = try send(
             #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"action":"go","key":"mod+1","label":"Go","#
-                + #""global":false}}"#
+                + #""global":false}}"#,
+            to: sut
         )
-        let bound = try respond(
-            #"{"jsonrpc":"2.0","id":6,"method":"keymap/bind","params":{"id":"@app.go","spec":"cmd+2"}}"#
+        let bound = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"keymap/bind","params":{"id":"@app.go","spec":"cmd+2"}}"#,
+            to: sut
         )
-        let set = try respond(
+        let set = try send(
             #"{"jsonrpc":"2.0","id":7,"method":"open/setHandlers","params":{"scheme":"mailto","order":["mail"],"#
-                + #""off":[]}}"#
+                + #""off":[]}}"#,
+            to: sut
         )
-        let routed = try respond(
+        let routed = try send(
             #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","userInitiated":true,"#
-                + #""usesDefaultApp":false}}"#
+                + #""usesDefaultApp":false}}"#,
+            to: sut
         )
-        let sources = try respond(#"{"jsonrpc":"2.0","id":9,"method":"command/sources"}"#)
+        let sources = try send(#"{"jsonrpc":"2.0","id":9,"method":"command/sources"}"#, to: sut)
 
         // Then
         guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let go = bindings.first else {
@@ -354,12 +375,12 @@ struct ServerTests {
     func settingItemIsJSON() throws {
         // Given
         let size = SettingDeclaration(key: "size", type: .number, label: "Size", defaultValue: .number(12), min: 8)
-        let item = SettingItem(declaration: size, value: .number(14), options: [])
+        let sut = SettingItem(declaration: size, value: .number(14), options: [])
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
 
         // When
-        let listed = String(decoding: try encoder.encode(item), as: UTF8.self)
+        let listed = String(decoding: try encoder.encode(sut), as: UTF8.self)
 
         // Then
         #expect(
@@ -368,20 +389,35 @@ struct ServerTests {
         )
     }
 
+    @Test("options a page answered that are not options read as none")
+    func unreadableOptionsReadAsNone() throws {
+        // Given
+        let text = #"[{"mod":"notes","key":"font","options":[{"value":null}]},{"mod":"notes","key":"size"}]"#
+
+        // When
+        let sut = try JSONDecoder().decode([ComputedChoice].self, from: Data(text.utf8))
+
+        // Then
+        #expect(sut.map(\.key) == ["font", "size"])
+        #expect(sut.allSatisfy { choice in choice.options.isEmpty })
+    }
+
     @Test("the keymap reads as the driver keeps it: each binding with its chord, its issues and its keystroke")
     func keymapIsJSON() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
         for (id, (action, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
-            _ = try respond(
+            _ = try send(
                 #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"action":"\#(action)","#
-                    + #""key":"\#(spec)","label":"","global":false}}"#
+                    + #""key":"\#(spec)","label":"","global":false}}"#,
+                to: sut
             )
         }
 
         // When
-        let bound = try respond(
-            #"{"jsonrpc":"2.0","id":4,"method":"keymap/bind","params":{"id":"@app.two","spec":"cmd+1"}}"#
+        let bound = try send(
+            #"{"jsonrpc":"2.0","id":4,"method":"keymap/bind","params":{"id":"@app.two","spec":"cmd+1"}}"#,
+                to: sut
         )
 
         // Then
@@ -406,19 +442,6 @@ struct ServerTests {
         #expect(value(in: held, at: "other", "app") == .bool(true))
     }
 
-    @Test("options a page answered that are not options read as none")
-    func unreadableOptionsReadAsNone() throws {
-        // Given
-        let text = #"[{"mod":"notes","key":"font","options":[{"value":null}]},{"mod":"notes","key":"size"}]"#
-
-        // When
-        let choices = try JSONDecoder().decode([ComputedChoice].self, from: Data(text.utf8))
-
-        // Then
-        #expect(choices.map(\.key) == ["font", "size"])
-        #expect(choices.allSatisfy { choice in choice.options.isEmpty })
-    }
-
     @Test("a result that cannot be written is answered with an internal error, never dropped")
     func unwritableResultIsAnswered() throws {
         // Given
@@ -439,11 +462,12 @@ struct ServerTests {
     @Test("a state key deckit keeps itself is refused to the driver")
     func reservedStateKeyIsRefused() throws {
         // Given
-        try initialize()
+        _ = try send(initializeRequest, to: sut)
 
         // When
-        let response = try respond(
-            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":null,"key":"keys","text":"[]"}}"#
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":null,"key":"keys","text":"[]"}}"#,
+            to: sut
         )
 
         // Then
@@ -465,10 +489,6 @@ struct ServerTests {
         try Data().write(to: folder.appending(path: "main.js"))
     }
 
-    private func initialize() throws {
-        _ = try respond(#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#)
-    }
-
     private func value(in json: JSONValue, at path: String...) -> JSONValue? {
         path.reduce(json as JSONValue?) { value, key in
             guard case let .object(fields)? = value else { return nil }
@@ -476,8 +496,8 @@ struct ServerTests {
         }
     }
 
-    private func respond(_ message: String) throws -> JSONValue {
-        try json(String(decoding: try #require(sut.respond(to: Data(message.utf8))), as: UTF8.self))
+    private func send(_ message: String, to server: Server) throws -> JSONValue {
+        try json(String(decoding: try #require(server.respond(to: Data(message.utf8))), as: UTF8.self))
     }
 
     private func json(_ text: String) throws -> JSONValue {

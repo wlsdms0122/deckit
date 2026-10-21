@@ -66,9 +66,10 @@ struct TOMLParserTests {
     func unreadTextIsRefused(text: String, message: String) {
         // Given
         // When
-        let error = #expect(throws: TOMLError.self) { try sut.parse(text) }
+        let parsed = Result { try sut.parse(text) }
 
         // Then
+        let error = #expect(throws: TOMLError.self) { try parsed.get() }
         #expect(error?.message == message)
     }
 }

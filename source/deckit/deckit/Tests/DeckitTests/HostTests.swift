@@ -71,10 +71,10 @@ struct HostTests {
     @Test("a part kept after the deckit it came from is let go still works")
     func partOutlivesItsDeckit() throws {
         // Given
-        let keymap = try deckit().keymap
+        let sut = try deckit().keymap
 
         // When
-        let resolved = keymap.register(Key(action: "find", spec: "mod+f", label: "Find", global: false))
+        let resolved = sut.register(Key(action: "find", spec: "mod+f", label: "Find", global: false))
 
         // Then
         #expect(resolved.bindings.map(\.binding.id) == ["@app.find"])

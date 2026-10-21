@@ -318,10 +318,10 @@ struct RunnerTests {
         _ = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
 
         // When
+        let relaunched = Result { try sut.relaunch("b") }
+
         // Then
-        #expect(throws: RunnerError.needs(mod: "b", requirement: "a")) {
-            try sut.relaunch("b")
-        }
+        #expect(throws: RunnerError.needs(mod: "b", requirement: "a")) { try relaunched.get() }
     }
 
     @Test("a page that loaded again by itself runs again")
@@ -354,13 +354,12 @@ struct RunnerTests {
         _ = catalog.read()
         let effects = try sut.reconcile()
         let stopped = try sut.stopped("a", run: 1)
+        let loaded = Result { try sut.loaded("a") }
 
         // Then
         #expect(describe(effects) == ["closing a", "tell willTerminate a 1 terminating removed", "stop a 1"])
         #expect(describe(stopped) == ["tell didTerminate a 1 notRunning removed", "close a removed"])
-        #expect(throws: RunnerError.noSandbox("a")) {
-            try sut.loaded("a")
-        }
+        #expect(throws: RunnerError.noSandbox("a")) { try loaded.get() }
     }
 
     @Test("a mod whose code changed runs again in a new sandbox once its old one has closed")
@@ -411,9 +410,7 @@ struct RunnerTests {
         // Then
         #expect(describe(effects) == ["tell willTerminate a 1 terminating quit", "stop a 1"])
         #expect(reconciled.isEmpty)
-        #expect(throws: RunnerError.quitting("a")) {
-            try loaded.get()
-        }
+        #expect(throws: RunnerError.quitting("a")) { try loaded.get() }
         #expect(describe(stopped) == ["tell didTerminate a 1 notRunning quit", "quit"])
     }
 
