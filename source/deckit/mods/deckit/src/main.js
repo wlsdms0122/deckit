@@ -66,10 +66,11 @@ module.exports = {
             const STATES = { launching: 'Starting', running: 'Running', notRunning: 'Not running' };
             const { found, running } = deck.mods.list();
             const icons = new Map(running.map((mod) => [mod.id, mod.icon]));
-            const names = new Map(found.map((mod) => [mod.id, mod.name]));
             return found.map((mod) => {
                 const entry = { label: mod.name, icon: icons.get(mod.id) || icon('puzzle') };
-                const missing = mod.waitsFor.map((id) => names.get(id) ?? id);
+                const missing = mod.dependencies
+                    .filter((dependency) => mod.waitsFor.includes(dependency.id))
+                    .map((dependency) => dependency.name);
                 if (!mod.state) return { ...entry, hint: mod.problem || 'Did not load' };
                 if (mod.state === 'terminating') return { ...entry, hint: 'Stopping' };
                 if (missing.length)
