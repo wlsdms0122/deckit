@@ -267,13 +267,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             return showNotice('Could not tell what it stores: ' + error.message);
         }
         const hasData = places.length > 0;
-        const loading = new Map(
-            mods
-                .list()
-                .found.filter((other) => !other.problem)
-                .map((other) => [other.id, other.name])
-        );
-        const requiring = mod.dependents.filter((id) => loading.has(id)).map((id) => loading.get(id));
+        const names = new Map(mods.list().found.map((other) => [other.id, other.name]));
+        const requiring = mod.dependents.map((id) => names.get(id) ?? id);
         const breaks = requiring.length
             ? `${requiring.join(', ')} ${requiring.length === 1 ? 'needs' : 'need'} it and will stop loading.`
             : '';
