@@ -27,7 +27,7 @@ public struct Mod: Sendable {
     // not.
     public let revision: String
     public internal(set) var dependencies: [Dependency]
-    // The mods that require it, directly or through another, by id.
+    // The mods that load and require it, directly or through another, by id.
     public internal(set) var dependents: [String]
     // The file its main names, where it really is.
     public let entry: URL?

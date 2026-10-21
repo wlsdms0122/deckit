@@ -54,18 +54,21 @@ struct DependencyGraph {
             let manifest = mods[place].manifest
             mods[place].dependencies = dependencies(manifest.requires, optional: false, in: provided)
                 + dependencies(manifest.optional, optional: true, in: provided)
-            mods[place].dependents = dependents(of: manifest.id)
+            mods[place].dependents = dependents(of: manifest.id, in: provided)
         }
 
         return mods
     }
 
-    // The mods that require `id`, directly or through another, by id: none of them loads without it.
-    func dependents(of id: String) -> [String] {
+    // MARK: - Private
+    // The mods that load and require `id`, directly or through another, by id: none of them loads without it. One that
+    // does not load, for this or another reason, is not among them.
+    private func dependents(of id: String, in mods: [Mod]) -> [String] {
         var reached: Set<String> = []
         var next = [id]
         while let current = next.popLast() {
-            for mod in found where mod.manifest.requires[current] != nil && reached.insert(mod.manifest.id).inserted {
+            for mod in mods where mod.problem == nil && mod.manifest.requires[current] != nil {
+                guard reached.insert(mod.manifest.id).inserted else { continue }
                 next.append(mod.manifest.id)
             }
         }
@@ -74,7 +77,6 @@ struct DependencyGraph {
         return reached.sorted()
     }
 
-    // MARK: - Private
     private func dependencies(_ wanted: [String: String], optional: Bool, in mods: [Mod]) -> [Dependency] {
         wanted.sorted { one, other in one.key < other.key }.map { id, want in
             let provider = places[id].map { place in mods[place] }
