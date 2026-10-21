@@ -107,8 +107,7 @@ export function createPanel({ REGION, deckit, host }) {
         PROTOCOL.frameSetup.handle((_payload, sender) => {
             if (!fromFrame(sender))
                 throw Object.assign(new Error("only the panel's frame asks this"), { kind: 'REFUSED' });
-            // What the page opened ends with it: its next run opens its own.
-            deckit.pages.whenEnds(sender, dropSurfaces);
+            deckit.pages.whenEnds(sender, frameEnded);
             sent.look = JSON.stringify(frameLook());
             return { glass: GLASS, look: frameLook(), shown, state: stateOf() };
         });
@@ -157,9 +156,11 @@ export function createPanel({ REGION, deckit, host }) {
         update();
     }
 
-    function dropSurfaces() {
-        const dropped = [...shell.surfaces.values()];
-        shell.surfaces.clear();
+    // A document loaded again in its place finds the surfaces the last one opened, by name, and draws them anew; a
+    // page that crashed or went takes them with it, and its next document opens its own.
+    function frameEnded({ replaced }) {
+        const dropped = replaced ? [] : [...shell.surfaces.values()];
+        if (!replaced) shell.surfaces.clear();
         layout();
         for (const page of dropped) deckit.pages.close(page);
         clearTimeout(shell.settling);
