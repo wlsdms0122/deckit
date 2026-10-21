@@ -66,11 +66,11 @@ public final class Catalog {
         return DependencyGraph(found).ordered()
     }
 
-    // The mods, read and kept as read, and their load order kept as they come. One not kept is placed the same way
-    // the next time.
+    // The mods, read and kept as read, and the load order of those that load kept as they come. One not kept is placed
+    // the same way the next time.
     func read() -> [Mod] {
         lastRead = mods()
-        let ids = lastRead.map(\.manifest.id)
+        let ids = loading.map(\.manifest.id)
         if ids != loadOrder.read() {
             try? loadOrder.write(ids)
         }
@@ -78,10 +78,10 @@ public final class Catalog {
         return lastRead
     }
 
-    // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
-    // put. An order that puts a mod before one it requires is refused.
+    // The ids named of mods that load take the places they held among themselves in the load order, in the order given;
+    // the rest stay put. An order that puts a mod before one it requires is refused.
     public func arrange(_ ids: [String]) throws {
-        let mods = mods()
+        let mods = mods().filter { mod in mod.problem == nil }
         var seen: Set<String> = []
         let moved = ids
             .filter { id in seen.insert(id).inserted }

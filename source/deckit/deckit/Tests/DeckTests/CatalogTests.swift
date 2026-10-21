@@ -132,27 +132,49 @@ struct CatalogTests {
         // Then
         #expect(mods.map(\.manifest.id) == ["c", "a", "b", "d"])
         let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
-        #expect(kept == .object(["loadOrder": .array(["c", "a", "b", "d"].map(JSONValue.string)), "other": .number(1)]))
+        #expect(kept == .object(["loadOrder": .array(["c", "a", "b"].map(JSONValue.string)), "other": .number(1)]))
     }
 
-    @Test("arranging moves the ids named among the places they held, and refuses a mod before one it requires")
+    @Test("arranging moves the ids named that load among the places they held, and refuses a mod before one it requires")
     func arrangeKeepsRequirementsFirst() throws {
         // Given
         for id in ["a", "c", "d"] {
             try write(id, in: source)
         }
         try write("b", in: source, requires: ["a": "1.0.0"])
+        try write("e", in: source, requires: ["f": "1.0.0"])
+        try write("f", in: source, requires: ["e": "1.0.0"])
         let sut = try catalog(sources: [source])
 
         // When
-        try sut.arrange(["d", "c", "x", "d"])
+        try sut.arrange(["d", "f", "c", "x", "d", "e"])
         let arranged = sut.mods().map(\.manifest.id)
         let refused = Result { try sut.arrange(["b", "a"]) }
 
         // Then
-        #expect(arranged == ["a", "b", "d", "c"])
+        #expect(arranged == ["a", "b", "d", "c", "e", "f"])
         #expect(throws: LoadOrderError.requiredLater(mod: "b", requirement: "a")) { try refused.get() }
         #expect(sut.mods().map(\.manifest.id) == arranged)
+    }
+
+    @Test("a settings file that does not read as a JSON object is neither read for an order nor written over")
+    func unreadableSettingsStay() throws {
+        // Given
+        try write("b", in: source)
+        try write("a", in: source)
+        let settings = home.appending(path: "deck.json")
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        try Data(#"{"loadOrder":["b","a"],"#.utf8).write(to: settings)
+        let sut = try catalog(sources: [source])
+
+        // When
+        let mods = sut.read()
+        let refused = Result { try sut.arrange(["b", "a"]) }
+
+        // Then
+        #expect(mods.map(\.manifest.id) == ["a", "b"])
+        #expect(throws: LoadOrderError.unreadable("deck.json")) { try refused.get() }
+        #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"loadOrder":["b","a"],"#)
     }
 
     @Test("installing copies the folder as mods/<id>, replacing every copy before it, and changes the revision")

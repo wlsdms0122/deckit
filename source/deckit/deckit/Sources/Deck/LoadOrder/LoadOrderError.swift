@@ -11,12 +11,17 @@ import Foundation
 public enum LoadOrderError: Refusal, Equatable {
     // A mod placed before one it requires.
     case requiredLater(mod: String, requirement: String)
+    // The settings file the order is kept in, which does not read as a JSON object.
+    case unreadable(String)
 
     // MARK: - Property
     public var message: String {
         switch self {
         case let .requiredLater(mod, requirement):
             "\(mod) requires \(requirement), which would load after it"
+
+        case let .unreadable(file):
+            "\(file) does not read as a JSON object, so the order is not kept in it"
         }
     }
 

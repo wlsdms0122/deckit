@@ -7,8 +7,8 @@
 
 import Foundation
 
-// The order the mods load in as it is kept: `loadOrder` in `deck.json`, deck's settings file, a list of mod ids. What
-// else the file holds is kept as it is.
+// The order the mods that load load in as it is kept: `loadOrder` in `deck.json`, deck's settings file, a list of mod
+// ids. What else the file holds is kept as it is, and a file that does not read as a JSON object is not written.
 final class LoadOrder {
     // MARK: - Property
     private let key = "loadOrder"
@@ -24,7 +24,7 @@ final class LoadOrder {
     // MARK: - Public
     // The ids kept, or none while the file keeps no list of them: it is a person's to edit.
     func read() -> [String] {
-        guard case let .array(ids)? = settings()[key] else { return [] }
+        guard case let .array(ids)? = (try? settings())?[key] else { return [] }
         return ids.compactMap { id in
             guard case let .string(id) = id else { return nil }
             return id
@@ -32,7 +32,7 @@ final class LoadOrder {
     }
 
     func write(_ ids: [String]) throws {
-        var settings = settings()
+        var settings = try settings()
         settings[key] = .array(ids.map(JSONValue.string))
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -40,10 +40,12 @@ final class LoadOrder {
     }
 
     // MARK: - Private
-    private func settings() -> [String: JSONValue] {
-        guard let text = store.read(file),
-            case let .object(settings)? = try? JSONDecoder().decode(JSONValue.self, from: Data(text.utf8))
-        else { return [:] }
+    // None while there is no file yet.
+    private func settings() throws -> [String: JSONValue] {
+        guard let text = store.read(file) else { return [:] }
+        guard case let .object(settings)? = try? JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) else {
+            throw LoadOrderError.unreadable(file.lastPathComponent)
+        }
 
         return settings
     }

@@ -94,6 +94,9 @@ extension ResponseError {
             switch error {
             case .requiredLater:
                 "REQUIRED_LATER"
+
+            case .unreadable:
+                "UNREADABLE"
             }
 
         case let error as ManifestError:
