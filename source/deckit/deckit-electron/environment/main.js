@@ -1,6 +1,7 @@
 // What Electron gives deck on main's side (deckit-shell/environment: MAIN): its IPC carries the messages, a page is its
 // webContents, in a view of its own, the core is a child process, and the log a file of its own.
 import * as LISTENER from '../listener/index.js';
+import * as HANDLER from '../handler/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
 import * as LOG_FILE from '../log/file.js';
@@ -48,6 +49,9 @@ function createEnvironment({ core, preload, openWindow }) {
         error: (...parts) => REPORTS.report('error', ...parts),
         guard,
     });
+    const hold = HANDLER.createHold((setter) =>
+        REPORTS.report('warn', `${setter} on a webContents or session of deckit's: left as deckit set it`)
+    );
     const WINDOW = createWindow({ LOG, openWindow });
     const MAIN_PROCESS = createMainProcess({ WINDOW, LOG, FOLDER: createFolder() });
     const NOTIFICATIONS = createNotifications({ guard });
@@ -58,7 +62,7 @@ function createEnvironment({ core, preload, openWindow }) {
     const mods = new WeakSet(); // the pages mods run in
     const openings = new WeakMap(); // a page -> { surfaces, opens }, what its window.open becomes (openingOf)
     let making = 0; // how many of deckit's webContents are being made now
-    const WEB = createWeb({ CONFIG, LOG, WINDOW, made, claim });
+    const WEB = createWeb({ CONFIG, LOG, WINDOW, made, claim, hold });
     const FOLDER = createFolder();
     // A mod's page shows the web in <webview>; one that runs no mod is named as a host is, with no dot, so its origin
     // is never a mod's.
@@ -107,7 +111,7 @@ function createEnvironment({ core, preload, openWindow }) {
             surfaces: (page, given) => {
                 openingOf(page).surfaces = given;
             },
-            serve: (folderOf) => serve({ id: CONFIG.id, folderOf, FOLDER }),
+            serve: (folderOf) => serve({ id: CONFIG.id, folderOf, FOLDER, hold }),
             pin: (page) => pin(guard, page),
             watchInput: (page, listener) => watchInput(guard, page, listener),
             clearStorage: (modId) => clearStorage(CONFIG.id, modId),
@@ -181,7 +185,7 @@ function createEnvironment({ core, preload, openWindow }) {
         if (openings.has(page)) return openings.get(page);
         const opening = { surfaces: null, opens: new Set() };
         openings.set(page, opening);
-        page.setWindowOpenHandler((details) => {
+        hold(page, 'setWindowOpenHandler', (details) => {
             const name = details.frameName;
             if (opening.surfaces?.allow(name))
                 return {
@@ -198,7 +202,7 @@ function createEnvironment({ core, preload, openWindow }) {
     function openSurface(name, surface, opened) {
         const { WebContentsView } = require('electron');
         views.set(surface, new WebContentsView({ webContents: surface }));
-        surface.setWindowOpenHandler(() => ({ action: 'deny' }));
+        hold(surface, 'setWindowOpenHandler', () => ({ action: 'deny' }));
         guard(surface, 'will-frame-navigate', (details) => details.preventDefault());
         opened(name, surface);
         return surface;

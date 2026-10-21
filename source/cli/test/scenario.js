@@ -546,6 +546,11 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const named = await until(() => /panel: frame-probe/.test(logged()), 3000);
         check("a shell page's console errors are logged under its name", named, '');
         check(
+            "a host app's handlers set on deckit's webContents later leave deckit's",
+            /setWindowOpenHandler on a webContents or session of deckit's: left as deckit set it/.test(logged()),
+            ''
+        );
+        check(
             'the log says which deckit runs, and that its core started',
             /deckit \d+\.\d+\.\d+ \(sources [0-9a-f]+\)/.test(logged()) && /core: started, pid \d+/.test(logged()),
             ''

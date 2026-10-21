@@ -43,7 +43,7 @@ export function clearStorage(id, modId) {
 // Every page of deck's is the same PAGE, whichever origin it is loaded under: what it becomes is asked of main as it
 // starts. Under a mod's origin the rest of the folder `folderOf(modId)` answers is served too, for its page to use:
 // images, styles, data, scripts. Once the app is ready, before any page of deck's loads.
-export function serve({ id, folderOf, FOLDER }) {
+export function serve({ id, folderOf, FOLDER, hold }) {
     const { net } = require('electron');
     const { pathToFileURL } = require('url');
     const missing = () => new Response('', { status: 404 });
@@ -58,8 +58,8 @@ export function serve({ id, folderOf, FOLDER }) {
     // Electron grants every permission a session has no handler for. A mod reaches the camera, the clipboard or a
     // notification through what deck and the layers on it hand it, which hold it to its permissions, and never through
     // the web's.
-    own.setPermissionRequestHandler((_webContents, _permission, answer) => answer(false));
-    own.setPermissionCheckHandler(() => false);
+    hold(own, 'setPermissionRequestHandler', (_webContents, _permission, answer) => answer(false));
+    hold(own, 'setPermissionCheckHandler', () => false);
 }
 
 // MARK: - Private

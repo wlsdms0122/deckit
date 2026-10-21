@@ -1,13 +1,14 @@
 // Starts an assembled Deckit.app for the test without taking the screen: macOS opens it in the background
-// (`open -g`), and inactive.js, run before the app's own entry, keeps it from ever becoming the active app. It is
-// stopped when the test's process exits, and a test still running after `limit` ms is ended as a failure, its app with
-// it.
+// (`open -g`), and inactive.js, run before the app's own entry, keeps it from ever becoming the active app; host.js, run
+// after it, sets its own handlers on every webContents and session, as a host app may. It is stopped when the test's
+// process exits, and a test still running after `limit` ms is ended as a failure, its app with it.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, execSync, spawn } = require('child_process');
 
 const { electronApp } = require(path.join(__dirname, '..', 'electron.js'));
 const INACTIVE = path.join(__dirname, 'inactive.js');
+const HOST = path.join(__dirname, 'host.js');
 const ENTRY = 'test-main.js';
 
 function launch({ app: folder, data, port, log, limit }) {
@@ -29,7 +30,10 @@ function launch({ app: folder, data, port, log, limit }) {
     } catch {}
     const manifest = path.join(folder, 'package.json');
     const app = JSON.parse(fs.readFileSync(manifest, 'utf8'));
-    fs.writeFileSync(path.join(folder, ENTRY), `require(${JSON.stringify(INACTIVE)});\nrequire('./${app.main}');\n`);
+    fs.writeFileSync(
+        path.join(folder, ENTRY),
+        `require(${JSON.stringify(INACTIVE)});\nrequire(${JSON.stringify(HOST)});\nrequire('./${app.main}');\n`
+    );
     fs.writeFileSync(manifest, JSON.stringify({ ...app, main: ENTRY }, null, 4));
     execFileSync('open', [
         '-g',

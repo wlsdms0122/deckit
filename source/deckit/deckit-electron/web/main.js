@@ -11,8 +11,9 @@ import { createScript } from './script.js';
 // The web pages a mod's page shows, as Electron shows them (deckit-shell/environment: MAIN.web): a <webview> in the
 // mod's page, or a page in a window of the app's, each in a session of the mod's, its web page id its webContents id.
 // `made(make)` makes a webContents as deckit's, and `claim()` claims what Electron makes until it is released, so each
-// is known as deckit's as Electron tells of it.
-export function createWeb({ CONFIG, LOG, WINDOW, made, claim }) {
+// is known as deckit's as Electron tells of it, and `hold(target, setter, handler)` sets a handler on one of them and
+// keeps it.
+export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold }) {
     // MARK: - Property
     const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
     const icons = new Map(); // page id -> the icon it last announced
@@ -32,6 +33,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim }) {
     const SITE_PERMISSION = createSitePermission({
         SESSION,
         REGISTRY,
+        hold,
         sessionOf: sessionOfPage,
         permits: told('permits'),
         request: told('request'),
@@ -244,7 +246,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim }) {
     // A popup keeps the page Chromium made for it, where the opener link is, and it is not a child window, which macOS
     // fastens to its parent.
     function holdWindowOpen(modPage, page, { inPage }) {
-        page.setWindowOpenHandler(({ url, disposition, frameName }) => {
+        hold(page, 'setWindowOpenHandler', ({ url, disposition, frameName }) => {
             const asked = {
                 url,
                 tab: REGISTRY.get(page.id)?.tab ?? page.id,

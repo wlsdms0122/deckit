@@ -5,7 +5,7 @@ import * as SITE from '../../deckit-shell/web/model/site.js';
 // have `name` in a mod's session, `{ mod, name }` or null; `request(embedder, id, { origin, permissions })` and
 // `requestApp(embedder, id, { url, origin })` answer, each a promise, whether the web page of that id, or the tab it
 // answers to, may have it.
-export function createSitePermission({ SESSION, REGISTRY, sessionOf, permits, request, requestApp }) {
+export function createSitePermission({ SESSION, REGISTRY, hold, sessionOf, permits, request, requestApp }) {
     // MARK: - Property
     // Chromium's names for what a site asks, by the web platform's.
     const NAMES = {
@@ -27,8 +27,8 @@ export function createSitePermission({ SESSION, REGISTRY, sessionOf, permits, re
     // MARK: - Public
     function start() {
         SESSION.onCreate((session) => {
-            session.setPermissionRequestHandler(onRequest);
-            session.setPermissionCheckHandler(onCheck);
+            hold(session, 'setPermissionRequestHandler', onRequest);
+            hold(session, 'setPermissionCheckHandler', onCheck);
         });
     }
 
