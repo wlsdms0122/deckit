@@ -37,8 +37,8 @@ for dir in source/deckit/mods/*/; do
   " || { echo "$dir does not bundle from its src/ alone into an entry: stopping" >&2; exit 1; }
 done
 
-# The core, for both kinds of Mac, beside main.js. Its build is kept between runs, and nothing in it names where it was
-# built: the same sources make the same bytes.
+# The core, for both kinds of Mac, beside main.js. Its build is kept between runs, and it names no folder of the
+# checkout's: built again from the same sources on the same machine, it is the same bytes.
 CORE_SWIFT=(swift build --package-path source/deckit/deckit --product deckit -c release --arch arm64 --arch x86_64
   --scratch-path "$OUT/core" -Xswiftc -file-prefix-map -Xswiftc "$PWD/source/deckit/deckit=." -Xlinker -S)
 "${CORE_SWIFT[@]}" --quiet || { echo "the core could not be built: stopping" >&2; exit 1; }
@@ -49,8 +49,8 @@ SWIFT="$(swift --version 2>/dev/null | sed -n 's/.*\(Swift version [^)]*)\).*/\1
 [ -n "$SWIFT" ] || { echo "which Swift builds the core is not known: stopping" >&2; exit 1; }
 node source/cli/bundle.js "$LIB" "$VERSION" "$SOURCE_HASH" "$SWIFT" || { echo "deckit could not be bundled: stopping" >&2; exit 1; }
 
-# Byte for byte the same from the same sources, wherever built with the same Swift: the archive's hash is which deckit it
-# is.
+# Byte for byte the same from the same sources on the same machine: a build that changed nothing makes the archive it
+# made before.
 pack() {
   local from="$1" to="$2"
   chmod -R u=rwX,go=rX "$from"
