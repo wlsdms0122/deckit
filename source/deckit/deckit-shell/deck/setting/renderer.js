@@ -44,16 +44,17 @@ function of({ declared, saved, deck, deliver, fail }) {
     };
 }
 
-// What main is told of the declarations: their data, without functions, in the order declared.
+// What main is told of the declarations: their data, in the order declared. A function cannot cross, so a field that
+// is one crosses as an empty object, which no field takes: the core tells it as a field of the wrong kind.
 function declarationsOf(declared) {
     const out = [];
     for (const [key, declaration] of Object.entries(declared || {})) {
         const { run, options, ...fields } = declaration ?? {};
-        const data = Object.entries(fields).filter(([, value]) => typeof value !== 'function');
+        const data = Object.entries(fields).map(([name, value]) => [name, typeof value === 'function' ? {} : value]);
         out.push({
             ...Object.fromEntries(data),
             key,
-            options: Array.isArray(options) ? options : [],
+            options: typeof options === 'function' ? [] : (options ?? []),
             computed: typeof options === 'function',
         });
     }
