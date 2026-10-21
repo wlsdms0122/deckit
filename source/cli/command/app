@@ -11,13 +11,19 @@ NEW="$APP.new"
 rm -rf "$NEW"
 # -c clones on APFS; a plain copy where the disk cannot.
 cp -Rc "$ELECTRON_APP" "$NEW" 2>/dev/null || { rm -rf "$NEW"; cp -R "$ELECTRON_APP" "$NEW"; }
-rm -f "$NEW/Contents/Resources/default_app.asar"
+rm -f "$NEW/Contents/Resources/default_app.asar" "$NEW/Contents/Resources/electron.icns"
+# The icon as the system draws it now (Assets.car), and as an older one does (Deckit.icns).
+xcrun actool source/deckit/deckit-app/Deckit.icon --compile "$NEW/Contents/Resources" --platform macosx \
+  --minimum-deployment-target 12.0 --app-icon Deckit --output-partial-info-plist "$NEW.icon.plist" >/dev/null
+rm -f "$NEW.icon.plist"
 node -e "require('./source/cli/app.js').assemble(process.argv[1], process.argv[2])" "$ARCHIVE" "$NEW/Contents/Resources/app"
 DECKIT_VERSION="$(node -p "require('./$NEW/Contents/Resources/app/package.json').version")"
 PLIST="$NEW/Contents/Info.plist"
 plutil -replace CFBundleName -string Deckit "$PLIST"
 plutil -replace CFBundleDisplayName -string Deckit "$PLIST"
 plutil -replace CFBundleIdentifier -string dev.deckit.app "$PLIST"
+plutil -replace CFBundleIconFile -string Deckit "$PLIST"
+plutil -replace CFBundleIconName -string Deckit "$PLIST"
 plutil -replace CFBundleShortVersionString -string "$DECKIT_VERSION" "$PLIST"
 plutil -replace CFBundleVersion -string "$DECKIT_VERSION" "$PLIST"
 # codesign says it replaces Electron's signature each time: what it says is shown only when it fails.
