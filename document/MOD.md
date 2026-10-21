@@ -121,6 +121,8 @@ What the person can choose about the mod is declared. Settings draws and lists e
 | `text` | `placeholder` |
 | `action` | `button` (its text) and `run(deck)`, which may return a line to show |
 
+A declaration the core does not read, of another type or with a field of the wrong kind, is left out and shown on the mod's row in Settings; the rest stand.
+
 ## What start() registers
 
 Each registration is a call on `deck`, made once, before `start` ends; deck contributes them all when it does. Leaving one out is how a mod opts out of it. A call made twice, or after `start` ended, is shown on the mod's row in Settings. A `start` that throws or rejects leaves the mod unstarted, with the reason on its row.
