@@ -20,6 +20,7 @@ module.exports = {
         document.addEventListener('test-stack', async () => {
             const probe = await deck.mainProcess('main-process/stack.js');
             marks.found = String(await probe.found());
+            marks.stages = JSON.stringify(await probe.stages());
             marks.stack = JSON.stringify(await probe.stack());
         });
     },

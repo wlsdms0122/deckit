@@ -69,7 +69,8 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         );
     const visibility = async (id) => ((await current()) === id ? 'visible' : 'hidden');
     // The pages laid with the panel's frame, bottom to top, as a main process module of the window probe's finds
-    // them: { url, shown, width } each; and whether it finds the window its own page is shown in.
+    // them: { url, shown, width } each; whether it finds the window its own page is shown in; and the stages in the
+    // frame's window, { shown, pages } each.
     const stackNow = async () => {
         const probe = await page('deckit://window-probe.mod');
         await probe?.evaluate(
@@ -81,6 +82,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         };
         const stack = (await until(async () => (await read()) || false, 4000)) || [];
         stack.found = (await probe?.evaluate('document.documentElement.dataset.found')) === 'true';
+        stack.stages = JSON.parse((await probe?.evaluate('document.documentElement.dataset.stages')) || '[]');
         return stack;
     };
     const urlsOf = (stack) => (Array.isArray(stack) ? stack.map(({ url }) => url.replace(/\/$/, '')) : []);
@@ -353,6 +355,18 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         );
         check('a refused navigation leaves the page its commands', listed, '');
         await again?.key('Escape', 'Escape', 0, 27);
+        // A stage shown with no page shown on it draws nothing and still takes the window's clicks.
+        const stagesNow = async () => (await stackNow()).stages;
+        const shows = (stage, url) => stage.pages.some((shown) => shown.startsWith(url));
+        const putAway = await until(async () => {
+            const stages = await stagesNow();
+            return stages.length && !stages.some((stage) => shows(stage, 'deckit://switcher')) && stages;
+        }, 3000);
+        check(
+            'the switcher put away leaves no stage over the window',
+            putAway && !putAway.some(({ shown, pages }) => shown && !pages.length),
+            JSON.stringify(putAway || (await stagesNow()))
+        );
         await frame.press('[data-mod-id="editor"]');
         await until(async () => (await visibility('editor')) === 'visible', 3000);
         const activeLine = `document.querySelector('.cm-focused .cm-activeLine')?.textContent`;
