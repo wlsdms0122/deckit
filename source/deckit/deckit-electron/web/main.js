@@ -10,7 +10,8 @@ import { createScript } from './script.js';
 
 // The web pages a mod's page shows, as Electron shows them (deckit-shell/environment: MAIN.web): a <webview> in the
 // mod's page, or a page in a window of the app's, each in a session of the mod's, its web page id its webContents id.
-export function createWeb({ CONFIG, LOG, WINDOW }) {
+// `made(make)` makes a webContents as deckit's, so it is known as deckit's as Electron tells of it.
+export function createWeb({ CONFIG, LOG, WINDOW, made }) {
     // MARK: - Property
     const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
     const icons = new Map(); // page id -> the icon it last announced
@@ -105,14 +106,17 @@ export function createWeb({ CONFIG, LOG, WINDOW }) {
 
     function openWindow(modPage, { mod, session, url, title }) {
         const { WebContentsView } = require('electron');
-        const pageView = new WebContentsView({
-            webPreferences: {
-                session: SESSION.of(mod, session),
-                sandbox: true,
-                contextIsolation: true,
-                nodeIntegration: false,
-            },
-        });
+        const pageView = made(
+            () =>
+                new WebContentsView({
+                    webPreferences: {
+                        session: SESSION.of(mod, session),
+                        sandbox: true,
+                        contextIsolation: true,
+                        nodeIntegration: false,
+                    },
+                })
+        );
         const page = pageView.webContents;
         const id = page.id;
         const window = showInWindow(pageView, { title, size: WINDOW_SIZE });
