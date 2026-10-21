@@ -18,7 +18,7 @@ struct KeymapTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("a mod's keys are those its run contributed, a global one only with system.global-keys")
-    func testThatModKeysComeFromItsRun() throws {
+    func modKeysComeFromItsRun() throws {
         // Given
         try fixture.write("a", permissions: ["system.global-keys"])
         try fixture.write("b")
@@ -37,7 +37,7 @@ struct KeymapTests {
     }
 
     @Test("bindings are listed as a keystroke tries them, and a mod's own key hides the app's in its page")
-    func testThatKeystrokesResolveInOrder() throws {
+    func keystrokesResolveInOrder() throws {
         // Given
         try fixture.write("a", permissions: ["system.global-keys"])
         let sut = try fixture.deckit()
@@ -56,7 +56,7 @@ struct KeymapTests {
     }
 
     @Test("a change landing on a chord taken is held, by the order changes were made in, which a restart keeps")
-    func testThatALaterChangeIsHeld() throws {
+    func laterChangeIsHeld() throws {
         // Given
         let sut = try fixture.deckit()
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
@@ -81,7 +81,7 @@ struct KeymapTests {
     }
 
     @Test("a binding back to its default keeps no change", arguments: [true, false])
-    func testThatABindingGoesBackToItsDefault(resets: Bool) throws {
+    func bindingGoesBackToItsDefault(resets: Bool) throws {
         // Given
         let sut = try fixture.deckit()
         _ = sut.keymap.register(appKey("one", "mod+1"))
@@ -96,26 +96,28 @@ struct KeymapTests {
         #expect(binding.changed == false)
     }
 
-    @Test("what cannot be bound is refused, by why")
-    func testThatBindRefuses() throws {
+    @Test(
+        "what cannot be bound is refused, by why",
+        arguments: [
+            ("@app.none", "cmd+1", KeymapError.noSuchBinding("@app.none")),
+            ("@app.switch", "cmd+nope", .notAChord("cmd+nope")),
+            ("@app.switch", "cmd+c", .cannotBeGlobal(label: "⌘C"))
+        ]
+    )
+    func bindRefuses(id: String, spec: String, refusal: KeymapError) throws {
         // Given
         let sut = try fixture.deckit()
         _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
 
         // When
-        let refusals = [("@app.none", "cmd+1"), ("@app.switch", "cmd+nope"), ("@app.switch", "cmd+c")].map { id, spec in
-            #expect(throws: KeymapError.self) {
-                try sut.keymap.bind(id, spec: spec)
-            }
-        }
+        let bound = Result { try sut.keymap.bind(id, spec: spec) }
 
         // Then
-        let copy = try #require(Keystroke(spec: "cmd+c")).label
-        #expect(refusals == [.noSuchBinding("@app.none"), .notAChord("cmd+nope"), .cannotBeGlobal(label: copy)])
+        #expect(throws: refusal) { try bound.get() }
     }
 
     @Test("a run that ends takes its keys with it")
-    func testThatAnEndedRunTakesItsKeys() throws {
+    func endedRunTakesItsKeys() throws {
         // Given
         try fixture.write("a")
         let sut = try fixture.deckit()

@@ -23,7 +23,7 @@ struct DataFolderTests {
 
     // MARK: - Test
     @Test("count is every file of the mod's folder, its folders' too, and notes the hidden ones")
-    func testThatCountWalksFolders() throws {
+    func countWalksFolders() throws {
         // Given
         let notes = folder.appending(path: "notes")
         try FileManager.default.createDirectory(at: notes.appending(path: "inner"), withIntermediateDirectories: true)
@@ -39,16 +39,17 @@ struct DataFolderTests {
     }
 
     @Test("an id that is no mod's is refused, and erasing takes the mod's folder")
-    func testThatIdIsHeldToRule() throws {
+    func idIsHeldToRule() throws {
         // Given
         let notes = folder.appending(path: "notes")
         try FileManager.default.createDirectory(at: notes, withIntermediateDirectories: true)
 
         // When
         try sut.erase(mod: "notes")
+        let counted = Result { try sut.count(mod: "../x") }
 
         // Then
-        #expect(throws: DataFolderError.notAMod("../x")) { try sut.count(mod: "../x") }
+        #expect(throws: DataFolderError.notAMod("../x")) { try counted.get() }
         #expect(!FileManager.default.fileExists(atPath: notes.path(percentEncoded: false)))
     }
 }

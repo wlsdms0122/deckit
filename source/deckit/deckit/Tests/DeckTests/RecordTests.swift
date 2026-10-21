@@ -23,7 +23,7 @@ struct RecordTests {
 
     // MARK: - Test
     @Test("a record reads back the text it was written with")
-    func testThatRecordReadsBackItsText() throws {
+    func recordReadsBackItsText() throws {
         // Given
         let text = #"{"b":1,"a":[true,null]}"#
 
@@ -35,7 +35,7 @@ struct RecordTests {
     }
 
     @Test("a key never written reads as nil")
-    func testThatMissingRecordReadsAsNil() throws {
+    func missingRecordReadsAsNil() throws {
         // Given
         // When
         let text = try sut.read(mod: "notes", key: "tabs")
@@ -45,7 +45,7 @@ struct RecordTests {
     }
 
     @Test("a mod reads only its own records")
-    func testThatModReadsOnlyItsOwnRecords() throws {
+    func modReadsOnlyItsOwnRecords() throws {
         // Given
         try sut.write(mod: "notes", key: "tabs", text: "1")
 
@@ -57,7 +57,7 @@ struct RecordTests {
     }
 
     @Test("keys lists a mod's records in order")
-    func testThatKeysListsRecordsInOrder() throws {
+    func keysListsRecordsInOrder() throws {
         // Given
         try sut.write(mod: "notes", key: "b", text: "1")
         try sut.write(mod: "notes", key: "a", text: "2")
@@ -71,7 +71,7 @@ struct RecordTests {
     }
 
     @Test("a removed record is gone, and removing one never written is no error")
-    func testThatRemovedRecordIsGone() throws {
+    func removedRecordIsGone() throws {
         // Given
         try sut.write(mod: "notes", key: "tabs", text: "1")
 
@@ -85,7 +85,7 @@ struct RecordTests {
     }
 
     @Test("erasing takes every record of the mod's and no other's")
-    func testThatEraseTakesOnlyTheModsRecords() throws {
+    func eraseTakesOnlyTheModsRecords() throws {
         // Given
         try sut.write(mod: "notes", key: "a", text: "1")
         try sut.write(mod: "finder", key: "a", text: "2")
@@ -100,7 +100,7 @@ struct RecordTests {
     }
 
     @Test("count is every file of the mod's records but the hidden ones, and says whether there are any")
-    func testThatCountIsEveryFile() throws {
+    func countIsEveryFile() throws {
         // Given
         try sut.write(mod: "notes", key: "a", text: "1")
         try sut.write(mod: "notes", key: "b", text: "2")
@@ -115,20 +115,22 @@ struct RecordTests {
     }
 
     @Test("a key that would not name a file is refused as KEY", arguments: ["", "Tabs", "a/b", "a..b", ".a"])
-    func testThatBadKeyIsRefused(key: String) {
+    func badKeyIsRefused(key: String) {
         // Given
         // When
+        let written = Result { try sut.write(mod: "notes", key: key, text: "1") }
+
         // Then
-        #expect(throws: RecordError.notAKey(key)) {
-            try sut.write(mod: "notes", key: key, text: "1")
-        }
+        #expect(throws: RecordError.notAKey(key)) { try written.get() }
     }
 
     @Test("count is refused for an id that is no mod's", arguments: ["../notes", "Notes"])
-    func testThatCountRefusesOtherIds(mod: String) {
+    func countRefusesOtherIds(mod: String) {
         // Given
         // When
+        let counted = Result { try sut.count(mod: mod) }
+
         // Then
-        #expect(throws: RecordError.notAMod(mod)) { try sut.count(mod: mod) }
+        #expect(throws: RecordError.notAMod(mod)) { try counted.get() }
     }
 }

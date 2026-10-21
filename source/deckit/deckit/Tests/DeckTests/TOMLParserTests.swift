@@ -17,7 +17,7 @@ struct TOMLParserTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("a manifest's kinds of values are read, tables, quoted keys and arrays over lines among them")
-    func testThatValuesAreRead() throws {
+    func valuesAreRead() throws {
         // Given
         let text = """
             \u{FEFF}id = "notes" # a comment
@@ -63,12 +63,13 @@ struct TOMLParserTests {
             ("a = " + String(repeating: "[", count: 10_000), "line 1: arrays nest at most 32 deep")
         ]
     )
-    func testThatUnreadTextIsRefused(text: String, message: String) {
+    func unreadTextIsRefused(text: String, message: String) {
         // Given
         // When
-        let error = #expect(throws: TOMLError.self) { try sut.parse(text) }
+        let parsed = Result { try sut.parse(text) }
 
         // Then
+        let error = #expect(throws: TOMLError.self) { try parsed.get() }
         #expect(error?.message == message)
     }
 }

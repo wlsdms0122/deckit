@@ -23,7 +23,7 @@ struct StateTests {
 
     // MARK: - Test
     @Test("all reads back every key written, the state folder's first, then each folder's by name")
-    func testThatAllReadsBackEveryKey() throws {
+    func allReadsBackEveryKey() throws {
         // Given
         try sut.write(folder: "host", key: "pinned", text: #"["notes"]"#)
         try sut.write(folder: nil, key: "mod-order", text: #"["b","a"]"#)
@@ -44,24 +44,23 @@ struct StateTests {
     }
 
     @Test("a reserved key of the state folder is written only by its keeper; one of the same name in a folder is not")
-    func testThatAReservedKeyIsRefused() throws {
+    func reservedKeyIsRefused() throws {
         // Given
         sut.reserve("keys")
-
-        // When
         try sut.write(reserved: "keys", text: "[]")
         try sut.write(folder: "host", key: "keys", text: "1")
 
+        // When
+        let written = Result { try sut.write(folder: nil, key: "keys", text: "{}") }
+
         // Then
-        #expect(throws: StateError.reserved("keys")) {
-            try sut.write(folder: nil, key: "keys", text: "{}")
-        }
+        #expect(throws: StateError.reserved("keys")) { try written.get() }
         #expect(try sut.read(folder: nil, key: "keys") == "[]")
         #expect(try sut.read(folder: "host", key: "keys") == "1")
     }
 
     @Test("all reads none from a state folder that is not there")
-    func testThatAllReadsNoneWithoutFolder() throws {
+    func allReadsNoneWithoutFolder() throws {
         // Given
         // When
         let entries = try sut.all()
@@ -71,7 +70,7 @@ struct StateTests {
     }
 
     @Test("all leaves out what is not a key's file")
-    func testThatAllLeavesOutOtherFiles() throws {
+    func allLeavesOutOtherFiles() throws {
         // Given
         try sut.write(folder: nil, key: "a", text: "1")
         try Data("2".utf8).write(to: folder.appending(path: "b.json.tmp"))
@@ -90,22 +89,22 @@ struct StateTests {
     }
 
     @Test("a key that would not name a file is refused as KEY", arguments: ["", "Order", "a/b", "a..b", ".a"])
-    func testThatBadKeyIsRefused(key: String) {
+    func badKeyIsRefused(key: String) {
         // Given
         // When
+        let written = Result { try sut.write(folder: nil, key: key, text: "1") }
+
         // Then
-        #expect(throws: StateError.notAKey(key)) {
-            try sut.write(folder: nil, key: key, text: "1")
-        }
+        #expect(throws: StateError.notAKey(key)) { try written.get() }
     }
 
     @Test("a folder that would not name one is refused as FOLDER", arguments: ["", "Host", "a/b", ".."])
-    func testThatBadFolderIsRefused(folder: String) {
+    func badFolderIsRefused(folder: String) {
         // Given
         // When
+        let written = Result { try sut.write(folder: folder, key: "a", text: "1") }
+
         // Then
-        #expect(throws: StateError.notAFolder(folder)) {
-            try sut.write(folder: folder, key: "a", text: "1")
-        }
+        #expect(throws: StateError.notAFolder(folder)) { try written.get() }
     }
 }

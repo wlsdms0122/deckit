@@ -18,7 +18,7 @@ struct CommandRegistryTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("the sources are the mods whose runs registered what a person may run, in the mods' order")
-    func testThatSourcesAreTheRunsThatRegistered() throws {
+    func sourcesAreTheRunsThatRegistered() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b")

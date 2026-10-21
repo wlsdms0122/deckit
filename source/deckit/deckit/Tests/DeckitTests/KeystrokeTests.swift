@@ -14,72 +14,91 @@ struct KeystrokeTests {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a spec is read as one spelling, and one with a second key or an unknown word is no chord")
-    func testThatSpecsAreRead() {
-        // Given
-        let written = ["Shift+Mod+G", "option+control+left", "mod+a+b", "cmd+nope", "cmd+", "f12"]
-
-        // When
-        let specs = written.map { spec in Keystroke(spec: spec)?.spec }
-
-        // Then
-        #expect(specs == ["shift+cmd+g", "ctrl+alt+left", nil, nil, nil, "f12"])
-    }
-
-    @Test("a chord is labeled as the platform writes it")
-    func testThatChordsAreLabeled() throws {
-        // Given
-        let keystrokes = try ["ctrl+alt+shift+cmd+t", "cmd+escape", "cmd+["].map { spec in
-            try #require(Keystroke(spec: spec))
-        }
-
-        // When
-        let labels = keystrokes.map(\.label)
-
-        // Then
-        #expect(labels == ["⌃⌥⇧⌘T", "⌘⎋", "⌘["])
-    }
-
-    @Test("a global chord has ⌘, ⌃ or ⌥, and none a text field uses")
-    func testThatGlobalChordsAreJudged() throws {
-        // Given
-        let specs = ["cmd+shift+g", "shift+g", "cmd+c", "cmd+left", "ctrl+c"]
-
-        // When
-        let fits = try specs.map { spec in try #require(Keystroke(spec: spec)).fitsGlobal }
-
-        // Then
-        #expect(fits == [true, false, false, false, true])
-    }
-
-    @Test("a keystroke typed to be bound comes to what recording does with it")
-    func testThatRecordedKeysAreJudged() {
-        // Given
-        let typed = [
-            Keystroke(code: "Escape", meta: false, control: false, shift: false, alt: false),
-            Keystroke(code: "Backspace", meta: false, control: false, shift: false, alt: false),
-            Keystroke(code: "MetaLeft", meta: true, control: false, shift: false, alt: false),
-            Keystroke(code: "KeyA", meta: false, control: false, shift: true, alt: false),
-            Keystroke(code: "F5", meta: false, control: false, shift: false, alt: false),
-            Keystroke(code: "KeyK", meta: true, control: false, shift: false, alt: false),
-            Keystroke(code: "IntlRo", meta: true, control: false, shift: false, alt: false)
+    @Test(
+        "a spec is read as one spelling, and one with a second key or an unknown word is no chord",
+        arguments: [
+            ("Shift+Mod+G", "shift+cmd+g"),
+            ("option+control+left", "ctrl+alt+left"),
+            ("mod+a+b", nil),
+            ("cmd+nope", nil),
+            ("cmd+", nil),
+            ("f12", "f12")
         ]
-
+    )
+    func specIsRead(written: String, spec: String?) {
+        // Given
         // When
-        let recorded = typed.map(RecordedKey.init)
+        let sut = Keystroke(spec: written)
 
         // Then
-        #expect(
-            recorded == [
-                .cancel,
-                .clear,
-                .pending,
-                .refused("Add ⌘, ⌃ or ⌥"),
-                .spec("f5"),
-                .spec("cmd+k"),
+        #expect(sut?.spec == spec)
+    }
+
+    @Test(
+        "a chord is labeled as the platform writes it",
+        arguments: [
+            ("ctrl+alt+shift+cmd+t", "⌃⌥⇧⌘T"),
+            ("cmd+escape", "⌘⎋"),
+            ("cmd+[", "⌘[")
+        ]
+    )
+    func chordIsLabeled(spec: String, label: String) throws {
+        // Given
+        let sut = try #require(Keystroke(spec: spec))
+
+        // When
+        let labeled = sut.label
+
+        // Then
+        #expect(labeled == label)
+    }
+
+    @Test(
+        "a global chord has ⌘, ⌃ or ⌥, and none a text field uses",
+        arguments: [
+            ("cmd+shift+g", true),
+            ("shift+g", false),
+            ("cmd+c", false),
+            ("cmd+left", false),
+            ("ctrl+c", true)
+        ]
+    )
+    func globalChordIsJudged(spec: String, fits: Bool) throws {
+        // Given
+        let sut = try #require(Keystroke(spec: spec))
+
+        // When
+        let fitsGlobal = sut.fitsGlobal
+
+        // Then
+        #expect(fitsGlobal == fits)
+    }
+
+    @Test(
+        "a keystroke typed to be bound comes to what recording does with it",
+        arguments: [
+            (Keystroke(code: "Escape", meta: false, control: false, shift: false, alt: false), RecordedKey.cancel),
+            (Keystroke(code: "Backspace", meta: false, control: false, shift: false, alt: false), .clear),
+            (Keystroke(code: "MetaLeft", meta: true, control: false, shift: false, alt: false), .pending),
+            (
+                Keystroke(code: "KeyA", meta: false, control: false, shift: true, alt: false),
+                .refused("Add ⌘, ⌃ or ⌥")
+            ),
+            (Keystroke(code: "F5", meta: false, control: false, shift: false, alt: false), .spec("f5")),
+            (Keystroke(code: "KeyK", meta: true, control: false, shift: false, alt: false), .spec("cmd+k")),
+            (
+                Keystroke(code: "IntlRo", meta: true, control: false, shift: false, alt: false),
                 .refused("That key cannot be bound")
-            ]
-        )
+            )
+        ]
+    )
+    func recordedKeyIsJudged(typed: Keystroke, recorded: RecordedKey) {
+        // Given
+        // When
+        let sut = RecordedKey(typed)
+
+        // Then
+        #expect(sut == recorded)
     }
 
     // MARK: - Private

@@ -29,7 +29,7 @@ struct CatalogTests {
 
     // MARK: - Test
     @Test("those that load come in the person's order, then as the app ships them, then by id; then the rest")
-    func testThatModsComeInOrder() throws {
+    func modsComeInOrder() throws {
         // Given
         try write("c", in: home.appending(path: "mods"))
         try write("b", in: home.appending(path: "mods"))
@@ -49,7 +49,7 @@ struct CatalogTests {
     }
 
     @Test("a mod read in place comes before an installed copy of its id, which it hides")
-    func testThatSourceHidesInstalled() throws {
+    func sourceHidesInstalled() throws {
         // Given
         try write("a", in: source)
         try write("a", in: home.appending(path: "mods"))
@@ -57,16 +57,17 @@ struct CatalogTests {
 
         // When
         let mods = sut.mods()
+        let removed = Result { try sut.remove("a") }
 
         // Then
         #expect(mods.count == 1)
         #expect(mods.first?.installed == false)
         #expect(mods.first?.hides.map(\.lastPathComponent) == ["a"])
-        #expect(throws: InstallError.self) { try sut.remove("a") }
+        #expect(throws: InstallError.self) { try removed.get() }
     }
 
     @Test("a cycle fails every mod in it, and a failure spreads to whoever requires it")
-    func testThatRequirementsFail() throws {
+    func requirementsFail() throws {
         // Given
         try write("a", in: source, requires: ["b": "1.0.0"])
         try write("b", in: source, requires: ["a": "1.0.0"])
@@ -87,7 +88,7 @@ struct CatalogTests {
     }
 
     @Test("arranging moves the ids named among the places they held, and keeps the order in the state")
-    func testThatArrangeKeepsOrder() throws {
+    func arrangeKeepsOrder() throws {
         // Given
         for id in ["a", "b", "c", "d"] {
             try write(id, in: source)
@@ -103,7 +104,7 @@ struct CatalogTests {
     }
 
     @Test("installing copies the folder as mods/<id>, takes every copy before it away, and changes the revision")
-    func testThatInstallReplacesCopies() throws {
+    func installReplacesCopies() throws {
         // Given
         try write("a", in: home.appending(path: "mods"), folder: "old-a")
         try write("a", in: source, version: "2.0.0")
@@ -125,7 +126,7 @@ struct CatalogTests {
     }
 
     @Test("a folder that does not load, the installed one, or one a source hides is not installed")
-    func testThatInstallRefuses() throws {
+    func installRefuses() throws {
         // Given
         try write("a", in: home.appending(path: "mods"))
         try write("b", in: root, main: nil)
@@ -134,47 +135,62 @@ struct CatalogTests {
         let sut = try catalog(sources: [source])
 
         // When
+        let installed = Result { try sut.wouldInstall(from: home.appending(path: "mods/a")) }
+        let unloadable = Result { try sut.wouldInstall(from: root.appending(path: "b")) }
+        let hidden = Result { try sut.wouldInstall(from: root.appending(path: "other/c")) }
+
         // Then
-        #expect(throws: InstallError.installedThere) {
-            try sut.wouldInstall(from: home.appending(path: "mods/a"))
-        }
+        #expect(throws: InstallError.installedThere) { try installed.get() }
         #expect(throws: InstallError.notLoadable(#"main = "missing.js" names no file in the mod's folder"#)) {
-            try sut.wouldInstall(from: root.appending(path: "b"))
+            try unloadable.get()
         }
         let shadow = "c is read from \(source.appending(path: "c").path(percentEncoded: false)), which would hide the "
             + "installed copy"
-        #expect(throws: InstallError.refused(shadow)) {
-            try sut.wouldInstall(from: root.appending(path: "other/c"))
-        }
+        #expect(throws: InstallError.refused(shadow)) { try hidden.get() }
     }
 
     @Test("what the app ships is installed, but not again once the person removed it")
-    func testThatShippedRemovedStaysOut() throws {
+    func shippedRemovedStaysOut() throws {
         // Given
         try write("a", in: ship)
         try write("b", in: ship, main: nil)
         let shipped = [ship.appending(path: "a"), ship.appending(path: "b")]
-        let first = try catalog(ship: shipped)
-        let outcomes = try first.installShipped()
-        _ = try first.remove("a")
+        let sut = try catalog(ship: shipped)
 
         // When
-        let again = try catalog(ship: shipped).installShipped()
+        let outcomes = try sut.installShipped()
+        _ = try sut.remove("a")
+        let restarted = try catalog(ship: shipped)
+        let again = try restarted.installShipped()
+        let mods = restarted.mods()
 
         // Then
         #expect(outcomes.map(\.outcome) == [.installed, .failed])
         #expect(again.map(\.outcome) == [.leftOut, .failed])
-        let failed = try catalog(ship: shipped)
-        _ = try failed.installShipped()
-        let problem = #"did not install: main = "missing.js" names no file in the mod's folder"#
-        #expect(failed.mods().map(\.problem) == [problem])
+        #expect(mods.map(\.problem) == [#"did not install: main = "missing.js" names no file in the mod's folder"#])
+    }
+
+    @Test("what the app ships that fails to install says why, and is no installed mod")
+    func shippedFailedIsNotInstalled() throws {
+        // Given
+        try write("b", in: ship, main: nil)
         try write("b", in: source)
-        #expect(try failed.wouldInstall(from: source.appending(path: "b")).id == "b")
-        #expect(throws: InstallError.notInstalled("b")) { try failed.remove("b") }
+        let sut = try catalog(ship: [ship.appending(path: "b")])
+
+        // When
+        _ = try sut.installShipped()
+        let mods = sut.mods()
+        let installing = try sut.wouldInstall(from: source.appending(path: "b"))
+        let removed = Result { try sut.remove("b") }
+
+        // Then
+        #expect(mods.map(\.problem) == [#"did not install: main = "missing.js" names no file in the mod's folder"#])
+        #expect(installing.id == "b")
+        #expect(throws: InstallError.notInstalled("b")) { try removed.get() }
     }
 
     @Test("removing a mod whose manifest names no mod id answers that deck keeps nothing under it")
-    func testThatRemoveAnswersWhetherIdKeepsData() throws {
+    func removeAnswersWhetherIdKeepsData() throws {
         // Given
         try write("Note", in: home.appending(path: "mods"))
         try write("note", in: home.appending(path: "mods"), folder: "note-copy")

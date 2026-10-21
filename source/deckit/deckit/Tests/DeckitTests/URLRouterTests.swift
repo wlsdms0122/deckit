@@ -18,7 +18,7 @@ struct URLRouterTests {
     // MARK: - Initializer
     // MARK: - Test
     @Test("an address is offered to its scheme's handlers, the app's first, then to what deckit opens by itself")
-    func testThatAnAddressIsRouted() throws {
+    func addressIsRouted() throws {
         // Given
         try fixture.write("a", urlSchemes: ["https"])
         try fixture.write("b", urlSchemes: ["https"])
@@ -42,7 +42,7 @@ struct URLRouterTests {
     }
 
     @Test("a file opens only on a press, and an address that is not a place opens nowhere")
-    func testThatWhatIsNotAPlaceOrUnpressedOpensNowhere() throws {
+    func whatIsNotAPlaceOrUnpressedOpensNowhere() throws {
         // Given
         try fixture.write("a", urlSchemes: ["*"])
         let sut = try fixture.deckit()
@@ -62,7 +62,7 @@ struct URLRouterTests {
     }
 
     @Test("the person's order and switches stand over the app's, and stay over a restart")
-    func testThatThePersonOrdersHandlers() throws {
+    func personOrdersHandlers() throws {
         // Given
         try fixture.write("a", urlSchemes: ["https"])
         try fixture.write("b", urlSchemes: ["https"])
@@ -79,6 +79,8 @@ struct URLRouterTests {
             _ = try restarted.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
         }
         let lists = restarted.urlRouter.handlerLists()
+        let routed = route(restarted, "https://example.com", userInitiated: true)
+        let unhandled = Result { try restarted.urlRouter.setHandlers(of: "mailto", order: [], off: []) }
 
         // Then
         let https = try #require(lists.first { list in list.scheme == "https" })
@@ -86,15 +88,12 @@ struct URLRouterTests {
         #expect(lists.map(\.scheme) == ["http", "https", "file"])
         #expect(https.system == .browser)
         #expect(listed == ["a", "b", "c off"])
-        let routed = route(restarted, "https://example.com", userInitiated: true)
         #expect(routed == "https://example.com -> a b, browser")
-        #expect(throws: URLRouterError.noHandlers("mailto")) {
-            try restarted.urlRouter.setHandlers(of: "mailto", order: [], off: [])
-        }
+        #expect(throws: URLRouterError.noHandlers("mailto")) { try unhandled.get() }
     }
 
     @Test("a mod that names schemes and registers no handleURL, or the other way, is told so and asked nothing")
-    func testThatAnUnpairedHandlerIsAProblem() throws {
+    func unpairedHandlerIsAProblem() throws {
         // Given
         try fixture.write("a", urlSchemes: ["https"])
         try fixture.write("b")
