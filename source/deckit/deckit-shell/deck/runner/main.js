@@ -8,13 +8,13 @@ import * as LIMIT from './model/limit.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// The mods' runs, as the core runs them: what happens to a page is told the core, and what the core answers is done
-// here in order, its runs kept as it told them so what asks at once is answered at once. `pages` and `app` are the
-// environment's (environment/: MAIN.pages, MAIN.app).
+// The mods' runs: which mods load or unload, and when, is decided here, and the core runs them. What happens to a page
+// is told the core, and what the core answers is done here in order, its runs kept as it told them so what asks at once
+// is answered at once. `pages` and `app` are the environment's (environment/: MAIN.pages, MAIN.app).
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
-    // mod id -> { mod, page, run, update, closing }: a mod's sandbox, the page it runs in, its latest run and how
-    // what the core tells of it is kept, and whether it is going.
+    // mod id -> { mod, page, run, update, loadedItself }: a mod's sandbox, the page it runs in, its latest run and how
+    // what the core tells of it is kept, and whether its page has just loaded by itself.
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
@@ -23,6 +23,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     const problemListeners = new Set(); // told when a problem is kept against a run
     const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
     let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
+    let reconciled = Promise.resolve(); // settled once what the catalog's last change comes to has loaded
     let preparePage = null;
     let quitHold = null; // 'held' while the runs terminate as the app quits, 'free' once nothing holds it
 
@@ -33,8 +34,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     function start({ preparePage: prepare }) {
         preparePage = prepare;
         listen();
-        CATALOG.onChange(reconcile);
-        reconcile();
+        CATALOG.onChange(() => {
+            reconciled = reconciled.then(reconcile).catch((error) => LOG.error('the mods were not loaded', error));
+        });
+        reconciled = reconcile().catch((error) => LOG.error('the mods were not loaded', error));
         // The app quits once every run has ended. Held as the app is about to quit, once the quit is decided, while
         // a run has not; a quit asked again meanwhile waits too. Then the quit is asked again and goes on as any quit
         // does. A quit the host app calls off leaves those runs ended, and the next quit terminates what launched
@@ -44,10 +47,16 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             if (quitHold === 'free' || (!quitHold && !live)) return false;
             if (quitHold) return true;
             quitHold = 'held';
-            ask('runner/quit').catch((error) => {
-                LOG.error('the mods were not stopped as the app quit', error);
-                release(error);
-            });
+            unload([...sandboxes.keys()], 'quit').then(
+                () => {
+                    quitHold = null;
+                    APP.quit();
+                },
+                (error) => {
+                    LOG.error('the mods were not stopped as the app quit', error);
+                    release(error);
+                }
+            );
             return true;
         });
     }
@@ -88,9 +97,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return () => problemListeners.delete(listener);
     }
 
-    // Resolves once the mod's sandbox that is closing has closed, and whatever runs in its place has opened.
-    function whenClosed(modId) {
-        return asked.then(() => until(() => !sandboxes.get(modId)?.closing));
+    // Resolves once what the catalog's last change comes to has loaded: a mod gone has closed, and one new or
+    // changed has launched, or failed to.
+    function whenReconciled() {
+        return reconciled;
     }
 
     // `handler(effect)` does each effect the core answers by `name` that is another module's to do.
@@ -98,43 +108,73 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         effectHandlers.set(name, handler);
     }
 
-    // Resolves once the mod's latest run is no longer the `run`th in `state`, as the core told it: what the core
-    // answered pending on that run.
-    function whenMoved({ mod, run, state }) {
-        return until(() => {
-            const latest = runOf(mod);
-            return latest?.number !== run || latest.state !== state;
-        });
+    // The mods named load, in the load order, each once what it requires has launched or failed to: a mod loaded
+    // while one it requires does not run fails as it launches. One whose run has not ended is left as it is, and
+    // none loads while the app quits. Resolves once each has launched, or failed to.
+    async function load(ids) {
+        let left = CATALOG.mods()
+            .filter((mod) => ids.includes(mod.id))
+            .map((mod) => ({ id: mod.id, requires: Object.keys(mod.requires) }));
+        const ready = ({ requires }) =>
+            requires.every((id) => !left.some((mod) => mod.id === id) && runOf(id)?.state !== 'launching');
+        while (left.length) {
+            await until(() => quitHold === 'held' || left.some(ready));
+            if (quitHold === 'held') return;
+            const now = left.filter(ready);
+            left = left.filter((mod) => !now.includes(mod));
+            await ask('runner/load', { mods: now.map(({ id }) => id) });
+        }
+        await until(() => ids.every((id) => runOf(id)?.state !== 'launching'));
     }
 
+    // The mods named terminate for `reason`, after the mods that require them. Resolves once each has ended.
+    async function unload(ids, reason) {
+        if (!ids.length) return;
+        await ask('runner/unload', { mods: ids, reason });
+        await until(() => ids.every((id) => (runOf(id)?.state ?? 'notRunning') === 'notRunning'));
+    }
+
+    // The mods terminate and load again, or load when they are not running. Resolves once each has launched again,
+    // or failed to: one loaded while a mod it requires is not running fails as it launches.
+    async function relaunch(ids) {
+        mark(ids, true);
+        try {
+            await unload(ids, 'relaunch');
+            await load(ids);
+        } finally {
+            mark(ids, false);
+        }
+    }
+
+    // Every mod that loads terminates and loads again, and one whose run ended for a quit the host app called off
+    // loads again.
     function relaunchAll() {
-        send('runner/relaunch-all');
-    }
-
-    // The mod terminates and launches again, or launches when it is not running. Resolves once the run in its place
-    // has launched, or failed to: one launched while a mod it requires is not running fails as it launches.
-    async function relaunch(modId) {
-        const effects = await ask('runner/relaunch', { mod: modId });
-        const told = effects.find((effect) => effect.effect === 'tell' && effect.mod === modId);
-        const before = told?.notification === 'willLaunch' ? told.run - 1 : (told?.run ?? runOf(modId)?.number);
-        return until(() => {
-            const sandbox = sandboxes.get(modId);
-            if (!sandbox || sandbox.closing) return true;
-            const { run } = sandbox;
-            if (run.number === before) return run.state === 'notRunning' && !run.relaunches;
-            return run.state !== 'launching';
-        });
-    }
-
-    // The mods that require it, directly or through another, and are not running launch. Resolves once the core has
-    // answered.
-    async function launchDependents(modId) {
-        await ask('runner/launch-dependents', { mod: modId });
+        return relaunch(CATALOG.mods().map(({ id }) => id));
     }
 
     // MARK: - Private
-    function reconcile() {
-        send('runner/reconcile');
+    // A mod opens as it arrives and goes as it leaves. One whose code changed goes and opens again, and the mods that
+    // require it load again with it.
+    async function reconcile() {
+        const current = new Map(CATALOG.mods().map((mod) => [mod.id, mod]));
+        const stale = [...sandboxes.values()]
+            .filter(({ mod }) => current.get(mod.id)?.revision !== mod.revision)
+            .map(({ mod }) => mod.id);
+        const updated = stale.filter((id) => current.has(id));
+        await Promise.all([
+            unload(
+                stale.filter((id) => !current.has(id)),
+                'removed'
+            ),
+            unload(updated, 'updated'),
+        ]);
+        const opening = [...current.keys()].filter((id) => !sandboxes.has(id));
+        await load([...opening, ...updated.flatMap((id) => current.get(id).dependents)]);
+    }
+
+    // Whether the mods' latest runs say they launch again once they have ended.
+    function mark(ids, relaunches) {
+        for (const id of ids) sandboxes.get(id)?.update({ relaunches });
     }
 
     // What the core answers is done before anything asked after it is. Answers the effects.
@@ -172,8 +212,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
                 case 'open':
                     openSandbox(MOD.read(effect.found));
                     break;
-                case 'load':
-                    load(sandboxes.get(effect.mod));
+                case 'loadPage':
+                    loadPage(sandboxes.get(effect.mod));
                     break;
                 case 'tell':
                     tell(sandboxes.get(effect.mod), effect.notification, effect);
@@ -184,15 +224,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
                 case 'stop':
                     stop(effect.mod, effect.run);
                     break;
-                case 'closing':
-                    sandboxes.get(effect.mod).closing = true;
-                    break;
                 case 'close':
-                    closeSandbox(effect.mod, effect.reason);
-                    break;
-                case 'quit':
-                    quitHold = null;
-                    APP.quit();
+                    closeSandbox(effect.mod);
                     break;
                 default:
                     effectHandlers.get(effect.effect)?.(effect);
@@ -225,15 +258,15 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     function update(sandbox, told) {
-        const { state, problem = null, endReason = null, relaunches, summary = null, contributions = null } = told;
-        sandbox.update({ state, problem, endReason, relaunches, summary, contributions });
+        const { state, problem = null, endReason = null, summary = null, contributions = null } = told;
+        sandbox.update({ state, problem, endReason, summary, contributions });
     }
 
     // The page is made, known as the mod's and set up before it loads, so what it asks as it starts is the mod's. A
     // page that did not load runs no mod: what loaded instead is never the mod's page.
     function openSandbox(mod) {
         const page = PAGES.make({ modId: mod.id });
-        const sandbox = { mod, page, run: null, update: null, closing: false };
+        const sandbox = { mod, page, run: null, update: null, loadedItself: false };
         PAGES.watch(page, {
             failed: (why) => crash(sandbox.run, `its page did not load (${why})`),
             gone: (why) => crash(sandbox.run, endedProblem({ gone: why })),
@@ -244,8 +277,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         sandboxes.set(mod.id, sandbox);
     }
 
-    function load(sandbox) {
-        PAGES.load(sandbox.page);
+    // A page that has just loaded by itself is not loaded again.
+    function loadPage(sandbox) {
+        if (!sandbox.loadedItself) PAGES.load(sandbox.page);
     }
 
     // The mod's stop() asked of its page. The page runs it once, however often it is asked. The core is told once it
@@ -258,10 +292,11 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         stopping.then(() => send('runner/stopped', { mod: modId, run: number }));
     }
 
-    function closeSandbox(modId, reason) {
+    // What a mod gone last launched goes with it.
+    function closeSandbox(modId) {
         PAGES.close(sandboxes.get(modId).page);
         sandboxes.delete(modId);
-        if (reason === 'removed') lastLaunched.delete(modId);
+        if (!CATALOG.mods().some(({ id }) => id === modId)) lastLaunched.delete(modId);
     }
 
     // A crash's problem says why the page's process ended, whichever of what watches the page hears it first; a page
@@ -277,13 +312,31 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         send('runner/crash', { mod: run.mod.id, run: run.number, problem });
     }
 
+    // A page that loaded again by itself runs again, in the document it loaded: the run it had ended with the
+    // document it ran in. None runs again while the app quits.
+    async function loadAgain(sandbox) {
+        await asked;
+        const { run } = sandbox;
+        if (run.state === 'launching') return;
+        if (run.state !== 'notRunning')
+            await ask('runner/crash', { mod: run.mod.id, run: run.number, problem: 'its page loaded again' });
+        if (quitHold === 'held') return;
+        sandbox.loadedItself = true;
+        try {
+            await ask('runner/load', { mods: [run.mod.id] });
+        } finally {
+            sandbox.loadedItself = false;
+        }
+    }
+
     // What a page says of its run carries the run's number. A page loaded again by itself runs nothing of the mod's
     // when its run fails as it launches.
     function listen() {
         PROTOCOL.load.handle(async (_payload, sender) => {
             const { id } = IDENTITY.modFrom(sender);
-            await ask('runner/load', { mod: id });
-            const { mod, run } = sandboxes.get(id);
+            const sandbox = sandboxes.get(id);
+            if (sandbox.run.state !== 'launching') await loadAgain(sandbox);
+            const { mod, run } = sandbox;
             if (run.state !== 'launching') throw Object.assign(new Error(run.problem), { kind: 'REFUSED' });
             IDENTITY.whenPageEnds(sender, (ending) => crash(run, endedProblem(ending)));
             return {
@@ -315,10 +368,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         ask,
         onProblem,
         handleEffect,
-        whenMoved,
-        whenClosed,
-        relaunchAll,
+        whenReconciled,
+        load,
         relaunch,
-        launchDependents,
+        relaunchAll,
     };
 }

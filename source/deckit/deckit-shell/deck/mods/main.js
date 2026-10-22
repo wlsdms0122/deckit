@@ -7,7 +7,7 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
-// again, putting them in a load order and what one has where deck keeps it.
+// again, loading, putting them in a load order and what one has where deck keeps it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pages }) {
     // MARK: - Property
@@ -55,11 +55,11 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
         });
         PROTOCOL.relaunch.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return RUNNER.relaunch(id);
+            return RUNNER.relaunch([id]);
         });
-        PROTOCOL.launchDependents.handle(({ id }, sender) => {
+        PROTOCOL.load.handle(({ ids }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return RUNNER.launchDependents(id);
+            return RUNNER.load(ids);
         });
         PROTOCOL.arrange.handle(({ ids }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -86,9 +86,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `found`:
     // every mod the catalog found, in the load order whether it loads or not, each with `installed`, whether it is a
-    // copy in deck's mods folder, `state`, its latest run's, null for one with no sandbox, `hides`, folders of the same
-    // id that are not read, and `launched`, while it starts or stops again, what its latest run that launched
-    // contributed, as `running` lists it.
+    // copy in deck's mods folder, `problem`, why it does not load, `run`, its latest run's `state` and `problem`, null
+    // for one with no sandbox, `hides`, folders of the same id that are not read, and `launched`, while it starts or
+    // stops again, what its latest run that launched contributed, as `running` lists it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
@@ -100,8 +100,8 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
                     installed: mod.installed,
                     shipped: mod.shipped,
                     hides: mod.hides,
-                    problem: mod.problem || run?.problem || null,
-                    state: run?.state || null,
+                    problem: mod.problem ?? null,
+                    run: run && { state: run.state, problem: run.problem },
                     launched:
                         TRANSITIONS.includes(run?.state) && RUNNER.launchedOf(mod.id)
                             ? entryOf(mod, RUNNER.launchedOf(mod.id))
@@ -131,7 +131,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
         if ((await CORE.request('erasure/uncleared')).includes(id)) await erase(id);
         const manifest = await CATALOG.install(from);
         await CATALOG.refresh();
-        await RUNNER.whenClosed(manifest.id);
+        await RUNNER.whenReconciled();
         return { ...(await layer.installed(manifest.id)), ...manifest };
     }
 
@@ -141,7 +141,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
         const keeps = await CATALOG.remove(id);
         layer.removed(id);
         await CATALOG.refresh();
-        await RUNNER.whenClosed(id);
+        await RUNNER.whenReconciled();
         if (!data || !keeps) return { data: false };
         await erase(id);
         return { data: true };
