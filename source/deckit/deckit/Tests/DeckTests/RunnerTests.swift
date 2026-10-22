@@ -93,20 +93,20 @@ struct RunnerTests {
         try launch(["a", "b"], with: sut)
 
         // When
-        let unloaded = try sut.unload(["a"], reason: .relaunch)
+        let unloaded = try sut.unload(["a"])
         let dependentStopped = try sut.stopped("b", run: 1)
         let stopped = try sut.stopped("a", run: 1)
 
         // Then
         #expect(
             describe(unloaded) == [
-                "tell willTerminate a 1 terminating relaunch",
-                "tell willTerminate b 1 terminating requirement",
+                "tell willTerminate a 1 terminating",
+                "tell willTerminate b 1 terminating",
                 "stop b 1"
             ]
         )
-        #expect(describe(dependentStopped) == ["tell didTerminate b 1 notRunning requirement", "stop a 1"])
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning relaunch"])
+        #expect(describe(dependentStopped) == ["tell didTerminate b 1 notRunning", "stop a 1"])
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
     }
 
     @Test("a mod whose requirement crashed terminates, and stays down once that runs again")
@@ -127,11 +127,11 @@ struct RunnerTests {
         #expect(
             describe(crashed) == [
                 "tell didTerminate a 1 notRunning",
-                "tell willTerminate b 1 terminating requirement",
+                "tell willTerminate b 1 terminating",
                 "stop b 1"
             ]
         )
-        #expect(describe(stopped) == ["tell didTerminate b 1 notRunning requirement"])
+        #expect(describe(stopped) == ["tell didTerminate b 1 notRunning"])
         #expect(describe(loaded) == ["tell willLaunch a 2 launching", "loadPage a"])
     }
 
@@ -169,22 +169,22 @@ struct RunnerTests {
         #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
     }
 
-    @Test("a run that terminates keeps the reason it terminates for")
-    func terminatingRunKeepsItsReason() throws {
+    @Test("a run asked to unload again as it terminates tells nothing more")
+    func terminatingRunUnloadsOnce() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
         _ = catalog.read()
         try launch(["a"], with: sut)
-        _ = try sut.unload(["a"], reason: .relaunch)
+        _ = try sut.unload(["a"])
 
         // When
-        let again = try sut.unload(["a"], reason: .quit)
+        let again = try sut.unload(["a"])
         let stopped = try sut.stopped("a", run: 1)
 
         // Then
         #expect(again.isEmpty)
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning relaunch"])
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning"])
     }
 
     @Test("a mod whose run has not ended is left as it is, and one that ended launches again in its sandbox")
@@ -197,7 +197,7 @@ struct RunnerTests {
 
         // When
         let running = try sut.load(["a"])
-        _ = try sut.unload(["a"], reason: .relaunch)
+        _ = try sut.unload(["a"])
         let terminating = try sut.load(["a"])
         _ = try sut.stopped("a", run: 1)
         let ended = try sut.load(["a"])
@@ -234,13 +234,13 @@ struct RunnerTests {
 
         // When
         _ = catalog.read()
-        let unloaded = try sut.unload(["a"], reason: .removed)
+        let unloaded = try sut.unload(["a"])
         let stopped = try sut.stopped("a", run: 1)
         let loaded = try sut.load(["a"])
 
         // Then
-        #expect(describe(unloaded) == ["tell willTerminate a 1 terminating removed", "stop a 1"])
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning removed", "close a"])
+        #expect(describe(unloaded) == ["tell willTerminate a 1 terminating", "stop a 1"])
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "close a"])
         #expect(loaded.isEmpty)
     }
 
@@ -255,12 +255,12 @@ struct RunnerTests {
 
         // When
         _ = catalog.read()
-        _ = try sut.unload(["a"], reason: .updated)
+        _ = try sut.unload(["a"])
         let stopped = try sut.stopped("a", run: 1)
         let loaded = try sut.load(["a"])
 
         // Then
-        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning updated", "close a"])
+        #expect(describe(stopped) == ["tell didTerminate a 1 notRunning", "close a"])
         #expect(describe(loaded) == ["open a", "tell willLaunch a 2 launching", "loadPage a"])
     }
 
@@ -280,7 +280,7 @@ struct RunnerTests {
         // When
         _ = catalog.read()
         let loaded = try sut.load(["a"])
-        let unloaded = try sut.unload(["b"], reason: .removed)
+        let unloaded = try sut.unload(["b"])
 
         // Then
         #expect(describe(loaded) == ["close a", "open a", "tell willLaunch a 2 launching", "loadPage a"])

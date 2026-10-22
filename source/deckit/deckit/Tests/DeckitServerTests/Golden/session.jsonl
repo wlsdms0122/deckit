@@ -51,13 +51,13 @@
 {"id":51,"jsonrpc":"2.0","method":"runner/problem","params":{"mod":"a","problem":"slow","run":1}}
 {"id":52,"jsonrpc":"2.0","method":"runner/crash","params":{"mod":"b","problem":"gone","run":2}}
 {"id":53,"jsonrpc":"2.0","method":"runner/not-started","params":{"mod":"d","problem":"threw","run":1}}
-{"id":54,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a"],"reason":"relaunch"}}
+{"id":54,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a"]}}
 {"id":55,"jsonrpc":"2.0","method":"runner/stopped","params":{"mod":"a","run":1}}
 {"id":56,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a"]}}
 {"id":57,"jsonrpc":"2.0","method":"catalog/remove","params":{"id":"d"}}
 {"id":58,"jsonrpc":"2.0","method":"erasure/erase","params":{"mod":"d"}}
 {"id":59,"jsonrpc":"2.0","method":"erasure/uncleared"}
 {"id":60,"jsonrpc":"2.0","method":"erasure/cleared","params":{"mod":"d"}}
-{"id":61,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a","d"],"reason":"quit"}}
+{"id":61,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a","d"]}}
 {"id":62,"jsonrpc":"2.0","method":"no/such"}
 {"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","name":"Deckit","permissions":[],"schemeHandlers":{},"ship":[],"sources":[]}}

@@ -137,21 +137,6 @@ struct ServerTests {
         #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"record/keys has no such params at mod"}}"#)))
     }
 
-    @Test("a mod is unloaded for the driver's reason, never for deck's own")
-    func unloadRefusesDecksOwnReason() throws {
-        // Given
-        _ = try send(initializeRequest, to: sut)
-
-        // When
-        let response = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"runner/unload","params":{"mods":["a"],"reason":"requirement"}}"#,
-            to: sut
-        )
-
-        // Then
-        #expect(value(in: response, at: "error", "code") == .number(-32602))
-    }
-
     @Test("params of the wrong shape say where")
     func wrongParamsSayWhere() throws {
         // Given

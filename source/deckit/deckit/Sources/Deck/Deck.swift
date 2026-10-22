@@ -99,9 +99,9 @@ public final class Deck {
         try withChanges(runner.load(ids))
     }
 
-    // The mods named unload, their runs terminating for `reason`.
-    public func unload(_ ids: [String], reason: TerminateReason) throws -> [Effect] {
-        try withChanges(runner.unload(ids, reason: reason))
+    // The mods named unload.
+    public func unload(_ ids: [String]) throws -> [Effect] {
+        try withChanges(runner.unload(ids))
     }
 
     // The `run`th run of `id` started, with what its page reported: `summary` as a person reads it, and what it

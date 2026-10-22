@@ -63,15 +63,15 @@ final class Runner {
         }
     }
 
-    // Each mod named whose run has not ended terminates for `reason`, after the mods that require it. A sandbox closes
+    // Each mod named whose run has not ended terminates, after the mods that require it. A sandbox closes
     // once its run has ended and the catalog no longer has its mod as it runs it.
-    func unload(_ ids: [String], reason: TerminateReason) throws -> [Effect] {
+    func unload(_ ids: [String]) throws -> [Effect] {
         try decide {
             for sandbox in sandboxes where ids.contains(sandbox.mod.manifest.id) {
                 if sandbox.state == .notRunning {
                     closeIfGone(sandbox)
                 } else {
-                    try terminate(sandbox, reason)
+                    try terminate(sandbox)
                 }
             }
         }
@@ -163,9 +163,8 @@ final class Runner {
         }
     }
 
-    private func terminate(_ sandbox: Sandbox, _ reason: TerminateReason) throws {
-        guard sandbox.state != .notRunning else { return }
-        try move(sandbox) { run throws(LifecycleError) in try run.terminate(reason) }
+    private func terminate(_ sandbox: Sandbox) throws {
+        try move(sandbox) { run throws(LifecycleError) in try run.terminate() }
     }
 
     private func move(
@@ -179,8 +178,8 @@ final class Runner {
         try tell(notification, run, of: sandbox)
     }
 
-    // A mod runs only while what it requires runs: it terminates as one of them ends, before that one's stop() is
-    // asked. A run that crashed or did not launch ends with no willTerminate.
+    // A mod runs only while what it requires runs: it terminates as one of them terminates, before that one's stop()
+    // is asked, or as one ends with no willTerminate, having crashed or not launched.
     private func tell(_ notification: LifecycleNotification, _ run: Run, of sandbox: Sandbox) throws {
         effects.append(.tell(notification, run))
         switch notification {
@@ -188,9 +187,7 @@ final class Runner {
             try terminateDependents(of: sandbox.mod.manifest.id)
 
         case .didTerminate:
-            if run.endReason == nil {
-                try terminateDependents(of: sandbox.mod.manifest.id)
-            }
+            try terminateDependents(of: sandbox.mod.manifest.id)
             closeIfGone(sandbox)
 
         case .willLaunch, .didLaunch, .didFailToLaunch:
@@ -200,7 +197,7 @@ final class Runner {
 
     private func terminateDependents(of id: String) throws {
         for dependent in directDependents(of: id) {
-            try terminate(dependent, .requirement)
+            try terminate(dependent)
         }
     }
 

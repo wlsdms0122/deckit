@@ -22,7 +22,6 @@ extension Effect: Encodable {
         case run
         case state
         case problem
-        case endReason
         case summary
         case contributions
         case dependency
@@ -98,7 +97,6 @@ extension Effect: Encodable {
         try container.encode(run.number, forKey: .run)
         try container.encode(run.state, forKey: .state)
         try container.encodeIfPresent(run.problem, forKey: .problem)
-        try container.encodeIfPresent(run.endReason, forKey: .endReason)
         try container.encodeIfPresent(run.summary, forKey: .summary)
         try container.encodeIfPresent(run.contributions, forKey: .contributions)
     }

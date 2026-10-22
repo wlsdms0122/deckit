@@ -98,7 +98,7 @@ struct ExportBrokerTests {
         _ = try runner.started("b", run: 1)
 
         // When
-        _ = try runner.unload(["a"], reason: .relaunch)
+        _ = try runner.unload(["a"])
         let terminating = Result { try sut.call(from: "b", run: 1, mod: "a", path: ["ask"]) }
         _ = try runner.stopped("b", run: 1)
         let ended = Result { try sut.call(from: "b", run: 1, mod: "a", path: ["ask"]) }
@@ -156,9 +156,9 @@ struct ExportBrokerTests {
         // When
         _ = try runner.started("a", run: 1, exports: [["ask"]])
         let started = sut.changes()
-        _ = try runner.unload(["a"], reason: .relaunch)
+        _ = try runner.unload(["a"])
         let terminating = sut.changes()
-        _ = try runner.unload(["b"], reason: .relaunch)
+        _ = try runner.unload(["b"])
         _ = try runner.stopped("b", run: 1)
         _ = try runner.load(["b"])
         let relaunched = sut.changes()
