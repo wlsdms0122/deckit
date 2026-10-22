@@ -15,8 +15,6 @@ public struct Run: Sendable {
     public private(set) var state: RunState = .launching
     // The first problem recorded against it while it launches or runs, or why it failed or crashed.
     public private(set) var problem: String?
-    // The reason it terminated for: none for a run that crashed or did not launch.
-    public private(set) var endReason: TerminateReason?
     // What its page reported as it started, once it launched: `summary`, what it contributes as a person reads it, is
     // carried and not read.
     public private(set) var summary: JSONValue?
@@ -45,13 +43,11 @@ public struct Run: Sendable {
         return notification
     }
 
-    // Answers nil while it terminates already, for the reason it has.
-    mutating func terminate(_ reason: TerminateReason) throws(LifecycleError) -> LifecycleNotification? {
+    // Answers nil while it terminates already.
+    mutating func terminate() throws(LifecycleError) -> LifecycleNotification? {
         guard state != .terminating else { return nil }
 
-        let notification = try move(.terminate)
-        endReason = reason
-        return notification
+        return try move(.terminate)
     }
 
     mutating func didTerminate() throws(LifecycleError) -> LifecycleNotification {

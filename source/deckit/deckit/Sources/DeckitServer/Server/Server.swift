@@ -187,11 +187,10 @@ final class Server {
             return true
 
         case "runner/load":
-            return try deck.load(request.decodeParams(as: LoadParams.self).mods)
+            return try deck.load(request.decodeParams(as: ModsParams.self).mods)
 
         case "runner/unload":
-            let params = try request.decodeParams(as: UnloadParams.self)
-            return try deck.unload(params.mods, reason: params.reason)
+            return try deck.unload(request.decodeParams(as: ModsParams.self).mods)
 
         case "runner/started":
             let params = try request.decodeParams(as: StartedParams.self)

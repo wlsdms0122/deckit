@@ -25,10 +25,8 @@ extension Effect {
                 notification.rawValue,
                 run.modId,
                 String(run.number),
-                run.state.rawValue,
-                run.endReason?.rawValue
+                run.state.rawValue
             ]
-                .compactMap { part in part }
                 .joined(separator: " ")
 
         case let .keep(run):

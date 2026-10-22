@@ -124,7 +124,7 @@ struct KeymapTests {
         _ = try sut.started("a", run: 1, keys: [key("next", "mod+j")])
 
         // When
-        let terminating = try sut.deck.unload(["a"], reason: .relaunch)
+        let terminating = try sut.deck.unload(["a"])
         let ended = try sut.deck.stopped("a", run: 1)
 
         // Then

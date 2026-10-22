@@ -67,7 +67,7 @@ struct ExtensionRegistryTests {
         _ = try runner.load(["google"])
         _ = try runner.started("google", run: 1, extensions: ["calendar:accounts": [["events"]]])
         let extended = sut.changes()
-        _ = try runner.unload(["google"], reason: .relaunch)
+        _ = try runner.unload(["google"])
         let terminating = sut.changes()
         _ = try runner.stopped("google", run: 1)
         let ended = sut.changes()
