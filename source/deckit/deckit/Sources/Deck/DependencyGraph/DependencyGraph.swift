@@ -60,18 +60,27 @@ struct DependencyGraph {
         return mods
     }
 
-    // Those that load, each after the mods it requires and otherwise in the order found, then those that do not, by id.
+    // Every mod in one order, as found, but for a mod that loads coming after the mods it requires: one found later is
+    // put just before the first that requires it. One that does not load keeps its place.
     func ordered() -> [Mod] {
         let mods = resolved()
-        var waiting = mods.filter { mod in mod.problem == nil }
         var placed: [Mod] = []
         var ids: Set<String> = []
-        while let next = waiting.firstIndex(where: { mod in mod.manifest.requires.keys.allSatisfy(ids.contains) }) {
-            ids.insert(waiting[next].manifest.id)
-            placed.append(waiting.remove(at: next))
+        func place(_ mod: Mod) {
+            guard ids.insert(mod.manifest.id).inserted else { return }
+            if mod.problem == nil {
+                for id in mod.manifest.requires.keys.sorted(by: { one, other in places[one]! < places[other]! }) {
+                    place(mods[places[id]!])
+                }
+            }
+            placed.append(mod)
         }
 
-        return placed + mods.filter { mod in mod.problem != nil }.sorted { mod, other in mod.manifest.id < other.manifest.id }
+        for mod in mods {
+            place(mod)
+        }
+
+        return placed
     }
 
     // MARK: - Private

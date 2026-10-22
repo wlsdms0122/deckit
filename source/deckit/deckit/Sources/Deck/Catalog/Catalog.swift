@@ -8,7 +8,7 @@
 import Foundation
 
 // Every mod deck reads: those read in place from a source folder, ahead of an installed one of the same id, and the
-// installed ones. Each loads or says why not, and those that load come in their load order.
+// installed ones. Each loads or says why not, and all come in their load order.
 public final class Catalog {
     // MARK: - Property
     private let sources: [URL]
@@ -52,9 +52,9 @@ public final class Catalog {
     }
 
     // MARK: - Public
-    // Those that load, in their load order, then those that do not, by id. Each loads after the mods it requires, and
-    // otherwise as the load order kept places it; one it does not place goes where the app ships it, and one the app
-    // does not ship goes last, by id.
+    // Every mod in its load order, whether it loads or not. One that loads comes after the mods it requires, and
+    // otherwise each comes as the load order kept places it; one it does not place goes where the app ships it, and one
+    // the app does not ship goes last, by id.
     func mods() -> [Mod] {
         let kept = loadOrder.read()
         let shipOrder = ship.map { source in modFolder.manifest(of: source).id }
@@ -66,11 +66,11 @@ public final class Catalog {
         return DependencyGraph(found).ordered()
     }
 
-    // The mods, read and kept as read, and the load order of those that load kept as they come. One not kept is placed
-    // the same way the next time.
+    // The mods, read and kept as read, and their load order kept as they come: one that does not load keeps its place,
+    // one found anew takes the place it came in, and one no longer found leaves it.
     func read() -> [Mod] {
         lastRead = mods()
-        let ids = loading.map(\.manifest.id)
+        let ids = lastRead.map(\.manifest.id)
         if ids != loadOrder.read() {
             try? loadOrder.write(ids)
         }
@@ -78,10 +78,10 @@ public final class Catalog {
         return lastRead
     }
 
-    // The ids named of mods that load take the places they held among themselves in the load order, in the order given;
-    // the rest stay put. An order that puts a mod before one it requires is refused.
+    // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
+    // put. An order that puts a mod that loads before one it requires is refused.
     public func arrange(_ ids: [String]) throws {
-        let mods = mods().filter { mod in mod.problem == nil }
+        let mods = mods()
         var seen: Set<String> = []
         let moved = ids
             .filter { id in seen.insert(id).inserted }
@@ -92,9 +92,9 @@ public final class Catalog {
             next[place] = mod
         }
 
-        let ids = Set(next.map(\.manifest.id))
+        let ids = Set(next.filter { mod in mod.problem == nil }.map(\.manifest.id))
         var placed: Set<String> = []
-        for mod in next {
+        for mod in next where mod.problem == nil {
             let later = mod.manifest.requires.keys.sorted().first { id in ids.contains(id) && !placed.contains(id) }
             if let later {
                 throw LoadOrderError.requiredLater(mod: mod.manifest.id, requirement: later)
