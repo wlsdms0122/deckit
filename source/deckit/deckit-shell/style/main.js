@@ -12,7 +12,7 @@ export function createStyle({ deckit }) {
     // MARK: - Initializer
     // MARK: - Public
     // A mod with `deckit.styles` styles other pages while it runs: a mod's by its id, or every page the shell draws
-    // by "*". Each page wears what applies to it in the mods' order, the later over the earlier.
+    // by "*". Each page wears what applies to it in the load order, the later over the earlier.
     function start() {
         PROTOCOL.current.handle((_payload, sender) => {
             const modId = deckit.mods.modOf(sender);

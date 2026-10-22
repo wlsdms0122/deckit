@@ -24,7 +24,7 @@ struct RunnerTests {
     }
 
     // MARK: - Test
-    @Test("each mod that loads opens, launches and loads its page, in the mods' order")
+    @Test("each mod that loads opens, launches and loads its page, in the load order")
     func reconcileOpensEachMod() throws {
         // Given
         try write("a")
@@ -430,6 +430,7 @@ struct RunnerTests {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
+            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
 

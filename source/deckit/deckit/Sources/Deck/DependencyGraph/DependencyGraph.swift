@@ -60,6 +60,20 @@ struct DependencyGraph {
         return mods
     }
 
+    // Those that load, each after the mods it requires and otherwise in the order found, then those that do not, by id.
+    func ordered() -> [Mod] {
+        let mods = resolved()
+        var waiting = mods.filter { mod in mod.problem == nil }
+        var placed: [Mod] = []
+        var ids: Set<String> = []
+        while let next = waiting.firstIndex(where: { mod in mod.manifest.requires.keys.allSatisfy(ids.contains) }) {
+            ids.insert(waiting[next].manifest.id)
+            placed.append(waiting.remove(at: next))
+        }
+
+        return placed + mods.filter { mod in mod.problem != nil }.sorted { mod, other in mod.manifest.id < other.manifest.id }
+    }
+
     // MARK: - Private
     // The mods that load and require `id`, directly or through another, by id: none of them loads without it. One that
     // does not load, for this or another reason, is not among them.

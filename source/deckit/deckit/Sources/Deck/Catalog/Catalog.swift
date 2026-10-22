@@ -8,7 +8,7 @@
 import Foundation
 
 // Every mod deck reads: those read in place from a source folder, ahead of an installed one of the same id, and the
-// installed ones. Each loads or says why not, and those that load come as the app ships them, then by id.
+// installed ones. Each loads or says why not, and those that load come in their load order.
 public final class Catalog {
     // MARK: - Property
     private let sources: [URL]
@@ -17,12 +17,13 @@ public final class Catalog {
     private let modFolder: ModFolder
     private let dataFolder: DataFolder
     private let installer: Installer
+    private let loadOrder: LoadOrder
     private let store: Store
     // Mod id -> how many times it was installed while deck ran.
     private var installs: [String: Int] = [:]
     // The mods as they were last read: what runs.
     private(set) var lastRead: [Mod] = []
-    // Those of them that load, in their order.
+    // Those of them that load, in their load order.
     public var loading: [Mod] {
         lastRead.filter { mod in mod.problem == nil }
     }
@@ -37,6 +38,7 @@ public final class Catalog {
         modFolder: ModFolder,
         dataFolder: DataFolder,
         installer: Installer,
+        loadOrder: LoadOrder,
         store: Store
     ) {
         self.folder = folder
@@ -45,37 +47,65 @@ public final class Catalog {
         self.modFolder = modFolder
         self.dataFolder = dataFolder
         self.installer = installer
+        self.loadOrder = loadOrder
         self.store = store
     }
 
     // MARK: - Public
-    // Those that load, as the app ships them, then those it does not ship, by id; then those that do not load, by id.
+    // Those that load, in their load order, then those that do not, by id. Each loads after the mods it requires, and
+    // otherwise as the load order kept places it; one it does not place goes where the app ships it, and one the app
+    // does not ship goes last, by id.
     func mods() -> [Mod] {
-        let found = list()
+        let kept = loadOrder.read()
         let shipOrder = ship.map { source in modFolder.manifest(of: source).id }
-        let rank = { (id: String) in shipOrder.firstIndex(of: id) ?? shipOrder.count }
+        let rank = { (id: String) in
+            (kept.firstIndex(of: id) ?? kept.count, shipOrder.firstIndex(of: id) ?? shipOrder.count, id)
+        }
+        let found = list().sorted { mod, other in rank(mod.manifest.id) < rank(other.manifest.id) }
 
-        let loading = found
-            .filter { mod in mod.problem == nil }
-            .sorted { mod, other in
-                (rank(mod.manifest.id), mod.manifest.id) < (rank(other.manifest.id), other.manifest.id)
-            }
-        let failing = found
-            .filter { mod in mod.problem != nil }
-            .sorted { mod, other in mod.manifest.id < other.manifest.id }
-
-        return loading + failing
+        return DependencyGraph(found).ordered()
     }
 
-    // The mods, read and kept as read.
+    // The mods, read and kept as read, and the load order of those that load kept as they come. One not kept is placed
+    // the same way the next time.
     func read() -> [Mod] {
         lastRead = mods()
+        let ids = loading.map(\.manifest.id)
+        if ids != loadOrder.read() {
+            try? loadOrder.write(ids)
+        }
 
         return lastRead
     }
 
-    public func wouldInstall(from source: URL) throws -> InstallPlan {
-        try installer.wouldInstall(from: source, refuse: shadow)
+    // The ids named of mods that load take the places they held among themselves in the load order, in the order given;
+    // the rest stay put. An order that puts a mod before one it requires is refused.
+    public func arrange(_ ids: [String]) throws {
+        let mods = mods().filter { mod in mod.problem == nil }
+        var seen: Set<String> = []
+        let moved = ids
+            .filter { id in seen.insert(id).inserted }
+            .compactMap { id in mods.first { mod in mod.manifest.id == id } }
+        let places = mods.indices.filter { place in moved.contains { mod in mod.manifest.id == mods[place].manifest.id } }
+        var next = mods
+        for (place, mod) in zip(places, moved) {
+            next[place] = mod
+        }
+
+        let ids = Set(next.map(\.manifest.id))
+        var placed: Set<String> = []
+        for mod in next {
+            let later = mod.manifest.requires.keys.sorted().first { id in ids.contains(id) && !placed.contains(id) }
+            if let later {
+                throw LoadOrderError.requiredLater(mod: mod.manifest.id, requirement: later)
+            }
+            placed.insert(mod.manifest.id)
+        }
+        try loadOrder.write(next.map(\.manifest.id))
+    }
+
+    public func planInstall(from source: URL) throws -> InstallPlan {
+        try installer.planInstall(from: source, refuse: shadow)
     }
 
     public func install(from source: URL) throws -> Manifest {
@@ -143,7 +173,7 @@ public final class Catalog {
             )
         }
 
-        return DependencyGraph(found).resolved()
+        return found
     }
 
     private func mod(_ manifest: Manifest, in source: URL, installed: Bool, shipped: Bool, problem: String?) -> Mod {

@@ -18,7 +18,7 @@ const REMOVED = 'removed-with-data';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them naming schemes it may not, Settings placed second in the panel's list,
-// as a person would have arranged it, and what REMOVED left.
+// as a person would have arranged it, a load order that puts a mod before the one it requires, and what REMOVED left.
 function seed({ data, files }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -51,6 +51,10 @@ function seed({ data, files }) {
         JSON.stringify(['editor', 'settings'])
     );
     fs.writeFileSync(path.join(data, 'deckit', 'state', 'uncleared.json'), JSON.stringify([REMOVED]));
+    fs.writeFileSync(
+        path.join(data, 'deckit', 'deck.json'),
+        JSON.stringify({ loadOrder: ['broker-user', 'broker-provider'] })
+    );
     for (const kept of [
         ['records', REMOVED, 'tabs.json'],
         ['settings', `${REMOVED}.json`],
@@ -219,6 +223,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const frameKept = path.join(home, 'state', 'host', 'panel-frame.json');
         const sidebarKept = await until(() => fs.existsSync(frameKept), 2000);
         check("the shell's state is kept by the core", sidebarKept, frameKept);
+        const loadOrder = JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).loadOrder;
+        check(
+            'a mod loads after the one it requires, and the load order is kept as it comes',
+            loadOrder.slice(0, 2).join() === 'broker-provider,broker-user' && loadOrder.includes('settings'),
+            loadOrder
+        );
         const notesKept = path.join(home, 'data', 'note');
         const notesMade = await until(() => fs.existsSync(notesKept), 3000);
         check("a main process module keeps what it keeps in its mod's data folder", notesMade, notesKept);

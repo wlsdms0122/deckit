@@ -117,7 +117,7 @@ export function createRegion({ deckit }) {
         tell();
     }
 
-    // Its children that run, or launch again, in the mods' order.
+    // Its children that run, or launch again, in the load order.
     function childrenOf(parent) {
         if (!parent) return [];
         return deckit.mods

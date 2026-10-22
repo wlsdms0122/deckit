@@ -50,6 +50,7 @@ export function createApi({
                     const offs = [CATALOG.onChange(listener), MAIN_PROCESS.onChange(listener)];
                     return () => offs.forEach((off) => off?.());
                 },
+                arrange: CATALOG.arrange,
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: factsOf(run), page }))),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),

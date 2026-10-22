@@ -35,7 +35,7 @@ export function createCommand({ LOG, IDENTITY, CORE }) {
         const offering = (what) => sources.filter((source) => source[what]);
 
         return Object.freeze({
-            // Every offering mod's commands, in the mods' order.
+            // Every offering mod's commands, in the load order.
             async list() {
                 const asked = offering('commands');
                 const answers = await Promise.all(asked.map((source) => ask(PROTOCOL.collect, source, {}, [])));

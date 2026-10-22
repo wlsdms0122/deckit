@@ -32,7 +32,7 @@ export function createModFolder({ IDENTITY, CATALOG, MODS, dialogs: DIALOGS, ope
             buttonLabel: 'Choose',
             message: 'Pick the folder that has manifest.toml in it',
         });
-        return folder ? MODS.wouldInstall(folder) : null;
+        return folder ? MODS.planInstall(folder) : null;
     }
 
     return { start };

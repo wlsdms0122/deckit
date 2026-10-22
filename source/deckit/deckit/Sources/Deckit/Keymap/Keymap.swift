@@ -145,7 +145,7 @@ public final class Keymap {
         )
     }
 
-    // In the order a keystroke tries them: those that work everywhere first, the app's then the mods' in the person's
+    // In the order a keystroke tries them: those that work everywhere first, the app's then the mods' in the load
     // order, then a mod's own, which wins in its page a chord it shares with the app's, then the app's. A mod's key is
     // global only with `system.global-keys`.
     private func ordered() -> [Binding] {

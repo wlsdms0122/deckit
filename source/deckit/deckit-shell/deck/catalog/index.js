@@ -4,7 +4,7 @@ import * as MOD from './model/mod.js';
 // reads a mod's files where the environment keeps them.
 export function createCatalog({ CORE, LOG, files }) {
     // MARK: - Property
-    let all = []; // every mod the core read, those that load first, in the mods' order
+    let all = []; // every mod the core read, those that load first, in their load order
     let loading = [];
     const listeners = new Set();
 
@@ -30,15 +30,22 @@ export function createCatalog({ CORE, LOG, files }) {
         return all;
     }
 
-    // The mods that load, in their order.
+    // The mods that load, in their load order.
     function mods() {
         return loading;
     }
 
+    // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
+    // put. Refused for a mod put before one it requires. Settled once the mods are read again.
+    async function arrange(ids) {
+        await CORE.request('catalog/arrange', { ids });
+        await refresh();
+    }
+
     // What a folder would install, `{ manifest, replaces }`: whether it takes the place of an installed copy. Refused
     // with why for a folder install refuses.
-    function wouldInstall(from) {
-        return CORE.request('catalog/would-install', { from });
+    function planInstall(from) {
+        return CORE.request('catalog/plan-install', { from });
     }
 
     // Answers the manifest of what it installed. What is read here changes at the next refresh.
@@ -76,7 +83,8 @@ export function createCatalog({ CORE, LOG, files }) {
         load,
         found,
         mods,
-        wouldInstall,
+        arrange,
+        planInstall,
         install,
         remove,
         refresh,

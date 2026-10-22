@@ -32,6 +32,7 @@ struct ModStorageTests {
             modFolder: modFolder,
             dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
+            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
         sut = ModStorage(

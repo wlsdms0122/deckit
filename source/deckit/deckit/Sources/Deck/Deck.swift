@@ -51,6 +51,7 @@ public final class Deck {
             modFolder: modFolder,
             dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
+            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
         let runner = Runner(catalog: catalog)

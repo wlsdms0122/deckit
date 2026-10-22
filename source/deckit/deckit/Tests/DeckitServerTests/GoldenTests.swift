@@ -35,6 +35,8 @@ struct GoldenTests {
         (InstallError.refused("p"), "REFUSED"),
         (InstallError.notInstalled("a"), "NOT_INSTALLED"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
+        (LoadOrderError.requiredLater(mod: "b", requirement: "a"), "REQUIRED_LATER"),
+        (LoadOrderError.unreadable("deck.json"), "UNREADABLE"),
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
         (ManifestError.permissionDefined("p"), "PERMISSION"),
         (ManifestError.fieldDefined("f"), "FIELD"),
