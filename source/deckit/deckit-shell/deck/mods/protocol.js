@@ -9,6 +9,11 @@ export const remove = CHANNEL.pageToMain(
     { reply: true }
 );
 export const relaunch = CHANNEL.pageToMain('deckit-shell:mods-relaunch', { id: 'string' }, { reply: true });
+export const launchDependents = CHANNEL.pageToMain(
+    'deckit-shell:mods-launch-dependents',
+    { id: 'string' },
+    { reply: true }
+);
 export const arrange = CHANNEL.pageToMain('deckit-shell:mods-arrange', { ids: 'array' }, { reply: true });
 export const usage = CHANNEL.pageToMain('deckit-shell:mods-usage', { id: 'string' }, { reply: true });
 // The sending page hears modsChanged from then on, while it lasts.

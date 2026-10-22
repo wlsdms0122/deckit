@@ -57,6 +57,10 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return RUNNER.relaunch(id);
         });
+        PROTOCOL.launchDependents.handle(({ id }, sender) => {
+            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
+            return RUNNER.launchDependents(id);
+        });
         PROTOCOL.arrange.handle(({ ids }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return CATALOG.arrange(ids);
@@ -78,14 +82,13 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
         layer.onFactsChange?.(tell);
         for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, tell);
         RUNNER.onProblem(tell);
-        RUNNER.onWaitsForChange(tell);
     }
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `found`:
     // every mod the catalog found, in the load order whether it loads or not, each with `installed`, whether it is a
-    // copy in deck's mods folder, `state`, its latest run's, notRunning before its first in its sandbox, null for one
-    // with no sandbox, `hides`, folders of the same id that are not read, and `launched`, while it starts or stops
-    // again, what its latest run that launched contributed, as `running` lists it.
+    // copy in deck's mods folder, `state`, its latest run's, null for one with no sandbox, `hides`, folders of the same
+    // id that are not read, and `launched`, while it starts or stops again, what its latest run that launched
+    // contributed, as `running` lists it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
@@ -98,7 +101,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
                     shipped: mod.shipped,
                     hides: mod.hides,
                     problem: mod.problem || run?.problem || null,
-                    state: RUNNER.stateOf(mod.id),
+                    state: run?.state || null,
                     launched:
                         TRANSITIONS.includes(run?.state) && RUNNER.launchedOf(mod.id)
                             ? entryOf(mod, RUNNER.launchedOf(mod.id))
@@ -109,7 +112,6 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
                         running: running(dependency.id),
                     })),
                     dependents: mod.dependents,
-                    waitsFor: RUNNER.waitsForOf(mod.id),
                 };
             }),
             running: CATALOG.mods()

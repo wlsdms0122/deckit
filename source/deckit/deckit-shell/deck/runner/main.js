@@ -13,16 +13,14 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // environment's (environment/: MAIN.pages, MAIN.app).
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
-    // mod id -> { mod, page, run, update, closing, waitsFor }: a mod's sandbox, the page it runs in, its latest run,
-    // null until the mod first launches in it, and how what the core tells of it is kept, whether it is going, and what
-    // it waits for.
+    // mod id -> { mod, page, run, update, closing }: a mod's sandbox, the page it runs in, its latest run and how
+    // what the core tells of it is kept, and whether it is going.
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
     const effectHandlers = new Map(); // effect name -> what does it, for an effect that is another module's to do
     const problemListeners = new Set(); // told when a problem is kept against a run
-    const waitsForListeners = new Set(); // told when what a mod waits for changes
     const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
     let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
     let preparePage = null;
@@ -54,31 +52,13 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         });
     }
 
-    // Each mod's latest run, with the page it runs in: a mod that has not launched since its sandbox opened has none.
+    // Each mod's latest run, with the page it runs in.
     function runs() {
-        return [...sandboxes.values()].filter(({ run }) => run).map(({ run, page }) => ({ run, page }));
+        return [...sandboxes.values()].map(({ run, page }) => ({ run, page }));
     }
 
     function runOf(modId) {
         return sandboxes.get(modId)?.run || null;
-    }
-
-    // Its latest run's state, notRunning before its first in its sandbox, while it has one; null otherwise.
-    function stateOf(modId) {
-        const sandbox = sandboxes.get(modId);
-        return sandbox ? sandbox.run?.state || 'notRunning' : null;
-    }
-
-    // The ids of the mods it requires that are neither launching nor running, as the core told it: it does not launch
-    // until they do.
-    function waitsForOf(modId) {
-        return sandboxes.get(modId)?.waitsFor || [];
-    }
-
-    // Told when what a mod waits for changes, as the core told it. Answers its off.
-    function onWaitsForChange(listener) {
-        waitsForListeners.add(listener);
-        return () => waitsForListeners.delete(listener);
     }
 
     function launchedOf(modId) {
@@ -131,18 +111,24 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         send('runner/relaunch-all');
     }
 
-    // The mod terminates and launches again, or launches when it is not running. Refused while a mod it requires
-    // is not running. Resolves once the run in its place has launched, or failed to.
+    // The mod terminates and launches again, or launches when it is not running. Resolves once the run in its place
+    // has launched, or failed to: one launched while a mod it requires is not running fails as it launches.
     async function relaunch(modId) {
         const effects = await ask('runner/relaunch', { mod: modId });
         const told = effects.find((effect) => effect.effect === 'tell' && effect.mod === modId);
         const before = told?.notification === 'willLaunch' ? told.run - 1 : (told?.run ?? runOf(modId)?.number);
         return until(() => {
             const sandbox = sandboxes.get(modId);
-            if (!sandbox?.run || sandbox.closing) return true;
+            if (!sandbox || sandbox.closing) return true;
             const { run } = sandbox;
             return (run.number !== before || run.state === 'notRunning') && run.state !== 'launching';
         });
+    }
+
+    // The mods that require it, directly or through another, and are not running launch. Resolves once the core has
+    // answered.
+    async function launchDependents(modId) {
+        await ask('runner/launch-dependents', { mod: modId });
     }
 
     // MARK: - Private
@@ -203,10 +189,6 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
                 case 'close':
                     closeSandbox(effect.mod, effect.reason);
                     break;
-                case 'waitsForChanged':
-                    sandboxes.get(effect.mod).waitsFor = effect.requirements;
-                    for (const listener of waitsForListeners) listener(effect.mod);
-                    break;
                 case 'quit':
                     quitHold = null;
                     APP.quit();
@@ -250,7 +232,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // page that did not load runs no mod: what loaded instead is never the mod's page.
     function openSandbox(mod) {
         const page = PAGES.make({ modId: mod.id });
-        const sandbox = { mod, page, run: null, update: null, closing: false, waitsFor: [] };
+        const sandbox = { mod, page, run: null, update: null, closing: false };
         PAGES.watch(page, {
             failed: (why) => crash(sandbox.run, `its page did not load (${why})`),
             gone: (why) => crash(sandbox.run, endedProblem({ gone: why })),
@@ -323,9 +305,6 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         start,
         runs,
         runOf,
-        stateOf,
-        waitsForOf,
-        onWaitsForChange,
         launchedOf,
         currentRun,
         observe,
@@ -337,5 +316,6 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         whenClosed,
         relaunchAll,
         relaunch,
+        launchDependents,
     };
 }
