@@ -266,6 +266,48 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             text.slice(text.indexOf(BROKEN) - 100, text.indexOf(BROKEN) + 200)
         );
         await settings?.shot('settings');
+        // Dragging the provider below the mod that requires it changes the rows only; applied, deck refuses it, and
+        // the order it keeps stays.
+        const rowOf = (name) =>
+            `[...document.querySelectorAll('.settings-mod')].find((row) => row.querySelector('.settings-mod-name')?.textContent === ${JSON.stringify(name)})`;
+        const keptOrder = () => JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).loadOrder.join();
+        const orderBefore = keptOrder();
+        await settings?.evaluate(`${rowOf('Broker Provider')}.scrollIntoView({ block: 'center' })`);
+        await settings?.drag(rowOf('Broker Provider'), rowOf('Broker User'));
+        const ordering = await until(
+            () => settings.evaluate(`document.querySelector('.settings-order')?.hidden === false`),
+            2000
+        );
+        await settings?.press('.settings-order [data-variant="primary"]');
+        const refusal = `document.querySelector('.settings-notice:not([hidden])')?.textContent || ''`;
+        await until(async () => (await settings.evaluate(refusal)).includes('Could not apply'), 3000);
+        const refused = await settings?.evaluate(refusal);
+        check(
+            'an order that puts a mod before one it requires is not applied, and says why',
+            ordering && refused.includes('broker-user requires broker-provider') && keptOrder() === orderBefore,
+            `${ordering} ${refused} ${keptOrder()}`
+        );
+        await settings?.press('.settings-order button:not([data-variant])');
+        const reverted = await until(() => settings.evaluate(`document.querySelector('.settings-order').hidden`), 2000);
+        check('reverting draws the order deck keeps', reverted, '');
+        // The last two rows swapped and applied are the order deck keeps.
+        const lastRows = (place) => `[...document.querySelectorAll('.settings-mod')].at(${place})`;
+        await settings?.evaluate(`${lastRows(-1)}.scrollIntoView({ block: 'center' })`);
+        await settings?.drag(lastRows(-2), lastRows(-1));
+        await until(() => settings.evaluate(`document.querySelector('.settings-order')?.hidden === false`), 2000);
+        await settings?.press('.settings-order [data-variant="primary"]');
+        const applied = await until(() => keptOrder() !== orderBefore, 3000);
+        const swapped = orderBefore.split(',');
+        swapped.push(...swapped.splice(-2).reverse());
+        check(
+            'an order applied is the one deck keeps',
+            applied &&
+                keptOrder() === swapped.join() &&
+                (await settings.evaluate(`document.querySelector('.settings-order').hidden`)),
+            `${orderBefore} -> ${keptOrder()}`
+        );
+        // Scrolled back at once, so what follows starts where the page was.
+        await settings?.evaluate(`document.querySelector('.settings-body').scrollTo({ top: 0, behavior: 'instant' })`);
 
         // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away.
         const menus = `document.querySelectorAll('.deckit-menu[data-state="open"]').length`;
