@@ -393,6 +393,40 @@ struct RunnerTests {
         )
     }
 
+    @Test("a mod that opens while what it requires is down waits for it, and launches as it launches")
+    func openedModWaitsForItsRequirement() throws {
+        // Given
+        try write("a")
+        try write("b", requires: ["a": "1.0.0"])
+        let (sut, catalog) = try runner()
+        _ = catalog.read()
+        _ = try sut.reconcile()
+        _ = try sut.started("a", run: 1)
+        _ = try sut.started("b", run: 1)
+        _ = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
+        _ = try sut.stopped("b", run: 1)
+        try write("b", version: "1.1.0", requires: ["a": "1.0.0"])
+
+        // When
+        _ = catalog.read()
+        let effects = try sut.reconcile()
+        let waiting = sut.run(of: "b")
+        let relaunched = try sut.relaunch("a")
+
+        // Then
+        #expect(describe(effects) == ["closing b", "close b updated", "open b", "waitsForChanged b a"])
+        #expect(waiting == nil)
+        #expect(
+            describe(relaunched) == [
+                "tell willLaunch a 2 launching",
+                "tell willLaunch b 2 launching",
+                "load b",
+                "load a",
+                "waitsForChanged b "
+            ]
+        )
+    }
+
     @Test("the app quits once every run has ended, and nothing opens meanwhile")
     func quitWaitsForEveryRun() throws {
         // Given

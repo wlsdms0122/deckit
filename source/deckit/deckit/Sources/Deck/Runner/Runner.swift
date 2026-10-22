@@ -36,13 +36,13 @@ final class Runner {
         sandbox(of: id)?.mod
     }
 
-    // The mod's latest run, while it has a sandbox.
+    // The mod's latest run, once it has launched in its sandbox.
     func run(of id: String) -> Run? {
         sandbox(of: id)?.run
     }
 
-    // A mod runs as it arrives and goes as it leaves; one whose code changed goes and runs again, once its old sandbox
-    // has closed. Nothing opens while the app quits.
+    // A mod opens as it arrives and goes as it leaves; one whose code changed goes and opens again, once its old
+    // sandbox has closed. Nothing opens while the app quits.
     func reconcile() throws -> [Effect] {
         try decide {
             try match(catalog.lastRead.filter { mod in mod.problem == nil })
@@ -87,13 +87,13 @@ final class Runner {
         try decide {
             guard let sandbox = sandbox(of: id) else { throw RunnerError.noSandbox(id) }
             guard sandbox.closing == nil else { throw RunnerError.closing(id) }
-            guard sandbox.run.state != .launching else { return }
+            guard sandbox.state != .launching else { return }
             guard !quitting else { throw RunnerError.quitting(id) }
             if let missing = waitsFor(sandbox).first {
                 throw RunnerError.needs(mod: id, requirement: missing)
             }
 
-            if sandbox.run.state != .notRunning {
+            if sandbox.state != .notRunning {
                 try move(sandbox) { run throws(LifecycleError) in try run.crash("its page loaded again") }
             }
             try launch(sandbox)
@@ -103,7 +103,7 @@ final class Runner {
     // It started, with what it contributed.
     func started(_ id: String, run number: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
         try decide {
-            guard let sandbox = sandbox(of: id, run: number), sandbox.run.state == .launching else { return }
+            guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
             try move(sandbox) { run throws(LifecycleError) in
                 try run.didLaunch(summary: summary, contributions: contributions)
             }
@@ -112,23 +112,24 @@ final class Runner {
 
     func report(_ id: String, run number: Int, problem: String) throws -> [Effect] {
         try decide {
-            guard let sandbox = sandbox(of: id, run: number) else { return }
-            sandbox.run.record(problem)
-            effects.append(.keep(sandbox.run))
+            guard let sandbox = sandbox(of: id, run: number), var run = sandbox.run else { return }
+            run.record(problem)
+            sandbox.run = run
+            effects.append(.keep(run))
         }
     }
 
     // It did not start, and why: its stop() is asked as it terminates.
     func notStarted(_ id: String, run number: Int, problem: String) throws -> [Effect] {
         try decide {
-            guard let sandbox = sandbox(of: id, run: number), sandbox.run.state == .launching else { return }
+            guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didFailToLaunch(problem) }
         }
     }
 
     func crashed(_ id: String, run number: Int, problem: String) throws -> [Effect] {
         try decide {
-            guard let sandbox = sandbox(of: id, run: number), sandbox.run.state != .notRunning else { return }
+            guard let sandbox = sandbox(of: id, run: number), sandbox.state != .notRunning else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.crash(problem) }
         }
     }
@@ -136,7 +137,7 @@ final class Runner {
     // Its stop() answered, its time ran out or its page is gone.
     func stopped(_ id: String, run number: Int) throws -> [Effect] {
         try decide {
-            guard let sandbox = sandbox(of: id, run: number), sandbox.run.state == .terminating else { return }
+            guard let sandbox = sandbox(of: id, run: number), sandbox.state == .terminating else { return }
             try move(sandbox) { run throws(LifecycleError) in try run.didTerminate() }
         }
     }
@@ -149,7 +150,7 @@ final class Runner {
         try fact()
         askStops()
         tellWaits()
-        if quitting && sandboxes.allSatisfy({ sandbox in sandbox.run.state == .notRunning }) {
+        if quitting && sandboxes.allSatisfy({ sandbox in sandbox.state == .notRunning }) {
             quitting = false
             effects.append(.quit)
         }
@@ -171,11 +172,10 @@ final class Runner {
     }
 
     private func open(_ mod: Mod) throws {
-        let sandbox = Sandbox(mod: mod, run: nextRun(of: mod.manifest.id))
+        let sandbox = Sandbox(mod: mod)
         sandboxes.append(sandbox)
         effects.append(.open(mod))
-        try tell(.willLaunch, sandbox)
-        effects.append(.load(modId: mod.manifest.id))
+        try load(sandbox)
     }
 
     // What runs in its place opens once it has closed.
@@ -183,7 +183,7 @@ final class Runner {
         sandbox.closing = reason
         effects.append(.closing(modId: sandbox.mod.manifest.id))
         try terminate(sandbox, reason)
-        if sandbox.run.state == .notRunning {
+        if sandbox.state == .notRunning {
             try closed(sandbox)
         }
     }
@@ -200,30 +200,32 @@ final class Runner {
     }
 
     // The run terminates to relaunch, and the mod launches again once it has ended, unless the run was given a
-    // stronger reason meanwhile. One ended before launches again now.
+    // stronger reason meanwhile. One not running launches now.
     private func relaunch(_ sandbox: Sandbox) throws {
-        if sandbox.run.state == .notRunning {
-            try launchAgain(sandbox)
+        if sandbox.state == .notRunning {
+            try load(sandbox)
         } else {
             try terminate(sandbox, .relaunch)
         }
     }
 
-    // While a mod it requires is neither launching nor running, it waits to launch with that one.
-    private func launchAgain(_ sandbox: Sandbox) throws {
+    // The mod launches in its page loaded anew. While a mod it requires is neither launching nor running, it waits
+    // to launch with that one.
+    private func load(_ sandbox: Sandbox) throws {
         guard waitsFor(sandbox).isEmpty else { return }
         try launch(sandbox)
         effects.append(.load(modId: sandbox.mod.manifest.id))
     }
 
     private func launch(_ sandbox: Sandbox) throws {
-        sandbox.run = nextRun(of: sandbox.mod.manifest.id)
+        let run = nextRun(of: sandbox.mod.manifest.id)
+        sandbox.run = run
         sandbox.stopAsked = false
-        try tell(.willLaunch, sandbox)
+        try tell(.willLaunch, run, of: sandbox)
     }
 
     private func terminate(_ sandbox: Sandbox, _ reason: TerminateReason) throws {
-        guard sandbox.run.state != .notRunning else { return }
+        guard sandbox.state != .notRunning else { return }
         try move(sandbox) { run throws(LifecycleError) in try run.terminate(reason) }
     }
 
@@ -231,42 +233,45 @@ final class Runner {
         _ sandbox: Sandbox,
         _ step: (inout Run) throws(LifecycleError) -> LifecycleNotification?
     ) throws {
-        guard let notification = try step(&sandbox.run) else { return }
-        try tell(notification, sandbox)
+        guard var run = sandbox.run else { return }
+        let notification = try step(&run)
+        sandbox.run = run
+        guard let notification else { return }
+        try tell(notification, run, of: sandbox)
     }
 
     // A mod runs only while what it requires runs: it terminates as one of them ends, before that one's stop() is
-    // asked, and launches again as one of them launches, or as it ends when they run again by then. A run that crashed
+    // asked, and launches as one of them launches, or as it ends when they run again by then. A run that crashed
     // or did not launch ends with no willTerminate.
-    private func tell(_ notification: LifecycleNotification, _ sandbox: Sandbox) throws {
-        effects.append(.tell(notification, sandbox.run))
+    private func tell(_ notification: LifecycleNotification, _ run: Run, of sandbox: Sandbox) throws {
+        effects.append(.tell(notification, run))
         let id = sandbox.mod.manifest.id
         switch notification {
         case .willLaunch:
             for dependent in dependents(of: id)
-            where dependent.run.state == .notRunning && dependent.closing == nil && !quitting {
-                try launchAgain(dependent)
+            where dependent.state == .notRunning && dependent.closing == nil && !quitting {
+                try load(dependent)
             }
 
         case .willTerminate:
             try terminateDependents(of: id)
 
         case .didTerminate:
-            try ended(sandbox)
+            try ended(sandbox, run)
 
         case .didLaunch, .didFailToLaunch:
             break
         }
     }
 
-    private func ended(_ sandbox: Sandbox) throws {
-        if sandbox.run.endReason == nil {
+    private func ended(_ sandbox: Sandbox, _ run: Run) throws {
+        if run.endReason == nil {
             try terminateDependents(of: sandbox.mod.manifest.id)
         }
         if sandbox.closing != nil {
             try closed(sandbox)
-        } else if (sandbox.run.relaunches || sandbox.run.endReason == .requirement) && !quitting {
-            try launchAgain(sandbox)
+        } else if (run.relaunches || run.endReason == .requirement) && !quitting {
+            try load(sandbox)
         }
     }
 
@@ -277,13 +282,14 @@ final class Runner {
     }
 
     private func askStops() {
-        for sandbox in sandboxes where sandbox.run.state == .terminating && !sandbox.stopAsked {
+        for sandbox in sandboxes {
+            guard let run = sandbox.run, run.state == .terminating, !sandbox.stopAsked else { continue }
             let waiting = dependents(of: sandbox.mod.manifest.id).contains { dependent in
-                dependent.run.state == .terminating
+                dependent.state == .terminating
             }
             guard !waiting else { continue }
             sandbox.stopAsked = true
-            effects.append(.stop(modId: sandbox.mod.manifest.id, number: sandbox.run.number))
+            effects.append(.stop(modId: sandbox.mod.manifest.id, number: run.number))
         }
     }
 
@@ -310,7 +316,7 @@ final class Runner {
     // The ids of the mods it requires whose runs are neither launching nor running, by id.
     private func waitsFor(_ sandbox: Sandbox) -> [String] {
         sandbox.mod.manifest.requires.keys.sorted().filter { id in
-            let state = self.sandbox(of: id)?.run.state
+            let state = self.sandbox(of: id)?.state
             return state != .launching && state != .running
         }
     }
@@ -322,7 +328,7 @@ final class Runner {
     // The mod's sandbox, while its latest run is the `number`th: what an older run said, still on its way, is not the
     // newer one's.
     private func sandbox(of id: String, run number: Int) -> Sandbox? {
-        guard let sandbox = sandbox(of: id), sandbox.run.number == number else { return nil }
+        guard let sandbox = sandbox(of: id), sandbox.run?.number == number else { return nil }
         return sandbox
     }
 }
