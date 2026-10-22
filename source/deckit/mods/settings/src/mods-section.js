@@ -5,9 +5,9 @@ const { MOD_DETAILS_STYLE, modDetails } = require('./mod-details.js');
 const { restartNotice } = require('./restart-notice.js');
 const { section } = require('./section.js');
 
-// The Mods section: every mod found in the load order, what each contributes, installing and removing them, and
-// putting them in another order. `onChange` hears that a mod was installed, removed, restarted, pinned or moved here. Failures and what was done are told in the notice under the
-// list.
+// The Mods section: every mod found in the load order, what each contributes, installing and removing them, and putting
+// them in another order and applying it. `onChange` hears that a mod was installed, removed, restarted, pinned or moved
+// here. Failures and what was done are told in the notice under the list.
 function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
@@ -16,12 +16,16 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     const STATE_WORDS = { launching: 'starting', terminating: 'stopping', notRunning: 'stopped' };
     const BUSY = ['launching', 'terminating'];
     const DESCRIPTION =
-        'Install a mod from its folder, or remove one you no longer need. Drag a row to change the order mods load ' +
-        'in. Open a row to see what it adds, what it needs and where its files are.';
+        'Install a mod from its folder, or remove one you no longer need. Drag rows to change the order mods load ' +
+        'in, then apply it. Open a row to see what it adds, what it needs and where its files are.';
     const COLUMNS = ['NAME', 'VERSION', 'CONTRIBUTES', ''];
 
     const rowFills = new WeakMap(); // row element -> its fill(mod)
     let ids = []; // the mods' ids, as the list was last drawn
+    let listed = null; // what deck last listed: the mods in the order it keeps, and what they do
+    let draft = null; // the order the rows were dragged into and not yet applied, or null
+    let refusal = ''; // why deck refused the draft as it was applied, or ''
+    let applying = false;
 
     ui.addStyle(`
         .settings-mod-columns {
@@ -84,6 +88,16 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             line-height: 1.6;
             opacity: 0.8;
         }
+        .settings-order {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 8px 0 0;
+            font: 12.5px var(--deckit-font);
+        }
+        .settings-order[hidden] { display: none; }
+        .settings-order-text { flex: 1 1 auto; opacity: 0.7; }
+        .settings-order-text[data-refused] { color: var(--deckit-alert); opacity: 1; }
         .settings-install-note { margin-top: 10px; font: var(--deckit-type-small); line-height: 1.5; opacity: 0.5; }
     `);
     ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE);
@@ -100,18 +114,24 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         create: modRow,
         update: (row, mod) => rowFills.get(row)(mod),
     });
-    // Deck keeps a mod that loads after the mods it requires, whatever order it is given. One that does not load keeps
-    // the place it is put in.
+    // A drag changes the order drawn; it is deck's once applied. Deck refuses an order that puts a mod that loads
+    // before one it requires, and the order stays drawn, with why, to be changed again.
     ui.sortable(rows, {
         onReorder: (id, toId) => {
             const next = [...ids];
             const from = next.indexOf(id);
             const to = next.indexOf(toId);
-            if (from < 0 || to < 0) return;
+            if (applying || from < 0 || to < 0) return;
             next.splice(to, 0, next.splice(from, 1)[0]);
-            mods.arrange(next).then(onChange, (error) => showNotice('Could not move it: ' + error.message));
+            draft = next.join() === listed.found.map((mod) => mod.id).join() ? null : next;
+            refusal = '';
+            render();
         },
     });
+    const order = ui.element('div', { className: 'settings-order' });
+    const orderText = ui.element('span', { className: 'settings-order-text' });
+    const revertButton = ui.button({ label: 'Revert', size: 'small', onClick: settleOrder });
+    const applyButton = ui.button({ label: 'Apply', size: 'small', variant: 'primary', onClick: applyOrder });
     const restart = restartNotice({ ui, mods, appName, onFailure: showNotice });
     const notice = ui.element('div', { className: 'settings-notice' });
     const headings = COLUMNS.map((text) => ui.element('div', { text }));
@@ -120,16 +140,60 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     headings[0].style.paddingLeft = '13px';
     columns.append(...headings);
     notice.hidden = true;
+    order.hidden = true;
+    order.append(orderText, revertButton.element, applyButton.element);
     head.append(installButton.element);
-    body.append(columns, rows.element, restart.element, notice);
+    body.append(columns, rows.element, order, restart.element, notice);
     return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
 
     // The panel's pins are the shell's: under a shell that has none, no child is pinned.
-    function draw({ found, running, shortcuts, handlerLists }) {
-        restart.draw(found);
+    function draw(state) {
+        listed = state;
+        restart.draw(state.found);
+        render();
+    }
+
+    // The rows in the order dragged into while one is, those found since after them.
+    function render() {
         const pinned = new Set(mods.pinned ? mods.pinned() : []);
+        const place = (mod) => (draft.includes(mod.id) ? draft.indexOf(mod.id) : draft.length);
+        const found = draft ? [...listed.found].sort((mod, other) => place(mod) - place(other)) : listed.found;
         ids = found.map(({ id }) => id);
-        rows.set(modRowsOf({ found, running, shortcuts, handlerLists, pinned }));
+        order.hidden = !draft;
+        orderText.textContent = refusal
+            ? 'Could not apply the order: ' + refusal
+            : 'The mods load in this order once it is applied.';
+        orderText.toggleAttribute('data-refused', Boolean(refusal));
+        rows.set(modRowsOf({ ...listed, found, pinned }));
+    }
+
+    // While it is applied, the order is neither dragged, applied again nor reverted.
+    function applyOrder() {
+        setApplying(true);
+        mods.arrange(draft)
+            .then(
+                () => {
+                    settleOrder();
+                    onChange();
+                },
+                (error) => {
+                    refusal = error.message;
+                    render();
+                }
+            )
+            .finally(() => setApplying(false));
+    }
+
+    function setApplying(on) {
+        applying = on;
+        applyButton.setEnabled(!on);
+        revertButton.setEnabled(!on);
+    }
+
+    function settleOrder() {
+        draft = null;
+        refusal = '';
+        render();
     }
 
     function showNotice(text) {

@@ -92,6 +92,9 @@ extension ResponseError {
 
         case let error as LoadOrderError:
             switch error {
+            case .requiredLater:
+                "REQUIRED_LATER"
+
             case .unreadable:
                 "UNREADABLE"
             }

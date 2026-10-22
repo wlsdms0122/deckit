@@ -134,6 +134,33 @@ function connect({ port, shots }) {
                         clickCount: 1,
                     });
             },
+            // A drag as a person makes it, from the middle of what `from` evaluates to, an element, past the middle of
+            // what `to` does, in small steps.
+            async drag(from, to) {
+                const middle = (expression) =>
+                    this.evaluate(
+                        `(() => { const r = (${expression}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, height: r.height }; })()`
+                    );
+                const start = await middle(from);
+                const end = await middle(to);
+                const mouse = (type, x, y) =>
+                    send('Input.dispatchMouseEvent', {
+                        type,
+                        x,
+                        y,
+                        button: 'left',
+                        buttons: type === 'mouseReleased' ? 0 : 1,
+                        clickCount: 1,
+                    });
+                await mouse('mousePressed', start.x, start.y);
+                const steps = 12;
+                const y = end.y + end.height / 3;
+                for (let step = 1; step <= steps; step++) {
+                    await mouse('mouseMoved', start.x, start.y + ((y - start.y) * step) / steps);
+                    await new Promise((resolve) => setTimeout(resolve, 16));
+                }
+                await mouse('mouseReleased', start.x, y);
+            },
             // The page as a screenshot, clear where it draws nothing, in base64.
             async capture() {
                 await send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 0, g: 0, b: 0, a: 0 } });
