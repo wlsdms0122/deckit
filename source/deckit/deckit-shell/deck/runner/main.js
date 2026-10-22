@@ -106,15 +106,16 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         effectHandlers.set(name, handler);
     }
 
-    // The mods named load, in the load order, each once what it requires has launched or failed to: a mod loaded
-    // while one it requires does not run fails as it launches. One whose run has not ended is left as it is, and
-    // none loads while the app quits. Resolves once each has launched, or failed to.
+    // The mods named load, in the load order, each once its own run that terminates has ended and what it requires
+    // has launched or failed to: a mod loaded while one it requires does not run fails as it launches. One launching
+    // or running is left as it is, and none loads while the app quits. Resolves once each has launched, or failed to.
     async function load(ids) {
         let left = CATALOG.mods()
             .filter((mod) => ids.includes(mod.id))
             .map((mod) => ({ id: mod.id, requires: Object.keys(mod.requires) }));
-        const ready = ({ requires }) =>
-            requires.every((id) => !left.some((mod) => mod.id === id) && runOf(id)?.state !== 'launching');
+        const ready = ({ id, requires }) =>
+            runOf(id)?.state !== 'terminating' &&
+            requires.every((other) => !left.some((mod) => mod.id === other) && runOf(other)?.state !== 'launching');
         while (left.length) {
             await until(() => quitHold === 'held' || left.some(ready));
             if (quitHold === 'held') return;
