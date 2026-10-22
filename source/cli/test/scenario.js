@@ -334,7 +334,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             2000
         );
         await settings?.press('.settings-order [data-variant="primary"]');
-        const refusal = `document.querySelector('.settings-notice:not([hidden])')?.textContent || ''`;
+        const refusal = `document.querySelector('.settings-order-text[data-refused]')?.textContent || ''`;
         await until(async () => (await settings.evaluate(refusal)).includes('Could not apply'), 3000);
         const refused = await settings?.evaluate(refusal);
         check(
