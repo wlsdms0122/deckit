@@ -11,7 +11,7 @@ import Foundation
 public enum Effect: Sendable {
     // Make the mod's sandbox, its page not loaded yet.
     case open(Mod)
-    // Load the mod's page at its address.
+    // Load the mod's page at its address: a page the driver knows has just loaded by itself is left as it is.
     case loadPage(modId: String)
     // Keep the run as it is now, and tell whoever observes it.
     case tell(LifecycleNotification, Run)
