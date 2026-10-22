@@ -83,9 +83,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.
     // `found`: every mod the catalog found, those that load in their load order and then the rest, each with
-    // `installed`, whether it is a copy in deck's mods folder, `state`, its latest run's, null for one with none,
-    // `hides`, folders of the same id that are not read, and `launched`, while it starts or stops again, what its
-    // latest run that launched contributed, as `running` lists it.
+    // `installed`, whether it is a copy in deck's mods folder, `state`, its latest run's, notRunning before its first,
+    // null for one with no sandbox, `hides`, folders of the same id that are not read, and `launched`, while it starts
+    // or stops again, what its latest run that launched contributed, as `running` lists it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
@@ -98,7 +98,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
                     shipped: mod.shipped,
                     hides: mod.hides,
                     problem: mod.problem || run?.problem || null,
-                    state: run?.state || null,
+                    state: RUNNER.stateOf(mod.id),
                     launched:
                         TRANSITIONS.includes(run?.state) && RUNNER.launchedOf(mod.id)
                             ? entryOf(mod, RUNNER.launchedOf(mod.id))

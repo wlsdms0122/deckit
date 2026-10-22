@@ -63,6 +63,12 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return sandboxes.get(modId)?.run || null;
     }
 
+    // Its latest run's state, notRunning before its first, while it has a sandbox; null otherwise.
+    function stateOf(modId) {
+        const sandbox = sandboxes.get(modId);
+        return sandbox ? sandbox.run?.state || 'notRunning' : null;
+    }
+
     // The ids of the mods it requires that are neither launching nor running, as the core told it: it does not launch
     // until they do.
     function waitsForOf(modId) {
@@ -317,6 +323,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         start,
         runs,
         runOf,
+        stateOf,
         waitsForOf,
         onWaitsForChange,
         launchedOf,
