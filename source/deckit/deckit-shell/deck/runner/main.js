@@ -18,6 +18,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
+    const reloading = new Map(); // mod id -> how many reloads are bringing it back
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
     const effectHandlers = new Map(); // effect name -> what does it, for an effect that is another module's to do
     const problemListeners = new Set(); // told when a problem is kept against a run
@@ -137,8 +138,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // again with them. Resolves once each has launched again, or failed to: one loaded while a mod it requires is not
     // running fails as it launches.
     function relaunch(ids) {
-        const again = CATALOG.mods().filter((mod) => ids.includes(mod.id));
-        return reload(ids, [...again.map(({ id }) => id), ...again.flatMap(({ dependents }) => dependents)]);
+        return reload(ids, withDependents(ids, new Map(CATALOG.mods().map((mod) => [mod.id, mod]))));
     }
 
     // Every mod that loads terminates and loads again, and one whose run ended for a quit the host app called off
@@ -158,7 +158,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             .map(({ mod }) => mod.id);
         const updated = stale.filter((id) => current.has(id));
         const opening = [...current.keys()].filter((id) => !sandboxes.has(id));
-        const again = [...updated, ...updated.flatMap((id) => current.get(id).dependents)];
+        const again = withDependents(updated, current);
         reconciled = unload(stale.filter((id) => !current.has(id))).then(() => reload(updated, [...opening, ...again]));
         reconciled.catch((error) => LOG.error('the mods were not loaded', error));
     }
@@ -175,9 +175,20 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         }
     }
 
-    // Whether the mods' latest runs say they load again once they have ended.
+    // The mods named, and the mods that require them, by `mods`: the catalog's mods by id.
+    function withDependents(ids, mods) {
+        return [...ids, ...ids.flatMap((id) => mods.get(id)?.dependents ?? [])];
+    }
+
+    // A reload starting or ending for the mods: their latest runs say they load again while any reload is bringing
+    // them back.
     function mark(ids, relaunches) {
-        for (const id of ids) sandboxes.get(id)?.update({ relaunches });
+        for (const id of new Set(ids)) {
+            const count = (reloading.get(id) ?? 0) + (relaunches ? 1 : -1);
+            if (count) reloading.set(id, count);
+            else reloading.delete(id);
+            sandboxes.get(id)?.update({ relaunches: count > 0 });
+        }
     }
 
     // What the core answers is done before anything asked after it is. Answers the effects.
@@ -248,7 +259,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     // A run is one object from willLaunch on.
     function tell(sandbox, name, told) {
-        if (name === 'willLaunch') Object.assign(sandbox, RUN.makeRun({ mod: sandbox.mod, number: told.run }));
+        if (name === 'willLaunch') {
+            const relaunches = reloading.has(sandbox.mod.id);
+            Object.assign(sandbox, RUN.makeRun({ mod: sandbox.mod, number: told.run, relaunches }));
+        }
         update(sandbox, told);
         const { run } = sandbox;
         if (name === 'didLaunch') lastLaunched.set(run.mod.id, run);

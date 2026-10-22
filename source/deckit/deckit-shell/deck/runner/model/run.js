@@ -8,13 +8,13 @@
 // as its page reported them as it started;
 // `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed;
 // `relaunches`, whether the runner loads the mod again once it has ended.
-function makeRun({ mod, number }) {
+function makeRun({ mod, number, relaunches = false }) {
     const facts = {
         state: 'launching',
         summary: null,
         contributions: null,
         problem: null,
-        relaunches: false,
+        relaunches,
     };
     const run = Object.freeze({
         mod,

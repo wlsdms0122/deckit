@@ -153,13 +153,22 @@ async function main() {
             return Promise.resolve([told('didTerminate', 'notRunning', 'b'), told('didTerminate', 'notRunning')]);
         },
     ]);
-    answers.set('runner/load', [[told('didLaunch', 'running')], [told('didLaunch', 'running', 'b')]]);
+    let markedAgain = null;
+    answers.set('runner/load', [
+        [told('willLaunch', 'launching'), told('didLaunch', 'running')],
+        () => {
+            markedAgain = RUNNER.runOf('a').relaunches;
+            return Promise.resolve([told('didLaunch', 'running', 'b')]);
+        },
+    ]);
     await RUNNER.relaunch(['a']);
     const loads = methods('runner/load')
         .slice(-2)
         .map(({ params }) => params.mods.join());
     check('a mod restarted loads the mods that require it again, after it', loads.join(' ') === 'a b', loads);
     check('the mods that require a mod restarted say meanwhile that they load again', marked === true, marked);
+    check('a run that launches while a reload is bringing its mod back says so too', markedAgain === true, markedAgain);
+    check('a reload ended says so no more', RUNNER.runOf('a').relaunches === false, RUNNER.runOf('a').relaunches);
 
     answers.set('runner/crash', [[{ effect: 'close', mod: 'a' }]]);
     watching.get(page).gone('killed');
