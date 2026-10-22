@@ -121,7 +121,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             const sandbox = sandboxes.get(modId);
             if (!sandbox || sandbox.closing) return true;
             const { run } = sandbox;
-            return (run.number !== before || run.state === 'notRunning') && run.state !== 'launching';
+            if (run.number === before) return run.state === 'notRunning' && !run.relaunches;
+            return run.state !== 'launching';
         });
     }
 
@@ -276,12 +277,14 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         send('runner/crash', { mod: run.mod.id, run: run.number, problem });
     }
 
-    // What a page says of its run carries the run's number.
+    // What a page says of its run carries the run's number. A page loaded again by itself runs nothing of the mod's
+    // when its run fails as it launches.
     function listen() {
         PROTOCOL.load.handle(async (_payload, sender) => {
             const { id } = IDENTITY.modFrom(sender);
             await ask('runner/load', { mod: id });
             const { mod, run } = sandboxes.get(id);
+            if (run.state !== 'launching') throw Object.assign(new Error(run.problem), { kind: 'REFUSED' });
             IDENTITY.whenPageEnds(sender, (ending) => crash(run, endedProblem(ending)));
             return {
                 manifest: mod.manifest,
