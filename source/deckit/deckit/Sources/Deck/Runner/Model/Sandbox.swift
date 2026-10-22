@@ -11,7 +11,7 @@ import Foundation
 final class Sandbox {
     // MARK: - Property
     let mod: Mod
-    // Its latest run, none until it first launches.
+    // Its latest run, none until the mod first launches in it.
     var run: Run?
     // Why it closes, once it is going: it closes once its run has ended.
     var closing: TerminateReason?

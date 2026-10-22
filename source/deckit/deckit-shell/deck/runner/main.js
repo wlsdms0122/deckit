@@ -14,8 +14,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
     // mod id -> { mod, page, run, update, closing, waitsFor }: a mod's sandbox, the page it runs in, its latest run,
-    // null until it first launches, and how what the core tells of it is kept, whether it is going, and what it waits
-    // for.
+    // null until the mod first launches in it, and how what the core tells of it is kept, whether it is going, and what
+    // it waits for.
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
@@ -54,7 +54,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         });
     }
 
-    // Each mod's latest run, with the page it runs in: a mod that waits to launch for the first time has none.
+    // Each mod's latest run, with the page it runs in: a mod that has not launched since its sandbox opened has none.
     function runs() {
         return [...sandboxes.values()].filter(({ run }) => run).map(({ run, page }) => ({ run, page }));
     }
@@ -63,7 +63,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return sandboxes.get(modId)?.run || null;
     }
 
-    // Its latest run's state, notRunning before its first, while it has a sandbox; null otherwise.
+    // Its latest run's state, notRunning before its first in its sandbox, while it has one; null otherwise.
     function stateOf(modId) {
         const sandbox = sandboxes.get(modId);
         return sandbox ? sandbox.run?.state || 'notRunning' : null;
