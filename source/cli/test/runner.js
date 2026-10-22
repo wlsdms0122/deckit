@@ -164,11 +164,7 @@ async function main() {
     ]);
     check('the quit is held while a run has not ended', hold() === true, RUNNER.runs());
     const quit = methods('runner/unload').at(-1)?.params;
-    check(
-        'the core is asked to stop the runs as the app quits',
-        quit?.reason === 'quit' && quit.mods.join() === 'b',
-        quit
-    );
+    check('the core is asked to stop the runs as the app quits', quit?.mods.join() === 'b', quit);
     check('a quit asked again meanwhile waits too', hold() === true, null);
     end();
     await tick();

@@ -45,7 +45,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             if (quitHold === 'free' || (!quitHold && !live)) return false;
             if (quitHold) return true;
             quitHold = 'held';
-            unload([...sandboxes.keys()], 'quit').then(
+            unload([...sandboxes.keys()]).then(
                 () => {
                     quitHold = null;
                     APP.quit();
@@ -126,17 +126,17 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         await until(() => ids.every((id) => runOf(id)?.state !== 'launching'));
     }
 
-    // The mods named terminate for `reason`, after the mods that require them. Resolves once each has ended.
-    async function unload(ids, reason) {
+    // The mods named terminate, after the mods that require them. Resolves once each has ended.
+    async function unload(ids) {
         if (!ids.length) return;
-        await ask('runner/unload', { mods: ids, reason });
+        await ask('runner/unload', { mods: ids });
         await until(() => ids.every((id) => (runOf(id)?.state ?? 'notRunning') === 'notRunning'));
     }
 
     // The mods terminate and load again, or load when they are not running. Resolves once each has launched again,
     // or failed to: one loaded while a mod it requires is not running fails as it launches.
     function relaunch(ids) {
-        return reload(ids, 'relaunch', ids);
+        return reload(ids, ids);
     }
 
     // Every mod that loads terminates and loads again, and one whose run ended for a quit the host app called off
@@ -157,19 +157,16 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         const updated = stale.filter((id) => current.has(id));
         const opening = [...current.keys()].filter((id) => !sandboxes.has(id));
         const again = [...updated, ...updated.flatMap((id) => current.get(id).dependents)];
-        reconciled = unload(
-            stale.filter((id) => !current.has(id)),
-            'removed'
-        ).then(() => reload(updated, 'updated', [...opening, ...again]));
+        reconciled = unload(stale.filter((id) => !current.has(id))).then(() => reload(updated, [...opening, ...again]));
         reconciled.catch((error) => LOG.error('the mods were not loaded', error));
     }
 
-    // The mods named unload for `reason`, and then those in `loading` load, the runs of those that have one saying
-    // meanwhile that they load again.
-    async function reload(unloading, reason, loading) {
+    // The mods named unload, and then those in `loading` load, the runs of those that have one saying meanwhile that
+    // they load again.
+    async function reload(unloading, loading) {
         mark(loading, true);
         try {
-            await unload(unloading, reason);
+            await unload(unloading);
             await load(loading);
         } finally {
             mark(loading, false);
@@ -262,8 +259,8 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     function update(sandbox, told) {
-        const { state, problem = null, endReason = null, summary = null, contributions = null } = told;
-        sandbox.update({ state, problem, endReason, summary, contributions });
+        const { state, problem = null, summary = null, contributions = null } = told;
+        sandbox.update({ state, problem, summary, contributions });
     }
 
     // The page is made, known as the mod's and set up before it loads, so what it asks as it starts is the mod's. A
