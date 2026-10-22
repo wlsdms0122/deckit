@@ -68,10 +68,10 @@ module.exports = {
             const icons = new Map(running.map((mod) => [mod.id, mod.icon]));
             return found.map((mod) => {
                 const entry = { label: mod.name, icon: icons.get(mod.id) || icon('puzzle') };
-                if (!mod.state) return { ...entry, hint: mod.problem || 'Did not load' };
-                if (mod.state === 'terminating') return { ...entry, hint: 'Stopping' };
-                const run = () => deck.mods.relaunch(mod.id).then(() => deck.mods.launchDependents(mod.id));
-                return { ...entry, hint: STATES[mod.state], run };
+                if (!mod.run) return { ...entry, hint: mod.problem || 'Did not load' };
+                if (mod.run.state === 'terminating') return { ...entry, hint: 'Stopping' };
+                const run = () => deck.mods.relaunch(mod.id).then(() => deck.mods.load(mod.dependents));
+                return { ...entry, hint: STATES[mod.run.state], run };
             });
         }
 
