@@ -15,6 +15,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     // spinner beside its name, with the word as its title.
     const STATE_WORDS = { launching: 'starting', terminating: 'stopping', notRunning: 'stopped' };
     const BUSY = ['launching', 'terminating'];
+    // How long a restart asked here is shown at least: one that ends sooner would only flicker.
+    const RESTART_SHOWN_MS = 600;
     const DESCRIPTION =
         'Install a mod from its folder, or remove one you no longer need. Drag rows to change the order mods load ' +
         'in, then apply it. Open a row to see what it adds, what it needs and where its files are.';
@@ -26,6 +28,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     let draft = null; // the order the rows were dragged into and not yet applied, or null
     let refusal = ''; // why deck refused the draft as it was applied, or ''
     let applying = false;
+    const restarting = new Set(); // the ids of the mods a restart asked here is bringing back
 
     ui.addStyle(`
         .settings-mod-columns {
@@ -257,8 +260,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             const labels = contributionsOf(mod.live, mod.keys.length, everyScheme);
             name.textContent = name.title = mod.name;
             name.toggleAttribute('data-not-loaded', !!mod.notLoaded);
-            busy.hidden = !BUSY.includes(mod.state);
-            busy.title = busy.hidden ? '' : STATE_WORDS[mod.state];
+            busy.hidden = !mod.restarting && !BUSY.includes(mod.state);
+            busy.title = mod.restarting ? 'restarting' : busy.hidden ? '' : STATE_WORDS[mod.state];
             version.textContent = mod.version || NO_VALUE;
             version.toggleAttribute('data-missing', !mod.version);
             contributions.replaceChildren(
@@ -266,7 +269,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
                     (text) => chip({ ui, text, muted: !labels.length }).element
                 )
             );
-            relaunchAction.element.hidden = !mod.state;
+            relaunchAction.element.hidden = !mod.state || mod.restarting;
             removeAction.element.hidden = !mod.installed;
             source.element.hidden = !!(mod.installed || mod.shipped);
             source.element.title =
@@ -370,13 +373,19 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         });
     }
 
-    // Then the mods that require it and are not running launch again.
+    // The mod and the mods that require it restart, their rows saying so until they are back.
     async function relaunch(mod) {
+        const ids = [mod.id, ...mod.dependents];
+        const shown = new Promise((resolve) => setTimeout(resolve, RESTART_SHOWN_MS));
+        for (const id of ids) restarting.add(id);
+        render();
         try {
-            await mods.relaunch(mod.id);
-            await mods.load(mod.dependents);
+            await Promise.all([mods.relaunch(mod.id), shown]);
         } catch (error) {
             return showNotice('Could not restart: ' + error.message);
+        } finally {
+            for (const id of ids) restarting.delete(id);
+            render();
         }
         onChange();
     }
@@ -408,6 +417,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             dependencies: mod?.dependencies,
             dependents: mod?.dependents,
             hides: mod?.hides,
+            restarting: restarting.has(mod?.id),
         });
         return found.map((mod) => {
             const live = running.find((entry) => entry.id === mod.id);
@@ -418,11 +428,14 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
                     ...fromDisk(mod),
                     keys: keysOf(mod.id),
                     handlerLists,
-                    // One starting for the first time is not yet anything but starting: its spinner says so.
+                    // One starting for the first time, or restarting here, is not yet anything but that: its spinner
+                    // says so.
                     notLoaded:
                         mod.problem ||
-                        mod.run?.problem ||
-                        (mod.run?.state === 'launching' ? null : STATE_WORDS[mod.run?.state] || 'did not load'),
+                        (restarting.has(mod.id)
+                            ? null
+                            : mod.run?.problem ||
+                              (mod.run?.state === 'launching' ? null : STATE_WORDS[mod.run?.state] || 'did not load')),
                 };
             return {
                 id: live.id,
