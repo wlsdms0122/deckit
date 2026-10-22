@@ -264,7 +264,7 @@ struct RunnerTests {
     }
 
     @Test("a mod whose requirement is down stays down as it ends, and does not say it launches again")
-    func dependentWaitsForItsRequirement() throws {
+    func dependentStaysDownWhileItsRequirementIsDown() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -347,7 +347,7 @@ struct RunnerTests {
 
         // Then
         #expect(describe(effects) == ["tell willLaunch b 2 launching", "tell didTerminate b 2 notRunning"])
-        #expect(sut.run(of: "b")?.problem == "needs a, which is not running")
+        #expect(sut.run(of: "b")?.problem == "needs a, which was not running")
     }
 
     @Test("a page that loaded again by itself runs again")

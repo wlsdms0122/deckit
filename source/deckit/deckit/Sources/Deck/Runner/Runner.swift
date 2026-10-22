@@ -239,10 +239,11 @@ final class Runner {
     // Its run launches, in its page loaded anew while `loadingPage`. While a mod it requires is neither launching nor
     // running, the run fails as it launches, and its page does not load.
     private func launch(_ sandbox: Sandbox, loadingPage: Bool) throws {
+        sandbox.relaunching = false
         sandbox.stopAsked = false
         try tell(.willLaunch, sandbox.run, of: sandbox)
         if let missing = missing(sandbox) {
-            try move(sandbox) { run throws(LifecycleError) in try run.crash("needs \(missing), which is not running") }
+            try move(sandbox) { run throws(LifecycleError) in try run.crash("needs \(missing), which was not running") }
         } else if loadingPage {
             effects.append(.load(modId: sandbox.mod.manifest.id))
         }
@@ -290,7 +291,7 @@ final class Runner {
     }
 
     private func terminateDependents(of id: String) throws {
-        for dependent in dependents(of: id) where dependent.closing == nil {
+        for dependent in directDependents(of: id) where dependent.closing == nil {
             try terminate(dependent, .requirement)
         }
     }
@@ -299,7 +300,7 @@ final class Runner {
         for sandbox in sandboxes {
             let run = sandbox.run
             guard run.state == .terminating, !sandbox.stopAsked else { continue }
-            let waiting = dependents(of: sandbox.mod.manifest.id).contains { dependent in
+            let waiting = directDependents(of: sandbox.mod.manifest.id).contains { dependent in
                 dependent.state == .terminating
             }
             guard !waiting else { continue }
@@ -315,7 +316,7 @@ final class Runner {
         return Run(modId: id, number: number)
     }
 
-    private func dependents(of id: String) -> [Sandbox] {
+    private func directDependents(of id: String) -> [Sandbox] {
         sandboxes.filter { sandbox in sandbox.mod.manifest.requires[id] != nil }
     }
 
