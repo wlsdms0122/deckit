@@ -125,7 +125,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         },
     });
     const order = ui.element('div', { className: 'settings-order' });
-    const revertButton = ui.button({ label: 'Revert', size: 'small', onClick: () => ((draft = null), render()) });
+    const revertButton = ui.button({ label: 'Revert', size: 'small', onClick: settleOrder });
     const applyButton = ui.button({ label: 'Apply', size: 'small', variant: 'primary', onClick: applyOrder });
     const restart = restartNotice({ ui, mods, appName, onFailure: showNotice });
     const notice = ui.element('div', { className: 'settings-notice' });
@@ -165,14 +165,23 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         rows.set(modRowsOf({ ...drawn, found, pinned }));
     }
 
+    // A drag made while it is applied stays drawn.
     function applyOrder() {
-        mods.arrange(draft).then(
+        const applying = draft;
+        mods.arrange(applying).then(
             () => {
-                draft = null;
+                if (draft === applying) settleOrder();
                 onChange();
             },
             (error) => showNotice('Could not apply the order: ' + error.message)
         );
+    }
+
+    // The order put away, and what was told of it with it.
+    function settleOrder() {
+        draft = null;
+        notice.hidden = true;
+        render();
     }
 
     function showNotice(text) {
