@@ -1,8 +1,8 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: a run's page
 // made, known as the mod's and set up before it loads, what the core is told as the page fails, crashes or is
-// replaced, a run's stop() asked of its page, a mod loaded once what it requires has launched, the page closed, and
-// the quit held while a run has not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so
-// they are imported as such.
+// replaced, a run's stop() asked of its page, a mod loaded once what it requires has launched, one restarted with the
+// mods that require it, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each
+// check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -143,6 +143,23 @@ async function main() {
     answers.set('runner/started', [[told('didLaunch', 'running', 'b')]]);
     await RUNNER.ask('runner/started', { mod: 'b', run: 1 });
     await loading;
+
+    // A mod restarted brings back the mods that require it, their runs saying meanwhile that they load again.
+    catalog = catalog.map((mod) => (mod.id === 'a' ? { ...mod, dependents: ['b'] } : mod));
+    let marked = null;
+    answers.set('runner/unload', [
+        () => {
+            marked = RUNNER.runOf('b').relaunches;
+            return Promise.resolve([told('didTerminate', 'notRunning', 'b'), told('didTerminate', 'notRunning')]);
+        },
+    ]);
+    answers.set('runner/load', [[told('didLaunch', 'running')], [told('didLaunch', 'running', 'b')]]);
+    await RUNNER.relaunch(['a']);
+    const loads = methods('runner/load')
+        .slice(-2)
+        .map(({ params }) => params.mods.join());
+    check('a mod restarted loads the mods that require it again, after it', loads.join(' ') === 'a b', loads);
+    check('the mods that require a mod restarted say meanwhile that they load again', marked === true, marked);
 
     answers.set('runner/crash', [[{ effect: 'close', mod: 'a' }]]);
     watching.get(page).gone('killed');

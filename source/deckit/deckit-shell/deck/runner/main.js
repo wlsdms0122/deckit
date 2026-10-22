@@ -133,10 +133,12 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         await until(() => ids.every((id) => (runOf(id)?.state ?? 'notRunning') === 'notRunning'));
     }
 
-    // The mods terminate and load again, or load when they are not running. Resolves once each has launched again,
-    // or failed to: one loaded while a mod it requires is not running fails as it launches.
+    // The mods terminate and load again, or load when they are not running, and the mods that require them load
+    // again with them. Resolves once each has launched again, or failed to: one loaded while a mod it requires is not
+    // running fails as it launches.
     function relaunch(ids) {
-        return reload(ids, ids);
+        const again = CATALOG.mods().filter((mod) => ids.includes(mod.id));
+        return reload(ids, [...again.map(({ id }) => id), ...again.flatMap(({ dependents }) => dependents)]);
     }
 
     // Every mod that loads terminates and loads again, and one whose run ended for a quit the host app called off
