@@ -130,9 +130,6 @@ extension ResponseError {
 
             case .quitting:
                 "QUITTING"
-
-            case .needs:
-                "NEEDS"
             }
 
         case let error as SettingError:

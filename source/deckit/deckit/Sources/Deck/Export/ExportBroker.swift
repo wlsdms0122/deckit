@@ -128,7 +128,7 @@ public final class ExportBroker {
     // What a mod it requires gives the mods that depend on it: what it exports while it runs. A run terminating for a
     // reason may launch again, so what depends on it waits until it has ended; one that did not launch has failed.
     private func provision(of id: String) -> Provision {
-        guard let run = runner.run(of: id) else { return .ended("it has not launched") }
+        guard let run = runner.run(of: id) else { return .ended("it has no sandbox") }
         let pending = Provision.pending(Pending(mod: id, run: run.number, state: run.state))
         switch run.state {
         case .launching:

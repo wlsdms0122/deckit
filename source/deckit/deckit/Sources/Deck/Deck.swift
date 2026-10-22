@@ -103,6 +103,10 @@ public final class Deck {
         try withChanges(runner.relaunch(id))
     }
 
+    public func launchDependents(of id: String) throws -> [Effect] {
+        try withChanges(runner.launchDependents(of: id))
+    }
+
     public func relaunchAll() throws -> [Effect] {
         try withChanges(runner.relaunchAll())
     }

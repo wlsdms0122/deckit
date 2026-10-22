@@ -56,7 +56,7 @@ struct RunnerTests {
         #expect(describe(effects) == ["tell didLaunch a 1 running"])
     }
 
-    @Test("a mod terminates before what it requires, whose stop() is asked once it has ended, and both launch again")
+    @Test("a mod terminates before what it requires, whose stop() is asked once it has ended; that one launches again")
     func dependentsEndFirst() throws {
         // Given
         try write("a")
@@ -77,8 +77,7 @@ struct RunnerTests {
             describe(relaunched) == [
                 "tell willTerminate a 1 terminating relaunch",
                 "tell willTerminate b 1 terminating requirement",
-                "stop b 1",
-                "waitsForChanged b a"
+                "stop b 1"
             ]
         )
         #expect(describe(dependentStopped) == ["tell didTerminate b 1 notRunning requirement", "stop a 1"])
@@ -86,10 +85,36 @@ struct RunnerTests {
             describe(stopped) == [
                 "tell didTerminate a 1 notRunning relaunch",
                 "tell willLaunch a 2 launching",
+                "load a"
+            ]
+        )
+    }
+
+    @Test("the mods that require one, directly or through another, and are not running launch as asked, in order")
+    func dependentsLaunchAsAsked() throws {
+        // Given
+        try write("a")
+        try write("b", requires: ["a": "1.0.0"])
+        try write("c", requires: ["b": "1.0.0"])
+        let (sut, catalog) = try runner()
+        _ = catalog.read()
+        _ = try sut.reconcile()
+        _ = try sut.started("a", run: 1)
+        _ = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
+        _ = try sut.stopped("b", run: 1)
+        _ = try sut.stopped("c", run: 1)
+        _ = try sut.relaunch("a")
+
+        // When
+        let effects = try sut.launchDependents(of: "a")
+
+        // Then
+        #expect(
+            describe(effects) == [
                 "tell willLaunch b 2 launching",
                 "load b",
-                "load a",
-                "waitsForChanged b "
+                "tell willLaunch c 2 launching",
+                "load c"
             ]
         )
     }
@@ -111,7 +136,7 @@ struct RunnerTests {
         #expect(describe(second) == ["keep a 1 a listener threw"])
     }
 
-    @Test("a mod whose requirement crashed terminates, and waits for it")
+    @Test("a mod whose requirement crashed terminates")
     func crashEndsDependents() throws {
         // Given
         try write("a")
@@ -130,14 +155,13 @@ struct RunnerTests {
             describe(effects) == [
                 "tell didTerminate a 1 notRunning",
                 "tell willTerminate b 1 terminating requirement",
-                "stop b 1",
-                "waitsForChanged b a"
+                "stop b 1"
             ]
         )
     }
 
-    @Test("a mod whose requirement ran again while it terminated launches again as it ends")
-    func dependentLaunchesAfterItsRequirement() throws {
+    @Test("a mod whose requirement ran again while it terminated stays down as it ends")
+    func dependentStaysDownAfterItsRequirement() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -160,13 +184,7 @@ struct RunnerTests {
                 "stop b 1"
             ]
         )
-        #expect(
-            describe(stopped) == [
-                "tell didTerminate b 1 notRunning requirement",
-                "tell willLaunch b 2 launching",
-                "load b"
-            ]
-        )
+        #expect(describe(stopped) == ["tell didTerminate b 1 notRunning requirement"])
     }
 
     @Test("a run that did not start terminates, its stop() asked, and ends once that answered")
@@ -284,7 +302,7 @@ struct RunnerTests {
         #expect(describe(effects) == ["open a", "tell willLaunch a 1 launching", "load a"])
     }
 
-    @Test("every mod terminates and launches again, and one not running launches now")
+    @Test("every mod terminates, and launches again in the load order once none terminates")
     func relaunchAllRelaunchesEveryMod() throws {
         // Given
         try write("a")
@@ -298,20 +316,23 @@ struct RunnerTests {
         // When
         _ = catalog.read()
         let effects = try sut.relaunchAll()
+        let stopped = try sut.stopped("a", run: 1)
 
         // Then
+        #expect(describe(effects) == ["tell willTerminate a 1 terminating relaunch", "stop a 1"])
         #expect(
-            describe(effects) == [
-                "tell willTerminate a 1 terminating relaunch",
+            describe(stopped) == [
+                "tell didTerminate a 1 notRunning relaunch",
+                "tell willLaunch a 2 launching",
+                "load a",
                 "tell willLaunch b 2 launching",
-                "load b",
-                "stop a 1"
+                "load b"
             ]
         )
     }
 
-    @Test("a mod does not launch again while what it requires is not running")
-    func relaunchNeedsRequirements() throws {
+    @Test("a mod launched while what it requires is not running fails as it launches, its page not loaded")
+    func launchFailsWithoutRequirements() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -319,12 +340,14 @@ struct RunnerTests {
         _ = catalog.read()
         _ = try sut.reconcile()
         _ = try sut.crashed("a", run: 1, problem: "its page ended (crashed)")
+        _ = try sut.stopped("b", run: 1)
 
         // When
-        let relaunched = Result { try sut.relaunch("b") }
+        let effects = try sut.relaunch("b")
 
         // Then
-        #expect(throws: RunnerError.needs(mod: "b", requirement: "a")) { try relaunched.get() }
+        #expect(describe(effects) == ["tell willLaunch b 2 launching", "tell didTerminate b 2 notRunning"])
+        #expect(sut.run(of: "b")?.problem == "needs a, which is not running")
     }
 
     @Test("a page that loaded again by itself runs again")
@@ -393,8 +416,8 @@ struct RunnerTests {
         )
     }
 
-    @Test("a mod that opens while what it requires is down waits for it, and launches as it launches")
-    func openedModWaitsForItsRequirement() throws {
+    @Test("a mod that opens while what it requires is down fails as it launches, and launches as asked once that runs")
+    func openedModFailsWithoutItsRequirement() throws {
         // Given
         try write("a")
         try write("b", requires: ["a": "1.0.0"])
@@ -410,21 +433,21 @@ struct RunnerTests {
         // When
         _ = catalog.read()
         let effects = try sut.reconcile()
-        let waiting = sut.run(of: "b")
         let relaunched = try sut.relaunch("a")
+        let dependents = try sut.launchDependents(of: "a")
 
         // Then
-        #expect(describe(effects) == ["closing b", "close b updated", "open b", "waitsForChanged b a"])
-        #expect(waiting == nil)
         #expect(
-            describe(relaunched) == [
-                "tell willLaunch a 2 launching",
+            describe(effects) == [
+                "closing b",
+                "close b updated",
+                "open b",
                 "tell willLaunch b 2 launching",
-                "load b",
-                "load a",
-                "waitsForChanged b "
+                "tell didTerminate b 2 notRunning"
             ]
         )
+        #expect(describe(relaunched) == ["tell willLaunch a 2 launching", "load a"])
+        #expect(describe(dependents) == ["tell willLaunch b 3 launching", "load b"])
     }
 
     @Test("the app quits once every run has ended, and nothing opens meanwhile")
