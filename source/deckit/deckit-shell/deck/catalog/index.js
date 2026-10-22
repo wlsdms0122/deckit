@@ -36,7 +36,7 @@ export function createCatalog({ CORE, LOG, files }) {
     }
 
     // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
-    // put, each still after the mods it links. Settled once the mods are read again.
+    // put, each still after the mods it requires. Settled once the mods are read again.
     async function arrange(ids) {
         await CORE.request('catalog/arrange', { ids });
         await refresh();

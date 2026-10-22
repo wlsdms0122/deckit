@@ -14,7 +14,7 @@ export function createStyle({ deckit }) {
     // MARK: - Public
     // A mod with `deckit.styles` styles other pages while it runs: by id its own and those of the mods it links, those
     // it requires or uses optionally, and by "*" every page, the shell's and every mod's. Each page wears what applies
-    // to it in the load order, the later over the earlier, so a mod's styles go over those of the mods it links.
+    // to it in the load order, the later over the earlier, so a mod's styles go over those of the mods it requires.
     function start() {
         PROTOCOL.current.handle((_payload, sender) => {
             const modId = deckit.mods.modOf(sender);

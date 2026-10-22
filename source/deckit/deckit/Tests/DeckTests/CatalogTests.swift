@@ -158,7 +158,7 @@ struct CatalogTests {
         #expect(back.allSatisfy { mod in mod.problem == nil })
     }
 
-    @Test("arranging moves the ids named among the places they held, and each still loads after the mods it links")
+    @Test("arranging moves the ids named among the places they held, and each still loads after what it requires")
     func arrangeKeepsLinkedFirst() throws {
         // Given
         for id in ["a", "c", "d"] {
@@ -178,24 +178,8 @@ struct CatalogTests {
         let linked = sut.mods().map(\.manifest.id)
 
         // Then
-        #expect(arranged == ["a", "b", "d", "f", "c", "e", "h", "g"])
+        #expect(arranged == ["a", "b", "d", "f", "c", "e", "g", "h"])
         #expect(linked == arranged)
-    }
-
-    @Test("a mod comes after one it uses optionally, but before one that uses it optionally and requires it")
-    func optionalLinkKeepsRequirementsFirst() throws {
-        // Given
-        try write("a", in: source, optional: ["c": "1.0.0", "d": "1.0.0"])
-        try write("b", in: source, requires: ["a": "1.0.0"])
-        try write("c", in: source, requires: ["b": "1.0.0"])
-        try write("d", in: source)
-        let sut = try catalog(sources: [source])
-
-        // When
-        let mods = sut.mods()
-
-        // Then
-        #expect(mods.map(\.manifest.id) == ["d", "a", "b", "c"])
     }
 
     @Test("a settings file that does not read as a JSON object is neither read for an order nor written over")

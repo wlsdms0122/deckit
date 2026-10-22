@@ -60,10 +60,8 @@ struct DependencyGraph {
         return mods
     }
 
-    // Every mod in one order, as found, but for a mod that loads coming after the mods it links, those it requires and
-    // those it uses optionally that load: one found later is put just before the first that links it. One it uses
-    // optionally and that requires it, directly or through another, comes after it. One that does not load keeps its
-    // place.
+    // Every mod in one order, as found, but for a mod that loads coming after the mods it requires: one found later is
+    // put just before the first that requires it. One that does not load keeps its place.
     func ordered() -> [Mod] {
         let mods = resolved()
         var placed: [Mod] = []
@@ -71,13 +69,7 @@ struct DependencyGraph {
         func place(_ mod: Mod) {
             guard ids.insert(mod.manifest.id).inserted else { return }
             if mod.problem == nil {
-                let used = mod.manifest.optional.keys.filter { id in
-                    !requirements(of: id, in: mods).contains(mod.manifest.id)
-                }
-                let linked = (Array(mod.manifest.requires.keys) + used)
-                    .compactMap { id in places[id] }
-                    .filter { other in mods[other].problem == nil }
-                for other in linked.sorted() {
+                for other in mod.manifest.requires.keys.compactMap({ id in places[id] }).sorted() {
                     place(mods[other])
                 }
             }
@@ -92,20 +84,6 @@ struct DependencyGraph {
     }
 
     // MARK: - Private
-    // The ids `id` requires, directly or through another.
-    private func requirements(of id: String, in mods: [Mod]) -> Set<String> {
-        var reached: Set<String> = []
-        var next = [id]
-        while let current = next.popLast() {
-            guard let place = places[current] else { continue }
-            for other in mods[place].manifest.requires.keys where reached.insert(other).inserted {
-                next.append(other)
-            }
-        }
-
-        return reached
-    }
-
     // The mods that load and require `id`, directly or through another, by id: none of them loads without it. One that
     // does not load, for this or another reason, is not among them.
     private func dependents(of id: String, in mods: [Mod]) -> [String] {

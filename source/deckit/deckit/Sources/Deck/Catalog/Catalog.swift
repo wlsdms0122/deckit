@@ -52,8 +52,8 @@ public final class Catalog {
     }
 
     // MARK: - Public
-    // Every mod in its load order, whether it loads or not. One that loads comes after the mods it links, and otherwise
-    // each comes as the load order kept places it; one it does not place goes where the app ships it, and one
+    // Every mod in its load order, whether it loads or not. One that loads comes after the mods it requires, and
+    // otherwise each comes as the load order kept places it; one it does not place goes where the app ships it, and one
     // the app does not ship goes last, by id.
     func mods() -> [Mod] {
         let kept = loadOrder.read()
@@ -79,7 +79,7 @@ public final class Catalog {
     }
 
     // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
-    // put. A mod still loads after the mods it links.
+    // put. A mod still loads after the mods it requires.
     public func arrange(_ ids: [String]) throws {
         let mods = mods()
         var seen: Set<String> = []
