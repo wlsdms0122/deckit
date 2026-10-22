@@ -417,7 +417,6 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             dependencies: mod?.dependencies,
             dependents: mod?.dependents,
             hides: mod?.hides,
-            restarting: restarting.has(mod?.id),
         });
         return found.map((mod) => {
             const live = running.find((entry) => entry.id === mod.id);
@@ -428,6 +427,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
                     ...fromDisk(mod),
                     keys: keysOf(mod.id),
                     handlerLists,
+                    restarting: restarting.has(mod.id),
                     // One starting for the first time, or restarting here, is not yet anything but that: its spinner
                     // says so.
                     notLoaded:
@@ -445,6 +445,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
                 pinned: pinned.has(live.id),
                 keys: keysOf(live.id),
                 handlerLists,
+                restarting: restarting.has(live.id),
                 problem: mod.mainProcess.failure
                     ? 'a main process module did not start: ' + mod.mainProcess.failure
                     : live.problem,
