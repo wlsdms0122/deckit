@@ -100,8 +100,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         create: modRow,
         update: (row, mod) => rowFills.get(row)(mod),
     });
-    // Deck puts a mod that loads after what it requires, refuses an order that does not, and leaves out one that does
-    // not load.
+    // Deck puts a mod that loads after what it requires and refuses an order that does not. One that does not load
+    // keeps the place it is put in.
     ui.sortable(rows, {
         onReorder: (id, toId) => {
             const next = [...ids];
@@ -325,10 +325,10 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         onChange();
     }
 
-    // One row per mod, in the order deck finds them (the load order, then those that did not load), each in its place
-    // whatever its run is doing: one starting or stopping is in `running` as it last ran, and says so by its
-    // spinner. `notLoaded` is why one is not running, `problem` what went wrong with one that is. Permissions are
-    // read from the folder, so one that did not load still shows the permissions it asks for.
+    // One row per mod, in the load order whether it loads or not, each in its place whatever its run is doing: one
+    // starting or stopping is in `running` as it last ran, and says so by its spinner. `notLoaded` is why one is not
+    // running, `problem` what went wrong with one that is. Permissions are read from the folder, so one that did not
+    // load still shows the permissions it asks for.
     function modRowsOf({ found, running, shortcuts, handlerLists, pinned }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
         const fromDisk = (mod) => ({

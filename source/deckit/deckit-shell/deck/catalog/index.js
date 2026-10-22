@@ -4,7 +4,7 @@ import * as MOD from './model/mod.js';
 // reads a mod's files where the environment keeps them.
 export function createCatalog({ CORE, LOG, files }) {
     // MARK: - Property
-    let all = []; // every mod the core read, those that load first, in their load order
+    let all = []; // every mod the core read, in the load order
     let loading = [];
     const listeners = new Set();
 
@@ -24,8 +24,8 @@ export function createCatalog({ CORE, LOG, files }) {
         for (const mod of all) if (mod.problem) LOG.warn(`mod ${mod.id} not loaded: ${mod.problem}`);
     }
 
-    // Every mod read, those that load first, each with whether it loads and why not, and the folders of the same id
-    // it hides.
+    // Every mod read, in the load order, each with whether it loads and why not, and the folders of the same id it
+    // hides.
     function found() {
         return all;
     }
