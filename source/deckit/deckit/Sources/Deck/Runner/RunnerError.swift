@@ -12,7 +12,6 @@ public enum RunnerError: Refusal, Equatable {
     case noSandbox(String)
     case closing(String)
     case quitting(String)
-    case needs(mod: String, requirement: String)
 
     // MARK: - Property
     public var message: String {
@@ -25,9 +24,6 @@ public enum RunnerError: Refusal, Equatable {
 
         case let .quitting(mod):
             "\(mod) does not launch while the app quits"
-
-        case let .needs(mod, requirement):
-            "\(mod) needs \(requirement), which is not running"
         }
     }
 

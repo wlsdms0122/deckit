@@ -23,6 +23,7 @@ export function createMods({ RUN }) {
             install: (from) => PROTOCOL.install.invoke({ from: String(from) }),
             remove: (id, data) => PROTOCOL.remove.invoke({ id: String(id), data: !!data }),
             relaunch: (id) => PROTOCOL.relaunch.invoke({ id: String(id) }),
+            launchDependents: (id) => PROTOCOL.launchDependents.invoke({ id: String(id) }),
             arrange: (ids) => PROTOCOL.arrange.invoke({ ids: Array.from(ids, String) }),
             usage: (id) => PROTOCOL.usage.invoke({ id: String(id) }),
         });

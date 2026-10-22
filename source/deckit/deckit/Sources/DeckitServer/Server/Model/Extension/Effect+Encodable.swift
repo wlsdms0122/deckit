@@ -28,7 +28,6 @@ extension Effect: Encodable {
         case summary
         case contributions
         case dependency
-        case requirements
         case exports
         case name
         case extensions
@@ -87,11 +86,6 @@ extension Effect: Encodable {
             try container.encode(run, forKey: .run)
             try container.encode(name, forKey: .name)
             try container.encode(extensions, forKey: .extensions)
-
-        case let .waitsForChanged(modId, requirements):
-            try container.encode("waitsForChanged", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
-            try container.encode(requirements, forKey: .requirements)
 
         case let .extendsChanged(modId, points):
             try container.encode("extendsChanged", forKey: .effect)

@@ -1,8 +1,8 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: a run's page
 // made, known as the mod's and set up before it loads, what the core is told as the page fails, crashes or is
-// replaced, a run's stop() asked of its page, what it waits for kept, the page closed, and the quit held while a run
-// has not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as
-// such.
+// replaced, a run's stop() asked of its page, the page closed, the mods that require one launched as asked, and the
+// quit held while a run has not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so
+// they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -125,14 +125,18 @@ async function main() {
     check('the core is told at once when the page is gone', methods('runner/stopped').length === 3, asked);
     gone = false;
 
-    // What a mod waits for is kept as the core told it, with its sandbox.
-    answers.set('runner/crash', [
-        [{ effect: 'waitsForChanged', mod: 'a', requirements: ['b'] }],
-        [{ effect: 'close', mod: 'a', reason: 'removed' }],
-    ]);
-    watching.get(page).gone('killed');
-    await tick();
-    check('what a mod waits for is kept as told', RUNNER.waitsForOf('a').join() === 'b', RUNNER.waitsForOf('a'));
+    // The mods that require one launch as the core answers asking it.
+    answers.set('runner/launch-dependents', [[told('willLaunch', 'launching'), { effect: 'load', mod: 'a' }]]);
+    const loadsBefore = done.filter(([what]) => what === 'load').length;
+    await RUNNER.launchDependents('b');
+    check(
+        'launching the mods that require one asks the core, and does what it answers',
+        methods('runner/launch-dependents').length === 1 &&
+            done.filter(([what]) => what === 'load').length === loadsBefore + 1,
+        asked
+    );
+
+    answers.set('runner/crash', [[{ effect: 'close', mod: 'a', reason: 'removed' }]]);
     watching.get(page).gone('killed');
     await tick();
     check(
@@ -142,42 +146,12 @@ async function main() {
     );
     check('a closed sandbox is no run', RUNNER.runs().length === 0, RUNNER.runs());
 
-    // A sandbox opened while what its mod requires is down: no run, no page loaded, what it waits for told.
-    answers.set('runner/relaunch', [
-        [
-            { effect: 'open', found },
-            { effect: 'waitsForChanged', mod: 'a', requirements: ['b'] },
-        ],
-        [{ effect: 'close', mod: 'a', reason: 'removed' }],
-    ]);
-    const waitsHeard = [];
-    const offWaits = RUNNER.onWaitsForChange((modId) => waitsHeard.push(modId));
-    const loads = done.filter(([what]) => what === 'load').length;
-    const settled = await Promise.race([RUNNER.relaunch('a').then(() => true), later(50).then(() => false)]);
-    check('a relaunch that launched nothing settles', settled, null);
-    check('a sandbox with no run is in no runs', RUNNER.runs().length === 0, RUNNER.runs());
-    check('a sandbox with no run is not running', RUNNER.stateOf('a') === 'notRunning', RUNNER.stateOf('a'));
-    check('its page is not loaded', done.filter(([what]) => what === 'load').length === loads, done);
-    check('what it waits for is heard', waitsHeard.join() === 'a' && RUNNER.waitsForOf('a').join() === 'b', waitsHeard);
-    const crashesBefore = methods('runner/crash').length;
-    [...watching.values()].at(-1).gone('killed');
-    await tick();
-    check('its page gone tells the core nothing', methods('runner/crash').length === crashesBefore, asked);
-    offWaits();
-    await RUNNER.relaunch('a').catch(() => {});
-    check('a mod with no sandbox has no state', RUNNER.stateOf('a') === null, RUNNER.stateOf('a'));
-
     // The quit, held while a run has not ended: a page opened again, then a core that ended frees it.
     answers.set('runner/relaunch', [
         [{ effect: 'open', found }, told('willLaunch', 'launching'), { effect: 'load', mod: 'a' }],
     ]);
     RUNNER.relaunch('a').catch(() => {});
     await tick();
-    check(
-        'a sandbox opened anew waits for nothing until told',
-        RUNNER.waitsForOf('a').length === 0,
-        RUNNER.waitsForOf('a')
-    );
     let end = null;
     answers.set('runner/quit', [
         () =>

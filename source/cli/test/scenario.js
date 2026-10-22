@@ -556,13 +556,16 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const back = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
         check('unfolding the sidebar brings the region back', back, await child.evaluate(seen));
 
-        // A mod runs again once what it requires runs again: the parent's page loading again by itself ends the child's
-        // run, and the child launches again in a new document.
+        // The parent's page loading again by itself ends the child's run, and the child stays down; the parent
+        // restarted from Settings brings back the mods that require it, the child in a new document.
         const started = `performance.timeOrigin`;
         const origin = await child.evaluate(started);
         await parent.evaluate('location.reload()');
+        await sleep(1500);
+        check('a mod whose requirement ran again stays down', (await child.evaluate(started)) === origin, '');
+        await settings?.evaluate(`${rowOf('Region Parent')}.querySelector('[title^="Restart this mod"]').click()`);
         const relaunched = await until(async () => (await child.evaluate(started)) !== origin, 6000);
-        check('a mod runs again once what it requires runs again', relaunched, '');
+        check('a mod restarted from Settings brings back the mods that require it', relaunched, '');
 
         // A shown mod's next revision installed over it: its page is replaced while the panel lays it, the new one
         // loads, and the panel goes on laying it in its region. The probe's row lies past what the frame's page

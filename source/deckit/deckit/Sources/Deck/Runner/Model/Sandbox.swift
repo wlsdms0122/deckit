@@ -11,21 +11,21 @@ import Foundation
 final class Sandbox {
     // MARK: - Property
     let mod: Mod
-    // Its latest run, none until the mod first launches in it.
-    var run: Run?
+    // Its latest run.
+    var run: Run
     // Why it closes, once it is going: it closes once its run has ended.
     var closing: TerminateReason?
     var stopAsked = false
-    // What it waits for, as the driver was last told.
-    var waitsFor: [String] = []
-    // Its latest run's, not running before its first.
+    // Whether it launches again once no mod asked to launch again terminates.
+    var relaunching = false
     var state: RunState {
-        run?.state ?? .notRunning
+        run.state
     }
 
     // MARK: - Initializer
-    init(mod: Mod) {
+    init(mod: Mod, run: Run) {
         self.mod = mod
+        self.run = run
     }
 
     // MARK: - Public

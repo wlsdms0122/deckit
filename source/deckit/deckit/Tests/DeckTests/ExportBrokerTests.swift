@@ -95,6 +95,7 @@ struct ExportBrokerTests {
         let terminating = try sut.call(from: "b", run: 1, mod: "a", path: ["ask"])
         _ = try runner.stopped("b", run: 1)
         _ = try runner.stopped("a", run: 1)
+        _ = try runner.launchDependents(of: "a")
         let launching = try sut.call(from: "b", run: 2, mod: "a", path: ["ask"])
         _ = try runner.started("a", run: 2, exports: [["ask"]])
         _ = try runner.started("b", run: 2)

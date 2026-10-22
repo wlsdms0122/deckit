@@ -192,6 +192,9 @@ final class Server {
         case "runner/relaunch":
             return try deck.relaunch(request.decodeParams(as: ModParams.self).mod)
 
+        case "runner/launch-dependents":
+            return try deck.launchDependents(of: request.decodeParams(as: ModParams.self).mod)
+
         case "runner/relaunch-all":
             return try deck.relaunchAll()
 

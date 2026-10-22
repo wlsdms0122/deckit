@@ -45,7 +45,6 @@ struct GoldenTests {
         (RunnerError.noSandbox("a"), "NO_SANDBOX"),
         (RunnerError.closing("a"), "CLOSING"),
         (RunnerError.quitting("a"), "QUITTING"),
-        (RunnerError.needs(mod: "a", requirement: "b"), "NEEDS"),
         (SettingError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
         (SettingError.notAnAction(mod: "a", key: "k"), "NOT_AN_ACTION"),
         (SettingError.isAnAction("k"), "ACTION"),
