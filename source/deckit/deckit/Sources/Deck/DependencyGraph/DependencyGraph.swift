@@ -69,8 +69,8 @@ struct DependencyGraph {
         func place(_ mod: Mod) {
             guard ids.insert(mod.manifest.id).inserted else { return }
             if mod.problem == nil {
-                for id in mod.manifest.requires.keys.sorted(by: { one, other in places[one]! < places[other]! }) {
-                    place(mods[places[id]!])
+                for other in mod.manifest.requires.keys.compactMap({ id in places[id] }).sorted() {
+                    place(mods[other])
                 }
             }
             placed.append(mod)

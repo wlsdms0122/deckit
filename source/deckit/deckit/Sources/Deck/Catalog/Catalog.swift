@@ -79,7 +79,7 @@ public final class Catalog {
     }
 
     // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
-    // put. An order that puts a mod that loads before one it requires is refused.
+    // put. A mod still loads after the mods it requires.
     public func arrange(_ ids: [String]) throws {
         let mods = mods()
         var seen: Set<String> = []
@@ -90,19 +90,6 @@ public final class Catalog {
         var next = mods
         for (place, mod) in zip(places, moved) {
             next[place] = mod
-        }
-
-        let loading = next.filter { mod in mod.problem == nil }
-        let loadingIds = Set(loading.map(\.manifest.id))
-        var placed: Set<String> = []
-        for mod in loading {
-            let later = mod.manifest.requires.keys.sorted().first { id in
-                loadingIds.contains(id) && !placed.contains(id)
-            }
-            if let later {
-                throw LoadOrderError.requiredLater(mod: mod.manifest.id, requirement: later)
-            }
-            placed.insert(mod.manifest.id)
         }
         try loadOrder.write(next.map(\.manifest.id))
     }

@@ -7,6 +7,11 @@ function read(found) {
     return { ...found.manifest, ...found };
 }
 
+// Whether `mod` links the mod of `id`: names it in its [requires] or [optional].
+function links(mod, id) {
+    return Object.hasOwn(mod.requires, id) || Object.hasOwn(mod.optional, id);
+}
+
 // MARK: - Private
 
-export { read };
+export { read, links };

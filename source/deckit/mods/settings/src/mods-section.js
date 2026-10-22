@@ -100,8 +100,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         create: modRow,
         update: (row, mod) => rowFills.get(row)(mod),
     });
-    // Deck puts a mod that loads after what it requires and refuses an order that does not. One that does not load
-    // keeps the place it is put in.
+    // Deck keeps a mod that loads after the mods it requires, whatever order it is given. One that does not load keeps
+    // the place it is put in.
     ui.sortable(rows, {
         onReorder: (id, toId) => {
             const next = [...ids];

@@ -1,5 +1,6 @@
 import * as CHANNEL from '../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
+import * as MOD from '../deck/catalog/model/mod.js';
 
 // `deliver(label, listener, ...args)` calls a listener of the mod's and records on its row what it throws; `channels`
 // binds the regions' channels in the page.
@@ -96,7 +97,6 @@ function seenRect(element) {
 export function parentProblem(parent, mod) {
     if (parent === undefined || parent === null) return '';
     if (typeof parent !== 'string') return "takes a parent that is a mod's id";
-    if (!Object.hasOwn(mod.requires, parent) && !Object.hasOwn(mod.optional, parent))
-        return `names the parent ${parent}, which is in neither [requires] nor [optional]`;
+    if (!MOD.links(mod, parent)) return `names the parent ${parent}, which is in neither [requires] nor [optional]`;
     return '';
 }

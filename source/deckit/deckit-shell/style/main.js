@@ -1,6 +1,7 @@
 import * as CHANNEL from '../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as STYLE_PERMISSION from './model/permission.js';
+import * as MOD from '../deck/catalog/model/mod.js';
 
 // `deckit` is what connect answered.
 export function createStyle({ deckit }) {
@@ -11,8 +12,9 @@ export function createStyle({ deckit }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod with `deckit.styles` styles other pages while it runs: a mod's by its id, or every page the shell draws
-    // by "*". Each page wears what applies to it in the load order, the later over the earlier.
+    // A mod with `deckit.styles` styles other pages while it runs: by id its own and those of the mods it links, those
+    // it requires or uses optionally, and by "*" every page, the shell's and every mod's. Each page wears what applies
+    // to it in the load order, the later over the earlier, so a mod's styles go over those of the mods it requires.
     function start() {
         PROTOCOL.current.handle((_payload, sender) => {
             const modId = deckit.mods.modOf(sender);
@@ -34,9 +36,12 @@ export function createStyle({ deckit }) {
             .list()
             .map(({ id }) => deckit.mods.runOf(id))
             .filter((run) => run?.state === 'running')
-            .map(stylesOf)
-            .filter(Boolean)
-            .flatMap((given) => [given[EVERY_PAGE], modId && given[modId]].filter((css) => typeof css === 'string'));
+            .flatMap((run) => {
+                const given = stylesOf(run) || {};
+                const reaches = run.mod.id === modId || MOD.links(run.mod, modId);
+                return [given[EVERY_PAGE], modId && reaches && given[modId]];
+            })
+            .filter((css) => typeof css === 'string');
     }
 
     // What a run styles, held to the permission: main does not take a page's word for it.
