@@ -312,10 +312,12 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         });
     }
 
+    // Then the mods that require it and are not running launch again.
     async function installPicked(picked) {
         let installed;
         try {
             installed = await mods.install(picked.from);
+            await mods.launchDependents(installed.id);
         } catch (error) {
             return showNotice('Could not install: ' + error.message);
         }
@@ -370,9 +372,11 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         });
     }
 
+    // Then the mods that require it and are not running launch again.
     async function relaunch(mod) {
         try {
             await mods.relaunch(mod.id);
+            await mods.launchDependents(mod.id);
         } catch (error) {
             return showNotice('Could not restart: ' + error.message);
         }
@@ -404,7 +408,6 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             permissions: mod?.permissions,
             mainProcessFailure: mod?.mainProcess.failure,
             dependencies: mod?.dependencies,
-            waitsFor: mod?.waitsFor,
             hides: mod?.hides,
         });
         return found.map((mod) => {
