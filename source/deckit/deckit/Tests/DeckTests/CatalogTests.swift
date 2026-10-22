@@ -158,8 +158,8 @@ struct CatalogTests {
         #expect(back.allSatisfy { mod in mod.problem == nil })
     }
 
-    @Test("arranging moves the ids named among the places they held, refusing one that loads before what it requires")
-    func arrangeKeepsRequirementsFirst() throws {
+    @Test("arranging moves the ids named among the places they held, and each still loads after the mods it links")
+    func arrangeKeepsLinkedFirst() throws {
         // Given
         for id in ["a", "c", "d"] {
             try write(id, in: source)
@@ -167,17 +167,19 @@ struct CatalogTests {
         try write("b", in: source, requires: ["a": "1.0.0"])
         try write("e", in: source, requires: ["f": "1.0.0"])
         try write("f", in: source, requires: ["e": "1.0.0"])
+        try write("g", in: source, optional: ["h": "1.0.0"])
+        try write("h", in: source)
         let sut = try catalog(sources: [source])
 
         // When
         try sut.arrange(["d", "f", "c", "x", "d", "e"])
         let arranged = sut.mods().map(\.manifest.id)
-        let refused = Result { try sut.arrange(["b", "a"]) }
+        try sut.arrange(["b", "a"])
+        let linked = sut.mods().map(\.manifest.id)
 
         // Then
-        #expect(arranged == ["a", "b", "d", "f", "c", "e"])
-        #expect(throws: LoadOrderError.requiredLater(mod: "b", requirement: "a")) { try refused.get() }
-        #expect(sut.mods().map(\.manifest.id) == arranged)
+        #expect(arranged == ["a", "b", "d", "f", "c", "e", "h", "g"])
+        #expect(linked == arranged)
     }
 
     @Test("a settings file that does not read as a JSON object is neither read for an order nor written over")
@@ -329,13 +331,17 @@ struct CatalogTests {
         folder: String? = nil,
         version: String = "1.0.0",
         main: String? = "main.js",
-        requires: [String: String] = [:]
+        requires: [String: String] = [:],
+        optional: [String: String] = [:]
     ) throws {
         let location = parent.appending(path: folder ?? id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let dependencies = requires.isEmpty
-            ? ""
-            : "\n[requires]\n" + requires.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
+        let table = { (name: String, wanted: [String: String]) in
+            wanted.isEmpty
+                ? ""
+                : "\n[\(name)]\n" + wanted.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
+        }
+        let dependencies = table("requires", requires) + table("optional", optional)
         let text = """
             id = "\(id)"
             version = "\(version)"
