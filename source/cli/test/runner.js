@@ -142,6 +142,29 @@ async function main() {
     );
     check('a closed sandbox is no run', RUNNER.runs().length === 0, RUNNER.runs());
 
+    // A sandbox opened while what its mod requires is down: no run, no page loaded, what it waits for told.
+    answers.set('runner/relaunch', [
+        [
+            { effect: 'open', found },
+            { effect: 'waitsForChanged', mod: 'a', requirements: ['b'] },
+        ],
+        [{ effect: 'close', mod: 'a', reason: 'removed' }],
+    ]);
+    const waitsHeard = [];
+    const offWaits = RUNNER.onWaitsForChange((modId) => waitsHeard.push(modId));
+    const loads = done.filter(([what]) => what === 'load').length;
+    const settled = await Promise.race([RUNNER.relaunch('a').then(() => true), later(50).then(() => false)]);
+    check('a relaunch that launched nothing settles', settled, null);
+    check('a sandbox with no run is in no runs', RUNNER.runs().length === 0, RUNNER.runs());
+    check('its page is not loaded', done.filter(([what]) => what === 'load').length === loads, done);
+    check('what it waits for is heard', waitsHeard.join() === 'a' && RUNNER.waitsForOf('a').join() === 'b', waitsHeard);
+    const crashesBefore = methods('runner/crash').length;
+    [...watching.values()].at(-1).gone('killed');
+    await tick();
+    check('its page gone tells the core nothing', methods('runner/crash').length === crashesBefore, asked);
+    offWaits();
+    await RUNNER.relaunch('a').catch(() => {});
+
     // The quit, held while a run has not ended: a page opened again, then a core that ended frees it.
     answers.set('runner/relaunch', [
         [{ effect: 'open', found }, told('willLaunch', 'launching'), { effect: 'load', mod: 'a' }],

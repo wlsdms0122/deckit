@@ -13,14 +13,16 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // environment's (environment/: MAIN.pages, MAIN.app).
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
-    // mod id -> { mod, page, run, update, closing, waitsFor }: a mod's sandbox, the page it runs in, its latest run and
-    // how what the core tells of it is kept, whether it is going, and what it waits for.
+    // mod id -> { mod, page, run, update, closing, waitsFor }: a mod's sandbox, the page it runs in, its latest run,
+    // null until it first launches, and how what the core tells of it is kept, whether it is going, and what it waits
+    // for.
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
     const notifications = EVENT_BUS.make(); // the lifecycle's notifications, for every run
     const effectHandlers = new Map(); // effect name -> what does it, for an effect that is another module's to do
     const problemListeners = new Set(); // told when a problem is kept against a run
+    const waitsForListeners = new Set(); // told when what a mod waits for changes
     const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
     let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
     let preparePage = null;
@@ -40,7 +42,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         // does. A quit the host app calls off leaves those runs ended, and the next quit terminates what launched
         // since. A core that cannot be asked holds nothing.
         APP.onQuit(() => {
-            const live = [...sandboxes.values()].some(({ run }) => run.state !== 'notRunning');
+            const live = runs().some(({ run }) => run.state !== 'notRunning');
             if (quitHold === 'free' || (!quitHold && !live)) return false;
             if (quitHold) return true;
             quitHold = 'held';
@@ -52,9 +54,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         });
     }
 
-    // Each mod's latest run, with the page it runs in.
+    // Each mod's latest run, with the page it runs in: a mod that waits to launch for the first time has none.
     function runs() {
-        return [...sandboxes.values()].map(({ run, page }) => ({ run, page }));
+        return [...sandboxes.values()].filter(({ run }) => run).map(({ run, page }) => ({ run, page }));
     }
 
     function runOf(modId) {
@@ -65,6 +67,12 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // until they do.
     function waitsForOf(modId) {
         return sandboxes.get(modId)?.waitsFor || [];
+    }
+
+    // Told when what a mod waits for changes, as the core told it. Answers its off.
+    function onWaitsForChange(listener) {
+        waitsForListeners.add(listener);
+        return () => waitsForListeners.delete(listener);
     }
 
     function launchedOf(modId) {
@@ -125,7 +133,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         const before = told?.notification === 'willLaunch' ? told.run - 1 : (told?.run ?? runOf(modId)?.number);
         return until(() => {
             const sandbox = sandboxes.get(modId);
-            if (!sandbox || sandbox.closing) return true;
+            if (!sandbox?.run || sandbox.closing) return true;
             const { run } = sandbox;
             return (run.number !== before || run.state === 'notRunning') && run.state !== 'launching';
         });
@@ -189,9 +197,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
                 case 'close':
                     closeSandbox(effect.mod, effect.reason);
                     break;
-                // It changes only as a run moves, which comes with it.
                 case 'waitsForChanged':
                     sandboxes.get(effect.mod).waitsFor = effect.requirements;
+                    for (const listener of waitsForListeners) listener(effect.mod);
                     break;
                 case 'quit':
                     quitHold = null;
@@ -275,7 +283,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     function crash(run, problem) {
-        if (run.state === 'notRunning' || runOf(run.mod.id) !== run) return;
+        if (!run || run.state === 'notRunning' || runOf(run.mod.id) !== run) return;
         LOG.warn(`${run.mod.id}: ${problem}`);
         send('runner/crash', { mod: run.mod.id, run: run.number, problem });
     }
@@ -310,6 +318,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         runs,
         runOf,
         waitsForOf,
+        onWaitsForChange,
         launchedOf,
         currentRun,
         observe,
