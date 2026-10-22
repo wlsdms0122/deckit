@@ -11,8 +11,9 @@ export function createStyle({ deckit }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod with `deckit.styles` styles other pages while it runs: a mod's by its id, or every page the shell draws
-    // by "*". Each page wears what applies to it in the load order, the later over the earlier.
+    // A mod with `deckit.styles` styles other pages while it runs: its own and those of the mods it links, those it
+    // requires or uses optionally, by id, or every page the shell draws by "*". Each page wears what applies to it in
+    // the load order, the later over the earlier, so a mod's styles go over those of the mods it links.
     function start() {
         PROTOCOL.current.handle((_payload, sender) => {
             const modId = deckit.mods.modOf(sender);
@@ -34,9 +35,15 @@ export function createStyle({ deckit }) {
             .list()
             .map(({ id }) => deckit.mods.runOf(id))
             .filter((run) => run?.state === 'running')
-            .map(stylesOf)
-            .filter(Boolean)
-            .flatMap((given) => [given[EVERY_PAGE], modId && given[modId]].filter((css) => typeof css === 'string'));
+            .flatMap((run) => {
+                const given = stylesOf(run) || {};
+                return [given[EVERY_PAGE], modId && links(run.mod, modId) && given[modId]];
+            })
+            .filter((css) => typeof css === 'string');
+    }
+
+    function links(mod, modId) {
+        return mod.id === modId || modId in mod.requires || modId in mod.optional;
     }
 
     // What a run styles, held to the permission: main does not take a page's word for it.

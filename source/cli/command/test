@@ -36,6 +36,7 @@ const main = async () => {
         'web.js',
         'page.js',
         'panel.js',
+        'style.js',
     ];
     for (const check of checks)
         execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {
