@@ -38,8 +38,8 @@ export function createStyle({ deckit }) {
             .filter((run) => run?.state === 'running')
             .flatMap((run) => {
                 const given = stylesOf(run) || {};
-                const own = run.mod.id === modId || MOD.links(run.mod, modId);
-                return [given[EVERY_PAGE], modId && own && given[modId]];
+                const reaches = run.mod.id === modId || MOD.links(run.mod, modId);
+                return [given[EVERY_PAGE], modId && reaches && given[modId]];
             })
             .filter((css) => typeof css === 'string');
     }

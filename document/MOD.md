@@ -75,7 +75,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `deckit.mod-settings` | every mod's settings | `deck.modSettings` |
 | `deckit.key-map` | every mod's shortcuts | `deck.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
-| `deckit.styles` | how every page looks, those of the mods it links among them, and so what they show | `deck.styles` |
+| `deckit.styles` | how every page looks, other mods' among them, and so what they show | `deck.styles` |
 
 An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deckit and its shell: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another mod.
 
@@ -315,7 +315,7 @@ Two ways, and one question picks: could the host app do this if the other mod we
 
 **Regions**, when this mod's view is shown in the other's. The other gives a place in its view (`deck.region(element)`) and this one names it as its view's `parent`, requiring it or using it optionally: a dashboard shows its boards, each a mod, beside its own list of them. The parent hears its children through `deck.children`, and a region answers `place(id)`, which puts that child's view in the region and out of any other, and `clear()`. Both resolve once done. `place` rejects for a mod that is not this one's child, and a mod is a child only from its first launch: a parent places the children `deck.children` lists. A region ends when its element, once in the page, leaves it, and an ended region rejects `place` and `clear`. The child keeps running in its own page, which the shell lays over what of the element is seen, following it frame by frame: cut where an ancestor clips it (a scroller's edge, the sidebar as it folds), and nothing while the element is hidden. The page is made as small as that part, not cropped, and nothing the parent draws, its menus too, comes over it. Regions are shown while their mod is the one on screen, and a child comes and goes with it (didAppear, didDisappear, its keys). A child is its parent's from when it starts, through launching again, until it starts naming another or none. A child pinned to the mod list is in the panel while it is on screen there, and back in its region after.
 
-How the pages of a mod it links look is changed by **styles** (`deck.styles`), with the person's leave. What another mod does is changed only where it opens a point.
+How another mod's pages look is changed by **styles** (`deck.styles`), with the person's leave. What another mod does is changed only where it opens a point.
 
 Apart from both, a mod says what happened to it, for whoever cares, as **events**. `deck.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. `deck.on('<mod id>:<name>', listener)` hears one and returns its off. Values are copied. It takes no requirement: a mod's events go out while it is running, from when its `start` has finished until it terminates, and nothing arrives from one that is not running.
 
