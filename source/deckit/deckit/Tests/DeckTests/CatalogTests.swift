@@ -182,6 +182,22 @@ struct CatalogTests {
         #expect(linked == arranged)
     }
 
+    @Test("a mod comes after one it uses optionally, but before one that uses it optionally and requires it")
+    func optionalLinkKeepsRequirementsFirst() throws {
+        // Given
+        try write("a", in: source, optional: ["c": "1.0.0", "d": "1.0.0"])
+        try write("b", in: source, requires: ["a": "1.0.0"])
+        try write("c", in: source, requires: ["b": "1.0.0"])
+        try write("d", in: source)
+        let sut = try catalog(sources: [source])
+
+        // When
+        let mods = sut.mods()
+
+        // Then
+        #expect(mods.map(\.manifest.id) == ["d", "a", "b", "c"])
+    }
+
     @Test("a settings file that does not read as a JSON object is neither read for an order nor written over")
     func unreadableSettingsStay() throws {
         // Given
