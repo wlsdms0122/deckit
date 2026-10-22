@@ -83,6 +83,23 @@ struct DependencyGraph {
         return placed
     }
 
+    // The first mod that loads placed, as found, before a mod it requires, with that one, or nil when each comes after
+    // what it requires, as `ordered()` puts them.
+    func requiredLater() -> (mod: String, requirement: String)? {
+        let mods = resolved().filter { mod in mod.problem == nil }
+        let loading = Set(mods.map(\.manifest.id))
+        var placed: Set<String> = []
+        for mod in mods {
+            let later = mod.manifest.requires.keys.sorted().first { id in loading.contains(id) && !placed.contains(id) }
+            if let later {
+                return (mod.manifest.id, later)
+            }
+            placed.insert(mod.manifest.id)
+        }
+
+        return nil
+    }
+
     // MARK: - Private
     // The mods that load and require `id`, directly or through another, by id: none of them loads without it. One that
     // does not load, for this or another reason, is not among them.

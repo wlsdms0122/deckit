@@ -172,12 +172,12 @@ struct CatalogTests {
         let sut = try catalog(sources: [source])
 
         // When
-        try sut.arrange(["d", "f", "c", "x", "d", "e", "h", "g"])
+        try sut.arrange(["d", "f", "c", "x", "d", "e", "g", "h"])
         let arranged = sut.mods().map(\.manifest.id)
         let refused = Result { try sut.arrange(["b", "a"]) }
 
         // Then
-        #expect(arranged == ["a", "b", "d", "f", "c", "e", "h", "g"])
+        #expect(arranged == ["a", "b", "d", "f", "c", "e", "g", "h"])
         #expect(throws: LoadOrderError.requiredLater(mod: "b", requirement: "a")) { try refused.get() }
         #expect(sut.mods().map(\.manifest.id) == arranged)
     }

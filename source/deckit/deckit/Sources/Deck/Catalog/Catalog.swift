@@ -92,17 +92,8 @@ public final class Catalog {
             next[place] = mod
         }
 
-        let loading = next.filter { mod in mod.problem == nil }
-        let loadingIds = Set(loading.map(\.manifest.id))
-        var placed: Set<String> = []
-        for mod in loading {
-            let later = mod.manifest.requires.keys.sorted().first { id in
-                loadingIds.contains(id) && !placed.contains(id)
-            }
-            if let later {
-                throw LoadOrderError.requiredLater(mod: mod.manifest.id, requirement: later)
-            }
-            placed.insert(mod.manifest.id)
+        if let (mod, requirement) = DependencyGraph(next).requiredLater() {
+            throw LoadOrderError.requiredLater(mod: mod, requirement: requirement)
         }
         try loadOrder.write(next.map(\.manifest.id))
     }
