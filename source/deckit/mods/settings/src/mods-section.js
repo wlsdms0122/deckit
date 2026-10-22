@@ -312,12 +312,10 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         });
     }
 
-    // Then the mods that require it and are not running launch again.
     async function installPicked(picked) {
         let installed;
         try {
             installed = await mods.install(picked.from);
-            await mods.launchDependents(installed.id);
         } catch (error) {
             return showNotice('Could not install: ' + error.message);
         }
@@ -376,7 +374,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     async function relaunch(mod) {
         try {
             await mods.relaunch(mod.id);
-            await mods.launchDependents(mod.id);
+            await mods.load(mod.dependents);
         } catch (error) {
             return showNotice('Could not restart: ' + error.message);
         }
@@ -403,11 +401,12 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             version: mod?.version,
             installed: mod?.installed,
             shipped: mod?.shipped,
-            state: mod?.state,
+            state: mod?.run?.state,
             folder: mod?.folder,
             permissions: mod?.permissions,
             mainProcessFailure: mod?.mainProcess.failure,
             dependencies: mod?.dependencies,
+            dependents: mod?.dependents,
             hides: mod?.hides,
         });
         return found.map((mod) => {
@@ -421,7 +420,9 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
                     handlerLists,
                     // One starting for the first time is not yet anything but starting: its spinner says so.
                     notLoaded:
-                        mod.problem || (mod.state === 'launching' ? null : STATE_WORDS[mod.state] || 'did not load'),
+                        mod.problem ||
+                        mod.run?.problem ||
+                        (mod.run?.state === 'launching' ? null : STATE_WORDS[mod.run?.state] || 'did not load'),
                 };
             return {
                 id: live.id,

@@ -13,11 +13,7 @@ final class Sandbox {
     let mod: Mod
     // Its latest run.
     var run: Run
-    // Why it closes, once it is going: it closes once its run has ended.
-    var closing: TerminateReason?
     var stopAsked = false
-    // Whether it launches again once no mod asked to launch again terminates.
-    var relaunching = false
     var state: RunState {
         run.state
     }

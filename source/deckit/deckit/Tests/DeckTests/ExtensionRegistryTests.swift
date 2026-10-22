@@ -23,7 +23,9 @@ struct ExtensionRegistryTests {
         try fixture.write("google", requires: ["calendar": "1.0.0"], optional: ["outlook": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
+        _ = try runner.load(["calendar"])
         _ = try runner.started("calendar", run: 1, extensionPoints: ["accounts"])
+        _ = try runner.load(["google"])
         _ = try runner.started(
             "google",
             run: 1,
@@ -56,17 +58,20 @@ struct ExtensionRegistryTests {
         try fixture.write("google", requires: ["calendar": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
+        _ = try runner.load(["calendar"])
         _ = sut.changes()
 
         // When
         _ = try runner.started("calendar", run: 1, extensionPoints: ["accounts"])
         let opened = sut.changes()
+        _ = try runner.load(["google"])
         _ = try runner.started("google", run: 1, extensions: ["calendar:accounts": [["events"]]])
         let extended = sut.changes()
-        _ = try runner.relaunch("google")
+        _ = try runner.unload(["google"], reason: .relaunch)
         let terminating = sut.changes()
         _ = try runner.stopped("google", run: 1)
         let ended = sut.changes()
+        _ = try runner.load(["google"])
         _ = try runner.started("google", run: 2, extensions: ["calendar:accounts": [["events"]]])
         let again = sut.changes()
 
@@ -95,12 +100,15 @@ struct ExtensionRegistryTests {
         try fixture.write("google", requires: ["calendar": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
+        _ = try runner.load(["calendar"])
         _ = try runner.started("calendar", run: 1, extensionPoints: ["accounts"])
+        _ = try runner.load(["google"])
         _ = try runner.started("google", run: 1, extensions: ["calendar:accounts": [["events"]]])
         _ = sut.changes()
 
         // When
-        _ = try runner.loaded("calendar")
+        _ = try runner.crashed("calendar", run: 1, problem: "its page went away")
+        _ = try runner.load(["calendar"])
         let reloaded = sut.changes()
         _ = try runner.started("calendar", run: 2, extensionPoints: ["accounts"])
         let opened = sut.changes()
@@ -122,6 +130,7 @@ struct ExtensionRegistryTests {
         try fixture.write("b", optional: ["calendar": "2.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
+        _ = try runner.load(["calendar", "a", "b"])
         _ = try runner.started("a", run: 1, extensions: ["calendar:accounts": []])
         _ = try runner.started("b", run: 1, extensions: ["calendar:accounts": []])
         _ = sut.changes()
@@ -144,7 +153,9 @@ struct ExtensionRegistryTests {
         try fixture.write("notes", requires: ["calendar": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
+        _ = try runner.load(["calendar"])
         _ = try runner.started("calendar", run: 1, extensionPoints: ["accounts"])
+        _ = try runner.load(["google", "notes"])
         _ = try runner.started("google", run: 1, extensions: ["calendar:accounts": [["events"]]])
         _ = try runner.started("notes", run: 1)
 

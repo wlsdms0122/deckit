@@ -7,7 +7,7 @@
 // `summary` is what it contributes once running, as a person reads it, and `contributions` what deck joins of it, both
 // as its page reported them as it started;
 // `problem`, the first one recorded against it while it launches or runs, or why it failed or crashed; `endReason`,
-// the reason it terminated for; `relaunches`, whether the mod launches again once it has ended.
+// the reason it terminated for; `relaunches`, whether the runner loads the mod again once it has ended.
 function makeRun({ mod, number }) {
     const facts = {
         state: 'launching',

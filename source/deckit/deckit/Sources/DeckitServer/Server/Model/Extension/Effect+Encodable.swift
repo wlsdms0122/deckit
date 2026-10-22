@@ -23,8 +23,6 @@ extension Effect: Encodable {
         case state
         case problem
         case endReason
-        case relaunches
-        case reason
         case summary
         case contributions
         case dependency
@@ -44,8 +42,8 @@ extension Effect: Encodable {
             try container.encode(mod.manifest.id, forKey: .mod)
             try container.encode(mod, forKey: .found)
 
-        case let .load(modId):
-            try container.encode("load", forKey: .effect)
+        case let .loadPage(modId):
+            try container.encode("loadPage", forKey: .effect)
             try container.encode(modId, forKey: .mod)
 
         case let .tell(notification, run):
@@ -62,17 +60,9 @@ extension Effect: Encodable {
             try container.encode(modId, forKey: .mod)
             try container.encode(number, forKey: .run)
 
-        case let .closing(modId):
-            try container.encode("closing", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
-
-        case let .close(modId, reason):
+        case let .close(modId):
             try container.encode("close", forKey: .effect)
             try container.encode(modId, forKey: .mod)
-            try container.encode(reason, forKey: .reason)
-
-        case .quit:
-            try container.encode("quit", forKey: .effect)
 
         case let .optionalChanged(modId, dependency, exports):
             try container.encode("optionalChanged", forKey: .effect)
@@ -109,7 +99,6 @@ extension Effect: Encodable {
         try container.encode(run.state, forKey: .state)
         try container.encodeIfPresent(run.problem, forKey: .problem)
         try container.encodeIfPresent(run.endReason, forKey: .endReason)
-        try container.encode(run.relaunches, forKey: .relaunches)
         try container.encodeIfPresent(run.summary, forKey: .summary)
         try container.encodeIfPresent(run.contributions, forKey: .contributions)
     }

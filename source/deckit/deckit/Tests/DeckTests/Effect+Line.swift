@@ -16,8 +16,8 @@ extension Effect {
         case let .open(mod):
             "open \(mod.manifest.id)"
 
-        case let .load(modId):
-            "load \(modId)"
+        case let .loadPage(modId):
+            "loadPage \(modId)"
 
         case let .tell(notification, run):
             [
@@ -37,14 +37,8 @@ extension Effect {
         case let .stop(modId, number):
             "stop \(modId) \(number)"
 
-        case let .closing(modId):
-            "closing \(modId)"
-
-        case let .close(modId, reason):
-            "close \(modId) \(reason.rawValue)"
-
-        case .quit:
-            "quit"
+        case let .close(modId):
+            "close \(modId)"
 
         case let .optionalChanged(modId, dependency, exports):
             "optionalChanged \(modId) \(dependency) \(exports == nil ? "none" : "exports")"

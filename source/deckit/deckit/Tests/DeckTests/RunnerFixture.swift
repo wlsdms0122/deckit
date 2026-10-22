@@ -46,7 +46,7 @@ struct RunnerFixture {
         try Data().write(to: location.appending(path: "main.js"))
     }
 
-    // A runner over what is written, each mod that loads opened and launching.
+    // A runner over what is written, as the catalog reads it, with no mod loaded.
     func runner() throws -> Runner {
         let store = Store()
         let reader = try ManifestReader(api: try #require(Version("1.0.0")), permissions: [], fields: [], store: store)
@@ -63,10 +63,8 @@ struct RunnerFixture {
             store: store
         )
         _ = catalog.read()
-        let runner = Runner(catalog: catalog)
-        _ = try runner.reconcile()
 
-        return runner
+        return Runner(catalog: catalog)
     }
 
     // MARK: - Private

@@ -24,6 +24,7 @@ struct EventBusTests {
         try fixture.write("c")
         let runner = try fixture.runner()
         let sut = EventBus(runner: runner)
+        _ = try runner.load(["a", "b", "c"])
         sut.listen(mod: "b", run: 1, names: ["a:status"])
         sut.listen(mod: "c", run: 1, names: ["a:other"])
 
@@ -46,13 +47,15 @@ struct EventBusTests {
         try fixture.write("b")
         let runner = try fixture.runner()
         let sut = EventBus(runner: runner)
+        _ = try runner.load(["a", "b"])
         _ = try runner.started("a", run: 1)
         _ = try runner.started("b", run: 1)
         sut.listen(mod: "b", run: 1, names: ["a:status"])
 
         // When
-        _ = try runner.relaunch("b")
+        _ = try runner.unload(["b"], reason: .relaunch)
         _ = try runner.stopped("b", run: 1)
+        _ = try runner.load(["b"])
         let relaunched = sut.emit(mod: "a", run: 1, name: "status")
         sut.listen(mod: "b", run: 1, names: ["a:status"])
         let older = sut.emit(mod: "a", run: 1, name: "status")

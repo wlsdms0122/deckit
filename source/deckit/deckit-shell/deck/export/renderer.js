@@ -14,8 +14,8 @@ export function createExport({ RUN }) {
     // MARK: - Initializer
     // MARK: - Public
     // What each mod it requires exports: values copied and frozen, functions called through main. Its optional
-    // dependencies are set on `optional` as they are now. Null when main refused them, as when one it requires did not
-    // start.
+    // dependencies are set on `optional` as they are now. Null when main refused them, as when one it requires does not
+    // run.
     async function requiresOf(optional) {
         let given;
         try {

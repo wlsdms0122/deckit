@@ -1,7 +1,7 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: a run's page
 // made, known as the mod's and set up before it loads, what the core is told as the page fails, crashes or is
-// replaced, a run's stop() asked of its page, the page closed, the mods that require one launched as asked, and the
-// quit held while a run has not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so
+// replaced, a run's stop() asked of its page, a mod loaded once what it requires has launched, the page closed, and
+// the quit held while a run has not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so
 // they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -49,7 +49,8 @@ async function main() {
     IPC.carry({ messages, pages }, { report: () => {} });
     const app = { onQuit: (given) => (hold = given), quit: () => done.push(['quit']) };
     const IDENTITY = { add: (page) => done.push(['add', page.modId]), modFrom: () => ({ id: 'a' }) };
-    const CATALOG = { onChange: () => {} };
+    let catalog = [{ id: 'a', requires: {}, revision: '1', dependents: [] }];
+    const CATALOG = { onChange: () => {}, mods: () => catalog };
     const LOG = { warn: () => {}, error: () => {} };
     // The core answers each request with what the test queued for its method, a list of effects or a function that
     // answers, and nothing otherwise.
@@ -63,17 +64,10 @@ async function main() {
         },
     };
     const methods = (method) => asked.filter((request) => request.method === method);
-    const found = { id: 'a', manifest: { id: 'a', name: 'A' } };
-    const told = (notification, state) => ({
-        effect: 'tell',
-        mod: 'a',
-        run: 1,
-        notification,
-        state,
-        relaunches: false,
-    });
-    answers.set('runner/reconcile', [
-        [{ effect: 'open', found }, told('willLaunch', 'launching'), { effect: 'load', mod: 'a' }],
+    const found = (id) => ({ id, manifest: { id, name: id.toUpperCase() } });
+    const told = (notification, state, mod = 'a') => ({ effect: 'tell', mod, run: 1, notification, state });
+    answers.set('runner/load', [
+        [{ effect: 'open', found: found('a') }, told('willLaunch', 'launching'), { effect: 'loadPage', mod: 'a' }],
     ]);
 
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages, app });
@@ -86,6 +80,11 @@ async function main() {
         done
     );
     check('a run is kept with its page', RUNNER.runs()[0]?.page?.modId === 'a', RUNNER.runs());
+    check(
+        'each mod that loads is loaded as the runner starts',
+        methods('runner/load')[0]?.params.mods[0] === 'a',
+        asked
+    );
 
     const page = RUNNER.runs()[0].page;
     const crashes = () => methods('runner/crash').map(({ params }) => params.problem);
@@ -101,10 +100,10 @@ async function main() {
 
     // stop(): asked of the page, and the core told it stopped once the page answers, its time runs out, or at once
     // when the page is gone.
-    const stopping = () => answers.get('runner/relaunch').push([{ effect: 'stop', mod: 'a', run: 1 }]);
-    answers.set('runner/relaunch', []);
+    const stopping = () => answers.get('runner/unload').push([{ effect: 'stop', mod: 'a', run: 1 }]);
+    answers.set('runner/unload', []);
     stopping();
-    RUNNER.relaunch('a').catch(() => {});
+    RUNNER.relaunch(['a']).catch(() => {});
     await tick();
     const question = tells.at(-1)?.[1];
     check('stop() is asked of the run page', question?.channel === 'deckit-shell:mod-stop', question);
@@ -114,29 +113,38 @@ async function main() {
     await tick();
     check('the core is told once the page answered', methods('runner/stopped').length === 1, asked);
     stopping();
-    RUNNER.relaunch('a').catch(() => {});
+    RUNNER.relaunch(['a']).catch(() => {});
     await later(2100);
     check('the core is told once stop() ran out of time', methods('runner/stopped').length === 2, asked);
     gone = true;
     stopping();
-    RUNNER.relaunch('a').catch(() => {});
+    RUNNER.relaunch(['a']).catch(() => {});
     await tick();
     await tick();
     check('the core is told at once when the page is gone', methods('runner/stopped').length === 3, asked);
     gone = false;
 
-    // The mods that require one launch as the core answers asking it.
-    answers.set('runner/launch-dependents', [[told('willLaunch', 'launching'), { effect: 'load', mod: 'a' }]]);
-    const loadsBefore = done.filter(([what]) => what === 'load').length;
-    await RUNNER.launchDependents('b');
+    // A mod loads once what it requires has launched.
+    catalog = [...catalog, { id: 'b', requires: { a: '1.0.0' }, revision: '1', dependents: [] }];
+    answers.set('runner/load', [
+        [{ effect: 'open', found: found('b') }, told('willLaunch', 'launching', 'b'), { effect: 'loadPage', mod: 'b' }],
+    ]);
+    const loading = RUNNER.load(['b']);
+    await tick();
+    check('a mod is not loaded while what it requires launches', methods('runner/load').length === 1, asked);
+    answers.set('runner/started', [[told('didLaunch', 'running')]]);
+    await RUNNER.ask('runner/started', { mod: 'a', run: 1 });
+    await tick();
     check(
-        'launching the mods that require one asks the core, and does what it answers',
-        methods('runner/launch-dependents').length === 1 &&
-            done.filter(([what]) => what === 'load').length === loadsBefore + 1,
+        'a mod is loaded once what it requires has launched',
+        methods('runner/load')[1]?.params.mods.join() === 'b' && done.at(-1)?.join() === 'load,b',
         asked
     );
+    answers.set('runner/started', [[told('didLaunch', 'running', 'b')]]);
+    await RUNNER.ask('runner/started', { mod: 'b', run: 1 });
+    await loading;
 
-    answers.set('runner/crash', [[{ effect: 'close', mod: 'a', reason: 'removed' }]]);
+    answers.set('runner/crash', [[{ effect: 'close', mod: 'a' }]]);
     watching.get(page).gone('killed');
     await tick();
     check(
@@ -144,23 +152,23 @@ async function main() {
         done.some(([what]) => what === 'close'),
         done
     );
-    check('a closed sandbox is no run', RUNNER.runs().length === 0, RUNNER.runs());
+    check('a closed sandbox is no run', !RUNNER.runOf('a'), RUNNER.runs());
 
-    // The quit, held while a run has not ended: a page opened again, then a core that ended frees it.
-    answers.set('runner/relaunch', [
-        [{ effect: 'open', found }, told('willLaunch', 'launching'), { effect: 'load', mod: 'a' }],
-    ]);
-    RUNNER.relaunch('a').catch(() => {});
-    await tick();
+    // The quit, held while a run has not ended, and a core that ended frees it.
     let end = null;
-    answers.set('runner/quit', [
+    answers.set('runner/unload', [
         () =>
             new Promise(
                 (_resolve, reject) => (end = () => reject(Object.assign(new Error('ended'), { kind: 'ENDED' })))
             ),
     ]);
     check('the quit is held while a run has not ended', hold() === true, RUNNER.runs());
-    check('the core is asked to stop the runs as the app quits', methods('runner/quit').length === 1, asked);
+    const quit = methods('runner/unload').at(-1)?.params;
+    check(
+        'the core is asked to stop the runs as the app quits',
+        quit?.reason === 'quit' && quit.mods.join() === 'b',
+        quit
+    );
     check('a quit asked again meanwhile waits too', hold() === true, null);
     end();
     await tick();

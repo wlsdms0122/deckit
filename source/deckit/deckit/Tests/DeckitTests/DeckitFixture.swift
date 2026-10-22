@@ -57,8 +57,8 @@ struct DeckitFixture {
             schemeHandlers: schemeHandlers,
             permissions: []
         )
-        _ = sut.deck.readCatalog()
-        _ = try sut.deck.reconcile()
+        let mods = sut.deck.readCatalog()
+        _ = try sut.deck.load(mods.map(\.manifest.id))
 
         return sut
     }

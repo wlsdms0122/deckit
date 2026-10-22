@@ -59,7 +59,7 @@ export function createApi({
                 modOf: (page) => IDENTITY.modOf(page)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
                 managerFrom: (page) => IDENTITY.modFrom(page, MOD_PERMISSION.MODS).id,
-                relaunch: RUNNER.relaunch,
+                relaunch: (id) => RUNNER.relaunch([id]),
                 relaunchAll: RUNNER.relaunchAll,
                 // The mods whose main process modules only a restart of the app finishes: [{ id, why }].
                 restartPending: () => frozen(MAIN_PROCESS.restartPending()),
