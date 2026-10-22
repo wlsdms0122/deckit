@@ -161,15 +161,20 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             .filter(({ mod }) => current.get(mod.id)?.revision !== mod.revision)
             .map(({ mod }) => mod.id);
         const updated = stale.filter((id) => current.has(id));
-        await Promise.all([
-            unload(
-                stale.filter((id) => !current.has(id)),
-                'removed'
-            ),
-            unload(updated, 'updated'),
-        ]);
-        const opening = [...current.keys()].filter((id) => !sandboxes.has(id));
-        await load([...opening, ...updated.flatMap((id) => current.get(id).dependents)]);
+        const again = [...updated, ...updated.flatMap((id) => current.get(id).dependents)];
+        mark(again, true);
+        try {
+            await Promise.all([
+                unload(
+                    stale.filter((id) => !current.has(id)),
+                    'removed'
+                ),
+                unload(updated, 'updated'),
+            ]);
+            await load([...[...current.keys()].filter((id) => !sandboxes.has(id)), ...again]);
+        } finally {
+            mark(again, false);
+        }
     }
 
     // Whether the mods' latest runs say they launch again once they have ended.
