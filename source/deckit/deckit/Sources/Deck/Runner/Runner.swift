@@ -164,7 +164,6 @@ final class Runner {
     }
 
     private func terminate(_ sandbox: Sandbox) throws {
-        guard sandbox.state != .notRunning else { return }
         try move(sandbox) { run throws(LifecycleError) in try run.terminate() }
     }
 

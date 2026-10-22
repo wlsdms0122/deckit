@@ -43,9 +43,9 @@ public struct Run: Sendable {
         return notification
     }
 
-    // Answers nil while it terminates already.
+    // Answers nil unless it launches or runs.
     mutating func terminate() throws(LifecycleError) -> LifecycleNotification? {
-        guard state != .terminating else { return nil }
+        guard Transition.terminate.from.contains(state) else { return nil }
 
         return try move(.terminate)
     }
