@@ -26,7 +26,7 @@ struct CatalogTests {
     }
 
     // MARK: - Test
-    @Test("those that load come as the app ships them, then by id; then the rest, by id")
+    @Test("each comes as the app ships it, then by id, whether it loads or not")
     func modsComeInOrder() throws {
         // Given
         try write("c", in: home.appending(path: "mods"))
@@ -132,10 +132,33 @@ struct CatalogTests {
         // Then
         #expect(mods.map(\.manifest.id) == ["c", "a", "b", "d"])
         let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
-        #expect(kept == .object(["loadOrder": .array(["c", "a", "b"].map(JSONValue.string)), "other": .number(1)]))
+        #expect(kept == .object(["loadOrder": .array(["c", "a", "b", "d"].map(JSONValue.string)), "other": .number(1)]))
     }
 
-    @Test("arranging moves the ids named that load among the places they held, and refuses a mod before one it requires")
+    @Test("one that does not load keeps its place, and one it requires found anew goes just before it")
+    func failedModKeepsItsPlace() throws {
+        // Given
+        try write("a", in: source)
+        try write("x", in: source, requires: ["y": "1.0.0"])
+        try write("b", in: source)
+        try write("y", in: source)
+        let sut = try catalog(sources: [source])
+        try sut.arrange(["a", "y", "x", "b"])
+        try FileManager.default.removeItem(at: source.appending(path: "y"))
+
+        // When
+        let failed = sut.read()
+        try write("y", in: source)
+        let back = sut.read()
+
+        // Then
+        #expect(failed.map(\.manifest.id) == ["a", "x", "b"])
+        #expect(failed.map(\.problem) == [nil, "needs y, which is not installed", nil])
+        #expect(back.map(\.manifest.id) == ["a", "y", "x", "b"])
+        #expect(back.allSatisfy { mod in mod.problem == nil })
+    }
+
+    @Test("arranging moves the ids named among the places they held, refusing one that loads before what it requires")
     func arrangeKeepsRequirementsFirst() throws {
         // Given
         for id in ["a", "c", "d"] {
@@ -152,7 +175,7 @@ struct CatalogTests {
         let refused = Result { try sut.arrange(["b", "a"]) }
 
         // Then
-        #expect(arranged == ["a", "b", "d", "c", "e", "f"])
+        #expect(arranged == ["a", "b", "d", "f", "c", "e"])
         #expect(throws: LoadOrderError.requiredLater(mod: "b", requirement: "a")) { try refused.get() }
         #expect(sut.mods().map(\.manifest.id) == arranged)
     }

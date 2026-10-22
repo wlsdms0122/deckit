@@ -81,15 +81,15 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
         RUNNER.onWaitsForChange(tell);
     }
 
-    // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes.
-    // `found`: every mod the catalog found, those that load in their load order and then the rest, each with
-    // `installed`, whether it is a copy in deck's mods folder, `state`, its latest run's, notRunning before its first
-    // in its sandbox, null for one with no sandbox, `hides`, folders of the same id that are not read, and `launched`,
-    // while it starts or stops again, what its latest run that launched contributed, as `running` lists it.
+    // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `found`:
+    // every mod the catalog found, in the load order whether it loads or not, each with `installed`, whether it is a
+    // copy in deck's mods folder, `state`, its latest run's, notRunning before its first in its sandbox, null for one
+    // with no sandbox, `hides`, folders of the same id that are not read, and `launched`, while it starts or stops
+    // again, what its latest run that launched contributed, as `running` lists it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
-            found: [...CATALOG.mods(), ...CATALOG.found().filter((mod) => mod.problem)].map((mod) => {
+            found: CATALOG.found().map((mod) => {
                 const run = RUNNER.runOf(mod.id);
                 return {
                     ...mod.manifest,

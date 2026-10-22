@@ -7,8 +7,8 @@
 
 import Foundation
 
-// The order the mods that load load in as it is kept: `loadOrder` in `deck.json`, deck's settings file, a list of mod
-// ids. What else the file holds is kept as it is, and a file that does not read as a JSON object is not written.
+// The load order as it is kept: `loadOrder` in `deck.json`, deck's settings file, a list of mod ids. What else the file
+// holds is kept as it is, and a file that does not read as a JSON object is not written.
 final class LoadOrder {
     // MARK: - Property
     private let key = "loadOrder"
