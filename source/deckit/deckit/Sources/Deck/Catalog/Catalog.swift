@@ -92,10 +92,13 @@ public final class Catalog {
             next[place] = mod
         }
 
-        let ids = Set(next.filter { mod in mod.problem == nil }.map(\.manifest.id))
+        let loading = next.filter { mod in mod.problem == nil }
+        let loadingIds = Set(loading.map(\.manifest.id))
         var placed: Set<String> = []
-        for mod in next where mod.problem == nil {
-            let later = mod.manifest.requires.keys.sorted().first { id in ids.contains(id) && !placed.contains(id) }
+        for mod in loading {
+            let later = mod.manifest.requires.keys.sorted().first { id in
+                loadingIds.contains(id) && !placed.contains(id)
+            }
             if let later {
                 throw LoadOrderError.requiredLater(mod: mod.manifest.id, requirement: later)
             }
