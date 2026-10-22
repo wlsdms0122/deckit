@@ -44,7 +44,7 @@ async function main() {
 
     const own = current({}, { mod: 'a' }).join();
     check(
-        "a mod's page wears its own styles and those of the mods that link it, not another's",
+        "a mod's page wears every page's styles, and by its id its own and those of the mods that link it",
         own === 'a-all,a-own,b-a,c-a,d-all',
         own
     );
