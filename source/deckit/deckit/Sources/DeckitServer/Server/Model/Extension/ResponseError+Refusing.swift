@@ -32,7 +32,7 @@ extension ResponseError {
             case .notADependency:
                 "DEPENDENCY"
 
-            case .notRunning, .ended:
+            case .notRunning:
                 "NOT_RUNNING"
 
             case .otherVersion:
@@ -40,9 +40,6 @@ extension ResponseError {
 
             case .noSuchFunction:
                 "FUNCTION"
-
-            case .needs:
-                "NEEDS"
             }
 
         case let error as ExtensionError:
@@ -118,18 +115,6 @@ extension ResponseError {
             switch error {
             case .notAKey:
                 "KEY"
-            }
-
-        case let error as RunnerError:
-            switch error {
-            case .noSandbox:
-                "NO_SANDBOX"
-
-            case .closing:
-                "CLOSING"
-
-            case .quitting:
-                "QUITTING"
             }
 
         case let error as SettingError:

@@ -12,19 +12,15 @@ public enum Effect: Sendable {
     // Make the mod's sandbox, its page not loaded yet.
     case open(Mod)
     // Load the mod's page at its address.
-    case load(modId: String)
+    case loadPage(modId: String)
     // Keep the run as it is now, and tell whoever observes it.
     case tell(LifecycleNotification, Run)
     // Keep the run as it is now: what changed is no step of it.
     case keep(Run)
     // Ask the run's stop() of its page, and say once it answered, its time ran out or the page is gone.
     case stop(modId: String, number: Int)
-    // The mod's sandbox is going.
-    case closing(modId: String)
     // Close the mod's sandbox, which runs no more.
-    case close(modId: String, reason: TerminateReason)
-    // Every run has ended for the quit: the app may quit.
-    case quit
+    case close(modId: String)
     // Tell the mod's run what an optional dependency of its exports to it now, or that it exports nothing.
     case optionalChanged(modId: String, dependency: String, exports: Snapshot?)
     // Tell the mod's `run`th run what extends its extension point `name` now, by the id of the mod that extends it.

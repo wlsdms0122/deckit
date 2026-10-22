@@ -199,7 +199,7 @@ struct ServerTests {
         _ = try send(initializeRequest, to: sut)
         try mod("notes")
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["notes"]}}"#, to: sut)
         let settings = #"[{"key":"wrap","type":"toggle","options":[],"computed":false},"#
             + #"{"key":"size","type":"number","max":12,"options":[],"computed":false}]"#
         _ = try send(
@@ -290,15 +290,16 @@ struct ServerTests {
         try mod("calendar")
         try mod("google", requires: #"calendar = "1.0.0""#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["calendar"]}}"#, to: sut)
         let contributions = #"{"exports":{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]},"#
             + #""extensionPoints":["accounts"],"extensions":{},"styles":["a.css"]}"#
         let started = #"{"mod":"calendar","run":1,"summary":{"view":true},"contributions":\#(contributions)}"#
 
         // When
         let response = try send(#"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":\#(started)}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/load","params":{"mods":["google"]}}"#, to: sut)
         let dependencies = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"export/dependencies","params":{"mod":"google","run":1}}"#,
+            #"{"jsonrpc":"2.0","id":6,"method":"export/dependencies","params":{"mod":"google","run":1}}"#,
             to: sut
         )
 
@@ -312,7 +313,7 @@ struct ServerTests {
         #expect(value(in: told, at: "contributions", "styles") == .array([.string("a.css")]))
         #expect(value(in: told, at: "contributions", "extensionPoints") == .array([.string("accounts")]))
         #expect(
-            value(in: dependencies, at: "result", "ready", "requires", "calendar")
+            value(in: dependencies, at: "result", "requires", "calendar")
                 == (try json(#"{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]}"#))
         )
     }
@@ -323,7 +324,7 @@ struct ServerTests {
         _ = try send(initializeRequest, to: sut)
         try mod("notes")
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["notes"]}}"#, to: sut)
         let settings = #"[{"key":"shade","type":"slider","options":[],"computed":false}]"#
 
         // When
@@ -348,7 +349,7 @@ struct ServerTests {
         try mod("mail", schemes: #"["mailto"]"#)
         _ = try send(initializeRequest, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/reconcile"}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["mail"]}}"#, to: sut)
         let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{},"#
             + #""handleURL":true,"commands":true}"#
         _ = try send(

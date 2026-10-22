@@ -22,10 +22,6 @@ public struct Run: Sendable {
     public private(set) var summary: JSONValue?
     public private(set) var contributions: Contribution?
 
-    public var relaunches: Bool {
-        endReason?.relaunches ?? false
-    }
-
     // MARK: - Initializer
     init(modId: String, number: Int) {
         self.modId = modId
@@ -49,15 +45,9 @@ public struct Run: Sendable {
         return notification
     }
 
-    // Answers nil while it terminates already: a stronger reason then takes the place of the one it has, and any
-    // reason that of a launch that failed.
+    // Answers nil while it terminates already, for the reason it has.
     mutating func terminate(_ reason: TerminateReason) throws(LifecycleError) -> LifecycleNotification? {
-        if state == .terminating {
-            if endReason.map({ endReason in reason.isStronger(than: endReason) }) ?? true {
-                self.endReason = reason
-            }
-            return nil
-        }
+        guard state != .terminating else { return nil }
 
         let notification = try move(.terminate)
         endReason = reason

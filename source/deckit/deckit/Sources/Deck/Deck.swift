@@ -94,30 +94,14 @@ public final class Deck {
         return mods
     }
 
-    // What the runs come to for the catalog as it was last read.
-    public func reconcile() throws -> [Effect] {
-        try withChanges(runner.reconcile())
+    // The mods named load, as the catalog was last read.
+    public func load(_ ids: [String]) throws -> [Effect] {
+        try withChanges(runner.load(ids))
     }
 
-    public func relaunch(_ id: String) throws -> [Effect] {
-        try withChanges(runner.relaunch(id))
-    }
-
-    public func launchDependents(of id: String) throws -> [Effect] {
-        try withChanges(runner.launchDependents(of: id))
-    }
-
-    public func relaunchAll() throws -> [Effect] {
-        try withChanges(runner.relaunchAll())
-    }
-
-    public func quit() throws -> [Effect] {
-        try withChanges(runner.quit())
-    }
-
-    // The mod's page loaded.
-    public func loaded(_ id: String) throws -> [Effect] {
-        try withChanges(runner.loaded(id))
+    // The mods named unload, their runs terminating for `reason`.
+    public func unload(_ ids: [String], reason: TerminateReason) throws -> [Effect] {
+        try withChanges(runner.unload(ids, reason: reason))
     }
 
     // The `run`th run of `id` started, with what its page reported: `summary` as a person reads it, and what it

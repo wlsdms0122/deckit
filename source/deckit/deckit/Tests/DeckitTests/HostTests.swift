@@ -92,8 +92,8 @@ struct HostTests {
             schemeHandlers: [:],
             permissions: []
         )
-        _ = deckit.deck.readCatalog()
-        _ = try deckit.deck.reconcile()
+        let mods = deckit.deck.readCatalog()
+        _ = try deckit.deck.load(mods.map(\.manifest.id))
 
         return deckit
     }

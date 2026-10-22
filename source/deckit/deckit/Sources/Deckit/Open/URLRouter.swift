@@ -74,9 +74,9 @@ public final class URLRouter {
         }
     }
 
-    // The handlers in `order` take the places they held among themselves. One missing from the list now (failed to
-    // load, or waiting on what it requires) keeps its place and switch: otherwise editing the list while it was gone
-    // would give its place to the app's. Those in `off` are switched off.
+    // The handlers in `order` take the places they held among themselves. One missing from the list now, as one that
+    // does not load, keeps its place and switch: otherwise editing the list while it was gone would give its place to
+    // the app's. Those in `off` are switched off.
     public func setHandlers(of scheme: String, order: [String], off: [String]) throws {
         guard schemes().contains(scheme) else { throw URLRouterError.noHandlers(scheme) }
 

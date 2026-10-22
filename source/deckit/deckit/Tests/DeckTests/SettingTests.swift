@@ -307,7 +307,7 @@ struct SettingTests {
         )
         let runner = Runner(catalog: catalog)
         _ = catalog.read()
-        _ = try runner.reconcile()
+        _ = try runner.load(ids)
 
         return (Setting(folder: settings, store: store, catalog: catalog, runner: runner), runner, catalog)
     }

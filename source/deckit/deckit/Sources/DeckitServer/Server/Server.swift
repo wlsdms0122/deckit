@@ -186,23 +186,12 @@ final class Server {
             try deck.erasure.cleared(mod: request.decodeParams(as: ModParams.self).mod)
             return true
 
-        case "runner/reconcile":
-            return try deck.reconcile()
-
-        case "runner/relaunch":
-            return try deck.relaunch(request.decodeParams(as: ModParams.self).mod)
-
-        case "runner/launch-dependents":
-            return try deck.launchDependents(of: request.decodeParams(as: ModParams.self).mod)
-
-        case "runner/relaunch-all":
-            return try deck.relaunchAll()
-
-        case "runner/quit":
-            return try deck.quit()
-
         case "runner/load":
-            return try deck.loaded(request.decodeParams(as: ModParams.self).mod)
+            return try deck.load(request.decodeParams(as: LoadParams.self).mods)
+
+        case "runner/unload":
+            let params = try request.decodeParams(as: UnloadParams.self)
+            return try deck.unload(params.mods, reason: params.reason)
 
         case "runner/started":
             let params = try request.decodeParams(as: StartedParams.self)
@@ -235,7 +224,8 @@ final class Server {
 
         case "export/call":
             let params = try request.decodeParams(as: CallExportParams.self)
-            return try deck.exports.call(from: params.caller, run: params.run, mod: params.mod, path: params.path)
+            try deck.exports.call(from: params.caller, run: params.run, mod: params.mod, path: params.path)
+            return true
 
         case "extension/call":
             let params = try request.decodeParams(as: CallExtensionParams.self)
