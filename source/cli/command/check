@@ -35,6 +35,8 @@ const DECLARES = '\\b\\w+\\.(?:pageToMain|mainToPage)\\(';
 // What a package's root holds beside its concept folders: what puts it together in main and in a renderer, and its
 // package.json, which says its entries and what it depends on.
 const ROOT_FILES = ['main.js', 'renderer.js', 'package.json'];
+// The entry a mod's manifest names.
+const TOML_MAIN = /^main\s*=\s*"([^"]+)"/m;
 // The files the shell's main bundle carries.
 const SHELL_MAIN = LIBRARY.reach(LIBRARY.BUNDLES['shell-main'].entry);
 const SURFACES = new Map(LIBRARY.PACKAGES.map((name) => [name, LIBRARY.surfaceOf(name)]));
@@ -79,9 +81,10 @@ for (const [name, { entries }] of SURFACES)
             problems.push(`deckit/${name}/package.json: names the entry ${entry}, which is no script`);
 for (const file of files) checkFile(file);
 checkCycles();
-checkSiblings();
+checkSiblings(imports, packageOf);
 checkPlaces();
 checkFolders();
+checkMods();
 
 if (problems.length) {
     for (const line of problems) console.error(line);
@@ -227,11 +230,11 @@ function checkCycles() {
 
 // Folders beside each other use each other one way: a folder uses what one beside it holds, and what is in a folder
 // uses what the folder may, but no two beside each other use each other, through others or not.
-function checkSiblings() {
+function checkSiblings(imports, scopeOf) {
     const uses = new Map(); // folder -> its folders -> the folders beside them they use
     for (const [file, targets] of imports) {
         for (const { file: target } of targets) {
-            if (!target || packageOf(target) !== packageOf(file)) continue;
+            if (!target || scopeOf(target) !== scopeOf(file)) continue;
             const from = moduleOf(file).split('/');
             const to = moduleOf(target).split('/');
             let shared = 0;
@@ -287,30 +290,85 @@ function checkPlaces() {
 // A folder is a module (its files, and model/ for what supports them) or a group (folders only). A package's root
 // is a group that also holds its package.json and what puts the package together on each side: main.js and renderer.js.
 function checkFolders() {
-    const walk = (folder) => {
-        const entries = fs
-            .readdirSync(path.join(LIBRARY.DECKIT, folder), { withFileTypes: true })
-            .filter(({ name }) => name !== '.DS_Store');
-        const folders = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
-        const below = folders.filter((name) => name !== 'model');
-        const root = LIBRARY.PACKAGES.includes(folder);
-        const held = entries.filter((entry) => entry.isFile() && !(root && ROOT_FILES.includes(entry.name)));
+    for (const name of LIBRARY.PACKAGES) checkFolder(name, ROOT_FILES, { scripts: true });
+}
+
+// `folder` and every folder in it, where `rootFiles` are what `folder` holds beside its concepts' folders, or null when
+// it is a module or a group as any is. In a package every file is a script.
+function checkFolder(folder, rootFiles, { scripts }) {
+    const entries = fs
+        .readdirSync(path.join(LIBRARY.DECKIT, folder), { withFileTypes: true })
+        .filter(({ name }) => name !== '.DS_Store');
+    const folders = entries.filter((entry) => entry.isDirectory()).map(({ name }) => name);
+    const below = folders.filter((name) => name !== 'model');
+    const root = rootFiles !== null;
+    const held = entries.filter((entry) => entry.isFile() && !(root && rootFiles.includes(entry.name)));
+    if (scripts)
         for (const { name } of held)
             if (!name.endsWith('.js')) say(`${folder}/${name}`, 'is not a script: a package holds ES modules (.js)');
-        if (root && held.length) {
-            say(
-                folder,
-                `holds ${held.map(({ name }) => name).join(', ')}: a package's root holds only ${ROOT_FILES.join(', ')}, and its concepts are folders`
-            );
-        } else if (held.length && below.length) {
-            say(
-                folder,
-                `holds files and the folders ${below.join(', ')}: a folder is a module (files, and model/) or a group (folders only)`
-            );
-        } else if ((root || !held.length) && folders.includes('model')) {
-            say(folder, 'holds model/ and no files of its own: a group holds folders only');
+    if (root && held.length) {
+        say(
+            folder,
+            `holds ${held.map(({ name }) => name).join(', ')}: it holds only ${rootFiles.join(', ')}, and its concepts are folders`
+        );
+    } else if (held.length && below.length) {
+        say(
+            folder,
+            `holds files and the folders ${below.join(', ')}: a folder is a module (files, and model/) or a group (folders only)`
+        );
+    } else if ((root || !held.length) && folders.includes('model')) {
+        say(folder, 'holds model/ and no files of its own: a group holds folders only');
+    }
+    for (const name of folders) checkFolder(`${folder}/${name}`, null, { scripts });
+}
+
+// A mod keeps the packages' shape: src/ holds its entry and its concepts' folders, and main-process/ its modules, each
+// folder a module or a group; it imports only its own files, and its folders beside each other use each other one way.
+function checkMods() {
+    const mods = fs
+        .readdirSync(LIBRARY.MODS, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map(({ name }) => `mods/${name}`);
+    const modOf = (file) => file.split('/').slice(0, 2).join('/');
+    const modImports = new Map();
+    for (const mod of mods) {
+        const main = TOML_MAIN.exec(fs.readFileSync(path.join(LIBRARY.DECKIT, mod, 'manifest.toml'), 'utf8'));
+        checkFolder(`${mod}/src`, [main ? main[1] : 'main.js'], { scripts: false });
+        if (fs.existsSync(path.join(LIBRARY.DECKIT, mod, 'main-process')))
+            checkFolder(`${mod}/main-process`, null, { scripts: false });
+        for (const file of scriptsOf(mod)) {
+            const targets = requiresOf(file);
+            modImports.set(file, targets);
+            for (const { spec, file: target } of targets) {
+                if (!target) continue;
+                const full = path.join(LIBRARY.DECKIT, target);
+                if (modOf(target) !== mod || !fs.existsSync(full) || !fs.statSync(full).isFile())
+                    say(file, `imports ${spec}, which is no file of ${mod}/`);
+            }
         }
-        for (const name of folders) walk(`${folder}/${name}`);
-    };
-    for (const name of LIBRARY.PACKAGES) walk(name);
+    }
+    checkSiblings(modImports, modOf);
+}
+
+// A mod's scripts, by their paths under source/deckit: what is in its src/ and main-process/.
+function scriptsOf(mod) {
+    const walk = (folder) =>
+        fs.readdirSync(path.join(LIBRARY.DECKIT, folder), { withFileTypes: true }).flatMap((entry) => {
+            const relative = path.posix.join(folder, entry.name);
+            if (entry.isDirectory()) return entry.name === 'node_modules' ? [] : walk(relative);
+            return /\.m?js$/.test(entry.name) ? [relative] : [];
+        });
+    return ['src', 'main-process']
+        .map((name) => `${mod}/${name}`)
+        .filter((folder) => fs.existsSync(path.join(LIBRARY.DECKIT, folder)))
+        .flatMap(walk);
+}
+
+// What a mod's script requires by a relative path, with the file it names.
+function requiresOf(file) {
+    const plain = LIBRARY.code(fs.readFileSync(path.join(LIBRARY.DECKIT, file), 'utf8'));
+    return [...plain.matchAll(/\brequire\(\s*(['"])(\.[^'"]+)\1\s*\)/g)].map(([, , spec]) => ({
+        spec,
+        file: path.posix.normalize(path.posix.join(path.posix.dirname(file), spec)),
+    }));
 }
