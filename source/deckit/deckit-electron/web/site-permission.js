@@ -1,6 +1,6 @@
-import * as SITE from '../../deckit-shell/web/model/site.js';
+import * as SITE from '../../deckit-shell/deckit/web/model/site.js';
 
-// Chromium's questions about a web page's permissions, put in the names deck rules on (deckit-shell/web/model/
+// Chromium's questions about a web page's permissions, put in the names deck rules on (deckit-shell/deckit/web/model/
 // site-permission.js), and what deck answers, done. `permits(session, origin, name)` answers at once whether a site may
 // have `name` in a mod's session, `{ mod, name }` or null; `request(embedder, id, { origin, permissions })` and
 // `requestApp(embedder, id, { url, origin })` answer, each a promise, whether the web page of that id, or the tab it

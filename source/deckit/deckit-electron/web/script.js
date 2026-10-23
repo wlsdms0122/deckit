@@ -1,4 +1,4 @@
-import * as SITE from '../../deckit-shell/web/model/site.js';
+import * as SITE from '../../deckit-shell/deckit/web/model/site.js';
 
 // What a web page's Notification shows, and what it asks, are told to deck: `notified(embedder, id, { origin,
 // notification, title, body, silent })`, and `request(embedder, id, { origin, permissions })`, a promise of whether it

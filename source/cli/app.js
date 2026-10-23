@@ -23,7 +23,10 @@ function assemble(archive, to) {
     fs.mkdirSync(library, { recursive: true });
     execFileSync('tar', ['-xzf', archive, '-C', library]);
     const built = JSON.parse(fs.readFileSync(path.join(library, 'deckit.json'), 'utf8'));
-    for (const file of order.files) fs.copyFileSync(path.join(APP, file), path.join(to, file));
+    for (const file of order.files) {
+        fs.mkdirSync(path.dirname(path.join(to, file)), { recursive: true });
+        fs.copyFileSync(path.join(APP, file), path.join(to, file));
+    }
     // The page's globals before the bundles run, so boot can take away every one they added.
     const read = (bundle) => fs.readFileSync(path.join(library, built.bundles[bundle].file), 'utf8');
     fs.writeFileSync(

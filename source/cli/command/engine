@@ -7,7 +7,7 @@ root="$(cd "$(dirname "$0")/../../.." && pwd)"
 here="$root/source/deckit/mods/$mod/src/engine"
 [ -f "$here/entry.mjs" ] || { echo "$mod has no src/engine/entry.mjs" >&2; exit 1; }
 work="$root/.build/engine/$mod"
-out="$root/source/deckit/mods/$mod/src/engine.js"
+out="$here/engine.js"
 # EditorEngine, NoteEngine: the name esbuild gives it inside the file.
 global="$(printf '%s' "$mod" | awk '{ print toupper(substr($0, 1, 1)) substr($0, 2) }')Engine"
 

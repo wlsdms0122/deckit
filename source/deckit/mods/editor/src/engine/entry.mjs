@@ -64,7 +64,7 @@ import { diff } from '@codemirror/legacy-modes/mode/diff';
 
 const legacy = (mode) => () => StreamLanguage.define(mode);
 
-/* Keyed by the `mode` of each type in src/file-type.js.
+/* Keyed by the `mode` of each type in src/file-type/file-type.js.
    Built on first use, so one Swift file does not load every parser. */
 export const languages = {
     javascript: () => javascript(),

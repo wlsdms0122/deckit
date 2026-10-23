@@ -1,7 +1,7 @@
-const { supervisorView } = require('./forge/supervisor.js');
-const { workflowsView } = require('./forge/workflows.js');
-const { schedulesView } = require('./forge/schedules.js');
-const { sessionPicker } = require('./forge/session-picker.js');
+const { supervisorView } = require('./forge/services/supervisor.js');
+const { workflowsView } = require('./forge/workflows/workflows.js');
+const { schedulesView } = require('./forge/schedules/schedules.js');
+const { sessionPicker } = require('./forge/sessions/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
 
 // The settings that say where forge and llmemory are, handed to the main process together.
@@ -69,7 +69,7 @@ module.exports = {
     async start(deck) {
         const { ui } = deck;
         const store = deck.storage.values;
-        const bot = await deck.mainProcess('main-process/bot.js');
+        const bot = await deck.mainProcess('main-process/bot/bot.js');
         const places = () => Object.fromEntries(PLACES.map((key) => [key, deck.settings.get(key)]));
         await bot.use(places());
 

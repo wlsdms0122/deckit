@@ -1,5 +1,5 @@
-const { calendar } = require('./calendar.js');
-const { REMINDER_LEADS, DEFAULT_LEAD, leadText } = require('./reminder.js');
+const { calendar } = require('./calendar/calendar.js');
+const { REMINDER_LEADS, DEFAULT_LEAD, leadText } = require('./reminder/reminder.js');
 
 module.exports = {
     keywords: ['캘린더', '일정', '달력', 'calendar', 'schedule'],

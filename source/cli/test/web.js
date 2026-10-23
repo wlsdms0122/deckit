@@ -1,4 +1,4 @@
-// The web pages a mod shows (deckit-shell/web) over a stand-in for the environment's web: what loads in them, which
+// The web pages a mod shows (deckit-shell/deckit/web) over a stand-in for the environment's web: what loads in them, which
 // sessions attach and are kept, a mod's windows closing with its document, what a web page's window.open gets, what a
 // site may have and the question put to the mod showing it, a site's notifications, and a mod's tabs held to the mod.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
@@ -9,7 +9,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
-    const { createWeb } = await import(url('deckit-shell', 'web', 'main.js'));
+    const { createWeb } = await import(url('deckit-shell', 'deckit', 'web', 'main.js'));
     const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
     const ENVIRONMENT = await import(url('deckit-shell', 'environment', 'index.js'));
     const failed = [];

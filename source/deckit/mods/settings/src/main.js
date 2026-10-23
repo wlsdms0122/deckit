@@ -1,10 +1,10 @@
-const { CHIP_STYLE } = require('./chip.js');
-const { keyboardSection } = require('./keyboard-section.js');
-const { modSettingsSection } = require('./mod-settings-section.js');
-const { modsSection } = require('./mods-section.js');
-const { SECTION_STYLE } = require('./section.js');
-const { tableOfContents } = require('./table-of-contents.js');
-const { urlSchemesSection } = require('./url-schemes-section.js');
+const { CHIP_STYLE } = require('./chip/chip.js');
+const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
+const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
+const { modsSection } = require('./sections/mods/mods-section.js');
+const { SECTION_STYLE } = require('./sections/section/section.js');
+const { tableOfContents } = require('./table-of-contents/table-of-contents.js');
+const { urlSchemesSection } = require('./sections/url-schemes/url-schemes-section.js');
 
 module.exports = {
     keywords: ['설정', '모드', 'settings', 'mods'],

@@ -1,20 +1,20 @@
-const { dragAndDrop } = require('./drag-and-drop.js');
-const { folderAt } = require('./folder.js');
-const { gallery } = require('./gallery.js');
-const { NOTEBOOK_SHAPES } = require('./icons.js');
-const { keyboardShortcuts } = require('./keyboard-shortcuts.js');
-const { linkTargetOf, linkedNotePath } = require('./link.js');
-const { liveEditor } = require('./live-editor.js');
-const { menus } = require('./menus.js');
-const { navigationBar } = require('./navigation-bar.js');
-const { navigationHistory } = require('./navigation-history.js');
-const { operations } = require('./operations.js');
-const { paletteCommands } = require('./palette-commands.js');
-const { parentOf, isWithin } = require('./path.js');
-const { relocationLog } = require('./relocation-log.js');
-const { session } = require('./session.js');
-const { tree } = require('./tree.js');
-const { FONTS, typefaceOf } = require('./typeface.js');
+const { dragAndDrop } = require('./browsing/drag-and-drop.js');
+const { folderAt } = require('./notes-folder/folder.js');
+const { gallery } = require('./browsing/gallery.js');
+const { NOTEBOOK_SHAPES } = require('./icons/icons.js');
+const { keyboardShortcuts } = require('./commands/keyboard-shortcuts.js');
+const { linkTargetOf, linkedNotePath } = require('./editor/link.js');
+const { liveEditor } = require('./editor/live-editor.js');
+const { menus } = require('./browsing/menus.js');
+const { navigationBar } = require('./navigation/navigation-bar.js');
+const { navigationHistory } = require('./navigation/navigation-history.js');
+const { operations } = require('./notes-folder/operations.js');
+const { paletteCommands } = require('./commands/palette-commands.js');
+const { parentOf, isWithin } = require('./notes-folder/path.js');
+const { relocationLog } = require('./notes-folder/relocation-log.js');
+const { session } = require('./session/session.js');
+const { tree } = require('./browsing/tree.js');
+const { FONTS, typefaceOf } = require('./editor/typeface.js');
 
 // What stop() waits for: the open note written, its title typed and not yet applied too, so what was typed just before
 // the run ends is kept, and the notes folder no longer watched.
