@@ -1,18 +1,18 @@
 import * as IPC from './deck/ipc/renderer.js';
 import * as LOG from './deck/log/renderer.js';
 import * as ENVIRONMENT from './environment/index.js';
-import * as PAGE from './page/renderer.js';
+import * as PAGE from './shell/page/renderer.js';
 import { createRun } from './deck/runner/run.js';
 import { createRunner } from './deck/runner/renderer.js';
 import { createRecord } from './deck/record/renderer.js';
 import { createExport } from './deck/export/renderer.js';
 import { createExtension } from './deck/extension/renderer.js';
 import { createMods } from './deck/mods/renderer.js';
-import { createWeb } from './web/renderer.js';
-import { createNotification } from './notification/renderer.js';
-import { createKeymap } from './keymap/renderer.js';
-import { createCommand } from './command/renderer.js';
-import { createMod, mod } from './mod/renderer.js';
+import { createWeb } from './deckit/web/renderer.js';
+import { createNotification } from './deckit/notification/renderer.js';
+import { createKeymap } from './deckit/keymap/renderer.js';
+import { createCommand } from './deckit/command/renderer.js';
+import { createMod, mod } from './shell/mod/renderer.js';
 
 // MARK: - Public
 // Deckit on every page it makes, a mod's or one the shell made, as the environment boots the page with what it gives

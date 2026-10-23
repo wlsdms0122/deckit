@@ -1,4 +1,4 @@
-// The styles a page wears (deckit-shell/style/main): what running mods with deckit.styles give every page, and what
+// The styles a page wears (deckit-shell/shell/style/main): what running mods with deckit.styles give every page, and what
 // they give a mod's page by its id, from the mod itself and from the mods that link it, in the load order. Exits 1
 // with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
@@ -7,7 +7,7 @@ const { pathToFileURL } = require('url');
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
 async function main() {
-    const { createStyle } = await import(url('deckit-shell', 'style', 'main.js'));
+    const { createStyle } = await import(url('deckit-shell', 'shell', 'style', 'main.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

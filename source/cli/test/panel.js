@@ -1,4 +1,4 @@
-// The panel's list order (deckit-shell/panel/model/list-order): the mods the person placed first, as placed, the rest
+// The panel's list order (deckit-shell/shell/panel/model/list-order): the mods the person placed first, as placed, the rest
 // as deckit lists them, and a drag that moves the ids it names among the places they held. Exits 1 with a line for
 // each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
@@ -7,7 +7,7 @@ const { pathToFileURL } = require('url');
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
 async function main() {
-    const LIST_ORDER = await import(url('deckit-shell', 'panel', 'model', 'list-order.js'));
+    const LIST_ORDER = await import(url('deckit-shell', 'shell', 'panel', 'model', 'list-order.js'));
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {

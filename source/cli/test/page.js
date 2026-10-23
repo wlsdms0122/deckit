@@ -1,4 +1,4 @@
-// What a page deckit makes is told as it starts (deckit-shell/page), over a stand-in for the environment's messages: a
+// What a page deckit makes is told as it starts (deckit-shell/shell/page), over a stand-in for the environment's messages: a
 // page the shell made by its name, and a mod's page its web sessions and whether the shell's UI is on deckit, so a
 // host app that never attaches the shell runs its mods with deck's and deckit's alone. Exits 1 with a line for each
 // check that failed. The packages are ES modules, so they are imported as such.
@@ -8,7 +8,7 @@ const { pathToFileURL } = require('url');
 const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit', ...parts)).href;
 
 async function main() {
-    const { createSetup } = await import(url('deckit-shell', 'page', 'main.js'));
+    const { createSetup } = await import(url('deckit-shell', 'shell', 'page', 'main.js'));
     const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;

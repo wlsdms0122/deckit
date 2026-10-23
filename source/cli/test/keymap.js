@@ -1,4 +1,4 @@
-// The key map (deckit-shell/keymap) over a stand-in for the environment's keys, pages and messages: a key pressed in a
+// The key map (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a key pressed in a
 // page is answered at once, taken or not, by what the core last told of the bindings, the page's own keys, the
 // shell's monitor and the page in front, a field focused keeps a text editing chord, and recording takes every key.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
@@ -9,7 +9,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 const tick = () => new Promise((resolve) => setImmediate(resolve));
 
 async function main() {
-    const { createKeymap } = await import(url('deckit-shell', 'keymap', 'main.js'));
+    const { createKeymap } = await import(url('deckit-shell', 'deckit', 'keymap', 'main.js'));
     const IPC = await import(url('deckit-shell', 'deck', 'ipc', 'main.js'));
     const failed = [];
     let count = 0;
