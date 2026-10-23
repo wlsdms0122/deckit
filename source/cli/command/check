@@ -79,6 +79,7 @@ for (const [name, { entries }] of SURFACES)
             problems.push(`deckit/${name}/package.json: names the entry ${entry}, which is no script`);
 for (const file of files) checkFile(file);
 checkCycles();
+checkSiblings();
 checkPlaces();
 checkFolders();
 
@@ -202,14 +203,10 @@ function checkImport(file, spec, target) {
             say(file, `imports ${target}, which is not an entry of ${theirs}/`);
         return;
     }
-    // Inside a package, a folder is a module: it uses its own folders and the folders beside it, with theirs, and
-    // never its parent or anything above it.
+    // Inside a package, a folder never uses what holds it. Which folders beside each other use which is checkSiblings.
     const from = moduleOf(file);
     const to = moduleOf(target);
-    const parent = path.posix.dirname(from);
     if (from.startsWith(to + '/')) say(file, `imports ${target}, in ${to}/, which holds it`);
-    else if (to !== from && !to.startsWith(from + '/') && !to.startsWith(parent + '/'))
-        say(file, `imports ${target}, outside ${parent}/`);
     // A concept's channels are how its own sides reach each other.
     if (target.endsWith('/protocol.js') && moduleOf(target) !== moduleOf(file))
         say(file, `imports ${target}, how ${moduleOf(target)} is reached, which is ${moduleOf(target)}'s own`);
@@ -226,6 +223,42 @@ function checkCycles() {
         state.set(file, 'done');
     };
     for (const file of files) visit(file, []);
+}
+
+// Folders beside each other use each other one way: a folder uses what one beside it holds, and what is in a folder
+// uses what the folder may, but no two beside each other use each other, through others or not.
+function checkSiblings() {
+    const uses = new Map(); // folder -> its folders -> the folders beside them they use
+    for (const [file, targets] of imports) {
+        for (const { file: target } of targets) {
+            if (!target || packageOf(target) !== packageOf(file)) continue;
+            const from = moduleOf(file).split('/');
+            const to = moduleOf(target).split('/');
+            let shared = 0;
+            while (shared < from.length && shared < to.length && from[shared] === to[shared]) shared++;
+            if (shared === from.length || shared === to.length) continue;
+            const folder = from.slice(0, shared).join('/');
+            if (!uses.has(folder)) uses.set(folder, new Map());
+            const beside = uses.get(folder);
+            if (!beside.has(from[shared])) beside.set(from[shared], new Set());
+            beside.get(from[shared]).add(to[shared]);
+        }
+    }
+    for (const [folder, beside] of uses) {
+        const state = new Map();
+        const visit = (name, trail) => {
+            if (state.get(name) === 'done') return;
+            if (state.get(name) === 'visiting')
+                return say(
+                    `${folder}/${name}`,
+                    `uses ${[...trail.slice(trail.indexOf(name) + 1), name].join(' -> ')}, which uses it back`
+                );
+            state.set(name, 'visiting');
+            for (const other of beside.get(name) || []) visit(other, [...trail, name]);
+            state.set(name, 'done');
+        };
+        for (const name of beside.keys()) visit(name, []);
+    }
 }
 
 // Each bundle carries its entry and what that imports, and runs where its place says: main.js never in a renderer,
