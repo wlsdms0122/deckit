@@ -66,15 +66,9 @@ public final class Catalog {
         return DependencyGraph(found).ordered()
     }
 
-    // The mods, read and kept as read, and their load order kept as they come: one that does not load keeps its place,
-    // one found anew takes the place it came in, and one no longer found leaves it.
+    // The mods, read and kept as read.
     func read() -> [Mod] {
         lastRead = mods()
-        let ids = lastRead.map(\.manifest.id)
-        if ids != loadOrder.read() {
-            try? loadOrder.write(ids)
-        }
-
         return lastRead
     }
 
@@ -105,6 +99,7 @@ public final class Catalog {
     public func install(from source: URL) throws -> Manifest {
         let manifest = try installer.install(from: source, refuse: shadow)
         installs[manifest.id, default: 0] += 1
+        keepOrder(installed: [manifest.id])
 
         return manifest
     }
@@ -117,14 +112,36 @@ public final class Catalog {
         }
 
         try installer.remove(id)
+        keepOrder(removed: [id])
         return store.isName(id)
     }
 
     public func installShipped() throws -> [InstallReport] {
-        try installer.installShipped()
+        let reports = try installer.installShipped()
+        keepOrder(
+            installed: reports.filter { report in report.outcome == .installed }.map(\.id),
+            removed: reports.filter { report in report.outcome == .dropped }.map(\.id)
+        )
+        return reports
     }
 
     // MARK: - Private
+    // The load order kept with the mods `installed` that it did not place, each just before the first it places that comes
+    // after it now, and without those `removed`; every other place stays. A settings file that does not read as a JSON
+    // object keeps no order until it does, which arranging tells.
+    private func keepOrder(installed: [String] = [], removed: [String] = []) {
+        let before = loadOrder.read()
+        var kept = before.filter { id in !removed.contains(id) }
+        let order = mods().map(\.manifest.id)
+        for id in installed where !kept.contains(id) {
+            let after = order.firstIndex(of: id).map { place in Set(order[(place + 1)...]) } ?? []
+            kept.insert(id, at: kept.firstIndex { other in after.contains(other) } ?? kept.count)
+        }
+        if kept != before {
+            try? loadOrder.write(kept)
+        }
+    }
+
     // By id, the first folder of an id the one read. What the app ships and did not install, with no copy to read, is
     // read where the app ships it, and does not load.
     private func list() -> [Mod] {

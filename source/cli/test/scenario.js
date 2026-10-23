@@ -225,8 +225,8 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         check("the shell's state is kept by the core", sidebarKept, frameKept);
         const loadOrder = JSON.parse(fs.readFileSync(path.join(home, 'deck.json'), 'utf8')).loadOrder;
         check(
-            'a mod loads after the one it requires, and the load order is kept as it comes',
-            loadOrder.slice(0, 2).join() === 'broker-provider,broker-user' && loadOrder.includes('settings'),
+            'the load order keeps the places it was given, and what is installed takes its own',
+            loadOrder.slice(0, 2).join() === 'broker-user,broker-provider' && loadOrder.includes('settings'),
             loadOrder
         );
         const notesKept = path.join(home, 'data', 'note');
@@ -347,17 +347,20 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         check('reverting draws the order deck keeps', reverted, '');
         // The last two rows swapped and applied are the order deck keeps.
         const lastRows = (place) => `[...document.querySelectorAll('.settings-mod')].at(${place})`;
+        const rowNames = `[...document.querySelectorAll('.settings-mod')].map((row) => row.querySelector('.settings-mod-name')?.textContent).join()`;
+        const rowsBefore = await settings?.evaluate(rowNames);
         await settings?.evaluate(`${lastRows(-1)}.scrollIntoView({ block: 'center' })`);
         await settings?.drag(lastRows(-2), lastRows(-1));
         await until(() => settings.evaluate(`document.querySelector('.settings-order')?.hidden === false`), 2000);
         await settings?.press('.settings-order [data-variant="primary"]');
         const applied = await until(() => keptOrder() !== orderBefore, 3000);
-        const swapped = orderBefore.split(',');
+        const swapped = rowsBefore.split(',');
         swapped.push(...swapped.splice(-2).reverse());
         check(
             'an order applied is the one deck keeps',
             applied &&
-                keptOrder() === swapped.join() &&
+                (await settings.evaluate(rowNames)) === swapped.join() &&
+                keptOrder().split(',').length === swapped.length &&
                 (await settings.evaluate(`document.querySelector('.settings-order').hidden`)),
             `${orderBefore} -> ${keptOrder()}`
         );
