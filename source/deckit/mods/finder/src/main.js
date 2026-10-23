@@ -1,17 +1,17 @@
-const { columnView } = require('./column-view.js');
-const { favoriteList } = require('./favorite-list.js');
-const { fileArea } = require('./file-area.js');
-const { fileMenu } = require('./file-menu.js');
-const { fileOperator } = require('./file-operator.js');
-const { folderStatus } = require('./folder-status.js');
-const { goToFolder } = require('./go-to-folder.js');
-const { iconCache } = require('./icon-cache.js');
-const { listView } = require('./list-view.js');
-const { listingCache } = require('./listing-cache.js');
-const { parentOf, isInside } = require('./path.js');
-const { selectionInput } = require('./selection-input.js');
-const { tabList } = require('./tab-list.js');
-const { toolbar } = require('./toolbar.js');
+const { columnView } = require('./view/column-view.js');
+const { favoriteList } = require('./sidebar/favorite-list.js');
+const { fileArea } = require('./file-area/file-area.js');
+const { fileMenu } = require('./file-area/file-menu.js');
+const { fileOperator } = require('./file-operation/file-operator.js');
+const { folderStatus } = require('./file-area/folder-status.js');
+const { goToFolder } = require('./go-to-folder/go-to-folder.js');
+const { iconCache } = require('./icon/icon-cache.js');
+const { listView } = require('./view/list-view.js');
+const { listingCache } = require('./listing/listing-cache.js');
+const { parentOf, isInside } = require('./path/path.js');
+const { selectionInput } = require('./file-area/selection-input.js');
+const { tabList } = require('./sidebar/tab-list.js');
+const { toolbar } = require('./toolbar/toolbar.js');
 
 module.exports = {
     keywords: ['finder', 'files', 'file', 'folder', 'explorer', 'browse', '파인더', '파일', '폴더', '탐색기'],

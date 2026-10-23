@@ -1,4 +1,4 @@
-const { openAddress } = require('./open-address.js');
+const { openAddress } = require('./address/open-address.js');
 
 // What a person asks of deck itself, offered in the switcher as any mod's commands are: an address to open, a
 // mod or the app to restart, deckit's folders, and what is running. It has no view.

@@ -1,4 +1,4 @@
-const { styled } = require('../dom.js');
+const { styled } = require('../dom/dom.js');
 
 const renderMarkdown = ({ ui, onNote, onLink, wrap, copyText }) => {
     const LINK = 'var(--deckit-accent)';

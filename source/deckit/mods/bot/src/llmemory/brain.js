@@ -1,4 +1,4 @@
-const { styled } = require('../dom.js');
+const { styled } = require('../dom/dom.js');
 const { renderMarkdown } = require('./markdown.js');
 
 const brainView = ({ deck, bot, reveal }) => {

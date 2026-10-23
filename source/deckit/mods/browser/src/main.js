@@ -1,12 +1,12 @@
-const { addressBar } = require('./address-bar.js');
-const { parseAddress, hostOf } = require('./address.js');
-const { bookmarkEditor } = require('./bookmark-editor.js');
-const { findInPage } = require('./find-in-page.js');
-const { sitePrompter } = require('./site-prompter.js');
-const { sidebar } = require('./sidebar.js');
-const { store } = require('./store.js');
-const { switcher } = require('./switcher.js');
-const { tabList } = require('./tab-list.js');
+const { addressBar } = require('./address-bar/address-bar.js');
+const { parseAddress, hostOf } = require('./address/address.js');
+const { bookmarkEditor } = require('./bookmark-editor/bookmark-editor.js');
+const { findInPage } = require('./find-in-page/find-in-page.js');
+const { sitePrompter } = require('./site-prompter/site-prompter.js');
+const { sidebar } = require('./sidebar/sidebar.js');
+const { store } = require('./store/store.js');
+const { switcher } = require('./switcher/switcher.js');
+const { tabList } = require('./tabs/tab-list.js');
 
 module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`,
