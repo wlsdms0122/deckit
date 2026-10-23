@@ -99,7 +99,7 @@ public final class Catalog {
     public func install(from source: URL) throws -> Manifest {
         let manifest = try installer.install(from: source, refuse: shadow)
         installs[manifest.id, default: 0] += 1
-        keepOrder()
+        keepOrder(installed: [manifest.id])
 
         return manifest
     }
@@ -112,24 +112,33 @@ public final class Catalog {
         }
 
         try installer.remove(id)
-        keepOrder()
+        keepOrder(removed: [id])
         return store.isName(id)
     }
 
     public func installShipped() throws -> [InstallReport] {
         let reports = try installer.installShipped()
-        keepOrder()
+        keepOrder(
+            installed: reports.filter { report in report.outcome == .installed }.map(\.id),
+            removed: reports.filter { report in report.outcome == .dropped }.map(\.id)
+        )
         return reports
     }
 
     // MARK: - Private
-    // The load order kept as the mods come once one is installed or removed: one that does not load keeps its place, one
-    // installed takes the place it came in, and one removed leaves it. A settings file that does not read as a JSON
+    // The load order kept with the mods `installed` that it did not place, each just before the first it places that comes
+    // after it now, and without those `removed`; every other place stays. A settings file that does not read as a JSON
     // object keeps no order until it does, which arranging tells.
-    private func keepOrder() {
-        let ids = mods().map(\.manifest.id)
-        if ids != loadOrder.read() {
-            try? loadOrder.write(ids)
+    private func keepOrder(installed: [String] = [], removed: [String] = []) {
+        let before = loadOrder.read()
+        var kept = before.filter { id in !removed.contains(id) }
+        let order = mods().map(\.manifest.id)
+        for id in installed where !kept.contains(id) {
+            let after = order.firstIndex(of: id).map { place in Set(order[(place + 1)...]) } ?? []
+            kept.insert(id, at: kept.firstIndex { other in after.contains(other) } ?? kept.count)
+        }
+        if kept != before {
+            try? loadOrder.write(kept)
         }
     }
 

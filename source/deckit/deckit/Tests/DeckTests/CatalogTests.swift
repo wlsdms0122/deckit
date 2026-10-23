@@ -246,6 +246,25 @@ struct CatalogTests {
         #expect(!FileManager.default.fileExists(atPath: staging.path(percentEncoded: false)))
     }
 
+    @Test("installing what the app ships places what the load order did not, and every place kept stays")
+    func installShippedKeepsLoadOrder() throws {
+        // Given
+        try write("x", in: source)
+        try write("a", in: ship)
+        try write("b", in: ship, requires: ["a": "1.0.0"])
+        let settings = home.appending(path: "deck.json")
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        try Data(#"{"loadOrder":["x","gone","b"]}"#.utf8).write(to: settings)
+        let sut = try catalog(sources: [source], ship: [ship.appending(path: "a"), ship.appending(path: "b")])
+
+        // When
+        _ = try sut.installShipped()
+
+        // Then
+        let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+        #expect(kept == .object(["loadOrder": .array(["x", "gone", "a", "b"].map(JSONValue.string))]))
+    }
+
     @Test("a folder that does not load, the installed one, or one a source hides is not installed")
     func installRefuses() throws {
         // Given
