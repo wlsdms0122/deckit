@@ -114,7 +114,7 @@ struct CatalogTests {
         #expect(dependents == ["x": ["y", "z"], "y": ["z"], "z": [], "w": []])
     }
 
-    @Test("each loads after what it requires, otherwise as the load order kept places it, which reading keeps as it comes")
+    @Test("each loads after what it requires, otherwise as the load order kept places it, which reading leaves as it is")
     func loadOrderPutsRequirementsFirst() throws {
         // Given
         try write("a", in: source)
@@ -131,8 +131,28 @@ struct CatalogTests {
 
         // Then
         #expect(mods.map(\.manifest.id) == ["c", "a", "b", "d"])
-        let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
-        #expect(kept == .object(["loadOrder": .array(["c", "a", "b", "d"].map(JSONValue.string)), "other": .number(1)]))
+        #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"loadOrder":["c","b","a"],"other":1}"#)
+    }
+
+    @Test("installing or removing keeps the load order as the mods come: one installed takes its place, one removed leaves")
+    func installKeepsLoadOrder() throws {
+        // Given
+        try write("a", in: home.appending(path: "mods"))
+        try write("c", in: home.appending(path: "mods"))
+        try write("b", in: source)
+        let settings = home.appending(path: "deck.json")
+        try Data(#"{"loadOrder":["c","a"],"other":1}"#.utf8).write(to: settings)
+        let sut = try catalog()
+
+        // When
+        _ = try sut.install(from: source.appending(path: "b"))
+        let installed = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+        _ = try sut.remove("a")
+        let removed = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+
+        // Then
+        #expect(installed == .object(["loadOrder": .array(["c", "a", "b"].map(JSONValue.string)), "other": .number(1)]))
+        #expect(removed == .object(["loadOrder": .array(["c", "b"].map(JSONValue.string)), "other": .number(1)]))
     }
 
     @Test("one that does not load keeps its place, and one it requires found anew goes just before it")

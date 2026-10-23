@@ -66,15 +66,9 @@ public final class Catalog {
         return DependencyGraph(found).ordered()
     }
 
-    // The mods, read and kept as read, and their load order kept as they come: one that does not load keeps its place,
-    // one found anew takes the place it came in, and one no longer found leaves it.
+    // The mods, read and kept as read.
     func read() -> [Mod] {
         lastRead = mods()
-        let ids = lastRead.map(\.manifest.id)
-        if ids != loadOrder.read() {
-            try? loadOrder.write(ids)
-        }
-
         return lastRead
     }
 
@@ -105,6 +99,7 @@ public final class Catalog {
     public func install(from source: URL) throws -> Manifest {
         let manifest = try installer.install(from: source, refuse: shadow)
         installs[manifest.id, default: 0] += 1
+        keepOrder()
 
         return manifest
     }
@@ -117,14 +112,27 @@ public final class Catalog {
         }
 
         try installer.remove(id)
+        keepOrder()
         return store.isName(id)
     }
 
     public func installShipped() throws -> [InstallReport] {
-        try installer.installShipped()
+        let reports = try installer.installShipped()
+        keepOrder()
+        return reports
     }
 
     // MARK: - Private
+    // The load order kept as the mods come once one is installed or removed: one that does not load keeps its place, one
+    // installed takes the place it came in, and one removed leaves it. A settings file that does not read as a JSON
+    // object keeps no order until it does, which arranging tells.
+    private func keepOrder() {
+        let ids = mods().map(\.manifest.id)
+        if ids != loadOrder.read() {
+            try? loadOrder.write(ids)
+        }
+    }
+
     // By id, the first folder of an id the one read. What the app ships and did not install, with no copy to read, is
     // read where the app ships it, and does not load.
     private func list() -> [Mod] {
