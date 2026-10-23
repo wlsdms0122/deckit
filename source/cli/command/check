@@ -325,13 +325,15 @@ function checkFolder(folder, rootFiles, { scripts }) {
 // A mod keeps the packages' shape: src/ holds its entry and its concepts' folders, and main-process/ its modules, each
 // folder a module or a group; it imports only its own files, and its folders beside each other use each other one way.
 function checkMods() {
-    const mods = fs
-        .readdirSync(LIBRARY.MODS, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map(({ name }) => `mods/${name}`);
-    const modOf = (file) => file.split('/').slice(0, 2).join('/');
+    const mods = LIBRARY.mods().map((name) => `mods/${name}`);
+    // src/ is bundled for the sandbox and main-process/ runs in the app's main process, so neither reaches the other.
+    const sideOf = (file) => file.split('/').slice(0, 3).join('/');
     const modImports = new Map();
     for (const mod of mods) {
+        if (!fs.existsSync(path.join(LIBRARY.DECKIT, mod, 'src'))) {
+            say(mod, 'has no src/: a mod is its manifest and the entry in src/');
+            continue;
+        }
         const main = TOML_MAIN.exec(fs.readFileSync(path.join(LIBRARY.DECKIT, mod, 'manifest.toml'), 'utf8'));
         checkFolder(`${mod}/src`, [main ? main[1] : 'main.js'], { scripts: false });
         if (fs.existsSync(path.join(LIBRARY.DECKIT, mod, 'main-process')))
@@ -342,12 +344,12 @@ function checkMods() {
             for (const { spec, file: target } of targets) {
                 if (!target) continue;
                 const full = path.join(LIBRARY.DECKIT, target);
-                if (modOf(target) !== mod || !fs.existsSync(full) || !fs.statSync(full).isFile())
-                    say(file, `imports ${spec}, which is no file of ${mod}/`);
+                if (sideOf(target) !== sideOf(file) || !fs.existsSync(full) || !fs.statSync(full).isFile())
+                    say(file, `imports ${spec}, which is no file of ${sideOf(file)}/`);
             }
         }
     }
-    checkSiblings(modImports, modOf);
+    checkSiblings(modImports, sideOf);
 }
 
 // A mod's scripts, by their paths under source/deckit: what is in its src/ and main-process/.

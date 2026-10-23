@@ -133,6 +133,15 @@ function surfaceOf(name) {
     };
 }
 
+// deckit's own mods, by their folders' names: the folders under mods/ with a manifest.
+function mods() {
+    return fs
+        .readdirSync(MODS, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(MODS, entry.name, 'manifest.toml')))
+        .map(({ name }) => name)
+        .sort();
+}
+
 // Every script of the packages, by its path under source/deckit.
 function files() {
     const walk = (folder) =>
@@ -168,4 +177,18 @@ function reach(entry) {
     return seen;
 }
 
-module.exports = { DECKIT, PACKAGES, MODS, APP, ESBUILD, BUNDLES, code, bare, surfaceOf, files, importsOf, reach };
+module.exports = {
+    DECKIT,
+    PACKAGES,
+    MODS,
+    APP,
+    ESBUILD,
+    BUNDLES,
+    code,
+    bare,
+    surfaceOf,
+    mods,
+    files,
+    importsOf,
+    reach,
+};
