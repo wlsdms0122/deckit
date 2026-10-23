@@ -4,13 +4,13 @@ const path = require('path');
 // The mods Deckit ships, in the load order they take until the person changes it: the panel lists those with a view
 // in it too, until the person arranges its list.
 const SHIPS = ['editor', 'finder', 'note', 'browser', 'calendar', 'bot', 'settings', 'deckit'];
-// Run unpackaged, all its data is in the folder DECKIT_DATA names (main.js).
+// Run unpackaged, all its data is in the folder DECKIT_DATA names (../main.js).
 const data = process.env.DECKIT_DATA;
 
 module.exports = {
     config: { id: 'deckit', name: 'Deckit' },
     folders: {
         home: data ? path.join(data, 'deckit') : null,
-        ship: SHIPS.map((id) => path.join(__dirname, 'deckit', 'mods', id)),
+        ship: SHIPS.map((id) => path.join(__dirname, '..', 'deckit', 'mods', id)),
     },
 };

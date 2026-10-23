@@ -18,10 +18,10 @@ if (!app.requestSingleInstanceLock()) {
 } else {
     const ELECTRON = require('./deckit/main.js');
     const DECKIT = require('./deckit/shell-main.js');
-    const { config, folders } = require('./config.js');
-    const { createWindow } = require('./window.js');
-    const { createApp } = require('./app.js');
-    const { createTheme } = require('./theme.js');
+    const { config, folders } = require('./config/config.js');
+    const { createWindow } = require('./window/window.js');
+    const { createApp } = require('./app/app.js');
+    const { createTheme } = require('./theme/theme.js');
     protocol.registerSchemesAsPrivileged([ELECTRON.SCHEME]);
     // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
     const restart = () => {
