@@ -79,6 +79,10 @@ const MAIN = Object.freeze({
         // the page when `handler` answers true, at once. Told after what `pages.watchInput` told of it, when that
         // watch began first
         capture: 'function',
+        // hotkey(keystroke, handler()) -> off, or null when the system does not give it: a key, `{ code, meta,
+        // control, alt, shift }`, heard wherever the keyboard is, in any app, once the app is ready, `handler()` told
+        // each time it is pressed and the key taken from wherever it was pressed
+        hotkey: 'function',
     },
     // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that
     // opens its scheme, the browser for the web, brought forward unless `activate` is false; `file(path) -> Promise of
