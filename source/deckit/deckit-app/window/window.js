@@ -74,6 +74,42 @@ function createWindow({ CONFIG, THEME }) {
         return window;
     }
 
+    // A window over every app, on every Space and over an app in full screen, that takes the keyboard without bringing
+    // Deckit.app forward. It is clear and has no bar, so what is laid in it is all it draws. `place(window)` puts a view
+    // in it, which fills it; `focus` hands the view the keyboard as the window takes it, and `blur` hears it lose it.
+    // It opens hidden: `float(window)` shows it.
+    function openFloating({ place, focus, blur }) {
+        const { BrowserWindow } = require('electron');
+        const window = new BrowserWindow({
+            type: 'panel',
+            show: false,
+            frame: false,
+            transparent: true,
+            hasShadow: false,
+            resizable: false,
+            movable: false,
+            minimizable: false,
+            maximizable: false,
+            fullscreenable: false,
+            skipTaskbar: true,
+            alwaysOnTop: true,
+        });
+        window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
+        place(window);
+        window.on('focus', () => setImmediate(() => !window.isDestroyed() && window.isFocused() && focus()));
+        window.on('blur', blur);
+        return window;
+    }
+
+    // A floating window shown with the keyboard, over all of the screen the pointer is on but the menu bar and the
+    // Dock.
+    function float(window) {
+        const { screen } = require('electron');
+        window.setBounds(screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea);
+        window.show();
+        window.focus();
+    }
+
     // Where a view goes in the window: all of it below the bar.
     function viewBounds({ width, height }) {
         return { x: 0, y: BAR.height, width, height: Math.max(0, height - BAR.height) };
@@ -215,7 +251,7 @@ window.setTitle = (text) => { document.getElementById('title').textContent = tex
         }
     }
 
-    return { open, viewBounds, titleBar: TITLE_BAR, setTitle, recolor };
+    return { open, openFloating, float, viewBounds, titleBar: TITLE_BAR, setTitle, recolor };
 }
 
 module.exports = { createWindow };

@@ -169,6 +169,7 @@ function boot(theme, channels) {
     let exitTimer = null;
     let hiddenAnswer = null; // answers main's dismiss, once the exit has played
     let giveUpTimer = null;
+    let dims = true; // whether the list dims the page around it, as main opened it
 
     Object.assign(document.body.style, { margin: '0', background: 'transparent' });
 
@@ -191,6 +192,7 @@ function boot(theme, channels) {
         closing = false;
         switcher = open(ui, {
             placeholder: 'Jump to a mod, bookmark or view…',
+            dims,
             items: hydrate(items),
             now: hydrate(now),
             // Resolvers and submenu searches live with the mods, in their pages.
@@ -207,8 +209,9 @@ function boot(theme, channels) {
     PROTOCOL.resolved.on(({ raw, entries: found, submenu }) =>
         switcher?.model.setResolved(String(raw || ''), hydrate(found), submenu || null)
     );
-    PROTOCOL.open.on(() => {
+    PROTOCOL.open.on((opened) => {
         if (switcher) return;
+        dims = opened.dims;
         entries.need();
         clearTimeout(giveUpTimer);
         giveUpTimer = setTimeout(() => !switcher && PROTOCOL.close.send(), GIVE_UP_MILLISECONDS);
@@ -255,7 +258,7 @@ function boot(theme, channels) {
 
 // MARK: - Private
 // The switcher on screen: the kit's quick pick, drawn from its view model.
-function open(ui, { placeholder, items, now, onQuery, onPick, onClose }) {
+function open(ui, { placeholder, dims, items, now, onQuery, onPick, onClose }) {
     const model = VIEW_MODEL.make({ placeholder, items, now, onQuery, onPick, onClose: () => picker.close() });
     const rows = new Set(); // the rows made, which show their ⌘ numbers while Command is held
     let numbered = false;
@@ -265,6 +268,7 @@ function open(ui, { placeholder, items, now, onQuery, onPick, onClose }) {
     };
     const picker = ui.quickPick({
         placeholder,
+        dims,
         key: (entry) => entry.key,
         create: (entry) => {
             if (entry.heading) return headingOf(entry);

@@ -2,9 +2,10 @@ function createApp({ WINDOW, THEME }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // Deckit on its own: the panel always in a window of its own, the switcher in front of it.
+    // Deckit on its own: the panel always in a window of its own, and the switcher in one of its own over every app.
     function make({ restart }) {
-        const state = { window: null, opening: null, title: '' }; // `opening`: a second show waits on it
+        // `opening`: a second show waits on it. `switcher`: the switcher's window, made as it is first summoned
+        const state = { window: null, opening: null, title: '', switcher: null };
         let controls = null; // what the host drives of the shell, handed as it starts
 
         function live(window) {
@@ -45,10 +46,8 @@ function createApp({ WINDOW, THEME }) {
             return state.opening;
         }
 
-        // What has the keyboard in the panel's window: the switcher while it is open, or else the panel.
         function focusPanel() {
-            if (controls.switcher.shown()) controls.switcher.focus();
-            else if (controls.panel.shown()) controls.panel.focus();
+            if (controls.panel.shown()) controls.panel.focus();
         }
 
         function raise(window) {
@@ -57,28 +56,33 @@ function createApp({ WINDOW, THEME }) {
             window.focus();
         }
 
-        // The panel's views and the switcher's are in the panel's window, which only this host knows.
+        // The panel's views are in the panel's window and the switcher's in its own, which only this host knows.
         function windowOf(webContents) {
-            if (controls.panel.contains(webContents) || controls.switcher.contains(webContents))
-                return live(state.window);
+            if (controls.panel.contains(webContents)) return live(state.window);
+            if (controls.switcher.contains(webContents)) return live(state.switcher);
             return require('electron').BrowserWindow.fromWebContents(webContents);
         }
 
-        // A second press closes it. Pressed in another of the app's windows, a popup's or a web page's, it brings the
-        // panel's forward to open in. It took the keyboard as it opened, so the panel takes it back. It covers the
-        // whole window, the bar too, so its scrim dims all of it.
+        // From anywhere, in Deckit.app or another app, over what is on the screen, which it leaves clear; a second
+        // press closes it, as does the keyboard going elsewhere. Its window goes once its exit has played.
         function summonSwitcher() {
+            if (!controls) return;
             const here = controls.switcher.shown();
             controls.switcher.close();
             if (here) return;
-            show().then((window) => {
-                if (!window) return;
-                controls.switcher.place(window, {
-                    front: true,
-                    onClose: () => controls.switcher.close(),
-                });
-                controls.switcher.open().then((closed) => closed && controls.panel.shown() && controls.panel.focus());
+            const window = switcherWindow();
+            controls.switcher.open({ dims: false }).then((closed) => closed && live(window)?.hide());
+            WINDOW.float(window);
+        }
+
+        function switcherWindow() {
+            if (live(state.switcher)) return state.switcher;
+            state.switcher = WINDOW.openFloating({
+                place: (window) => controls.switcher.place(window, { onClose: () => controls.switcher.close() }),
+                focus: () => controls.switcher.focus(),
+                blur: () => controls.switcher.close(),
             });
+            return state.switcher;
         }
 
         return {

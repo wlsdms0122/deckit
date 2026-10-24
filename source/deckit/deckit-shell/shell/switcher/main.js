@@ -16,7 +16,8 @@ export function createSwitcher({ PANEL, deckit, host }) {
     const OPEN = '@open:';
     // How long main waits on the list's exit before it goes on.
     const EXIT_LIMIT_MS = 400;
-    const state = { page: null, on: false, ready: false, closed: null }; // `closed` resolves the open in progress
+    // `closed` resolves the open in progress, and `dims` is whether it dims what is around it
+    const state = { page: null, on: false, ready: false, closed: null, dims: true };
     const handed = new Map(); // entry id -> { mod, kind, group, label }, of what the list was given since it opened
     let session = null; // a promise of deckit's commands, asked for this list since it last opened, or of null
     let supplies = 0;
@@ -27,16 +28,16 @@ export function createSwitcher({ PANEL, deckit, host }) {
     function start() {
         deckit.keymap.register({
             action: 'switcher',
-            key: 'mod+shift+g',
+            key: 'alt+space',
             label: 'Quick switcher',
-            global: true,
-            run: (page) => host.summonSwitcher(deckit.web.pageFor(page) || page),
+            systemWide: true,
+            run: (page) => host.summonSwitcher(page && (deckit.web.pageFor(page) || page)),
         });
         PROTOCOL.ready.on((_payload, sender) => {
             if (sender !== state.page) return;
             state.ready = true;
             // A chord that came while the page was loading is answered now instead of lost.
-            if (state.on) PROTOCOL.open.send(sender, {});
+            if (state.on) PROTOCOL.open.send(sender, { dims: state.dims });
         });
         PROTOCOL.close.on((_payload, sender) => sender === state.page && close());
         PROTOCOL.need.on((_payload, sender) => sender === state.page && supply());
@@ -49,16 +50,17 @@ export function createSwitcher({ PANEL, deckit, host }) {
     }
 
     // Resolves true when put away (the keyboard is the host's to give back), false when it never opened or was
-    // opened again during its exit.
-    function open() {
+    // opened again during its exit. With `dims` false what is around the list stays clear.
+    function open({ dims = true } = {}) {
         return new Promise((resolve) => {
             build();
             state.closed?.(false);
             state.closed = resolve;
             state.on = true;
+            state.dims = dims;
             lay();
             deckit.pages.focus(state.page);
-            if (state.ready) PROTOCOL.open.send(state.page, {});
+            if (state.ready) PROTOCOL.open.send(state.page, { dims });
         });
     }
 

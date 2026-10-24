@@ -2,7 +2,7 @@
 // it held, and what was seen.
 const fs = require('fs');
 const path = require('path');
-const { until, sleep, CTRL, META, SHIFT } = require('./devtools.js');
+const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 
 // The mods Deckit.app ships with a view: every one but Deckit, which is commands only.
 const VIEWS = 7;
@@ -166,7 +166,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await sleep(600);
         check('back key returns to Editor', (await visibility('editor')) === 'visible', await visibility('editor'));
 
-        await editor.key('g', 'KeyG', META | SHIFT, 71);
+        await editor.key(' ', 'Space', ALT, 32);
         const switcher = await until(() => page('deckit://switcher'));
         await until(async () => /Notes/.test((await switcher?.evaluate('document.body.innerText')) || ''));
         check('switcher opens on its chord', switcher);
@@ -430,7 +430,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await sleep(1500);
         const stayed = (await targets()).filter((target) => target.url.startsWith('deckit://finder.mod')).length;
         check("a mod's view cannot move to another mod's origin", stayed === 1, stayed + ' finder pages');
-        await editor.key('g', 'KeyG', META | SHIFT, 71);
+        await editor.key(' ', 'Space', ALT, 32);
         const again = await page('deckit://switcher');
         const listed = await until(
             async () => /Open Folder/.test((await again?.evaluate('document.body.innerText')) || ''),
@@ -525,7 +525,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             3000
         );
         check("an address of a mod's scheme reaches it", reached, await mark(opener, 'opened'));
-        await editor.key('g', 'KeyG', META | SHIFT, 71);
+        await editor.key(' ', 'Space', ALT, 32);
         const query = await until(() => page('deckit://switcher'));
         await until(async () => /Notes/.test((await query?.evaluate('document.body.innerText')) || ''));
         await query?.type('probe open user');
