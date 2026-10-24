@@ -19,6 +19,7 @@ function createWindow({ CONFIG, THEME }) {
     const looks = new WeakMap(); // window -> { glass, covered }: how its bar page is drawn
     const titles = new WeakMap(); // window -> the title it shows
     const covered = new WeakSet(); // the windows whose view covers the bar, where its title would be
+    const floating = new WeakMap(); // floating window -> the key it keeps where it was moved to by
 
     // MARK: - Initializer
     // MARK: - Public
@@ -75,19 +76,19 @@ function createWindow({ CONFIG, THEME }) {
     }
 
     // A window over every app, on every Space and over an app in full screen, that takes the keyboard without bringing
-    // Deckit.app forward. It is clear and has no bar, so what is laid in it is all it draws. `place(window)` puts a view
-    // in it, which fills it; `focus` hands the view the keyboard as the window takes it, and `blur` hears it lose it.
-    // It opens hidden: `float(window)` shows it.
-    function openFloating({ place, focus, blur }) {
+    // Deckit.app forward. It is clear and has no bar, so what is laid in it is all it draws, and it moves by what that
+    // marks to drag. `size` is its own; where it was moved to is kept by `key`. `place(window)` puts a view in it, which
+    // fills it; `focus` hands the view the keyboard as the window takes it, and `blur` hears it lose it. It opens
+    // hidden: `float(window)` shows it.
+    function openFloating({ size, key, place, focus, blur }) {
         const { BrowserWindow } = require('electron');
         const window = new BrowserWindow({
+            ...size,
             type: 'panel',
             show: false,
             frame: false,
             transparent: true,
-            hasShadow: false,
             resizable: false,
-            movable: false,
             minimizable: false,
             maximizable: false,
             fullscreenable: false,
@@ -96,16 +97,30 @@ function createWindow({ CONFIG, THEME }) {
         });
         window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
         place(window);
+        floating.set(window, key);
+        remember(window, key);
         window.on('focus', () => setImmediate(() => !window.isDestroyed() && window.isFocused() && focus()));
         window.on('blur', blur);
         return window;
     }
 
-    // A floating window shown with the keyboard, over all of the screen the pointer is on but the menu bar and the
-    // Dock.
+    // A floating window shown with the keyboard on the screen the pointer is on: where it was last moved to, when that
+    // is on this screen, or else centred across it, a fifth of the way down.
     function float(window) {
         const { screen } = require('electron');
-        window.setBounds(screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea);
+        const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+        const { width, height } = window.getBounds();
+        const kept = read()[floating.get(window)];
+        const inside =
+            !!kept &&
+            kept.x >= area.x &&
+            kept.y >= area.y &&
+            kept.x + width <= area.x + area.width &&
+            kept.y + height <= area.y + area.height;
+        const at = inside
+            ? kept
+            : { x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + area.height / 5) };
+        window.setBounds({ x: at.x, y: at.y, width, height });
         window.show();
         window.focus();
     }

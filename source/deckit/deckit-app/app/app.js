@@ -1,5 +1,6 @@
 function createApp({ WINDOW, THEME }) {
     // MARK: - Property
+    const SWITCHER_SIZE = Object.freeze({ width: 600, height: 400 });
     // MARK: - Initializer
     // MARK: - Public
     // Deckit on its own: the panel always in a window of its own, and the switcher in one of its own over every app.
@@ -63,8 +64,8 @@ function createApp({ WINDOW, THEME }) {
             return require('electron').BrowserWindow.fromWebContents(webContents);
         }
 
-        // From anywhere, in Deckit.app or another app, over what is on the screen, which it leaves clear; a second
-        // press closes it, as does the keyboard going elsewhere. Its window goes once its exit has played.
+        // From anywhere, in Deckit.app or another app, in a window of its own that it fills; a second press closes it,
+        // as does the keyboard going elsewhere. Its window goes once its exit has played.
         function summonSwitcher() {
             if (!controls) return;
             const here = controls.switcher.shown();
@@ -78,8 +79,10 @@ function createApp({ WINDOW, THEME }) {
         function switcherWindow() {
             if (live(state.switcher)) return state.switcher;
             state.switcher = WINDOW.openFloating({
+                size: SWITCHER_SIZE,
+                key: 'switcher',
                 place: (window) =>
-                    controls.switcher.place(window, { dims: false, onClose: () => controls.switcher.close() }),
+                    controls.switcher.place(window, { fills: true, onClose: () => controls.switcher.close() }),
                 focus: () => controls.switcher.focus(),
                 blur: () => controls.switcher.close(),
             });

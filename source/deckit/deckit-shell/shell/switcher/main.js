@@ -16,8 +16,8 @@ export function createSwitcher({ PANEL, deckit, host }) {
     const OPEN = '@open:';
     // How long main waits on the list's exit before it goes on.
     const EXIT_LIMIT_MS = 400;
-    // `closed` resolves the open in progress, and `dims` is whether it dims what is around it where it is placed
-    const state = { page: null, on: false, ready: false, closed: null, dims: true };
+    // `closed` resolves the open in progress, and `fills` is whether the list fills the window it is placed in
+    const state = { page: null, on: false, ready: false, closed: null, fills: false };
     const handed = new Map(); // entry id -> { mod, kind, group, label }, of what the list was given since it opened
     let session = null; // a promise of deckit's commands, asked for this list since it last opened, or of null
     let supplies = 0;
@@ -37,7 +37,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             if (sender !== state.page) return;
             state.ready = true;
             // A chord that came while the page was loading is answered now instead of lost.
-            if (state.on) PROTOCOL.open.send(sender, { dims: state.dims });
+            if (state.on) PROTOCOL.open.send(sender, { fills: state.fills });
         });
         PROTOCOL.close.on((_payload, sender) => sender === state.page && close());
         PROTOCOL.need.on((_payload, sender) => sender === state.page && supply());
@@ -59,7 +59,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             state.on = true;
             lay();
             deckit.pages.focus(state.page);
-            if (state.ready) PROTOCOL.open.send(state.page, { dims: state.dims });
+            if (state.ready) PROTOCOL.open.send(state.page, { fills: state.fills });
         });
     }
 
@@ -286,11 +286,11 @@ export function createSwitcher({ PANEL, deckit, host }) {
         start,
         // What the host drives of it.
         control: {
-            // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`). With `dims`
-            // false what is around the list there stays clear.
-            place: (window, { dims = true, ...options } = {}) => {
+            // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`). With `fills`,
+            // in a window of its own: the list is all it draws there, filling it, and drags the window.
+            place: (window, { fills = false, ...options } = {}) => {
                 build();
-                state.dims = dims;
+                state.fills = fills;
                 stage.place(window, options);
             },
             contains: (page) => !!state.page && state.page === page,

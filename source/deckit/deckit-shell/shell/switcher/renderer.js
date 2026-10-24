@@ -169,7 +169,7 @@ function boot(theme, channels) {
     let exitTimer = null;
     let hiddenAnswer = null; // answers main's dismiss, once the exit has played
     let giveUpTimer = null;
-    let dims = true; // whether the list dims the page around it, as main opened it
+    let fills = false; // whether the list is all the page draws, as main opened it
 
     Object.assign(document.body.style, { margin: '0', background: 'transparent' });
 
@@ -192,7 +192,7 @@ function boot(theme, channels) {
         closing = false;
         switcher = open(ui, {
             placeholder: 'Jump to a mod, bookmark or view…',
-            dims,
+            fills,
             items: hydrate(items),
             now: hydrate(now),
             // Resolvers and submenu searches live with the mods, in their pages.
@@ -211,7 +211,7 @@ function boot(theme, channels) {
     );
     PROTOCOL.open.on((opened) => {
         if (switcher) return;
-        dims = opened.dims;
+        fills = opened.fills;
         entries.need();
         clearTimeout(giveUpTimer);
         giveUpTimer = setTimeout(() => !switcher && PROTOCOL.close.send(), GIVE_UP_MILLISECONDS);
@@ -258,7 +258,7 @@ function boot(theme, channels) {
 
 // MARK: - Private
 // The switcher on screen: the kit's quick pick, drawn from its view model.
-function open(ui, { placeholder, dims, items, now, onQuery, onPick, onClose }) {
+function open(ui, { placeholder, fills, items, now, onQuery, onPick, onClose }) {
     const model = VIEW_MODEL.make({ placeholder, items, now, onQuery, onPick, onClose: () => picker.close() });
     const rows = new Set(); // the rows made, which show their ⌘ numbers while Command is held
     let numbered = false;
@@ -268,7 +268,7 @@ function open(ui, { placeholder, dims, items, now, onQuery, onPick, onClose }) {
     };
     const picker = ui.quickPick({
         placeholder,
-        dims,
+        fills,
         key: (entry) => entry.key,
         create: (entry) => {
             if (entry.heading) return headingOf(entry);
