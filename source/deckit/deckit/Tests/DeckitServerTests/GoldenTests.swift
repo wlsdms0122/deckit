@@ -50,7 +50,7 @@ struct GoldenTests {
         (StateError.reserved("keys"), "RESERVED"),
         (KeymapError.noSuchBinding("@app.x"), "SHORTCUT"),
         (KeymapError.notAChord("x"), "CHORD"),
-        (KeymapError.cannotBeGlobal(label: "C"), "REFUSED"),
+        (KeymapError.cannotReach(label: "C", reach: .app), "REFUSED"),
         (URLRouterError.noHandlers("x"), "SCHEME")
     ]
 

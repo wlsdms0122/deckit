@@ -24,7 +24,7 @@ struct HostTests {
         let sut = try deckit()
 
         // When
-        let keymap = sut.keymap.register(Key(action: "find", spec: "mod+f", label: "Find", global: false))
+        let keymap = sut.keymap.register(Key(action: "find", spec: "mod+f", label: "Find", reach: .front))
 
         // Then
         let find = try #require(keymap.bindings.first)
@@ -50,7 +50,7 @@ struct HostTests {
                         "action": .string("next"),
                         "key": .string("mod+j"),
                         "label": .string("Next"),
-                        "global": .bool(false)
+                        "reach": .string("front")
                     ])
                 ])
             ]
@@ -74,7 +74,7 @@ struct HostTests {
         let sut = try deckit().keymap
 
         // When
-        let resolved = sut.register(Key(action: "find", spec: "mod+f", label: "Find", global: false))
+        let resolved = sut.register(Key(action: "find", spec: "mod+f", label: "Find", reach: .front))
 
         // Then
         #expect(resolved.bindings.map(\.binding.id) == ["@app.find"])

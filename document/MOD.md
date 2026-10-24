@@ -70,9 +70,10 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
 | `system.clipboard` | reading what was copied, from any app | `deck.clipboard.readText` |
 | `system.notifications` | notifications in the corner of the screen | `deck.notify` |
-| `system.global-keys` | keys that work wherever the keyboard is in the app | `global: true` on a key |
+| `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `reach: 'system'` on a key |
 | `deckit.mods` | every mod: listing, installing, removing, launching them again and putting them in a load order, picking and revealing their folders, the children pinned to the mod list, and restarting the app | `deck.mods` |
 | `deckit.mod-settings` | every mod's settings | `deck.modSettings` |
+| `deckit.app-keys` | keys that work wherever the keyboard is in the app, whatever is in front | `reach: 'app'` on a key |
 | `deckit.key-map` | every mod's shortcuts | `deck.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
 | `deckit.styles` | how every page looks, other mods' among them, and so what they show | `deck.styles` |
@@ -140,10 +141,10 @@ The view came on screen, and went. They come in turn, never twice running.
 ### deck.keys(keys)
 
 ```js
-deck.keys({ newTab: { key: 'mod+t', label: 'New tab', run() { … } } });
+deck.keys({ newTab: { key: 'mod+t', label: 'New tab', reach: 'front', run() { … } } });
 ```
 
-`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. A key is live only while its mod is on screen, in its view and in the web pages it shows. A key with `global: true` works wherever the keyboard is in the app, its mod off screen and the panel closed included; it needs `system.global-keys`, has ⌘, ⌃ or ⌥ in it, and is not one a text field uses. With deckit's shell a headless mod is never on screen, so its keys are global ones, and one that is not is refused and shown on its row; what it offers to be reached from anywhere without one is a command.
+`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. `reach` is how far it works. `front`, the default, is only while its mod is on screen, in its view and in the web pages it shows. `app` is wherever the keyboard is in the app, its mod off screen and the panel closed included, and needs `deckit.app-keys`. `system` is in every app too, where the system gives the app its chord, and needs `system.global-keys`; where it does not, the key works as far as `app`. A key that reaches past its page has ⌘, ⌃ or ⌥ in it and is not one a text field uses. With deckit's shell a headless mod is never on screen, so its keys reach past it, and one that does not is refused and shown on its row; what it offers to be reached from anywhere without one is a command.
 
 ### deck.commands(fn)
 

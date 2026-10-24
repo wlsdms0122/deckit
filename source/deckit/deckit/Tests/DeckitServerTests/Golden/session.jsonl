@@ -3,7 +3,7 @@
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a","b","c"]}}
 {"id":5,"jsonrpc":"2.0","method":"setting/declare","params":{"mod":"a","run":1,"settings":[{"computed":false,"default":12,"key":"size","label":"Size","min":8,"options":[],"type":"number"},{"computed":true,"key":"font","options":[],"type":"choice"},{"button":"Reset","computed":false,"key":"reset","options":[],"type":"action"}]}}
-{"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"commands":true,"exports":{"functions":[["ask"]],"values":"{\"n\":1}"},"extensionPoints":["accounts"],"extensions":{},"handleURL":true,"keys":[{"action":"next","global":false,"key":"mod+j","label":"Next"}]},"mod":"a","run":1,"summary":{"view":true}}}
+{"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"commands":true,"exports":{"functions":[["ask"]],"values":"{\"n\":1}"},"extensionPoints":["accounts"],"extensions":{},"handleURL":true,"keys":[{"action":"next","key":"mod+j","label":"Next","reach":"front"}]},"mod":"a","run":1,"summary":{"view":true}}}
 {"id":7,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["b"]}}
 {"id":8,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"exports":{"functions":[],"values":"{}"},"extensionPoints":[],"extensions":{"a:accounts":{"functions":[["list"]],"values":"{}"}},"now":true},"mod":"b","run":2,"summary":{}}}
 {"id":9,"jsonrpc":"2.0","method":"export/dependencies","params":{"mod":"b","run":2}}
@@ -31,7 +31,7 @@
 {"id":31,"jsonrpc":"2.0","method":"setting/action","params":{"key":"reset","mod":"a"}}
 {"id":32,"jsonrpc":"2.0","method":"setting/action","params":{"key":"size","mod":"a"}}
 {"id":33,"jsonrpc":"2.0","method":"storage/usage","params":{"mod":"a"}}
-{"id":34,"jsonrpc":"2.0","method":"keymap/register","params":{"action":"switch","global":true,"key":"mod+shift+g","label":"Switch"}}
+{"id":34,"jsonrpc":"2.0","method":"keymap/register","params":{"action":"switch","key":"mod+shift+g","label":"Switch","reach":"app"}}
 {"id":35,"jsonrpc":"2.0","method":"keymap/bind","params":{"id":"@app.switch","spec":"cmd+j"}}
 {"id":36,"jsonrpc":"2.0","method":"keymap/reset","params":{"id":"@app.switch"}}
 {"id":37,"jsonrpc":"2.0","method":"keymap/bind","params":{"id":"@app.none","spec":"cmd+1"}}

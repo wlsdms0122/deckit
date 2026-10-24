@@ -500,11 +500,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const pinged = await until(async () => (await mark(user, 'pinged')) === '7', 4000);
         check('an event reaches the mod that listens to it', pinged, await mark(user, 'pinged'));
 
-        // Keys, as the core resolves them: a mod's key that works everywhere, bound again, and a chord recorded.
+        // Keys, as the core resolves them: a mod's key that works anywhere in the app, bound again, and a chord
+        // recorded.
         const keys = await page('deckit://keys-user.mod');
         await editor.key('9', 'Digit9', META | SHIFT, 57);
         const pressed = await until(async () => (await mark(keys, 'pressed')) === '1', 3000);
-        check("a mod's global key runs from another mod's page", pressed, await mark(keys, 'pressed'));
+        check("a mod's key that reaches the app runs from another mod's page", pressed, await mark(keys, 'pressed'));
         await keys.evaluate(`document.dispatchEvent(new CustomEvent('test-bind', { detail: 'mod+shift+8' }))`);
         const rebound = await until(async () => /8/.test((await mark(keys, 'chord')) || ''), 3000);
         await editor.key('8', 'Digit8', META | SHIFT, 56);

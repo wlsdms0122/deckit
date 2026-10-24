@@ -8,7 +8,7 @@ function keyboardSection({ ui, keymap }) {
     const DESCRIPTION =
         'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Mods may share a chord. A change onto ' +
         'a chord already in use is not applied until that chord is free.';
-    const SCOPE_NAMES = { global: 'Everywhere', app: 'On any mod' };
+    const REACH_NAMES = { system: 'In every app', app: 'Anywhere in the app' };
 
     let recording = null; // the key a chord is recorded for, and the end of its recording: { id, end }
     let drawAfterRecording = false;
@@ -178,8 +178,8 @@ function keyboardSection({ ui, keymap }) {
         function fill(shortcut) {
             current = shortcut;
             name.textContent = name.title = shortcut.label;
-            scope.textContent = SCOPE_NAMES[shortcut.scope] || '';
-            scope.hidden = !SCOPE_NAMES[shortcut.scope];
+            scope.textContent = REACH_NAMES[shortcut.reach] || (shortcut.app ? 'On any mod' : '');
+            scope.hidden = !scope.textContent;
             chord.textContent = shortcut.spec ? shortcut.chord : 'None';
             chord.title = shortcut.changed ? `Changed from ${shortcut.defaultChord || 'none'}` : 'Click to change';
             chord.toggleAttribute('data-unset', !shortcut.spec);

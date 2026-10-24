@@ -17,35 +17,44 @@ struct KeymapTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a mod's keys are those its run contributed, a global one only with system.global-keys")
+    @Test("a mod's keys are those its run contributed, one past its page only with the permission for its reach")
     func modKeysComeFromItsRun() throws {
         // Given
-        try fixture.write("a", permissions: ["system.global-keys"])
-        try fixture.write("b")
+        try fixture.write("a", permissions: ["deckit.app-keys", "system.global-keys"])
+        try fixture.write("b", permissions: ["deckit.app-keys"])
         let sut = try fixture.deckit()
 
         // When
-        let a = try sut.started("a", run: 1, keys: [key("find", "mod+shift+f", global: true), key("next", "mod+j")])
-        let b = try sut.started("b", run: 1, keys: [key("go", "mod+shift+g", global: true), key("bad", "mod+nope")])
+        let a = try sut.started(
+            "a",
+            run: 1,
+            keys: [
+                key("find", "mod+shift+f", reach: .app),
+                key("call", "alt+space", reach: .system),
+                key("next", "mod+j")
+            ]
+        )
+        let b = try sut.started("b", run: 1, keys: [key("go", "mod+shift+g", reach: .system), key("bad", "mod+nope")])
 
         // Then
         let keymap = try #require(a.keymapChange)
         #expect(keymap.line(of: "a.find") == "a.find active")
+        #expect(keymap.line(of: "a.call") == "a.call active")
         #expect(keymap.line(of: "a.next") == "a.next active")
         #expect(b.keymapChange == nil)
-        #expect(b.problem == "key \"go\" cannot be global: that takes the system.global-keys permission")
+        #expect(b.problem == "key \"go\" cannot work in every app: that takes the system.global-keys permission")
     }
 
     @Test("bindings are listed as a keystroke tries them, and a mod's own key hides the app's in its page")
     func keystrokesResolveInOrder() throws {
         // Given
-        try fixture.write("a", permissions: ["system.global-keys"])
+        try fixture.write("a", permissions: ["deckit.app-keys"])
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
+        _ = sut.keymap.register(appKey("switch", "mod+shift+g", reach: .system))
         _ = sut.keymap.register(appKey("back", "mod+["))
 
         // When
-        let effects = try sut.started("a", run: 1, keys: [key("summon", "mod+shift+g", global: true), key("prev", "mod+[")])
+        let effects = try sut.started("a", run: 1, keys: [key("summon", "mod+shift+g", reach: .app), key("prev", "mod+[")])
 
         // Then
         let keymap = try #require(effects.keymapChange)
@@ -101,13 +110,13 @@ struct KeymapTests {
         arguments: [
             ("@app.none", "cmd+1", KeymapError.noSuchBinding("@app.none")),
             ("@app.switch", "cmd+nope", .notAChord("cmd+nope")),
-            ("@app.switch", "cmd+c", .cannotBeGlobal(label: "⌘C"))
+            ("@app.switch", "cmd+c", .cannotReach(label: "⌘C", reach: .system))
         ]
     )
     func bindRefuses(id: String, spec: String, refusal: KeymapError) throws {
         // Given
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
+        _ = sut.keymap.register(appKey("switch", "mod+shift+g", reach: .system))
 
         // When
         let bound = Result { try sut.keymap.bind(id, spec: spec) }
@@ -134,12 +143,12 @@ struct KeymapTests {
 
     // MARK: - Private
     // A key as a run contributes it.
-    private func key(_ action: String, _ spec: String, global: Bool = false) -> JSONValue {
-        .object(["action": .string(action), "key": .string(spec), "label": .string(""), "global": .bool(global)])
+    private func key(_ action: String, _ spec: String, reach: KeyReach = .front) -> JSONValue {
+        .object(["action": .string(action), "key": .string(spec), "label": .string(""), "reach": .string(reach.rawValue)])
     }
 
     // A key as the app registers it.
-    private func appKey(_ action: String, _ spec: String, global: Bool = false) -> Key {
-        Key(action: action, spec: spec, label: "", global: global)
+    private func appKey(_ action: String, _ spec: String, reach: KeyReach = .front) -> Key {
+        Key(action: action, spec: spec, label: "", reach: reach)
     }
 }

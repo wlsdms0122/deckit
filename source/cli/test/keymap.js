@@ -1,7 +1,7 @@
 // The key map (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a key pressed in a
 // page is answered at once, taken or not, by what the core last told of the bindings, the page's own keys, the
 // shell's monitor and the page in front, a field focused keeps a text editing chord, and recording takes every key. A
-// system-wide key is held as a hotkey on the chord it is bound to now.
+// key that works in any app, the app's or a mod's, is held as a hotkey on the chord it is bound to now.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -57,7 +57,14 @@ async function main() {
         shift: false,
         ...modifiers,
     });
-    const binding = (fields) => ({ active: true, editsText: false, scope: 'app', app: false, ...fields });
+    const binding = (fields) => ({
+        id: `${fields.app ? '@app' : fields.owner}.${fields.action}`,
+        active: true,
+        editsText: false,
+        reach: 'front',
+        app: false,
+        ...fields,
+    });
 
     let bindingsChanged = null;
     const RUNNER = { handleEffect: (name, handler) => name === 'bindingsChanged' && (bindingsChanged = handler) };
@@ -99,17 +106,16 @@ async function main() {
         run: (page) => ran.push(['any', page]),
     });
     const anywhere = (fields) =>
-        binding({ action: 'anywhere', app: true, scope: 'global', chord: '⌃Space', ...fields });
+        binding({ action: 'anywhere', app: true, reach: 'system', chord: '⌃Space', ...fields });
     bindingsChanged({
         revision: 1,
         bindings: [
-            binding({ action: 'summon', app: true, scope: 'global', keystroke: keystroke('Space', { alt: true }) }),
+            binding({ action: 'summon', app: true, reach: 'app', keystroke: keystroke('Space', { alt: true }) }),
             binding({ action: 'switch', app: true, keystroke: keystroke('KeyK', { meta: true }) }),
             anywhere({ keystroke: keystroke('Space', { control: true }) }),
             binding({
                 action: 'copy',
                 owner: 'a',
-                scope: 'mod',
                 editsText: true,
                 keystroke: keystroke('KeyC', { meta: true }),
             }),
@@ -120,9 +126,14 @@ async function main() {
     KEYMAP.listen(mod, { page: mod, keys: [{ key: 'Meta+L', run: () => ran.push(['own']) }] });
     await tick();
 
-    // A global key runs wherever a listened page has the keyboard, run with that page, and is taken at once.
-    check('a global key is taken', press(mod, 'Space', { alt: true }) === true, ran);
-    check('a global key runs with the page it landed in', ran.at(-1)?.[0] === 'summon' && ran.at(-1)?.[1] === mod, ran);
+    // A key that reaches the app runs wherever a listened page has the keyboard, run with that page, and is taken at
+    // once.
+    check('a key that reaches the app is taken', press(mod, 'Space', { alt: true }) === true, ran);
+    check(
+        'a key that reaches the app runs with the page it landed in',
+        ran.at(-1)?.[0] === 'summon' && ran.at(-1)?.[1] === mod,
+        ran
+    );
     // An app key runs only in the page in front.
     inFront = shell;
     check('an app key is taken in the page in front', press(shell, 'KeyK', { meta: true }) === true, ran);
@@ -163,9 +174,9 @@ async function main() {
         threw = true;
     }
     check('a key of no known reach is refused', threw, threw);
-    // A system-wide key is the core's global one, and is held as a hotkey, which runs it with no page.
+    // A key that works in any app tells the core its reach, and is held as a hotkey, which runs it with no page.
     const registered = asked.find(({ method, params }) => method === 'keymap/register' && params.action === 'anywhere');
-    check('a system-wide key is global to the core', registered?.params.global === true, registered);
+    check('a key tells the core its reach', registered?.params.reach === 'system', registered);
     const first = hotkeys[0];
     check(
         'a system-wide key is held on its chord',
@@ -196,7 +207,7 @@ async function main() {
         bindings: [anywhere({ chord: '⌃⌥Space', keystroke: keystroke('Space', { control: true, alt: true }) })],
     });
     check('the same chord stays held', hotkeys.length === 2 && hotkeys[1].held, hotkeys);
-    // Unbound, it is held nowhere; one the system does not give still runs in a page, as a global key.
+    // Unbound, it is held nowhere; one the system does not give still runs in a page, as one that reaches the app.
     bindingsChanged({ revision: 4, bindings: [anywhere({ active: false, chord: '', keystroke: null })] });
     check('an unbound key is held nowhere', hotkeys.length === 2 && !hotkeys[1].held, hotkeys);
     refusing = true;
@@ -206,6 +217,29 @@ async function main() {
         'a refused hotkey runs in a page',
         press(mod, 'Space', { control: true }) === true && ran.at(-1)?.[1] === mod,
         ran
+    );
+    // A mod's key that works in any app is held as the app's are, and a press of it is told to its page.
+    refusing = false;
+    bindingsChanged({
+        revision: 6,
+        bindings: [
+            binding({
+                action: 'call',
+                owner: 'a',
+                reach: 'system',
+                chord: '⌥K',
+                keystroke: keystroke('KeyK', { alt: true }),
+            }),
+        ],
+    });
+    const call = hotkeys.at(-1);
+    check("a mod's key that works in any app is held", call.held && call.keystroke.code === 'KeyK', hotkeys);
+    tells.length = 0;
+    call.handler();
+    check(
+        "a mod's hotkey is told to its page",
+        tells[0]?.[1]?.channel === 'deckit-shell:keymap-key' && tells[0]?.[1]?.payload?.action === 'call',
+        tells
     );
 
     for (const line of failed) console.error(line);

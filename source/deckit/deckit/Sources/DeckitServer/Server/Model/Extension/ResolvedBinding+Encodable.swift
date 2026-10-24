@@ -17,7 +17,7 @@ extension ResolvedBinding: Encodable {
         case owner
         case ownerName
         case app
-        case scope
+        case reach
         case action
         case label
         case key
@@ -39,7 +39,7 @@ extension ResolvedBinding: Encodable {
         try container.encode(binding.owner.id, forKey: .owner)
         try container.encode(binding.owner.name, forKey: .ownerName)
         try container.encode(binding.owner.isApp, forKey: .app)
-        try container.encode(binding.scope, forKey: .scope)
+        try container.encode(binding.reach, forKey: .reach)
         try container.encode(binding.action, forKey: .action)
         try container.encode(binding.label, forKey: .label)
         try container.encode(binding.defaultKeystroke?.spec, forKey: .key)

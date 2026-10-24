@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
+import * as KEY_REACH from './model/reach.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -12,14 +13,20 @@ export function createKeymap() {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's keys, { action: { key, label, run, global } }, as its run contributes them: the core judges each chord.
-    // One with no function to run, or that `problemOf(entry)`, the shell's reason a key would never run, refuses, is
-    // told to `invalid` and left out.
+    // A mod's keys, { action: { key, label, reach, run } }, as its run contributes them: the core judges each chord
+    // and whether the mod may have its reach, `front` when it names none. One with no function to run or no reach
+    // there is, or that `problemOf(entry)`, the shell's reason a key would never run, refuses, is told to `invalid` and
+    // left out.
     function declare(keys, { invalid, problemOf }) {
         const declared = [];
         for (const [action, entry] of Object.entries(keys || {})) {
             if (typeof entry?.run !== 'function') {
                 invalid(`key "${action}" cannot be used: it needs a function in "run"`);
+                continue;
+            }
+            const reach = entry.reach ?? 'front';
+            if (!KEY_REACH.REACHES.includes(reach)) {
+                invalid(`key "${action}" cannot be used: its "reach" is one of ${KEY_REACH.REACHES.join(', ')}`);
                 continue;
             }
             const never = problemOf(entry);
@@ -32,7 +39,7 @@ export function createKeymap() {
                 action,
                 key: String(entry.key ?? ''),
                 label: typeof entry.label === 'string' ? entry.label : '',
-                global: !!entry.global,
+                reach,
             });
         }
         return declared;

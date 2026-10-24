@@ -24,7 +24,7 @@ extension BindingIssue: Encodable {
         case label
         case owner
         case ownerName
-        case scope
+        case reach
         case app
     }
 
@@ -40,7 +40,7 @@ extension BindingIssue: Encodable {
         try facts.encode(other.label, forKey: .label)
         try facts.encode(other.owner.id, forKey: .owner)
         try facts.encode(other.owner.name, forKey: .ownerName)
-        try facts.encode(other.scope, forKey: .scope)
+        try facts.encode(other.reach, forKey: .reach)
         try facts.encode(other.owner.isApp, forKey: .app)
     }
 

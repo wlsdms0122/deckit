@@ -2,6 +2,7 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
+import * as KEY_REACH from './model/reach.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -10,12 +11,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGES, keys: KEYS }) {
     // MARK: - Property
     const RECORDING_MS = 20 * 1000;
-    // How far a key registered through what connect answers works: in the page in front, anywhere in the app, or in
-    // any app too.
-    const REACHES = Object.freeze(['front', 'app', 'system']);
     const runs = new Map(); // action -> run(page), of the keys registered through what connect answers
-    const systemWideKeys = new Set(); // the actions of those that work in any app too
-    const hotkeys = new Map(); // action -> { chord, off }, as each of those is held in any app now
+    const hotkeys = new Map(); // binding id -> { chord, off }, as each key that works in any app is held there now
     const typing = new WeakSet(); // pages with a field focused
     const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
     let keymap = { revision: 0, bindings: [] };
@@ -63,9 +60,9 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     }
 
     // Keystrokes in `target`, a page, go through the key map. deckit listens on its own pages and the web pages they
-    // show; an app hands its own where deckit's global keys should work too. `page` is the deckit page a keystroke
-    // here belongs to, as web answers it, or null: the keys of the page in front run only in one. `keys` are the
-    // target's own, taken there first: only a chord main catches wins over a meaning the app's menu gives it.
+    // show; an app hands its own where deckit's keys that reach the app should work too. `page` is the deckit page a
+    // keystroke here belongs to, as web answers it, or null: the keys of the page in front run only in one. `keys` are
+    // the target's own, taken there first: only a chord main catches wins over a meaning the app's menu gives it.
     function listen(target, { keys = [], page = null } = {}) {
         let destroyed = false;
         if (keys.length)
@@ -96,17 +93,13 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
 
     // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
     // on deckit. By its `reach` it works in the page in front, anywhere a page is listened to, or in any app too, run
-    // there with no page. The core holds the last two as global keys.
+    // there with no page.
     function register({ action, key, label = '', reach = 'front', run }) {
-        if (!REACHES.includes(reach)) throw new Error(`[deckit] the key ${action} has no reach ${reach}`);
+        if (!KEY_REACH.REACHES.includes(reach)) throw new Error(`[deckit] the key ${action} has no reach ${reach}`);
         runs.set(action, run);
-        if (reach === 'system') systemWideKeys.add(action);
-        CORE.request('keymap/register', {
-            action,
-            key: String(key),
-            label: String(label),
-            global: reach !== 'front',
-        }).then(keep, (error) => LOG.error(`the key ${action} was not registered`, error));
+        CORE.request('keymap/register', { action, key: String(key), label: String(label), reach }).then(keep, (error) =>
+            LOG.error(`the key ${action} was not registered`, error)
+        );
     }
 
     // The chord a key registered through what connect answers is bound to now, by its action, as a person reads it.
@@ -132,24 +125,27 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         }
     }
 
-    // Each system-wide key held in any app on the chord it is bound to now. One the system does not give works where
-    // the app's global keys do. While a chord is recorded, a press of one is recorded as a press in a page is.
+    // Each key that works in any app held there on the chord it is bound to now, and none other. One the system does
+    // not give works anywhere in the app still. While a chord is recorded, a press of one is recorded as a press in a
+    // page is.
     function holdHotkeys() {
-        for (const action of systemWideKeys) {
-            const binding = keymap.bindings.find(
-                (binding) => binding.app && binding.action === action && binding.active
-            );
-            const chord = binding?.chord || '';
-            const held = hotkeys.get(action);
-            if (held && held.chord === chord) continue;
-            held?.off?.();
-            hotkeys.delete(action);
-            if (!binding) continue;
+        const wanted = new Map(
+            keymap.bindings
+                .filter((binding) => binding.reach === 'system' && binding.active)
+                .map((binding) => [binding.id, binding])
+        );
+        for (const [id, held] of hotkeys) {
+            if (wanted.get(id)?.chord === held.chord) continue;
+            held.off?.();
+            hotkeys.delete(id);
+        }
+        for (const [id, binding] of wanted) {
+            if (hotkeys.has(id)) continue;
             const keystroke = keystrokeOf(binding.keystroke);
-            const pressed = () => (recording ? take({ type: 'keydown', ...keystroke }) : runs.get(action)?.(null));
+            const pressed = () => (recording ? take({ type: 'keydown', ...keystroke }) : run(binding, null));
             const off = KEYS.hotkey(keystroke, pressed);
-            if (!off) LOG.warn(`${binding.label}: the system did not give ${chord} to the app outside it`);
-            hotkeys.set(action, { chord, off });
+            if (!off) LOG.warn(`${binding.label}: the system did not give ${binding.chord} to the app outside it`);
+            hotkeys.set(id, { chord: binding.chord, off });
         }
     }
 
@@ -177,12 +173,12 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         }
         if (page && delegated.monitor(page, keystrokeOf(pressed))) return true;
         const active = keymap.bindings.filter((binding) => binding.active && matches(binding.keystroke, pressed));
-        const global = active.find((binding) => binding.scope === 'global');
-        if (global) return run(global, target);
+        const wide = active.find((binding) => binding.reach !== 'front');
+        if (wide) return run(wide, target);
         if (!page || !delegated.isActive(page)) return false;
         if (typing.has(page) && active.some(({ editsText }) => editsText)) return false;
         const mod = IDENTITY.modOf(page);
-        const hit = active.find((binding) => binding.scope === 'app' || binding.owner === mod?.id);
+        const hit = active.find((binding) => binding.app || binding.owner === mod?.id);
         return hit ? run(hit, target) : false;
     }
 

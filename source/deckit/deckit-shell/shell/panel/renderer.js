@@ -177,9 +177,11 @@ function viewProblem(value) {
     return '';
 }
 
-// A mod's own key runs only in its page in front, so one with no view has only its global keys.
+// A mod's own key runs only in its page in front, so one with no view has only its keys that reach past it.
 function keyProblem(key, view) {
-    return !key.global && !view ? 'a mod with no view is never in front, so only a global key does' : '';
+    return (key.reach ?? 'front') === 'front' && !view
+        ? 'a mod with no view is never in front, so only a key that reaches past its page does'
+        : '';
 }
 
 // MARK: - Private

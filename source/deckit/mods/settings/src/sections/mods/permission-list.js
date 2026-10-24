@@ -54,6 +54,7 @@ const PERMISSION_ICONS = {
     'deckit.mods': 'puzzle',
     'deckit.mod-settings': 'sliders',
     'deckit.key-map': 'keyboard',
+    'deckit.app-keys': 'window',
     'deckit.url-schemes': 'layers',
     'deckit.styles': 'eye',
 };

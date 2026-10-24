@@ -1,5 +1,5 @@
-// A headless mod with a key that works everywhere, which marks each press on its page. The test binds it again and
-// records a chord through the key map by events it sends the page, and reads the marks.
+// A headless mod with a key that works anywhere in the app, which marks each press on its page. The test binds it
+// again and records a chord through the key map by events it sends the page, and reads the marks.
 module.exports = {
     start(deck) {
         const marks = document.documentElement.dataset;
@@ -7,7 +7,7 @@ module.exports = {
             mark: {
                 key: 'mod+shift+9',
                 label: 'Mark',
-                global: true,
+                reach: 'app',
                 run: () => (marks.pressed = String(Number(marks.pressed || 0) + 1)),
             },
         });

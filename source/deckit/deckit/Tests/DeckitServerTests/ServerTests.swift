@@ -361,7 +361,7 @@ struct ServerTests {
         // When
         let registered = try send(
             #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"action":"go","key":"mod+1","label":"Go","#
-                + #""global":false}}"#,
+                + #""reach":"front"}}"#,
             to: sut
         )
         let bound = try send(
@@ -434,7 +434,7 @@ struct ServerTests {
         for (id, (action, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
             _ = try send(
                 #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"action":"\#(action)","#
-                    + #""key":"\#(spec)","label":"","global":false}}"#,
+                    + #""key":"\#(spec)","label":"","reach":"front"}}"#,
                 to: sut
             )
         }
