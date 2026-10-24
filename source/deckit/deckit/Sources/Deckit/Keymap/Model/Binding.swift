@@ -28,7 +28,7 @@ public struct Binding: Equatable, Sendable {
     // MARK: - Public
     // A mod's key that works only in its own page in front.
     var isOwnPage: Bool {
-        reach == .front && !owner.isApp
+        !reach.isWide && !owner.isApp
     }
 
     // Whether a keystroke may be resolved to either: two mods' own keys never meet, each running only in its mod's

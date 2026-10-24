@@ -4,6 +4,11 @@ const REACHES = Object.freeze(['front', 'app', 'system']);
 
 // MARK: - Initializer
 // MARK: - Public
+// Whether a key of this reach works past its page, taken from every page.
+function isWide(reach) {
+    return reach !== 'front';
+}
+
 // MARK: - Private
 
-export { REACHES };
+export { REACHES, isWide };

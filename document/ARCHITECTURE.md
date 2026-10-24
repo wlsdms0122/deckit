@@ -136,7 +136,7 @@ Apart from both, a mod says what happened to it through deck's events (`deckit-s
 
 A mod changes how another's pages look with styles, which the shell puts last on each page they style, and nothing else of another mod.
 
-What reaches past a mod's own sandbox (the clipboard, notifications, any web address, another mod's settings, the keymap, other mods' looks, a main process module) is asked for by name in `permissions`, with a reason the person reads when installing. Deck keeps what was granted; each permission is defined by the layer that adds what it grants, before the core starts, and checked there, where the mod asks, by the page it asks from. Deck's own are the core's, and so is `system.global-keys`, which the core's keymap checks. A permission no layer on deck defines is refused.
+What reaches past a mod's own sandbox (the clipboard, notifications, any web address, another mod's settings, the keymap, other mods' looks, a main process module) is asked for by name in `permissions`, with a reason the person reads when installing. Deck keeps what was granted; each permission is defined by the layer that adds what it grants, before the core starts, and checked there, where the mod asks, by the page it asks from. Deck's own are the core's, and so are `deckit.app-keys` and `system.global-keys`, which the core's keymap checks. A permission no layer on deck defines is refused.
 
 ## 6. Modules
 

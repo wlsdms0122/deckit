@@ -35,7 +35,7 @@ public final class Deckit {
             ship: ship,
             sources: sources,
             api: api,
-            permissions: permissions + [Keymap.appKeys, Keymap.globalKeys],
+            permissions: permissions + [Keymap.appKeysPermission, Keymap.globalKeysPermission],
             fields: [urlSchemes]
         )
         let keymap = Keymap(deck: deck, appName: name)

@@ -15,6 +15,11 @@ public enum KeyReach: String, Codable, Sendable {
     case system
 
     // MARK: - Property
+    // Whether it works past its page, taken from every page, so held to `Keystroke.wideRule`.
+    var isWide: Bool {
+        self != .front
+    }
+
     // How a person reads where it works.
     var phrase: String {
         switch self {

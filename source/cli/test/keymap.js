@@ -218,10 +218,22 @@ async function main() {
         press(mod, 'Space', { control: true }) === true && ran.at(-1)?.[1] === mod,
         ran
     );
-    // A mod's key that works in any app is held as the app's are, and a press of it is told to its page.
+    // Two keys on one chord hold it once, and a press runs the first the core lists.
     refusing = false;
+    const onJ = { chord: '⌃J', keystroke: keystroke('KeyJ', { control: true }) };
     bindingsChanged({
         revision: 6,
+        bindings: [
+            anywhere({ ...onJ, id: '@app.anywhere' }),
+            binding({ ...onJ, action: 'shared', owner: 'a', reach: 'system' }),
+        ],
+    });
+    check('two keys on one chord hold it once', hotkeys.length === 4 && hotkeys[3].held, hotkeys);
+    hotkeys[3].handler();
+    check('a chord held once runs the first key on it', ran.at(-1)?.[0] === 'any' && ran.at(-1)?.[1] === null, ran);
+    // A mod's key that works in any app is held as the app's are, and a press of it is told to its page.
+    bindingsChanged({
+        revision: 7,
         bindings: [
             binding({
                 action: 'call',

@@ -37,7 +37,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             if (sender !== state.page) return;
             state.ready = true;
             // A chord that came while the page was loading is answered now instead of lost.
-            if (state.on) PROTOCOL.open.send(sender, { fills: state.fills });
+            if (state.on) PROTOCOL.open.send(sender, look());
         });
         PROTOCOL.close.on((_payload, sender) => sender === state.page && close());
         PROTOCOL.need.on((_payload, sender) => sender === state.page && supply());
@@ -59,7 +59,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             state.on = true;
             lay();
             deckit.pages.focus(state.page);
-            if (state.ready) PROTOCOL.open.send(state.page, { fills: state.fills });
+            if (state.ready) PROTOCOL.open.send(state.page, look());
         });
     }
 
@@ -135,6 +135,11 @@ export function createSwitcher({ PANEL, deckit, host }) {
 
     function list() {
         return state.page;
+    }
+
+    // Filling a window, the list is glass as the panel is, so the two read as one surface.
+    function look() {
+        return { fills: state.fills, glass: state.fills ? PANEL.control.glass : null };
     }
 
     // Every running mod's commands, each mod with a view opened by its name too, and what is happening now. A list

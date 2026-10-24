@@ -14,13 +14,13 @@ import Deck
 public final class Keymap {
     // MARK: - Property
     // What a mod holds for keys that work past its own page, by their reach.
-    static let appKeys = Permission(
+    static let appKeysPermission = Permission(
         id: "deckit.app-keys",
         name: "Keys Anywhere in the App",
         means: "Its keys work wherever you are in the app, whatever is in front, and are taken from every page there.",
         reach: .app
     )
-    static let globalKeys = Permission(
+    static let globalKeysPermission = Permission(
         id: "system.global-keys",
         name: "Global Keys",
         means: "Its keys work in every app, this one in front or not, and are taken from all of them.",
@@ -137,10 +137,10 @@ public final class Keymap {
             nil
 
         case .app:
-            appKeys
+            appKeysPermission
 
         case .system:
-            globalKeys
+            globalKeysPermission
         }
     }
 
@@ -172,20 +172,20 @@ public final class Keymap {
                     .filter { key in problem(of: key, mod: mod) == nil }
             )
         }
-        let app = { (front: Bool) in
+        let app = { (wide: Bool) in
             self.appKeys
-                .filter { key in (key.reach == .front) == front }
+                .filter { key in key.reach.isWide == wide }
                 .map { key in self.binding(of: key, owner: self.app) }
         }
-        let own = { (front: Bool) in
+        let own = { (wide: Bool) in
             mods.flatMap { owner, keys in
                 keys
-                    .filter { key in (key.reach == .front) == front }
+                    .filter { key in key.reach.isWide == wide }
                     .map { key in self.binding(of: key, owner: owner) }
             }
         }
 
-        return app(false) + own(false) + own(true) + app(true)
+        return app(true) + own(true) + own(false) + app(false)
     }
 
     // Defaults first, then changes in the order they were made, so a change landing on a chord already taken is the one
@@ -230,13 +230,13 @@ public final class Keymap {
     // not, or nil when neither gets in the other's way.
     private func issue(of binding: Binding, against other: Binding, earlier: Bool) -> BindingIssue.Kind? {
         guard other.keystroke == binding.keystroke, other.meets(binding) else { return nil }
-        let front = binding.reach == .front
-        let otherFront = other.reach == .front
-        if !otherFront && front { return .shadowed }
-        if !front && !otherFront && earlier { return .shadowed }
-        if front && otherFront && other.owner == binding.owner && earlier { return .shadowed }
-        if binding.isOwnPage && otherFront && other.owner.isApp { return .hides }
-        if front && binding.owner.isApp && other.isOwnPage { return .hidden }
+        let wide = binding.reach.isWide
+        let otherWide = other.reach.isWide
+        if otherWide && !wide { return .shadowed }
+        if wide && otherWide && earlier { return .shadowed }
+        if !wide && !otherWide && other.owner == binding.owner && earlier { return .shadowed }
+        if binding.isOwnPage && !otherWide && other.owner.isApp { return .hides }
+        if !wide && binding.owner.isApp && other.isOwnPage { return .hidden }
 
         return nil
     }

@@ -12,7 +12,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     // MARK: - Property
     const RECORDING_MS = 20 * 1000;
     const runs = new Map(); // action -> run(page), of the keys registered through what connect answers
-    const hotkeys = new Map(); // binding id -> { chord, off }, as each key that works in any app is held there now
+    const hotkeys = new Map(); // chord -> its off, or null where the system did not give it, as each is held in any app
     const typing = new WeakSet(); // pages with a field focused
     const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
     let keymap = { revision: 0, bindings: [] };
@@ -125,28 +125,36 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         }
     }
 
-    // Each key that works in any app held there on the chord it is bound to now, and none other. One the system does
-    // not give works anywhere in the app still. While a chord is recorded, a press of one is recorded as a press in a
-    // page is.
+    // Each chord a key that works in any app is bound to now held there once, and none other. One the system does
+    // not give is asked for again only once a key is bound to it anew, and its keys work anywhere in the app still.
     function holdHotkeys() {
-        const wanted = new Map(
-            keymap.bindings
-                .filter((binding) => binding.reach === 'system' && binding.active)
-                .map((binding) => [binding.id, binding])
-        );
-        for (const [id, held] of hotkeys) {
-            if (wanted.get(id)?.chord === held.chord) continue;
-            held.off?.();
-            hotkeys.delete(id);
+        const wanted = new Map();
+        for (const binding of keymap.bindings) {
+            if (binding.reach === 'system' && binding.active && !wanted.has(binding.chord))
+                wanted.set(binding.chord, binding);
         }
-        for (const [id, binding] of wanted) {
-            if (hotkeys.has(id)) continue;
+        for (const [chord, off] of hotkeys) {
+            if (wanted.has(chord)) continue;
+            off?.();
+            hotkeys.delete(chord);
+        }
+        for (const [chord, binding] of wanted) {
+            if (hotkeys.has(chord)) continue;
             const keystroke = keystrokeOf(binding.keystroke);
-            const pressed = () => (recording ? take({ type: 'keydown', ...keystroke }) : run(binding, null));
-            const off = KEYS.hotkey(keystroke, pressed);
-            if (!off) LOG.warn(`${binding.label}: the system did not give ${binding.chord} to the app outside it`);
-            hotkeys.set(id, { chord: binding.chord, off });
+            const off = KEYS.hotkey(keystroke, () => pressHotkey(keystroke));
+            if (!off) LOG.warn(`${binding.label}: the system did not give ${chord} to the app outside it`);
+            hotkeys.set(chord, off);
         }
+    }
+
+    // A chord held in any app, pressed: the first key on it the core lists runs, with no page, as a press in a page
+    // runs the first. While a chord is recorded, it is recorded as a press in a page is.
+    function pressHotkey(keystroke) {
+        if (recording) return take({ type: 'keydown', ...keystroke });
+        const binding = keymap.bindings.find(
+            (binding) => binding.reach === 'system' && binding.active && matches(binding.keystroke, keystroke)
+        );
+        if (binding) run(binding, null);
     }
 
     // `pressed` is a key as the environment tells it (environment: keys).
@@ -173,7 +181,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         }
         if (page && delegated.monitor(page, keystrokeOf(pressed))) return true;
         const active = keymap.bindings.filter((binding) => binding.active && matches(binding.keystroke, pressed));
-        const wide = active.find((binding) => binding.reach !== 'front');
+        const wide = active.find((binding) => KEY_REACH.isWide(binding.reach));
         if (wide) return run(wide, target);
         if (!page || !delegated.isActive(page)) return false;
         if (typing.has(page) && active.some(({ editsText }) => editsText)) return false;

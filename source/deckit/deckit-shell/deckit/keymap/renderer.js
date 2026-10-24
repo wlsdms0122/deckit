@@ -15,8 +15,8 @@ export function createKeymap() {
     // MARK: - Public
     // A mod's keys, { action: { key, label, reach, run } }, as its run contributes them: the core judges each chord
     // and whether the mod may have its reach, `front` when it names none. One with no function to run or no reach
-    // there is, or that `problemOf(entry)`, the shell's reason a key would never run, refuses, is told to `invalid` and
-    // left out.
+    // there is, or that `problemOf(entry)`, the shell's reason a key would never run, asked with its reach, refuses,
+    // is told to `invalid` and left out.
     function declare(keys, { invalid, problemOf }) {
         const declared = [];
         for (const [action, entry] of Object.entries(keys || {})) {
@@ -29,7 +29,7 @@ export function createKeymap() {
                 invalid(`key "${action}" cannot be used: its "reach" is one of ${KEY_REACH.REACHES.join(', ')}`);
                 continue;
             }
-            const never = problemOf(entry);
+            const never = problemOf({ ...entry, reach });
             if (never) {
                 invalid(`key "${action}" never runs: ${never}`);
                 continue;

@@ -7,8 +7,6 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
-// Filling a window, the list is glass: its colour laid at this strength over the blur of what is behind the window.
-const GLASS = 0.68;
 // How each tone looks on a row of the Now strip: its mark, its glyph, the row's wash and the colour it breathes
 // when it asks for attention. Only `alert` tints the row and `info` has no colour, so a colour still means
 // something.
@@ -171,7 +169,8 @@ function boot(theme, channels) {
     let exitTimer = null;
     let hiddenAnswer = null; // answers main's dismiss, once the exit has played
     let giveUpTimer = null;
-    let fills = false; // whether the list is all the page draws, as main opened it
+    // As main opened it: whether the list is all the page draws, and then the strength of its glass.
+    let look = { fills: false, glass: null };
 
     Object.assign(document.body.style, { margin: '0', background: 'transparent' });
 
@@ -194,7 +193,7 @@ function boot(theme, channels) {
         closing = false;
         switcher = open(ui, {
             placeholder: 'Jump to a mod, bookmark or view…',
-            fills,
+            ...look,
             items: hydrate(items),
             now: hydrate(now),
             // Resolvers and submenu searches live with the mods, in their pages.
@@ -213,7 +212,7 @@ function boot(theme, channels) {
     );
     PROTOCOL.open.on((opened) => {
         if (switcher) return;
-        fills = opened.fills;
+        look = { fills: opened.fills, glass: opened.glass };
         entries.need();
         clearTimeout(giveUpTimer);
         giveUpTimer = setTimeout(() => !switcher && PROTOCOL.close.send(), GIVE_UP_MILLISECONDS);
@@ -260,7 +259,7 @@ function boot(theme, channels) {
 
 // MARK: - Private
 // The switcher on screen: the kit's quick pick, drawn from its view model.
-function open(ui, { placeholder, fills, items, now, onQuery, onPick, onClose }) {
+function open(ui, { placeholder, fills, glass, items, now, onQuery, onPick, onClose }) {
     const model = VIEW_MODEL.make({ placeholder, items, now, onQuery, onPick, onClose: () => picker.close() });
     const rows = new Set(); // the rows made, which show their ⌘ numbers while Command is held
     let numbered = false;
@@ -273,7 +272,7 @@ function open(ui, { placeholder, fills, items, now, onQuery, onPick, onClose }) 
         fills,
         // Filling a window, it is all there is to move it by.
         drags: fills,
-        glass: fills ? GLASS : null,
+        glass,
         key: (entry) => entry.key,
         create: (entry) => {
             if (entry.heading) return headingOf(entry);

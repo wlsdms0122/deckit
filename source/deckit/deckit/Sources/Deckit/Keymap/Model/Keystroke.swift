@@ -120,7 +120,7 @@ public struct Keystroke: Equatable, Sendable {
 
     // Whether it may work as far as `reach`: past its page only by `wideRule`.
     func fits(_ reach: KeyReach) -> Bool {
-        reach == .front || ((meta || control || alt) && !editsText)
+        !reach.isWide || ((meta || control || alt) && !editsText)
     }
 
     // MARK: - Initializer
