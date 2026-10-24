@@ -10,6 +10,9 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGES, keys: KEYS }) {
     // MARK: - Property
     const RECORDING_MS = 20 * 1000;
+    // How far a key registered through what connect answers works: in the page in front, anywhere in the app, or in
+    // any app too.
+    const REACHES = Object.freeze(['front', 'app', 'system']);
     const runs = new Map(); // action -> run(page), of the keys registered through what connect answers
     const systemWideKeys = new Set(); // the actions of those that work in any app too
     const hotkeys = new Map(); // action -> { chord, off }, as each of those is held in any app now
@@ -92,16 +95,17 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     }
 
     // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
-    // on deckit. `global` ones work anywhere a page is listened to, and `systemWide` ones in any app too, run there
-    // with no page; the rest only in the page in front.
-    function register({ action, key, label = '', global = false, systemWide = false, run }) {
+    // on deckit. By its `reach` it works in the page in front, anywhere a page is listened to, or in any app too, run
+    // there with no page. The core holds the last two as global keys.
+    function register({ action, key, label = '', reach = 'front', run }) {
+        if (!REACHES.includes(reach)) throw new Error(`[deckit] the key ${action} has no reach ${reach}`);
         runs.set(action, run);
-        if (systemWide) systemWideKeys.add(action);
+        if (reach === 'system') systemWideKeys.add(action);
         CORE.request('keymap/register', {
             action,
             key: String(key),
             label: String(label),
-            global: !!global || !!systemWide,
+            global: reach !== 'front',
         }).then(keep, (error) => LOG.error(`the key ${action} was not registered`, error));
     }
 
@@ -129,7 +133,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     }
 
     // Each system-wide key held in any app on the chord it is bound to now. One the system does not give works where
-    // the app's global keys do. While a chord is recorded, a press of one runs nothing.
+    // the app's global keys do. While a chord is recorded, a press of one is recorded as a press in a page is.
     function holdHotkeys() {
         for (const action of systemWideKeys) {
             const binding = keymap.bindings.find(
@@ -141,7 +145,9 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
             held?.off?.();
             hotkeys.delete(action);
             if (!binding) continue;
-            const off = KEYS.hotkey(keystrokeOf(binding.keystroke), () => recording || runs.get(action)?.(null));
+            const keystroke = keystrokeOf(binding.keystroke);
+            const pressed = () => (recording ? take({ type: 'keydown', ...keystroke }) : runs.get(action)?.(null));
+            const off = KEYS.hotkey(keystroke, pressed);
             if (!off) LOG.warn(`${binding.label}: the system did not give ${chord} to the app outside it`);
             hotkeys.set(action, { chord, off });
         }

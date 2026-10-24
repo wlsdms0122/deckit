@@ -90,12 +90,12 @@ async function main() {
         },
     });
     const ran = [];
-    KEYMAP.register({ action: 'summon', key: 'Alt+Space', global: true, run: (page) => ran.push(['summon', page]) });
+    KEYMAP.register({ action: 'summon', key: 'Alt+Space', reach: 'app', run: (page) => ran.push(['summon', page]) });
     KEYMAP.register({ action: 'switch', key: 'Meta+K', run: (page) => ran.push(['switch', page]) });
     KEYMAP.register({
         action: 'anywhere',
         key: 'Ctrl+Space',
-        systemWide: true,
+        reach: 'system',
         run: (page) => ran.push(['any', page]),
     });
     const anywhere = (fields) =>
@@ -156,6 +156,13 @@ async function main() {
 
     heard.told(mod, { channel: 'deckit-shell:keymap-record', payload: { on: false } });
 
+    let threw = false;
+    try {
+        KEYMAP.register({ action: 'nowhere', key: 'Ctrl+N', reach: 'everywhere', run: () => {} });
+    } catch {
+        threw = true;
+    }
+    check('a key of no known reach is refused', threw, threw);
     // A system-wide key is the core's global one, and is held as a hotkey, which runs it with no page.
     const registered = asked.find(({ method, params }) => method === 'keymap/register' && params.action === 'anywhere');
     check('a system-wide key is global to the core', registered?.params.global === true, registered);
@@ -169,8 +176,14 @@ async function main() {
     check('a hotkey runs its key with no page', ran.at(-1)?.[0] === 'any' && ran.at(-1)?.[1] === null, ran);
     heard.told(mod, { channel: 'deckit-shell:keymap-record', payload: { on: true } });
     const before = ran.length;
+    const recorded = asked.filter(({ method }) => method === 'keymap/record').length;
     first.handler();
-    check('a hotkey runs nothing while a chord is recorded', ran.length === before, ran);
+    const asks = asked.filter(({ method }) => method === 'keymap/record');
+    check(
+        'a hotkey pressed while a chord is recorded is recorded, and runs nothing',
+        ran.length === before && asks.length === recorded + 1 && asks.at(-1).params.keystroke.code === 'Space',
+        asks
+    );
     heard.told(mod, { channel: 'deckit-shell:keymap-record', payload: { on: false } });
     // Bound to another chord, it is held there instead; the same chord again is held as it was.
     bindingsChanged({

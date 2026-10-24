@@ -71,14 +71,15 @@ function createApp({ WINDOW, THEME }) {
             controls.switcher.close();
             if (here) return;
             const window = switcherWindow();
-            controls.switcher.open({ dims: false }).then((closed) => closed && live(window)?.hide());
+            controls.switcher.open().then((closed) => closed && live(window)?.hide());
             WINDOW.float(window);
         }
 
         function switcherWindow() {
             if (live(state.switcher)) return state.switcher;
             state.switcher = WINDOW.openFloating({
-                place: (window) => controls.switcher.place(window, { onClose: () => controls.switcher.close() }),
+                place: (window) =>
+                    controls.switcher.place(window, { dims: false, onClose: () => controls.switcher.close() }),
                 focus: () => controls.switcher.focus(),
                 blur: () => controls.switcher.close(),
             });
@@ -98,7 +99,7 @@ function createApp({ WINDOW, THEME }) {
             showsPanel: (webContents) => {
                 if (controls.switcher.contains(webContents)) return false;
                 const window = windowOf(webContents);
-                return !!window && window === live(state.window) && !controls.switcher.shown();
+                return !!window && window === live(state.window);
             },
             show: () => void show(),
             // The panel is always presented as not dismissible here, so Escape never asks this.

@@ -14,7 +14,7 @@ const STYLE = `
         transition: opacity var(--deckit-base) var(--deckit-easing);
     }
     .deckit-modal[data-align='top'] { align-items: flex-start; padding-top: 12vh; }
-    .deckit-modal[data-clear] { background: transparent; }
+    .deckit-modal[data-dims='false'] { background: transparent; }
     .deckit-modal-card {
         box-sizing: border-box;
         max-height: 80vh;
@@ -69,7 +69,7 @@ function modal(
     scrim.className = 'deckit-modal';
     scrim.dataset.align = align;
     if (!chrome) scrim.dataset.bare = '';
-    if (!dims) scrim.dataset.clear = '';
+    scrim.dataset.dims = String(dims);
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
     card.style.width = width;
