@@ -14,6 +14,7 @@ const STYLE = `
         transition: opacity var(--deckit-base) var(--deckit-easing);
     }
     .deckit-modal[data-align='top'] { align-items: flex-start; padding-top: 12vh; }
+    .deckit-modal[data-clear] { background: transparent; }
     .deckit-modal-card {
         box-sizing: border-box;
         max-height: 80vh;
@@ -41,7 +42,8 @@ function make(theme, ui) {
 // MARK: - Private
 // A card over the page that holds every press. `fill(card)` puts the content in and returns what takes the
 // focus. With `chrome`, a title and Cancel and confirm buttons, a label of null leaving its button out; Enter in a
-// text field confirms. `onKey` has a key first and returns whether it took it.
+// text field confirms. `onKey` has a key first and returns whether it took it. With `dims` false the scrim leaves the
+// page clear, and still holds every press.
 function modal(
     ui,
     {
@@ -52,6 +54,7 @@ function modal(
         extraLabel = null,
         onExtra = null,
         chrome = true,
+        dims = true,
         align = 'center',
         width = 'min(420px, calc(100vw - 48px))',
         fill,
@@ -66,6 +69,7 @@ function modal(
     scrim.className = 'deckit-modal';
     scrim.dataset.align = align;
     if (!chrome) scrim.dataset.bare = '';
+    if (!dims) scrim.dataset.clear = '';
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
     card.style.width = width;

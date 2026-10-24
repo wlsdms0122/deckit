@@ -63,11 +63,13 @@ function make(theme, ui) {
 // `onEnter({ item, text })` hands both to the owner. `onKey(event)` has a key first and returns whether it took
 // it. `onActive(item, index, { pointer })` hears the active option move, and `onCommandKey(held)` the Command
 // key held down in it or let go. The field keeps the focus: a press anywhere else on the card leaves it there.
+// With `dims` false the page around it stays clear.
 function quickPick(
     ui,
     {
         placeholder = '',
         value = '',
+        dims = true,
         width = 'min(520px, calc(100vw - 48px))',
         key,
         create,
@@ -102,6 +104,7 @@ function quickPick(
     field.addEventListener('blur', () => onCommandKey(false));
     const modal = ui.modal({
         chrome: false,
+        dims,
         align: 'top',
         width,
         onKey: handleKey,
