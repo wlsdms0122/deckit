@@ -7,6 +7,8 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 
 // MARK: - Property
+// Filling a window, the list is glass: its colour laid at this strength over the blur of what is behind the window.
+const GLASS = 0.68;
 // How each tone looks on a row of the Now strip: its mark, its glyph, the row's wash and the colour it breathes
 // when it asks for attention. Only `alert` tints the row and `info` has no colour, so a colour still means
 // something.
@@ -271,6 +273,7 @@ function open(ui, { placeholder, fills, items, now, onQuery, onPick, onClose }) 
         fills,
         // Filling a window, it is all there is to move it by.
         drags: fills,
+        glass: fills ? GLASS : null,
         key: (entry) => entry.key,
         create: (entry) => {
             if (entry.heading) return headingOf(entry);

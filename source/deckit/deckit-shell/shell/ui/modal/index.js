@@ -34,6 +34,8 @@ const STYLE = `
         flex-direction: column;
         width: 100%;
         max-height: none;
+        border: 0;
+        border-radius: 0;
         box-shadow: none;
     }
     .deckit-modal[data-drags] .deckit-modal-card { -webkit-app-region: drag; }
@@ -52,8 +54,8 @@ function make(theme, ui) {
 // A card over the page that holds every press. `fill(card)` puts the content in and returns what takes the
 // focus. With `chrome`, a title and Cancel and confirm buttons, a label of null leaving its button out; Enter in a
 // text field confirms. `onKey` has a key first and returns whether it took it. `align` is `center`, `top`, or
-// `fill`, the card all the page draws, filling it. With `drags` the card drags the window it is in where nothing in
-// it is pressed.
+// `fill`, the card all the page draws, filling it, its edge the page's. With `drags` the card drags the window it is
+// in where nothing in it is pressed. With `glass` its colour is laid at that strength, for a page over what blurs.
 function modal(
     ui,
     {
@@ -66,6 +68,7 @@ function modal(
         chrome = true,
         align = 'center',
         drags = false,
+        glass = null,
         width = 'min(420px, calc(100vw - 48px))',
         fill,
         onKey: given = () => false,
@@ -83,6 +86,8 @@ function modal(
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
     if (align !== 'fill') card.style.width = width;
+    if (glass !== null)
+        card.style.background = `color-mix(in srgb, var(--deckit-background) ${glass * 100}%, transparent)`;
     scrim.append(card);
     let closed = false;
     const close = () => {
