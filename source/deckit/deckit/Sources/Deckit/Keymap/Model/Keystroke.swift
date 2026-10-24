@@ -11,7 +11,7 @@ import Foundation
 // physical key, since a modifier can change the character typed.
 public struct Keystroke: Equatable, Sendable {
     // MARK: - Property
-    // What a key that reaches past its page, taken from every page, text fields included, needs of its chord.
+    // What a key that works past its page, taken from every page, text fields included, needs of its chord.
     static let wideRule = "a key that works past its page needs ⌘, ⌃ or ⌥, and none a text field uses"
     // `mod` is ⌘ on a Mac, and Ctrl elsewhere.
     static let isMac: Bool = {
@@ -118,9 +118,9 @@ public struct Keystroke: Equatable, Sendable {
         Self.editing.contains(code) || (meta && !control && !alt && Self.editCommands.contains(code))
     }
 
-    // Whether it may work as far as `reach`: past its page only by `wideRule`.
-    func fits(_ reach: KeyReach) -> Bool {
-        !reach.isWide || ((meta || control || alt) && !editsText)
+    // Whether it may work in `scope`: past its page only by `wideRule`.
+    func fits(_ scope: KeyScope) -> Bool {
+        !scope.isWide || ((meta || control || alt) && !editsText)
     }
 
     // MARK: - Initializer

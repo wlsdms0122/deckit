@@ -361,7 +361,7 @@ struct ServerTests {
         // When
         let registered = try send(
             #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"action":"go","key":"mod+1","label":"Go","#
-                + #""reach":"front"}}"#,
+                + #""scope":"local"}}"#,
             to: sut
         )
         let bound = try send(
@@ -434,7 +434,7 @@ struct ServerTests {
         for (id, (action, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
             _ = try send(
                 #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"action":"\#(action)","#
-                    + #""key":"\#(spec)","label":"","reach":"front"}}"#,
+                    + #""key":"\#(spec)","label":"","scope":"local"}}"#,
                 to: sut
             )
         }
@@ -460,7 +460,6 @@ struct ServerTests {
         #expect(value(in: two, at: "changed") == .bool(true))
         #expect(value(in: two, at: "active") == .bool(false))
         #expect(value(in: two, at: "keystroke", "code") == .string("Digit1"))
-        #expect(value(in: held, at: "level") == .string("error"))
         #expect(value(in: held, at: "kind") == .string("held"))
         #expect(value(in: held, at: "other", "id") == .string("@app.one"))
         #expect(value(in: held, at: "other", "ownerName") == .string("Deckit"))

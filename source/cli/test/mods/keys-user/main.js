@@ -7,7 +7,7 @@ module.exports = {
             mark: {
                 key: 'mod+shift+9',
                 label: 'Mark',
-                reach: 'app',
+                scope: 'app',
                 run: () => (marks.pressed = String(Number(marks.pressed || 0) + 1)),
             },
         });

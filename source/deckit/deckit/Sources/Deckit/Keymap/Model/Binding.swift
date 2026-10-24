@@ -13,7 +13,7 @@ import Foundation
 public struct Binding: Equatable, Sendable {
     // MARK: - Property
     public let owner: BindingOwner
-    public let reach: KeyReach
+    public let scope: KeyScope
     public let action: String
     public let label: String
     public let defaultKeystroke: Keystroke?
@@ -26,15 +26,10 @@ public struct Binding: Equatable, Sendable {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's key that works only in its own page in front.
-    var isOwnPage: Bool {
-        !reach.isWide && !owner.isApp
-    }
-
-    // Whether a keystroke may be resolved to either: two mods' own keys never meet, each running only in its mod's
-    // page.
-    func meets(_ other: Binding) -> Bool {
-        !(isOwnPage && other.isOwnPage && owner != other.owner)
+    // Whether both work in the same place, so that of a chord both are bound to only the first listed runs: keys of
+    // one scope, and in the page in front, of one owner.
+    func contends(with other: Binding) -> Bool {
+        scope == other.scope && (scope.isWide || owner == other.owner)
     }
 
     // MARK: - Private

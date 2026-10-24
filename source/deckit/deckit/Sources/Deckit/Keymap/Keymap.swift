@@ -13,7 +13,7 @@ import Deck
 // app's are registered by the host app and the shell it puts on deckit.
 public final class Keymap {
     // MARK: - Property
-    // What a mod holds for keys that work past its own page, by their reach.
+    // What a mod holds for keys that work past its own page, by their scope.
     static let appKeysPermission = Permission(
         id: "deckit.app-keys",
         name: "Keys Anywhere in the App",
@@ -61,8 +61,8 @@ public final class Keymap {
     }
 
     // MARK: - Public
-    // A key of the app's own, run by whoever registered it, working as far as its reach. Answers the keymap as it is
-    // resolved now.
+    // A key of the app's own, run by whoever registered it, working in its scope. Answers the keymap as it is resolved
+    // now.
     public func register(_ key: Key) -> ResolvedKeymap {
         appKeys.append(key)
         return tell(resolved())
@@ -75,8 +75,8 @@ public final class Keymap {
         }
         let wanted = spec.isEmpty ? nil : Keystroke(spec: spec)
         if !spec.isEmpty && wanted == nil { throw KeymapError.notAChord(spec) }
-        if let wanted, !wanted.fits(binding.reach) {
-            throw KeymapError.cannotReach(label: wanted.label, reach: binding.reach)
+        if let wanted, !wanted.fits(binding.scope) {
+            throw KeymapError.cannotWork(label: wanted.label, scope: binding.scope)
         }
 
         // Taken out and put back last, so the overrides keep the order changes were made in.
@@ -121,25 +121,25 @@ public final class Keymap {
             let missing = key.spec.isEmpty ? "it needs a chord in \"key\"" : "\"\(key.spec)\" is not a chord"
             return "key \"\(key.action)\" cannot be used: \(missing)"
         }
-        guard let permission = Self.permission(for: key.reach) else { return nil }
-        let cannot = "key \"\(key.action)\" cannot work \(key.reach.phrase)"
+        guard let permission = Self.permission(for: key.scope) else { return nil }
+        let cannot = "key \"\(key.action)\" cannot work \(key.scope.phrase)"
         guard mod.manifest.permissions.contains(where: { request in request.permission.id == permission.id }) else {
             return "\(cannot): that takes the \(permission.id) permission"
         }
-        guard keystroke.fits(key.reach) else { return "\(cannot): \(Keystroke.wideRule)" }
+        guard keystroke.fits(key.scope) else { return "\(cannot): \(Keystroke.wideRule)" }
 
         return nil
     }
 
-    private static func permission(for reach: KeyReach) -> Permission? {
-        switch reach {
-        case .front:
+    private static func permission(for scope: KeyScope) -> Permission? {
+        switch scope {
+        case .local:
             nil
 
         case .app:
             appKeysPermission
 
-        case .system:
+        case .global:
             globalKeysPermission
         }
     }
@@ -152,7 +152,7 @@ public final class Keymap {
 
         return Binding(
             owner: owner,
-            reach: key.reach,
+            scope: key.scope,
             action: key.action,
             label: key.label.isEmpty ? key.action : key.label,
             defaultKeystroke: declared,
@@ -161,9 +161,9 @@ public final class Keymap {
         )
     }
 
-    // In the order a keystroke tries them: those that work past their page first, the app's then the mods' in the load
-    // order, then a mod's own, which wins in its page a chord it shares with the app's, then the app's. A mod's key
-    // works past its page only with the permission for its reach.
+    // In the order a keystroke tries them, the narrowest scope first: a mod's keys in its own page, the app's in any
+    // page in front, then anywhere in the app, then in every app, the app's before the mods' in the load order. A
+    // mod's key works past its page only with the permission for its scope.
     private func ordered() -> [Binding] {
         let mods = deck.catalog.loading.map { mod in
             (
@@ -172,24 +172,25 @@ public final class Keymap {
                     .filter { key in problem(of: key, mod: mod) == nil }
             )
         }
-        let app = { (wide: Bool) in
+        let app = { (scope: KeyScope) in
             self.appKeys
-                .filter { key in key.reach.isWide == wide }
+                .filter { key in key.scope == scope }
                 .map { key in self.binding(of: key, owner: self.app) }
         }
-        let own = { (wide: Bool) in
+        let own = { (scope: KeyScope) in
             mods.flatMap { owner, keys in
                 keys
-                    .filter { key in key.reach.isWide == wide }
+                    .filter { key in key.scope == scope }
                     .map { key in self.binding(of: key, owner: owner) }
             }
         }
 
-        return app(true) + own(true) + own(false) + app(false)
+        return own(.local) + app(.local) + app(.app) + own(.app) + app(.global) + own(.global)
     }
 
-    // Defaults first, then changes in the order they were made, so a change landing on a chord already taken is the one
-    // held back. Among defaults nothing is held back.
+    // Defaults first, then changes in the order they were made, so a change landing on a chord already taken in its
+    // scope is the one held back. Among defaults nothing is held back: of those that contend for a chord the first
+    // listed runs.
     private func resolved() -> [ResolvedBinding] {
         let list = ordered()
         let order = overrides.map(\.id)
@@ -200,7 +201,7 @@ public final class Keymap {
         for index in list.indices.sorted(by: { left, right in (rank(left), left) < (rank(right), right) }) {
             guard let keystroke = list[index].keystroke else { continue }
             let taken = accepted.first { other in
-                list[other].keystroke == keystroke && list[other].meets(list[index])
+                list[other].keystroke == keystroke && list[other].contends(with: list[index])
             }
             if let taken, list[index].changed {
                 held.insert(index)
@@ -210,10 +211,12 @@ public final class Keymap {
             accepted.append(index)
         }
         for index in accepted {
-            for other in accepted where other != index {
-                if let kind = issue(of: list[index], against: list[other], earlier: other < index) {
-                    issues[index].append(BindingIssue(kind: kind, other: list[other]))
-                }
+            let first = accepted.first { other in
+                other < index && list[other].keystroke == list[index].keystroke
+                    && list[other].contends(with: list[index])
+            }
+            if let first {
+                issues[index].append(BindingIssue(kind: .shadowed, other: list[first]))
             }
         }
 
@@ -224,20 +227,5 @@ public final class Keymap {
                 issues: issues[index]
             )
         }
-    }
-
-    // How a keystroke on the chord both are bound to is resolved for `binding` against `other`, listed `earlier` or
-    // not, or nil when neither gets in the other's way.
-    private func issue(of binding: Binding, against other: Binding, earlier: Bool) -> BindingIssue.Kind? {
-        guard other.keystroke == binding.keystroke, other.meets(binding) else { return nil }
-        let wide = binding.reach.isWide
-        let otherWide = other.reach.isWide
-        if otherWide && !wide { return .shadowed }
-        if wide && otherWide && earlier { return .shadowed }
-        if !wide && !otherWide && other.owner == binding.owner && earlier { return .shadowed }
-        if binding.isOwnPage && !otherWide && other.owner.isApp { return .hides }
-        if !wide && binding.owner.isApp && other.isOwnPage { return .hidden }
-
-        return nil
     }
 }

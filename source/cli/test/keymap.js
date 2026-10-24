@@ -1,7 +1,8 @@
 // The key map (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a key pressed in a
 // page is answered at once, taken or not, by what the core last told of the bindings, the page's own keys, the
-// shell's monitor and the page in front, a field focused keeps a text editing chord, and recording takes every key. A
-// key that works in any app, the app's or a mod's, is held as a hotkey on the chord it is bound to now.
+// shell's monitor and the page in front, the narrowest scope first, a field focused keeps a text editing chord, and
+// recording takes every key. A key that works in every app, the app's or a mod's, is held as a hotkey on the chord it
+// is bound to now, and lands, pressed, in the page that has the keyboard.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -27,6 +28,7 @@ async function main() {
     let heard = null;
     const hotkeys = []; // { keystroke, handler, held }, each hotkey asked for
     let refusing = false; // whether the system gives no hotkey
+    let focused = null; // the page with the keyboard
     const keys = {
         capture: (page, handler) => capturing.set(page, handler),
         hotkey: (keystroke, handler) => {
@@ -34,6 +36,7 @@ async function main() {
             hotkeys.push(hotkey);
             return refusing ? null : () => (hotkey.held = false);
         },
+        focused: () => focused,
     };
     const pages = {
         isGone: () => false,
@@ -61,7 +64,7 @@ async function main() {
         id: `${fields.app ? '@app' : fields.owner}.${fields.action}`,
         active: true,
         editsText: false,
-        reach: 'front',
+        scope: 'local',
         app: false,
         ...fields,
     });
@@ -97,28 +100,33 @@ async function main() {
         },
     });
     const ran = [];
-    KEYMAP.register({ action: 'summon', key: 'Alt+Space', reach: 'app', run: (page) => ran.push(['summon', page]) });
+    KEYMAP.register({ action: 'summon', key: 'Alt+Space', scope: 'app', run: (page) => ran.push(['summon', page]) });
     KEYMAP.register({ action: 'switch', key: 'Meta+K', run: (page) => ran.push(['switch', page]) });
+    KEYMAP.register({ action: 'find', key: 'Meta+G', scope: 'app', run: (page) => ran.push(['find', page]) });
+    KEYMAP.register({ action: 'jump', key: 'Ctrl+J', run: (page) => ran.push(['jump', page]) });
     KEYMAP.register({
         action: 'anywhere',
         key: 'Ctrl+Space',
-        reach: 'system',
+        scope: 'global',
         run: (page) => ran.push(['any', page]),
     });
     const anywhere = (fields) =>
-        binding({ action: 'anywhere', app: true, reach: 'system', chord: '⌃Space', ...fields });
+        binding({ action: 'anywhere', app: true, scope: 'global', chord: '⌃Space', ...fields });
+    // As the core lists them, the narrowest scope first.
     bindingsChanged({
         revision: 1,
         bindings: [
-            binding({ action: 'summon', app: true, reach: 'app', keystroke: keystroke('Space', { alt: true }) }),
-            binding({ action: 'switch', app: true, keystroke: keystroke('KeyK', { meta: true }) }),
-            anywhere({ keystroke: keystroke('Space', { control: true }) }),
             binding({
                 action: 'copy',
                 owner: 'a',
                 editsText: true,
                 keystroke: keystroke('KeyC', { meta: true }),
             }),
+            binding({ action: 'go', owner: 'a', keystroke: keystroke('KeyG', { meta: true }) }),
+            binding({ action: 'switch', app: true, keystroke: keystroke('KeyK', { meta: true }) }),
+            binding({ action: 'summon', app: true, scope: 'app', keystroke: keystroke('Space', { alt: true }) }),
+            binding({ action: 'find', app: true, scope: 'app', keystroke: keystroke('KeyG', { meta: true }) }),
+            anywhere({ keystroke: keystroke('Space', { control: true }) }),
         ],
     });
 
@@ -126,11 +134,11 @@ async function main() {
     KEYMAP.listen(mod, { page: mod, keys: [{ key: 'Meta+L', run: () => ran.push(['own']) }] });
     await tick();
 
-    // A key that reaches the app runs wherever a listened page has the keyboard, run with that page, and is taken at
-    // once.
-    check('a key that reaches the app is taken', press(mod, 'Space', { alt: true }) === true, ran);
+    // A key that works anywhere in the app runs wherever a listened page has the keyboard, run with that page, and is
+    // taken at once.
+    check('a key that works anywhere in the app is taken', press(mod, 'Space', { alt: true }) === true, ran);
     check(
-        'a key that reaches the app runs with the page it landed in',
+        'a key that works anywhere in the app runs with the page it landed in',
         ran.at(-1)?.[0] === 'summon' && ran.at(-1)?.[1] === mod,
         ran
     );
@@ -150,6 +158,16 @@ async function main() {
     tells.length = 0;
     check("a mod's key is taken in its page", press(mod, 'KeyC', { meta: true }) === true, tells);
     check("a mod's key is told to its page", tells[0]?.[1]?.channel === 'deckit-shell:keymap-key', tells);
+    // A narrower key on a chord wins where it works, and the wider one runs elsewhere.
+    tells.length = 0;
+    press(mod, 'KeyG', { meta: true });
+    check("a mod's key in its page wins over one anywhere in the app", tells[0]?.[1]?.payload?.action === 'go', tells);
+    check('a key anywhere in the app runs past the narrower', press(shell, 'KeyG', { meta: true }) === true, ran);
+    check(
+        'a key anywhere in the app runs where no narrower works',
+        ran.at(-1)?.[0] === 'find' && ran.at(-1)?.[1] === shell,
+        ran
+    );
     heard.told(mod, { channel: 'deckit-shell:keymap-typing', payload: { on: true } });
     check('a focused field keeps a text editing chord', press(mod, 'KeyC', { meta: true }) === false, tells);
     // A replaced document forgets the field it had focused.
@@ -169,14 +187,14 @@ async function main() {
 
     let threw = false;
     try {
-        KEYMAP.register({ action: 'nowhere', key: 'Ctrl+N', reach: 'everywhere', run: () => {} });
+        KEYMAP.register({ action: 'nowhere', key: 'Ctrl+N', scope: 'everywhere', run: () => {} });
     } catch {
         threw = true;
     }
-    check('a key of no known reach is refused', threw, threw);
-    // A key that works in any app tells the core its reach, and is held as a hotkey, which runs it with no page.
+    check('a key of no known scope is refused', threw, threw);
+    // A key that works in every app tells the core its scope, and is held as a hotkey, which runs it with no page.
     const registered = asked.find(({ method, params }) => method === 'keymap/register' && params.action === 'anywhere');
-    check('a key tells the core its reach', registered?.params.reach === 'system', registered);
+    check('a key tells the core its scope', registered?.params.scope === 'global', registered);
     const first = hotkeys[0];
     check(
         'a system-wide key is held on its chord',
@@ -207,7 +225,7 @@ async function main() {
         bindings: [anywhere({ chord: '⌃⌥Space', keystroke: keystroke('Space', { control: true, alt: true }) })],
     });
     check('the same chord stays held', hotkeys.length === 2 && hotkeys[1].held, hotkeys);
-    // Unbound, it is held nowhere; one the system does not give still runs in a page, as one that reaches the app.
+    // Unbound, it is held nowhere; one the system does not give still runs in a page, as one anywhere in the app.
     bindingsChanged({ revision: 4, bindings: [anywhere({ active: false, chord: '', keystroke: null })] });
     check('an unbound key is held nowhere', hotkeys.length === 2 && !hotkeys[1].held, hotkeys);
     refusing = true;
@@ -225,20 +243,20 @@ async function main() {
         revision: 6,
         bindings: [
             anywhere({ ...onJ, id: '@app.anywhere' }),
-            binding({ ...onJ, action: 'shared', owner: 'a', reach: 'system' }),
+            binding({ ...onJ, action: 'shared', owner: 'a', scope: 'global' }),
         ],
     });
     check('two keys on one chord hold it once', hotkeys.length === 4 && hotkeys[3].held, hotkeys);
     hotkeys[3].handler();
     check('a chord held once runs the first key on it', ran.at(-1)?.[0] === 'any' && ran.at(-1)?.[1] === null, ran);
-    // A mod's key that works in any app is held as the app's are, and a press of it is told to its page.
+    // A mod's key that works in every app is held as the app's are, and a press of it is told to its page.
     bindingsChanged({
         revision: 7,
         bindings: [
             binding({
                 action: 'call',
                 owner: 'a',
-                reach: 'system',
+                scope: 'global',
                 chord: '⌥K',
                 keystroke: keystroke('KeyK', { alt: true }),
             }),
@@ -253,6 +271,26 @@ async function main() {
         tells[0]?.[1]?.channel === 'deckit-shell:keymap-key' && tells[0]?.[1]?.payload?.action === 'call',
         tells
     );
+    // A hotkey pressed where a listened page has the keyboard lands there, so a narrower key on its chord wins.
+    bindingsChanged({
+        revision: 8,
+        bindings: [binding({ ...onJ, action: 'jump', app: true }), anywhere({ ...onJ, id: '@app.anywhere' })],
+    });
+    const onShared = hotkeys.at(-1);
+    inFront = shell;
+    focused = shell;
+    onShared.handler();
+    check('a hotkey lands in the page with the keyboard', ran.at(-1)?.[0] === 'jump', ran);
+    focused = mod;
+    onShared.handler();
+    check(
+        'a hotkey runs past a narrower key that does not work there',
+        ran.at(-1)?.[0] === 'any' && ran.at(-1)?.[1] === mod,
+        ran
+    );
+    focused = null;
+    onShared.handler();
+    check('a hotkey with no page of the app having the keyboard runs with no page', ran.at(-1)?.[1] === null, ran);
 
     for (const line of failed) console.error(line);
     if (failed.length) process.exit(1);

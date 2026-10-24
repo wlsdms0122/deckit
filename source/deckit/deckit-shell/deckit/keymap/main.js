@@ -2,7 +2,7 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
-import * as KEY_REACH from './model/reach.js';
+import * as KEY_SCOPE from './model/scope.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -15,6 +15,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     const hotkeys = new Map(); // chord -> its off, or null where the system did not give it, as each is held in any app
     const typing = new WeakSet(); // pages with a field focused
     const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
+    const listened = new WeakMap(); // page -> the deckit page a keystroke there belongs to, or null
     let keymap = { revision: 0, bindings: [] };
     let recording = null; // { page, drop, timer }
     let delegated = { isActive: () => false, monitor: () => false };
@@ -60,9 +61,10 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     }
 
     // Keystrokes in `target`, a page, go through the key map. deckit listens on its own pages and the web pages they
-    // show; an app hands its own where deckit's keys that reach the app should work too. `page` is the deckit page a
-    // keystroke here belongs to, as web answers it, or null: the keys of the page in front run only in one. `keys` are
-    // the target's own, taken there first: only a chord main catches wins over a meaning the app's menu gives it.
+    // show; an app hands its own where deckit's keys that work anywhere in the app should work too. `page` is the
+    // deckit page a keystroke here belongs to, as web answers it, or null: the keys of the page in front run only in
+    // one. `keys` are the target's own, taken there first: only a chord main catches wins over a meaning the app's menu
+    // gives it.
     function listen(target, { keys = [], page = null } = {}) {
         let destroyed = false;
         if (keys.length)
@@ -77,6 +79,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
                 },
                 (error) => LOG.error("a page's own keys were not read", error)
             );
+        listened.set(target, page);
         KEYS.capture(target, (keystroke) => handle(target, page, keystroke));
         // A replaced document or an ended process keeps the page, but what the page had focused is gone.
         const forget = () => typing.delete(target);
@@ -86,18 +89,19 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
             destroyed: () => {
                 destroyed = true;
                 local.delete(target);
+                listened.delete(target);
                 forget();
             },
         });
     }
 
     // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
-    // on deckit. By its `reach` it works in the page in front, anywhere a page is listened to, or in any app too, run
-    // there with no page.
-    function register({ action, key, label = '', reach = 'front', run }) {
-        if (!KEY_REACH.REACHES.includes(reach)) throw new Error(`[deckit] the key ${action} has no reach ${reach}`);
+    // on deckit. By its `scope` it works in the page in front, anywhere a page is listened to, or in every app too,
+    // run there with no page.
+    function register({ action, key, label = '', scope = 'local', run }) {
+        if (!KEY_SCOPE.SCOPES.includes(scope)) throw new Error(`[deckit] the key ${action} has no scope ${scope}`);
         runs.set(action, run);
-        CORE.request('keymap/register', { action, key: String(key), label: String(label), reach }).then(keep, (error) =>
+        CORE.request('keymap/register', { action, key: String(key), label: String(label), scope }).then(keep, (error) =>
             LOG.error(`the key ${action} was not registered`, error)
         );
     }
@@ -130,7 +134,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     function holdHotkeys() {
         const wanted = new Map();
         for (const binding of keymap.bindings) {
-            if (binding.reach === 'system' && binding.active && !wanted.has(binding.chord))
+            if (binding.scope === 'global' && binding.active && !wanted.has(binding.chord))
                 wanted.set(binding.chord, binding);
         }
         for (const [chord, off] of hotkeys) {
@@ -147,12 +151,16 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         }
     }
 
-    // A chord held in any app, pressed: the first key on it the core lists runs, with no page, as a press in a page
-    // runs the first. While a chord is recorded, it is recorded as a press in a page is.
+    // A chord held in any app, pressed: in a page listened to that has the keyboard it lands there, as a press in the
+    // page does, so a narrower key on it wins there; elsewhere the first key on it the core lists that works in every
+    // app runs, with no page. While a chord is recorded, it is recorded as a press in a page is.
     function pressHotkey(keystroke) {
-        if (recording) return take({ type: 'keydown', ...keystroke });
+        const pressed = { type: 'keydown', ...keystroke };
+        if (recording) return take(pressed);
+        const target = KEYS.focused();
+        if (listened.has(target)) return handle(target, listened.get(target), pressed);
         const binding = keymap.bindings.find(
-            (binding) => binding.reach === 'system' && binding.active && matches(binding.keystroke, keystroke)
+            (binding) => binding.scope === 'global' && binding.active && matches(binding.keystroke, keystroke)
         );
         if (binding) run(binding, null);
     }
@@ -169,8 +177,8 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         );
     }
 
-    // The first that runs where the keystroke landed wins, in the order the core lists the bindings. Answers whether
-    // it took the key.
+    // The first binding on the chord that works where the keystroke landed wins, in the order the core lists them, the
+    // narrowest scope first. Answers whether it took the key.
     function handle(target, page, pressed) {
         if (recording) return take(pressed);
         if (pressed.type !== 'keydown') return false;
@@ -180,14 +188,20 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
             return true;
         }
         if (page && delegated.monitor(page, keystrokeOf(pressed))) return true;
-        const active = keymap.bindings.filter((binding) => binding.active && matches(binding.keystroke, pressed));
-        const wide = active.find((binding) => KEY_REACH.isWide(binding.reach));
-        if (wide) return run(wide, target);
-        if (!page || !delegated.isActive(page)) return false;
-        if (typing.has(page) && active.some(({ editsText }) => editsText)) return false;
-        const mod = IDENTITY.modOf(page);
-        const hit = active.find((binding) => binding.app || binding.owner === mod?.id);
+        const hit = keymap.bindings.find(
+            (binding) => binding.active && matches(binding.keystroke, pressed) && worksIn(binding, page)
+        );
         return hit ? run(hit, target) : false;
+    }
+
+    // Whether a binding works where a keystroke landed, in `page`, the deckit page, or null in another the app hands:
+    // one past its page wherever a page is listened to, one in the page in front only there, a mod's in its own page,
+    // and not on a chord a field focused there edits text with.
+    function worksIn(binding, page) {
+        if (KEY_SCOPE.isWide(binding.scope)) return true;
+        if (!page || !delegated.isActive(page)) return false;
+        if (binding.editsText && typing.has(page)) return false;
+        return binding.app || binding.owner === IDENTITY.modOf(page)?.id;
     }
 
     function run(binding, target) {

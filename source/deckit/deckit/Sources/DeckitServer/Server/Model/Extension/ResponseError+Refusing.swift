@@ -155,7 +155,7 @@ extension ResponseError {
             case .notAChord:
                 "CHORD"
 
-            case .cannotReach:
+            case .cannotWork:
                 "REFUSED"
             }
 

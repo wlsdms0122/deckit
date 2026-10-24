@@ -11,7 +11,7 @@ import Deck
 public enum KeymapError: Refusal, Equatable {
     case noSuchBinding(String)
     case notAChord(String)
-    case cannotReach(label: String, reach: KeyReach)
+    case cannotWork(label: String, scope: KeyScope)
 
     // MARK: - Property
     public var message: String {
@@ -22,8 +22,8 @@ public enum KeymapError: Refusal, Equatable {
         case let .notAChord(spec):
             "not a chord: \(spec)"
 
-        case let .cannotReach(label, reach):
-            "\(label) cannot work \(reach.phrase): \(Keystroke.wideRule)"
+        case let .cannotWork(label, scope):
+            "\(label) cannot work \(scope.phrase): \(Keystroke.wideRule)"
         }
     }
 

@@ -6,9 +6,10 @@ function keyboardSection({ ui, keymap }) {
     const TITLE = 'Keyboard';
     const KEYWORDS = ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys'];
     const DESCRIPTION =
-        'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Mods may share a chord. A change onto ' +
-        'a chord already in use is not applied until that chord is free.';
-    const REACH_NAMES = { system: 'In every app', app: 'Anywhere in the app' };
+        'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Of shortcuts on one chord, the one that ' +
+        'works in the fewest places runs there. A change onto a chord another uses in the same places is not ' +
+        'applied until that chord is free.';
+    const SCOPE_NAMES = { global: 'In every app', app: 'Anywhere in the app' };
 
     let recording = null; // the key a chord is recorded for, and the end of its recording: { id, end }
     let drawAfterRecording = false;
@@ -52,13 +53,16 @@ function keyboardSection({ ui, keymap }) {
             cursor: pointer;
         }
         .settings-chord[data-unset] { opacity: 0.45; }
-        .settings-chord[data-level='warning'] { border: 1px solid var(--deckit-warn); color: var(--deckit-warn); }
-        .settings-chord[data-level='error'] { border: 1px solid var(--deckit-alert); color: var(--deckit-alert); }
+        .settings-chord[data-conflicts] { border: 1px solid var(--deckit-alert); color: var(--deckit-alert); }
         .settings-chord[data-recording] { border-color: var(--deckit-accent); color: var(--deckit-accent); opacity: 1; }
         .settings-shortcut-line .settings-reset { opacity: 0.6; }
         .settings-shortcut-line .settings-reset[data-unchanged] { opacity: 0; pointer-events: none; }
-        .settings-issue { padding: 0 0 5px; color: var(--deckit-warn); font: 11.5px var(--deckit-font); line-height: 1.45; }
-        .settings-issue[data-error] { color: var(--deckit-alert); }
+        .settings-issue {
+            padding: 0 0 5px;
+            color: var(--deckit-alert);
+            font: 11.5px var(--deckit-font);
+            line-height: 1.45;
+        }
     `);
     const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const conflicts = chip({ ui, text: '' });
@@ -84,9 +88,9 @@ function keyboardSection({ ui, keymap }) {
         recording?.end();
         recording = null;
         drawAfterRecording = false;
-        const errors = shortcuts.filter((shortcut) => shortcut.issues.some(isError)).length;
-        conflicts.element.textContent = `${errors} conflict${errors === 1 ? '' : 's'}`;
-        conflicts.element.hidden = !errors;
+        const conflicted = shortcuts.filter((shortcut) => shortcut.issues.length).length;
+        conflicts.element.textContent = `${conflicted} conflict${conflicted === 1 ? '' : 's'}`;
+        conflicts.element.hidden = !conflicted;
         const owners = [...new Set(shortcuts.map((shortcut) => shortcut.owner))];
         cards.set(
             owners.map((owner) => {
@@ -178,28 +182,21 @@ function keyboardSection({ ui, keymap }) {
         function fill(shortcut) {
             current = shortcut;
             name.textContent = name.title = shortcut.label;
-            scope.textContent = REACH_NAMES[shortcut.reach] || (shortcut.app ? 'On any mod' : '');
+            scope.textContent = SCOPE_NAMES[shortcut.scope] || (shortcut.app ? 'On any mod' : '');
             scope.hidden = !scope.textContent;
             chord.textContent = shortcut.spec ? shortcut.chord : 'None';
             chord.title = shortcut.changed ? `Changed from ${shortcut.defaultChord || 'none'}` : 'Click to change';
             chord.toggleAttribute('data-unset', !shortcut.spec);
             chord.removeAttribute('data-recording');
-            if (shortcut.issues.length) chord.dataset.level = shortcut.issues.some(isError) ? 'error' : 'warning';
-            else delete chord.dataset.level;
+            chord.toggleAttribute('data-conflicts', shortcut.issues.length > 0);
             reset.element.title = `Back to ${shortcut.defaultChord || 'none'}`;
             reset.element.toggleAttribute('data-unchanged', !shortcut.changed);
             for (const note of notes) note.remove();
-            notes = shortcut.issues.map((issue) => {
-                const note = ui.element('div', { className: 'settings-issue', text: issueText(shortcut, issue) });
-                note.toggleAttribute('data-error', isError(issue));
-                return note;
-            });
+            notes = shortcut.issues.map((issue) =>
+                ui.element('div', { className: 'settings-issue', text: issueText(shortcut, issue) })
+            );
             cell.append(...notes);
         }
-    }
-
-    function isError(issue) {
-        return issue.level === 'error';
     }
 }
 
@@ -207,9 +204,7 @@ function keyboardSection({ ui, keymap }) {
 function issueText(shortcut, { kind, other }) {
     const name = other.app || other.owner === shortcut.owner ? other.label : `${other.ownerName} ${other.label}`;
     if (kind === 'held') return `Not applied: ${other.chord} is already ${name}`;
-    if (kind === 'shadowed') return `Never runs: ${other.chord} is ${name}`;
-    if (kind === 'hides') return `Hides ${other.label} while ${shortcut.ownerName} is on screen`;
-    return `Not on ${other.ownerName}, where ${other.chord} is ${other.label}`;
+    return `Never runs: ${other.chord} is ${name}`;
 }
 
 module.exports = { keyboardSection };

@@ -140,7 +140,7 @@ function createEnvironment({ core, preload, openWindow }) {
             watchInput: (page, listener) => watchInput(guard, page, listener),
             clearStorage: (modId) => clearStorage(CONFIG.id, modId),
         }),
-        keys: Object.freeze({ capture: (page, handler) => capture(guard, page, handler), hotkey }),
+        keys: Object.freeze({ capture: (page, handler) => capture(guard, page, handler), hotkey, focused }),
         open: Object.freeze({ url: openURL, file: openFile, reveal, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({
@@ -357,6 +357,13 @@ function hotkey(keystroke, handler) {
         held = false;
         globalShortcut.unregister(accelerator);
     };
+}
+
+// The page with the keyboard, in the window that has it: a view keeps its focus in a window gone to the back, and
+// while another app has the keyboard no window of the app's does.
+function focused() {
+    const { BrowserWindow, webContents } = require('electron');
+    return BrowserWindow.getFocusedWindow() ? webContents.getFocusedWebContents() : null;
 }
 
 // A key as Electron's accelerator names it, or null for a key it has no name for.

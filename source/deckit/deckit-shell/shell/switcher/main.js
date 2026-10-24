@@ -30,7 +30,7 @@ export function createSwitcher({ PANEL, deckit, host }) {
             action: 'switcher',
             key: 'alt+space',
             label: 'Quick switcher',
-            reach: 'system',
+            scope: 'global',
             run: (page) => host.summonSwitcher(page && (deckit.web.pageFor(page) || page)),
         });
         PROTOCOL.ready.on((_payload, sender) => {

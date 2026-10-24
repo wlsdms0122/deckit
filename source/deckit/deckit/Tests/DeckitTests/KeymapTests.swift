@@ -17,7 +17,7 @@ struct KeymapTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a mod's keys are those its run contributed, one past its page only with the permission for its reach")
+    @Test("a mod's keys are those its run contributed, one past its page only with the permission for its scope")
     func modKeysComeFromItsRun() throws {
         // Given
         try fixture.write("a", permissions: ["deckit.app-keys", "system.global-keys"])
@@ -29,12 +29,12 @@ struct KeymapTests {
             "a",
             run: 1,
             keys: [
-                key("find", "mod+shift+f", reach: .app),
-                key("call", "alt+space", reach: .system),
+                key("find", "mod+shift+f", scope: .app),
+                key("call", "alt+space", scope: .global),
                 key("next", "mod+j")
             ]
         )
-        let b = try sut.started("b", run: 1, keys: [key("go", "mod+shift+g", reach: .system), key("bad", "mod+nope")])
+        let b = try sut.started("b", run: 1, keys: [key("go", "mod+shift+g", scope: .global), key("bad", "mod+nope")])
 
         // Then
         let keymap = try #require(a.keymapChange)
@@ -45,23 +45,63 @@ struct KeymapTests {
         #expect(b.problem == "key \"go\" cannot work in every app: that takes the system.global-keys permission")
     }
 
-    @Test("bindings are listed as a keystroke tries them, and a mod's own key hides the app's in its page")
+    @Test("bindings are listed as a keystroke tries them, the narrowest scope first, and contend only in one scope")
     func keystrokesResolveInOrder() throws {
         // Given
         try fixture.write("a", permissions: ["deckit.app-keys"])
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "mod+shift+g", reach: .system))
+        _ = sut.keymap.register(appKey("switch", "mod+shift+g", scope: .global))
+        _ = sut.keymap.register(appKey("find", "mod+shift+f", scope: .app))
         _ = sut.keymap.register(appKey("back", "mod+["))
 
         // When
-        let effects = try sut.started("a", run: 1, keys: [key("summon", "mod+shift+g", reach: .app), key("prev", "mod+[")])
+        let effects = try sut.started(
+            "a",
+            run: 1,
+            keys: [
+                key("summon", "mod+shift+g", scope: .app),
+                key("look", "mod+shift+f", scope: .app),
+                key("prev", "mod+["),
+                key("undo", "mod+z"),
+                key("redo", "mod+z")
+            ]
+        )
 
         // Then
         let keymap = try #require(effects.keymapChange)
-        #expect(keymap.bindings.map(\.binding.id) == ["@app.switch", "a.summon", "a.prev", "@app.back"])
-        #expect(keymap.line(of: "a.summon") == "a.summon active shadowed:@app.switch")
-        #expect(keymap.line(of: "@app.back") == "@app.back active hidden:a.prev")
-        #expect(keymap.line(of: "a.prev") == "a.prev active hides:@app.back")
+        #expect(
+            keymap.bindings.map(\.binding.id)
+                == ["a.prev", "a.undo", "a.redo", "@app.back", "@app.find", "a.summon", "a.look", "@app.switch"]
+        )
+        #expect(keymap.line(of: "a.prev") == "a.prev active")
+        #expect(keymap.line(of: "@app.back") == "@app.back active")
+        #expect(keymap.line(of: "a.summon") == "a.summon active")
+        #expect(keymap.line(of: "@app.switch") == "@app.switch active")
+        #expect(keymap.line(of: "a.look") == "a.look active shadowed:@app.find")
+        #expect(keymap.line(of: "a.redo") == "a.redo active shadowed:a.undo")
+    }
+
+    @Test("a change is held only where a key of its scope has the chord")
+    func changeIsHeldInItsScope() throws {
+        // Given
+        try fixture.write("a")
+        let sut = try fixture.deckit()
+        _ = sut.keymap.register(appKey("switch", "alt+space", scope: .global))
+        _ = sut.keymap.register(appKey("back", "mod+["))
+        _ = try sut.started("a", run: 1, keys: [key("prev", "mod+j")])
+
+        // When
+        let narrower = try sut.keymap.bind("a.prev", spec: "alt+space")
+        let same = try sut.keymap.bind("a.prev", spec: "mod+[")
+
+        // Then
+        #expect(narrower.line(of: "a.prev") == "a.prev active")
+        #expect(same.line(of: "a.prev") == "a.prev active")
+        #expect(try sut.keymap.bind("@app.back", spec: "alt+space").line(of: "@app.back") == "@app.back active")
+        #expect(try sut.keymap.bind("@app.back", spec: "mod+k").line(of: "@app.back") == "@app.back active")
+        _ = sut.keymap.register(appKey("forward", "mod+j"))
+        let held = try sut.keymap.bind("@app.forward", spec: "mod+k")
+        #expect(held.line(of: "@app.forward") == "@app.forward inactive held:@app.back")
     }
 
     @Test("a change landing on a chord taken is held, by the order changes were made in, which a restart keeps")
@@ -110,13 +150,13 @@ struct KeymapTests {
         arguments: [
             ("@app.none", "cmd+1", KeymapError.noSuchBinding("@app.none")),
             ("@app.switch", "cmd+nope", .notAChord("cmd+nope")),
-            ("@app.switch", "cmd+c", .cannotReach(label: "⌘C", reach: .system))
+            ("@app.switch", "cmd+c", .cannotWork(label: "⌘C", scope: .global))
         ]
     )
     func bindRefuses(id: String, spec: String, refusal: KeymapError) throws {
         // Given
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "mod+shift+g", reach: .system))
+        _ = sut.keymap.register(appKey("switch", "mod+shift+g", scope: .global))
 
         // When
         let bound = Result { try sut.keymap.bind(id, spec: spec) }
@@ -143,12 +183,14 @@ struct KeymapTests {
 
     // MARK: - Private
     // A key as a run contributes it.
-    private func key(_ action: String, _ spec: String, reach: KeyReach = .front) -> JSONValue {
-        .object(["action": .string(action), "key": .string(spec), "label": .string(""), "reach": .string(reach.rawValue)])
+    private func key(_ action: String, _ spec: String, scope: KeyScope = .local) -> JSONValue {
+        .object(
+            ["action": .string(action), "key": .string(spec), "label": .string(""), "scope": .string(scope.rawValue)]
+        )
     }
 
     // A key as the app registers it.
-    private func appKey(_ action: String, _ spec: String, reach: KeyReach = .front) -> Key {
-        Key(action: action, spec: spec, label: "", reach: reach)
+    private func appKey(_ action: String, _ spec: String, scope: KeyScope = .local) -> Key {
+        Key(action: action, spec: spec, label: "", scope: scope)
     }
 }

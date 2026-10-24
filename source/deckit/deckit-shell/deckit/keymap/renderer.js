@@ -1,7 +1,7 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as KEY_REACH from './model/reach.js';
+import * as KEY_SCOPE from './model/scope.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -13,9 +13,9 @@ export function createKeymap() {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's keys, { action: { key, label, reach, run } }, as its run contributes them: the core judges each chord
-    // and whether the mod may have its reach, `front` when it names none. One with no function to run or no reach
-    // there is, or that `problemOf(entry)`, the shell's reason a key would never run, asked with its reach, refuses,
+    // A mod's keys, { action: { key, label, scope, run } }, as its run contributes them: the core judges each chord
+    // and whether the mod may have its scope, `local` when it names none. One with no function to run or no scope
+    // there is, or that `problemOf(entry)`, the shell's reason a key would never run, asked with its scope, refuses,
     // is told to `invalid` and left out.
     function declare(keys, { invalid, problemOf }) {
         const declared = [];
@@ -24,12 +24,12 @@ export function createKeymap() {
                 invalid(`key "${action}" cannot be used: it needs a function in "run"`);
                 continue;
             }
-            const reach = entry.reach ?? 'front';
-            if (!KEY_REACH.REACHES.includes(reach)) {
-                invalid(`key "${action}" cannot be used: its "reach" is one of ${KEY_REACH.REACHES.join(', ')}`);
+            const scope = entry.scope ?? 'local';
+            if (!KEY_SCOPE.SCOPES.includes(scope)) {
+                invalid(`key "${action}" cannot be used: its "scope" is one of ${KEY_SCOPE.SCOPES.join(', ')}`);
                 continue;
             }
-            const never = problemOf({ ...entry, reach });
+            const never = problemOf({ ...entry, scope });
             if (never) {
                 invalid(`key "${action}" never runs: ${never}`);
                 continue;
@@ -39,7 +39,7 @@ export function createKeymap() {
                 action,
                 key: String(entry.key ?? ''),
                 label: typeof entry.label === 'string' ? entry.label : '',
-                reach,
+                scope,
             });
         }
         return declared;

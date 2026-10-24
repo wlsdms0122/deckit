@@ -83,6 +83,8 @@ const MAIN = Object.freeze({
         // control, alt, shift }`, heard wherever the keyboard is, in any app, once the app is ready, `handler()` told
         // each time it is pressed and the key taken from wherever it was pressed
         hotkey: 'function',
+        // focused() -> Page or null: the page of the app's that has the keyboard, or null when the app does not
+        focused: 'function',
     },
     // What is opened outside the app, by the system: `url(url, { activate }) -> Promise`, an address in the app that
     // opens its scheme, the browser for the web, brought forward unless `activate` is false; `file(path) -> Promise of

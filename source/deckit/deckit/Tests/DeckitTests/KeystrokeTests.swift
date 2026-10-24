@@ -69,13 +69,13 @@ struct KeystrokeTests {
 
         // When
         let fitsApp = sut.fits(.app)
-        let fitsSystem = sut.fits(.system)
-        let fitsFront = sut.fits(.front)
+        let fitsGlobal = sut.fits(.global)
+        let fitsLocal = sut.fits(.local)
 
         // Then
         #expect(fitsApp == fits)
-        #expect(fitsSystem == fits)
-        #expect(fitsFront)
+        #expect(fitsGlobal == fits)
+        #expect(fitsLocal)
     }
 
     @Test(
