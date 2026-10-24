@@ -19,7 +19,9 @@ function createWindow({ CONFIG, THEME }) {
     const looks = new WeakMap(); // window -> { glass, covered }: how its bar page is drawn
     const titles = new WeakMap(); // window -> the title it shows
     const covered = new WeakSet(); // the windows whose view covers the bar, where its title would be
-    const floating = new WeakMap(); // floating window -> the key it keeps where it was moved to by
+    // floating window -> { key, moved, timer }: the key it keeps where the person moved it to by, and whether they
+    // moved it since it was last shown
+    const floating = new WeakMap();
 
     // MARK: - Initializer
     // MARK: - Public
@@ -97,8 +99,7 @@ function createWindow({ CONFIG, THEME }) {
         });
         window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
         place(window);
-        floating.set(window, key);
-        remember(window, key);
+        keepMoves(window, key);
         window.on('focus', () => setImmediate(() => !window.isDestroyed() && window.isFocused() && focus()));
         window.on('blur', blur);
         return window;
@@ -110,7 +111,9 @@ function createWindow({ CONFIG, THEME }) {
         const { screen } = require('electron');
         const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
         const { width, height } = window.getBounds();
-        const kept = read()[floating.get(window)];
+        const moving = floating.get(window);
+        moving.moved = false;
+        const kept = read()[moving.key];
         const inside =
             !!kept &&
             kept.x >= area.x &&
@@ -162,6 +165,22 @@ function createWindow({ CONFIG, THEME }) {
             if (url.protocol === 'http:' || url.protocol === 'https:') site = url.host;
         } catch {}
         return site && title !== site ? `${title} (${site})` : title;
+    }
+
+    // Kept as the person moves it, and only then: `will-move` comes before a move they make, and never before one
+    // `setBounds` makes.
+    function keepMoves(window, key) {
+        const moving = { key, moved: false, timer: null };
+        floating.set(window, moving);
+        window.on('will-move', () => (moving.moved = true));
+        window.on('move', () => {
+            if (!moving.moved) return;
+            clearTimeout(moving.timer);
+            moving.timer = setTimeout(
+                () => !window.isDestroyed() && write({ ...read(), [key]: window.getBounds() }),
+                SAVE_DELAY
+            );
+        });
     }
 
     // Kept as it moves, and as it closes in case that came first.

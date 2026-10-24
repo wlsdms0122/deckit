@@ -269,6 +269,8 @@ function open(ui, { placeholder, fills, items, now, onQuery, onPick, onClose }) 
     const picker = ui.quickPick({
         placeholder,
         fills,
+        // Filling a window, it is all there is to move it by.
+        drags: fills,
         key: (entry) => entry.key,
         create: (entry) => {
             if (entry.heading) return headingOf(entry);

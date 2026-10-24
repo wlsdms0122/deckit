@@ -35,9 +35,9 @@ const STYLE = `
         width: 100%;
         max-height: none;
         box-shadow: none;
-        -webkit-app-region: drag;
     }
-    .deckit-modal[data-align='fill'] :is(input, textarea, select, button, a) { -webkit-app-region: no-drag; }
+    .deckit-modal[data-drags] .deckit-modal-card { -webkit-app-region: drag; }
+    .deckit-modal[data-drags] :is(input, textarea, select, button, a) { -webkit-app-region: no-drag; }
     .deckit-modal-title { font: 700 var(--deckit-type-heading); margin-bottom: 12px; }
     .deckit-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 `;
@@ -52,7 +52,8 @@ function make(theme, ui) {
 // A card over the page that holds every press. `fill(card)` puts the content in and returns what takes the
 // focus. With `chrome`, a title and Cancel and confirm buttons, a label of null leaving its button out; Enter in a
 // text field confirms. `onKey` has a key first and returns whether it took it. `align` is `center`, `top`, or
-// `fill`: the card is all the page draws, filling it, and drags the window it is in where nothing in it is pressed.
+// `fill`, the card all the page draws, filling it. With `drags` the card drags the window it is in where nothing in
+// it is pressed.
 function modal(
     ui,
     {
@@ -64,6 +65,7 @@ function modal(
         onExtra = null,
         chrome = true,
         align = 'center',
+        drags = false,
         width = 'min(420px, calc(100vw - 48px))',
         fill,
         onKey: given = () => false,
@@ -77,6 +79,7 @@ function modal(
     scrim.className = 'deckit-modal';
     scrim.dataset.align = align;
     if (!chrome) scrim.dataset.bare = '';
+    if (drags) scrim.dataset.drags = '';
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
     if (align !== 'fill') card.style.width = width;

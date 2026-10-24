@@ -36,12 +36,8 @@ const STYLE = `
     }
     .deckit-quick-pick-rule { margin: 2px 0 4px; border-top: var(--deckit-border); }
     .deckit-quick-pick-list { max-height: 44vh; overflow-y: auto; }
-    .deckit-modal[data-align='fill'] .deckit-quick-pick-list {
-        flex: 1 1 auto;
-        min-height: 0;
-        max-height: none;
-        -webkit-app-region: no-drag;
-    }
+    .deckit-modal[data-align='fill'] .deckit-quick-pick-list { flex: 1 1 auto; min-height: 0; max-height: none; }
+    .deckit-modal[data-drags] .deckit-quick-pick-list { -webkit-app-region: no-drag; }
     .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; opacity: 0.45; }
     .deckit-quick-pick-message:empty { display: none; }
     .deckit-quick-pick-message[data-alert] { opacity: 1; color: var(--deckit-alert); }
@@ -69,13 +65,15 @@ function make(theme, ui) {
 // `onEnter({ item, text })` hands both to the owner. `onKey(event)` has a key first and returns whether it took
 // it. `onActive(item, index, { pointer })` hears the active option move, and `onCommandKey(held)` the Command
 // key held down in it or let go. The field keeps the focus: a press anywhere else on the card leaves it there.
-// With `fills` it is all the page draws, filling it, and drags the window it is in.
+// With `fills` it is all the page draws, filling it, and with `drags` it drags the window it is in where nothing in
+// it is pressed.
 function quickPick(
     ui,
     {
         placeholder = '',
         value = '',
         fills = false,
+        drags = false,
         width = 'min(520px, calc(100vw - 48px))',
         key,
         create,
@@ -111,6 +109,7 @@ function quickPick(
     const modal = ui.modal({
         chrome: false,
         align: fills ? 'fill' : 'top',
+        drags,
         width,
         onKey: handleKey,
         onClose,
