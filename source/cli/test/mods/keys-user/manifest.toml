@@ -6,4 +6,4 @@ main = "main.js"
 
 [permissions]
 "deckit.app-keys" = "to test a key that works anywhere in the app"
-"deckit.key-map" = "to test binding and recording a chord"
+"deckit.keymap" = "to test binding and recording a chord"

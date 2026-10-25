@@ -4,3 +4,6 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 url-schemes = ["test-open"]
+
+[optional]
+switcher = "1.0.0"
