@@ -17,7 +17,7 @@ const NOW_WAIT_MS = 150;
 function switcher(deck, window, point) {
     const registry = deck.commandRegistry;
     const records = deck.storage.records;
-    let open = null; // the list on screen: { list, left, commands, owners, submenus }, `left` once its exit has started
+    let open = null; // the list on screen: { list, left, commands, answering, submenus }, `left` once its exit has started
     let leaving = null; // the timer that puts the window away once the list's exit has played
 
     return { toggle, putAway, closed };
@@ -32,7 +32,7 @@ function switcher(deck, window, point) {
         clearTimeout(leaving);
         leaving = null;
         if (open && !open.left) return;
-        const current = { list: null, left: false, commands: [], owners: null, submenus: new Map(), asking: null };
+        const current = { list: null, left: false, commands: [], answering: null, submenus: new Map(), asking: null };
         open = current;
         window.open();
         let supplied;
@@ -88,14 +88,14 @@ function switcher(deck, window, point) {
         const listing = Promise.all(extensions.map(([mod, extension]) => rowsOf(mod, extension, 'rows')));
         const commands = await registry.list();
         const shown = commands.some(ITEMS.isShow) ? (await registry.complete(ITEMS.SHOW, 'mod', '')) || [] : [];
+        const rows = await listing;
+        const ids = ITEMS.providersIn({ commands, rows, shown });
+        const found = await Promise.all(ids.map((id) => registry.provider(id)));
+        const about = { providers: new Map(found.filter(Boolean).map((each) => [each.id, each])), iconOf: deck.iconOf };
         current.commands = commands;
-        current.owners = {
-            names: ITEMS.namesOf(commands, shown),
-            iconOf: deck.iconOf,
-            keywords: ITEMS.keywordsOf(commands),
-        };
+        current.answering = { about, keywords: ITEMS.keywordsOf(commands) };
         const used = records.get(USE, {});
-        const items = ITEMS.listed({ commands, rows: await listing, shown, iconOf: deck.iconOf }).map((item) =>
+        const items = ITEMS.listed({ commands, rows, shown, about }).map((item) =>
             hydrate(current, { ...item, used: frecency(used[keyOf(item)]) }, { remembers: true })
         );
         const buckets = [];
@@ -103,7 +103,7 @@ function switcher(deck, window, point) {
             rowsOf(mod, extension, 'now').then(
                 ([, rows]) =>
                     (buckets[index] = rows.map((row) =>
-                        hydrate(current, ITEMS.answered('now', mod, row, current.owners))
+                        hydrate(current, ITEMS.answered('now', mod, row, current.answering))
                     ))
             )
         );
@@ -124,7 +124,7 @@ function switcher(deck, window, point) {
         for (const [mod, extension] of extensions)
             rowsOf(mod, extension, 'resolve', raw).then(([, rows]) => {
                 left--;
-                gathered.push(...rows.map((row) => hydrate(current, ITEMS.answered(raw, mod, row, current.owners))));
+                gathered.push(...rows.map((row) => hydrate(current, ITEMS.answered(raw, mod, row, current.answering))));
                 if (rows.length || !left) answer();
             });
     }
@@ -134,7 +134,7 @@ function switcher(deck, window, point) {
     // text is a value. A newer query aborts the completion before it, which answers null and is not drawn.
     async function complete(current, raw, submenu) {
         const parent = current.submenus.get(submenu);
-        const { mod, command, args, param } = parent.completes;
+        const { provider, command, args, param } = parent.completes;
         const params = paramsOf(current, parent.completes);
         const choices = PARAMS.choicesOf(params, param);
         let found = choices;
@@ -142,7 +142,7 @@ function switcher(deck, window, point) {
             current.asking?.abort();
             const asking = (current.asking = new AbortController());
             try {
-                found = await registry.complete({ mod, command }, param, raw, { args, signal: asking.signal });
+                found = await registry.complete({ provider, command }, param, raw, { args, signal: asking.signal });
             } catch (error) {
                 console.error(`[switcher] ${mod}.${command} completed nothing`, error);
                 found = [];
@@ -184,10 +184,10 @@ function switcher(deck, window, point) {
     // list; with nothing to say the list goes.
     async function go(current, item, remembers) {
         if (remembers) remember(item);
-        const { mod, command, args } = item.reference;
+        const { provider, command, args } = item.reference;
         let said = null;
         try {
-            const left = await registry.run({ mod, command }, args, { activates: true });
+            const left = await registry.run({ provider, command }, args, { activates: true });
             if (left) said = { text: left, alert: false };
         } catch (error) {
             said = { text: error?.message || String(error), alert: true };
@@ -198,8 +198,10 @@ function switcher(deck, window, point) {
     }
 
     // The schema of the args of the command `reference` names, or null for one the registry did not list.
-    function paramsOf(current, { mod, command }) {
-        return current.commands.find((entry) => entry.mod === mod && entry.command === command)?.params ?? null;
+    function paramsOf(current, { provider, command }) {
+        return (
+            current.commands.find((entry) => entry.provider === provider && entry.command === command)?.params ?? null
+        );
     }
 
     // The rows `extension` answers to `name`, as `row.js` reads them: `[mod, rows]`.
@@ -227,7 +229,7 @@ function switcher(deck, window, point) {
     // Keyed by what it runs, as an item is made fresh on every open; a read only one has none.
     function keyOf({ reference, completes }) {
         const runs = reference || completes;
-        return runs && JSON.stringify([runs.mod, runs.command, runs.args, runs.param ?? null]);
+        return runs && JSON.stringify([runs.provider, runs.command, runs.args, runs.param ?? null]);
     }
 
     // Too small to outweigh a use, the time only breaks ties, the later first.

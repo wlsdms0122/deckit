@@ -74,9 +74,9 @@ export function createKeymap() {
         document.addEventListener('focusout', tell);
     }
 
-    // The chord one of the mod's keys is bound to now, or with `owner`, one that host registered.
-    function chord(name, { owner = '' } = {}) {
-        return PROTOCOL.chord.invoke({ name: String(name), ...(owner ? { owner } : {}) });
+    // The chord one of the mod's keys is bound to now, or with `provider`, one that host registered.
+    function chord(name, { provider = '' } = {}) {
+        return PROTOCOL.chord.invoke({ name: String(name), ...(provider ? { provider } : {}) });
     }
 
     function bindings() {

@@ -49,7 +49,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
         return ({ mod, deliver, fail }) => {
             WEB.listen();
             NOTIFICATION.listen(deliver);
-            const chordOf = (name, { owner = '' } = {}) => KEYMAP.chord(name, { owner });
+            const chordOf = (name, { provider = '' } = {}) => KEYMAP.chord(name, { provider });
             const WINDOW = createWindow({ running: mod, fail, deliver });
             const context = { mod, chordOf, hasWindow: WINDOW.has, deliver, fail, channels: CHANNELS };
             const given = shellMod ? { ...NO_SHELL, ...shellMod(context) } : NO_SHELL;

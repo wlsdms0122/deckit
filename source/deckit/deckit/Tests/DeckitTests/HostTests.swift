@@ -26,13 +26,13 @@ struct HostTests {
         let sut = try deckit()
 
         // When
-        try sut.commands.define([find], owner: "@app")
-        let keymap = try sut.keymap.register(findKey, owner: "@app")
+        try sut.commands.define([find], provider: "@app")
+        let keymap = try sut.keymap.register(findKey, provider: "@app")
 
         // Then
         let find = try #require(keymap.bindings.first)
         #expect(find.binding.id == "@app.find")
-        #expect(find.binding.owner.name == "Host")
+        #expect(find.binding.provider.name == "Host")
         #expect(find.binding.keystroke == Keystroke(spec: "mod+f"))
         #expect(find.active)
         #expect(find.issues.isEmpty)
@@ -70,7 +70,7 @@ struct HostTests {
         }
         let keymap = try #require(changes.last)
         #expect(keymap.bindings.map(\.binding.id) == ["notes.next"])
-        #expect(keymap.bindings.first?.binding.owner.name == "NOTES")
+        #expect(keymap.bindings.first?.binding.provider.name == "NOTES")
     }
 
     @Test("a part kept after the deckit it came from is let go still works")
@@ -78,12 +78,12 @@ struct HostTests {
         // Given
         let sut = try {
             let deckit = try deckit()
-            try deckit.commands.define([find], owner: "@app")
+            try deckit.commands.define([find], provider: "@app")
             return deckit.keymap
         }()
 
         // When
-        let resolved = try sut.register(findKey, owner: "@app")
+        let resolved = try sut.register(findKey, provider: "@app")
 
         // Then
         #expect(resolved.bindings.map(\.binding.id) == ["@app.find"])

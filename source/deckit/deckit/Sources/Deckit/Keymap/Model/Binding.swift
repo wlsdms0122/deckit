@@ -8,12 +8,12 @@
 import Foundation
 import Deck
 
-// A key in the keymap, by its id: its owner's and its name's. It runs the owner's `command` with `args`.
+// A key in the keymap, by its id: its provider's and its name's. It runs the provider's `command` with `args`.
 // `defaultKeystroke` is the chord it is declared with, `keystroke` the one it is bound to now, none when it is
 // unbound, and `changed` whether a person changed it from today's default.
 public struct Binding: Equatable, Sendable {
     // MARK: - Property
-    public let owner: CommandOwner
+    public let provider: CommandProvider
     public let scope: KeyScope
     public let name: String
     public let command: String
@@ -24,15 +24,15 @@ public struct Binding: Equatable, Sendable {
     public let changed: Bool
 
     public var id: String {
-        owner.id(of: name)
+        provider.id(of: name)
     }
 
     // MARK: - Initializer
     // MARK: - Public
     // Whether both work in the same place, so that of a chord both are bound to only the first listed runs: keys of
-    // one scope, and in the page in front, of one owner.
+    // one scope, and in the page in front, of one provider.
     func contends(with other: Binding) -> Bool {
-        scope == other.scope && (scope.isWide || owner == other.owner)
+        scope == other.scope && (scope.isWide || provider == other.provider)
     }
 
     // MARK: - Private

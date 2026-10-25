@@ -9,7 +9,7 @@ import Foundation
 import Deck
 
 // The keys of the hosts and of the mods that run, bound to chords a person may change, and how a keystroke is resolved
-// against them. Each key runs a command of its owner's. A mod's keys are those its run contributed under `keys`,
+// against them. Each key runs a command of its provider's. A mod's keys are those its run contributed under `keys`,
 // taken while it runs and as it terminates; a host's are registered under the name it declares its commands under.
 public final class Keymap {
     // MARK: - Property
@@ -30,7 +30,7 @@ public final class Keymap {
     private let deck: Deck
     private let commands: CommandRegistry
     // In the order they were registered.
-    private var hostKeys: [(owner: CommandOwner, key: Key)] = []
+    private var hostKeys: [(provider: CommandProvider, key: Key)] = []
     // In the order they were made.
     private var overrides: [BindingOverride]
     private var told = ResolvedKeymap(revision: 0, bindings: [])
@@ -61,12 +61,12 @@ public final class Keymap {
     }
 
     // MARK: - Public
-    // A key of a host's, `owner` the name it declared the command the key runs under, working in its scope. Answers
+    // A key of a host's, `provider` the name it declared the command the key runs under, working in its scope. Answers
     // the keymap as it is resolved now.
-    public func register(_ key: Key, owner: String) throws -> ResolvedKeymap {
-        let registered = try commands.check(key.command, of: owner, args: key.args)
+    public func register(_ key: Key, provider: String) throws -> ResolvedKeymap {
+        let registered = try commands.check(key.command, of: provider, args: key.args)
         if key.args == nil && !key.label.isEmpty { throw KeymapError.labelWithoutArguments(key.name) }
-        hostKeys.append((registered.owner, key))
+        hostKeys.append((registered.provider, key))
         return tell(resolved())
     }
 
@@ -155,14 +155,14 @@ public final class Keymap {
     }
 
     // `label` is the command's, which a key without args is called by.
-    private func binding(of key: Key, owner: CommandOwner, label: String) -> Binding {
+    private func binding(of key: Key, provider: CommandProvider, label: String) -> Binding {
         let declared = Keystroke(spec: key.spec)
-        let id = owner.id(of: key.name)
+        let id = provider.id(of: key.name)
         let override = overrides.first { override in override.id == id }
         let keystroke = override.map { override in Keystroke(spec: override.spec) } ?? declared
 
         return Binding(
-            owner: owner,
+            provider: provider,
             scope: key.scope,
             name: key.name,
             command: key.command,
@@ -183,27 +183,27 @@ public final class Keymap {
             let commands = commands.declared(in: contributions)
             let label = { (key: Key) in commands.first { command in command.name == key.command }?.label ?? key.name }
             return (
-                owner: CommandOwner.mod(id: mod.manifest.id, name: mod.manifest.name),
+                provider: CommandProvider.mod(id: mod.manifest.id, name: mod.manifest.name),
                 keys: declared(in: contributions)
                     .filter { key in problem(of: key, mod: mod, commands: commands) == nil }
                     .map { key in (key, label(key)) }
             )
         }
         let listed = self.commands.list()
-        let label = { (owner: CommandOwner, key: Key) in
-            listed.first { registered in registered.owner == owner && registered.command.name == key.command }?
+        let label = { (provider: CommandProvider, key: Key) in
+            listed.first { registered in registered.provider == provider && registered.command.name == key.command }?
                 .command.label ?? key.name
         }
         let app = { (scope: KeyScope) in
             self.hostKeys
                 .filter { _, key in key.scope == scope }
-                .map { owner, key in self.binding(of: key, owner: owner, label: label(owner, key)) }
+                .map { provider, key in self.binding(of: key, provider: provider, label: label(provider, key)) }
         }
         let own = { (scope: KeyScope) in
-            mods.flatMap { owner, keys in
+            mods.flatMap { provider, keys in
                 keys
                     .filter { key, _ in key.scope == scope }
-                    .map { key, label in self.binding(of: key, owner: owner, label: label) }
+                    .map { key, label in self.binding(of: key, provider: provider, label: label) }
             }
         }
 

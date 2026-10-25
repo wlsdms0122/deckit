@@ -6,13 +6,13 @@ import * as COMMAND_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// Commands, as the core keeps them: each running mod's and each host's, found by its owner and its name, never by a
-// joined id. The core checks a command and its args before it runs; a mod's runs in its page, a host's here.
+// Commands, as the core keeps them: each running mod's and each host's, found by its provider and its name, never by
+// a joined id. The core checks a command and its args before it runs; a mod's runs in its page, a host's here.
 export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
     // MARK: - Property
     // A mod that has not answered by then completes nothing, so one stuck page does not hold the caller.
     const ANSWER_MS = 2000;
-    const hosts = new Map(); // host name -> Map of name -> { run, complete }
+    const hosts = new Map(); // a host's name, as its provider -> Map of name -> { run, complete }
     const listeners = new Set();
     const asking = new Map(); // a mod's call -> the AbortController of the completion it asked for
     let calls = 0;
@@ -24,16 +24,20 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
             IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
             return list();
         });
-        PROTOCOL.runOf.handle(({ mod, command, args, activates }, sender) => {
+        PROTOCOL.providerOf.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
-            return run({ mod, command }, args, { activates });
+            return provider(id);
         });
-        PROTOCOL.completeOf.handle(async ({ call, mod, command, param, partial, args }, sender) => {
+        PROTOCOL.runOf.handle(({ provider, command, args, activates }, sender) => {
+            IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
+            return run({ provider, command }, args, { activates });
+        });
+        PROTOCOL.completeOf.handle(async ({ call, provider, command, param, partial, args }, sender) => {
             const caller = IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
             const asked = new AbortController();
             asking.set(`${caller.id}:${call}`, asked);
             try {
-                return await complete({ mod, command }, param, partial, { args, signal: asked.signal });
+                return await complete({ provider, command }, param, partial, { args, signal: asked.signal });
             } finally {
                 asking.delete(`${caller.id}:${call}`);
             }
@@ -45,66 +49,72 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         for (const name of ['didLaunch', 'didTerminate']) RUNNER.observe(name, changed);
     }
 
-    // A host's commands, under `owner`, a name of its own that starts with "@": { name: { label, description,
+    // A host's commands, under `provider`, a name of its own that starts with "@": { name: { label, description,
     // keywords, params, run(args, { activates }), complete(param, partial, { args, signal }) } }. Resolves once the
     // core has them, and rejects with why it refused one.
-    async function define(owner, commands) {
+    async function define(provider, commands) {
         const declared = [];
         const kept = new Map();
         for (const [name, entry] of Object.entries(commands || {})) {
-            if (typeof entry?.run !== 'function') throw new Error(`[deckit] command ${owner}.${name} needs a run`);
+            if (typeof entry?.run !== 'function') throw new Error(`[deckit] command ${provider}.${name} needs a run`);
             kept.set(name, { run: entry.run, complete: typeof entry.complete === 'function' ? entry.complete : null });
             const { run: _run, complete: _complete, ...data } = entry;
             declared.push({ ...data, name });
         }
         // Kept before the core has them, so a command the core lists already runs here.
-        const before = hosts.get(owner);
-        hosts.set(owner, new Map([...(before || []), ...kept]));
+        const before = hosts.get(provider);
+        hosts.set(provider, new Map([...(before || []), ...kept]));
         try {
-            await CORE.request('command/define', { owner, commands: declared });
+            await CORE.request('command/define', { provider, commands: declared });
         } catch (error) {
-            if (before) hosts.set(owner, before);
-            else hosts.delete(owner);
+            if (before) hosts.set(provider, before);
+            else hosts.delete(provider);
             throw error;
         }
         changed();
     }
 
-    // Every command, `{ mod, modName, host, command, label, description, keywords, params }`: the hosts' first, then
-    // each running mod's in the load order.
+    // Every command, `{ provider, command, label, description, keywords, params }`: the hosts' first, then each
+    // running mod's in the load order.
     function list() {
         return CORE.request('command/list');
     }
 
-    // `{ mod, command }` run with `args`, which answers the text it leaves for a person, or null, and rejects with why
+    // The provider of `id`, `{ id, name, host }`: a host that declared commands, or a mod deck loads. Null for
+    // neither.
+    function provider(id) {
+        return CORE.request('command/provider', { id });
+    }
+
+    // `{ provider, command }` run with `args`, which answers the text it leaves for a person, or null, and rejects with why
     // it did not run. `activates` is whether the caller wants it in front.
-    async function run({ mod, command }, args = null, { activates = false } = {}) {
-        const found = await CORE.request('command/check', { mod, command, ...(args ? { args } : {}) });
-        if (found.host) {
+    async function run({ provider, command }, args = null, { activates = false } = {}) {
+        await CORE.request('command/check', { provider, command, ...(args ? { args } : {}) });
+        if (hosts.has(provider)) {
             const left = await hosts
-                .get(mod)
-                ?.get(command)
-                ?.run(args ?? {}, { activates });
+                .get(provider)
+                .get(command)
+                .run(args ?? {}, { activates });
             return typeof left === 'string' && left ? left : null;
         }
-        const page = IDENTITY.pageOf(mod);
-        if (!page) throw Object.assign(new Error(`${mod} is not running`), { kind: 'NOT_RUNNING' });
+        const page = IDENTITY.pageOf(provider);
+        if (!page) throw Object.assign(new Error(`${provider} is not running`), { kind: 'NOT_RUNNING' });
         return PROTOCOL.run.invoke(page, { command, args, activates });
     }
 
-    // The candidates for `param` of `{ mod, command }` as `partial` is typed, `[{ value, title, hint, keywords }]`
-    // ranked by the command's owner. The caller aborts `signal` when it no longer wants the answer: the owner's
-    // signal is aborted with it, and the completion answers null.
-    async function complete({ mod, command }, param, partial = '', { args = null, signal = null } = {}) {
-        const found = await CORE.request('command/find', { mod, command });
+    // The candidates for `param` of `{ provider, command }` as `partial` is typed, `[{ value, title, hint, keywords }]`
+    // ranked by the provider. The caller aborts `signal` when it no longer wants the answer: the provider's signal is
+    // aborted with it, and the completion answers null.
+    async function complete({ provider, command }, param, partial = '', { args = null, signal = null } = {}) {
+        await CORE.request('command/find', { provider, command });
         const asked = signal || new AbortController().signal;
-        if (found.host) {
-            const answer = hosts.get(mod)?.get(command)?.complete;
+        if (hosts.has(provider)) {
+            const answer = hosts.get(provider).get(command).complete;
             if (!answer) return [];
             const candidates = await answer(param, partial, { args: args ?? {}, signal: asked });
             return asked.aborted ? null : CANDIDATE.candidatesOf(candidates);
         }
-        const page = IDENTITY.pageOf(mod);
+        const page = IDENTITY.pageOf(provider);
         if (!page) return [];
         const call = ++calls;
         const stop = () => PROTOCOL.abort.send(page, { call });
@@ -117,7 +127,7 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
             );
             return asked.aborted ? null : candidates;
         } catch (error) {
-            LOG.warn(`${mod}: completing ${command} failed`, error);
+            LOG.warn(`${provider}: completing ${command} failed`, error);
             return [];
         } finally {
             asked.removeEventListener('abort', stop);
@@ -140,5 +150,5 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         }
     }
 
-    return { start, define, list, run, complete, onChange };
+    return { start, define, list, provider, run, complete, onChange };
 }

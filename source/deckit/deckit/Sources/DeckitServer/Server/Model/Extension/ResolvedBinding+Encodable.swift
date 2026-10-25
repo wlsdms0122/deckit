@@ -8,16 +8,14 @@
 import Foundation
 import Deckit
 
-// One object: the binding, with `key` and `spec` as written, `chord` and `defaultChord` as a person reads them, `host`
-// for a host's own, the `command` it runs with `args`, and what the driver resolves a keystroke with, `keystroke` and
+// One object: the binding, with `key` and `spec` as written, `chord` and `defaultChord` as a person reads them, the
+// `provider` of the `command` it runs with `args`, and what the driver resolves a keystroke with, `keystroke` and
 // `takenByFields` (a field with focus may take it).
 extension ResolvedBinding: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case id
-        case owner
-        case ownerName
-        case host
+        case provider
         case scope
         case name
         case command
@@ -39,9 +37,7 @@ extension ResolvedBinding: Encodable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(binding.id, forKey: .id)
-        try container.encode(binding.owner.id, forKey: .owner)
-        try container.encode(binding.owner.name, forKey: .ownerName)
-        try container.encode(binding.owner.isHost, forKey: .host)
+        try container.encode(binding.provider.id, forKey: .provider)
         try container.encode(binding.scope, forKey: .scope)
         try container.encode(binding.name, forKey: .name)
         try container.encode(binding.command, forKey: .command)

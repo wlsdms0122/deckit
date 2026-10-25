@@ -243,7 +243,7 @@ final class Server {
 
         case "keymap/register":
             let params = try request.decodeParams(as: RegisterKeyParams.self)
-            return try deckit.keymap.register(params.key, owner: params.owner)
+            return try deckit.keymap.register(params.key, provider: params.provider)
 
         case "keymap/bind":
             let params = try request.decodeParams(as: BindKeyParams.self)
@@ -260,7 +260,7 @@ final class Server {
 
         case "command/define":
             let params = try request.decodeParams(as: DefineCommandsParams.self)
-            try deckit.commands.define(params.commands, owner: params.owner)
+            try deckit.commands.define(params.commands, provider: params.provider)
             return true
 
         case "command/list":
@@ -268,11 +268,14 @@ final class Server {
 
         case "command/find":
             let params = try request.decodeParams(as: CheckCommandParams.self)
-            return try deckit.commands.find(params.command, of: params.mod)
+            return try deckit.commands.find(params.command, of: params.provider)
 
         case "command/check":
             let params = try request.decodeParams(as: CheckCommandParams.self)
-            return try deckit.commands.check(params.command, of: params.mod, args: params.args)
+            return try deckit.commands.check(params.command, of: params.provider, args: params.args)
+
+        case "command/provider":
+            return deckit.commands.provider(of: try request.decodeParams(as: ProviderParams.self).id)
 
         case "open/route":
             let params = try request.decodeParams(as: RouteParams.self)

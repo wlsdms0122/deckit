@@ -17,7 +17,7 @@ struct CommandRegistryTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("the commands are the hosts' as declared, then each running mod's in the load order")
+    @Test("the commands are the hosts' as declared, then each running mod's in the load order, each found by its provider")
     func commandsAreTheHostsThenTheRuns() throws {
         // Given
         try fixture.write("a")
@@ -25,17 +25,20 @@ struct CommandRegistryTests {
         let sut = try fixture.deckit()
 
         // When
-        try sut.commands.define([command("toggle-sidebar")], owner: "@shell")
+        try sut.commands.define([command("toggle-sidebar")], provider: "@shell")
         _ = try sut.started("b", run: 1, contributing: ["commands": .array([command("open")])])
         _ = try sut.started("a", run: 1, contributing: ["commands": .array([command("reload"), command("copy")])])
         let listed = sut.commands.list()
 
         // Then
-        #expect(listed.map { registered in registered.owner.id(of: registered.command.name) } == [
+        #expect(listed.map { registered in registered.provider.id(of: registered.command.name) } == [
             "@shell.toggle-sidebar", "a.reload", "a.copy", "b.open"
         ])
-        #expect(listed.map(\.owner.isHost) == [true, false, false, false])
-        #expect(listed[1].owner.name == "A")
+        #expect(listed.map(\.provider.isHost) == [true, false, false, false])
+        #expect(listed[1].provider.name == "A")
+        #expect(sut.commands.provider(of: "@shell")?.isHost == true)
+        #expect(sut.commands.provider(of: "b") == .mod(id: "b", name: "B"))
+        #expect(sut.commands.provider(of: "c") == nil)
     }
 
     @Test("a declaration that cannot be used is told as the mod starts and left out", arguments: [
@@ -67,7 +70,7 @@ struct CommandRegistryTests {
         #expect(sut.commands.list().isEmpty)
     }
 
-    @Test("a command is found by its owner and its name, and checked with args that fit what it takes")
+    @Test("a command is found by its provider and its name, and checked with args that fit what it takes")
     func checkFindsTheCommandWithArgsThatFit() throws {
         // Given
         try fixture.write("a")
@@ -97,7 +100,7 @@ struct CommandRegistryTests {
             ("show-tab", "a", .object(["index": .number(1.5)])),
             ("show-tab", "a", .object(["index": .number(0), "side": .string("right")])),
             ("b", "a", .object(["index": .number(0)]))
-        ].map { name, owner, args in refusal(sut, name, of: owner, args: args) }
+        ].map { name, provider, args in refusal(sut, name, of: provider, args: args) }
 
         // Then
         #expect(found.command.label == "Show Tab")
@@ -116,12 +119,12 @@ struct CommandRegistryTests {
     func hostDeclaresEachNameOnce() throws {
         // Given
         let sut = try fixture.deckit()
-        try sut.commands.define([command("show")], owner: "@shell")
+        try sut.commands.define([command("show")], provider: "@shell")
 
         // When
-        let again = refusal { try sut.commands.define([command("show")], owner: "@shell") }
-        let unnamed = refusal { try sut.commands.define([command("show")], owner: "shell") }
-        let other = refusal { try sut.commands.define([command("show")], owner: "@app") }
+        let again = refusal { try sut.commands.define([command("show")], provider: "@shell") }
+        let unnamed = refusal { try sut.commands.define([command("show")], provider: "shell") }
+        let other = refusal { try sut.commands.define([command("show")], provider: "@app") }
 
         // Then
         #expect(again == "@shell.show is declared already")
@@ -134,8 +137,8 @@ struct CommandRegistryTests {
         .object(["name": .string(name), "label": .string(name.capitalized)])
     }
 
-    private func refusal(_ sut: Deckit, _ name: String, of owner: String, args: JSONValue?) -> String? {
-        refusal { _ = try sut.commands.check(name, of: owner, args: args) }
+    private func refusal(_ sut: Deckit, _ name: String, of provider: String, args: JSONValue?) -> String? {
+        refusal { _ = try sut.commands.check(name, of: provider, args: args) }
     }
 
     private func refusal(_ body: () throws -> Void) -> String? {

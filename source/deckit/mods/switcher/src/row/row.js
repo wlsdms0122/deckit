@@ -7,7 +7,7 @@ const { TONES } = require('./tone.js');
 // label: `{ label, hint, icon, group, tone, attention, fallback, reference, completes }`. A row runs a command of
 // `mod`, the mod whose extension handed it, by the reference in its `run`, `{ command, args }`, or opens a list to
 // fill an arg of one by `completes`, `{ command, args, param }`; one with neither is read only. A reference is
-// `{ mod, command, args }`: its `command` is a name in `mod`, so a row runs none but its own mod's.
+// `{ provider, command, args }` with `mod` as its provider, so a row runs none but its own mod's commands.
 function read(mod, row) {
     if (!row || typeof row.label !== 'string' || !row.label) return null;
     const reference = referenceOf(mod, row.run);
@@ -30,7 +30,7 @@ function read(mod, row) {
 function referenceOf(mod, given) {
     if (typeof given?.command !== 'string') return null;
     const args = given.args && typeof given.args === 'object' ? given.args : {};
-    return { mod, command: given.command, args };
+    return { provider: mod, command: given.command, args };
 }
 
 function text(value) {

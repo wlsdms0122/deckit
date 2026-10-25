@@ -60,7 +60,7 @@ module.exports = {
             onFailure: mods.showNotice,
         });
         const urlSchemes = urlSchemesSection({ ui, urlSchemes: deck.urlSchemes, appName: APP_NAME });
-        const keyboard = keyboardSection({ ui, keymap: deck.keymap });
+        const keyboard = keyboardSection({ ui, keymap: deck.keymap, registry: deck.commandRegistry });
         const sections = [mods, modSettings, urlSchemes, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
@@ -120,7 +120,7 @@ module.exports = {
             for (const mod of now)
                 drawnKeys.set(
                     mod.id,
-                    listed.filter(({ owner }) => owner === mod.id)
+                    listed.filter(({ provider }) => provider === mod.id)
                 );
             const restarting = found.filter((mod) => mod.launched).map((mod) => mod.launched);
             const running = [...now, ...restarting];

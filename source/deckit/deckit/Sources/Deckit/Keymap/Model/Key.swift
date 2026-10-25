@@ -8,8 +8,8 @@
 import Foundation
 import Deck
 
-// A key as its owner declares it: its name, the owner's command it runs with `args`, its default chord as written,
-// what a person reads it as when it has args, and where it works.
+// A key as its provider declares it: its name, the provider's command it runs with `args`, its default chord as
+// written, what a person reads it as when it has args, and where it works.
 public struct Key: Decodable, Equatable, Sendable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {

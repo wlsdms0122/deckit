@@ -86,6 +86,7 @@ export function createApi({
             commands: Object.freeze({
                 define: COMMAND.define,
                 list: COMMAND.list,
+                provider: COMMAND.provider,
                 run: COMMAND.run,
                 complete: (command, param, partial, { args, signal } = {}) =>
                     COMMAND.complete(command, param, partial, { args, signal }),

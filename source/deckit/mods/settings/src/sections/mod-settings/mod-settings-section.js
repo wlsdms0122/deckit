@@ -67,7 +67,7 @@ function modSettingsSection({ ui, modSettings, actions, registry, nameOf, onFail
     }
 
     // The buttons each mod adds, `[mod id, buttons]`, each `{ button, hint, after, reference }`: `reference` is the
-    // command of that mod it runs, `{ mod, command, args }`, and `after` the key of the setting it follows.
+    // command of that mod it runs, `{ provider, command, args }`, and `after` the key of the setting it follows.
     function buttonsOf() {
         return Promise.all(
             Object.entries(actions.extensions()).map(async ([mod, extension]) => {
@@ -224,14 +224,14 @@ function modSettingsSection({ ui, modSettings, actions, registry, nameOf, onFail
     }
 
     function actionButton(item, answer) {
-        const { mod, command, args } = item.reference;
+        const { provider, command, args } = item.reference;
         return ui.button({
             label: item.button,
             onClick: async () => {
                 answer.hidden = true;
                 let text = '';
                 try {
-                    text = (await registry.run({ mod, command }, args, { activates: true })) || '';
+                    text = (await registry.run({ provider, command }, args, { activates: true })) || '';
                 } catch (error) {
                     text = 'Did not work: ' + error.message;
                 }
@@ -272,7 +272,7 @@ function buttonOf(mod, action) {
         button: action.button,
         hint: typeof action.hint === 'string' ? action.hint : '',
         after: typeof action.after === 'string' ? action.after : '',
-        reference: { mod, command: action.run.command, args },
+        reference: { provider: mod, command: action.run.command, args },
     };
 }
 

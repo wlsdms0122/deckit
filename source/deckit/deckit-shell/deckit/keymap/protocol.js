@@ -3,10 +3,10 @@ import * as CHANNEL from '../../deck/channel/index.js';
 // A field has the keyboard, so a chord a field takes is the field's.
 export const typing = CHANNEL.pageToMain('deckit-shell:keymap-typing', { on: 'boolean' });
 export const record = CHANNEL.pageToMain('deckit-shell:keymap-record', { on: 'boolean' });
-// The chord bound now to a key of the sending mod's, or of the host `owner`, by its name, as a person reads it.
+// The chord bound now to a key of the sending mod's, or of the host `provider`, by its name, as a person reads it.
 export const chord = CHANNEL.pageToMain(
     'deckit-shell:keymap-chord',
-    { name: 'string', owner: 'string?' },
+    { name: 'string', provider: 'string?' },
     { reply: true, sync: true }
 );
 // deckit.keymap

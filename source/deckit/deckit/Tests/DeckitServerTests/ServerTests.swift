@@ -360,12 +360,12 @@ struct ServerTests {
 
         // When
         let defined = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"command/define","params":{"owner":"@app","#
+            #"{"jsonrpc":"2.0","id":5,"method":"command/define","params":{"provider":"@app","#
                 + #""commands":[{"name":"go","label":"Go"}]}}"#,
             to: sut
         )
         let registered = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"owner":"@app","key":{"name":"go","#
+            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"provider":"@app","key":{"name":"go","#
                 + #""command":"go","key":"mod+1","label":"","scope":"local"}}}"#,
             to: sut
         )
@@ -385,9 +385,14 @@ struct ServerTests {
         )
         let listed = try send(#"{"jsonrpc":"2.0","id":9,"method":"command/list"}"#, to: sut)
         let checked = try send(
-            #"{"jsonrpc":"2.0","id":10,"method":"command/check","params":{"mod":"mail","command":"compose"}}"#,
+            #"{"jsonrpc":"2.0","id":10,"method":"command/check","params":{"provider":"mail","command":"compose"}}"#,
             to: sut
         )
+        let provider = try send(
+            #"{"jsonrpc":"2.0","id":11,"method":"command/provider","params":{"id":"@app"}}"#,
+            to: sut
+        )
+        let nobody = try send(#"{"jsonrpc":"2.0","id":12,"method":"command/provider","params":{"id":"post"}}"#, to: sut)
 
         // Then
         guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let go = bindings.first else {
@@ -401,11 +406,15 @@ struct ServerTests {
         #expect(value(in: set, at: "result") == .bool(true))
         #expect(value(in: routed, at: "result", "handlers") == .array([.string("mail")]))
         #expect(listed == (try json(
-            #"{"jsonrpc":"2.0","id":9,"result":[{"mod":"@app","modName":"Deckit","host":true,"command":"go","#
-                + #""label":"Go","description":"","keywords":[],"params":null},{"mod":"mail","modName":"mail","#
-                + #""host":false,"command":"compose","label":"Compose","description":"","keywords":[],"params":null}]}"#
+            #"{"jsonrpc":"2.0","id":9,"result":[{"provider":"@app","command":"go","label":"Go","description":"","#
+                + #""keywords":[],"params":null},{"provider":"mail","command":"compose","label":"Compose","#
+                + #""description":"","keywords":[],"params":null}]}"#
         )))
         #expect(value(in: checked, at: "result", "command") == .string("compose"))
+        #expect(value(in: provider, at: "result") == .object([
+            "id": .string("@app"), "name": .string("Deckit"), "host": .bool(true),
+        ]))
+        #expect(value(in: nobody, at: "result") == .null)
     }
 
     @Test("a setting lists as Settings reads it: the declaration's fields, `default` as declared, value and options")
@@ -444,13 +453,13 @@ struct ServerTests {
         // Given
         _ = try send(initializeRequest, to: sut)
         _ = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"command/define","params":{"owner":"@app","#
+            #"{"jsonrpc":"2.0","id":2,"method":"command/define","params":{"provider":"@app","#
                 + #""commands":[{"name":"one","label":"One"},{"name":"two","label":"Two"}]}}"#,
             to: sut
         )
         for (id, (name, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
             _ = try send(
-                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"owner":"@app","#
+                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"provider":"@app","#
                     + #""key":{"name":"\#(name)","command":"\#(name)","key":"\#(spec)","label":"","scope":"local"}}}"#,
                 to: sut
             )
@@ -479,8 +488,7 @@ struct ServerTests {
         #expect(value(in: two, at: "keystroke", "code") == .string("Digit1"))
         #expect(value(in: held, at: "kind") == .string("held"))
         #expect(value(in: held, at: "other", "id") == .string("@app.one"))
-        #expect(value(in: held, at: "other", "ownerName") == .string("Deckit"))
-        #expect(value(in: held, at: "other", "host") == .bool(true))
+        #expect(value(in: held, at: "other", "provider") == .string("@app"))
     }
 
     @Test("a result that cannot be written is answered with an internal error, never dropped")

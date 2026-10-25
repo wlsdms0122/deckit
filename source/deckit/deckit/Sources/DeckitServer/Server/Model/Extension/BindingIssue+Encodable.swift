@@ -20,10 +20,8 @@ extension BindingIssue: Encodable {
         case id
         case chord
         case label
-        case owner
-        case ownerName
+        case provider
         case scope
-        case host
     }
 
     // MARK: - Initializer
@@ -35,10 +33,8 @@ extension BindingIssue: Encodable {
         try facts.encode(other.id, forKey: .id)
         try facts.encode(other.keystroke?.label ?? "", forKey: .chord)
         try facts.encode(other.label, forKey: .label)
-        try facts.encode(other.owner.id, forKey: .owner)
-        try facts.encode(other.owner.name, forKey: .ownerName)
+        try facts.encode(other.provider.id, forKey: .provider)
         try facts.encode(other.scope, forKey: .scope)
-        try facts.encode(other.owner.isHost, forKey: .host)
     }
 
     // MARK: - Private

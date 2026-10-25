@@ -62,13 +62,12 @@ async function main() {
         ...modifiers,
     });
     const binding = (fields) => ({
-        id: `${fields.owner}.${fields.name}`,
+        id: `${fields.provider}.${fields.name}`,
         command: fields.name,
         args: null,
         active: true,
         takenByFields: false,
         scope: 'local',
-        host: fields.owner === '@app',
         ...fields,
     });
 
@@ -113,21 +112,21 @@ async function main() {
         anywhere: { command: 'any', key: 'Ctrl+Space', scope: 'global' },
     });
     const anywhere = (fields) =>
-        binding({ name: 'anywhere', command: 'any', owner: '@app', scope: 'global', chord: '⌃Space', ...fields });
+        binding({ name: 'anywhere', command: 'any', provider: '@app', scope: 'global', chord: '⌃Space', ...fields });
     // As the core lists them, the narrowest scope first.
     bindingsChanged({
         revision: 1,
         bindings: [
             binding({
                 name: 'copy',
-                owner: 'a',
+                provider: 'a',
                 takenByFields: true,
                 keystroke: keystroke('KeyC', { meta: true }),
             }),
-            binding({ name: 'go', owner: 'a', keystroke: keystroke('KeyG', { meta: true }) }),
-            binding({ name: 'switch', owner: '@app', keystroke: keystroke('KeyK', { meta: true }) }),
-            binding({ name: 'summon', owner: '@app', scope: 'app', keystroke: keystroke('Space', { alt: true }) }),
-            binding({ name: 'find', owner: '@app', scope: 'app', keystroke: keystroke('KeyG', { meta: true }) }),
+            binding({ name: 'go', provider: 'a', keystroke: keystroke('KeyG', { meta: true }) }),
+            binding({ name: 'switch', provider: '@app', keystroke: keystroke('KeyK', { meta: true }) }),
+            binding({ name: 'summon', provider: '@app', scope: 'app', keystroke: keystroke('Space', { alt: true }) }),
+            binding({ name: 'find', provider: '@app', scope: 'app', keystroke: keystroke('KeyG', { meta: true }) }),
             anywhere({ keystroke: keystroke('Space', { control: true }) }),
         ],
     });
@@ -183,13 +182,13 @@ async function main() {
         () => (threw = true)
     );
     check('a key of no known scope is refused', threw, threw);
-    // A key that works in every app tells the core its owner and scope, and is held as a hotkey.
+    // A key that works in every app tells the core its provider and scope, and is held as a hotkey.
     const registered = asked.find(
         ({ method, params }) => method === 'keymap/register' && params.key.name === 'anywhere'
     );
     check(
-        'a key tells the core its owner, command and scope',
-        registered?.params.owner === '@app' &&
+        'a key tells the core its provider, command and scope',
+        registered?.params.provider === '@app' &&
             registered.params.key.command === 'any' &&
             registered.params.key.scope === 'global',
         registered
@@ -242,7 +241,7 @@ async function main() {
         revision: 6,
         bindings: [
             anywhere({ ...onJ, id: '@app.anywhere' }),
-            binding({ ...onJ, name: 'shared', owner: 'a', scope: 'global' }),
+            binding({ ...onJ, name: 'shared', provider: 'a', scope: 'global' }),
         ],
     });
     check('two keys on one chord hold it once', hotkeys.length === 4 && hotkeys[3].held, hotkeys);
@@ -254,7 +253,7 @@ async function main() {
         bindings: [
             binding({
                 name: 'call',
-                owner: 'a',
+                provider: 'a',
                 scope: 'global',
                 chord: '⌥K',
                 keystroke: keystroke('KeyK', { alt: true }),
@@ -273,7 +272,7 @@ async function main() {
     // A hotkey pressed where a listened page has the keyboard lands there, so a narrower key on its chord wins.
     bindingsChanged({
         revision: 8,
-        bindings: [binding({ ...onJ, name: 'jump', owner: '@app' }), anywhere({ ...onJ, id: '@app.anywhere' })],
+        bindings: [binding({ ...onJ, name: 'jump', provider: '@app' }), anywhere({ ...onJ, id: '@app.anywhere' })],
     });
     const onShared = hotkeys.at(-1);
     inFront = shell;

@@ -8,8 +8,8 @@
 import Foundation
 import Deck
 
-// A command as its owner declares it: its name among the owner's, what a person and any caller read it as, and the
-// arguments it takes, none without `params`.
+// A command as its provider declares it: its name among the provider's, what a person and any caller read it as, and
+// the arguments it takes, none without `params`.
 public struct Command: Equatable, Sendable {
     // MARK: - Property
     public let name: String

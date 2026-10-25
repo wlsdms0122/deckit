@@ -405,7 +405,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     // running, `problem` what went wrong with one that is. Permissions are read from the folder, so one that did not
     // load still shows the permissions it asks for.
     function modRowsOf({ found, running, shortcuts, handlerLists, pinned }) {
-        const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.owner === id);
+        const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.provider === id);
         const fromDisk = (mod) => ({
             version: mod?.version,
             installed: mod?.installed,

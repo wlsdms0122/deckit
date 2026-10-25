@@ -47,18 +47,19 @@ export function createCommand() {
         }
     }
 
-    // What every mod and host declared, for a mod with deckit.command-registry: `list()`, `run(command, args,
-    // { activates })` with `command` `{ mod, command }`, which answers the text the command leaves for a person or
-    // null, `complete(command, param, partial, { args, signal })` and `onChange(listener)`.
+    // What every mod and host declared, for a mod with deckit.command-registry: `list()`, `provider(id)`,
+    // `run(command, args, { activates })` with `command` `{ provider, command }`, which answers the text the command
+    // leaves for a person or null, `complete(command, param, partial, { args, signal })` and `onChange(listener)`.
     const registry = Object.freeze({
         list: () => PROTOCOL.list.invoke({}),
-        run: ({ mod, command }, args, { activates = false } = {}) =>
-            PROTOCOL.runOf.invoke({ mod: String(mod), command: String(command), ...argsOf(args), activates }),
-        complete({ mod, command }, param, partial, { args, signal } = {}) {
+        provider: (id) => PROTOCOL.providerOf.invoke({ id: String(id) }),
+        run: ({ provider, command }, args, { activates = false } = {}) =>
+            PROTOCOL.runOf.invoke({ provider: String(provider), command: String(command), ...argsOf(args), activates }),
+        complete({ provider, command }, param, partial, { args, signal } = {}) {
             const call = ++calls;
             const asked = PROTOCOL.completeOf.invoke({
                 call,
-                mod: String(mod),
+                provider: String(provider),
                 command: String(command),
                 param: String(param),
                 partial: String(partial ?? ''),

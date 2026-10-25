@@ -28,7 +28,7 @@ export function createPanel({ REGION, deckit, host }) {
         settling: null,
         animates: null,
     };
-    const OWNER = '@shell'; // the name the shell declares its commands and keys under
+    const PROVIDER = '@shell'; // the name the shell declares its commands and keys under
     const NAMED_KEYS = new Set(['back', 'forward']); // the panel's keys a tooltip names
     const history = { list: [], at: -1 };
     let stage = null; // where the pages are laid, which the host app places
@@ -125,7 +125,7 @@ export function createPanel({ REGION, deckit, host }) {
             return { glass: TOKEN.GLASS, look: frameLook(), shown, state: stateOf() };
         });
         PROTOCOL.chord.handle(({ action }, sender) =>
-            fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(OWNER, action) : ''
+            fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(PROVIDER, action) : ''
         );
         PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
@@ -248,7 +248,7 @@ export function createPanel({ REGION, deckit, host }) {
     // `show` puts a mod on screen, by its id, its candidates every mod there is to show.
     function declareCommands() {
         deckit.commands
-            .define(OWNER, {
+            .define(PROVIDER, {
                 show: {
                     label: 'Show',
                     description: 'Puts a mod on screen in the panel.',
@@ -272,7 +272,7 @@ export function createPanel({ REGION, deckit, host }) {
                 forward: { label: 'Forward to the Next Mod', run: () => step(1) },
             })
             .then(() =>
-                deckit.keymap.register(OWNER, {
+                deckit.keymap.register(PROVIDER, {
                     toggleSidebar: { command: 'toggle-sidebar', key: 'mod+\\' },
                     back: { command: 'back', key: 'ctrl+mod+[' },
                     forward: { command: 'forward', key: 'ctrl+mod+]' },

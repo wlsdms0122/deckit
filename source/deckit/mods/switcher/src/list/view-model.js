@@ -51,7 +51,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
                 number: numbers.indexOf(index) + 1,
                 actionable: isActionable(item),
                 // Laid out, a heading says whose a row is; ranked, the row says it itself.
-                hint: item.hint || (headings.size || item.lead ? '' : ownerOf(item)),
+                hint: item.hint || (headings.size || item.lead ? '' : placeOf(item)),
             };
         });
         return {
@@ -286,14 +286,14 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
         }
         const sections = new Map();
         for (const item of items) {
-            const mod = item.mod?.id || '';
-            if (!sections.has(mod)) sections.set(mod, { mod: item.mod, groups: new Map([['', []]]) });
-            const { groups } = sections.get(mod);
+            const id = item.section?.id || '';
+            if (!sections.has(id)) sections.set(id, { section: item.section, groups: new Map([['', []]]) });
+            const { groups } = sections.get(id);
             if (!groups.has(item.group || '')) groups.set(item.group || '', []);
             groups.get(item.group || '').push(item);
         }
-        for (const { mod, groups } of sections.values()) {
-            heading({ kind: 'section', label: mod?.name || '', icon: mod?.icon || '' });
+        for (const { section, groups } of sections.values()) {
+            heading({ kind: 'section', label: section?.name || '', icon: section?.icon || '' });
             for (const [group, members] of groups) {
                 if (!members.length) continue;
                 if (group) heading({ kind: 'group', label: group });
@@ -325,15 +325,15 @@ function isActionable(item) {
     return typeof item?.run === 'function';
 }
 
-function ownerOf(item) {
-    return [item.mod?.name, item.group].filter(Boolean).join(' › ');
+function placeOf(item) {
+    return [item.section?.name, item.group].filter(Boolean).join(' › ');
 }
 
-// Whose it is and its group may fill a word but never beat a match found in a name.
+// Its section and its group may fill a word but never beat a match found in a name.
 function fieldsOf(item, TIER) {
     return [
         { text: item.label, name: true },
-        { text: [item.mod?.name, item.group].filter(Boolean).join(' '), weight: 0.9, cap: TIER.WORD },
+        { text: [item.section?.name, item.group].filter(Boolean).join(' '), weight: 0.9, cap: TIER.WORD },
         { text: item.keywords || '', weight: 0.8, cap: TIER.INSIDE },
     ];
 }

@@ -8,10 +8,10 @@
 import Foundation
 import Deck
 
-// A host's commands as declared, under `owner`, its name.
+// A host's commands as declared, under `provider`, its name.
 struct DefineCommandsParams: Decodable {
     // MARK: - Property
-    let owner: String
+    let provider: String
     let commands: [JSONValue]
 
     // MARK: - Initializer

@@ -1,5 +1,5 @@
 //
-//  CommandOwner.swift
+//  CommandProvider.swift
 //  Deckit
 //
 //  Created by JSilver on 10/20/26.
@@ -7,9 +7,10 @@
 
 import Foundation
 
-// Whose commands and keys they are: a host's, under a name the host gives that starts with "@" (the host app's, the
-// shell it puts on deckit), or a mod's, which its run contributed. Each with its name as a person reads it.
-public enum CommandOwner: Equatable, Sendable {
+// What declares commands and the keys that run them, and runs them: a host, under a name it gives that starts with
+// "@" (the host app, the shell it puts on deckit), or a mod, whose run contributed them. Each with its name as a
+// person reads it.
+public enum CommandProvider: Equatable, Sendable {
     case host(id: String, name: String)
     case mod(id: String, name: String)
 
@@ -36,7 +37,7 @@ public enum CommandOwner: Equatable, Sendable {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The id of the owner's command or binding of `name`, as a person reads it.
+    // The id of the provider's command or binding of `name`, as a person reads it.
     func id(of name: String) -> String {
         "\(id).\(name)"
     }

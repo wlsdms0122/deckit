@@ -253,10 +253,10 @@ struct KeymapTests {
         _ spec: String,
         scope: KeyScope = .local
     ) throws -> ResolvedKeymap {
-        try sut.commands.define([.object(["name": .string(name), "label": .string(name)])], owner: "@app")
+        try sut.commands.define([.object(["name": .string(name), "label": .string(name)])], provider: "@app")
         return try sut.keymap.register(
             Key(name: name, command: name, args: nil, spec: spec, label: "", scope: scope),
-            owner: "@app"
+            provider: "@app"
         )
     }
 }

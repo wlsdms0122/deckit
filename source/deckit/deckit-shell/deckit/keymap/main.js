@@ -14,6 +14,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WI
     const hotkeys = new Map(); // chord -> its off, or null where the system did not give it, as each is held in any app
     const typing = new WeakSet(); // pages with a field focused
     const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
+    const hosts = new Set(); // the providers whose keys a host registered here, which run here
     const listened = new WeakMap(); // page -> the deckit page a keystroke there belongs to, or null
     let keymap = { revision: 0, bindings: [] };
     let recording = null; // { page, drop, timer }
@@ -32,7 +33,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WI
             if (on) startRecording(sender);
             else if (recording?.page === sender) stopRecording(false);
         });
-        PROTOCOL.chord.handle(({ name, owner }, sender) => chordOf(owner || IDENTITY.modFrom(sender).id, name));
+        PROTOCOL.chord.handle(({ name, provider }, sender) => chordOf(provider || IDENTITY.modFrom(sender).id, name));
         PROTOCOL.bindings.handle((_payload, sender) => {
             IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEYMAP);
             return keymap.bindings;
@@ -92,16 +93,16 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WI
         });
     }
 
-    // A host's keys, under `owner`, the name it declared their commands under: { name: { command, args, label, key,
+    // A host's keys, under `provider`, the name it declared their commands under: { name: { command, args, label, key,
     // scope } }, each running that command with `args`. By its `scope` a key works in the page in front, anywhere a
     // page is listened to, or in every app too. Resolves once the core has them, and rejects with why it refused
     // one, as one whose command is not declared.
-    async function register(owner, keys) {
+    async function register(provider, keys) {
         for (const [name, { command, args = null, label = '', key = '', scope = 'local' } = {}] of Object.entries(
             keys || {}
         )) {
             if (!KEY_SCOPE.SCOPES.includes(scope))
-                throw new Error(`[deckit] the key ${owner}.${name} has no scope ${scope}`);
+                throw new Error(`[deckit] the key ${provider}.${name} has no scope ${scope}`);
             const declared = {
                 name,
                 command,
@@ -110,14 +111,15 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WI
                 label: String(label),
                 scope,
             };
-            keep(await CORE.request('keymap/register', { owner, key: declared }));
+            keep(await CORE.request('keymap/register', { provider, key: declared }));
+            hosts.add(provider);
         }
     }
 
-    // The chord `owner`'s key `name` is bound to now, as a person reads it, or ''.
-    function chordOf(owner, name) {
+    // The chord `provider`'s key `name` is bound to now, as a person reads it, or ''.
+    function chordOf(provider, name) {
         return (
-            keymap.bindings.find((binding) => binding.owner === owner && binding.name === name && binding.active)
+            keymap.bindings.find((binding) => binding.provider === provider && binding.name === name && binding.active)
                 ?.chord || ''
         );
     }
@@ -207,18 +209,18 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WI
         if (KEY_SCOPE.isWide(binding.scope)) return true;
         if (!page || !(WINDOW.isActive(page) || delegated.isActive(page))) return false;
         if (binding.takenByFields && typing.has(page)) return false;
-        return binding.host || binding.owner === IDENTITY.modOf(page)?.id;
+        return hosts.has(binding.provider) || binding.provider === IDENTITY.modOf(page)?.id;
     }
 
     // A host's key runs its command here, and a mod's in its page, which drops it behind a dialog.
     function run(binding) {
-        if (binding.host) {
-            COMMAND.run({ mod: binding.owner, command: binding.command }, binding.args, { activates: true }).catch(
-                (error) => LOG.error(`${binding.owner}.${binding.name}: ${binding.command} did not run`, error)
-            );
+        if (hosts.has(binding.provider)) {
+            COMMAND.run({ provider: binding.provider, command: binding.command }, binding.args, {
+                activates: true,
+            }).catch((error) => LOG.error(`${binding.id}: ${binding.command} did not run`, error));
             return true;
         }
-        const page = IDENTITY.pageOf(binding.owner);
+        const page = IDENTITY.pageOf(binding.provider);
         if (!page) return false;
         PROTOCOL.key.send(page, { name: binding.name });
         return true;
