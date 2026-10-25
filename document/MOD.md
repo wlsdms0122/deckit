@@ -170,7 +170,7 @@ deck.commands({
 
 What the mod does, by name, for anyone to run: a person through a key or the switcher, another mod through `deck.commandRegistry`. A name is ASCII letters, digits, `_` and `-`, and `label` is required. `params` is a subset of JSON Schema: `type: 'object'` at the top, and `type`, `properties`, `required`, `items`, `enum`, `oneOf` of `{ const, title, description }`, `title` and `description`; the core refuses any other keyword and checks the args against `params` before every run. A command has no icon. Commands are public.
 
-`run(args, { activates })` may return text for a person; a throw is why it did not run, and a key's throw goes to the mod's row. `activates` is whether the caller wants it in front, because a person picked or pressed it: a command that shows itself calls `deck.show()` only then. `complete(param, partial, { args, signal })` answers `[{ value, title, hint, keywords }]` for a param being typed, ranked by the mod; `signal` is aborted when the caller no longer wants the answer, and an answer has 2 s. A headless mod is often nothing but commands.
+`run(args, { activates })` may return text for a person; a throw is why it did not run, which the caller reads, and a key's is only logged, since no one asked to be told. `activates` is whether the caller wants it in front, because a person picked or pressed it: a command that shows itself calls `deck.show()` only then. `complete(param, partial, { args, signal })` answers `[{ value, title, hint, keywords }]` for a param being typed, ranked by the mod; `signal` is aborted when the caller no longer wants the answer, and an answer has 2 s. A headless mod is often nothing but commands.
 
 ### deck.handleURL(fn)
 

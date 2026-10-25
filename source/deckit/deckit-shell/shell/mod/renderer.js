@@ -137,7 +137,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
         const window = WINDOW.mount();
         const registered = (name) => typeof parts[name] === 'function';
         if (registered('handleURL')) OPEN.answer((url, options) => parts.handleURL(url, options));
-        const commands = COMMAND.declare(parts.commands, { invalid: fail, fail });
+        const commands = COMMAND.declare(parts.commands, { invalid: fail });
         const keys = KEYMAP.declare(parts.keys, { invalid: fail, problemOf: (key) => given.keyProblem(key, parts) });
         KEYMAP.hear({ run: COMMAND.runByKey, blocksKeys: given.blocksKeys });
         return {

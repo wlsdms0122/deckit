@@ -11,16 +11,14 @@ export function createCommand() {
     const completing = new Map(); // call -> the AbortController of a completion asked of this page
     const listeners = new Set();
     let calls = 0;
-    let failed = () => {};
 
     // MARK: - Initializer
     // MARK: - Public
     // A mod's commands, { name: { label, description, keywords, params, run(args, { activates }),
     // complete(param, partial, { args, signal }) } }, as its run contributes them: the core judges each declaration.
-    // One with no function to run is told to `invalid` and left out. A run a key pressed that throws is told to
-    // `fail`; any other's throw is the caller's to read, as its run's message.
-    function declare(commands, { invalid, fail }) {
-        failed = fail;
+    // One with no function to run is told to `invalid` and left out. A throw is why it did not run, the caller's to
+    // read; a key has no one to tell, so a key's is only logged.
+    function declare(commands, { invalid }) {
         const declared = [];
         for (const [name, entry] of Object.entries(commands || {})) {
             if (typeof entry?.run !== 'function') {
@@ -40,12 +38,12 @@ export function createCommand() {
         return declared;
     }
 
-    // One of the mod's commands run as a key runs it: in front, and what it throws told to `fail`.
+    // One of the mod's commands run as a key runs it: in front, and what it throws logged.
     async function runByKey(name, args) {
         try {
             await own.get(name)?.run(args ?? {}, { activates: true });
         } catch (error) {
-            failed(`command "${name}" threw: ${error.message || error}`);
+            console.warn(`[deckit] a key ran ${name}, which did not run`, error);
         }
     }
 
