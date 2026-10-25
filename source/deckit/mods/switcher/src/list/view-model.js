@@ -1,18 +1,17 @@
-import * as MATCH from '../match/match.js';
-
 // MARK: - Property
-const { TIER, matchFields } = MATCH;
 const SEARCH_LIMIT = 60;
 const RECENT_SHOWN = 8;
 const NUMBERED = 9;
 
 // MARK: - Initializer
 // MARK: - Public
-// What the switcher shows and what its keys do, apart from how it is drawn. `items` are the commands, `now` the
-// rows of the Now strip; an item with `run` can be chosen, one with `submenu` opens a list to search inside it.
-// `onQuery(raw, submenuId)` asks for answers, which come back through `setResolved`; `onPick(item)` runs a choice
-// and `onClose()` puts the switcher away. `state()` is what to draw; `onChange` hears that it changed.
-function make({ placeholder, items, now, onQuery, onPick, onClose }) {
+// What the switcher shows and what its keys do, apart from how it is drawn. `items` are what the list holds, `now`
+// the rows of the Now strip; an item with `run` can be chosen, one with `submenu` opens a list to search inside it.
+// `onQuery(raw, submenuId)` asks for answers, which come back through `setResolved`; `onPick(item)` runs a choice,
+// and `say(text, { alert })` puts what came of it under the list until something is typed. `state()` is what to
+// draw; `onChange` hears that it changed. `util` is deck's, whose matching ranks what is typed.
+function make({ util, placeholder, items, now, onQuery, onPick }) {
+    const { TIER, matchFields } = util;
     let nowItems = now.map((item) => ({ ...item, lead: true }));
     let shown = [];
     let headings = new Map(); // row index -> the headings over it, outermost first
@@ -33,6 +32,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
     let lastAnswer = [];
     let aimedId = null;
     let held = null;
+    let said = null; // { text, alert }
     const listeners = new Set();
 
     browse();
@@ -60,6 +60,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
             query: asked,
             rows,
             active,
+            said,
         };
     }
 
@@ -67,6 +68,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
         touched = true;
         aimed = false;
         asked = raw.trim();
+        said = null;
         held = null;
         aimedId = null;
         // A ranked submenu already gave its whole list; only a search is asked again.
@@ -107,10 +109,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
     function choose(index) {
         const item = shown[index];
         if (!isActionable(item)) return;
-        if (!item.submenu) {
-            onClose?.();
-            return onPick?.(item);
-        }
+        if (!item.submenu) return onPick?.(item);
         // Through onPick too, so opening a submenu counts as a use.
         onPick?.(item);
         enter(item);
@@ -160,6 +159,11 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
         }
     }
 
+    function say(text, { alert = false } = {}) {
+        said = { text, alert };
+        changed();
+    }
+
     function onChange(listener) {
         listeners.add(listener);
     }
@@ -187,6 +191,7 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
         lastAnswer = [];
         held = null;
         aimedId = null;
+        said = null;
         asked = '';
         aimed = false;
     }
@@ -301,14 +306,14 @@ function make({ placeholder, items, now, onQuery, onPick, onClose }) {
     // Sets `lit` too: the letters each row draws heavier.
     function rank(list, query) {
         const ranked = list
-            .map((item) => ({ item, found: matchFields(fieldsOf(item), query) }))
+            .map((item) => ({ item, found: matchFields(fieldsOf(item, TIER), query) }))
             .filter((candidate) => candidate.found)
-            .sort(byRelevance);
+            .sort((left, right) => byRelevance(left, right, TIER));
         lit = new Map(ranked.map((candidate) => [candidate.item, candidate.found.at]));
         return ranked.map((candidate) => candidate.item);
     }
 
-    return { state, type, move, point, confirm, takeNumber, choose, back, setNow, setResolved, onChange };
+    return { state, type, move, point, confirm, takeNumber, choose, back, setNow, setResolved, say, onChange };
 }
 
 // MARK: - Private
@@ -324,26 +329,19 @@ function ownerOf(item) {
     return [item.mod?.name, item.group].filter(Boolean).join(' › ');
 }
 
-// Each alias is its own field, so a short name scores as a whole name and not as the start of a longer label.
 // Whose it is and its group may fill a word but never beat a match found in a name.
-function fieldsOf(item) {
+function fieldsOf(item, TIER) {
     return [
         { text: item.label, name: true },
-        ...(item.aliases || []).map((text) => ({ text, name: true })),
-        {
-            text: [item.mod?.name, ...(item.mod?.aliases || []), item.group].filter(Boolean).join(' '),
-            weight: 0.9,
-            cap: TIER.WORD,
-        },
+        { text: [item.mod?.name, item.group].filter(Boolean).join(' '), weight: 0.9, cap: TIER.WORD },
         { text: item.keywords || '', weight: 0.8, cap: TIER.INSIDE },
-        { text: item.address || '', weight: 0.5, cap: TIER.SPREAD },
     ];
 }
 
 // Tier first, so the order is predictable. Use counts only when the query is at least a word of the name (its
 // tier before any cap), so a used entry whose letters are merely scattered does not jump ahead. Then the score,
 // then the shorter label.
-function byRelevance(left, right) {
+function byRelevance(left, right, TIER) {
     return (
         right.found.tier - left.found.tier ||
         (Math.min(left.found.raw, right.found.raw) >= TIER.WORD ? (right.item.used || 0) - (left.item.used || 0) : 0) ||
@@ -352,4 +350,4 @@ function byRelevance(left, right) {
     );
 }
 
-export { make };
+module.exports = { make };

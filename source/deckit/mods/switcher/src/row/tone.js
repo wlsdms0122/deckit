@@ -7,4 +7,4 @@ const TONES = ['info', 'ok', 'warn', 'alert'];
 // MARK: - Public
 // MARK: - Private
 
-export { TONES };
+module.exports = { TONES };
