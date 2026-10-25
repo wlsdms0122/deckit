@@ -5,7 +5,7 @@ const { workflowForm } = require('./workflow-form.js');
 const { listDivider } = require('../pane/list-divider.js');
 const { installContent, actions, section, values, feedback } = require('../pane/content-ui.js');
 
-const workflowsView = ({ deck, bot, picker, reveal }) => {
+const workflowsView = ({ deck, bot, picker }) => {
     const { ui } = deck;
     installContent(ui);
     let form = null,
@@ -337,13 +337,12 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
             detailRequest++;
             clearTimeout(timer);
         },
-        commands: () => [
+        rows: () => [
             {
                 label: 'Workflows',
                 hint: 'Browse, run and cancel Forge workflows',
                 icon: ui.icon('list', { size: 16 }),
-                keywords: ['forge', 'workflow', '워크플로우'],
-                run: reveal,
+                run: { command: 'show', args: { view: 'workflows' } },
             },
         ],
     };

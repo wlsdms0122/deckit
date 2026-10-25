@@ -1,11 +1,11 @@
 // The forge session the Forge views show, one for all of them: each session is a daemon of its own, and there may be
-// many. It is chosen from a pop-up button in the title bar, each session marked with its state, or from the switcher.
-// The chosen session is asked about as often as the views ask about it; the list, a command for each session, less often.
+// many. It is chosen from a pop-up button in the title bar, each session marked with its state, or by a command.
+// The chosen session is asked about as often as the views ask about it; the list less often.
 const CURRENT_MS = 3000;
 const LIST_MS = 15000;
 
-const sessionPicker = ({ deck, bot, reveal, onChange }) => {
-    const { theme, ui } = deck;
+const sessionPicker = ({ deck, bot, onChange }) => {
+    const { theme, ui, util } = deck;
     const store = deck.storage.values;
     let session = store.get('session', null) || 'default';
     let sessions = [{ name: session, checking: true }]; // until the first answer
@@ -71,28 +71,26 @@ const sessionPicker = ({ deck, bot, reveal, onChange }) => {
             for (const timer of timers) clearInterval(timer);
             timers = [];
         },
-        commands: () => [
-            {
-                label: 'Forge Session',
-                hint: `Choose which daemon the Forge views show · now ${session}`,
-                icon: ui.icon('server', { size: 16 }),
-                group: 'Forge',
-                keywords: ['forge', 'session', 'daemon', '세션', '데몬'],
-                page: {
-                    placeholder: 'Choose a forge session',
-                    entries: async () =>
-                        (await load()).map((entry) => ({
-                            label: entry.name,
-                            hint: stateOf(entry),
-                            icon: dot(entry),
-                            run: () => {
-                                choose(entry.name);
-                                reveal();
-                            },
-                        })),
-                },
-            },
-        ],
+        // Whether `name` is a session there is, asked again.
+        exists: async (name) => (await load()).some((entry) => entry.name === name),
+        // The sessions there are, as values of a command's arg, each with its state, ranked for `partial` by name.
+        candidates: async (partial) => {
+            const listed = (await load()).map((entry) => ({
+                value: entry.name,
+                title: entry.name,
+                hint: stateOf(entry),
+                keywords: [],
+            }));
+            if (!partial.trim()) return listed;
+            return listed
+                .map((candidate) => ({
+                    candidate,
+                    found: util.matchFields([{ text: candidate.title, name: true }], partial),
+                }))
+                .filter(({ found }) => found)
+                .sort((left, right) => right.found.tier - left.found.tier || right.found.score - left.found.score)
+                .map(({ candidate }) => candidate);
+        },
     };
 };
 

@@ -1,13 +1,21 @@
-const { addDays, startOfDay, clockText } = require('../date/date.js');
+const { addDays, startOfDay, clockText, dayText } = require('../date/date.js');
 const { nameOf, isSpanning } = require('../occurrence/occurrence.js');
 
 // How far ahead the next meeting is still news: the rest of a working day, not tomorrow.
 const NOW_HORIZON_MS = 6 * 3600000;
 
-// What Calendar offers the switcher: the meeting on now and the next, and its commands. `occurrences(from, to)` answers
-// what the strip may show.
-function switcher({ ui, show, modes, reminders, occurrences, onGoTo, onMode, onAddAccount }) {
-    return { now, commands };
+// What Calendar adds to the switcher through its point `rows`: a row for each view, and the meeting on now and the
+// next. Each runs a command of this mod. `occurrences(from, to)` answers what the strip may show.
+function switcher({ ui, modes, reminders, occurrences }) {
+    return { rows, now };
+
+    function rows() {
+        return modes.map(([key, label]) => ({
+            label: label + ' View',
+            icon: ui.icon('layers', { size: 16 }),
+            run: { command: 'show-view', args: { view: key } },
+        }));
+    }
 
     // What is running, and what is next once the running one is past its midpoint (or nothing is running), and only
     // within NOW_HORIZON_MS.
@@ -27,13 +35,10 @@ function switcher({ ui, show, modes, reminders, occurrences, onGoTo, onMode, onA
             hint: live
                 ? `In progress · until ${clockText(occurrence.end)}`
                 : `${untilText(occurrence.start, at)} · ${clockText(occurrence.start)}`,
-            icon: ui.icon('clock', { size: 18 }),
+            icon: ui.icon('clock', { size: 16 }),
             // Asks for attention while the notice would be due, so the two say the same thing.
             attention: !live && reminders.isDue(occurrence, +at, lead),
-            run: () => {
-                show();
-                onGoTo(occurrence.start);
-            },
+            run: { command: 'go-to-date', args: { date: dayText(occurrence.start) } },
         });
 
         const out = [];
@@ -41,38 +46,6 @@ function switcher({ ui, show, modes, reminders, occurrences, onGoTo, onMode, onA
         const halfway = running ? +running.start + (+running.end - +running.start) / 2 : 0;
         if (next && (!running || +at >= halfway)) out.push(card(next, false));
         return out;
-    }
-
-    function commands() {
-        return [
-            {
-                label: 'Go to Today',
-                icon: ui.icon('calendarDays'),
-                keywords: ['오늘', 'today'],
-                run: () => {
-                    show();
-                    onGoTo(new Date());
-                },
-            },
-            ...modes.map(([key, label]) => ({
-                label: label + ' View',
-                icon: ui.icon('layers'),
-                keywords: [{ day: '일간', week: '주간', month: '월간' }[key], '보기', 'view'],
-                run: () => {
-                    show();
-                    onMode(key);
-                },
-            })),
-            {
-                label: 'Add Calendar Account…',
-                icon: ui.icon('plus'),
-                keywords: ['계정', '추가', 'account'],
-                run: () => {
-                    show();
-                    onAddAccount();
-                },
-            },
-        ];
     }
 }
 

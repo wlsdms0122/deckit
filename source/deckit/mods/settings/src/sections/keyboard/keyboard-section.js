@@ -10,6 +10,7 @@ function keyboardSection({ ui, keymap }) {
         'works in the fewest places runs there. A change onto a chord another uses in the same places is not ' +
         'applied until that chord is free.';
     const SCOPE_NAMES = { global: 'In every app', app: 'Anywhere in the app' };
+    const APP = '@';
 
     let recording = null; // the key a chord is recorded for, and the end of its recording: { id, end }
     let drawAfterRecording = false;
@@ -91,10 +92,12 @@ function keyboardSection({ ui, keymap }) {
         const conflicted = shortcuts.filter((shortcut) => shortcut.issues.length).length;
         conflicts.element.textContent = `${conflicted} conflict${conflicted === 1 ? '' : 's'}`;
         conflicts.element.hidden = !conflicted;
-        const owners = [...new Set(shortcuts.map((shortcut) => shortcut.owner))];
+        // The hosts' keys are the app's: one card under its name.
+        const ownerOf = (shortcut) => (shortcut.host ? APP : shortcut.owner);
+        const owners = [...new Set(shortcuts.map(ownerOf))];
         cards.set(
             owners.map((owner) => {
-                const owned = shortcuts.filter((shortcut) => shortcut.owner === owner);
+                const owned = shortcuts.filter((shortcut) => ownerOf(shortcut) === owner);
                 return { owner, name: owned[0].ownerName, shortcuts: owned };
             })
         );
@@ -182,7 +185,7 @@ function keyboardSection({ ui, keymap }) {
         function fill(shortcut) {
             current = shortcut;
             name.textContent = name.title = shortcut.label;
-            scope.textContent = SCOPE_NAMES[shortcut.scope] || (shortcut.app ? 'On any mod' : '');
+            scope.textContent = SCOPE_NAMES[shortcut.scope] || (shortcut.host ? 'On any mod' : '');
             scope.hidden = !scope.textContent;
             chord.textContent = shortcut.spec ? shortcut.chord : 'None';
             chord.title = shortcut.changed ? `Changed from ${shortcut.defaultChord || 'none'}` : 'Click to change';
@@ -202,7 +205,7 @@ function keyboardSection({ ui, keymap }) {
 
 // What a keystroke does instead, in words, from an issue's facts.
 function issueText(shortcut, { kind, other }) {
-    const name = other.app || other.owner === shortcut.owner ? other.label : `${other.ownerName} ${other.label}`;
+    const name = other.host || other.owner === shortcut.owner ? other.label : `${other.ownerName} ${other.label}`;
     if (kind === 'held') return `Not applied: ${other.chord} is already ${name}`;
     return `Never runs: ${other.chord} is ${name}`;
 }

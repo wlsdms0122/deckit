@@ -5,7 +5,6 @@ const { nameOf, parentOf, noteNameOf, isWithin } = require('./path.js');
 // changes is what was on screen. `onChanged()` hears that the notes folder changed.
 function operations({
     ui,
-    show,
     clipboard,
     reveal,
     notesFolder,
@@ -76,7 +75,6 @@ function operations({
     }
 
     async function newNote(into) {
-        show();
         if (!(await settle())) return;
         // Another would discard this blank one and take the next free name on every press.
         if (isBlank() && parentOf(openPath()) === into) return onFocusTitle();

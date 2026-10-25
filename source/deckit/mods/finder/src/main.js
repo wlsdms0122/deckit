@@ -13,6 +13,15 @@ const { selectionInput } = require('./file-area/selection-input.js');
 const { tabList } = require('./sidebar/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
 
+// The system places `go-to-place` goes to, by the id the disk gives each.
+const PLACES = [
+    ['home', 'Home'],
+    ['desktop', 'Desktop'],
+    ['documents', 'Documents'],
+    ['downloads', 'Downloads'],
+    ['applications', 'Applications'],
+];
+
 module.exports = {
     keywords: ['finder', 'files', 'file', 'folder', 'explorer', 'browse', '파인더', '파일', '폴더', '탐색기'],
     //! Lucide "folder" (ISC).
@@ -245,68 +254,234 @@ module.exports = {
                 watchShown();
             },
         });
+        // Each acts on what Finder shows, so it comes to the front when a person runs it.
+        deck.commands({
+            'new-tab': onScreen({
+                label: 'New Tab',
+                description: 'Opens a tab on the folder in front.',
+                run: () => tabs.open(),
+            }),
+            'close-tab': onScreen({
+                label: 'Close Tab',
+                description: 'Closes the tab in front.',
+                run: () => tabs.close(tabs.front()),
+            }),
+            'reopen-tab': onScreen({
+                label: 'Reopen Closed Tab',
+                description: 'Opens the tab closed last again.',
+                run: () => tabs.reopen(),
+            }),
+            'show-tab': onScreen({
+                label: 'Show Tab',
+                description: 'Shows a tab by its place in the list, -1 the last.',
+                params: { type: 'object', properties: { index: { type: 'integer' } }, required: ['index'] },
+                run: ({ index }) => tabs.showAt(index),
+            }),
+            back: onScreen({ label: 'Back', description: 'Goes back to the folder before.', run: () => tabs.back() }),
+            forward: onScreen({
+                label: 'Forward',
+                description: 'Goes forward to the folder after.',
+                run: () => tabs.forward(),
+            }),
+            'enclosing-folder': onScreen({
+                label: 'Enclosing Folder',
+                description: 'Goes to the folder that holds the one in front.',
+                run: () => tabs.up(),
+            }),
+            // Their keys stay Finder's while a field is typed in, so the field never hears them; they open nothing
+            // then.
+            open: onScreen({
+                label: 'Open',
+                description: 'Opens what is selected.',
+                run: () => !typing() && operator.open(selectedEntries()),
+            }),
+            'open-with-default-app': onScreen({
+                label: 'Open with Default App',
+                description: 'Opens what is selected in the app that handles it.',
+                run: () => !typing() && operator.open(selectedEntries(), { usesDefaultApp: true }),
+            }),
+            filter: onScreen({
+                label: 'Filter This Folder',
+                description: 'Narrows the folder to the names typed.',
+                run: () => bar.focusFilter(),
+            }),
+            'go-to-folder': onScreen({
+                label: 'Go to Folder…',
+                description: 'Asks for a path to go to.',
+                run: () => tabs.front() && goTo.show(),
+            }),
+            'open-folder': {
+                label: 'Open Folder',
+                description: 'Goes to a folder in the tab in front; a file goes to its folder, selected there.',
+                keywords: ['폴더', 'folder'],
+                params: {
+                    type: 'object',
+                    properties: { path: { type: 'string', title: 'Folder', description: 'A path from / or ~.' } },
+                    required: ['path'],
+                },
+                run: async ({ path }, { activates }) => {
+                    const full = path.startsWith('~') && home ? home + path.slice(1) : path;
+                    if (!full.startsWith('/')) throw new Error(`${path} is not a path from / or ~`);
+                    const kind = await disk.exists(full);
+                    if (!kind) throw new Error(`${util.tildify(full)} is not there`);
+                    if (!tabs.front()) throw new Error('Finder has no tab open');
+                    if (activates) deck.show();
+                    if (kind === 'folder') tabs.go(full);
+                    else goToPath(parentOf(full), full);
+                },
+                complete: (_param, partial) => foldersAtHand(partial),
+            },
+            'go-to-place': {
+                label: 'Go to Place',
+                description: 'Goes to Home, Desktop or another of the system places.',
+                params: {
+                    type: 'object',
+                    properties: {
+                        place: {
+                            type: 'string',
+                            title: 'Place',
+                            oneOf: PLACES.map(([id, title]) => ({ const: id, title })),
+                        },
+                    },
+                    required: ['place'],
+                },
+                run: ({ place }, { activates }) => {
+                    const path = place === 'home' ? home : favorites.placePath(place);
+                    if (!path) throw new Error(`${PLACES.find(([id]) => id === place)?.[1] ?? place} is not there`);
+                    if (activates) deck.show();
+                    tabs.go(path);
+                },
+            },
+            'toggle-hidden': onScreen({
+                label: 'Show Hidden Files',
+                description: 'Shows the files whose names start with a dot, or hides them again.',
+                run: () => toggleHidden(),
+            }),
+            'new-folder': onScreen({
+                label: 'New Folder',
+                description: 'Makes a folder in the folder in front.',
+                run: () => operator.newFolder(area.workingFolder()),
+            }),
+            'show-as': onScreen({
+                label: 'View As',
+                description: 'Shows the folder as columns or as a list.',
+                params: {
+                    type: 'object',
+                    properties: {
+                        view: {
+                            type: 'string',
+                            title: 'View',
+                            oneOf: [
+                                { const: 'columns', title: 'Columns' },
+                                { const: 'list', title: 'List' },
+                            ],
+                        },
+                    },
+                    required: ['view'],
+                },
+                run: ({ view }) => setView(view),
+            }),
+            trash: onScreen({
+                label: 'Move to Trash',
+                description: 'Moves what is selected to the Trash.',
+                run: () => operator.trash(selectedEntries()),
+            }),
+        });
         deck.keys({
-            newTab: { key: 'mod+t', label: 'New tab', run: () => tabs.open() },
-            closeTab: { key: 'mod+w', label: 'Close tab', run: () => tabs.close(tabs.front()) },
-            reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => tabs.reopen() },
+            newTab: { command: 'new-tab', key: 'mod+t' },
+            closeTab: { command: 'close-tab', key: 'mod+w' },
+            reopenTab: { command: 'reopen-tab', key: 'mod+shift+t' },
             ...Object.fromEntries(
                 [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
                     `tab${number}`,
-                    { key: `mod+${number}`, label: `Tab ${number}`, run: () => tabs.showAt(number - 1) },
+                    { command: 'show-tab', args: { index: number - 1 }, label: `Tab ${number}`, key: `mod+${number}` },
                 ])
             ),
-            lastTab: { key: 'mod+9', label: 'Last tab', run: () => tabs.showAt(-1) },
-            back: { key: 'mod+[', label: 'Back', run: () => tabs.back() },
-            forward: { key: 'mod+]', label: 'Forward', run: () => tabs.forward() },
-            enclosing: { key: 'mod+up', label: 'Enclosing folder', run: () => tabs.up() },
-            // Both stay Finder's while a field is typed in, so the field never hears them; they open nothing then.
-            open: { key: 'ctrl+enter', label: 'Open', run: () => !typing() && operator.open(selectedEntries()) },
-            openWithDefaultApp: {
-                key: 'alt+enter',
-                label: 'Open with default app',
-                run: () => !typing() && operator.open(selectedEntries(), { usesDefaultApp: true }),
+            lastTab: { command: 'show-tab', args: { index: -1 }, label: 'Last tab', key: 'mod+9' },
+            back: { command: 'back', key: 'mod+[' },
+            forward: { command: 'forward', key: 'mod+]' },
+            enclosing: { command: 'enclosing-folder', key: 'mod+up' },
+            open: { command: 'open', key: 'ctrl+enter' },
+            openWithDefaultApp: { command: 'open-with-default-app', key: 'alt+enter' },
+            filter: { command: 'filter', key: 'mod+f' },
+            goToFolder: { command: 'go-to-folder', key: 'mod+l' },
+            home: { command: 'go-to-place', args: { place: 'home' }, label: 'Go to Home', key: 'mod+shift+h' },
+            desktop: { command: 'go-to-place', args: { place: 'desktop' }, label: 'Go to Desktop', key: 'mod+shift+d' },
+            downloads: {
+                command: 'go-to-place',
+                args: { place: 'downloads' },
+                label: 'Go to Downloads',
+                key: 'mod+alt+l',
             },
-            filter: { key: 'mod+f', label: 'Filter this folder', run: () => bar.focusFilter() },
-            goToFolder: { key: 'mod+l', label: 'Go to Folder', run: () => tabs.front() && goTo.show() },
-            home: { key: 'mod+shift+h', label: 'Go to Home', run: () => tabs.go(home) },
-            desktop: { key: 'mod+shift+d', label: 'Go to Desktop', run: () => goToPlace('desktop') },
-            downloads: { key: 'mod+alt+l', label: 'Go to Downloads', run: () => goToPlace('downloads') },
             applications: {
-                key: 'mod+shift+a',
+                command: 'go-to-place',
+                args: { place: 'applications' },
                 label: 'Go to Applications',
-                run: () => goToPlace('applications'),
+                key: 'mod+shift+a',
             },
-            hidden: { key: 'mod+shift+.', label: 'Show hidden files', run: toggleHidden },
-            newFolder: {
-                key: 'mod+shift+n',
-                label: 'New folder',
-                run: () => operator.newFolder(area.workingFolder()),
-            },
+            hidden: { command: 'toggle-hidden', key: 'mod+shift+.' },
+            newFolder: { command: 'new-folder', key: 'mod+shift+n' },
             // Finder's Command-1 and Command-2 for views are tabs here, so Control is added.
-            columnView: { key: 'ctrl+mod+1', label: 'As columns', run: () => setView('columns') },
-            listView: { key: 'ctrl+mod+2', label: 'As list', run: () => setView('list') },
-            trash: {
-                key: 'mod+backspace',
-                label: 'Move to Trash',
-                run: () => operator.trash(selectedEntries()),
+            columnView: { command: 'show-as', args: { view: 'columns' }, label: 'As columns', key: 'ctrl+mod+1' },
+            listView: { command: 'show-as', args: { view: 'list' }, label: 'As list', key: 'ctrl+mod+2' },
+            trash: { command: 'trash', key: 'mod+backspace' },
+        });
+        deck.extend({
+            'switcher:rows': {
+                rows: () =>
+                    atHand().map((path) => ({
+                        label: favorites.labelOf(path),
+                        hint: util.tildify(path),
+                        icon: ui.icon(favorites.iconNameOf(path), { size: 16 }),
+                        run: { command: 'open-folder', args: { path } },
+                    })),
             },
         });
-        deck.commands(() =>
-            [
+
+        // `command`, brought to the front first when a person runs it.
+        function onScreen(command) {
+            return {
+                ...command,
+                run: (args, { activates }) => {
+                    if (activates) deck.show();
+                    return command.run(args);
+                },
+            };
+        }
+
+        // The system places and the person's favorites, the folders kept at hand.
+        function atHand() {
+            return [
                 ...favorites.places().map((place) => place.path),
                 ...favorites.paths().filter((path) => !favorites.placeOf(path)),
-            ].map((path) => ({
-                label: favorites.labelOf(path),
+            ];
+        }
+
+        // The folders at hand, ranked for `partial` by their name and their path.
+        function foldersAtHand(partial) {
+            const candidates = atHand().map((path) => ({
+                value: path,
+                title: favorites.labelOf(path),
                 hint: util.tildify(path),
-                icon: ui.icon(favorites.iconNameOf(path), { size: 16 }),
-                keywords: ['폴더', 'folder'],
-                address: path,
-                run: () => {
-                    deck.show();
-                    tabs.go(path);
-                },
-            }))
-        );
+                keywords: [],
+            }));
+            if (!partial.trim()) return candidates;
+            const { TIER, matchFields } = util;
+            return candidates
+                .map((candidate) => ({
+                    candidate,
+                    found: matchFields(
+                        [
+                            { text: candidate.title, name: true },
+                            { text: candidate.hint, weight: 0.8, cap: TIER.INSIDE },
+                        ],
+                        partial
+                    ),
+                }))
+                .filter(({ found }) => found)
+                .sort((left, right) => right.found.tier - left.found.tier || right.found.score - left.found.score)
+                .map(({ candidate }) => candidate);
+        }
 
         // Drawn at once: until the folder is read, the area shows it loading. The favorites are drawn here, as only a
         // new location changes which of them is lit.

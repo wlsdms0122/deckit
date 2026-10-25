@@ -6,3 +6,7 @@ main = "main.js"
 
 [permissions]
 "system.notifications" = "Reminds you of a meeting before it starts."
+
+[optional]
+switcher = "1.0.0"
+settings = "1.0.0"

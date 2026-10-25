@@ -7,7 +7,7 @@ const { listDivider } = require('../pane/list-divider.js');
 const { triggerOf, triggerSummary } = require('./schedule-trigger.js');
 const { installContent, actions, section, values, feedback } = require('../pane/content-ui.js');
 
-const schedulesView = ({ deck, bot, picker, reveal }) => {
+const schedulesView = ({ deck, bot, picker }) => {
     const { ui } = deck,
         store = deck.storage.values;
     installContent(ui);
@@ -675,13 +675,12 @@ const schedulesView = ({ deck, bot, picker, reveal }) => {
             specRequest++;
             clearTimeout(timer);
         },
-        commands: () => [
+        rows: () => [
             {
                 label: 'Schedules',
                 hint: 'Manage Forge workflow schedules',
                 icon: ui.icon('calendar', { size: 16 }),
-                keywords: ['forge', 'schedule', '스케줄', '스케쥴'],
-                run: reveal,
+                run: { command: 'show', args: { view: 'schedules' } },
             },
         ],
     };

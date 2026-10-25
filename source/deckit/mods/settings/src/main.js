@@ -14,7 +14,6 @@ module.exports = {
         const { ui, util } = deck;
         const APP_NAME = deck.about().name;
 
-        const modIcons = new Map(); // mod id -> its icon, as the list was last drawn
         // mod id -> the keys a mod had as the Keyboard section last drew it running: a key map lists a mod's keys only
         // while it runs
         const drawnKeys = new Map();
@@ -51,9 +50,13 @@ module.exports = {
             appName: APP_NAME,
             onChange: redraw,
         });
+        const actions = deck.extensionPoint('actions');
         const modSettings = modSettingsSection({
             ui,
             modSettings: deck.modSettings,
+            actions,
+            registry: deck.commandRegistry,
+            nameOf: (id) => deck.mods.list().running.find((mod) => mod.id === id)?.name || id,
             onFailure: mods.showNotice,
         });
         const urlSchemes = urlSchemesSection({ ui, urlSchemes: deck.urlSchemes, appName: APP_NAME });
@@ -65,8 +68,9 @@ module.exports = {
         const title = ui.element('div', { className: 'settings-title', text: 'Settings' });
         ui.titleBar(title);
         page.append(title, body);
-        // commands() can be asked before the first visit draws anything.
+        // A mod's settings can be asked for by its command before the first visit draws anything.
         modSettings.draw();
+        actions.onChange(() => modSettings.draw());
 
         deck.view({
             content: page,
@@ -81,7 +85,29 @@ module.exports = {
                 keyboard.stopRecording();
             },
         });
-        deck.commands(commands);
+        deck.commands({
+            'show-mods': showing(mods),
+            'show-mod-settings': showing(modSettings),
+            'show-url-schemes': showing(urlSchemes),
+            'show-keyboard': showing(keyboard),
+            'show-settings-of': {
+                label: "Show a Mod's Settings",
+                description: 'Shows the settings of one mod.',
+                keywords: ['설정', 'settings'],
+                params: {
+                    type: 'object',
+                    properties: { mod: { type: 'string', title: 'Mod' } },
+                    required: ['mod'],
+                },
+                run: ({ mod }, { activates }) => {
+                    if (!modSettings.groups().some((group) => group.id === mod))
+                        throw new Error(`${mod} has no settings`);
+                    if (activates) deck.show();
+                    showSettingsOf(mod);
+                },
+                complete: (_param, partial) => settingsOf(partial),
+            },
+        });
         deck.mods.onChange(() => shown && redraw());
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
@@ -104,37 +130,49 @@ module.exports = {
                 ...listed,
                 ...restarting.flatMap(({ id }) => drawnKeys.get(id) || []).filter(({ id }) => !listedIds.has(id)),
             ];
-            for (const mod of running) modIcons.set(mod.id, mod.icon);
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();
             urlSchemes.draw(handlerLists);
             keyboard.draw(shortcuts);
         }
 
-        function commands() {
-            return [
-                ...sections.map((section) => ({
-                    label: section.title,
-                    icon: ui.icon('gear', { size: 16 }),
-                    keywords: section.keywords,
-                    run: () => showSection(section),
-                })),
-                ...modSettings.groups().map((group) => ({
-                    group: modSettings.title,
-                    label: group.name + ' Settings',
-                    icon: modIcons.get(group.id) || ui.icon('sliders', { size: 16 }),
-                    keywords: ['설정', 'settings', group.id, ...group.items.map((item) => item.label)],
-                    run: () => {
-                        deck.show();
-                        showSettingsOf(group.id);
-                    },
-                })),
-            ];
+        // The command that brings `section` on screen.
+        function showing(section) {
+            return {
+                label: section.title,
+                description: `Shows the ${section.title} section of Settings.`,
+                keywords: section.keywords,
+                run: (_args, { activates }) => {
+                    if (activates) deck.show();
+                    requestAnimationFrame(() => contents.go(section));
+                },
+            };
         }
 
-        function showSection(section) {
-            deck.show();
-            requestAnimationFrame(() => contents.go(section));
+        // The mods with settings as they were last drawn, ranked for `partial`, matched by their name, id and the
+        // labels of their settings.
+        function settingsOf(partial) {
+            const candidates = modSettings.groups().map((group) => ({
+                value: group.id,
+                title: group.name,
+                keywords: [group.id, ...group.items.map((item) => item.label).filter(Boolean)],
+            }));
+            if (!partial.trim()) return candidates;
+            const { TIER, matchFields } = util;
+            return candidates
+                .map((candidate) => ({
+                    candidate,
+                    found: matchFields(
+                        [
+                            { text: candidate.title, name: true },
+                            { text: candidate.keywords.join(' '), weight: 0.8, cap: TIER.INSIDE },
+                        ],
+                        partial
+                    ),
+                }))
+                .filter(({ found }) => found)
+                .sort((left, right) => right.found.tier - left.found.tier || right.found.score - left.found.score)
+                .map(({ candidate }) => candidate);
         }
 
         async function showSettingsOf(id) {

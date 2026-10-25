@@ -6,3 +6,8 @@ main = "main.js"
 
 [permissions]
 "system.main-process" = "Keeps your notes as Markdown files in its own data folder, and puts the ones you delete in the Trash."
+"system.file-handlers" = "Show in Finder in a note's or a folder's menu shows it in Finder."
+"system.clipboard-write" = "Copy as Markdown in a note's menu, and Copy in the menu over a note's text, put the text on the clipboard."
+
+[optional]
+switcher = "1.0.0"

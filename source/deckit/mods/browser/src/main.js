@@ -1,12 +1,13 @@
 const { addressBar } = require('./address-bar/address-bar.js');
-const { parseAddress, hostOf } = require('./address/address.js');
+const { parseAddress, hostOf, placeOf } = require('./address/address.js');
 const { bookmarkEditor } = require('./bookmark-editor/bookmark-editor.js');
+const { candidatesOf, itemOf } = require('./candidates/candidates.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
 const { store } = require('./store/store.js');
 const { switcher } = require('./switcher/switcher.js');
-const { tabList } = require('./tabs/tab-list.js');
+const { tabList, tabLabel } = require('./tabs/tab-list.js');
 
 module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`,
@@ -139,16 +140,6 @@ module.exports = {
             onOpenBookmarks: (node, parent) => tabs.openBookmarks(node, parent),
             onEditBookmark: (tab, row) => editor.show(tab, row),
         });
-        const { resolve, commands } = switcher({
-            ui,
-            show: deck.show,
-            bookmarks,
-            tabTree: () => tabs.tree(),
-            lastClosedTab: () => tabs.lastClosed(),
-            onNewTab: (url) => tabs.add(url),
-            onReopenTab: () => tabs.reopen(),
-            onSelectTab: (tab) => tabs.select(tab),
-        });
 
         content.append(find.element, bar.element);
         webSession.trust(certificates.all());
@@ -168,22 +159,115 @@ module.exports = {
             },
         });
 
+        deck.commands({
+            'new-tab': {
+                label: 'New Tab',
+                description: 'Opens a new tab, at the address given or the homepage.',
+                keywords: ['웹', '웹페이지', '열기', '주소', '새탭', 'url', 'open', 'web', 'address', 'new tab'],
+                params: { type: 'object', properties: { url: { type: 'string', title: 'Address' } } },
+                run: ({ url } = {}, { activates }) => {
+                    const address = url === undefined ? home() : parseAddress(url);
+                    if (!address) throw new Error(`${url} is not a web address`);
+                    if (activates) deck.show();
+                    tabs.add(address);
+                },
+            },
+            'reopen-tab': {
+                label: 'Reopen Closed Tab',
+                description: 'Opens the tab closed last again, where it was.',
+                keywords: ['닫은탭', '다시열기', '복구', 'reopen', 'undo', 'closed tab'],
+                run: (_args, { activates }) => {
+                    if (!tabs.lastClosed()) throw new Error('No tab was closed');
+                    if (activates) deck.show();
+                    tabs.reopen();
+                },
+            },
+            'close-tab': {
+                label: 'Close Tab',
+                description: 'Closes the tab in front.',
+                run: () => tabs.close(tabs.front()),
+            },
+            'show-tab': {
+                label: 'Show Tab',
+                description: 'Brings the tab at an index to the front, counted from 0, or from the end when negative.',
+                params: { type: 'object', properties: { index: { type: 'integer' } }, required: ['index'] },
+                run: ({ index }, { activates }) => {
+                    const tab = tabs.list().at(index);
+                    if (!tab) throw new Error(`There is no tab at ${index}`);
+                    if (activates) deck.show();
+                    tabs.select(tab);
+                },
+            },
+            'switch-to-tab': {
+                label: 'Switch to Tab',
+                description: 'Brings an open tab to the front.',
+                keywords: ['탭', 'tabs'],
+                params: {
+                    type: 'object',
+                    properties: { tab: { type: 'string', title: 'Tab' } },
+                    required: ['tab'],
+                },
+                run: ({ tab }, { activates }) => {
+                    const found = itemOf(tabs.tree(), tab);
+                    if (!found) throw new Error(`There is no tab ${tab}`);
+                    if (activates) deck.show();
+                    tabs.select(found);
+                },
+                complete: (_param, partial) => candidatesOf(tabs.tree(), tabLabel, partial, deck.util),
+            },
+            'open-bookmark': {
+                label: 'Open Bookmark',
+                description: 'Opens a bookmark in a new tab.',
+                keywords: ['북마크', '즐겨찾기', 'bookmarks'],
+                params: {
+                    type: 'object',
+                    properties: { bookmark: { type: 'string', title: 'Bookmark' } },
+                    required: ['bookmark'],
+                },
+                run: ({ bookmark }, { activates }) => {
+                    const found = itemOf(bookmarks.tree(), bookmark);
+                    if (!found) throw new Error(`There is no bookmark ${bookmark}`);
+                    if (activates) deck.show();
+                    tabs.add(found.url);
+                },
+                complete: (_param, partial) =>
+                    candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), partial, deck.util),
+            },
+            'find-in-page': showing({
+                label: 'Find in Page',
+                description: 'Opens the find bar over the page in front.',
+                run: openFind,
+            }),
+            'edit-address': showing({
+                label: 'Edit Address',
+                description: 'Opens the address bar to type an address or words to search.',
+                run: () => bar.edit(),
+            }),
+            reload: showing({ label: 'Reload', description: 'Loads the page in front again.', run: reload }),
+            back: showing({ label: 'Back', description: 'Goes back in the history of the tab in front.', run: goBack }),
+            forward: showing({
+                label: 'Forward',
+                description: 'Goes forward in the history of the tab in front.',
+                run: goForward,
+            }),
+        });
+
         deck.keys({
-            newTab: { key: 'mod+t', label: 'New tab', run: () => tabs.add() },
-            reopenTab: { key: 'mod+shift+t', label: 'Reopen closed tab', run: () => tabs.reopen() },
-            find: { key: 'mod+f', label: 'Find in page', run: openFind },
-            closeTab: { key: 'mod+w', label: 'Close tab', run: () => tabs.close(tabs.front()) },
-            address: { key: 'mod+l', label: 'Address', run: () => bar.edit() },
-            reload: { key: 'mod+r', label: 'Reload', run: reload },
-            back: { key: 'mod+[', label: 'Back', run: goBack },
-            forward: { key: 'mod+]', label: 'Forward', run: goForward },
+            newTab: { command: 'new-tab', key: 'mod+t' },
+            reopenTab: { command: 'reopen-tab', key: 'mod+shift+t' },
+            find: { command: 'find-in-page', key: 'mod+f' },
+            closeTab: { command: 'close-tab', key: 'mod+w' },
+            address: { command: 'edit-address', key: 'mod+l' },
+            reload: { command: 'reload', key: 'mod+r' },
+            back: { command: 'back', key: 'mod+[' },
+            forward: { command: 'forward', key: 'mod+]' },
             ...Object.fromEntries(
                 [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
                     `tab${number}`,
-                    { key: `mod+${number}`, label: `Tab ${number}`, run: () => selectTab(number - 1) },
+                    { command: 'show-tab', args: { index: number - 1 }, label: `Tab ${number}`, key: `mod+${number}` },
                 ])
             ),
-            lastTab: { key: 'mod+9', label: 'Last tab', run: () => selectTab(tabs.list().length - 1) },
+            lastTab: { command: 'show-tab', args: { index: -1 }, label: 'Last Tab', key: 'mod+9' },
         });
 
         deck.handleURL((url, { activates = true, target = '' } = {}) => {
@@ -194,8 +278,7 @@ module.exports = {
             return true;
         });
 
-        deck.resolve(resolve);
-        deck.commands(commands);
+        deck.extend({ 'switcher:rows': switcher({ ui, lastClosedTab: () => tabs.lastClosed() }) });
 
         function home() {
             return parseAddress(settings.get('homepage')) || 'about:blank';
@@ -235,9 +318,16 @@ module.exports = {
             find.show({ left: bar.isInTopRight() });
         }
 
-        function selectTab(index) {
-            const tab = tabs.list()[index];
-            if (tab) tabs.select(tab);
+        // A command that does `run` on screen: a person running it brings the Browser to the front.
+        function showing({ label, description, run }) {
+            return {
+                label,
+                description,
+                run: (_args, { activates }) => {
+                    if (activates) deck.show();
+                    run();
+                },
+            };
         }
 
         function notify(tab, notification) {

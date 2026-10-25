@@ -43,6 +43,21 @@ function clockText(date) {
     return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
 }
 
+// A day as `YYYY-MM-DD`, in local time.
+function dayText(date) {
+    const pad = (number) => String(number).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// The local midnight of a day written as `YYYY-MM-DD`, or null for a text that names no day.
+function dayOf(text) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(text).trim());
+    if (!match) return null;
+    const [year, month, date] = match.slice(1).map(Number);
+    const day = new Date(year, month - 1, date);
+    return day.getMonth() === month - 1 && day.getDate() === date ? day : null;
+}
+
 // A difference in calendar days, so rounding absorbs daylight saving.
 function dayDelta(later, earlier) {
     return Math.round((+startOfDay(later) - +startOfDay(earlier)) / DAY_MS);
@@ -57,5 +72,7 @@ module.exports = {
     startOfWeek,
     sameDay,
     clockText,
+    dayText,
+    dayOf,
     dayDelta,
 };
