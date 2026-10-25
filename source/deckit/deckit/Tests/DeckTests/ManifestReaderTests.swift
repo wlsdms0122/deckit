@@ -12,8 +12,8 @@ import Testing
 @Suite("ManifestReader")
 struct ManifestReaderTests {
     // MARK: - Property
-    private let mods = Permission(id: "deckit.mods", name: "Mods", means: "Every mod.", reach: .app)
-    private let network = Permission(id: "system.network", name: "Network", means: "The web.", reach: .system)
+    private let mods = Permission(id: "deckit.mods", name: "Mods", means: "Every mod.")
+    private let network = Permission(id: "system.network", name: "Network", means: "The web.")
     private let sut: ManifestReader
 
     // MARK: - Initializer

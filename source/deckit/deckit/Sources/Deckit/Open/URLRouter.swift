@@ -51,20 +51,19 @@ public final class URLRouter {
     }
 
     // MARK: - Public
-    // A file opens only on a person's click or key, whoever answers it, and deckit opens nothing by itself without one:
-    // otherwise any mod could open apps at will, or learn which paths exist.
-    // `userInitiated` for an address a person's click or key asked for, and `usesDefaultApp` for one that skips the
-    // mods for what deckit opens it with by itself.
-    public func route(_ url: String, userInitiated: Bool, usesDefaultApp: Bool) -> URLRoute {
+    // A file goes nowhere for a caller that may not hand files on, whoever would answer it: a handler that passes
+    // leaves it to the file's app, and the answer tells whether the path exists. `usesDefaultApp` for an address that
+    // skips the mods for what deckit opens it with by itself.
+    public func route(_ url: String, opensFiles: Bool, usesDefaultApp: Bool) -> URLRoute {
         let address = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let scheme = URLScheme(address: address), scheme.isPlace else {
             return URLRoute(url: address, handlers: [], system: nil)
         }
         let system = SystemHandler(scheme: scheme.name)
-        guard userInitiated || system != .file else { return URLRoute(url: address, handlers: [], system: nil) }
+        guard opensFiles || system != .file else { return URLRoute(url: address, handlers: [], system: nil) }
 
         let handlers = usesDefaultApp ? [] : handlers(of: handledAs(scheme)).filter(\.on).map(\.id)
-        return URLRoute(url: address, handlers: handlers, system: userInitiated ? system : nil)
+        return URLRoute(url: address, handlers: handlers, system: system)
     }
 
     // Every scheme with a handler list: those deckit opens by itself, then each one a mod handles, then every other.

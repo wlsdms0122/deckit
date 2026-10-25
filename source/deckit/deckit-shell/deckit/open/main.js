@@ -1,4 +1,3 @@
-import * as MAIN_PROCESS_PERMISSION from '../main-process/model/permission.js';
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
@@ -15,17 +14,10 @@ export function createOpen({ LOG, IDENTITY, CORE, open: SYSTEM }) {
     // MARK: - Initializer
     // MARK: - Public
     function start() {
-        PROTOCOL.open.handle((request, sender) => {
-            IDENTITY.modFrom(sender);
-            return open(request.url, {
-                ...request,
-                userInitiated: spendsUserActivation(sender),
-            });
-        });
-        // Only on a person's click or key: otherwise any mod could open Finder at will, or learn which paths exist.
+        PROTOCOL.open.handle((request, sender) => open(request.url, { ...request, opensFiles: opensFiles(sender) }));
         PROTOCOL.reveal.handle(({ file }, sender) => {
-            IDENTITY.modFrom(sender);
-            return spendsUserActivation(sender) && SYSTEM.reveal(file);
+            IDENTITY.modFrom(sender, OPEN_PERMISSION.FILE_HANDLERS);
+            return SYSTEM.reveal(file);
         });
         PROTOCOL.handlerLists.handle((_payload, sender) => {
             IDENTITY.modFrom(sender, OPEN_PERMISSION.URL_SCHEMES);
@@ -38,30 +30,26 @@ export function createOpen({ LOG, IDENTITY, CORE, open: SYSTEM }) {
     }
 
     // Offered to each handler the core routes it to in turn, the first to take it ending it; then opened by what deckit
-    // opens it with by itself.
-    async function open(url, { activates = true, userInitiated = false, usesDefaultApp = false, target = '' } = {}) {
-        const route = await CORE.request('open/route', { url: String(url), userInitiated, usesDefaultApp });
-        const options = { activates, userInitiated, target };
-        if (await offer(route.handlers, route.url, options)) return true;
+    // opens it with by itself. `opensFiles` is whether the caller may hand a file on, to a mod or to the file's app:
+    // the host's word, or a mod's system.file-handlers.
+    async function open(url, { activates = true, usesDefaultApp = false, target = '', opensFiles = false } = {}) {
+        const route = await CORE.request('open/route', { url: String(url), opensFiles, usesDefaultApp });
+        if (await offer(route.handlers, route.url, { activates, target })) return true;
         return system(route.system, route.url, { activates });
     }
 
     // What a page asks to open outside itself, a window or an address its document leaves for, offered as `open`
-    // does, a press in the page making it the person's. `options` are what `open` takes.
+    // does for the mod the page runs. `options` are what `open` takes.
     function openFrom(page, url, options = {}) {
-        const userInitiated = IDENTITY.consumeUserActivation(page);
-        open(url, { ...options, userInitiated }).catch((error) =>
+        open(url, { ...options, opensFiles: opensFiles(page) }).catch((error) =>
             LOG.warn(`${IDENTITY.modOf(page)?.id || 'a page'}: ${url} did not open`, error)
         );
     }
 
     // MARK: - Private
-    // A mod with system.main-process may run its own code in this process and could open the file itself, so its word is
-    // taken; any other has to show a person's press.
-    function spendsUserActivation(sender) {
-        const mod = IDENTITY.modFrom(sender);
-        if (mod.permissions.some(({ id }) => id === MAIN_PROCESS_PERMISSION.MAIN_PROCESS)) return true;
-        return IDENTITY.consumeUserActivation(sender);
+    function opensFiles(page) {
+        const mod = IDENTITY.modFrom(page);
+        return mod.permissions.some(({ id }) => id === OPEN_PERMISSION.FILE_HANDLERS);
     }
 
     // Only a plain true takes it, so a forgotten return passes it on rather than losing it.

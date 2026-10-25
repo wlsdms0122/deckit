@@ -29,34 +29,32 @@ struct URLRouterTests {
         }
 
         // When
-        let pressed = route(sut, " HTTPS://example.com ", userInitiated: true)
-        let unpressed = route(sut, "https://example.com", userInitiated: false)
-        let other = route(sut, "mailto:someone@example.com", userInitiated: true)
-        let ownApp = route(sut, "https://example.com", userInitiated: true, usesDefaultApp: true)
+        let web = route(sut, " HTTPS://example.com ", opensFiles: false)
+        let other = route(sut, "mailto:someone@example.com", opensFiles: false)
+        let ownApp = route(sut, "https://example.com", opensFiles: false, usesDefaultApp: true)
 
         // Then
-        #expect(pressed == "HTTPS://example.com -> b a c, browser")
-        #expect(unpressed == "https://example.com -> b a c, none")
+        #expect(web == "HTTPS://example.com -> b a c, browser")
         #expect(other == "mailto:someone@example.com -> c, none")
         #expect(ownApp == "https://example.com -> , browser")
     }
 
-    @Test("a file opens only on a press, and an address that is not a place opens nowhere")
-    func whatIsNotAPlaceOrUnpressedOpensNowhere() throws {
+    @Test("a file goes only where the caller may hand files on, and an address that is not a place opens nowhere")
+    func whatIsNotAPlaceOrAFileNotHandedOnOpensNowhere() throws {
         // Given
         try fixture.write("a", urlSchemes: ["*"])
         let sut = try fixture.deckit()
         _ = try sut.started("a", run: 1, contributing: ["handleURL": .bool(true)])
 
         // When
-        let unpressed = route(sut, "file:///tmp/a.txt", userInitiated: false)
-        let pressed = route(sut, "file:///tmp/a.txt", userInitiated: true)
-        let script = route(sut, "javascript:alert(1)", userInitiated: true)
-        let unschemed = route(sut, "example.com", userInitiated: true)
+        let kept = route(sut, "file:///tmp/a.txt", opensFiles: false)
+        let handedOn = route(sut, "file:///tmp/a.txt", opensFiles: true)
+        let script = route(sut, "javascript:alert(1)", opensFiles: true)
+        let unschemed = route(sut, "example.com", opensFiles: true)
 
         // Then
-        #expect(unpressed == "file:///tmp/a.txt -> , none")
-        #expect(pressed == "file:///tmp/a.txt -> a, file")
+        #expect(kept == "file:///tmp/a.txt -> , none")
+        #expect(handedOn == "file:///tmp/a.txt -> a, file")
         #expect(script == "javascript:alert(1) -> , none")
         #expect(unschemed == "example.com -> , none")
     }
@@ -79,7 +77,7 @@ struct URLRouterTests {
             _ = try restarted.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
         }
         let lists = restarted.urlRouter.handlerLists()
-        let routed = route(restarted, "https://example.com", userInitiated: true)
+        let routed = route(restarted, "https://example.com", opensFiles: false)
         let unhandled = Result { try restarted.urlRouter.setHandlers(of: "mailto", order: [], off: []) }
 
         // Then
@@ -109,13 +107,13 @@ struct URLRouterTests {
             b.problem
                 == "start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"
         )
-        #expect(route(sut, "https://example.com", userInitiated: true) == "https://example.com -> , browser")
+        #expect(route(sut, "https://example.com", opensFiles: false) == "https://example.com -> , browser")
     }
 
     // MARK: - Private
     // `url -> handlers, system` as a test compares a route.
-    private func route(_ sut: Deckit, _ url: String, userInitiated: Bool, usesDefaultApp: Bool = false) -> String {
-        let route = sut.urlRouter.route(url, userInitiated: userInitiated, usesDefaultApp: usesDefaultApp)
+    private func route(_ sut: Deckit, _ url: String, opensFiles: Bool, usesDefaultApp: Bool = false) -> String {
+        let route = sut.urlRouter.route(url, opensFiles: opensFiles, usesDefaultApp: usesDefaultApp)
 
         return "\(route.url) -> \(route.handlers.joined(separator: " ")), \(route.system?.rawValue ?? "none")"
     }
