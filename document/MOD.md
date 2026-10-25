@@ -1,6 +1,6 @@
 # Writing a mod
 
-A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view is one of these abilities, and a mod with none is headless. `deck` is put together by deck, deckit on it, and the shell on deckit. The view, styles, `theme`, `ui`, `show()`, `region()`, `children` and the pins on `mods` are the shell's; deckit's own shell (the panel, the switcher and the kit) gives them as this document says. A host app with no shell, or with a shell of its own, may give none of them, and a mod that registers a view where there is no `deck.view` does not start: a mod that runs on any host app tests for the shell's members before it uses them. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
+A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, a window, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view and a window are abilities like the rest, and a mod with neither is headless. `deck` is put together by deck, deckit on it, and the shell on deckit. The view, styles, `theme`, `ui`, `show()`, `region()`, `children`, `iconOf()` and the pins on `mods` are the shell's; deckit's own shell (the panel and the kit) gives them as this document says. A host app with no shell, or with a shell of its own, may give none of them, and a mod that registers a view where there is no `deck.view` does not start: a mod that runs on any host app tests for the shell's members before it uses them. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
 
 How the folder is laid out is the mod's own. The folder's name says nothing; the manifest says who the mod is, and its `main` names the entry:
 
@@ -68,17 +68,21 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.network` | any address, past the rules that keep one site from reading another | `fetchText(url)` on a web session |
 | `system.certificates` | trusting a certificate this Mac cannot verify, in one of its sessions | `trust` on a web session |
 | `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
-| `system.clipboard` | reading what was copied, from any app | `deck.clipboard.readText` |
+| `system.clipboard-read` | reading what was copied, from any app | `deck.clipboard.readText` |
+| `system.clipboard-write` | replacing what was copied with text of its own, which the person then pastes in any app | `deck.clipboard.writeText` |
+| `system.file-handlers` | handing files on this Mac to whatever opens them, a mod or the app for them, which can start programs, and showing them in Finder | `deck.open` of a `file://` address, `deck.reveal` |
+| `system.overlay-windows` | a window of its own over every app's, on every desktop, whichever app is in front | `overlay` on `deck.window` |
 | `system.notifications` | notifications in the corner of the screen | `deck.notify` |
 | `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `scope: 'global'` on a key |
+| `deckit.command-registry` | listing the commands of every mod and of the app, and running them, doing whatever they do | `deck.commandRegistry` |
 | `deckit.mods` | every mod: listing, installing, removing, launching them again and putting them in a load order, picking and revealing their folders, the children pinned to the mod list, and restarting the app | `deck.mods` |
 | `deckit.mod-settings` | every mod's settings | `deck.modSettings` |
 | `deckit.app-keys` | keys that work wherever the keyboard is in the app, whatever is in front | `scope: 'app'` on a key |
-| `deckit.key-map` | every mod's shortcuts | `deck.keymap` |
+| `deckit.keymap` | binding, changing and switching off the keys of every mod | `deck.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
 | `deckit.styles` | how every page looks, other mods' among them, and so what they show | `deck.styles` |
 
-An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deckit and its shell: copying text, asking for an address to be opened, putting itself on screen, showing a file in Finder, and `about()`. None of it reaches another mod.
+An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deckit and its shell: asking for an address to be opened, putting itself on screen, a window of its own, and `about()`. None of it reaches another mod.
 
 ## The entry
 
@@ -91,7 +95,7 @@ module.exports = {
         const daemon = await deck.mainProcess('dist/daemon.js');
         deck.view({ content, sidebar, didAppear, didDisappear });
         deck.keys({ … });
-        deck.commands(() => [ … ]);
+        deck.commands({ … });
         deck.handleURL((url, options) => { … });
     },
     stop() { … },
@@ -100,8 +104,8 @@ module.exports = {
 
 | Member | What it is |
 |---|---|
-| `icon` | optional; an inline SVG string, about 18px, which the shell draws rebuilt from its shapes |
-| `keywords` | optional; the switcher's aliases for the mod |
+| `icon` | optional; an inline SVG string, about 18px, read by the shell, which draws it rebuilt from its shapes |
+| `keywords` | optional; read by deckit: other words the mod is matched by, as in the Show candidates |
 | `settings` | optional; what the person can choose about the mod (below) |
 | `start(deck)` | starts the mod and registers what it contributes; may be async, and deck waits for it |
 | `stop()` | optional; the mod's run is ending: it terminates (removed, updated, the app quitting, restarted, a mod it requires ending), or `start` failed. It may be async, and deck waits for it a short while: what must not be lost is written here. A `stop()` that throws is written to the log; the row in Settings shows the run that follows |
@@ -120,7 +124,6 @@ What the person can choose about the mod is declared. Settings draws and lists e
 | `choice` | `options`: `[{ value, label, font }]`, or a function of `deck` that gives them. A `value` is a boolean, a number or text |
 | `number` | `min`, `max`, `step`, `unit` |
 | `text` | `placeholder` |
-| `action` | `button` (its text) and `run(deck)`, which may return a line to show |
 
 A declaration the core does not read, of another type or with a field of the wrong kind, is left out and shown on the mod's row in Settings; the rest stand.
 
@@ -130,7 +133,7 @@ Each registration is a call on `deck`, made once, before `start` ends; deck cont
 
 ### deck.view({ content, sidebar, parent, didAppear, didDisappear })
 
-`content` is the element shown in the panel, beside its sidebar and to the panel's top. Where a window's title bar lies over that top, the top of the view is its title bar area, as tall as the page's `--deckit-title-bar-area-height` and starting `--deckit-title-bar-area-x` from the left, past the window's buttons; both are `0px` where there is none. A mod lays its own bar there with `ui.titleBar(element)`, or uses the two values itself. Left of `--deckit-title-bar-area-x`, where the window's buttons stand, the panel takes presses to drag the window, whatever the mod draws there. Registering a view gives the mod a row in the mod list and lets it be on screen. A mod with no view is headless: it exists through whatever else it registers (keys, commands, opening addresses, exports, its main process modules) from when it starts until it stops, and a `start` that registers nothing is a headless mod that does nothing yet. `sidebar` is an element shown in the panel's sidebar, in the slot it lends under the mod list, and scrolled when it is taller. Both are laid in the mod's own page, where the panel's frame leaves them room: the mod list and its card are the panel's, drawn over and under the page. Folding the sidebar takes the mod's `sidebar` away with it and gives its room to `content`.
+`content` is the element shown in the panel, beside its sidebar and to the panel's top. Where a window's title bar lies over that top, the top of the view is its title bar area, as tall as the page's `--deckit-title-bar-area-height` and starting `--deckit-title-bar-area-x` from the left, past the window's buttons; both are `0px` where there is none. A mod lays its own bar there with `ui.titleBar(element)`, or uses the two values itself. Left of `--deckit-title-bar-area-x`, where the window's buttons stand, the panel takes presses to drag the window, whatever the mod draws there. Registering a view gives the mod a row in the mod list and lets it be on screen. A mod with no view and no window is headless: it exists through whatever else it registers (keys, commands, opening addresses, exports, its main process modules) from when it starts until it stops, and a `start` that registers nothing is a headless mod that does nothing yet. `sidebar` is an element shown in the panel's sidebar, in the slot it lends under the mod list, and scrolled when it is taller. Both are laid in the mod's own page, where the panel's frame leaves them room: the mod list and its card are the panel's, drawn over and under the page. Folding the sidebar takes the mod's `sidebar` away with it and gives its room to `content`.
 
 `parent` is the id of a mod whose view this one is shown in: a child's view goes where a region of its parent's shows it (`deck.region`, Using what another mod does), and has no row in the mod list until the person pins it there in Settings. The parent is a mod it uses, so it is in its `[requires]` or `[optional]`; a view that names any other is refused and shown on the mod's row, and the mod runs without it, as a headless mod does. In a region the view is laid in the region: no mod list, the parent showing through around it, its `sidebar` at the region's start, as wide as the panel's sidebar opens and no wider than the region, and as much of the title bar area as lies over the region.
 
@@ -138,36 +141,40 @@ Each registration is a call on `deck`, made once, before `start` ends; deck cont
 
 The view came on screen, and went. They come in turn, never twice running.
 
+### deck.window({ content, width, height, overlay, didAppear, didDisappear, didResignKey })
+
+Called once in `start`, it returns `{ open(), close() }`: the mod's page fills a window the host app makes, `width` by `height`, with `content` in it, and `open` and `close` put it on screen and away. `overlay` floats the window over every app and needs `system.overlay-windows`; without it the window is refused and shown on the mod's row. `didAppear` and `didDisappear` are as a view's, and `didResignKey` is the keyboard leaving the window. A mod has a view or a window: a `deck.view` beside a window is refused ("deck.view() is for a mod with no window"). Its `local` keys work while the window is on screen.
+
 ### deck.keys(keys)
 
 ```js
-deck.keys({ newTab: { key: 'mod+t', label: 'New tab', scope: 'local', run() { … } } });
+deck.keys({ home: { command: 'open-tab', args: { url: 'https://example.com' }, label: 'Open Home', key: 'mod+shift+h', scope: 'local' } });
 ```
 
-`key` is the default chord; the person can give the action another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. `scope` is where it works. `local`, the default, is only while its mod is on screen, in its view and in the web pages it shows. `app` is wherever the keyboard is in the app, its mod off screen and the panel closed included, and needs `deckit.app-keys`. `global` is in every app too, where the system gives the app its chord, and needs `system.global-keys`; where it does not, the key works as an `app` one does. Of keys on one chord the narrowest scope runs where it works: a mod's `local` key in its page, then the app's own on any mod, then `app` keys, then `global` ones. Two keys of one scope that work in the same place on one chord conflict: the one loaded first runs, and Settings shows the other as never running. A key that works past its page has ⌘, ⌃ or ⌥ in it and is not one a text field uses. With deckit's shell a headless mod is never on screen, so its keys work past it, and a `local` one is refused and shown on its row; what it offers to be reached from anywhere without one is a command.
+Each key is `{ command, args, label, key, scope }` and runs one of the mod's own commands, with `activates: true`. `label` comes only with `args`: a key without args is called by its command's label. A key is refused and shown on the mod's row when `start()` declared no such command, when its args do not fit the command's `params`, or when it has a label without args. `key` is the default chord; the person can give the key another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these. `scope` is where it works. `local`, the default, is only while its mod is on screen, in its view and in the web pages it shows. `app` is wherever the keyboard is in the app, its mod off screen and the panel closed included, and needs `deckit.app-keys`. `global` is in every app too, where the system gives the app its chord, and needs `system.global-keys`; where it does not, the key works as an `app` one does. Of keys on one chord the narrowest scope runs where it works: a mod's `local` key in its page, then the app's own on any mod, then `app` keys, then `global` ones. Two keys of one scope that work in the same place on one chord conflict: the one loaded first runs, and Settings shows the other as never running. A key that works past its page has ⌘, ⌃ or ⌥ in it and is not one a text field uses, Return with ⌘, ⌃ or ⌥ among them. A `local` key pressed while a dialog or menu is open in the page is dropped. A mod with no view or window has only keys that work past its page: a `local` one is refused and shown on its row.
 
-### deck.commands(fn)
+### deck.commands(commands)
 
-`fn()` returns `[{ label, hint, icon, group, run, keywords, address }]`: entries for the quick switcher, under the mod's heading. `group` is a caption inside it; `address` is a URL or a path a query matches last. Running one does not show the mod: a command that wants to be seen calls `deck.show()`. A headless mod is often nothing but this.
+```js
+deck.commands({
+    'open-tab': {
+        label: 'Open Tab',
+        description: 'Opens an address in a new tab',
+        keywords: ['browse'],
+        params: { type: 'object', properties: { url: { type: 'string', title: 'Address' } }, required: ['url'] },
+        run(args, { activates }) { … },
+        complete(param, partial, { args, signal }) { … },
+    },
+});
+```
 
-Instead of `run`, an entry may have a `submenu`, a list the switcher opens to search inside it; Escape or Backspace leaves it:
+What the mod does, by name, for anyone to run: a person through a key or the switcher, another mod through `deck.commandRegistry`. A name is ASCII letters, digits, `_` and `-`, and `label` is required. `params` is a subset of JSON Schema: `type: 'object'` at the top, and `type`, `properties`, `required`, `items`, `enum`, `oneOf` of `{ const, title, description }`, `title` and `description`; the core refuses any other keyword and checks the args against `params` before every run. A command has no icon. Commands are public.
 
-- `submenu: { placeholder, search(query, { signal }) }`: the mod answers each query. A new query aborts `signal`; pass it on to what fetches.
-- `submenu: { placeholder, entries() }`: one list the switcher ranks itself.
-
-An entry of `commands` has a `run` or a `submenu`; one with neither is left out. In `now`, `resolve` and a submenu, an entry without `run` is a readout: shown, never chosen.
-
-### deck.now(fn)
-
-`fn()` returns `[{ label, hint, icon, tone, run, attention }]`, or a promise of it: what is true this minute. The rows sit above everything in the switcher until something is typed. `tone` is `info`, `ok`, `warn` or `alert`: a name, which the switcher draws. `attention` asks for the eye once. The strip is shared: rows are taken a round at a time across mods, three in all.
-
-### deck.resolve(fn)
-
-`fn(query)` takes the query as typed and returns entries, or a promise of them, for what cannot be ranked because it does not exist until it is typed: a pasted link, an id. They go above the ranked list; one with `fallback: true` goes below it.
+`run(args, { activates })` may return text for a person; a throw is why it did not run, and a key's throw goes to the mod's row. `activates` is whether the caller wants it in front, because a person picked or pressed it: a command that shows itself calls `deck.show()` only then. `complete(param, partial, { args, signal })` answers `[{ value, title, hint, keywords }]` for a param being typed, ranked by the mod; `signal` is aborted when the caller no longer wants the answer, and an answer has 2 s. A headless mod is often nothing but commands.
 
 ### deck.handleURL(fn)
 
-`fn(url, options)` answers for the addresses of the schemes the manifest names: the mod is one of their URL scheme handlers. `options` is `{ activates, userInitiated, target }`. Return `true` when it opened the address; anything else passes it on. The manifest's `url-schemes` and `deck.handleURL` come together: one without the other is shown on the mod's row in Settings, and the mod is asked to open nothing.
+`fn(url, options)` answers for the addresses of the schemes the manifest names: the mod is one of their URL scheme handlers. `options` is `{ activates, target }`, and the address is untrusted input. Return `true` when it opened the address; anything else passes it on. The manifest's `url-schemes` and `deck.handleURL` come together: one without the other is shown on the mod's row in Settings, and the mod is asked to open nothing.
 
 ### deck.exports(object)
 
@@ -197,15 +204,15 @@ deck.extend({ 'calendar:accounts': { name: 'Google', icon, async events(account,
 
 ### deck.styles({ '<mod id>' or '*': css })
 
-With `deckit.styles`, styles other pages while the mod runs: by id its own page and those of the mods it links, in its `[requires]` and `[optional]`, and by `*` every page, the shell's, the switcher's too, and every mod's. A style by the id of a mod it does not link is not worn. A page wears them as its last style sheets, in the load order, the later over the earlier: a rule wins at the same specificity over the sheets the kit and the page's mod adopt, and over its `<style>` elements. A style the page sets on an element itself still wins unless the rule is `!important`. A sheet a script of the page's own world adopts, or one pushed onto `adoptedStyleSheets`, goes after them until the styles next change: which wins there is not settled, so a style does not lean on it. What the kit draws reads its tokens, `--deckit-*` on the page's root, and each mod's classes start with its id (UI.md): a mod that sets the tokens recolours what is drawn with them, and what a page colours from `theme` in its code stays as it is. A page for a mod that is not there is never styled, and a mod's styles go when it ends.
+With `deckit.styles`, styles other pages while the mod runs: by id its own page and those of the mods it links, in its `[requires]` and `[optional]`, and by `*` every page, the shell's too, and every mod's. A style by the id of a mod it does not link is not worn. A page wears them as its last style sheets, in the load order, the later over the earlier: a rule wins at the same specificity over the sheets the kit and the page's mod adopt, and over its `<style>` elements. A style the page sets on an element itself still wins unless the rule is `!important`. A sheet a script of the page's own world adopts, or one pushed onto `adoptedStyleSheets`, goes after them until the styles next change: which wins there is not settled, so a style does not lean on it. What the kit draws reads its tokens, `--deckit-*` on the page's root, and each mod's classes start with its id (UI.md): a mod that sets the tokens recolours what is drawn with them, and what a page colours from `theme` in its code stays as it is. A page for a mod that is not there is never styled, and a mod's styles go when it ends.
 
 ## deck
 
-`start(deck)` receives `{ id, name, settings, storage, web, requires, optional, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), and `mainProcess` for a mod with `system.main-process`. The shell adds `theme`, `ui`, `show()`, `region()` and `children`, the registrations `view` and `styles`, and the pins on `mods` (the beginning of this document).
+`start(deck)` receives `{ id, name, settings, storage, web, requires, optional, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), and `mainProcess` for a mod with `system.main-process`. deckit adds the registration `window`, and `commandRegistry` with `deckit.command-registry`. The shell adds `theme`, `ui`, `show()`, `region()`, `children` and `iconOf()`, the registrations `view` and `styles`, and the pins on `mods` (the beginning of this document).
 
 ### theme and ui
 
-`theme` is the look, derived from the host app's: `dark`, `font`, `mono`, `type`, `border`, `color`, `radius`, `shadow`, `motion` and `syntax`, each read as it is now, and `onChange(listener)` for a new one. `ui` is the kit, drawn in it. Both are in [UI.md](UI.md).
+`theme` is the look, derived from the host app's: `dark`, `font`, `mono`, `type`, `border`, `color`, `radius`, `shadow`, `motion`, `syntax` and `glass` (the strength, 0.68, a surface drawn as glass lays its colour at over what is behind it), each read as it is now, and `onChange(listener)` for a new one. `ui` is the kit, drawn in it. Both are in [UI.md](UI.md).
 
 ### settings
 
@@ -257,17 +264,19 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `children` | the shell's: `list()`, `[{ id, name, icon }]` of the mods whose view names this one as its `parent` and that run or are launching again, each from its first launch, in the load order, and `onChange(listener)`, which hears them each time they change and returns its off |
 | `caller()` | the mod that called one of this mod's exports, while the function runs to its first `await` (`deck.exports`); it throws otherwise |
 | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` | events, its own sent and any mod's heard (Using what another mod does) |
-| `open(url, { activates, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deckit's own answer; resolves to whether anything opened it. Whether a person asked is main's to know, by their click or key in the mod's page or a command they ran: a handler hears it as `userInitiated` |
+| `open(url, { activates, usesDefaultApp, target })` | offers an address to its scheme's handlers in turn, then deckit's own answer; resolves to whether anything opened it. A `file://` address goes anywhere only with `system.file-handlers`, and otherwise resolves `false`; a web address goes to the default browser with no permission |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
-| `reveal(path)` | shows a file in the system's Finder, during a person's click or key, or at any time for a mod with `system.main-process`, which could do it itself; otherwise resolves `false` |
-| `chordOf(action)` | the chord one of the mod's keys is bound to now, or `''` |
+| `reveal(path)` | with `system.file-handlers`: shows a file in the system's Finder |
+| `chordOf(name)` | the chord one of the mod's keys is bound to now, or `''` |
+| `iconOf(mod)` | the shell's: the icon of the mod's latest launched run, or `''` |
 | `about()` | `{ name, app, version, source, electron, chrome, home, mods, data, log }`: the host app's name and version, deckit's version and the hash of its sources, the version of each engine deckit runs on under its name in lower case (`electron` and `chrome` on Electron), the person's home folder, and the folders of deckit's mods, data and log |
-| `clipboard.writeText(text)` | copies text, during a person's click or key in the mod's page or a command they ran; otherwise it resolves `false` and copies nothing |
-| `clipboard.readText()` | with `system.clipboard` |
+| `clipboard.writeText(text)` | with `system.clipboard-write` |
+| `clipboard.readText()` | with `system.clipboard-read` |
 | `notify({ title, body, silent, onClick })` | with `system.notifications` |
-| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `load`, `arrange`, `reveal`, `usage`, `restartPending`, `restart`, and the shell's `pinned()` (the children the person pinned to the mod list) and `setPinned(id, pinned)`; `list`, `restartPending` and `pinned` answer at once, the rest resolve. `list()` answers `{ found, running }`: `found` is every mod deck found, loaded or not, in the load order, each its manifest with `folder`, `installed` (a copy in deckit's mods folder), `shipped`, `hides` (folders of the same id not read), `problem` (why it does not load, or null), `run` (its latest run's `{ state, problem }`, or null for one with no sandbox), `launched` (while it starts or stops again, what its latest run that launched contributed, as `running` lists it, or null), `mainProcess` (`{ running, failure }`: whether a main process module of its started, and why one did not, or null), `dependencies` (`[{ id, want, name, ok, optional, running }]`, a row for each mod in its `[requires]` and `[optional]`: `want` is the version it names, `ok` whether that one loads at that version, `running` whether it is running) and `dependents` (the ids of the mods that load and require it, directly or through another: none of them loads without it); `running` is each running mod's `id`, `name` and summary, what it contributes, with `extends` (the points it extends) and `problem`. `onChange(listener)` hears that what `list` or `restartPending` answers may have changed (a mod found or gone, a run that moved, a problem against a run, a main process module that ended), and answers its off. `install(from)` is refused but during a person's click or key in the page, since what the mod installed asks for is granted as it installs; it resolves, once the mod and the mods that require it have launched in its place or failed to, to the mod's manifest with `restart`: whether only a restart of the app finishes the install. `restartPending()` answers `[{ id, why }]`, the mods whose main process modules only a restart finishes; `why` is `updated`, `removed`, `reinstalled` or `leftover` (a `dispose` that failed). `relaunch(id)` terminates the mod and launches it again, or launches one not running, and the mods that require it load again with it, resolving once each has launched or failed to: one launched while a mod it requires is not running fails as it launches; for a mod that did not load it resolves and does nothing. `load(ids)` loads the mods named that are not running, in the load order, each once a run of its that terminates has ended and what it requires has launched or failed to, and resolves once each has launched or failed to. `arrange(ids)` gives the mods named the places they held among themselves in the load order, in the order given, the rest staying put, and resolves once `list()` has it; it rejects an order that puts a mod that loads before one it requires, and while `deck.json` does not read. `usage(id)` resolves to what the mod has in each place deck keeps it, `{ data, records, settings }`: `data` the files of its data folder (`{ count, capped, hidden }`, `capped` when it holds more than were counted, `hidden` when it holds names that start with a dot), `records` the files of its records (`{ count, hidden }`), and `settings` whether it has a settings file. `remove(id, true)` erases all three |
-| `modSettings` | with `deckit.mod-settings`: `list`, `set(id, key, value)`, `run(id, key)` |
-| `keymap` | with `deckit.key-map`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
+| `mods` | with `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `load`, `arrange`, `reveal`, `usage`, `restartPending`, `restart`, and the shell's `pinned()` (the children the person pinned to the mod list) and `setPinned(id, pinned)`; `list`, `restartPending` and `pinned` answer at once, the rest resolve. `list()` answers `{ found, running }`: `found` is every mod deck found, loaded or not, in the load order, each its manifest with `folder`, `installed` (a copy in deckit's mods folder), `shipped`, `hides` (folders of the same id not read), `problem` (why it does not load, or null), `run` (its latest run's `{ state, problem }`, or null for one with no sandbox), `launched` (while it starts or stops again, what its latest run that launched contributed, as `running` lists it, or null), `mainProcess` (`{ running, failure }`: whether a main process module of its started, and why one did not, or null), `dependencies` (`[{ id, want, name, ok, optional, running }]`, a row for each mod in its `[requires]` and `[optional]`: `want` is the version it names, `ok` whether that one loads at that version, `running` whether it is running) and `dependents` (the ids of the mods that load and require it, directly or through another: none of them loads without it); `running` is each running mod's `id`, `name` and summary, what it contributes, with `extends` (the points it extends) and `problem`. `onChange(listener)` hears that what `list` or `restartPending` answers may have changed (a mod found or gone, a run that moved, a problem against a run, a main process module that ended), and answers its off. `install(from)` resolves, once the mod and the mods that require it have launched in its place or failed to, to the mod's manifest with `restart`: whether only a restart of the app finishes the install. `restartPending()` answers `[{ id, why }]`, the mods whose main process modules only a restart finishes; `why` is `updated`, `removed`, `reinstalled` or `leftover` (a `dispose` that failed). `relaunch(id)` terminates the mod and launches it again, or launches one not running, and the mods that require it load again with it, resolving once each has launched or failed to: one launched while a mod it requires is not running fails as it launches; for a mod that did not load it resolves and does nothing. `load(ids)` loads the mods named that are not running, in the load order, each once a run of its that terminates has ended and what it requires has launched or failed to, and resolves once each has launched or failed to. `arrange(ids)` gives the mods named the places they held among themselves in the load order, in the order given, the rest staying put, and resolves once `list()` has it; it rejects an order that puts a mod that loads before one it requires, and while `deck.json` does not read. `usage(id)` resolves to what the mod has in each place deck keeps it, `{ data, records, settings }`: `data` the files of its data folder (`{ count, capped, hidden }`, `capped` when it holds more than were counted, `hidden` when it holds names that start with a dot), `records` the files of its records (`{ count, hidden }`), and `settings` whether it has a settings file. `remove(id, true)` erases all three |
+| `modSettings` | with `deckit.mod-settings`: `list`, `set(id, key, value)` |
+| `keymap` | with `deckit.keymap`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
+| `commandRegistry` | with `deckit.command-registry`: `list()`, `[{ mod, modName, host, command, label, description, keywords, params }]`, the app's commands first, then the mods' in the load order; `run({ mod, command }, args, { activates })`, which resolves to the text the command returned or null and rejects with why it did not run; `complete({ mod, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
 
 ### util
@@ -275,6 +284,8 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | Member | What it does |
 |---|---|
 | `match(text, query)` | the switcher's matching: `{ tier, score, at }` or null |
+| `matchFields(fields, query)` | the same over several fields, `[{ text, name, weight, cap }]`: `{ tier, raw, score, at }` or null |
+| `TIER` | the tiers a match is in, best first: `EXACT` 5, `PREFIX` 4, `WORD` 3, `INSIDE` 2, `SPREAD` 1 |
 | `ranker({ paths })` | the same off the page, for a list too long to rank on every key (`paths`: the names are paths, matched by their last part first): `{ rank(names, query, { limit }), close() }` |
 | `movePath(path, from, to)` | a path after `from` moved to `to`, or null when it went with it |
 | `tildify(path)` | a path as it is shown, from `~` under the home folder |
@@ -294,7 +305,7 @@ Each launch of a mod's entry is a run, and a run is in one of four states:
 | State | What happens |
 |---|---|
 | `launching` | its sandbox loads, the entry is evaluated and its settings declared, and `start(deck)` registers, what it requires running already, and starts main process modules if it needs them |
-| `running` | `start` has ended and deck has joined what it registered (keys, switcher, URL handler, exports); a view, if it registered one, is in the panel: didAppear and didDisappear |
+| `running` | `start` has ended and deck has joined what it registered (keys, commands, URL handler, exports); a view, if it registered one, is in the panel: didAppear and didDisappear |
 | `terminating` | `stop()` is asked: removed, updated, the app quitting, restarted from Settings, a mod it requires ending, or `start` failed. A `stop()` asked while `start` is still going runs once it has ended |
 | `notRunning` | it ended: `stop()` answered or its time ran out, or its page went away |
 
@@ -306,13 +317,18 @@ Whatever deck calls after `start`, a call that throws or rejects costs that call
 
 Two ways, and one question picks: could the host app do this if the other mod were not there?
 
-**URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a mod makes up. A mod calls `deck.open(url)` and never names who answers. Each scheme has its handlers: the mods whose manifest names it, in the order the person set in Settings, then deckit's own answer (the system browser for `http` and `https`, the system's app for a file), which is always last. A file is opened, and deckit's own answer (the system browser, a file's app) given, only during a person's click or key: otherwise `deck.open` answers `false`, and a file is offered to no handler. A scheme no mod takes and deckit has no answer for ends unopened.
+**URL scheme handlers**, when it could. Everything opened is an address: `https://…`, a file as `file:///…`, or a scheme a mod makes up. A mod calls `deck.open(url)` and never names who answers. Each scheme has its handlers: the mods whose manifest names it, in the order the person set in Settings, then deckit's own answer (the default browser for `http` and `https`, the system's app for a file), which is always last. A file is offered to a handler or its app only for a mod with `system.file-handlers`: otherwise `deck.open` answers `false`. A web address goes to the default browser with no permission. A scheme no mod takes and deckit has no answer for ends unopened.
 
 **requires**, when it could not. The other mod registers `deck.exports`, and this one names it in `[requires]` and receives it as `deck.requires[id]`. If what it requires is missing, too old, failed to start, or requires it back, the mod does not load, and Settings says why.
 
 **optional**, when it could, but does more with the other there. This one names it in `[optional]` and reaches it through `deck.optional[id]` while it runs. Nothing stops for its absence: what is missing is not shown, and nothing breaks.
 
 **Extension points**, the same dependency the other way round: the other mod uses what this one does. That one opens a point (`deck.extensionPoint`), and this one requires it, or uses it optionally, and extends the point (`deck.extend`): a calendar opens `accounts` and a mod adds Google accounts to it, an editor opens `languages` and a mod adds a language server. The dependency goes the one way requires does, so the calendar knows no provider by name, and a new provider is a new mod.
+
+Two mods deckit ships open points, which a mod extends naming them in `[optional]`. A `command` there is always one of the extending mod's own, by its local name, and neither `run` nor `completes` is needed: a row with neither is read only.
+
+- `switcher:rows` (`switcher`): `{ rows(), now(), resolve(query) }`, each answering rows `{ label, hint, icon, group, tone, attention, fallback, run: { command, args }, completes: { command, args, param } }`. The switcher lists every command whose required args it can fill (from `enum` or `oneOf`, or for a string from its completion or as typed). A row whose `run` is a command with no args is that command's item and draws it; any other row is matched by the keywords of the command it runs too. `now` rows sit on top until something is typed, three in all, taken a round at a time across mods; `tone` is `info`, `ok`, `warn` or `alert`, and `attention` asks for the eye once. `resolve` answers what is typed, above the ranked list, and its `fallback` rows go below it. `icon` is a kit icon string. A command's returned text shows under the switcher's list.
+- `settings:actions` (`settings`): `{ actions() }`, answering `[{ button, hint, after, run: { command, args } }]`: buttons on the mod's settings, each after the setting whose key is `after`. A command's returned text shows under its button.
 
 **Regions**, when this mod's view is shown in the other's. The other gives a place in its view (`deck.region(element)`) and this one names it as its view's `parent`, requiring it or using it optionally: a dashboard shows its boards, each a mod, beside its own list of them. The parent hears its children through `deck.children`, and a region answers `place(id)`, which puts that child's view in the region and out of any other, and `clear()`. Both resolve once done. `place` rejects for a mod that is not this one's child, and a mod is a child only from its first launch: a parent places the children `deck.children` lists. A region ends when its element, once in the page, leaves it, and an ended region rejects `place` and `clear`. The child keeps running in its own page, which the shell lays over what of the element is seen, following it frame by frame: cut where an ancestor clips it (a scroller's edge, the sidebar as it folds), and nothing while the element is hidden. The page is made as small as that part, not cropped, and nothing the parent draws, its menus too, comes over it. Regions are shown while their mod is the one on screen, and a child comes and goes with it (didAppear, didDisappear, its keys). A child is its parent's from when it starts, through launching again, until it starts naming another or none. A child pinned to the mod list is in the panel while it is on screen there, and back in its region after.
 
