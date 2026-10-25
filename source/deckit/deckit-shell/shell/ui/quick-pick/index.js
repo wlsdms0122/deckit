@@ -59,11 +59,11 @@ function make(theme, ui) {
 }
 
 // MARK: - Private
-// A field over a list to pick from, on a modal at the top of the page. The owner says what the list holds
+// A field over a list to pick from, on a modal at the top of the page. The caller says what the list holds
 // (`set`), and hears what is typed (`onInput(text)`) and what is picked (`onPick(item, index)`). Items are drawn
 // by `key`, `create` and `update`, as a keyed list draws them; `optionOf(item)` is null for an item that is no
 // option (a heading), or else `{ disabled }`. The arrows move the active option and Enter picks it, or with
-// `onEnter({ item, text })` hands both to the owner. `onKey(event)` has a key first and returns whether it took
+// `onEnter({ item, text })` hands both to the caller. `onKey(event)` has a key first and returns whether it took
 // it. `onActive(item, index, { pointer })` hears the active option move, and `onCommandKey(held)` the Command
 // key held down in it or let go. The field keeps the focus: a press anywhere else on the card leaves it there.
 // With `fills` it is all the page draws, filling it, and with `drags` it drags the window it is in from anywhere but
@@ -165,7 +165,7 @@ function quickPick(
         chip.replaceChildren(...(scope ? [ICON.sanitize(scope.icon), scope.label] : []));
     }
 
-    // The text typed is the owner's to set too; one it sets is not heard as typed.
+    // The text typed is the caller's to set too; one it sets is not heard as typed.
     return {
         text: () => field.value,
         setText: (text) => (field.value = text),

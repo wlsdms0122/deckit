@@ -530,7 +530,7 @@ module.exports = {
         // A file only previewed from the tree, with `preserveFocus`, leaves the keyboard there, for the next row or ⌘⌫.
         function show(file, { preserveFocus = false } = {}) {
             if (!file) return;
-            workspaces.bringToFront(workspaces.ownerOf(file) || workspaces.front(), file);
+            workspaces.bringToFront(workspaces.workspaceOf(file) || workspaces.front(), file);
             paint();
             session.save();
             workspaces.front().tree?.reveal(file.path);

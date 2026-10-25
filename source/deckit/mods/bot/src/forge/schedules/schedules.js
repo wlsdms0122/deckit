@@ -39,7 +39,7 @@ const schedulesView = ({ deck, bot, picker }) => {
         concurrency: 'skip',
     };
     const inputDrafts = new Map();
-    const call = (owner, operation, args) => bot.forge.supervisor.call(owner, operation, args);
+    const call = (target, operation, args) => bot.forge.supervisor.call(target, operation, args);
     const muted = (text) =>
         styled('div', { color: 'var(--deckit-muted)', font: '12px var(--deckit-font)', whiteSpace: 'pre-wrap' }, text);
     const bar = styled('div', { display: 'none', flex: '1', gap: '8px', alignItems: 'center', minWidth: '0' });
@@ -232,7 +232,7 @@ const schedulesView = ({ deck, bot, picker }) => {
             form = null;
             detail.replaceChildren();
             const id = item.id,
-                owner = session;
+                target = session;
             const header = styled('header', {
                 display: 'flex',
                 flexWrap: 'wrap',
@@ -244,9 +244,9 @@ const schedulesView = ({ deck, bot, picker }) => {
             const toggle = ui.button({
                 label: '',
                 onClick: () =>
-                    act(owner, async () => {
+                    act(target, async () => {
                         const enabled = schedules.find((row) => row.id === id).enabled;
-                        await call(owner, enabled ? 'schedule.disable' : 'schedule.enable', { id });
+                        await call(target, enabled ? 'schedule.disable' : 'schedule.enable', { id });
                         return `${enabled ? 'Paused' : 'Enabled'} ${id}`;
                     }),
             });
@@ -255,8 +255,8 @@ const schedulesView = ({ deck, bot, picker }) => {
                 variant: 'primary',
                 icon: ui.icon('play', { size: 14 }),
                 onClick: () =>
-                    act(owner, async () => {
-                        const result = await bot.forge.supervisor.runSchedule(owner, id);
+                    act(target, async () => {
+                        const result = await bot.forge.supervisor.runSchedule(target, id);
                         return `Dispatched ${id} · ${result.workflow_id}`;
                     }),
             });
@@ -281,8 +281,8 @@ const schedulesView = ({ deck, bot, picker }) => {
                         confirmLabel: 'Delete',
                         destructive: true,
                         onConfirm: () =>
-                            act(owner, async () => {
-                                await call(owner, 'schedule.delete', { id });
+                            act(target, async () => {
+                                await call(target, 'schedule.delete', { id });
                                 return `Deleted ${id}`;
                             }),
                     }),
@@ -380,17 +380,17 @@ const schedulesView = ({ deck, bot, picker }) => {
     async function loadSpec() {
         spec = null;
         const request = ++specRequest,
-            owner = session,
+            target = session,
             workflow = draft.workflow;
         paintCreate();
         if (!workflow) return;
         try {
-            const next = await call(owner, 'workflow.describe', { name: workflow });
-            if (request !== specRequest || owner !== session || workflow !== draft.workflow) return;
+            const next = await call(target, 'workflow.describe', { name: workflow });
+            if (request !== specRequest || target !== session || workflow !== draft.workflow) return;
             spec = next;
             if (creating) paintCreate();
         } catch (error) {
-            if (request === specRequest && owner === session) feedback(notice, error.message, true);
+            if (request === specRequest && target === session) feedback(notice, error.message, true);
         }
     }
     function updatePreview() {
@@ -527,7 +527,7 @@ const schedulesView = ({ deck, bot, picker }) => {
                     : muted(draft.workflow ? 'Loading workflow inputs…' : 'Choose a workflow to configure inputs.')
             )
         );
-        const owner = session;
+        const target = session;
         save = ui.button({
             label: 'Create schedule',
             variant: 'primary',
@@ -548,9 +548,9 @@ const schedulesView = ({ deck, bot, picker }) => {
                 if (!inputs) return;
                 const workflow = draft.workflow,
                     concurrency = draft.concurrency;
-                act(owner, async () => {
-                    const result = await call(owner, 'schedule.create', { workflow, trigger, concurrency, inputs });
-                    if (owner === session) {
+                act(target, async () => {
+                    const result = await call(target, 'schedule.create', { workflow, trigger, concurrency, inputs });
+                    if (target === session) {
                         creating = false;
                         selected = result.id;
                         paintList();
@@ -581,23 +581,23 @@ const schedulesView = ({ deck, bot, picker }) => {
         detail.append(footer);
         updateBusy();
     }
-    async function act(owner, action) {
+    async function act(target, action) {
         if (busy) return;
         busy = true;
         feedback(notice, '');
         updateBusy();
         try {
             const message = await action();
-            if (owner === session) feedback(notice, message);
+            if (target === session) feedback(notice, message);
         } catch (error) {
-            if (owner === session) {
+            if (target === session) {
                 form?.showError(error.message);
                 feedback(notice, error.message, true);
             }
         } finally {
             busy = false;
             updateBusy();
-            if (owner === session) {
+            if (target === session) {
                 epoch++;
                 pending = null;
             }

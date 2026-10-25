@@ -4,7 +4,7 @@ const TYPE_AHEAD_MS = 800;
 
 // MARK: - Initializer
 // MARK: - Public
-// The keys of a list or a tree of items, which takes the focus. Its owner keeps the selection and is told where the
+// The keys of a list or a tree of items, which takes the focus. Its caller keeps the selection and is told where the
 // keys move it: `items()` are the keys of the items the arrows move among, in order, and `lead()` the one they move
 // from, or null. A list is a tree whose items do not nest. Keys typed into something inside it (a rename) are its own.
 function tree(
@@ -101,7 +101,7 @@ function tree(
         if (parent != null) onSelect(parent, { extend: false });
     }
 
-    // The first child, once the item shows them; what the owner reads to answer may take a while.
+    // The first child, once the item shows them; what the caller reads to answer may take a while.
     async function enter(current) {
         const children = await childrenOf(current);
         if (children.length && lead() === current) onSelect(children[0], { extend: false });

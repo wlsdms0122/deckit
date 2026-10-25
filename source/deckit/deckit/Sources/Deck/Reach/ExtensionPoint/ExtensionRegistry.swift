@@ -105,27 +105,27 @@ public final class ExtensionRegistry {
 
     // MARK: - Private
     // What extends each point the mod opens now, by point name: mod id -> the run that extends it, and with what.
-    private func extensions(of owner: String) -> [String: [String: (run: Int, extension: Snapshot)]] {
-        guard let ownerMod = runner.mod(of: owner),
-            let ownerRun = runner.run(of: owner),
-            isOpen(ownerRun),
-            let contributions = ownerRun.contributions
+    private func extensions(of opener: String) -> [String: [String: (run: Int, extension: Snapshot)]] {
+        guard let openerMod = runner.mod(of: opener),
+            let openerRun = runner.run(of: opener),
+            isOpen(openerRun),
+            let contributions = openerRun.contributions
         else { return [:] }
 
-        let told = told[owner].flatMap { told in told.run == ownerRun.number ? told.points : nil } ?? [:]
+        let told = told[opener].flatMap { told in told.run == openerRun.number ? told.points : nil } ?? [:]
         var points = Dictionary(
             contributions.extensionPoints.map { name in (name, [String: (run: Int, extension: Snapshot)]()) },
             uniquingKeysWith: { first, _ in first }
         )
         for mod in runner.mods()
-        where mod.manifest.requires[owner] != nil || mod.manifest.takesOptional(ownerMod.manifest) {
+        where mod.manifest.requires[opener] != nil || mod.manifest.takesOptional(openerMod.manifest) {
             let id = mod.manifest.id
             guard let run = runner.run(of: id), isOpen(run), let extensions = run.contributions?.extensions else {
                 continue
             }
 
             for (point, extended) in extensions {
-                guard let scoped = ScopedName(point), scoped.modId == owner, points[scoped.name] != nil else {
+                guard let scoped = ScopedName(point), scoped.modId == opener, points[scoped.name] != nil else {
                     continue
                 }
                 guard run.state == .running || told[scoped.name]?[id] == run.number else { continue }

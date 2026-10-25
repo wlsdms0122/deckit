@@ -27,7 +27,7 @@ function make() {
 // keys to select, in the list's order, with what `listAt` answered, and whether a click chose them. Returns the dispose.
 function marquee(area, { listAt, selection, onSelect }) {
     // On the click, not the press: a press on a scroll bar is never followed by one, and a click on a row is its
-    // owner's. The click that ends a rectangle is the drag's.
+    // caller's. The click that ends a rectangle is the drag's.
     const onClick = (event) => {
         if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) return;
         const place = listAt(event.target);

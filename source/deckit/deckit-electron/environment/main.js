@@ -314,9 +314,9 @@ function watch(
     };
 }
 
-// A navigation keeps the page, so a page that left its address would still be known as its owner while it ran
-// another's page with that one's storage, or ran its own again beside itself. So it stays at the address its first
-// load commits. Main's own loadURL and reload pass without these events.
+// A navigation keeps the page, so a page that left its address would still be taken for what it first loaded while it
+// ran another's page with that one's storage, or ran its own again beside itself. So it stays at the address its
+// first load commits. Main's own loadURL and reload pass without these events.
 function pin(guard, page) {
     let address = null;
     guard(page, 'did-navigate', (_event, url) => (address ??= withoutFragment(url)), { once: true });

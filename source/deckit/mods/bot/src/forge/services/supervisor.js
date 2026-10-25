@@ -397,15 +397,15 @@ const supervisorView = ({ deck, bot, picker }) => {
     // What an action answers, `{ note, failure }`, is shown only while its session is.
     const act = async (action) => {
         actionError = actionNote = '';
-        const owner = session;
+        const target = session;
         let note = '',
             failure = '';
         try {
-            note = (await action(forgeOf(owner)))?.note || '';
+            note = (await action(forgeOf(target)))?.note || '';
         } catch (error) {
             failure = String(error?.message || error);
         }
-        if (owner !== session) return { note, failure };
+        if (target !== session) return { note, failure };
         actionNote = note;
         actionError = failure;
         await load();

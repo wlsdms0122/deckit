@@ -96,7 +96,7 @@ function make(theme, ui) {
 
 // MARK: - Private
 // A heading over a body. With `collapsed` a boolean the heading folds the body: a press reports the fold asked
-// for and the owner sets it. With `onHeading` the heading is pressed. `actions` are { icon, title, run(button) }
+// for and the caller sets it. With `onHeading` the heading is pressed. `actions` are { icon, title, run(button) }
 // at the heading's end; `actions` of the result are their buttons.
 function section(
     ui,

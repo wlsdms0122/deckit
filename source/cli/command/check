@@ -180,11 +180,11 @@ function sharedFiles() {
 // A package's channels are its own: each starts with its package's name, and one channel has one declaration, so no
 // package reaches another's around what that one answers.
 function checkChannels(file, plain) {
-    const owner = packageOf(file);
+    const name = packageOf(file);
     if (new RegExp(DECLARES + `\\s*(?=\\S)(?!["'\`][^"'\`$]*["'\`])`).test(plain))
         say(file, 'declares a channel not written out as text, so whose it is cannot be read');
     for (const [, channel] of plain.matchAll(new RegExp(DECLARES + `\\s*["'\`]([^"'\`]+)["'\`]`, 'g'))) {
-        if (!channel.startsWith(owner + ':')) say(file, `declares the channel ${channel}, which is not ${owner}'s`);
+        if (!channel.startsWith(name + ':')) say(file, `declares the channel ${channel}, which is not ${name}'s`);
         if (channels.has(channel))
             say(file, `declares the channel ${channel}, which ${channels.get(channel)} declares`);
         channels.set(channel, file);

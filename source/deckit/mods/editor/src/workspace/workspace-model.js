@@ -22,7 +22,7 @@ function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
         filesUnder,
         withRoot: (root) => list.find((workspace) => workspace.root === root),
         loose: () => list.find((workspace) => !workspace.root),
-        ownerOf,
+        workspaceOf,
         holderOf,
         add,
         remove,
@@ -44,7 +44,7 @@ function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
         return [...openFiles.values()].filter((file) => file.path === path || isInside(file.path, path));
     }
 
-    function ownerOf(file) {
+    function workspaceOf(file) {
         return list.find((workspace) => workspace.files.includes(file));
     }
 
@@ -86,7 +86,7 @@ function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
 
     // `file` goes where `toFile` is among its workspace's tabs.
     function reorderTab(file, toFile) {
-        moveTo(ownerOf(file).files, file, toFile);
+        moveTo(workspaceOf(file).files, file, toFile);
     }
 
     // Every open, close and replaced preview goes through place and release, so the open files and the workspaces'
@@ -101,7 +101,7 @@ function workspaceModel({ fileSystem, onRelease, onOpenFilesChange }) {
     }
 
     function release(file) {
-        const workspace = ownerOf(file);
+        const workspace = workspaceOf(file);
         if (!workspace) return null;
         unlist(workspace, file);
         openFiles.delete(file.path);
