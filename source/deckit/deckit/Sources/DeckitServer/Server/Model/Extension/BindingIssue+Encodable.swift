@@ -23,7 +23,7 @@ extension BindingIssue: Encodable {
         case owner
         case ownerName
         case scope
-        case app
+        case host
     }
 
     // MARK: - Initializer
@@ -38,7 +38,7 @@ extension BindingIssue: Encodable {
         try facts.encode(other.owner.id, forKey: .owner)
         try facts.encode(other.owner.name, forKey: .ownerName)
         try facts.encode(other.scope, forKey: .scope)
-        try facts.encode(other.owner.isApp, forKey: .app)
+        try facts.encode(other.owner.isHost, forKey: .host)
     }
 
     // MARK: - Private

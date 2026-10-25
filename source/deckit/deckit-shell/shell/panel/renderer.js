@@ -167,7 +167,12 @@ function createPanel({ channels }) {
         PROTOCOL.show.send();
     }
 
-    return Object.freeze({ mount, show, pins });
+    // The icon a mod is listed with, by its id, or ''.
+    function iconOf(mod) {
+        return PROTOCOL.icon.invoke({ mod: String(mod) });
+    }
+
+    return Object.freeze({ mount, show, iconOf, pins });
 }
 
 // Why what `deck.view` was handed is not a view, or ''. Its parent is the region's to judge.
@@ -177,10 +182,11 @@ function viewProblem(value) {
     return '';
 }
 
-// A mod's local key runs only in its page in front, so one with no view has only its keys that work past it.
-function keyProblem(key, view) {
-    return key.scope === 'local' && !view
-        ? 'a mod with no view is never in front, so only a key that works past its page does'
+// A mod's local key runs only in its page in front, so one with nothing on screen, no view and no window, has only
+// its keys that work past it.
+function keyProblem(key, shown) {
+    return key.scope === 'local' && !shown
+        ? 'a mod with no view or window is never in front, so only a key that works past its page does'
         : '';
 }
 

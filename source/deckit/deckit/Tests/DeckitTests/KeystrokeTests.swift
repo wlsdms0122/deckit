@@ -54,13 +54,15 @@ struct KeystrokeTests {
     }
 
     @Test(
-        "a chord that works past its page has ⌘, ⌃ or ⌥, and none a text field uses",
+        "a chord that works past its page has ⌘, ⌃ or ⌥, and none a field with focus takes",
         arguments: [
             ("cmd+shift+g", true),
             ("shift+g", false),
             ("cmd+c", false),
             ("cmd+left", false),
-            ("ctrl+c", true)
+            ("ctrl+c", true),
+            ("ctrl+enter", false),
+            ("alt+shift+enter", false)
         ]
     )
     func wideChordIsJudged(spec: String, fits: Bool) throws {

@@ -6,26 +6,33 @@
 //
 
 import Foundation
+import Deck
 
-// A key as its owner declares it: the action it runs, its default chord as written, what a person reads it as, and
-// where it works.
+// A key as its owner declares it: its name, the owner's command it runs with `args`, its default chord as written,
+// what a person reads it as when it has args, and where it works.
 public struct Key: Decodable, Equatable, Sendable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
-        case action
+        case name
+        case command
+        case args
         case spec = "key"
         case label
         case scope
     }
 
-    public let action: String
+    public let name: String
+    public let command: String
+    public let args: JSONValue?
     public let spec: String
     public let label: String
     public let scope: KeyScope
 
     // MARK: - Initializer
-    public init(action: String, spec: String, label: String, scope: KeyScope) {
-        self.action = action
+    public init(name: String, command: String, args: JSONValue?, spec: String, label: String, scope: KeyScope) {
+        self.name = name
+        self.command = command
+        self.args = args
         self.spec = spec
         self.label = label
         self.scope = scope

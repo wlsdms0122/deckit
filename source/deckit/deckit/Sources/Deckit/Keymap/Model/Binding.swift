@@ -6,22 +6,25 @@
 //
 
 import Foundation
+import Deck
 
-// A key in the keymap, by its id: its owner's and its action's. `defaultKeystroke` is the chord it is declared with,
-// `keystroke` the one it is bound to now, none when it is unbound, and `changed` whether a person changed it from
-// today's default.
+// A key in the keymap, by its id: its owner's and its name's. It runs the owner's `command` with `args`.
+// `defaultKeystroke` is the chord it is declared with, `keystroke` the one it is bound to now, none when it is
+// unbound, and `changed` whether a person changed it from today's default.
 public struct Binding: Equatable, Sendable {
     // MARK: - Property
-    public let owner: BindingOwner
+    public let owner: CommandOwner
     public let scope: KeyScope
-    public let action: String
+    public let name: String
+    public let command: String
+    public let args: JSONValue?
     public let label: String
     public let defaultKeystroke: Keystroke?
     public let keystroke: Keystroke?
     public let changed: Bool
 
     public var id: String {
-        owner.bindingId(of: action)
+        owner.id(of: name)
     }
 
     // MARK: - Initializer

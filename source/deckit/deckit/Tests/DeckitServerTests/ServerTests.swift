@@ -244,7 +244,7 @@ struct ServerTests {
     @Test("initialize refuses a permission defined twice")
     func initializeRefusesPermissionDefinedTwice() throws {
         // Given
-        let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them.","reach":"app"}"#
+        let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them."}"#
 
         // When
         let response = try send(
@@ -351,7 +351,7 @@ struct ServerTests {
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["mail"]}}"#, to: sut)
         let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{},"#
-            + #""handleURL":true,"commands":true}"#
+            + #""handleURL":true,"commands":[{"name":"compose","label":"Compose"}]}"#
         _ = try send(
             #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
                 + #""contributions":\#(contributions)}}"#,
@@ -359,9 +359,14 @@ struct ServerTests {
         )
 
         // When
+        let defined = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"command/define","params":{"owner":"@app","#
+                + #""commands":[{"name":"go","label":"Go"}]}}"#,
+            to: sut
+        )
         let registered = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"action":"go","key":"mod+1","label":"Go","#
-                + #""scope":"local"}}"#,
+            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"owner":"@app","key":{"name":"go","#
+                + #""command":"go","key":"mod+1","label":"","scope":"local"}}}"#,
             to: sut
         )
         let bound = try send(
@@ -374,26 +379,33 @@ struct ServerTests {
             to: sut
         )
         let routed = try send(
-            #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","userInitiated":true,"#
+            #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","opensFiles":true,"#
                 + #""usesDefaultApp":false}}"#,
             to: sut
         )
-        let sources = try send(#"{"jsonrpc":"2.0","id":9,"method":"command/sources"}"#, to: sut)
+        let listed = try send(#"{"jsonrpc":"2.0","id":9,"method":"command/list"}"#, to: sut)
+        let checked = try send(
+            #"{"jsonrpc":"2.0","id":10,"method":"command/check","params":{"mod":"mail","command":"compose"}}"#,
+            to: sut
+        )
 
         // Then
         guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let go = bindings.first else {
             Issue.record("no bindings in \(bound)")
             return
         }
+        #expect(value(in: defined, at: "result") == .bool(true))
         #expect(value(in: registered, at: "result", "revision") != nil)
         #expect(value(in: go, at: "id") == .string("@app.go"))
         #expect(value(in: go, at: "spec") == .string("cmd+2"))
         #expect(value(in: set, at: "result") == .bool(true))
         #expect(value(in: routed, at: "result", "handlers") == .array([.string("mail")]))
-        #expect(sources == (try json(
-            #"{"jsonrpc":"2.0","id":9,"result":[{"id":"mail","name":"mail","commands":true,"now":false,"#
-                + #""resolve":false}]}"#
+        #expect(listed == (try json(
+            #"{"jsonrpc":"2.0","id":9,"result":[{"mod":"@app","modName":"Deckit","host":true,"command":"go","#
+                + #""label":"Go","description":"","keywords":[],"params":null},{"mod":"mail","modName":"mail","#
+                + #""host":false,"command":"compose","label":"Compose","description":"","keywords":[],"params":null}]}"#
         )))
+        #expect(value(in: checked, at: "result", "command") == .string("compose"))
     }
 
     @Test("a setting lists as Settings reads it: the declaration's fields, `default` as declared, value and options")
@@ -431,10 +443,15 @@ struct ServerTests {
     func keymapIsJSON() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        for (id, (action, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
+        _ = try send(
+            #"{"jsonrpc":"2.0","id":2,"method":"command/define","params":{"owner":"@app","#
+                + #""commands":[{"name":"one","label":"One"},{"name":"two","label":"Two"}]}}"#,
+            to: sut
+        )
+        for (id, (name, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
             _ = try send(
-                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"action":"\#(action)","#
-                    + #""key":"\#(spec)","label":"","scope":"local"}}"#,
+                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"owner":"@app","#
+                    + #""key":{"name":"\#(name)","command":"\#(name)","key":"\#(spec)","label":"","scope":"local"}}}"#,
                 to: sut
             )
         }
@@ -463,7 +480,7 @@ struct ServerTests {
         #expect(value(in: held, at: "kind") == .string("held"))
         #expect(value(in: held, at: "other", "id") == .string("@app.one"))
         #expect(value(in: held, at: "other", "ownerName") == .string("Deckit"))
-        #expect(value(in: held, at: "other", "app") == .bool(true))
+        #expect(value(in: held, at: "other", "host") == .bool(true))
     }
 
     @Test("a result that cannot be written is answered with an internal error, never dropped")

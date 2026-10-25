@@ -12,6 +12,7 @@ public enum KeymapError: Refusal, Equatable {
     case noSuchBinding(String)
     case notAChord(String)
     case cannotWork(label: String, scope: KeyScope)
+    case labelWithoutArguments(String)
 
     // MARK: - Property
     public var message: String {
@@ -24,6 +25,9 @@ public enum KeymapError: Refusal, Equatable {
 
         case let .cannotWork(label, scope):
             "\(label) cannot work \(scope.phrase): \(Keystroke.wideRule)"
+
+        case let .labelWithoutArguments(name):
+            "key \"\(name)\" has a \"label\" and no \"args\": a key without args is called by its command's label"
         }
     }
 

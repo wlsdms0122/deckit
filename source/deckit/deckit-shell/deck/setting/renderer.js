@@ -16,15 +16,10 @@ function of({ declared, saved, deck, deliver, fail }) {
         values[key] = value;
         for (const listener of listeners) deliver('settings.on', listener, key, value);
     });
-    // Options worked out as they are read, and actions run from another mod, are asked of this page.
-    // Worked-out options and actions are the mod's to answer once it has its deck.
+    // Options worked out as they are read are asked of this page, the mod's to answer once it has its deck.
     PROTOCOL.settingOptions.handle(async ({ key }) => {
         const options = declared[key]?.options;
         return typeof options === 'function' ? options(await deck) : options || [];
-    });
-    PROTOCOL.runSetting.handle(async ({ key }) => {
-        const said = await declared[key]?.run?.(await deck);
-        return said == null ? '' : String(said);
     });
     return {
         get(key) {
@@ -49,7 +44,7 @@ function of({ declared, saved, deck, deliver, fail }) {
 function declarationsOf(declared) {
     const out = [];
     for (const [key, declaration] of Object.entries(declared || {})) {
-        const { run, options, ...fields } = declaration ?? {};
+        const { options, ...fields } = declaration ?? {};
         const data = Object.entries(fields).map(([name, value]) => [name, typeof value === 'function' ? {} : value]);
         out.push({
             ...Object.fromEntries(data),
@@ -68,7 +63,6 @@ function modSettingsTool() {
     return Object.freeze({
         list: () => PROTOCOL.modSettings.invoke(),
         set: (id, key, value) => PROTOCOL.setModSetting.invoke({ mod: id, key, value }),
-        run: (id, key) => PROTOCOL.runModSetting.invoke({ mod: id, key }),
     });
 }
 

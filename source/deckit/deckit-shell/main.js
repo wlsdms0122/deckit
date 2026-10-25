@@ -4,8 +4,10 @@ import * as CLIPBOARD_PERMISSION from './deckit/clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from './deckit/notification/model/permission.js';
 import * as KEYMAP_PERMISSION from './deckit/keymap/model/permission.js';
 import * as OPEN_PERMISSION from './deckit/open/model/permission.js';
+import * as COMMAND_PERMISSION from './deckit/command/model/permission.js';
 import * as MOD_PERMISSION from './deck/mod/permission.js';
 import * as STYLE_PERMISSION from './shell/style/model/permission.js';
+import * as WINDOW_PERMISSION from './deckit/window/model/permission.js';
 import * as ENVIRONMENT from './environment/index.js';
 import * as IPC from './deck/ipc/main.js';
 import { createHome } from './deck/home/index.js';
@@ -29,6 +31,7 @@ import { createOpen } from './deckit/open/main.js';
 import { createNotification } from './deckit/notification/main.js';
 import { createClipboard } from './deckit/clipboard/main.js';
 import { createCommand } from './deckit/command/main.js';
+import { createWindow } from './deckit/window/main.js';
 import { createMainProcess } from './deckit/main-process/main.js';
 import { createModFolder } from './deckit/mod-folder/main.js';
 import { createRuntime } from './deckit/runtime/main.js';
@@ -36,7 +39,6 @@ import { createPage, createSetup } from './shell/page/main.js';
 import { createApi } from './api/index.js';
 import { createRegion } from './shell/region/main.js';
 import { createPanel } from './shell/panel/main.js';
-import { createSwitcher } from './shell/switcher/main.js';
 import { createStyle } from './shell/style/main.js';
 import { createTheme } from './shell/theme/main.js';
 
@@ -48,9 +50,10 @@ import { createTheme } from './shell/theme/main.js';
 // `sources` folders of mods read in place, ahead of installed ones.
 const CONFIG = { id: 'deckit', name: 'Deckit', agent: [], schemeHandlers: {} };
 const FOLDERS = { home: null, ship: [], sources: [] };
-// What the host app answers deckit: the process is its own. And what it answers the UI: where it is shown.
-const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
-const ATTACH_ANSWERS = ['start', 'showsPanel', 'show', 'dismiss', 'summonSwitcher', 'panelTitled'];
+// What the host app answers deckit: the process and its windows are its own. And what it answers the UI: where it is
+// shown.
+const CONNECT_ANSWERS = ['notificationClicked', 'restart', 'showWindow', 'hideWindow'];
+const ATTACH_ANSWERS = ['start', 'showsPanel', 'show', 'dismiss', 'panelTitled'];
 // Main's channels are the process's: deckit connects once, and the UI is attached once, to what connect answered.
 let connected = null;
 let attached = false;
@@ -88,7 +91,6 @@ function attach(deckit, { host } = {}) {
     for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
     const REGION = createRegion({ deckit });
     const PANEL = createPanel({ REGION, deckit, host });
-    const SWITCHER = createSwitcher({ PANEL, deckit, host });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
     deckit.onStart(() => {
@@ -96,9 +98,8 @@ function attach(deckit, { host } = {}) {
         STYLE.start();
         REGION.start();
         PANEL.start();
-        SWITCHER.start();
         deckit.keymap.delegate({ isActive: PANEL.isActive, monitor: PANEL.monitor });
-        host.start({ setTheme: THEME.set, panel: PANEL.control, switcher: SWITCHER.control });
+        host.start({ setTheme: THEME.set, panel: PANEL.control });
     });
 }
 
@@ -128,7 +129,27 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const EXTENSION = createExtension({ CORE, IDENTITY, RUNNER });
     const EVENT = createEvent({ CORE, LOG, IDENTITY });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pages: ENV.pages });
-    const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: ENV.pages, keys: ENV.keys });
+    const COMMAND = createCommand({ LOG, IDENTITY, RUNNER, CORE });
+    const PAGE = createPage({ IDENTITY, LOG, pages: ENV.pages });
+    const WINDOW = createWindow({
+        IDENTITY,
+        RUNNER,
+        PAGE,
+        stage: ENV.stage,
+        showWindow: (control) => host.showWindow(control),
+        hideWindow: (control) => host.hideWindow(control),
+    });
+    const KEYMAP = createKeymap({
+        LOG,
+        IDENTITY,
+        CATALOG,
+        RUNNER,
+        CORE,
+        COMMAND,
+        WINDOW,
+        pages: ENV.pages,
+        keys: ENV.keys,
+    });
     const WEB = createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: ENV.web, pages: ENV.pages, open: ENV.open });
     const OPEN = createOpen({ LOG, IDENTITY, CORE, open: ENV.open });
     const NOTIFICATION = createNotification({
@@ -138,7 +159,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         notifications: ENV.notifications,
     });
     const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
-    const COMMAND = createCommand({ LOG, IDENTITY, CORE });
     const MAIN_PROCESS = createMainProcess({ IDENTITY, RUNNER, mainProcess: ENV.mainProcess });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
     const RUNTIME = createRuntime({
@@ -151,7 +171,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         user: ENV.folders.user,
     });
     const SETUP = createSetup({ IDENTITY, web: ENV.web });
-    const PAGE = createPage({ IDENTITY, LOG, pages: ENV.pages });
     const API = createApi({
         CONFIG,
         CORE,
@@ -181,6 +200,8 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         NOTIFICATION_PERMISSION,
         KEYMAP_PERMISSION,
         OPEN_PERMISSION,
+        COMMAND_PERMISSION,
+        WINDOW_PERMISSION,
     ])
         for (const permission of model.PERMISSIONS) PERMISSION.define(permission);
     const answer = API.make({ onStart, restart: () => host.restart() });
@@ -212,6 +233,8 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         OPEN.start();
         NOTIFICATION.start();
         CLIPBOARD.start();
+        COMMAND.start();
+        WINDOW.start();
         MAIN_PROCESS.start();
         MOD_FOLDER.start();
         RUNTIME.start();

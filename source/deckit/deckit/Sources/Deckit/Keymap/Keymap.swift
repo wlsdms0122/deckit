@@ -8,39 +8,38 @@
 import Foundation
 import Deck
 
-// The keys of the app and of the mods that run, bound to chords a person may change, and how a keystroke is resolved
-// against them. A mod's keys are those its run contributed under `keys`, taken while it runs and as it terminates; the
-// app's are registered by the host app and the shell it puts on deckit.
+// The keys of the hosts and of the mods that run, bound to chords a person may change, and how a keystroke is resolved
+// against them. Each key runs a command of its owner's. A mod's keys are those its run contributed under `keys`,
+// taken while it runs and as it terminates; a host's are registered under the name it declares its commands under.
 public final class Keymap {
     // MARK: - Property
     // What a mod holds for keys that work past its own page, by their scope.
     static let appKeysPermission = Permission(
         id: "deckit.app-keys",
-        name: "Keys Anywhere in the App",
-        means: "Its keys work wherever you are in the app, whatever is in front, and are taken from every page there.",
-        reach: .app
+        name: "App Keys",
+        means: "Its keys work wherever you are in the app, whatever is in front, and are taken from every page there."
     )
     static let globalKeysPermission = Permission(
         id: "system.global-keys",
         name: "Global Keys",
-        means: "Its keys work in every app, this one in front or not, and are taken from all of them.",
-        reach: .system
+        means: "Its keys work in every app, this one in front or not, and are taken from all of them."
     )
 
     private let contributionKey = "keys"
     private let overridesKey = "keys"
     private let deck: Deck
-    private let app: BindingOwner
-    private var appKeys: [Key] = []
+    private let commands: CommandRegistry
+    // In the order they were registered.
+    private var hostKeys: [(owner: CommandOwner, key: Key)] = []
     // In the order they were made.
     private var overrides: [BindingOverride]
     private var told = ResolvedKeymap(revision: 0, bindings: [])
 
     // MARK: - Initializer
-    // `appName` is the app's, as a person reads it.
-    init(deck: Deck, appName: String) {
+    // `commands` are what the keys run.
+    init(deck: Deck, commands: CommandRegistry) {
         self.deck = deck
-        self.app = .app(name: appName)
+        self.commands = commands
         deck.state.reserve(overridesKey)
         let saved = try? deck.state.read(folder: nil, key: overridesKey)
         self.overrides = saved.flatMap { text in try? JSONDecoder().decode([BindingOverride].self, from: Data(text.utf8)) }
@@ -49,7 +48,8 @@ public final class Keymap {
 
     // MARK: - Lifecycle
     func problems(of run: Run, mod: Mod) -> [String] {
-        declared(in: run.contributions).compactMap { key in problem(of: key, mod: mod) }
+        let commands = commands.declared(in: run.contributions)
+        return declared(in: run.contributions).compactMap { key in problem(of: key, mod: mod, commands: commands) }
     }
 
     // The keymap, once it resolves otherwise than the driver was last told.
@@ -61,10 +61,12 @@ public final class Keymap {
     }
 
     // MARK: - Public
-    // A key of the app's own, run by whoever registered it, working in its scope. Answers the keymap as it is resolved
-    // now.
-    public func register(_ key: Key) -> ResolvedKeymap {
-        appKeys.append(key)
+    // A key of a host's, `owner` the name it declared the command the key runs under, working in its scope. Answers
+    // the keymap as it is resolved now.
+    public func register(_ key: Key, owner: String) throws -> ResolvedKeymap {
+        let registered = try commands.check(key.command, of: owner, args: key.args)
+        if key.args == nil && !key.label.isEmpty { throw KeymapError.labelWithoutArguments(key.name) }
+        hostKeys.append((registered.owner, key))
         return tell(resolved())
     }
 
@@ -115,14 +117,22 @@ public final class Keymap {
         return (try? written.decode(as: [Key].self)) ?? []
     }
 
-    // What keeps a mod's key from being taken, or nil.
-    private func problem(of key: Key, mod: Mod) -> String? {
+    // What keeps a mod's key from being taken, or nil. `commands` are those its run declared.
+    private func problem(of key: Key, mod: Mod, commands: [Command]) -> String? {
+        let cannotUse = "key \"\(key.name)\" cannot be used"
         guard let keystroke = Keystroke(spec: key.spec) else {
             let missing = key.spec.isEmpty ? "it needs a chord in \"key\"" : "\"\(key.spec)\" is not a chord"
-            return "key \"\(key.action)\" cannot be used: \(missing)"
+            return "\(cannotUse): \(missing)"
         }
+        guard let command = commands.first(where: { command in command.name == key.command }) else {
+            return "\(cannotUse): it runs \"\(key.command)\", which start() declared no command as"
+        }
+        if let why = command.problem(ofArguments: key.args) {
+            return "\(cannotUse): its args do not fit \"\(key.command)\": \(why)"
+        }
+        if key.args == nil && !key.label.isEmpty { return KeymapError.labelWithoutArguments(key.name).message }
         guard let permission = Self.permission(for: key.scope) else { return nil }
-        let cannot = "key \"\(key.action)\" cannot work \(key.scope.phrase)"
+        let cannot = "key \"\(key.name)\" cannot work \(key.scope.phrase)"
         guard mod.manifest.permissions.contains(where: { request in request.permission.id == permission.id }) else {
             return "\(cannot): that takes the \(permission.id) permission"
         }
@@ -144,44 +154,56 @@ public final class Keymap {
         }
     }
 
-    private func binding(of key: Key, owner: BindingOwner) -> Binding {
+    // `label` is the command's, which a key without args is called by.
+    private func binding(of key: Key, owner: CommandOwner, label: String) -> Binding {
         let declared = Keystroke(spec: key.spec)
-        let id = owner.bindingId(of: key.action)
+        let id = owner.id(of: key.name)
         let override = overrides.first { override in override.id == id }
         let keystroke = override.map { override in Keystroke(spec: override.spec) } ?? declared
 
         return Binding(
             owner: owner,
             scope: key.scope,
-            action: key.action,
-            label: key.label.isEmpty ? key.action : key.label,
+            name: key.name,
+            command: key.command,
+            args: key.args,
+            label: key.args == nil ? label : key.label,
             defaultKeystroke: declared,
             keystroke: keystroke,
             changed: override != nil && keystroke != declared
         )
     }
 
-    // In the order a keystroke tries them, the narrowest scope first: a mod's keys in its own page, the app's in any
-    // page in front, then anywhere in the app, then in every app, the app's before the mods' in the load order. A
+    // In the order a keystroke tries them, the narrowest scope first: a mod's keys in its own page, the hosts' in any
+    // page in front, then anywhere in the app, then in every app, the hosts' before the mods' in the load order. A
     // mod's key works past its page only with the permission for its scope.
     private func ordered() -> [Binding] {
         let mods = deck.catalog.loading.map { mod in
-            (
-                owner: BindingOwner.mod(id: mod.manifest.id, name: mod.manifest.name),
-                keys: declared(in: deck.contributions(of: mod.manifest.id))
-                    .filter { key in problem(of: key, mod: mod) == nil }
+            let contributions = deck.contributions(of: mod.manifest.id)
+            let commands = commands.declared(in: contributions)
+            let label = { (key: Key) in commands.first { command in command.name == key.command }?.label ?? key.name }
+            return (
+                owner: CommandOwner.mod(id: mod.manifest.id, name: mod.manifest.name),
+                keys: declared(in: contributions)
+                    .filter { key in problem(of: key, mod: mod, commands: commands) == nil }
+                    .map { key in (key, label(key)) }
             )
         }
+        let listed = self.commands.list()
+        let label = { (owner: CommandOwner, key: Key) in
+            listed.first { registered in registered.owner == owner && registered.command.name == key.command }?
+                .command.label ?? key.name
+        }
         let app = { (scope: KeyScope) in
-            self.appKeys
-                .filter { key in key.scope == scope }
-                .map { key in self.binding(of: key, owner: self.app) }
+            self.hostKeys
+                .filter { _, key in key.scope == scope }
+                .map { owner, key in self.binding(of: key, owner: owner, label: label(owner, key)) }
         }
         let own = { (scope: KeyScope) in
             mods.flatMap { owner, keys in
                 keys
-                    .filter { key in key.scope == scope }
-                    .map { key in self.binding(of: key, owner: owner) }
+                    .filter { key, _ in key.scope == scope }
+                    .map { key, label in self.binding(of: key, owner: owner, label: label) }
             }
         }
 

@@ -110,14 +110,6 @@ public final class Setting {
         return SettingChange(value: next, changed: try write(mod: mod, key: key, value: next))
     }
 
-    // The action the mod declared under `key`, which its page runs: refused for a setting that is no action.
-    public func action(mod: String, key: String) throws -> SettingDeclaration {
-        let declaration = try declaration(mod: mod, key: key)
-        guard declaration.type == .action else { throw SettingError.notAnAction(mod: mod, key: key) }
-
-        return declaration
-    }
-
     // A file that is not there, or that is not a table of values, reads as none saved.
     public func read(mod: String) -> [String: SettingValue] {
         guard let text = store.read(file(of: mod)) else { return [:] }
@@ -154,11 +146,11 @@ public final class Setting {
     }
 
     // What was saved, over what was declared by default. A value saved for a setting the mod no longer declares is not
-    // handed back, and an action has none.
+    // handed back.
     private func values(of mod: String, declared: [SettingDeclaration]) -> [String: SettingValue] {
         let saved = read(mod: mod)
         var values: [String: SettingValue] = [:]
-        for declaration in declared where declaration.type != .action {
+        for declaration in declared {
             values[declaration.key] = saved[declaration.key] ?? declaration.defaultValue
         }
 

@@ -15,6 +15,8 @@ import Deckit
 struct HostTests {
     // MARK: - Property
     private let root = FileManager.default.temporaryDirectory.appending(path: "host-tests-\(UUID().uuidString)")
+    private let find = JSONValue.object(["name": .string("find"), "label": .string("Find")])
+    private let findKey = Key(name: "find", command: "find", args: nil, spec: "mod+f", label: "", scope: .local)
 
     // MARK: - Initializer
     // MARK: - Test
@@ -24,7 +26,8 @@ struct HostTests {
         let sut = try deckit()
 
         // When
-        let keymap = sut.keymap.register(Key(action: "find", spec: "mod+f", label: "Find", scope: .local))
+        try sut.commands.define([find], owner: "@app")
+        let keymap = try sut.keymap.register(findKey, owner: "@app")
 
         // Then
         let find = try #require(keymap.bindings.first)
@@ -45,11 +48,13 @@ struct HostTests {
             extensionPoints: [],
             extensions: [:],
             layers: [
+                "commands": .array([.object(["name": .string("next"), "label": .string("Next")])]),
                 "keys": .array([
                     .object([
-                        "action": .string("next"),
+                        "name": .string("next"),
+                        "command": .string("next"),
                         "key": .string("mod+j"),
-                        "label": .string("Next"),
+                        "label": .string(""),
                         "scope": .string("local")
                     ])
                 ])
@@ -71,10 +76,14 @@ struct HostTests {
     @Test("a part kept after the deckit it came from is let go still works")
     func partOutlivesItsDeckit() throws {
         // Given
-        let sut = try deckit().keymap
+        let sut = try {
+            let deckit = try deckit()
+            try deckit.commands.define([find], owner: "@app")
+            return deckit.keymap
+        }()
 
         // When
-        let resolved = sut.register(Key(action: "find", spec: "mod+f", label: "Find", scope: .local))
+        let resolved = try sut.register(findKey, owner: "@app")
 
         // Then
         #expect(resolved.bindings.map(\.binding.id) == ["@app.find"])

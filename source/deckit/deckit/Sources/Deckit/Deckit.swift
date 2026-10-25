@@ -38,9 +38,11 @@ public final class Deckit {
             permissions: permissions + [Keymap.appKeysPermission, Keymap.globalKeysPermission],
             fields: [urlSchemes]
         )
-        let keymap = Keymap(deck: deck, appName: name)
+        let commands = CommandRegistry(deck: deck, hostName: name)
+        let keymap = Keymap(deck: deck, commands: commands)
         let urlRouter = URLRouter(deck: deck, field: urlSchemes, schemeHandlers: schemeHandlers)
         // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
+        deck.add(Layer(problems: { [weak commands] run, mod in commands?.problems(of: run, mod: mod) ?? [] }))
         deck.add(Layer(
             problems: { [weak keymap] run, mod in keymap?.problems(of: run, mod: mod) ?? [] },
             changes: { [weak keymap] in keymap?.changes() ?? [] }
@@ -48,7 +50,7 @@ public final class Deckit {
         deck.add(Layer(problems: { [weak urlRouter] run, mod in urlRouter?.problems(of: run, mod: mod) ?? [] }))
         self.deck = deck
         self.keymap = keymap
-        self.commands = CommandRegistry(deck: deck)
+        self.commands = commands
         self.urlRouter = urlRouter
     }
 

@@ -24,6 +24,8 @@ const MOTION = Object.freeze({
     // Where a panel or a modal arrives from and leaves to.
     entrance: 'translateY(6px) scale(.99)',
 });
+// A surface drawn as glass lays its colour at this strength over what is behind it, blurred through.
+const GLASS = 0.68;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 // Code drawn in a page: what each kind of token is written in, on a dark ground and on a light one.
 const SYNTAX = Object.freeze({
@@ -104,6 +106,7 @@ function tokenOf(theme) {
         },
         syntax: { ...SYNTAX[dark ? 'dark' : 'light'] },
         motion: MOTION,
+        glass: GLASS,
     });
 }
 
@@ -154,4 +157,4 @@ function deepFreeze(value) {
     return Object.freeze(value);
 }
 
-export { FALLBACK_THEME, MOTION, tokenOf, propertiesOf };
+export { FALLBACK_THEME, MOTION, GLASS, tokenOf, propertiesOf };

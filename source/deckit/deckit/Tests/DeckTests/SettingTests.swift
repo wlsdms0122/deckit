@@ -150,8 +150,7 @@ struct SettingTests {
         // Given
         let (sut, _, _) = try setting(["notes"])
         let choice = SettingDeclaration(key: "theme", type: .choice, options: [option("light"), option("dark")])
-        let run = SettingDeclaration(key: "rebuild", type: .action, button: "Rebuild")
-        _ = sut.keep([toggle("wrap"), number("size"), text("font"), choice, run], mod: "notes", run: 1)
+        _ = sut.keep([toggle("wrap"), number("size"), text("font"), choice], mod: "notes", run: 1)
 
         // When
         let size = try sut.set(mod: "notes", key: "size", value: .number(99), options: nil)
@@ -168,16 +167,14 @@ struct SettingTests {
             ("wrap", SettingValue?.some(.number(1)), SettingError.notOfType(key: "wrap", type: .toggle)),
             ("size", .string("12"), .notOfType(key: "size", type: .number)),
             ("font", nil, .notOfType(key: "font", type: .text)),
-            ("theme", .string("blue"), .notAnOption(key: "theme", value: .string("blue"))),
-            ("rebuild", .bool(true), .isAnAction("rebuild"))
+            ("theme", .string("blue"), .notAnOption(key: "theme", value: .string("blue")))
         ]
     )
     func valueOutsideItsDeclarationIsRefused(key: String, value: SettingValue?, refusal: SettingError) throws {
         // Given
         let (sut, _, _) = try setting(["notes"])
         let choice = SettingDeclaration(key: "theme", type: .choice, options: [option("light"), option("dark")])
-        let run = SettingDeclaration(key: "rebuild", type: .action, button: "Rebuild")
-        _ = sut.keep([toggle("wrap"), number("size"), text("font"), choice, run], mod: "notes", run: 1)
+        _ = sut.keep([toggle("wrap"), number("size"), text("font"), choice], mod: "notes", run: 1)
 
         // When
         let set = Result { try sut.set(mod: "notes", key: key, value: value, options: nil) }
@@ -214,8 +211,8 @@ struct SettingTests {
         let (sut, _, _) = try setting(["notes", "finder", "editor"])
         let theme = SettingDeclaration(key: "theme", type: .choice, defaultValue: .string("light"), computed: true)
         let size = SettingDeclaration(key: "size", type: .number, defaultValue: .number(12))
-        let run = SettingDeclaration(key: "rebuild", type: .action, button: "Rebuild")
-        _ = sut.keep([theme, size, run], mod: "notes", run: 1)
+        let font = SettingDeclaration(key: "font", type: .choice, computed: true)
+        _ = sut.keep([theme, size, font], mod: "notes", run: 1)
         _ = sut.keep([], mod: "finder", run: 1)
         _ = sut.keep([toggle("wrap")], mod: "editor", run: 1)
         try Data(#"{"size":14,"gone":true}"#.utf8).write(to: prepared("notes.json"))
@@ -226,7 +223,7 @@ struct SettingTests {
         // Then
         #expect(groups.map(\.id) == ["editor", "notes"])
         let items = try #require(groups.last?.items)
-        #expect(items.map(\.declaration.key) == ["theme", "size", "rebuild"])
+        #expect(items.map(\.declaration.key) == ["theme", "size", "font"])
         #expect(items.map(\.value) == [.string("light"), .number(14), nil])
         let absent = SettingOption(value: .string("light"), label: "light", absent: true)
         #expect(items[0].options == [option("dark"), absent])
@@ -249,22 +246,6 @@ struct SettingTests {
         // Then
         #expect(sut.list(choices: []).map(\.id) == ["finder"])
         #expect(throws: SettingError.undeclared(mod: "notes", key: "wrap")) { try wrap.get() }
-    }
-
-    @Test("an action is run only for a key declared as one")
-    func actionIsOnlyForAnAction() throws {
-        // Given
-        let (sut, _, _) = try setting(["notes"])
-        _ = sut.keep([toggle("wrap"), SettingDeclaration(key: "rebuild", type: .action)], mod: "notes", run: 1)
-
-        // When
-        try sut.action(mod: "notes", key: "rebuild")
-        let wrap = Result { try sut.action(mod: "notes", key: "wrap") }
-        let never = Result { try sut.action(mod: "notes", key: "never") }
-
-        // Then
-        #expect(throws: SettingError.notAnAction(mod: "notes", key: "wrap")) { try wrap.get() }
-        #expect(throws: SettingError.undeclared(mod: "notes", key: "never")) { try never.get() }
     }
 
     @Test("a declaration reads as the page tells it")

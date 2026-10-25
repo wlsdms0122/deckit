@@ -1,99 +1,144 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
-import * as TONE from './model/tone.js';
+import * as CANDIDATE from './model/candidate.js';
+import * as COMMAND_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-export function createCommand({ LOG, IDENTITY, CORE }) {
+// Commands, as the core keeps them: each running mod's and each host's, found by its owner and its name, never by a
+// joined id. The core checks a command and its args before it runs; a mod's runs in its page, a host's here.
+export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
     // MARK: - Property
-    // A mod that has not answered by then answers nothing, so one stuck page does not hold the others.
+    // A mod that has not answered by then completes nothing, so one stuck page does not hold the caller.
     const ANSWER_MS = 2000;
-    const TONES = Object.freeze([...TONE.TONES]);
-    let sessions = 0;
-    let handed = 0; // entries handed out, by every session: an id one session handed out is never another's
+    const hosts = new Map(); // host name -> Map of name -> { run, complete }
+    const listeners = new Set();
+    const asking = new Map(); // a mod's call -> the AbortController of the completion it asked for
+    let calls = 0;
 
     // MARK: - Initializer
     // MARK: - Public
-    // What the mods offer to be run, asked by one caller of those that offered it as the session began: an entry runs
-    // by the id its session handed out, until the session ends. Two callers' sessions never touch.
-    async function session() {
-        const sources = await CORE.request('command/sources');
-        const number = ++sessions;
-        const entries = new Map(); // entry id -> { mod, local }
-        let ended = false;
-
-        // An entry crosses as data, under an id handed out here: running it comes back by that id.
-        const wire = (source, kind, entry) => {
-            const id = String(++handed);
-            const mod = { id: source.id, name: source.name };
-            entries.set(id, { mod, local: entry.id });
-            return { ...entry, id, kind, mod };
-        };
-        const ask = (end, mod, payload, fallback) =>
-            ended ? Promise.resolve(fallback) : question(end, mod, { ...payload, session: number }, fallback);
-        const offering = (what) => sources.filter((source) => source[what]);
-
-        return Object.freeze({
-            // Every offering mod's commands, in the load order.
-            async list() {
-                const asked = offering('commands');
-                const answers = await Promise.all(asked.map((source) => ask(PROTOCOL.collect, source, {}, [])));
-                return asked.flatMap((source, index) => answers[index].map((entry) => wire(source, 'command', entry)));
-            },
-            // A promise for each offering mod's readouts of what is happening now, which land as each mod answers.
-            now() {
-                return offering('now').map((source) =>
-                    ask(PROTOCOL.collectNow, source, {}, []).then((rows) => rows.map((row) => wire(source, 'now', row)))
-                );
-            },
-            // A promise for each answer to what the person typed, from each mod that resolves.
-            resolve(raw) {
-                return offering('resolve').map((source) =>
-                    ask(PROTOCOL.resolve, source, { raw }, []).then((found) =>
-                        found.map((entry) => wire(source, 'resolved', entry))
-                    )
-                );
-            },
-            // The entries of the submenu an entry opens, for what was typed in it; null for an entry with no submenu,
-            // or a search a newer one replaced.
-            async search(entryId, raw) {
-                const opener = entries.get(entryId);
-                if (!opener) return null;
-                const found = await ask(PROTOCOL.search, opener.mod, { raw, submenu: opener.local }, null);
-                return found && found.map((entry) => wire(opener.mod, 'submenu', entry));
-            },
-            // As if the person pressed in the mod's page: picking the entry was their press.
-            async run(entryId) {
-                const entry = entries.get(entryId);
-                const page = !ended && entry && IDENTITY.pageOf(entry.mod.id);
-                if (!page) return;
-                IDENTITY.passUserActivation(page);
-                await PROTOCOL.run.invoke(page, { session: number, id: entry.local });
-            },
-            // Its entries go, here and in the mods' pages.
-            end() {
-                if (ended) return;
-                ended = true;
-                entries.clear();
-                for (const { id } of sources) {
-                    const page = IDENTITY.pageOf(id);
-                    if (page) PROTOCOL.end.send(page, { session: number });
-                }
-            },
+    function start() {
+        PROTOCOL.list.handle((_payload, sender) => {
+            IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
+            return list();
         });
+        PROTOCOL.runOf.handle(({ mod, command, args, activates }, sender) => {
+            IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
+            return run({ mod, command }, args, { activates });
+        });
+        PROTOCOL.completeOf.handle(async ({ call, mod, command, param, partial, args }, sender) => {
+            const caller = IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
+            const asked = new AbortController();
+            asking.set(`${caller.id}:${call}`, asked);
+            try {
+                return await complete({ mod, command }, param, partial, { args, signal: asked.signal });
+            } finally {
+                asking.delete(`${caller.id}:${call}`);
+            }
+        });
+        PROTOCOL.cancel.on(({ call }, sender) => {
+            const caller = IDENTITY.modOf(sender);
+            if (caller) asking.get(`${caller.id}:${call}`)?.abort();
+        });
+        for (const name of ['didLaunch', 'didTerminate']) RUNNER.observe(name, changed);
+    }
+
+    // A host's commands, under `owner`, a name of its own that starts with "@": { name: { label, description,
+    // keywords, params, run(args, { activates }), complete(param, partial, { args, signal }) } }. Resolves once the
+    // core has them, and rejects with why it refused one.
+    async function define(owner, commands) {
+        const declared = [];
+        const kept = new Map();
+        for (const [name, entry] of Object.entries(commands || {})) {
+            if (typeof entry?.run !== 'function') throw new Error(`[deckit] command ${owner}.${name} needs a run`);
+            kept.set(name, { run: entry.run, complete: typeof entry.complete === 'function' ? entry.complete : null });
+            const { run: _run, complete: _complete, ...data } = entry;
+            declared.push({ ...data, name });
+        }
+        // Kept before the core has them, so a command the core lists already runs here.
+        const before = hosts.get(owner);
+        hosts.set(owner, new Map([...(before || []), ...kept]));
+        try {
+            await CORE.request('command/define', { owner, commands: declared });
+        } catch (error) {
+            if (before) hosts.set(owner, before);
+            else hosts.delete(owner);
+            throw error;
+        }
+        changed();
+    }
+
+    // Every command, `{ mod, modName, host, command, label, description, keywords, params }`: the hosts' first, then
+    // each running mod's in the load order.
+    function list() {
+        return CORE.request('command/list');
+    }
+
+    // `{ mod, command }` run with `args`, which answers the text it leaves for a person, or null, and rejects with why
+    // it did not run. `activates` is whether the caller wants it in front.
+    async function run({ mod, command }, args = null, { activates = false } = {}) {
+        const found = await CORE.request('command/check', { mod, command, ...(args ? { args } : {}) });
+        if (found.host) {
+            const left = await hosts
+                .get(mod)
+                ?.get(command)
+                ?.run(args ?? {}, { activates });
+            return typeof left === 'string' && left ? left : null;
+        }
+        const page = IDENTITY.pageOf(mod);
+        if (!page) throw Object.assign(new Error(`${mod} is not running`), { kind: 'NOT_RUNNING' });
+        return PROTOCOL.run.invoke(page, { command, args, activates });
+    }
+
+    // The candidates for `param` of `{ mod, command }` as `partial` is typed, `[{ value, title, hint, keywords }]`
+    // ranked by the command's owner. The caller aborts `signal` when it no longer wants the answer: the owner's
+    // signal is aborted with it, and the completion answers null.
+    async function complete({ mod, command }, param, partial = '', { args = null, signal = null } = {}) {
+        const found = await CORE.request('command/find', { mod, command });
+        const asked = signal || new AbortController().signal;
+        if (found.host) {
+            const answer = hosts.get(mod)?.get(command)?.complete;
+            if (!answer) return [];
+            const candidates = await answer(param, partial, { args: args ?? {}, signal: asked });
+            return asked.aborted ? null : CANDIDATE.candidatesOf(candidates);
+        }
+        const page = IDENTITY.pageOf(mod);
+        if (!page) return [];
+        const call = ++calls;
+        const stop = () => PROTOCOL.abort.send(page, { call });
+        asked.addEventListener('abort', stop, { once: true });
+        try {
+            const candidates = await PROTOCOL.complete.invoke(
+                page,
+                { call, command, param, partial, args },
+                { timeout: ANSWER_MS }
+            );
+            return asked.aborted ? null : candidates;
+        } catch (error) {
+            LOG.warn(`${mod}: completing ${command} failed`, error);
+            return [];
+        } finally {
+            asked.removeEventListener('abort', stop);
+        }
+    }
+
+    // Told each time the commands may have changed. Answers its off.
+    function onChange(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
     }
 
     // MARK: - Private
-    // What a mod's page answers; one that fails or went away answers `fallback`, recorded against it.
-    function question(end, mod, payload, fallback) {
-        const page = IDENTITY.pageOf(mod.id);
-        if (!page) return Promise.resolve(fallback);
-        return end.invoke(page, payload, { timeout: ANSWER_MS }).catch((error) => {
-            LOG.warn(`${mod.id}: a question about its commands failed`, error);
-            return fallback;
-        });
+    // The host's listeners, and each running mod's page that may list commands.
+    function changed() {
+        for (const listener of listeners) listener();
+        for (const { run, page } of RUNNER.runs()) {
+            const may = run?.mod.permissions.some(({ id }) => id === COMMAND_PERMISSION.COMMAND_REGISTRY);
+            if (page && may) PROTOCOL.changed.send(page, {});
+        }
     }
 
-    return { TONES, session };
+    return { start, define, list, run, complete, onChange };
 }

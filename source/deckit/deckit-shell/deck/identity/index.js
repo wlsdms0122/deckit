@@ -93,11 +93,6 @@ export function createIdentity({ pages: PAGES }) {
         return held.has(page) || Date.now() - (pointed.get(page) || 0) < ACTIVATION_MS;
     }
 
-    // A press elsewhere that acts in this page, as a command picked in another page runs in the mod's.
-    function passUserActivation(page) {
-        activated.set(page, Date.now());
-    }
-
     // The mod a page runs, or null for one that is not a mod's.
     function modOf(page) {
         return owners.get(page)?.mod || null;
@@ -133,7 +128,6 @@ export function createIdentity({ pages: PAGES }) {
         consumeUserActivation,
         isPressing,
         isPointing,
-        passUserActivation,
         modOf,
         modFrom,
         pageNameOf,

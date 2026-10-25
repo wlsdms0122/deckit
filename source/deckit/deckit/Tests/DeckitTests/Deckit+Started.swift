@@ -13,9 +13,12 @@ extension Deckit {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // The effects of the `run`th run of `mod` started, having contributed `keys`.
+    // The effects of the `run`th run of `mod` started, having contributed `keys` and the commands they run, each
+    // labeled by its name.
     func started(_ mod: String, run: Int, keys: [JSONValue]) throws -> [Effect] {
-        try started(mod, run: run, contributing: ["keys": .array(keys)])
+        let names = keys.compactMap { key in if case let .object(key) = key { key["command"] } else { nil } }
+        let commands = names.map { name in JSONValue.object(["name": name, "label": name]) }
+        return try started(mod, run: run, contributing: ["keys": .array(keys), "commands": .array(commands)])
     }
 
     // The effects of the `run`th run of `mod` started, having contributed `layers` beside deck's own.

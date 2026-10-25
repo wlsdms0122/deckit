@@ -41,8 +41,6 @@ struct GoldenTests {
         (ModStorageError.notAMod("x"), "MOD"),
         (RecordError.notAKey("k"), "KEY"),
         (SettingError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
-        (SettingError.notAnAction(mod: "a", key: "k"), "NOT_AN_ACTION"),
-        (SettingError.isAnAction("k"), "ACTION"),
         (SettingError.notOfType(key: "k", type: .number), "TYPE"),
         (SettingError.notAnOption(key: "k", value: nil), "OPTION"),
         (StateError.notAKey("k"), "KEY"),
@@ -51,6 +49,10 @@ struct GoldenTests {
         (KeymapError.noSuchBinding("@app.x"), "SHORTCUT"),
         (KeymapError.notAChord("x"), "CHORD"),
         (KeymapError.cannotWork(label: "C", scope: .app), "REFUSED"),
+        (KeymapError.labelWithoutArguments("k"), "REFUSED"),
+        (CommandError.noSuchCommand("a.c"), "COMMAND"),
+        (CommandError.arguments(command: "a.c", why: "w"), "ARGUMENTS"),
+        (CommandError.notAName("a.b"), "REFUSED"),
         (URLRouterError.noHandlers("x"), "SCHEME")
     ]
 

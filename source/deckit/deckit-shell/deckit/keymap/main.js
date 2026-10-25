@@ -8,10 +8,9 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Keys, as the core resolves them: the core keeps the keymap and says how each binding stands, and a keystroke is
 // resolved here against the copy it last told, where the keystroke lands. `pages` and `keys` are the environment's.
-export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGES, keys: KEYS }) {
+export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WINDOW, pages: PAGES, keys: KEYS }) {
     // MARK: - Property
     const RECORDING_MS = 20 * 1000;
-    const runs = new Map(); // action -> run(page), of the keys registered through what connect answers
     const hotkeys = new Map(); // chord -> its off, or null where the system did not give it, as each is held in any app
     const typing = new WeakSet(); // pages with a field focused
     const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
@@ -29,33 +28,31 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
             else typing.delete(sender);
         });
         PROTOCOL.record.on(({ on }, sender) => {
-            IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
+            IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEYMAP);
             if (on) startRecording(sender);
             else if (recording?.page === sender) stopRecording(false);
         });
-        PROTOCOL.chord.handle(({ action, app }, sender) => {
-            const owner = app ? null : IDENTITY.modFrom(sender).id;
-            return chordOf(action, (binding) => (app ? binding.app : binding.owner === owner));
-        });
+        PROTOCOL.chord.handle(({ name, owner }, sender) => chordOf(owner || IDENTITY.modFrom(sender).id, name));
         PROTOCOL.bindings.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
+            IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEYMAP);
             return keymap.bindings;
         });
         PROTOCOL.bind.handle(async ({ id, spec }, sender) => {
-            IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
+            IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEYMAP);
             keep(await CORE.request('keymap/bind', { id, spec }));
             return true;
         });
         PROTOCOL.reset.handle(async ({ id }, sender) => {
-            IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEY_MAP);
+            IDENTITY.modFrom(sender, KEYMAP_PERMISSION.KEYMAP);
             keep(await CORE.request('keymap/reset', { id }));
             return true;
         });
     }
 
     // What the key map asks the shell of a deckit page a keystroke landed in: `isActive(page)`, whether it is the
-    // page in front, where the mod's own keys and the shell's run; `monitor(page, keystroke)`, the shell's look at the
-    // key pressed before any binding, `{ code, meta, control, alt, shift }`, taking it by answering true.
+    // shell's page in front, where the mod's own keys and the hosts' run, as they do in a mod's window on screen;
+    // `monitor(page, keystroke)`, the shell's look at the key pressed before any binding, `{ code, meta, control,
+    // alt, shift }`, taking it by answering true.
     function delegate({ isActive, monitor }) {
         delegated = { isActive, monitor };
     }
@@ -95,28 +92,37 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         });
     }
 
-    // A key registered through what connect answers, run by whoever registered it: the host app, or the shell it put
-    // on deckit. By its `scope` it works in the page in front, anywhere a page is listened to, or in every app too,
-    // run there with no page.
-    function register({ action, key, label = '', scope = 'local', run }) {
-        if (!KEY_SCOPE.SCOPES.includes(scope)) throw new Error(`[deckit] the key ${action} has no scope ${scope}`);
-        runs.set(action, run);
-        CORE.request('keymap/register', { action, key: String(key), label: String(label), scope }).then(keep, (error) =>
-            LOG.error(`the key ${action} was not registered`, error)
-        );
+    // A host's keys, under `owner`, the name it declared their commands under: { name: { command, args, label, key,
+    // scope } }, each running that command with `args`. By its `scope` a key works in the page in front, anywhere a
+    // page is listened to, or in every app too. Resolves once the core has them, and rejects with why it refused
+    // one, as one whose command is not declared.
+    async function register(owner, keys) {
+        for (const [name, { command, args = null, label = '', key = '', scope = 'local' } = {}] of Object.entries(
+            keys || {}
+        )) {
+            if (!KEY_SCOPE.SCOPES.includes(scope))
+                throw new Error(`[deckit] the key ${owner}.${name} has no scope ${scope}`);
+            const declared = {
+                name,
+                command,
+                ...(args ? { args } : {}),
+                key: String(key),
+                label: String(label),
+                scope,
+            };
+            keep(await CORE.request('keymap/register', { owner, key: declared }));
+        }
     }
 
-    // The chord a key registered through what connect answers is bound to now, by its action, as a person reads it.
-    function chordOfApp(action) {
-        return chordOf(action, (binding) => binding.app);
+    // The chord `owner`'s key `name` is bound to now, as a person reads it, or ''.
+    function chordOf(owner, name) {
+        return (
+            keymap.bindings.find((binding) => binding.owner === owner && binding.name === name && binding.active)
+                ?.chord || ''
+        );
     }
 
     // MARK: - Private
-    function chordOf(action, owns) {
-        return (
-            keymap.bindings.find((binding) => owns(binding) && binding.action === action && binding.active)?.chord || ''
-        );
-    }
 
     // The later of what the core told, whichever way each came.
     function keep(told) {
@@ -162,7 +168,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         const binding = keymap.bindings.find(
             (binding) => binding.scope === 'global' && binding.active && matches(binding.keystroke, keystroke)
         );
-        if (binding) run(binding, null);
+        if (binding) run(binding);
     }
 
     // `pressed` is a key as the environment tells it (environment: keys).
@@ -191,27 +197,30 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         const hit = keymap.bindings.find(
             (binding) => binding.active && matches(binding.keystroke, pressed) && worksIn(binding, page)
         );
-        return hit ? run(hit, target) : false;
+        return hit ? run(hit) : false;
     }
 
     // Whether a binding works where a keystroke landed, in `page`, the deckit page, or null in another the app hands:
     // one past its page wherever a page is listened to, one in the page in front only there, a mod's in its own page,
-    // and not on a chord a field focused there edits text with.
+    // and not on a chord a field focused there takes.
     function worksIn(binding, page) {
         if (KEY_SCOPE.isWide(binding.scope)) return true;
-        if (!page || !delegated.isActive(page)) return false;
-        if (binding.editsText && typing.has(page)) return false;
-        return binding.app || binding.owner === IDENTITY.modOf(page)?.id;
+        if (!page || !(WINDOW.isActive(page) || delegated.isActive(page))) return false;
+        if (binding.takenByFields && typing.has(page)) return false;
+        return binding.host || binding.owner === IDENTITY.modOf(page)?.id;
     }
 
-    function run(binding, target) {
-        if (binding.app) {
-            runs.get(binding.action)?.(target);
+    // A host's key runs its command here, and a mod's in its page, which drops it behind a dialog.
+    function run(binding) {
+        if (binding.host) {
+            COMMAND.run({ mod: binding.owner, command: binding.command }, binding.args, { activates: true }).catch(
+                (error) => LOG.error(`${binding.owner}.${binding.name}: ${binding.command} did not run`, error)
+            );
             return true;
         }
         const page = IDENTITY.pageOf(binding.owner);
         if (!page) return false;
-        PROTOCOL.key.send(page, { action: binding.action });
+        PROTOCOL.key.send(page, { name: binding.name });
         return true;
     }
 
@@ -255,5 +264,5 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         return Object.freeze({ code, meta, control, alt, shift });
     }
 
-    return { start, delegate, listen, register, chordOf: chordOfApp };
+    return { start, delegate, listen, register, chordOf };
 }

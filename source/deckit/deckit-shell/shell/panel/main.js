@@ -3,6 +3,8 @@ import * as DECLARED from './protocol.js';
 import * as WIDTH from './model/width.js';
 import * as PAGE from './model/page-name.js';
 import * as LIST_ORDER from './model/list-order.js';
+import * as TOKEN from '../ui/token/index.js';
+import * as MATCH from '../match/match.js';
 
 // `deckit` is what connect answered, `host` the app's answers.
 export function createPanel({ REGION, deckit, host }) {
@@ -26,14 +28,13 @@ export function createPanel({ REGION, deckit, host }) {
         settling: null,
         animates: null,
     };
-    const NAMED_KEYS = new Set(['back', 'forward']); // the actions of the panel's keys a tooltip names
+    const OWNER = '@shell'; // the name the shell declares its commands and keys under
+    const NAMED_KEYS = new Set(['back', 'forward']); // the panel's keys a tooltip names
     const history = { list: [], at: -1 };
     let stage = null; // where the pages are laid, which the host app places
     let current = null;
     let returning = null; // the mod that was on screen while its page runs again
     let inList = new Set(); // the mods in the list as it was last sent
-    // The panel is glass: its colour laid at this strength over what is behind it, blurred through.
-    const GLASS = 0.68;
     // How long main waits on a page's exit, or its answer to Escape, before it goes on: it guards a page that is
     // gone or stuck.
     const EXIT_LIMIT_MS = 400;
@@ -58,7 +59,7 @@ export function createPanel({ REGION, deckit, host }) {
         stage = deckit.pages.stage();
         stage.whenResized(update);
         listen();
-        registerKeys();
+        declareCommands();
         makeFrame();
         deckit.mods.onChange(reconcile);
         // Who is whose child changes with the runs, which reconcile hears too: a region's change is only layout.
@@ -99,8 +100,8 @@ export function createPanel({ REGION, deckit, host }) {
         return true;
     }
 
-    // A mod on screen, asked by the mod itself, the switcher or an address it opened. One with no view in the
-    // panel has nothing to show. A child not in the list brings its parent, whose regions show what they show.
+    // A mod on screen, asked by the mod itself, the shell's show command or an address it opened. One with no view in
+    // the panel has nothing to show. A child not in the list brings its parent, whose regions show what they show.
     function bringToFront(modId) {
         if (select(frontOf(modId))) host.show();
     }
@@ -121,10 +122,10 @@ export function createPanel({ REGION, deckit, host }) {
                 throw Object.assign(new Error("only the panel's frame asks this"), { kind: 'REFUSED' });
             deckit.pages.whenEnds(sender, frameEnded);
             sent.look = JSON.stringify(frameLook());
-            return { glass: GLASS, look: frameLook(), shown, state: stateOf() };
+            return { glass: TOKEN.GLASS, look: frameLook(), shown, state: stateOf() };
         });
         PROTOCOL.chord.handle(({ action }, sender) =>
-            fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(action) : ''
+            fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(OWNER, action) : ''
         );
         PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
@@ -133,6 +134,7 @@ export function createPanel({ REGION, deckit, host }) {
         PROTOCOL.rects.on((rects, sender) => fromFrame(sender) && setRects(rects));
         PROTOCOL.setup.handle((_payload, sender) => ({ guide: guideOf(sender), shown: sent.onScreen.has(sender) }));
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
+        PROTOCOL.icon.handle(({ mod }) => deckit.mods.listingOf(mod)?.icon || '');
         PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);
@@ -243,25 +245,67 @@ export function createPanel({ REGION, deckit, host }) {
         return isActive(page) && look.dismissible;
     }
 
-    function registerKeys() {
-        deckit.keymap.register({
-            action: 'toggleSidebar',
-            key: 'mod+\\',
-            label: 'Toggle sidebar',
-            run: () => setSidebar({ collapsed: !sidebar.collapsed }),
-        });
-        deckit.keymap.register({
-            action: 'back',
-            key: 'ctrl+mod+[',
-            label: 'Back to the previous mod',
-            run: () => step(-1),
-        });
-        deckit.keymap.register({
-            action: 'forward',
-            key: 'ctrl+mod+]',
-            label: 'Forward to the next mod',
-            run: () => step(1),
-        });
+    // `show` puts a mod on screen, by its id, its candidates every mod there is to show.
+    function declareCommands() {
+        deckit.commands
+            .define(OWNER, {
+                show: {
+                    label: 'Show',
+                    description: 'Puts a mod on screen in the panel.',
+                    params: {
+                        type: 'object',
+                        properties: { mod: { type: 'string', title: 'Mod' } },
+                        required: ['mod'],
+                    },
+                    run: ({ mod }, { activates }) => {
+                        if (!canBringToFront(mod)) throw new Error(`${mod} has nothing to show`);
+                        if (activates) bringToFront(mod);
+                        else select(frontOf(mod));
+                    },
+                    complete: (param, partial) => (param === 'mod' ? showable(partial) : []),
+                },
+                'toggle-sidebar': {
+                    label: 'Toggle Sidebar',
+                    run: () => setSidebar({ collapsed: !sidebar.collapsed }),
+                },
+                back: { label: 'Back to the Previous Mod', run: () => step(-1) },
+                forward: { label: 'Forward to the Next Mod', run: () => step(1) },
+            })
+            .then(() =>
+                deckit.keymap.register(OWNER, {
+                    toggleSidebar: { command: 'toggle-sidebar', key: 'mod+\\' },
+                    back: { command: 'back', key: 'ctrl+mod+[' },
+                    forward: { command: 'forward', key: 'ctrl+mod+]' },
+                })
+            )
+            .catch((error) => deckit.log.error("the panel's commands were not declared", error));
+    }
+
+    // The mods there are to show, `{ value, title, keywords }`, every one in the list's order for nothing typed and
+    // otherwise those `partial` matches, best first.
+    function showable(partial) {
+        const candidates = inOrder()
+            .filter(({ id }) => canBringToFront(id))
+            .map(({ id, name }) => ({
+                value: id,
+                title: name,
+                keywords: [...(deckit.mods.listingOf(id)?.keywords || [])],
+            }));
+        if (!partial.trim()) return candidates;
+        return candidates
+            .map((candidate) => ({
+                candidate,
+                found: MATCH.matchFields(
+                    [
+                        { text: candidate.title, name: true },
+                        { text: candidate.keywords.join(' '), weight: 0.8, cap: MATCH.TIER.INSIDE },
+                    ],
+                    partial
+                ),
+            }))
+            .filter(({ found }) => found)
+            .sort((left, right) => right.found.tier - left.found.tier || right.found.score - left.found.score)
+            .map(({ candidate }) => candidate);
     }
 
     // The pages of the mods that said they have something to show, as the mods run. A page shown stays while
@@ -654,7 +698,7 @@ export function createPanel({ REGION, deckit, host }) {
         start,
         // What the host drives of it.
         control: {
-            glass: GLASS,
+            glass: TOKEN.GLASS,
             // Into one of the host app's windows, as deckit places a view (`bounds`, `onClose`).
             place: (window, options) => stage.place(window, options),
             contains,

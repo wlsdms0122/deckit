@@ -12,7 +12,7 @@ import Foundation
 public struct Keystroke: Equatable, Sendable {
     // MARK: - Property
     // What a key that works past its page, taken from every page, text fields included, needs of its chord.
-    static let wideRule = "a key that works past its page needs ⌘, ⌃ or ⌥, and none a text field uses"
+    static let wideRule = "a key that works past its page needs ⌘, ⌃ or ⌥, and none a field with focus takes"
     // `mod` is ⌘ on a Mac, and Ctrl elsewhere.
     static let isMac: Bool = {
         #if os(macOS)
@@ -114,13 +114,16 @@ public struct Keystroke: Equatable, Sendable {
         return (control ? "⌃" : "") + (alt ? "⌥" : "") + (shift ? "⇧" : "") + (meta ? "⌘" : "") + key
     }
 
-    public var editsText: Bool {
+    // Whether a field with focus may take it: one that edits text, and Return with ⌘, ⌃ or ⌥, which a code editor
+    // or a text area acts on.
+    public var takenByFields: Bool {
         Self.editing.contains(code) || (meta && !control && !alt && Self.editCommands.contains(code))
+            || (code == "Enter" && (meta || control || alt))
     }
 
     // Whether it may work in `scope`: past its page only by `wideRule`.
     func fits(_ scope: KeyScope) -> Bool {
-        !scope.isWide || ((meta || control || alt) && !editsText)
+        !scope.isWide || ((meta || control || alt) && !takenByFields)
     }
 
     // MARK: - Initializer

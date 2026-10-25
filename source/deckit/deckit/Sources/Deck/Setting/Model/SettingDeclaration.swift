@@ -24,7 +24,6 @@ public struct SettingDeclaration: Decodable, Equatable, Sendable {
         case step
         case unit
         case placeholder
-        case button
     }
 
     public let key: String
@@ -39,7 +38,6 @@ public struct SettingDeclaration: Decodable, Equatable, Sendable {
     public let step: Double?
     public let unit: String?
     public let placeholder: String?
-    public let button: String?
 
     // MARK: - Initializer
     public init(
@@ -54,8 +52,7 @@ public struct SettingDeclaration: Decodable, Equatable, Sendable {
         max: Double? = nil,
         step: Double? = nil,
         unit: String? = nil,
-        placeholder: String? = nil,
-        button: String? = nil
+        placeholder: String? = nil
     ) {
         self.key = key
         self.type = type
@@ -69,7 +66,6 @@ public struct SettingDeclaration: Decodable, Equatable, Sendable {
         self.step = step
         self.unit = unit
         self.placeholder = placeholder
-        self.button = button
     }
 
     // MARK: - Public
@@ -96,9 +92,6 @@ public struct SettingDeclaration: Decodable, Equatable, Sendable {
 
         case (.choice, _):
             throw .notAnOption(key: key, value: value)
-
-        case (.action, _):
-            throw .isAnAction(key)
 
         case (.toggle, _), (.number, _), (.text, _):
             throw .notOfType(key: key, type: type)

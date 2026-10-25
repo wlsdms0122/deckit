@@ -1,12 +1,13 @@
 function createApp({ WINDOW, THEME }) {
     // MARK: - Property
-    const SWITCHER_SIZE = Object.freeze({ width: 600, height: 400 });
     // MARK: - Initializer
     // MARK: - Public
-    // Deckit on its own: the panel always in a window of its own, and the switcher in one of its own over every app.
+    // Deckit on its own: the panel always in a window of its own, and a mod's window in one of its own, an overlay one
+    // floating over every app.
     function make({ restart }) {
-        // `opening`: a second show waits on it. `switcher`: the switcher's window, made as it is first summoned
-        const state = { window: null, opening: null, title: '', switcher: null };
+        // `opening`: a second show waits on it. `windows`: each mod's window, made as it is first shown, by deckit's
+        // control of it
+        const state = { window: null, opening: null, title: '', windows: new Map() };
         let controls = null; // what the host drives of the shell, handed as it starts
 
         function live(window) {
@@ -57,36 +58,45 @@ function createApp({ WINDOW, THEME }) {
             window.focus();
         }
 
-        // The panel's views are in the panel's window and the switcher's in its own, which only this host knows.
+        // The panel's views are in the panel's window and a mod's window is its own, which only this host knows.
         function windowOf(webContents) {
             if (controls.panel.contains(webContents)) return live(state.window);
-            if (controls.switcher.contains(webContents)) return live(state.switcher);
+            for (const [control, window] of state.windows) if (control.contains(webContents)) return live(window);
             return require('electron').BrowserWindow.fromWebContents(webContents);
         }
 
-        // From anywhere, in Deckit.app or another app, in a window of its own that it fills; a second press closes it,
-        // as does the keyboard going elsewhere. Its window goes once its exit has played.
-        function summonSwitcher() {
-            if (!controls) return;
-            const here = controls.switcher.shown();
-            controls.switcher.close();
-            if (here) return;
-            const window = switcherWindow();
-            controls.switcher.open().then((closed) => closed && live(window)?.hide());
-            WINDOW.float(window);
+        // An overlay opens floating over whichever app is in front, on the screen the pointer is on, and tells the mod
+        // as the keyboard leaves it; another opens as Deckit.app's windows do, with its bar. Each opens where it was
+        // last left, at the size the mod gives it now.
+        function showWindow(control) {
+            const window = modWindow(control);
+            window.setContentSize(control.width, control.height);
+            if (control.overlay) WINDOW.float(window);
+            else raise(window);
         }
 
-        function switcherWindow() {
-            if (live(state.switcher)) return state.switcher;
-            state.switcher = WINDOW.openFloating({
-                size: SWITCHER_SIZE,
-                key: 'switcher',
-                place: (window) =>
-                    controls.switcher.place(window, { fills: true, onClose: () => controls.switcher.close() }),
-                focus: () => controls.switcher.focus(),
-                blur: () => controls.switcher.close(),
-            });
-            return state.switcher;
+        function modWindow(control) {
+            const open = live(state.windows.get(control));
+            if (open) return open;
+            const size = { width: control.width, height: control.height };
+            const key = 'window-' + control.mod;
+            const window = control.overlay
+                ? WINDOW.openFloating({
+                      size,
+                      key,
+                      place: (window) => control.place(window),
+                      focus: control.focus,
+                      blur: control.didResignKey,
+                  })
+                : WINDOW.open({
+                      title: control.name,
+                      size,
+                      key,
+                      place: (window, { bounds }) => control.place(window, { bounds }),
+                      focus: control.focus,
+                  });
+            state.windows.set(control, window);
+            return window;
         }
 
         return {
@@ -100,14 +110,14 @@ function createApp({ WINDOW, THEME }) {
                 show();
             },
             showsPanel: (webContents) => {
-                if (controls.switcher.contains(webContents)) return false;
                 const window = windowOf(webContents);
                 return !!window && window === live(state.window);
             },
             show: () => void show(),
             // The panel is always presented as not dismissible here, so Escape never asks this.
             dismiss: () => {},
-            summonSwitcher,
+            showWindow,
+            hideWindow: (control) => live(state.windows.get(control))?.hide(),
             // Deckit's own windows: a mod's, a web page's, a popup's.
             openWindow: (options) => WINDOW.open(options),
             panelTitled: (title) => {

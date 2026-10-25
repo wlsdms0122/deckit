@@ -1,9 +1,22 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 
-// Each question carries the session it is for, whose entries the page keeps until it ends.
-export const collect = CHANNEL.mainToPage('deckit-shell:command-collect', { reply: true });
-export const collectNow = CHANNEL.mainToPage('deckit-shell:command-collect-now', { reply: true });
-export const resolve = CHANNEL.mainToPage('deckit-shell:command-resolve', { reply: true });
-export const search = CHANNEL.mainToPage('deckit-shell:command-search', { reply: true });
+// Main asks the page of the mod that declared a command to run it, or to complete one of its args. `call` names a
+// completion, which `abort` ends.
 export const run = CHANNEL.mainToPage('deckit-shell:command-run', { reply: true });
-export const end = CHANNEL.mainToPage('deckit-shell:command-end');
+export const complete = CHANNEL.mainToPage('deckit-shell:command-complete', { reply: true });
+export const abort = CHANNEL.mainToPage('deckit-shell:command-abort');
+
+// A mod with deckit.command-registry, as a caller: a command by its owner, `mod`, and its name.
+export const list = CHANNEL.pageToMain('deckit-shell:command-list', {}, { reply: true });
+export const runOf = CHANNEL.pageToMain(
+    'deckit-shell:command-run-of',
+    { mod: 'string', command: 'string', args: 'object?', activates: 'boolean' },
+    { reply: true }
+);
+export const completeOf = CHANNEL.pageToMain(
+    'deckit-shell:command-complete-of',
+    { call: 'number', mod: 'string', command: 'string', param: 'string', partial: 'string', args: 'object?' },
+    { reply: true }
+);
+export const cancel = CHANNEL.pageToMain('deckit-shell:command-cancel', { call: 'number' });
+export const changed = CHANNEL.mainToPage('deckit-shell:command-changed');

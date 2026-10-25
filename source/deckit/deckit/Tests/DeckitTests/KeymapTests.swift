@@ -50,9 +50,9 @@ struct KeymapTests {
         // Given
         try fixture.write("a", permissions: ["deckit.app-keys"])
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "mod+shift+g", scope: .global))
-        _ = sut.keymap.register(appKey("find", "mod+shift+f", scope: .app))
-        _ = sut.keymap.register(appKey("back", "mod+["))
+        _ = try register(sut, "switch", "mod+shift+g", scope: .global)
+        _ = try register(sut, "find", "mod+shift+f", scope: .app)
+        _ = try register(sut, "back", "mod+[")
 
         // When
         let effects = try sut.started(
@@ -86,8 +86,8 @@ struct KeymapTests {
         // Given
         try fixture.write("a")
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "alt+space", scope: .global))
-        _ = sut.keymap.register(appKey("back", "mod+["))
+        _ = try register(sut, "switch", "alt+space", scope: .global)
+        _ = try register(sut, "back", "mod+[")
         _ = try sut.started("a", run: 1, keys: [key("prev", "mod+j")])
 
         // When
@@ -99,7 +99,7 @@ struct KeymapTests {
         #expect(same.line(of: "a.prev") == "a.prev active")
         #expect(try sut.keymap.bind("@app.back", spec: "alt+space").line(of: "@app.back") == "@app.back active")
         #expect(try sut.keymap.bind("@app.back", spec: "mod+k").line(of: "@app.back") == "@app.back active")
-        _ = sut.keymap.register(appKey("forward", "mod+j"))
+        _ = try register(sut, "forward", "mod+j")
         let held = try sut.keymap.bind("@app.forward", spec: "mod+k")
         #expect(held.line(of: "@app.forward") == "@app.forward inactive held:@app.back")
     }
@@ -109,7 +109,7 @@ struct KeymapTests {
         // Given
         let sut = try fixture.deckit()
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
-            _ = sut.keymap.register(appKey(action, chord))
+            _ = try register(sut, action, chord)
         }
 
         // When
@@ -119,7 +119,7 @@ struct KeymapTests {
         let restarted = try fixture.deckit()
         var keymap = ResolvedKeymap(revision: 0, bindings: [])
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
-            keymap = restarted.keymap.register(appKey(action, chord))
+            keymap = try register(restarted, action, chord)
         }
 
         // Then
@@ -133,7 +133,7 @@ struct KeymapTests {
     func bindingGoesBackToItsDefault(resets: Bool) throws {
         // Given
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("one", "mod+1"))
+        _ = try register(sut, "one", "mod+1")
         _ = try sut.keymap.bind("@app.one", spec: "cmd+9")
 
         // When
@@ -156,7 +156,7 @@ struct KeymapTests {
     func bindRefuses(id: String, spec: String, refusal: KeymapError) throws {
         // Given
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "mod+shift+g", scope: .global))
+        _ = try register(sut, "switch", "mod+shift+g", scope: .global)
 
         // When
         let bound = Result { try sut.keymap.bind(id, spec: spec) }
@@ -181,16 +181,82 @@ struct KeymapTests {
         #expect(try #require(ended.keymapChange).bindings.isEmpty)
     }
 
+    @Test("a key runs a command its run declared, with args that fit, and is called by the command's label without")
+    func keyRunsADeclaredCommand() throws {
+        // Given
+        try fixture.write("a")
+        try fixture.write("b")
+        try fixture.write("c")
+        let sut = try fixture.deckit()
+        let params = JSONValue.object([
+            "type": .string("object"),
+            "properties": .object(["index": .object(["type": .string("integer")])]),
+            "required": .array([.string("index")])
+        ])
+        let commands = JSONValue.array([
+            .object(["name": .string("show-tab"), "label": .string("Show Tab"), "params": params]),
+            .object(["name": .string("new-tab"), "label": .string("New Tab")])
+        ])
+        let tab = { (name: String, command: String, args: JSONValue?, label: String) in
+            var key: [String: JSONValue] = [
+                "name": .string(name),
+                "command": .string(command),
+                "key": .string("mod+1"),
+                "label": .string(label),
+                "scope": .string("local")
+            ]
+            key["args"] = args
+            return JSONValue.object(key)
+        }
+
+        // When
+        let a = try sut.started("a", run: 1, contributing: [
+            "commands": commands,
+            "keys": .array([tab("tab1", "show-tab", .object(["index": .number(0)]), "Tab 1"), tab("new", "new-tab", nil, "")])
+        ])
+        let b = try sut.started("b", run: 1, contributing: [
+            "commands": commands,
+            "keys": .array([tab("tab1", "show-tab", .object([:]), "Tab 1")])
+        ])
+        let c = try sut.started("c", run: 1, contributing: [
+            "commands": commands,
+            "keys": .array([tab("new", "new-tab", nil, "New"), tab("gone", "close-tab", nil, "")])
+        ])
+
+        // Then
+        let keymap = try #require(a.keymapChange)
+        let labels = keymap.bindings.map { resolved in "\(resolved.binding.id) \(resolved.binding.label)" }
+        #expect(labels == ["a.tab1 Tab 1", "a.new New Tab"])
+        #expect(b.problem == "key \"tab1\" cannot be used: its args do not fit \"show-tab\": args needs \"index\"")
+        #expect(c.problem == KeymapError.labelWithoutArguments("new").message)
+    }
+
     // MARK: - Private
     // A key as a run contributes it.
-    private func key(_ action: String, _ spec: String, scope: KeyScope = .local) -> JSONValue {
+    private func key(_ name: String, _ spec: String, scope: KeyScope = .local) -> JSONValue {
         .object(
-            ["action": .string(action), "key": .string(spec), "label": .string(""), "scope": .string(scope.rawValue)]
+            [
+                "name": .string(name),
+                "command": .string(name),
+                "key": .string(spec),
+                "label": .string(""),
+                "scope": .string(scope.rawValue)
+            ]
         )
     }
 
     // A key as the app registers it.
-    private func appKey(_ action: String, _ spec: String, scope: KeyScope = .local) -> Key {
-        Key(action: action, spec: spec, label: "", scope: scope)
+    // A key of the host's, run by a command of the same name it declares first.
+    private func register(
+        _ sut: Deckit,
+        _ name: String,
+        _ spec: String,
+        scope: KeyScope = .local
+    ) throws -> ResolvedKeymap {
+        try sut.commands.define([.object(["name": .string(name), "label": .string(name)])], owner: "@app")
+        return try sut.keymap.register(
+            Key(name: name, command: name, args: nil, spec: spec, label: "", scope: scope),
+            owner: "@app"
+        )
     }
 }
