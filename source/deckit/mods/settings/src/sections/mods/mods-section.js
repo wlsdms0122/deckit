@@ -46,7 +46,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             opacity: 0.35;
         }
         .settings-mod { cursor: pointer; }
-        .settings-mod-row { min-height: 34px; font: inherit; white-space: normal; }
+        .settings-mod-row { min-height: 34px; padding-block: 6px; font: inherit; white-space: normal; }
         .settings-mod-name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
         .settings-caret {
             display: flex;
