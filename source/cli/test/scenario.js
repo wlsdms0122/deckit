@@ -485,13 +485,19 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         );
         await editor.key('Escape', 'Escape', 0, 27);
         // Every mod's screen, drawn: what the test does not drive is still seen.
-        for (const id of ['editor', 'finder', 'browser', 'note']) {
+        for (const id of ['editor', 'finder', 'browser', 'note', 'bot']) {
             await frame.press(`[data-mod-id="${id}"]`);
             await until(async () => (await visibility(id)) === 'visible', 3000);
             await sleep(800);
             await (await page(`deckit://${id}.mod`))?.shot('screen-' + id);
             await panelShot('panel-' + id, id);
         }
+        // Bot runs only while the Forge mod it requires runs, and draws its sessions from what Forge exports.
+        check(
+            'Bot shows on the Forge mod it requires',
+            (await visibility('bot')) === 'visible',
+            await visibility('bot')
+        );
 
         // What mods give each other, judged by the core: a call into what one exports, a point another extends, an
         // event one sends.
