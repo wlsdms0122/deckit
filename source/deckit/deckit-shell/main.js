@@ -7,6 +7,7 @@ import * as OPEN_PERMISSION from './deckit/open/model/permission.js';
 import * as COMMAND_PERMISSION from './deckit/command/model/permission.js';
 import * as MOD_PERMISSION from './deck/mod/permission.js';
 import * as STYLE_PERMISSION from './shell/style/model/permission.js';
+import * as FONTS_PERMISSION from './shell/fonts/model/permission.js';
 import * as WINDOW_PERMISSION from './deckit/window/model/permission.js';
 import * as ENVIRONMENT from './environment/index.js';
 import * as IPC from './deck/ipc/main.js';
@@ -42,6 +43,7 @@ import { createRegion } from './shell/region/main.js';
 import { createPanel } from './shell/panel/main.js';
 import { createStyle } from './shell/style/main.js';
 import { createTheme } from './shell/theme/main.js';
+import { createFonts } from './shell/fonts/main.js';
 
 // MARK: - Property
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
@@ -89,13 +91,16 @@ function attach(deckit, { host } = {}) {
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;
     deckit.attach();
-    for (const permission of STYLE_PERMISSION.PERMISSIONS) deckit.permissions.define(permission);
+    for (const model of [STYLE_PERMISSION, FONTS_PERMISSION])
+        for (const permission of model.PERMISSIONS) deckit.permissions.define(permission);
     const REGION = createRegion({ deckit });
     const PANEL = createPanel({ REGION, deckit, host });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
+    const FONTS = createFonts({ deckit });
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
+        FONTS.start({ onChange: THEME.setFonts });
         STYLE.start();
         REGION.start();
         PANEL.start();

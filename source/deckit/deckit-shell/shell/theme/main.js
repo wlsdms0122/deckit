@@ -5,6 +5,7 @@ export function createTheme({ deckit }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     let theme = null; // the host app's, or null until it gives one
+    let fonts = null; // the person's (shell/fonts), or null until they are read
     const pages = new Set(); // the pages that drew in it, each told when it changes
 
     // MARK: - Initializer
@@ -18,7 +19,7 @@ export function createTheme({ deckit }) {
                 // A page that loads again leaves until its new document asks for the theme, and comes back then.
                 deckit.pages.whenEnds(sender, () => pages.delete(sender));
             }
-            return { theme };
+            return { theme, fonts };
         });
     }
 
@@ -26,10 +27,20 @@ export function createTheme({ deckit }) {
     function set(next) {
         if (JSON.stringify(next) === JSON.stringify(theme)) return;
         theme = next;
-        for (const page of pages) PROTOCOL.change.send(page, { theme });
+        tell();
+    }
+
+    // The person's fonts are worn as the theme is: every page takes new ones in place.
+    function setFonts(next) {
+        if (JSON.stringify(next) === JSON.stringify(fonts)) return;
+        fonts = next;
+        tell();
     }
 
     // MARK: - Private
+    function tell() {
+        for (const page of pages) PROTOCOL.change.send(page, { theme, fonts });
+    }
 
-    return { start, set };
+    return { start, set, setFonts };
 }

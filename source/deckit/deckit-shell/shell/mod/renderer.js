@@ -17,6 +17,8 @@ import * as OVERLAY from '../ui/overlay/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as STYLE from '../style/renderer.js';
 import * as STYLE_PERMISSION from '../style/model/permission.js';
+import * as FONTS from '../fonts/renderer.js';
+import * as FONTS_PERMISSION from '../fonts/model/permission.js';
 import { createPanel, viewProblem, keyProblem } from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion, parentProblem } from '../region/renderer.js';
@@ -181,17 +183,18 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
 // MARK: - Initializer
 // MARK: - Public
 // What the shell gives a mod's page, the layer over deckit's (`createMod`): the theme, the kit, `show()`,
-// `iconOf(mod)`, `region(element)`, `children`, the registrations `view` and, with deckit.styles, `styles`, and on
-// deck.mods the panel's pins. Once start() has ended, a view is laid where the panel's guide says, or a region's for a
-// child, unless the page is in a window of its own. It reads the mod's `icon` into its run's summary, where whatever
-// lists the mods reads it. `channels` binds the shell's channels in the page.
+// `iconOf(mod)`, `region(element)`, `children`, with deckit.fonts `fonts`, the registrations `view` and, with
+// deckit.styles, `styles`, and on deck.mods the panel's pins. Once start() has ended, a view is laid where the panel's
+// guide says, or a region's for a child, unless the page is in a window of its own. It reads the mod's `icon` into its
+// run's summary, where whatever lists the mods reads it. `channels` binds the shell's channels in the page.
 function mod({ mod: running, hasWindow, deliver, fail, channels }) {
     const REGION = createRegion({ deliver, channels });
     const PANEL = createPanel({ channels });
     const theme = PAGE.start({ channels, tell: (listener) => deliver('theme.onChange()', listener) });
     const ui = KIT.make(theme);
     STYLE.wear({ channels });
-    const styles = running.permissions.some(({ id }) => id === STYLE_PERMISSION.STYLES);
+    const has = (permission) => running.permissions.some(({ id }) => id === permission);
+    const styles = has(STYLE_PERMISSION.STYLES);
     return {
         members: ['icon'],
         deck: {
@@ -201,6 +204,7 @@ function mod({ mod: running, hasWindow, deliver, fail, channels }) {
             iconOf: PANEL.iconOf,
             region: REGION.make,
             children: REGION.children,
+            ...(has(FONTS_PERMISSION.FONTS) ? { fonts: FONTS.tool({ channels }) } : {}),
         },
         mods: PANEL.pins,
         registrations: {
