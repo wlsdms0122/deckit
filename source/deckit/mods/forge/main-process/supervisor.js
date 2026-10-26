@@ -1,7 +1,8 @@
 // `command` runs forge, and `config` is the config.toml the `default` session is served with, forge's own in the
-// session's folder when null. `id` is the mod's: what forge records as who dispatched a run. `track(child)` is handed
-// each command it runs, and once `live()` is false it starts no daemon. `commands` runs them.
-module.exports = ({ command, config, id, track, live, commands }) => {
+// session's folder when null. `track(child)` is handed each command it runs, and once `live()` is false it starts no
+// daemon. `commands` runs them, and `runs` follows each run dispatched to its end. A dispatch is told `by` whom: the
+// mod that asked, which forge records as who dispatched the run.
+module.exports = ({ command, config, track, live, commands, runs }) => {
     const { app } = require('electron');
     const { spawn } = require('child_process');
     const path = require('path');
@@ -25,8 +26,8 @@ module.exports = ({ command, config, id, track, live, commands }) => {
         return env;
     };
 
-    // A daemon's token is kept in the bot's place, not in the mod's data folder: every app that runs the bot mod
-    // controls the same daemons with it.
+    // A daemon's token is kept outside the mod's data folder: every app that runs this mod controls the same daemons
+    // with it.
     const tokenDir = (session) =>
         path.join(app.getPath('home'), 'Library', 'Caches', 'im.toss.jineun.bot.forge', session);
     const tokenFile = (session) => path.join(tokenDir(session), 'bootstrap.token');
@@ -93,8 +94,7 @@ module.exports = ({ command, config, id, track, live, commands }) => {
         'workflow',
         'dispatch',
         name,
-        '--async',
-        '--json',
+        '--stream',
         '--inputs',
         JSON.stringify(inputs),
         '--parameters',
@@ -112,6 +112,17 @@ module.exports = ({ command, config, id, track, live, commands }) => {
             'service.shutdown': { argv: (args) => ['service', 'shutdown', serviceName(args), '--json'], token: true },
             'service.restart': { argv: (args) => ['service', 'restart', serviceName(args), '--json'], token: true },
             'service.reload': { argv: () => ['service', 'reload', '--json'], token: true },
+            'service.send': {
+                argv: (args) => [
+                    'service',
+                    'send',
+                    serviceName(args),
+                    '--payload',
+                    JSON.stringify(args.payload ?? {}),
+                    '--json',
+                ],
+                token: true,
+            },
             'workflow.list': { argv: () => ['workflow', 'list', '--json'], token: true },
             'workflow.describe': {
                 argv: (args) => ['workflow', 'describe', workflowArg(args, 'name'), '--json'],
@@ -123,17 +134,18 @@ module.exports = ({ command, config, id, track, live, commands }) => {
                 token: true,
             },
             'workflow.dispatch': {
-                argv: (args) => {
+                argv: (args, by) => {
                     const name = workflowArg(args, 'name');
                     const run = require('crypto').randomUUID();
                     return dispatchArgs(
                         name,
                         args.inputs || {},
-                        { session_id: `manual:${name}#${run}`, source: id },
-                        { kind: 'manual', id }
+                        { session_id: `manual:${name}#${run}`, source: by },
+                        { kind: 'manual', id: by }
                     );
                 },
                 token: true,
+                follows: true,
             },
             'schedule.list': { argv: () => ['schedule', 'list', '--json'], token: true },
             'schedule.create': {
@@ -167,36 +179,53 @@ module.exports = ({ command, config, id, track, live, commands }) => {
         })
     );
 
+    // A token the daemon refused (forge's exit status 6) is not sent again.
+    const refusedOn = (session, sent) => (error) => {
+        if (error.code === 6) {
+            dropToken(session);
+            if (sent) rejected.set(session, sent);
+        }
+        throw error;
+    };
+
     const runForge = async (session, argv, withToken, timeout = 15000) => {
         const env = await environment();
         const sent = withToken ? readToken(session) : null;
         if (withToken) env.FORGE_ACCESS_TOKEN = sent;
         return commands
             .run({ program: 'forge', command, argv: [...argv, '--session', session], env, timeout, track })
-            .catch((error) => {
-                if (error.code === 6) {
-                    dropToken(session);
-                    if (sent) rejected.set(session, sent);
-                }
-                throw error;
-            });
+            .catch(refusedOn(session, sent));
+    };
+
+    // A dispatch with `--stream`: answers once forge has taken the run, which `runs` follows from there.
+    const dispatchFollowed = async (session, argv) => {
+        const env = await environment();
+        const sent = readToken(session);
+        env.FORGE_ACCESS_TOKEN = sent;
+        const child = spawn(command, [...argv, '--session', session], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+        track(child);
+        return runs
+            .follow(session, child)
+            .catch((error) => refusedOn(session, sent)(error.syscall ? commands.notRun('forge', error) : error));
     };
 
     const methods = {};
 
-    methods.call = async (session, operation, args) => {
+    methods.call = async (session, operation, args, by) => {
         const name = sessionName(session);
         const spec = FORGE_OPS.get(operation);
         if (!spec) throw new Error('unknown forge op: ' + operation);
         if (spec.token && !readToken(name)) throw new Error('no token: this daemon was not started from here');
-        const out = await runForge(name, spec.argv(args || {}), spec.token);
+        const argv = spec.argv(args || {}, by);
+        if (spec.follows) return dispatchFollowed(name, argv);
+        const out = await runForge(name, argv, spec.token);
         try {
             return JSON.parse(out);
         } catch {
             return { raw: out };
         }
     };
-    methods.runSchedule = async (session, scheduleId) => {
+    methods.runSchedule = async (session, scheduleId, by) => {
         const name = sessionName(session);
         workflowArg({ id: scheduleId }, 'id');
         const { schedules } = await methods.call(name, 'schedule.list');
@@ -209,12 +238,12 @@ module.exports = ({ command, config, id, track, live, commands }) => {
             schedule.inputs || {},
             {
                 session_id: `manual:${scheduleId}#${require('crypto').randomUUID()}`,
-                source: id,
+                source: by,
                 schedule_id: scheduleId,
             },
             { kind: 'schedule', id: scheduleId }
         );
-        return JSON.parse(await runForge(name, argv, true));
+        return dispatchFollowed(name, argv);
     };
 
     const controlsFor = (up) => ({ start: !up, restart: up, stop: up });

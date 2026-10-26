@@ -4,7 +4,7 @@
 const CURRENT_MS = 3000;
 const LIST_MS = 15000;
 
-const sessionPicker = ({ deck, bot, onChange }) => {
+const sessionPicker = ({ deck, forge, onChange }) => {
     const { theme, ui, util } = deck;
     const store = deck.storage.values;
     let session = store.get('session', null) || 'default';
@@ -38,10 +38,10 @@ const sessionPicker = ({ deck, bot, onChange }) => {
         onChange(name);
     };
 
-    // The sessions there are now; one chosen that is gone gives way to the bot's own.
+    // The sessions there are now; one chosen that is gone gives way to the main one.
     const load = async () => {
         const mine = ++asked;
-        const answer = await bot.forge.supervisor.sessions().catch(() => null);
+        const answer = await forge.sessions().catch(() => null);
         if (!answer || mine !== asked) return sessions;
         sessions = answer.sessions || [];
         if (!sessions.some((entry) => entry.name === session)) choose(answer.main);
@@ -51,7 +51,7 @@ const sessionPicker = ({ deck, bot, onChange }) => {
     const loadCurrent = async () => {
         const mine = asked;
         const name = session;
-        const entry = await bot.forge.supervisor.session(name).catch(() => null);
+        const entry = await forge.session(name).catch(() => null);
         if (!entry || mine !== asked || name !== session) return;
         sessions = sessions.map((each) => (each.name === name ? entry : each));
         paint();
