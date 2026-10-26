@@ -20,10 +20,10 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold }) {
     const WINDOW_SIZE = { width: 520, height: 700 };
     const windows = new Map(); // window page id -> { window, embedder }
     const PARTITION = createPartition({ CONFIG });
-    const SESSION = createSession({ PARTITION });
-    const REGISTRY = createRegistry();
     const DEBUGGER = createDebugger({ LOG });
     const AGENT = createAgent({ CONFIG, DEBUGGER, LOG });
+    const SESSION = createSession({ PARTITION, AGENT });
+    const REGISTRY = createRegistry();
     let deck = null; // what deck answers and is told (listen)
     const told =
         (name) =>
