@@ -23,7 +23,7 @@ const workflowsView = ({ deck, forge, picker }) => {
         busy = false,
         available = false;
     const drafts = new Map();
-    const call = (name, operation, args) => forge.call(name, `workflow.${operation}`, args);
+    const call = (name, operation, args) => forge.call(`workflow.${operation}`, args, name);
     const muted = (text) => styled('div', { color: 'var(--deckit-muted)', font: '12px var(--deckit-font)' }, text);
     const status = muted('');
     const notice = styled('div');

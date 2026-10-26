@@ -26,51 +26,32 @@ module.exports = ({ command, config, track, live, commands, runs }) => {
         return env;
     };
 
-    // A daemon's token is kept outside the mod's data folder: every app that runs this mod controls the same daemons
-    // with it.
-    const tokenDir = (session) =>
-        path.join(app.getPath('home'), 'Library', 'Caches', 'im.toss.jineun.bot.forge', session);
-    const tokenFile = (session) => path.join(tokenDir(session), 'bootstrap.token');
-
-    const sharedTokenFile = (session) => (session === DEFAULT ? null : path.join(sessionHome(session), 'admin.token'));
-
-    const writeSecret = (file, token, ownDir) => {
-        const dir = path.dirname(file);
-        fs.mkdirSync(dir, { recursive: true });
-
-        if (ownDir) fs.chmodSync(dir, 0o700);
-        fs.writeFileSync(file, token + '\n');
-        fs.chmodSync(file, 0o600);
-    };
+    // A daemon's token is kept in its session's folder, `admin.token`, not in the mod's data folder: whatever runs
+    // forge for the person, this mod in any app among them, controls the daemons with it.
+    const tokenFile = (session) => path.join(sessionHome(session), 'admin.token');
 
     const writeToken = (session, token) => {
         try {
-            writeSecret(tokenFile(session), token, true);
+            fs.mkdirSync(sessionHome(session), { recursive: true });
+            fs.writeFileSync(tokenFile(session), token + '\n', { mode: 0o600 });
+            fs.chmodSync(tokenFile(session), 0o600);
         } catch (error) {
             throw new Error(
                 'forge is up, but its token could not be kept, so it cannot be controlled from here: ' + error.message
             );
         }
         rejected.delete(session);
-        if (!sharedTokenFile(session)) return null;
-        try {
-            writeSecret(sharedTokenFile(session), token, false);
-            return null;
-        } catch (error) {
-            return "the session's admin.token could not be written: " + error.message;
-        }
     };
 
+    // A token the daemon refused is not sent again, until a daemon started from here writes another.
     const rejected = new Map();
     const readToken = (session) => {
-        for (const file of [tokenFile(session), sharedTokenFile(session)]) {
-            if (!file) continue;
-            try {
-                const token = fs.readFileSync(file, 'utf8').trim();
-                if (token && token !== rejected.get(session)) return token;
-            } catch {}
+        try {
+            const token = fs.readFileSync(tokenFile(session), 'utf8').trim();
+            return token && token !== rejected.get(session) ? token : null;
+        } catch {
+            return null;
         }
-        return null;
     };
 
     const dropToken = (session) => {
@@ -181,10 +162,7 @@ module.exports = ({ command, config, track, live, commands, runs }) => {
 
     // A token the daemon refused (forge's exit status 6) is not sent again.
     const refusedOn = (session, sent) => (error) => {
-        if (error.code === 6) {
-            dropToken(session);
-            if (sent) rejected.set(session, sent);
-        }
+        if (error.code === 6 && sent) rejected.set(session, sent);
         throw error;
     };
 
@@ -327,7 +305,7 @@ module.exports = ({ command, config, track, live, commands, runs }) => {
                 throw new Error('forge did not come up (no bootstrap token): the daemon log says why');
             }
             child.unref();
-            return { note: writeToken(session, bootstrap) };
+            writeToken(session, bootstrap);
         } finally {
             fs.closeSync(logFd);
         }

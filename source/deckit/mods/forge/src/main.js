@@ -30,16 +30,16 @@ module.exports = {
             if (PLACES.includes(key)) forge.use(places());
         });
 
-        // A dispatch is recorded as the calling mod's.
+        // Each takes a session last, `default` when it is not given. A dispatch is recorded as the calling mod's.
         deck.exports({
             sessions: () => forge.sessions(),
             session: (session) => forge.session(session),
             start: (session) => forge.start(session),
             stop: (session) => forge.stop(session),
             restart: (session) => forge.restart(session),
-            log: (session, lines) => forge.log(session, lines),
-            call: (session, operation, args) => forge.call(session, operation, args, deck.caller()),
-            runSchedule: (session, id) => forge.runSchedule(session, id, deck.caller()),
+            log: (lines, session) => forge.log(session, lines),
+            call: (operation, args, session) => forge.call(session, operation, args, deck.caller()),
+            runSchedule: (id, session) => forge.runSchedule(session, id, deck.caller()),
             run: (id) => forge.run(id),
         });
         forge.on('run', (run) => deck.emit('run', run));

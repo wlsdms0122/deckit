@@ -17,20 +17,20 @@ forge runs with the login shell's PATH, as do the daemons it starts, for an app 
 
 Each forge session is a daemon of its own, with a folder of forge's own (`~/.config/forge/<name>`, or under `$XDG_CONFIG_HOME`) where its socket is and where Forge writes what the daemon prints, `log/proc.log`. `default` is served with the Forge configuration, every other with its folder's.
 
-forge hands the token that controls a daemon to the process that starts it. A daemon started elsewhere can be stopped and restarted from here; its operations are reached once it is started from here, or, for a session other than `default`, once its folder holds an `admin.token`, which Forge writes for such a session it starts. The daemons Forge starts are the person's and run on after the app quits.
+forge hands the token that controls a daemon to the process that starts it, and keeping it is that process's to do. Forge keeps it in the session's folder, `admin.token`, readable only by the person, for each daemon it starts. A daemon started elsewhere can be stopped and restarted from here; its operations are reached once its folder holds its token. The daemons Forge starts are the person's and run on after the app quits.
 
 ## For other mods
 
-A mod that names `forge` in `[requires]` receives these, each `session` being a session's name, `default` when it is empty:
+A mod that names `forge` in `[requires]` receives these. Each takes the session last, `default` when it is not given:
 
 | Member | What it does |
 |---|---|
 | `sessions()` | every session, `{ main, sessions: [{ name, up, daemon, authority, controls }] }`: `authority` is whether its token is here, `controls` which of start, stop and restart apply |
 | `session(session)` | one session, as in `sessions()` |
 | `start(session)`, `stop(session)`, `restart(session)` | the daemon |
-| `log(session, lines)` | the last lines the daemon printed |
-| `call(session, operation, args)` | one of forge's operations, below, answering what forge answers |
-| `runSchedule(session, id)` | dispatches a schedule's workflow now, answering as `workflow.dispatch` does |
+| `log(lines, session)` | the last lines the daemon printed |
+| `call(operation, args, session)` | one of forge's operations, below, answering what forge answers |
+| `runSchedule(id, session)` | dispatches a schedule's workflow now, answering as `workflow.dispatch` does |
 | `run(id)` | a run dispatched from here, or `null` |
 
 | Operation | `args` | Answers |
@@ -40,10 +40,10 @@ A mod that names `forge` in `[requires]` receives these, each `session` being a 
 | `workflow.describe` | `{ name }` | a workflow's inputs and outputs |
 | `workflow.dispatch` | `{ name, inputs }` | `{ workflow_id, name, status: 'running' }` once forge has taken the run, which goes on |
 | `workflow.cancel` | `{ id }` | |
-| `service.status`, `service.list`, `service.reload` | |  |
+| `service.status`, `service.list`, `service.reload` | | |
 | `service.run`, `service.shutdown`, `service.restart` | `{ name }` | |
 | `service.send` | `{ name, payload }` | what the service's handler answers |
-| `schedule.list` | |  |
+| `schedule.list` | | |
 | `schedule.create` | `{ workflow, inputs, trigger, concurrency }` | |
 | `schedule.enable`, `schedule.disable`, `schedule.delete` | `{ id }` | |
 
@@ -53,7 +53,7 @@ forge records a run as dispatched by the mod that called.
 
 ```js
 const { forge } = deck.requires;
-const { workflow_id } = await forge.call('', 'workflow.dispatch', { name: 'merge-gate', inputs: { number: 42 } });
+const { workflow_id } = await forge.call('workflow.dispatch', { name: 'merge-gate', inputs: { number: 42 } });
 deck.on('forge:run', (run) => {
     if (run.id === workflow_id) draw(run);
 });

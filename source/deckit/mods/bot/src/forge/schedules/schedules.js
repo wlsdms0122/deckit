@@ -39,7 +39,7 @@ const schedulesView = ({ deck, forge, picker }) => {
         concurrency: 'skip',
     };
     const inputDrafts = new Map();
-    const call = (target, operation, args) => forge.call(target, operation, args);
+    const call = (target, operation, args) => forge.call(operation, args, target);
     const muted = (text) =>
         styled('div', { color: 'var(--deckit-muted)', font: '12px var(--deckit-font)', whiteSpace: 'pre-wrap' }, text);
     const bar = styled('div', { display: 'none', flex: '1', gap: '8px', alignItems: 'center', minWidth: '0' });
@@ -256,7 +256,7 @@ const schedulesView = ({ deck, forge, picker }) => {
                 icon: ui.icon('play', { size: 14 }),
                 onClick: () =>
                     act(target, async () => {
-                        const result = await forge.runSchedule(target, id);
+                        const result = await forge.runSchedule(id, target);
                         return `Dispatched ${id} · ${result.workflow_id}`;
                     }),
             });

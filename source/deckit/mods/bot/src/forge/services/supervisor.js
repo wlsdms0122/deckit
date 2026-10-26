@@ -5,11 +5,11 @@ const supervisorView = ({ deck, forge, picker }) => {
     let session = picker.current();
 
     const forgeOf = (name) => ({
-        call: (operation, args) => forge.call(name, operation, args),
+        call: (operation, args) => forge.call(operation, args, name),
         start: () => forge.start(name),
         stop: () => forge.stop(name),
         restart: () => forge.restart(name),
-        log: (lines) => forge.log(name, lines),
+        log: (lines) => forge.log(lines, name),
     });
     const REFRESH_MS = 3000;
 
