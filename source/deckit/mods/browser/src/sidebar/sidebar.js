@@ -226,17 +226,22 @@ function sidebar({
 
     function tabMenu(tab, row) {
         return [
-            { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page.reload() },
+            { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page?.reload() },
             {
                 label: 'Duplicate',
                 icon: 'window',
                 run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon, ...tabTree.beside(tab) }),
             },
-            {
-                label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
-                icon: tab.muted ? 'volume' : 'volumeOff',
-                run: () => tab.page.mute(!tab.muted),
-            },
+            // A tab asleep has no page to sound.
+            ...(tab.page
+                ? [
+                      {
+                          label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
+                          icon: tab.muted ? 'volume' : 'volumeOff',
+                          run: () => tab.page.mute(!tab.muted),
+                      },
+                  ]
+                : []),
             '-',
             ...moveItems(tabTree, tab, { onPlace: onPlaceTab, onNewFolder: newTabFolder }),
             '-',
