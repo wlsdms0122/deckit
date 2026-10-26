@@ -168,7 +168,7 @@ function sidebar({
             title: '',
             onClick: (event) => {
                 event.stopPropagation();
-                tab.page?.mute(!tab.muted);
+                tab.page.mute(!tab.muted);
             },
             size: 'small',
             muted: true,
@@ -232,11 +232,16 @@ function sidebar({
                 icon: 'window',
                 run: () => onNewTab(tab.url, { title: tab.title, icon: tab.icon, ...tabTree.beside(tab) }),
             },
-            {
-                label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
-                icon: tab.muted ? 'volume' : 'volumeOff',
-                run: () => tab.page?.mute(!tab.muted),
-            },
+            // A tab asleep has no page to sound.
+            ...(tab.page
+                ? [
+                      {
+                          label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
+                          icon: tab.muted ? 'volume' : 'volumeOff',
+                          run: () => tab.page.mute(!tab.muted),
+                      },
+                  ]
+                : []),
             '-',
             ...moveItems(tabTree, tab, { onPlace: onPlaceTab, onNewFolder: newTabFolder }),
             '-',
