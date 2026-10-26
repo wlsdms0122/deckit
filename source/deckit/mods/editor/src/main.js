@@ -21,7 +21,7 @@ const { sidebar, SIDEBAR_STYLE } = require('./workspace/sidebar.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabs, TABS_STYLE } = require('./workspace/tabs.js');
 const { treeEntryActions } = require('./file-tree/tree-entry-actions.js');
-const { MONOSPACED_FONTS } = require('./code/typeface.js');
+const { FONT_SIZES } = require('./code/typeface.js');
 const { unsavedDrafts, DRAFTS_STYLE } = require('./open-file/unsaved-drafts.js');
 const { workspaceModel } = require('./workspace/workspace-model.js');
 const { workspaceSearch, WORKSPACE_SEARCH_STYLE } = require('./workspace-search/workspace-search.js');
@@ -50,13 +50,19 @@ module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/></svg>`,
 
     settings: {
-        fontSize: { label: 'Font size', type: 'number', default: 13, min: 10, max: 24, step: 1, unit: 'px' },
+        fontSize: {
+            label: 'Font size',
+            type: 'choice',
+            default: 'default',
+            hint: 'Default follows the size in the Fonts section.',
+            options: FONT_SIZES,
+        },
         font: {
             label: 'Font',
             type: 'choice',
-            default: 'system',
-            hint: 'The monospaced faces installed on this Mac.',
-            options: ({ ui }) => ui.installedFonts(MONOSPACED_FONTS),
+            default: 'default',
+            hint: 'The monospaced faces installed on this Mac. Default follows the Fonts section.',
+            options: ({ ui }) => ui.monospacedFonts(),
         },
         wrap: {
             label: 'Wrap long lines',

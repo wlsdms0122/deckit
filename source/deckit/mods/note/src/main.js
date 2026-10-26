@@ -15,7 +15,7 @@ const { relocationLog } = require('./notes-folder/relocation-log.js');
 const { session } = require('./session/session.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tree } = require('./browsing/tree.js');
-const { FONTS, typefaceOf } = require('./editor/typeface.js');
+const { TEXT_SIZES, typefaceOf } = require('./editor/typeface.js');
 
 // The paragraph styles, without the separators of their menu.
 const STYLES = PARAGRAPH_STYLES.filter((style) => style !== '-');
@@ -55,13 +55,19 @@ module.exports = {
                 { value: 'name', label: 'Name' },
             ],
         },
-        textSize: { label: 'Text size', type: 'number', default: 14, min: 11, max: 22, step: 1, unit: 'px' },
+        textSize: {
+            label: 'Text size',
+            type: 'choice',
+            default: 'default',
+            hint: 'Default follows the size in the Fonts section.',
+            options: TEXT_SIZES,
+        },
         font: {
             label: 'Font',
             type: 'choice',
-            default: 'system',
-            hint: 'The face a note is written in, its title too. Code in a note stays monospaced.',
-            options: ({ ui }) => ui.installedFonts(FONTS),
+            default: 'default',
+            hint: 'The face a note is written in, its title too; code stays monospaced. Default follows the Fonts section.',
+            options: ({ ui }) => ui.textFonts(),
         },
     },
 
@@ -217,7 +223,7 @@ module.exports = {
             if (key === 'sort') notesGallery.draw();
             if (key === 'textSize' || key === 'font') applyTypeface();
         });
-        // A face left to the theme follows a new one.
+        // A face and a size left to the theme follow a new one.
         theme.onChange(applyTypeface);
         window.addEventListener('pagehide', () => noteSession.saveIfUnsaved());
         reachSavedPlace();
@@ -535,7 +541,10 @@ module.exports = {
         }
 
         function currentTypeface() {
-            return typefaceOf({ font: settings.get('font'), size: settings.get('textSize') }, theme.font);
+            return typefaceOf(
+                { font: settings.get('font'), size: settings.get('textSize') },
+                { faces: ui.textFonts(), theme }
+            );
         }
 
         function applyTypeface() {

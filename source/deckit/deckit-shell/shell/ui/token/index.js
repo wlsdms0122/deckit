@@ -27,6 +27,8 @@ const MOTION = Object.freeze({
 // A surface drawn as glass lays its colour at this strength over what is behind it, blurred through.
 const GLASS = 0.68;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+// The size text a person reads and writes is in, in px, until they choose one.
+const TEXT_SIZE = 14;
 // Code drawn in a page: what each kind of token is written in, on a dark ground and on a light one.
 const SYNTAX = Object.freeze({
     dark: {
@@ -60,8 +62,10 @@ const WASH = (amount) => `rgba(128,128,128,${amount})`;
 
 // MARK: - Initializer
 // MARK: - Public
-// What every view draws with, derived once from the embedder's theme.
-function tokenOf(theme) {
+// What every view draws with, derived once from the embedder's theme and the person's fonts. `font` and `type` are the
+// host's, the face the app's own parts are in; `textFont`, `mono` and `textSize` are what text a person reads and
+// writes is in, the person's face where they chose one.
+function tokenOf(theme, fonts = {}) {
     const text = theme.contentColor;
     const background = theme.contentBg;
     const toward = (amount) => COLOR.mix(text, background, amount);
@@ -69,7 +73,9 @@ function tokenOf(theme) {
     return deepFreeze({
         dark,
         font: theme.font,
-        mono: MONO,
+        mono: fonts.mono ? `"${fonts.mono}", ${MONO}` : MONO,
+        textFont: fonts.text ? `"${fonts.text}", ${theme.font}` : theme.font,
+        textSize: fonts.size || TEXT_SIZE,
         type: Object.fromEntries(Object.entries(TYPE).map(([name, size]) => [name, `${size}px ${theme.font}`])),
         border: theme.border,
         color: {
@@ -116,6 +122,8 @@ function propertiesOf(token) {
     const properties = {
         font: token.font,
         mono: token.mono,
+        textFont: token.textFont,
+        textSize: token.textSize + 'px',
         border: token.border,
         ...prefixed('', token.color),
         ...prefixed('type-', token.type),

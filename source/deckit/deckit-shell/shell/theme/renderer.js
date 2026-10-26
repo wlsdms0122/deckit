@@ -6,17 +6,17 @@ import * as DECLARED from './protocol.js';
 // MARK: - Initializer
 // MARK: - Public
 // The page's theme, worn as the token's custom properties and the page's color scheme, and taken in place
-// when the host app gives a new one. Answers the token's members, each read at its use, and
-// `onChange(listener)`, which answers its off. `tell(listener)` calls a listener: one's failure is its own, and the
-// others still hear the change. `channels` binds the theme's channels in the page.
+// when the host app gives a new one or the person's fonts change. Answers the token's members, each read at its use,
+// and `onChange(listener)`, which answers its off. `tell(listener)` calls a listener: one's failure is its own, and
+// the others still hear the change. `channels` binds the theme's channels in the page.
 function start({ channels, tell = told }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const listeners = new Set();
     const sheet = new CSSStyleSheet();
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-    let token = wear(PROTOCOL.setup.invoke().theme);
-    PROTOCOL.change.on(({ theme }) => {
-        token = wear(theme);
+    let token = wear(PROTOCOL.setup.invoke());
+    PROTOCOL.change.on((given) => {
+        token = wear(given);
         for (const listener of [...listeners]) tell(listener);
     });
     const read = {
@@ -28,8 +28,8 @@ function start({ channels, tell = told }) {
     for (const key of Object.keys(token)) Object.defineProperty(read, key, { get: () => token[key], enumerable: true });
     return Object.freeze(read);
 
-    function wear(theme) {
-        const worn = TOKEN.tokenOf(theme || TOKEN.FALLBACK_THEME);
+    function wear({ theme, fonts }) {
+        const worn = TOKEN.tokenOf(theme || TOKEN.FALLBACK_THEME, fonts || undefined);
         sheet.replaceSync(TOKEN.propertiesOf(worn));
         // So what the browser draws itself (scrollbars, native controls) follows it.
         document.documentElement.style.colorScheme = worn.dark ? 'dark' : 'light';

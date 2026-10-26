@@ -1,27 +1,17 @@
-// "system" is the face the rest of the panel is in.
-const FONTS = [
-    { value: 'system', label: 'System' },
-    ...[
-        'Apple SD Gothic Neo',
-        'Pretendard',
-        'Noto Sans KR',
-        'Spoqa Han Sans Neo',
-        'Nanum Gothic',
-        'Nanum Myeongjo',
-        'Helvetica Neue',
-        'Avenir Next',
-        'Inter',
-        'IBM Plex Sans',
-        'Georgia',
-        'Charter',
-        'Palatino',
-    ].map((name) => ({ value: name, label: name, font: `"${name}"` })),
+// The text sizes a note is written in: `default` is the theme's.
+const TEXT_SIZES = [
+    { value: 'default', label: 'Default' },
+    ...Array.from({ length: 12 }, (_, index) => ({ value: 11 + index, label: `${11 + index} px` })),
 ];
 
-// A face not in the list (chosen on another Mac) falls back to `fallback`.
-function typefaceOf({ font, size }, fallback) {
-    const face = FONTS.find((candidate) => candidate.value === font)?.font;
-    return { size, font: face ? `${face}, ${fallback}` : fallback };
+// A note's type for the settings' `font` and `size`, each `default` for the theme's text font and size. A face not
+// among `faces` (chosen on another Mac) is the theme's.
+function typefaceOf({ font, size }, { faces, theme }) {
+    const face = faces.find((candidate) => candidate.font && candidate.value === font)?.font;
+    return {
+        size: typeof size === 'number' ? size : theme.textSize,
+        font: face ? `${face}, ${theme.textFont}` : theme.textFont,
+    };
 }
 
-module.exports = { FONTS, typefaceOf };
+module.exports = { TEXT_SIZES, typefaceOf };

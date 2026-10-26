@@ -280,8 +280,39 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             text.slice(text.indexOf(BROKEN) - 100, text.indexOf(BROKEN) + 200)
         );
         await settings?.shot('settings');
-        // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away.
         const menus = `document.querySelectorAll('.deckit-menu[data-state="open"]').length`;
+        // The size picked in the Fonts section is the Editor's, which leaves its own to the fonts, and is kept.
+        const sizeSelect = `document.querySelectorAll('.settings-font .deckit-select')[2]`;
+        const codeSize = `getComputedStyle(document.querySelector('.cm-editor')).fontSize`;
+        const sizeBefore = await editor.evaluate(codeSize);
+        await settings?.evaluate(`${sizeSelect}.scrollIntoView({ block: 'center' })`);
+        await sleep(200);
+        await settings?.shot('settings-fonts');
+        await settings?.evaluate(`${sizeSelect}.click()`);
+        await until(() => settings.evaluate(menus), 2000);
+        await settings?.key('ArrowDown', 'ArrowDown', 0, 40);
+        await settings?.key('ArrowDown', 'ArrowDown', 0, 40);
+        await settings?.key('Enter', 'Enter', 0, 13);
+        await until(async () => !(await settings.evaluate(menus)), 2000);
+        const sized = await until(async () => (await editor.evaluate(codeSize)) === '12px', 3000);
+        check(
+            "the fonts' size picked in Settings is the Editor's text size",
+            sized,
+            `${sizeBefore} -> ${await editor.evaluate(codeSize)}`
+        );
+        const fontsKept = path.join(home, 'state', 'host', 'fonts.json');
+        const sizeKept = await until(
+            () => fs.existsSync(fontsKept) && JSON.parse(fs.readFileSync(fontsKept, 'utf8')).size === 12,
+            2000
+        );
+        check(
+            "the fonts are kept in the shell's state",
+            sizeKept,
+            fs.existsSync(fontsKept) && fs.readFileSync(fontsKept)
+        );
+        // The size's button gives up the keyboard the menu gave back to it, so the keys reach the menu opened next.
+        await settings?.evaluate(`document.activeElement.blur()`);
+        // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away.
         const firstSelect = `document.querySelector('.deckit-select')`;
         const before = await settings?.evaluate(`${firstSelect}?.textContent`);
         // Scrolled first and clicked a frame later: a scroll that lands after a menu opened puts it away.

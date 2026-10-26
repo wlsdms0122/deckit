@@ -55,10 +55,14 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
         clipGutter(view);
     }
 
-    // `views`: the open files', which take it at once; a file opened later takes it as it is made.
+    // `views`: the open files', which take it at once, with a face and a size left to the theme; a file opened later
+    // takes it as it is made.
     function setTheme(extensions, views) {
         lookExtensions = extensions;
-        for (const view of views) view.dispatch({ effects: look.reconfigure(extensions) });
+        for (const view of views) {
+            view.dispatch({ effects: [look.reconfigure(extensions), typeface.reconfigure(typefaceNow())] });
+            clipGutter(view);
+        }
     }
 
     function setLanguage(view, path) {
@@ -130,7 +134,11 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
     }
 
     function typefaceNow() {
-        return typefaceOf(engine, { size: settings.get('fontSize'), font: settings.get('font'), mono: theme.mono });
+        return typefaceOf(
+            engine,
+            { font: settings.get('font'), size: settings.get('fontSize') },
+            { faces: ui.monospacedFonts(), theme }
+        );
     }
 
     // Lines scrolled sideways are clipped where the gutter begins, so the gutter can stay transparent. The selection and

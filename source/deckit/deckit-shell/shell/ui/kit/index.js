@@ -70,6 +70,8 @@ function make(theme) {
         capturePointer: POINTER.capture,
         edgeFade: SCROLL.edgeFade,
         installedFonts: FONTS.installedFonts,
+        textFonts: FONTS.textFonts,
+        monospacedFonts: FONTS.monospacedFonts,
         isFullyVisible: SCROLL.isFullyVisible,
         pressable: PART.pressable,
         selectable: PART.selectable,

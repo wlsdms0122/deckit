@@ -61,6 +61,7 @@ const PERMISSION_ICONS = {
     'deckit.app-keys': 'window',
     'deckit.url-schemes': 'layers',
     'deckit.styles': 'eye',
+    'deckit.fonts': 'pencil',
 };
 const PERMISSION_ICON = 'info';
 
