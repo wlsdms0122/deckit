@@ -168,7 +168,7 @@ function sidebar({
             title: '',
             onClick: (event) => {
                 event.stopPropagation();
-                tab.page.mute(!tab.muted);
+                tab.page?.mute(!tab.muted);
             },
             size: 'small',
             muted: true,
@@ -226,7 +226,7 @@ function sidebar({
 
     function tabMenu(tab, row) {
         return [
-            { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page.reload() },
+            { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page?.reload() },
             {
                 label: 'Duplicate',
                 icon: 'window',
@@ -235,7 +235,7 @@ function sidebar({
             {
                 label: tab.muted ? 'Unmute Tab' : 'Mute Tab',
                 icon: tab.muted ? 'volume' : 'volumeOff',
-                run: () => tab.page.mute(!tab.muted),
+                run: () => tab.page?.mute(!tab.muted),
             },
             '-',
             ...moveItems(tabTree, tab, { onPlace: onPlaceTab, onNewFolder: newTabFolder }),

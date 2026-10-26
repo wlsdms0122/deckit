@@ -104,7 +104,7 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
                     // A page keeps a stream it already has and still believes it granted, so revoking reloads its
                     // tabs. An app's permission is asked at each opening and needs no reload.
                     if (removed.some((sitePermission) => !opensApp(sitePermission.permission)))
-                        for (const tab of listTabs()) if (originOf(tab.url) === origin) tab.page.reload();
+                        for (const tab of listTabs()) if (originOf(tab.url) === origin) tab.page?.reload();
                 }
             },
         });

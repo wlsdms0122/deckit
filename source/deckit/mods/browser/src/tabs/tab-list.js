@@ -2,8 +2,9 @@ const { canonical, isFile, placeOf } = require('../address/address.js');
 const { tree, isFolder, folderOf } = require('../tree/tree.js');
 
 // The open tabs, each with its page, in a tree of folders (`tree.js`), and the session record that brings them back.
-// A web address opens in the web session and a file in the files session. A folder stands until it is deleted, empty
-// or not.
+// A tab brought back sleeps, with no page, until it first comes to the front, as a browser restoring its tabs does: a
+// page loads and runs from when it is made. A web address opens in the web session and a file in the files session. A
+// folder stands until it is deleted, empty or not.
 function tabList({
     web,
     records,
@@ -61,7 +62,7 @@ function tabList({
                     folds.push([folder, folder.collapsed]);
                     nodes.insert(folder, parent);
                     build(folder, node.children);
-                } else nodes.insert(tabOf(node.url, node), parent);
+                } else nodes.insert(tabOf(node.url, { ...node, asleep: true }), parent);
             }
         };
         build(nodes.root, saved.tabs);
@@ -101,6 +102,7 @@ function tabList({
     function select(tab) {
         const previous = front;
         front = tab;
+        wake(tab);
         for (const folder of nodes.ancestorsOf(tab)) folder.collapsed = false;
         showCurrent();
         changed();
@@ -112,6 +114,13 @@ function tabList({
     function navigate(tab, address) {
         onNavigate();
         const url = canonical(address);
+        if (!tab.page) {
+            Object.assign(tab, { url, title: '', icon: '' });
+            wake(tab);
+            showCurrent();
+            changed();
+            return;
+        }
         if (isFile(url) === (tab.page.session === filesSession)) {
             tab.page.load(url);
             return;
@@ -256,21 +265,18 @@ function tabList({
 
     function release(tab, page) {
         onRelease(tab);
-        page.close();
+        page?.close();
     }
 
-    // A tab for `url`, its page made and listened to, in no folder yet.
-    function tabOf(url, { id = nodes.newId(), title = '', icon = '' }) {
-        const page = pageFor(url);
-        page.element.style.visibility = 'hidden';
-        area.prepend(page.element);
+    // A tab for `url` in no folder yet, its page made and listened to, or asleep, with none until it is woken.
+    function tabOf(url, { id = nodes.newId(), title = '', icon = '', asleep = false }) {
         const tab = {
             id,
-            page,
+            page: null,
             url: canonical(url),
             title,
             icon,
-            loading: true,
+            loading: false,
             canGoBack: false,
             canGoForward: false,
             // The window name the page asked for, which a later request for the same name reuses.
@@ -281,8 +287,18 @@ function tabList({
             muted: false,
             capture: { microphone: false, camera: false, screen: false },
         };
-        listen(tab);
+        if (!asleep) wake(tab);
         return tab;
+    }
+
+    // A tab asleep is given its page, at its address.
+    function wake(tab) {
+        if (tab.page) return;
+        tab.page = pageFor(tab.url);
+        tab.page.element.style.visibility = 'hidden';
+        area.prepend(tab.page.element);
+        tab.loading = true;
+        listen(tab);
     }
 
     // Every tab's page fills the area, one over another; only the front one is shown.
@@ -295,7 +311,8 @@ function tabList({
     // Pages out of sight are hidden by visibility: a page element with nothing to draw into (display: none) comes
     // back blank or at the wrong size.
     function showCurrent() {
-        for (const tab of nodes.items()) tab.page.element.style.visibility = tab === front ? 'visible' : 'hidden';
+        for (const tab of nodes.items())
+            if (tab.page) tab.page.element.style.visibility = tab === front ? 'visible' : 'hidden';
     }
 
     function changed() {
