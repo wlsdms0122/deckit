@@ -8,7 +8,8 @@ const NUMBERED = 9;
 // What the switcher shows and what its keys do, apart from how it is drawn. `items` are what the list holds, `now`
 // the rows of the Now strip; an item with `run` can be chosen, one with `submenu` opens a list to search inside it.
 // `onQuery(raw, submenuId)` asks for answers, which come back through `setResolved`; `onPick(item)` runs a choice,
-// and `say(text, { alert })` puts what came of it under the list until something is typed. `state()` is what to
+// `mark(item, status)` shows on its row that it is `running`, `done` or `failed`, and `say(text, { alert })` puts what
+// came of it under the list; both until something is typed, a run under way past that. `state()` is what to
 // draw; `onChange` hears that it changed. `util` is deck's, whose matching ranks what is typed.
 function make({ util, placeholder, items, now, onQuery, onPick }) {
     const { TIER, matchFields } = util;
@@ -32,6 +33,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
     let aimedId = null;
     let held = null;
     let said = null; // { text, alert }
+    const statuses = new Map(); // item id -> running, done or failed
     const listeners = new Set();
 
     browse();
@@ -49,6 +51,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
                 lit: lit.get(item) || [],
                 number: numbers.indexOf(index) + 1,
                 actionable: isActionable(item),
+                status: statuses.get(item.id) || null,
                 // Laid out, a heading says whose a row is; ranked, the row says it itself.
                 hint: item.hint || (headings.size || item.lead ? '' : placeOf(item)),
             };
@@ -68,6 +71,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
         aimed = false;
         asked = raw.trim();
         said = null;
+        forgetSettled();
         held = null;
         aimedId = null;
         onQuery?.(asked, inside?.id || null);
@@ -104,9 +108,10 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
         chooseOrHold(number);
     }
 
+    // A row whose run is under way is not run again until it ends.
     function choose(index) {
         const item = shown[index];
-        if (!isActionable(item)) return;
+        if (!isActionable(item) || statuses.get(item.id) === 'running') return;
         if (!item.submenu) return onPick?.(item);
         // Through onPick too, so opening a submenu counts as a use.
         onPick?.(item);
@@ -155,6 +160,11 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
         }
     }
 
+    function mark(item, status) {
+        statuses.set(item.id, status);
+        changed();
+    }
+
     function say(text, { alert = false } = {}) {
         said = { text, alert };
         changed();
@@ -167,6 +177,10 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
     // MARK: - Private
     function changed() {
         for (const listener of listeners) listener();
+    }
+
+    function forgetSettled() {
+        for (const [id, status] of statuses) if (status !== 'running') statuses.delete(id);
     }
 
     function enter(item) {
@@ -182,6 +196,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
         held = null;
         aimedId = null;
         said = null;
+        forgetSettled();
         asked = '';
         aimed = false;
     }
@@ -302,7 +317,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
         return ranked.map((candidate) => candidate.item);
     }
 
-    return { state, type, move, point, confirm, takeNumber, choose, back, setNow, setResolved, say, onChange };
+    return { state, type, move, point, confirm, takeNumber, choose, back, setNow, setResolved, mark, say, onChange };
 }
 
 // MARK: - Private

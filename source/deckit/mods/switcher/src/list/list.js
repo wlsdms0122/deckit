@@ -88,6 +88,14 @@ const STYLE =
         font: var(--deckit-type-small);
         white-space: nowrap;
     }
+    .switcher-status {
+        display: flex;
+        flex: 0 0 auto;
+        margin-left: 10px;
+        opacity: 0.55;
+    }
+    .switcher-status[data-status='done'] { color: var(--deckit-ok); opacity: 1; }
+    .switcher-status[data-status='failed'] { color: var(--deckit-alert); opacity: 1; }
     .switcher-number {
         display: none;
         flex: 0 0 auto;
@@ -251,7 +259,7 @@ function headingOf(ui, { heading, first }) {
 }
 
 // Drawn again only when what it shows changed, so a breath under way is not restarted.
-function fillRow(ui, theme, made, { item, lit, hint, number, actionable }) {
+function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status }) {
     const drawn = JSON.stringify([
         item.label,
         item.icon,
@@ -263,6 +271,7 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable }) {
         hint,
         number,
         actionable,
+        status,
     ]);
     if (made.dataset.drawn === drawn) return;
     made.dataset.drawn = drawn;
@@ -292,11 +301,21 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable }) {
         chord.textContent = item.chord;
         made.append(chord);
     }
+    if (status) made.append(statusOf(ui, status));
     if (number) {
         const badge = element('span', 'switcher-number');
         badge.textContent = '⌘' + number;
         made.append(badge);
     }
+}
+
+// A run under way turns; one ended says how.
+function statusOf(ui, status) {
+    const made = element('span', 'switcher-status');
+    made.dataset.status = status;
+    if (status === 'running') made.append(ui.spinner({ size: 12 }).element);
+    else made.innerHTML = ui.icon(status === 'done' ? 'check' : 'x', { size: 14 });
+    return made;
 }
 
 // The label with the letters the query matched drawn heavier.

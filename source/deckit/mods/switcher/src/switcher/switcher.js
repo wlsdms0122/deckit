@@ -12,7 +12,8 @@ const NOW_WAIT_MS = 150;
 
 // The list of a Show item for each mod the shell can show and the actions mods add through `point`, the switcher's
 // point `actions`, in `window`, the mod's own: `toggle()` opens it, or puts it away when it is open. Each open reads
-// the mods and their actions anew. What an action leaves for a person is said under the list, which stays open for it.
+// the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod coming on screen, another
+// app.
 function switcher(deck, window, point) {
     const registry = deck.commandRegistry;
     const records = deck.storage.records;
@@ -157,11 +158,13 @@ function switcher(deck, window, point) {
         return { ...item, run: undefined };
     }
 
-    // Run as a person picked it: a Show item by the shell, an action by its mod, which puts itself on screen where it
-    // means to. What it leaves for the person, or why it did not run, is said under the list; with nothing to say the
-    // list goes.
+    // Run as a person picked it: a Show item by the shell, an action by its mod, which asks to come on screen where it
+    // means to. Its row shows it running, then done or failed, with what it leaves for the person, or why it did not
+    // run, under the list. The list goes only as the keyboard does; an action that failed once it had gone says why
+    // in a notification.
     async function go(current, item, remembers) {
         if (remembers) remember(item);
+        current.list.model.mark(item, 'running');
         let said = null;
         try {
             const left = item.shows
@@ -172,11 +175,17 @@ function switcher(deck, window, point) {
             said = { text: error?.message || String(error), alert: true };
         }
         if (open !== current || current.left) {
-            if (said?.alert) console.error(`[switcher] ${item.label} did not run once the list was away: ${said.text}`);
+            if (said?.alert) notify(item, said.text);
             return;
         }
+        current.list.model.mark(item, said?.alert ? 'failed' : 'done');
         if (said) current.list.model.say(said.text, { alert: said.alert });
-        else current.list.close();
+    }
+
+    function notify(item, why) {
+        deck.notify({ title: item.label, body: why }).catch((error) =>
+            console.error(`[switcher] ${item.label} did not run: ${why}`, error)
+        );
     }
 
     function extensionOf(mod) {
