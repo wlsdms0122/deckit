@@ -1,4 +1,4 @@
-export function createSession({ PARTITION }) {
+export function createSession({ PARTITION, AGENT }) {
     // MARK: - Property
     // A cookie with no expiry would sign the person out of every site at each launch; a browser restoring its
     // session keeps them, so here it is given a lifetime.
@@ -17,6 +17,7 @@ export function createSession({ PARTITION }) {
         const session = require('electron').session.fromPartition(spelled);
         made.set(spelled, { session, mod: modId, name });
         keepSessionCookies(session);
+        sendSiteAgents(session);
         for (const listener of created) listener(session, modId);
         return session;
     }
@@ -81,6 +82,14 @@ export function createSession({ PARTITION }) {
             }
             callback({ responseHeaders: headers });
         });
+    }
+
+    // Set on a session deckit made, as it is made: a request to a site with an agent of its own goes with it from the
+    // first, before its page could be told.
+    function sendSiteAgents(session) {
+        session.webRequest.onBeforeSendHeaders({ urls: AGENT.SITE_URLS }, (details, callback) =>
+            callback({ requestHeaders: AGENT.requestHeaders(details.url, details.requestHeaders) })
+        );
     }
 
     function tooLarge(bytes) {
