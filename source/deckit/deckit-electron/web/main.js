@@ -289,6 +289,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold }) {
         const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
         REGISTRY.add(page, { embedder: modPage, tab });
         deck.adopted(modPage, page);
+        AGENT.presentAsBrowser(page);
         holdWindowOpen(modPage, page, { inPage: false });
         const size = options.width && options.height ? { width: options.width, height: options.height } : null;
         showInWindow(pageView, { size: size || WINDOW_SIZE });
