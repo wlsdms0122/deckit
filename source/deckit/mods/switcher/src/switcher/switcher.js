@@ -1,23 +1,22 @@
 const LIST = require('../list/list.js');
-const PARAMS = require('../command/params.js');
-const ROW = require('../row/row.js');
+const ACTION = require('../action/action.js');
 const ITEMS = require('./items.js');
 
 // What was picked before, kept so the list ranks it higher.
 const USE = 'use';
 const USE_KEPT = 60;
-// Taken round robin up to this, so a mod with many rows loses its last ones rather than crowding others out.
+// Taken round robin up to this, so a mod with many actions loses its last ones rather than crowding others out.
 const NOW_MAX = 3;
-// How long the list waits for slow Now rows before it opens; later ones arrive on their own.
+// How long the list waits for slow Now actions before it opens; later ones arrive on their own.
 const NOW_WAIT_MS = 150;
 
-// The list of every command a person can run and the rows mods add to it, in `window`, the mod's own, from `point`,
-// its point `rows`: `toggle()` opens it, or puts it away when it is open. Each open reads the commands and the rows
-// anew. What a command leaves for a person is said under the list, which stays open for it.
+// The list of a Show item for each mod the shell can show and the actions mods add through `point`, the switcher's
+// point `actions`, in `window`, the mod's own: `toggle()` opens it, or puts it away when it is open. Each open reads
+// the mods and their actions anew. What an action leaves for a person is said under the list, which stays open for it.
 function switcher(deck, window, point) {
     const registry = deck.commandRegistry;
     const records = deck.storage.records;
-    let open = null; // the list on screen: { list, left, commands, answering, submenus }, `left` once its exit has started
+    let open = null; // the list on screen: { list, left, about, submenus, chords }, `left` once its exit has started
     let leaving = null; // the timer that puts the window away once the list's exit has played
 
     return { toggle, putAway, closed };
@@ -32,25 +31,25 @@ function switcher(deck, window, point) {
         clearTimeout(leaving);
         leaving = null;
         if (open && !open.left) return;
-        const current = { list: null, left: false, commands: [], answering: null, submenus: new Map(), asking: null };
+        const current = { list: null, left: false, about: null, submenus: new Map(), chords: new Map() };
         open = current;
         window.open();
         let supplied;
         try {
             supplied = await supply(current);
         } catch (error) {
-            console.error('[switcher] the commands could not be read', error);
+            console.error('[switcher] the actions could not be read', error);
         }
         if (open !== current) return;
         if (!supplied) return putAway();
         current.list = LIST.open(deck, {
-            placeholder: 'Run a command or show a mod…',
+            placeholder: 'Run an action or show a mod…',
             items: supplied.items,
             now: supplied.now,
-            onQuery: (raw, submenu) => (submenu ? complete(current, raw, submenu) : resolve(current, raw)),
+            onQuery: (raw, submenu) => search(current, raw, submenu),
             onClose: () => leave(current),
         });
-        supplied.later.then((rows) => open === current && current.list.model.setNow(rows));
+        supplied.later.then((items) => open === current && current.list.model.setNow(items));
     }
 
     // The window goes once the list's exit has played.
@@ -71,7 +70,6 @@ function switcher(deck, window, point) {
         open = null;
         clearTimeout(leaving);
         leaving = null;
-        current.asking?.abort();
         if (!current.left) current.list?.close();
         window.close();
     }
@@ -81,31 +79,34 @@ function switcher(deck, window, point) {
         if (open) putAway();
     }
 
-    // The commands with the listed rows, and what is happening now. `later` is the Now strip as the slow mods land
-    // in it.
+    // The listed actions with the Show items, and what is happening now. `later` is the Now strip as the slow mods
+    // land in it.
     async function supply(current) {
         const extensions = Object.entries(point.extensions());
-        const listing = Promise.all(extensions.map(([mod, extension]) => rowsOf(mod, extension, 'rows')));
-        const commands = await registry.list();
-        const shown = commands.some(ITEMS.isShow) ? (await registry.complete(ITEMS.SHOW, 'mod', '')) || [] : [];
-        const rows = await listing;
-        const ids = ITEMS.providersIn({ commands, rows, shown });
-        const found = await Promise.all(ids.map((id) => registry.provider(id)));
-        const about = { providers: new Map(found.filter(Boolean).map((each) => [each.id, each])), iconOf: deck.iconOf };
-        current.commands = commands;
-        current.answering = { about, keywords: ITEMS.keywordsOf(commands) };
-        const used = records.get(USE, {});
-        const items = ITEMS.listed({ commands, rows, shown, about }).map((item) =>
-            hydrate(current, { ...item, used: frecency(used[keyOf(item)]) }, { remembers: true })
+        const listing = Promise.all(
+            extensions.map(async ([mod, extension]) => [mod, (await actionsOf(mod, extension, 'list')) || []])
         );
+        const shown = await showable();
+        const actions = await listing;
+        const mods = ITEMS.modsIn({ actions, shown });
+        const found = await Promise.all(mods.map((id) => deck.provider(id)));
+        current.about = {
+            names: new Map(found.filter(Boolean).map(({ id, name }) => [id, name])),
+            iconOf: deck.iconOf,
+        };
+        const used = records.get(USE, {});
+        const listed = await withChords(current, ITEMS.listed({ actions, shown, about: current.about }));
+        const items = listed.map((item) => hydrate(current, { ...item, used: frecency(used[keyOf(item)]) }, true));
         const buckets = [];
         const landed = extensions.map(([mod, extension], index) =>
-            rowsOf(mod, extension, 'now').then(
-                ([, rows]) =>
-                    (buckets[index] = rows.map((row) =>
-                        hydrate(current, ITEMS.answered('now', mod, row, current.answering))
-                    ))
-            )
+            actionsOf(mod, extension, 'now')
+                .then((actions) =>
+                    withChords(
+                        current,
+                        (actions || []).map((each) => ITEMS.itemOf('now', mod, each, current.about))
+                    )
+                )
+                .then((now) => (buckets[index] = now.map((item) => hydrate(current, item))))
         );
         await Promise.race([Promise.all(landed), new Promise((done) => setTimeout(done, NOW_WAIT_MS))]);
         const now = roundRobin(buckets);
@@ -113,107 +114,108 @@ function switcher(deck, window, point) {
         return { items, now, later };
     }
 
-    // Each answer is shown as it lands, so a slow mod holds back nobody. A query no one answers still gets one
-    // empty reply: the list shows the last query's rows until it hears otherwise.
-    function resolve(current, raw) {
-        const extensions = Object.entries(point.extensions());
+    // What each mod finds for what is typed, or inside a submenu what its mod finds inside the action that opened it.
+    // Each answer is shown as it lands, so a slow mod holds back nobody. A query no one answers still gets one empty
+    // reply: the list shows the last query's actions until it hears otherwise. A mod that answers null has a newer
+    // search under way, and is not heard for this one.
+    function search(current, raw, submenu) {
+        const parent = submenu ? current.submenus.get(submenu) : null;
+        const extensions = Object.entries(point.extensions()).filter(([mod]) => !parent || mod === parent.mod);
         const gathered = [];
         let left = extensions.length;
-        const answer = () => open === current && current.list?.model.setResolved(raw, gathered, null);
+        let heard = false;
+        const answer = () => open === current && current.list?.model.setResolved(raw, gathered, submenu);
         if (!left) return answer();
         for (const [mod, extension] of extensions)
-            rowsOf(mod, extension, 'resolve', raw).then(([, rows]) => {
-                left--;
-                gathered.push(...rows.map((row) => hydrate(current, ITEMS.answered(raw, mod, row, current.answering))));
-                if (rows.length || !left) answer();
-            });
+            actionsOf(mod, extension, 'search', raw, parent ? parent.value : null)
+                .then(
+                    (actions) =>
+                        actions &&
+                        withChords(
+                            current,
+                            actions.map((each) => ITEMS.itemOf(parent?.id ?? raw, mod, each, current.about))
+                        )
+                )
+                .then((found) => {
+                    left--;
+                    if (found) {
+                        heard = true;
+                        gathered.push(...found.map((item) => hydrate(current, item)));
+                    }
+                    if (found?.length || (!left && heard)) answer();
+                });
     }
 
-    // The values offered for the arg a submenu fills: the ones its schema lists, given once and ranked here, or else
-    // what the command's completion answers for what is typed, in its order, with the text as typed last where any
-    // text is a value. A newer query aborts the completion before it, which answers null and is not drawn.
-    async function complete(current, raw, submenu) {
-        const parent = current.submenus.get(submenu);
-        const { provider, command, args, param } = parent.completes;
-        const params = paramsOf(current, parent.completes);
-        const choices = PARAMS.choicesOf(params, param);
-        let found = choices;
-        if (!found) {
-            current.asking?.abort();
-            const asking = (current.asking = new AbortController());
-            try {
-                found = await registry.complete({ provider, command }, param, raw, { args, signal: asking.signal });
-            } catch (error) {
-                console.error(`[switcher] ${mod}.${command} completed nothing`, error);
-                found = [];
-            }
-        }
-        if (!found || open !== current) return;
-        const typed =
-            raw && PARAMS.takesText(params, param) && !found.some(({ value }) => value === raw)
-                ? [{ value: raw, title: raw, hint: PARAMS.titleOf(params, param), keywords: [] }]
-                : [];
-        const entries = [...found, ...typed].map((candidate) =>
-            hydrate(current, ITEMS.offered(parent, candidate, params))
-        );
-        current.list?.model.setResolved(raw, entries, submenu);
-    }
-
-    // An item crosses as data and is made runnable here: one with a reference runs it, and one that completes opens
-    // the list that fills its arg. Only what the list holds is remembered: a readout or an answer is not something to
-    // run again.
-    function hydrate(current, item, { remembers = false } = {}) {
-        if (item.completes) {
+    // An item crosses as data and is made runnable here: one with a value runs it, and one that opens holds its
+    // submenu. Only what the list holds is remembered: a readout or an answer is not something to run again.
+    function hydrate(current, item, remembers = false) {
+        if (item.opens) {
             current.submenus.set(item.id, item);
-            const params = paramsOf(current, item.completes);
-            return {
-                ...item,
-                run: () => remembers && remember(item),
-                submenu: {
-                    icon: item.icon,
-                    placeholder: `${PARAMS.titleOf(params, item.completes.param)}…`,
-                    ranked: !!PARAMS.choicesOf(params, item.completes.param),
-                },
-            };
+            return { ...item, run: () => remembers && remember(item), submenu: { icon: item.icon } };
         }
-        if (item.reference) return { ...item, run: () => go(current, item, remembers) };
+        if (item.shows || item.value !== null) return { ...item, run: () => go(current, item, remembers) };
         return { ...item, run: undefined };
     }
 
-    // Run as a person picked it, in front. What it leaves for the person, or why it did not run, is said under the
-    // list; with nothing to say the list goes.
+    // Run as a person picked it: a Show item by the shell, an action by its mod, which puts itself on screen where it
+    // means to. What it leaves for the person, or why it did not run, is said under the list; with nothing to say the
+    // list goes.
     async function go(current, item, remembers) {
         if (remembers) remember(item);
-        const { provider, command, args } = item.reference;
         let said = null;
         try {
-            const left = await registry.run({ provider, command }, args, { activates: true });
-            if (left) said = { text: left, alert: false };
+            const left = item.shows
+                ? await registry.run(ITEMS.SHOW, { mod: item.shows })
+                : await extensionOf(item.mod).run(item.value);
+            if (typeof left === 'string' && left) said = { text: left, alert: false };
         } catch (error) {
             said = { text: error?.message || String(error), alert: true };
         }
-        if (open !== current || current.left) return;
+        if (open !== current || current.left) {
+            if (said?.alert) console.error(`[switcher] ${item.label} did not run once the list was away: ${said.text}`);
+            return;
+        }
         if (said) current.list.model.say(said.text, { alert: said.alert });
         else current.list.close();
     }
 
-    // The schema of the args of the command `reference` names, or null for one the registry did not list.
-    function paramsOf(current, { provider, command }) {
-        return (
-            current.commands.find((entry) => entry.provider === provider && entry.command === command)?.params ?? null
-        );
+    function extensionOf(mod) {
+        const extension = point.extensions()[mod];
+        if (typeof extension?.run !== 'function') throw new Error(`${mod} has no actions now`);
+        return extension;
     }
 
-    // The rows `extension` answers to `name`, as `row.js` reads them: `[mod, rows]`.
-    async function rowsOf(mod, extension, name, ...args) {
-        if (typeof extension?.[name] !== 'function') return [mod, []];
+    // The mods the shell can show, as its Show command completes them, or none for a host with no shell.
+    async function showable() {
+        const commands = await registry.list();
+        const { provider, command } = ITEMS.SHOW;
+        if (!commands.some((entry) => entry.provider === provider && entry.command === command)) return [];
+        return (await registry.complete(ITEMS.SHOW, 'mod', '')) || [];
+    }
+
+    // The actions `extension` answers to `name`, as `action.js` reads them, or null where it answers null.
+    async function actionsOf(mod, extension, name, ...args) {
+        if (typeof extension?.[name] !== 'function') return [];
         try {
-            const rows = await extension[name](...args);
-            return [mod, (Array.isArray(rows) ? rows : []).map((row) => ROW.read(mod, row)).filter(Boolean)];
+            const actions = await extension[name](...args);
+            if (actions === null) return null;
+            return (Array.isArray(actions) ? actions : []).map(ACTION.read).filter(Boolean);
         } catch (error) {
             console.error(`[switcher] ${mod}'s ${name} answered nothing`, error);
-            return [mod, []];
+            return [];
         }
+    }
+
+    // Each item with the chord its key is bound to now, asked once an open.
+    function withChords(current, items) {
+        return Promise.all(
+            items.map(async (item) => {
+                if (!item.key) return item;
+                const id = `${item.mod}\u0000${item.key}`;
+                if (!current.chords.has(id)) current.chords.set(id, deck.chordOf(item.key, { provider: item.mod }));
+                return { ...item, chord: (await current.chords.get(id)) || '' };
+            })
+        );
     }
 
     function roundRobin(buckets) {
@@ -226,10 +228,9 @@ function switcher(deck, window, point) {
         return out;
     }
 
-    // Keyed by what it runs, as an item is made fresh on every open; a read only one has none.
-    function keyOf({ reference, completes }) {
-        const runs = reference || completes;
-        return runs && JSON.stringify([runs.provider, runs.command, runs.args, runs.param ?? null]);
+    // Keyed by what it runs, as an item is made fresh on every open: a mod gives an action the same value each time.
+    function keyOf({ mod, value, shows }) {
+        return JSON.stringify(shows ? [ITEMS.SHOW.provider, shows] : [mod, value]);
     }
 
     // Too small to outweigh a use, the time only breaks ties, the later first.

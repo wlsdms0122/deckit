@@ -3,36 +3,29 @@ const { TONES } = require('./tone.js');
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// A row a mod hands the switcher through its point `switcher:rows`, as the list reads it, or null for one with no
-// label: `{ label, hint, icon, group, tone, attention, fallback, reference, completes }`. A row runs a command of
-// `mod`, the mod whose extension handed it, by the reference in its `run`, `{ command, args }`, or opens a list to
-// fill an arg of one by `completes`, `{ command, args, param }`; one with neither is read only. A reference is
-// `{ provider, command, args }` with `mod` as its provider, so a row runs none but its own mod's commands.
-function read(mod, row) {
-    if (!row || typeof row.label !== 'string' || !row.label) return null;
-    const reference = referenceOf(mod, row.run);
-    const completes = reference ? null : referenceOf(mod, row.completes);
+// An action a mod hands the switcher through its point `actions`, as the list reads it, or null for one with no
+// label: `{ label, hint, icon, group, tone, attention, fallback, keywords, key, value, opens }`. Choosing one gives
+// `value`, the JSON the mod knows the action by, to the mod's `run`, or with `opens` searches inside it; one with no
+// value is read only. `key` names the mod's key that does the same, `keywords` the words it is found by too.
+function read(action) {
+    if (!action || typeof action.label !== 'string' || !action.label) return null;
+    const value = action.value ?? null;
     return {
-        label: row.label,
-        hint: text(row.hint),
-        icon: text(row.icon),
-        group: text(row.group),
-        tone: TONES.includes(row.tone) ? row.tone : 'info',
-        attention: row.attention === true,
-        fallback: row.fallback === true,
-        reference,
-        completes:
-            completes && typeof row.completes.param === 'string' ? { ...completes, param: row.completes.param } : null,
+        label: action.label,
+        hint: text(action.hint),
+        icon: text(action.icon),
+        group: text(action.group),
+        tone: TONES.includes(action.tone) ? action.tone : 'info',
+        attention: action.attention === true,
+        fallback: action.fallback === true,
+        keywords: Array.isArray(action.keywords) ? action.keywords.filter((word) => typeof word === 'string') : [],
+        key: text(action.key),
+        value,
+        opens: value !== null && action.opens === true,
     };
 }
 
 // MARK: - Private
-function referenceOf(mod, given) {
-    if (typeof given?.command !== 'string') return null;
-    const args = given.args && typeof given.args === 'object' ? given.args : {};
-    return { provider: mod, command: given.command, args };
-}
-
 function text(value) {
     return typeof value === 'string' ? value : '';
 }

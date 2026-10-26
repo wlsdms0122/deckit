@@ -24,11 +24,10 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
     // A row was aimed at since the query changed, so a late answer does not move the choice.
     let aimed = false;
     const answers = new Map(); // submenu id and query -> the entries answered
-    // A submenu opened to search inside it: { id, label, icon, placeholder, ranked }.
+    // A submenu opened to search inside it: { id, label, icon }.
     let inside = null;
-    // While a searching submenu has not answered what is typed, its last answer stays up and the list is
-    // provisional: a row aimed at is only remembered (`aimedId`), and Enter or a number waits for the answer
-    // (`held`).
+    // While a submenu has not answered what is typed, its last answer stays up and the list is provisional: a row aimed
+    // at is only remembered (`aimedId`), and Enter or a number waits for the answer (`held`).
     let lastAnswer = [];
     let aimedId = null;
     let held = null;
@@ -55,7 +54,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
             };
         });
         return {
-            placeholder: inside ? inside.placeholder : placeholder,
+            placeholder: inside ? 'Search…' : placeholder,
             submenu: inside && { id: inside.id, label: inside.label, icon: inside.icon },
             query: asked,
             rows,
@@ -71,8 +70,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
         said = null;
         held = null;
         aimedId = null;
-        // A ranked submenu already gave its whole list; only a search is asked again.
-        if (!inside?.ranked) onQuery?.(asked, inside?.id || null);
+        onQuery?.(asked, inside?.id || null);
         apply();
     }
 
@@ -136,9 +134,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
     // folding them in would move the choice out from under Enter.
     function setResolved(raw, entries, submenuId) {
         answers.set(answerKey(submenuId, raw), entries);
-        if (aimed || (submenuId || null) !== (inside?.id || null)) return;
-        // A ranked submenu's answer is for the empty query, ranked for whatever is typed now.
-        if (inside?.ranked ? raw !== '' : raw !== asked) return;
+        if (aimed || (submenuId || null) !== (inside?.id || null) || raw !== asked) return;
         apply();
         if (aimedId != null) {
             const index = shown.findIndex((item) => item.id === aimedId && isActionable(item));
@@ -174,13 +170,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
     }
 
     function enter(item) {
-        inside = {
-            id: item.id,
-            label: item.label,
-            icon: item.submenu.icon || '',
-            placeholder: item.submenu.placeholder || 'Search…',
-            ranked: !!item.submenu.ranked,
-        };
+        inside = { id: item.id, label: item.label, icon: item.submenu.icon || '' };
         reset();
         touched = true;
         onQuery?.('', inside.id); // what the submenu shows before anything is typed
@@ -200,12 +190,11 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
         // Resolvers get the query as typed: lowercasing is for ranking and would break an id in a URL.
         const query = asked.toLowerCase();
         if (inside) {
-            // A searching submenu's list is its answer to the raw text; a ranked submenu gave one list as it opened,
-            // ranked here.
-            const key = answerKey(inside.id, inside.ranked ? '' : asked);
+            // A submenu's list is its answer to the raw text.
+            const key = answerKey(inside.id, asked);
             if (answers.has(key)) lastAnswer = answers.get(key);
             lit = new Map();
-            setList(inside.ranked && query ? rank(lastAnswer, query) : lastAnswer);
+            setList(lastAnswer);
         } else if (!query) {
             browse();
         } else {
@@ -242,7 +231,7 @@ function make({ util, placeholder, items, now, onQuery, onPick }) {
     }
 
     function isProvisional() {
-        return !!inside && !inside.ranked && !answers.has(answerKey(inside.id, asked));
+        return !!inside && !answers.has(answerKey(inside.id, asked));
     }
 
     function firstActionable() {
