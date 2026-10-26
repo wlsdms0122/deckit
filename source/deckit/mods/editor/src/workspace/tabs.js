@@ -12,7 +12,6 @@ const TABS_STYLE = `
         overflow-x: auto;
         overflow-y: hidden;
     }
-    .editor-tabs:has(> .editor-tab-list:empty) { display: none; }
     .editor-tab-list { display: flex; align-items: stretch; gap: 2px; height: 26px; }
     .editor-tab {
         display: flex;
@@ -56,7 +55,8 @@ const TABS_STYLE = `
 // The front workspace's files as tabs, keyed by the open file, so a renamed file keeps its tab. A new tab grows in and
 // a closed one folds away, and a tab dragged along the row is put in a new order (`onReorder(file, toFile)`). A switch
 // of workspace draws a new list, so the row is swapped whole and nothing plays. The tab's space is in its icon's and its
-// end's margins, which fold with it.
+// end's margins, which fold with it. The row is the view's title bar, there with no tab as well: the window is dragged
+// by it.
 function tabs({ ui, isDirty, onSelect, onKeep, onClose, onReorder, menuOf }) {
     let files = [];
     let shownFor = null; // the workspace whose tabs are drawn
