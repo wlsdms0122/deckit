@@ -192,6 +192,9 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             await switcher.key('Enter', 'Enter', 0, 13);
             await until(async () => (await visibility('note')) === 'visible', 4000);
             check('switcher shows Notes', (await visibility('note')) === 'visible', await visibility('note'));
+            const rows = `document.querySelectorAll('.switcher-row').length`;
+            const gone = await until(async () => (await switcher.evaluate(rows)) === 0, 3000);
+            check('the switcher goes as the mod it showed takes the keyboard', gone, await switcher.evaluate(rows));
         }
 
         const note = await page('deckit://note.mod');
