@@ -22,9 +22,9 @@ function fontsSection({ ui, fonts, onFailure }) {
     const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const card = ui.element('div', { className: 'settings-card' });
     const rows = {
-        font: fontRow('font', 'Font', () => ui.textFonts()),
-        mono: fontRow('mono', 'Monospaced font', () => ui.monospacedFonts()),
-        size: fontRow('size', 'Size', () => SIZES),
+        text: choiceRow('text', 'Font', () => ui.textFonts()),
+        mono: choiceRow('mono', 'Monospaced font', () => ui.monospacedFonts()),
+        size: choiceRow('size', 'Size', () => SIZES),
     };
 
     card.append(...Object.values(rows).map((row) => row.element));
@@ -40,9 +40,9 @@ function fontsSection({ ui, fonts, onFailure }) {
         for (const [key, row] of Object.entries(rows)) row.set(kept[key]);
     }
 
-    // `optionsOf()` answers the choices; a face kept that is not among them (chosen on another Mac) is labeled so it
-    // does not read as nothing chosen.
-    function fontRow(key, label, optionsOf) {
+    // `optionsOf()` answers the choices; a value kept that is not among them (a face chosen on another Mac) is labeled
+    // so it does not read as nothing chosen.
+    function choiceRow(key, label, optionsOf) {
         const row = ui.element('div', { className: 'settings-font' });
         const select = ui.select({ options: optionsOf(), value: DEFAULT, onChange: (value) => change(key, value) });
 

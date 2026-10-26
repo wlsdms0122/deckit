@@ -29,8 +29,6 @@ const GLASS = 0.68;
 const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
 // The size text a person reads and writes is in, in px, until they choose one.
 const TEXT_SIZE = 14;
-// The person's fonts until they choose any (shell/fonts): each null for the default.
-const NO_FONTS = Object.freeze({ font: null, mono: null, size: null });
 // Code drawn in a page: what each kind of token is written in, on a dark ground and on a light one.
 const SYNTAX = Object.freeze({
     dark: {
@@ -67,7 +65,7 @@ const WASH = (amount) => `rgba(128,128,128,${amount})`;
 // What every view draws with, derived once from the embedder's theme and the person's fonts. `font` and `type` are the
 // host's, the face the app's own parts are in; `textFont`, `mono` and `textSize` are what text a person reads and
 // writes is in, the person's face where they chose one.
-function tokenOf(theme, fonts = NO_FONTS) {
+function tokenOf(theme, fonts = {}) {
     const text = theme.contentColor;
     const background = theme.contentBg;
     const toward = (amount) => COLOR.mix(text, background, amount);
@@ -76,7 +74,7 @@ function tokenOf(theme, fonts = NO_FONTS) {
         dark,
         font: theme.font,
         mono: fonts.mono ? `"${fonts.mono}", ${MONO}` : MONO,
-        textFont: fonts.font ? `"${fonts.font}", ${theme.font}` : theme.font,
+        textFont: fonts.text ? `"${fonts.text}", ${theme.font}` : theme.font,
         textSize: fonts.size || TEXT_SIZE,
         type: Object.fromEntries(Object.entries(TYPE).map(([name, size]) => [name, `${size}px ${theme.font}`])),
         border: theme.border,

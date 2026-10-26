@@ -9,6 +9,7 @@ export function createFonts({ deckit }) {
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const KEPT = 'fonts';
     let fonts = FONTS.DEFAULT;
+    let keeping = Promise.resolve(); // the change being kept, which the next one waits for
 
     // MARK: - Initializer
     // MARK: - Public
@@ -25,16 +26,23 @@ export function createFonts({ deckit }) {
             holds(sender);
             const problem = FONTS.problemOf(change);
             if (problem) throw new Error(`fonts.set() ${problem}`);
-            const next = FONTS.merged(fonts, change);
-            if (JSON.stringify(next) === JSON.stringify(fonts)) return fonts;
-            fonts = next;
-            deckit.state.write(KEPT, fonts);
-            onChange(fonts);
-            return fonts;
+            const kept = keeping.then(() => keep(change, onChange));
+            keeping = kept.catch(() => {});
+            return kept;
         });
     }
 
     // MARK: - Private
+    // Worn only once kept: a change the core refuses leaves the fonts as they were.
+    async function keep(change, onChange) {
+        const next = FONTS.merged(fonts, change);
+        if (JSON.stringify(next) === JSON.stringify(fonts)) return fonts;
+        await deckit.state.write(KEPT, next);
+        fonts = next;
+        onChange(fonts);
+        return fonts;
+    }
+
     // Held to the permission: main does not take a page's word for it.
     function holds(page) {
         const modId = deckit.mods.modOf(page);

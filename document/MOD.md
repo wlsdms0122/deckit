@@ -277,7 +277,7 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `modSettings` | with `deckit.mod-settings`: `list`, `set(id, key, value)` |
 | `keymap` | with `deckit.keymap`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
 | `commandRegistry` | with `deckit.command-registry`: `list()`, `[{ provider, command, description, params }]`, the app's commands first, then the mods' in the load order, `provider` the id of what declared and runs one: a mod's, or a host's `@` name; `run({ provider, command }, args)`, which resolves to the command's result or null and rejects with why it did not run; `complete({ provider, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
-| `fonts` | the shell's, with `deckit.fonts`: `get()`, the person's `{ font, mono, size }` at once, each null for the default: a face's name for `font` and `mono`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `mono`, `textSize`) |
+| `fonts` | the shell's, with `deckit.fonts`: `get()`, the person's `{ text, mono, size }` at once, each null for the default: a face's name for `text` and `mono`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `mono`, `textSize`) |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
 
 ### util

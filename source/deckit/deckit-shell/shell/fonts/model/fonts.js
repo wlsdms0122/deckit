@@ -1,16 +1,16 @@
 // MARK: - Property
-// The person's fonts: a standard face, a fixed-width face and a size in px, each null for the default.
-const DEFAULT = Object.freeze({ font: null, mono: null, size: null });
+// The person's fonts: the face text is written in, the fixed-width face and a size in px, each null for the default.
+const DEFAULT = Object.freeze({ text: null, mono: null, size: null });
 // A face by the name of its family, as an installed font names it.
 const FACE = /^[\p{L}\p{N} ._-]{1,64}$/u;
 const SIZE = Object.freeze({ min: 11, max: 22 });
 
 // MARK: - Initializer
 // MARK: - Public
-// Why `change` is not a change of the fonts, or '': any of `font` and `mono`, a face's name, and `size`, a whole size
+// Why `change` is not a change of the fonts, or '': any of `text` and `mono`, a face's name, and `size`, a whole size
 // within SIZE, each null for the default.
 function problemOf(change) {
-    if (!change || typeof change !== 'object' || Array.isArray(change)) return 'takes { font, mono, size }';
+    if (!change || typeof change !== 'object' || Array.isArray(change)) return 'takes { text, mono, size }';
     for (const [key, value] of Object.entries(change)) {
         if (!Object.hasOwn(DEFAULT, key)) return `takes no ${key}`;
         if (value === null) continue;
