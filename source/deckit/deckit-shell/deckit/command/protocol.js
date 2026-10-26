@@ -6,12 +6,11 @@ export const run = CHANNEL.mainToPage('deckit-shell:command-run', { reply: true 
 export const complete = CHANNEL.mainToPage('deckit-shell:command-complete', { reply: true });
 export const abort = CHANNEL.mainToPage('deckit-shell:command-abort');
 
-// A mod with deckit.command-registry, as a caller: a command by its provider and its name, and a provider by its id.
+// A mod with deckit.command-registry, as a caller: a command by its provider and its name.
 export const list = CHANNEL.pageToMain('deckit-shell:command-list', {}, { reply: true });
-export const providerOf = CHANNEL.pageToMain('deckit-shell:command-provider', { id: 'string' }, { reply: true });
 export const runOf = CHANNEL.pageToMain(
     'deckit-shell:command-run-of',
-    { provider: 'string', command: 'string', args: 'object?', activates: 'boolean' },
+    { provider: 'string', command: 'string', args: 'object?' },
     { reply: true }
 );
 export const completeOf = CHANNEL.pageToMain(

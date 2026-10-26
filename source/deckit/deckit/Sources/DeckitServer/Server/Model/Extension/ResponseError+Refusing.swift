@@ -29,14 +29,11 @@ extension ResponseError {
 
         case let error as ExportError:
             switch error {
-            case .notADependency:
-                "DEPENDENCY"
+            case .notRequired:
+                "NOT_REQUIRED"
 
             case .notRunning:
                 "NOT_RUNNING"
-
-            case .otherVersion:
-                "VERSION"
 
             case .noSuchFunction:
                 "FUNCTION"
@@ -149,7 +146,7 @@ extension ResponseError {
             case .notAChord:
                 "CHORD"
 
-            case .cannotWork, .labelWithoutArguments:
+            case .cannotWork, .notAHost, .noLabel:
                 "REFUSED"
             }
 

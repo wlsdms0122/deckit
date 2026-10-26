@@ -17,6 +17,7 @@ export function createApi({
     WEB,
     KEYMAP,
     COMMAND,
+    PROVIDER,
     MAIN_PROCESS,
     PAGE,
     SETUP,
@@ -86,12 +87,13 @@ export function createApi({
             commands: Object.freeze({
                 define: COMMAND.define,
                 list: COMMAND.list,
-                provider: COMMAND.provider,
                 run: COMMAND.run,
                 complete: (command, param, partial, { args, signal } = {}) =>
                     COMMAND.complete(command, param, partial, { args, signal }),
                 onChange: COMMAND.onChange,
             }),
+            // Who declares keys and commands: `provider(id)` answers `{ id, name, host }` or null.
+            provider: PROVIDER.provider,
             permissions: Object.freeze({ define: PERMISSION.define }),
             // What the host app and its shell keep of the person's, in a folder of their own beside deck's state.
             state: STORAGE.stateIn('host'),

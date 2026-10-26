@@ -10,7 +10,7 @@ import Foundation
 // A command with its provider, as the registry lists it.
 public struct RegisteredCommand: Equatable, Sendable {
     // MARK: - Property
-    public let provider: CommandProvider
+    public let provider: Provider
     public let command: Command
 
     // MARK: - Initializer

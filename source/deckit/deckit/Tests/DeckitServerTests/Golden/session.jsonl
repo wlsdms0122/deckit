@@ -3,10 +3,10 @@
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a","b","c"]}}
 {"id":5,"jsonrpc":"2.0","method":"setting/declare","params":{"mod":"a","run":1,"settings":[{"computed":false,"default":12,"key":"size","label":"Size","min":8,"options":[],"type":"number"},{"computed":true,"key":"font","options":[],"type":"choice"}]}}
-{"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"commands":[{"label":"Next","name":"next"}],"exports":{"functions":[["ask"]],"values":"{\"n\":1}"},"extensionPoints":["accounts"],"extensions":{},"handleURL":true,"keys":[{"command":"next","key":"mod+j","label":"","name":"next","scope":"global"}]},"mod":"a","run":1,"summary":{"view":true}}}
+{"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"commands":[{"name":"next"}],"exports":{"functions":[["ask"]],"values":"{\"n\":1}"},"extensionPoints":["accounts"],"extensions":{},"handleURL":true,"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"}]},"mod":"a","run":1,"summary":{"view":true}}}
 {"id":7,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["b"]}}
 {"id":8,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"exports":{"functions":[],"values":"{}"},"extensionPoints":[],"extensions":{"a:accounts":{"functions":[["list"]],"values":"{}"}},"now":true},"mod":"b","run":2,"summary":{}}}
-{"id":9,"jsonrpc":"2.0","method":"export/dependencies","params":{"mod":"b","run":2}}
+{"id":9,"jsonrpc":"2.0","method":"export/requires","params":{"mod":"b","run":2}}
 {"id":10,"jsonrpc":"2.0","method":"export/call","params":{"caller":"b","mod":"a","path":["ask"],"run":2}}
 {"id":11,"jsonrpc":"2.0","method":"export/call","params":{"caller":"b","mod":"a","path":["nope"],"run":2}}
 {"id":12,"jsonrpc":"2.0","method":"extension/call","params":{"caller":"a","mod":"b","path":["list"],"point":"a:accounts","run":1}}
@@ -29,8 +29,8 @@
 {"id":29,"jsonrpc":"2.0","method":"setting/set","params":{"key":"size","mod":"a","options":null,"value":30}}
 {"id":30,"jsonrpc":"2.0","method":"setting/set","params":{"key":"size","mod":"a","options":null,"value":"12"}}
 {"id":33,"jsonrpc":"2.0","method":"storage/usage","params":{"mod":"a"}}
-{"id":340,"jsonrpc":"2.0","method":"command/define","params":{"commands":[{"label":"Switch","name":"switch"}],"provider":"@app"}}
-{"id":34,"jsonrpc":"2.0","method":"keymap/register","params":{"key":{"command":"switch","key":"mod+shift+g","label":"","name":"switch","scope":"global"},"provider":"@app"}}
+{"id":340,"jsonrpc":"2.0","method":"command/define","params":{"commands":[{"name":"switch"}],"provider":"@app"}}
+{"id":34,"jsonrpc":"2.0","method":"keymap/register","params":{"key":{"key":"mod+shift+g","label":"Switch","name":"switch","scope":"global"},"provider":"@app"}}
 {"id":35,"jsonrpc":"2.0","method":"keymap/bind","params":{"id":"@app.switch","spec":"cmd+j"}}
 {"id":36,"jsonrpc":"2.0","method":"keymap/reset","params":{"id":"@app.switch"}}
 {"id":37,"jsonrpc":"2.0","method":"keymap/bind","params":{"id":"@app.none","spec":"cmd+1"}}

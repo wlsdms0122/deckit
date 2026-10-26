@@ -31,6 +31,7 @@ import { createOpen } from './deckit/open/main.js';
 import { createNotification } from './deckit/notification/main.js';
 import { createClipboard } from './deckit/clipboard/main.js';
 import { createCommand } from './deckit/command/main.js';
+import { createProvider } from './deckit/provider/main.js';
 import { createWindow } from './deckit/window/main.js';
 import { createMainProcess } from './deckit/main-process/main.js';
 import { createModFolder } from './deckit/mod-folder/main.js';
@@ -130,6 +131,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const EVENT = createEvent({ CORE, LOG, IDENTITY });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pages: ENV.pages });
     const COMMAND = createCommand({ LOG, IDENTITY, RUNNER, CORE });
+    const PROVIDER = createProvider({ CORE, IDENTITY });
     const PAGE = createPage({ IDENTITY, LOG, pages: ENV.pages });
     const WINDOW = createWindow({
         IDENTITY,
@@ -145,7 +147,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         CATALOG,
         RUNNER,
         CORE,
-        COMMAND,
         WINDOW,
         pages: ENV.pages,
         keys: ENV.keys,
@@ -183,6 +184,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         WEB,
         KEYMAP,
         COMMAND,
+        PROVIDER,
         MAIN_PROCESS,
         PAGE,
         SETUP,
@@ -234,6 +236,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         NOTIFICATION.start();
         CLIPBOARD.start();
         COMMAND.start();
+        PROVIDER.start();
         WINDOW.start();
         MAIN_PROCESS.start();
         MOD_FOLDER.start();

@@ -102,10 +102,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
                             ? entryOf(mod, RUNNER.launchedOf(mod.id))
                             : null,
                     ...layer.facts(mod),
-                    dependencies: mod.dependencies.map((dependency) => ({
-                        ...dependency,
-                        running: running(dependency.id),
-                    })),
+                    relations: mod.relations.map((relation) => ({ ...relation, running: running(relation.id) })),
                     dependents: mod.dependents,
                 };
             }),

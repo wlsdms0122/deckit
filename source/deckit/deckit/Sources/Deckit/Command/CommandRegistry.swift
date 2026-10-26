@@ -43,10 +43,7 @@ public final class CommandRegistry {
     // MARK: - Public
     // Commands of a host, `provider` its name, which starts with "@". Each name is declared once.
     public func define(_ declarations: [JSONValue], provider: String) throws {
-        guard provider.hasPrefix("@"), Command.isName(String(provider.dropFirst())) else {
-            throw CommandError.notAName(provider)
-        }
-        let host = CommandProvider.host(id: provider, name: hostName)
+        guard let host = Provider(host: provider, name: hostName) else { throw CommandError.notAName(provider) }
         var next = hostCommands
         for value in declarations {
             let command = try Command(declared: value)
@@ -63,7 +60,7 @@ public final class CommandRegistry {
     // The hosts' first, in the order declared, then each running mod's, in the load order.
     public func list() -> [RegisteredCommand] {
         let mods = deck.catalog.loading.flatMap { mod in
-            let provider = CommandProvider.mod(id: mod.manifest.id, name: mod.manifest.name)
+            let provider = Provider.mod(id: mod.manifest.id, name: mod.manifest.name)
             return declared(in: deck.contributions(of: mod.manifest.id)).map { command in
                 RegisteredCommand(provider: provider, command: command)
             }
@@ -72,19 +69,14 @@ public final class CommandRegistry {
         return hostCommands + mods
     }
 
-    // The provider of `id`: a host that declared commands, or a mod deck loads. Nil for neither.
-    public func provider(of id: String) -> CommandProvider? {
-        if let host = hostCommands.first(where: { registered in registered.provider.id == id }) {
-            return host.provider
-        }
-        guard let mod = deck.catalog.loading.first(where: { mod in mod.manifest.id == id }) else { return nil }
-
-        return .mod(id: mod.manifest.id, name: mod.manifest.name)
+    // The hosts that declared commands.
+    var hosts: [Provider] {
+        hostCommands.map(\.provider)
     }
 
     // `provider`'s command `name`, refused when there is none: what completes one of its args asks this first.
     public func find(_ name: String, of provider: String) throws -> RegisteredCommand {
-        guard Command.isName(name) else { throw CommandError.notAName(name) }
+        guard Provider.isName(name) else { throw CommandError.notAName(name) }
         guard let registered = list().first(where: { registered in
             registered.provider.id == provider && registered.command.name == name
         }) else {
@@ -105,7 +97,7 @@ public final class CommandRegistry {
     }
 
     // The commands a run contributed that can be used.
-    func declared(in contributions: Contribution?) -> [Command] {
+    private func declared(in contributions: Contribution?) -> [Command] {
         written(in: contributions).compactMap { value in try? Command(declared: value) }
     }
 

@@ -7,11 +7,11 @@
 
 import Foundation
 
-// A mod opens extension points and another extends them. The one that extends requires the point's mod, so it starts
-// after that one has and ends before it does, or has it as an optional dependency at a version it names: then it
-// extends the point while both run, and runs on either way. A point is open from when its mod's run starts until it has
-// ended. A running mod extends it once it is open, until its own run has ended: one that is ending takes no point
-// opened since. What extends a point stays in its own page, which answers the calls the point's mod makes into it.
+// A mod opens extension points and another extends them: one that names the point's mod in [extends], at a version it
+// names. It extends the point while both run, and runs on either way. A point is open from when its mod's run starts
+// until it has ended. A running mod extends it once it is open, until its own run has ended: one that is ending takes
+// no point opened since. What extends a point stays in its own page, which answers the calls the point's mod makes
+// into it.
 public final class ExtensionRegistry {
     // MARK: - Property
     private let runner: Runner
@@ -27,23 +27,16 @@ public final class ExtensionRegistry {
     }
 
     // MARK: - Public
-    // What `run` of `mod` extends that it cannot: a point not named `<mod id>:<point>`, one of a mod it neither requires
-    // nor has as an optional dependency, or one a mod it requires does not open. An optional dependency may not run, or
-    // not open the point, and then nothing is wrong.
+    // What `run` of `mod` extends that it cannot: a point not named `<mod id>:<point>`, or one of a mod not in its
+    // [extends]. That mod may not run, or not open the point, and then nothing is wrong.
     func problems(of run: Run, mod: Mod) -> [String] {
         guard let contributions = run.contributions else { return [] }
 
         return contributions.extensions.keys.sorted().compactMap { point in
-            guard let scoped = ScopedName(point) else {
-                return "deck.extend() names \(point), which is not <mod id>:<point>"
+            guard let scoped = ScopedName(point) else { return "\(point) is not <mod id>:<point>" }
+            guard mod.manifest.extends[scoped.modId] != nil else {
+                return "deck.extends.\(scoped.modId) extends \(scoped.name), and \(scoped.modId) is not in [extends]"
             }
-            if mod.manifest.requires[scoped.modId] == nil {
-                guard mod.manifest.optional[scoped.modId] != nil else {
-                    return "deck.extend() names \(point), but \(scoped.modId) is in neither [requires] nor [optional]"
-                }
-                return nil
-            }
-            guard opened(scoped) else { return "deck.extend() names \(point), which \(scoped.modId) does not open" }
             return nil
         }
     }
@@ -118,7 +111,7 @@ public final class ExtensionRegistry {
             uniquingKeysWith: { first, _ in first }
         )
         for mod in runner.mods()
-        where mod.manifest.requires[opener] != nil || mod.manifest.takesOptional(openerMod.manifest) {
+        where mod.manifest.extends(openerMod.manifest) {
             let id = mod.manifest.id
             guard let run = runner.run(of: id), isOpen(run), let extensions = run.contributions?.extensions else {
                 continue
@@ -134,11 +127,6 @@ public final class ExtensionRegistry {
         }
 
         return points
-    }
-
-    private func opened(_ point: ScopedName) -> Bool {
-        guard let run = runner.run(of: point.modId), isOpen(run) else { return false }
-        return run.contributions?.extensionPoints.contains(point.name) ?? false
     }
 
     // A run that launched holds what it contributed until it has ended.

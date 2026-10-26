@@ -38,9 +38,6 @@ extension Effect {
         case let .close(modId):
             "close \(modId)"
 
-        case let .optionalChanged(modId, dependency, exports):
-            "optionalChanged \(modId) \(dependency) \(exports == nil ? "none" : "exports")"
-
         case let .extensionsChanged(modId, run, name, extensions):
             "extensionsChanged \(modId) \(run) \(name) \(extensions.keys.sorted().joined(separator: ","))"
 

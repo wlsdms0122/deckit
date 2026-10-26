@@ -1,21 +1,20 @@
 //
-//  Dependency+Encodable.swift
+//  Provider+Encodable.swift
 //  DeckitServer
 //
-//  Created by JSilver on 10/20/26.
+//  Created by JSilver on 10/25/26.
 //
 
 import Foundation
-import Deck
+import Deckit
 
-extension Dependency: Encodable {
+// `{ id, name, host }`: `host` for a host, which is no mod.
+extension Provider: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case id
-        case want
         case name
-        case ok
-        case optional
+        case host
     }
 
     // MARK: - Initializer
@@ -23,10 +22,8 @@ extension Dependency: Encodable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(want, forKey: .want)
         try container.encode(name, forKey: .name)
-        try container.encode(ok, forKey: .ok)
-        try container.encode(optional, forKey: .optional)
+        try container.encode(isHost, forKey: .host)
     }
 
     // MARK: - Private

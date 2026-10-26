@@ -39,7 +39,7 @@ public final class Deckit {
             fields: [urlSchemes]
         )
         let commands = CommandRegistry(deck: deck, hostName: name)
-        let keymap = Keymap(deck: deck, commands: commands)
+        let keymap = Keymap(deck: deck, hostName: name)
         let urlRouter = URLRouter(deck: deck, field: urlSchemes, schemeHandlers: schemeHandlers)
         // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
         deck.add(Layer(problems: { [weak commands] run, mod in commands?.problems(of: run, mod: mod) ?? [] }))
@@ -55,5 +55,13 @@ public final class Deckit {
     }
 
     // MARK: - Public
+    // The provider of `id`: a host that declared a command or registered a key, or a mod deck loads. Nil for neither.
+    public func provider(of id: String) -> Provider? {
+        if let host = (commands.hosts + keymap.hosts).first(where: { host in host.id == id }) { return host }
+        guard let mod = deck.catalog.loading.first(where: { mod in mod.manifest.id == id }) else { return nil }
+
+        return .mod(id: mod.manifest.id, name: mod.manifest.name)
+    }
+
     // MARK: - Private
 }

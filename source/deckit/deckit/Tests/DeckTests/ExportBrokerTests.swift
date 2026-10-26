@@ -16,27 +16,26 @@ struct ExportBrokerTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a run is given what it requires exports, and what its optional dependencies export to it now")
-    func dependenciesGiveWhatIsRequired() throws {
+    @Test("a run is given what each mod it requires exports")
+    func requiresGiveWhatIsExported() throws {
         // Given
         try fixture.write("a")
-        try fixture.write("b", requires: ["a": "1.0.0"], optional: ["c": "1.0.0"])
-        try fixture.write("c", version: "2.0.0")
+        try fixture.write("b", requires: ["a": "1.0.0"], extends: ["c": "1.0.0"])
+        try fixture.write("c")
         let runner = try fixture.runner()
         let sut = ExportBroker(runner: runner)
         _ = try runner.load(["a", "c"])
         _ = try runner.started("a", run: 1, exports: [["ask"]])
-        _ = try runner.started("c", run: 1)
+        _ = try runner.started("c", run: 1, exports: [["tell"]])
         _ = try runner.load(["b"])
 
         // When
-        let dependencies = try sut.dependencies(mod: "b", run: 1)
+        let requires = try sut.requires(mod: "b", run: 1)
 
         // Then
-        #expect(dependencies.requires["a"]?.functions == [["ask"]])
-        #expect(dependencies.requires["a"]?.values == #"{"id":"a"}"#)
-        #expect(dependencies.optional.keys.sorted() == ["c"])
-        #expect(dependencies.optional["c"] == .some(nil))
+        #expect(requires.keys.sorted() == ["a"])
+        #expect(requires["a"]?.functions == [["ask"]])
+        #expect(requires["a"]?.values == #"{"id":"a"}"#)
     }
 
     @Test("a run is refused what it requires once that one has ended")
@@ -52,36 +51,40 @@ struct ExportBrokerTests {
 
         // When
         _ = try runner.crashed("a", run: 1, problem: "its page ended")
-        let ended = Result { try sut.dependencies(mod: "b", run: 1) }
-        let otherRun = Result { try sut.dependencies(mod: "b", run: 2) }
+        let ended = Result { try sut.requires(mod: "b", run: 1) }
+        let otherRun = Result { try sut.requires(mod: "b", run: 2) }
 
         // Then
         #expect(throws: ExportError.notRunning("a")) { try ended.get() }
         #expect(throws: ExportError.notRunning("b")) { try otherRun.get() }
     }
 
-    @Test("a call goes to a function of what the caller requires, and to nothing else")
+    @Test("a call goes to a function of what the caller requires, and to nothing else, a mod it extends neither")
     func callReachesOnlyWhatIsRequired() throws {
         // Given
         try fixture.write("a")
         try fixture.write("b", requires: ["a": "1.0.0"])
+        try fixture.write("c", extends: ["a": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExportBroker(runner: runner)
         _ = try runner.load(["a"])
         _ = try runner.started("a", run: 1, exports: [["ask"]])
-        _ = try runner.load(["b"])
+        _ = try runner.load(["b", "c"])
         _ = try runner.started("b", run: 1)
+        _ = try runner.started("c", run: 1)
 
         // When
         let called = Result { try sut.call(from: "b", run: 1, mod: "a", path: ["ask"]) }
         let missing = Result { try sut.call(from: "b", run: 1, mod: "a", path: ["tell"]) }
         let unrequired = Result { try sut.call(from: "a", run: 1, mod: "b", path: ["ask"]) }
+        let extended = Result { try sut.call(from: "c", run: 1, mod: "a", path: ["ask"]) }
         let otherRun = Result { try sut.call(from: "b", run: 2, mod: "a", path: ["ask"]) }
 
         // Then
         #expect(throws: Never.self) { try called.get() }
         #expect(throws: ExportError.noSuchFunction(mod: "a", path: ["tell"])) { try missing.get() }
-        #expect(throws: ExportError.notADependency(mod: "b", of: "a")) { try unrequired.get() }
+        #expect(throws: ExportError.notRequired(mod: "b", of: "a")) { try unrequired.get() }
+        #expect(throws: ExportError.notRequired(mod: "a", of: "c")) { try extended.get() }
         #expect(throws: ExportError.notRunning("b")) { try otherRun.get() }
     }
 
@@ -114,59 +117,6 @@ struct ExportBrokerTests {
         #expect(throws: Never.self) { try terminating.get() }
         #expect(throws: ExportError.notRunning("b")) { try ended.get() }
         #expect(throws: ExportError.notRunning("a")) { try crashed.get() }
-    }
-
-    @Test("an optional dependency is reached only while it runs at a version the mod names")
-    func optionalDependencyIsReachedAtItsVersion() throws {
-        // Given
-        try fixture.write("a", version: "2.0.0")
-        try fixture.write("b", optional: ["a": "1.0.0"])
-        try fixture.write("c", optional: ["a": "2.0.0"])
-        let runner = try fixture.runner()
-        let sut = ExportBroker(runner: runner)
-        _ = try runner.load(["a", "b", "c"])
-        _ = try runner.started("b", run: 1)
-        _ = try runner.started("c", run: 1)
-
-        // When
-        let launching = Result { try sut.call(from: "c", run: 1, mod: "a", path: ["ask"]) }
-        _ = try runner.started("a", run: 1, exports: [["ask"]])
-        let running = Result { try sut.call(from: "c", run: 1, mod: "a", path: ["ask"]) }
-        let otherVersion = Result { try sut.call(from: "b", run: 1, mod: "a", path: ["ask"]) }
-
-        // Then
-        #expect(throws: ExportError.notRunning("a")) { try launching.get() }
-        #expect(throws: Never.self) { try running.get() }
-        #expect(throws: ExportError.otherVersion(mod: "a", version: "2.0.0", dependent: "b", wanted: "1.0.0")) {
-            try otherVersion.get()
-        }
-    }
-
-    @Test("a run is told what an optional dependency exports as that one starts and as it begins to end, a new run not")
-    func optionalDependentsAreToldOfChanges() throws {
-        // Given
-        try fixture.write("a")
-        try fixture.write("b", optional: ["a": "1.0.0"])
-        let runner = try fixture.runner()
-        let sut = ExportBroker(runner: runner)
-        _ = try runner.load(["a", "b"])
-        _ = try runner.started("b", run: 1)
-        _ = sut.changes()
-
-        // When
-        _ = try runner.started("a", run: 1, exports: [["ask"]])
-        let started = sut.changes()
-        _ = try runner.unload(["a"])
-        let terminating = sut.changes()
-        _ = try runner.unload(["b"])
-        _ = try runner.stopped("b", run: 1)
-        _ = try runner.load(["b"])
-        let relaunched = sut.changes()
-
-        // Then
-        #expect(started.map(\.line) == ["optionalChanged b a exports"])
-        #expect(terminating.map(\.line) == ["optionalChanged b a none"])
-        #expect(relaunched.isEmpty)
     }
 
     // MARK: - Private

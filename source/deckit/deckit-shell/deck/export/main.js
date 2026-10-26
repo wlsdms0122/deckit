@@ -10,16 +10,11 @@ export function createExport({ CORE, IDENTITY, RUNNER }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // A mod reaches another only through what that one exports, and only one it requires or has as an optional
-    // dependency. What it requires runs before it loads; it is told each time what its optional dependencies export to
-    // it changes. The function called hears who called it (`deck.caller()`).
+    // A mod reaches another only through what that one exports, and only one it requires, which runs before it loads.
+    // The function called hears who called it (`deck.caller()`).
     function start() {
-        RUNNER.handleEffect('optionalChanged', ({ mod, dependency, exports }) => {
-            const page = IDENTITY.pageOf(mod);
-            if (page) PROTOCOL.optionalChanged.send(page, { id: dependency, exports });
-        });
-        PROTOCOL.dependencies.handle(({ run }, sender) =>
-            CORE.request('export/dependencies', { mod: IDENTITY.modFrom(sender).id, run })
+        PROTOCOL.requires.handle(({ run }, sender) =>
+            CORE.request('export/requires', { mod: IDENTITY.modFrom(sender).id, run })
         );
         PROTOCOL.callExport.handle(async ({ run, mod, path, args }, sender) => {
             const caller = IDENTITY.modFrom(sender).id;

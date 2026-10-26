@@ -17,17 +17,17 @@ public struct Manifest: Sendable {
     public let main: String?
     // Mod id -> the version wanted: what it runs only with.
     public let requires: [String: String]
-    // Mod id -> the version wanted: what it runs without.
-    public let optional: [String: String]
+    // Mod id -> the version wanted: whose extension points it extends.
+    public let extends: [String: String]
     public let permissions: [PermissionRequest]
     // What the layers' fields hold, by the key each is held under.
     let fields: [String: any Sendable]
 
     // MARK: - Initializer
     // MARK: - Public
-    // Whether `other` is at a version its [optional] names for it.
-    func takesOptional(_ other: Manifest) -> Bool {
-        guard let wanted = optional[other.id].flatMap(Version.init),
+    // Whether `other` is at a version its [extends] names for it.
+    func extends(_ other: Manifest) -> Bool {
+        guard let wanted = extends[other.id].flatMap(Version.init),
             let version = other.version.flatMap(Version.init)
         else { return false }
 

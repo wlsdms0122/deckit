@@ -148,7 +148,6 @@ public final class Deck {
     // what each layer tells has changed of its own.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
         effects
-            + exports.changes()
             + extensions.changes()
             + layers.flatMap { layer in layer.changes() }.map(Effect.layer)
     }

@@ -8,13 +8,13 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Keys, as the core resolves them: the core keeps the keymap and says how each binding stands, and a keystroke is
 // resolved here against the copy it last told, where the keystroke lands. `pages` and `keys` are the environment's.
-export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WINDOW, pages: PAGES, keys: KEYS }) {
+export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, WINDOW, pages: PAGES, keys: KEYS }) {
     // MARK: - Property
     const RECORDING_MS = 20 * 1000;
     const hotkeys = new Map(); // chord -> its off, or null where the system did not give it, as each is held in any app
     const typing = new WeakSet(); // pages with a field focused
     const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
-    const hosts = new Set(); // the providers whose keys a host registered here, which run here
+    const hosts = new Map(); // a host's name, as its provider -> Map of name -> run, as it registered its keys here
     const listened = new WeakMap(); // page -> the deckit page a keystroke there belongs to, or null
     let keymap = { revision: 0, bindings: [] };
     let recording = null; // { page, drop, timer }
@@ -93,26 +93,32 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WI
         });
     }
 
-    // A host's keys, under `provider`, the name it declared their commands under: { name: { command, args, label, key,
-    // scope } }, each running that command with `args`. By its `scope` a key works in the page in front, anywhere a
-    // page is listened to, or in every app too. Resolves once the core has them, and rejects with why it refused
-    // one, as one whose command is not declared.
+    // A host's keys, under `provider`, a name of its own that starts with "@": { name: { label, key, scope, run } },
+    // `run()` what pressing it does, here. By its `scope` a key works in the page in front, anywhere a page is listened
+    // to, or in every app too. Resolves once the core has them, and rejects with why it refused one, as one with no
+    // label.
     async function register(provider, keys) {
-        for (const [name, { command, args = null, label = '', key = '', scope = 'local' } = {}] of Object.entries(
-            keys || {}
-        )) {
+        for (const [name, { label = '', key = '', scope = 'local', run } = {}] of Object.entries(keys || {})) {
+            if (typeof run !== 'function') throw new Error(`[deckit] the key ${provider}.${name} needs a run`);
             if (!KEY_SCOPE.SCOPES.includes(scope))
                 throw new Error(`[deckit] the key ${provider}.${name} has no scope ${scope}`);
-            const declared = {
-                name,
-                command,
-                ...(args ? { args } : {}),
-                key: String(key),
-                label: String(label),
-                scope,
-            };
-            keep(await CORE.request('keymap/register', { provider, key: declared }));
-            hosts.add(provider);
+            // Kept before the core has it, so a key the core binds already runs here; a refusal leaves what was there.
+            const held = hosts.get(provider) || new Map();
+            const before = held.get(name);
+            hosts.set(provider, held.set(name, run));
+            try {
+                keep(
+                    await CORE.request('keymap/register', {
+                        provider,
+                        key: { name, label: String(label), key: String(key), scope },
+                    })
+                );
+            } catch (error) {
+                if (before) held.set(name, before);
+                else held.delete(name);
+                if (!held.size) hosts.delete(provider);
+                throw error;
+            }
         }
     }
 
@@ -212,12 +218,12 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WI
         return hosts.has(binding.provider) || binding.provider === IDENTITY.modOf(page)?.id;
     }
 
-    // A host's key runs its command here, and a mod's in its page, which drops it behind a dialog.
+    // A host's key runs here, what it throws logged, and a mod's in its page, which drops it behind a dialog.
     function run(binding) {
         if (hosts.has(binding.provider)) {
-            COMMAND.run({ provider: binding.provider, command: binding.command }, binding.args, {
-                activates: true,
-            }).catch((error) => LOG.error(`${binding.id}: ${binding.command} did not run`, error));
+            (async () => hosts.get(binding.provider).get(binding.name)())().catch((error) =>
+                LOG.warn(`${binding.id} did not run`, error)
+            );
             return true;
         }
         const page = IDENTITY.pageOf(binding.provider);

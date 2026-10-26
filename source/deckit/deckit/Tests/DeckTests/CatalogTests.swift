@@ -187,7 +187,7 @@ struct CatalogTests {
         try write("b", in: source, requires: ["a": "1.0.0"])
         try write("e", in: source, requires: ["f": "1.0.0"])
         try write("f", in: source, requires: ["e": "1.0.0"])
-        try write("g", in: source, optional: ["h": "1.0.0"])
+        try write("g", in: source, extends: ["h": "1.0.0"])
         try write("h", in: source)
         let sut = try catalog(sources: [source])
 
@@ -371,7 +371,7 @@ struct CatalogTests {
         version: String = "1.0.0",
         main: String? = "main.js",
         requires: [String: String] = [:],
-        optional: [String: String] = [:]
+        extends: [String: String] = [:]
     ) throws {
         let location = parent.appending(path: folder ?? id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
@@ -380,13 +380,13 @@ struct CatalogTests {
                 ? ""
                 : "\n[\(name)]\n" + wanted.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
         }
-        let dependencies = table("requires", requires) + table("optional", optional)
+        let relations = table("requires", requires) + table("extends", extends)
         let text = """
             id = "\(id)"
             version = "\(version)"
             api = "1.0.0"
             main = "\(main ?? "missing.js")"
-            """ + dependencies
+            """ + relations
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         if let main {
             try Data().write(to: location.appending(path: main))

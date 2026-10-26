@@ -36,22 +36,20 @@ struct CommandRegistryTests {
         ])
         #expect(listed.map(\.provider.isHost) == [true, false, false, false])
         #expect(listed[1].provider.name == "A")
-        #expect(sut.commands.provider(of: "@shell")?.isHost == true)
-        #expect(sut.commands.provider(of: "b") == .mod(id: "b", name: "B"))
-        #expect(sut.commands.provider(of: "c") == nil)
+        #expect(sut.provider(of: "@shell")?.isHost == true)
+        #expect(sut.provider(of: "b") == .mod(id: "b", name: "B"))
+        #expect(sut.provider(of: "c") == nil)
     }
 
     @Test("a declaration that cannot be used is told as the mod starts and left out", arguments: [
-        (["name": .string("a.b"), "label": .string("A")], "\"a.b\" is no name: a name has letters, digits, \"_\" and \"-\""),
-        (["name": .string("go")], "command \"go\" cannot be used: it needs a \"label\""),
+        (["name": .string("a.b")], "\"a.b\" is no name: a name has letters, digits, \"_\" and \"-\""),
         (
-            ["name": .string("go"), "label": .string("Go"), "params": .object(["type": .string("string")])],
+            ["name": .string("go"), "params": .object(["type": .string("string")])],
             "command \"go\" cannot be used: its \"params\" takes { type: 'object' }"
         ),
         (
             [
                 "name": .string("go"),
-                "label": .string("Go"),
                 "params": .object(["type": .string("object"), "minProperties": .number(1)])
             ],
             "command \"go\" cannot be used: its \"params\" has \"minProperties\", which deckit does not read"
@@ -85,8 +83,8 @@ struct CommandRegistryTests {
             "required": .array([.string("index")])
         ])
         _ = try sut.started("a", run: 1, contributing: ["commands": .array([
-            .object(["name": .string("b"), "label": .string("B")]),
-            .object(["name": .string("show-tab"), "label": .string("Show Tab"), "params": params])
+            .object(["name": .string("b")]),
+            .object(["name": .string("show-tab"), "description": .string("Shows a tab"), "params": params])
         ])])
         _ = try sut.started("a.b", run: 1, contributing: ["commands": .array([command("c")])])
 
@@ -103,8 +101,8 @@ struct CommandRegistryTests {
         ].map { name, provider, args in refusal(sut, name, of: provider, args: args) }
 
         // Then
-        #expect(found.command.label == "Show Tab")
-        #expect(unfilled.command.label == "Show Tab")
+        #expect(found.command.description == "Shows a tab")
+        #expect(unfilled.command.description == "Shows a tab")
         #expect(refusals == [
             "\"b.c\" is no name: a name has letters, digits, \"_\" and \"-\"",
             "no such command: a.c",
@@ -134,7 +132,7 @@ struct CommandRegistryTests {
 
     // MARK: - Private
     private func command(_ name: String) -> JSONValue {
-        .object(["name": .string(name), "label": .string(name.capitalized)])
+        .object(["name": .string(name)])
     }
 
     private func refusal(_ sut: Deckit, _ name: String, of provider: String, args: JSONValue?) -> String? {

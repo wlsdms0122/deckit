@@ -2,6 +2,7 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as CANDIDATE from './model/candidate.js';
+import * as RESULT from './model/result.js';
 import * as COMMAND_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
@@ -24,13 +25,9 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
             IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
             return list();
         });
-        PROTOCOL.providerOf.handle(({ id }, sender) => {
+        PROTOCOL.runOf.handle(({ provider, command, args }, sender) => {
             IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
-            return provider(id);
-        });
-        PROTOCOL.runOf.handle(({ provider, command, args, activates }, sender) => {
-            IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
-            return run({ provider, command }, args, { activates });
+            return run({ provider, command }, args);
         });
         PROTOCOL.completeOf.handle(async ({ call, provider, command, param, partial, args }, sender) => {
             const caller = IDENTITY.modFrom(sender, COMMAND_PERMISSION.COMMAND_REGISTRY);
@@ -49,9 +46,9 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         for (const name of ['didLaunch', 'didTerminate']) RUNNER.observe(name, changed);
     }
 
-    // A host's commands, under `provider`, a name of its own that starts with "@": { name: { label, description,
-    // keywords, params, run(args, { activates }), complete(param, partial, { args, signal }) } }. Resolves once the
-    // core has them, and rejects with why it refused one.
+    // A host's commands, under `provider`, a name of its own that starts with "@": { name: { description, params,
+    // run(args), complete(param, partial, { args, signal }) } }. Resolves once the core has them, and rejects with why
+    // it refused one.
     async function define(provider, commands) {
         const declared = [];
         const kept = new Map();
@@ -74,32 +71,26 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         changed();
     }
 
-    // Every command, `{ provider, command, label, description, keywords, params }`: the hosts' first, then each
-    // running mod's in the load order.
+    // Every command, `{ provider, command, description, params }`: the hosts' first, then each running mod's in the
+    // load order.
     function list() {
         return CORE.request('command/list');
     }
 
-    // The provider of `id`, `{ id, name, host }`: a host that declared commands, or a mod deck loads. Null for
-    // neither.
-    function provider(id) {
-        return CORE.request('command/provider', { id });
-    }
-
-    // `{ provider, command }` run with `args`, which answers the text it leaves for a person, or null, and rejects with why
-    // it did not run. `activates` is whether the caller wants it in front.
-    async function run({ provider, command }, args = null, { activates = false } = {}) {
+    // `{ provider, command }` run with `args`, which answers its result, a JSON value or null, and rejects with why it
+    // did not run.
+    async function run({ provider, command }, args = null) {
         await CORE.request('command/check', { provider, command, ...(args ? { args } : {}) });
-        if (hosts.has(provider)) {
-            const left = await hosts
-                .get(provider)
-                .get(command)
-                .run(args ?? {}, { activates });
-            return typeof left === 'string' && left ? left : null;
-        }
+        if (hosts.has(provider))
+            return RESULT.resultOf(
+                await hosts
+                    .get(provider)
+                    .get(command)
+                    .run(args ?? {})
+            );
         const page = IDENTITY.pageOf(provider);
         if (!page) throw Object.assign(new Error(`${provider} is not running`), { kind: 'NOT_RUNNING' });
-        return PROTOCOL.run.invoke(page, { command, args, activates });
+        return PROTOCOL.run.invoke(page, { command, args });
     }
 
     // The candidates for `param` of `{ provider, command }` as `partial` is typed, `[{ value, title, hint, keywords }]`
@@ -150,5 +141,5 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         }
     }
 
-    return { start, define, list, provider, run, complete, onChange };
+    return { start, define, list, run, complete, onChange };
 }

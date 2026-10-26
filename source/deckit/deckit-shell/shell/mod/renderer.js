@@ -5,6 +5,7 @@ import * as RUNTIME from '../../deckit/runtime/renderer.js';
 import * as OPEN from '../../deckit/open/renderer.js';
 import * as MAIN_PROCESS from '../../deckit/main-process/renderer.js';
 import * as MOD_FOLDER from '../../deckit/mod-folder/renderer.js';
+import * as PROVIDER from '../../deckit/provider/renderer.js';
 import * as MAIN_PROCESS_PERMISSION from '../../deckit/main-process/model/permission.js';
 import * as CLIPBOARD_PERMISSION from '../../deckit/clipboard/model/permission.js';
 import * as NOTIFICATION_PERMISSION from '../../deckit/notification/model/permission.js';
@@ -99,7 +100,10 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,
             about: RUNTIME.about,
-            chordOf: (name) => KEYMAP.chord(name),
+            chordOf: (name, { provider = '' } = {}) => KEYMAP.chord(name, { provider }),
+            ...(has(COMMAND_PERMISSION.COMMAND_REGISTRY) || has(KEYMAP_PERMISSION.KEYMAP)
+                ? { provider: PROVIDER.provider }
+                : {}),
             clipboard: Object.freeze({
                 ...(has(CLIPBOARD_PERMISSION.CLIPBOARD_READ) ? { readText: CLIPBOARD.readText } : {}),
                 ...(has(CLIPBOARD_PERMISSION.CLIPBOARD_WRITE) ? { writeText: CLIPBOARD.writeText } : {}),
@@ -139,7 +143,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CHANNELS }) {
         if (registered('handleURL')) OPEN.answer((url, options) => parts.handleURL(url, options));
         const commands = COMMAND.declare(parts.commands, { invalid: fail });
         const keys = KEYMAP.declare(parts.keys, { invalid: fail, problemOf: (key) => given.keyProblem(key, parts) });
-        KEYMAP.hear({ run: COMMAND.runByKey, blocksKeys: given.blocksKeys });
+        KEYMAP.hear({ blocksKeys: given.blocksKeys });
         return {
             // What it registered, by name, beside the shell's, for deckit's core to judge it by.
             contributions: {

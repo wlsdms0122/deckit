@@ -1,5 +1,5 @@
 //
-//  CommandProvider.swift
+//  Provider.swift
 //  Deckit
 //
 //  Created by JSilver on 10/20/26.
@@ -7,10 +7,9 @@
 
 import Foundation
 
-// What declares commands and the keys that run them, and runs them: a host, under a name it gives that starts with
-// "@" (the host app, the shell it puts on deckit), or a mod, whose run contributed them. Each with its name as a
-// person reads it.
-public enum CommandProvider: Equatable, Sendable {
+// What declares commands and keys, and runs them: a host, under a name it gives that starts with "@" (the host app, the
+// shell it puts on deckit), or a mod, whose run contributed them. Each with its name as a person reads it.
+public enum Provider: Equatable, Sendable {
     case host(id: String, name: String)
     case mod(id: String, name: String)
 
@@ -36,10 +35,23 @@ public enum CommandProvider: Equatable, Sendable {
     }
 
     // MARK: - Initializer
+    // A host of `id`, a name that starts with "@", or nil.
+    init?(host id: String, name: String) {
+        guard id.hasPrefix("@"), Self.isName(String(id.dropFirst())) else { return nil }
+        self = .host(id: id, name: name)
+    }
+
     // MARK: - Public
     // The id of the provider's command or binding of `name`, as a person reads it.
     func id(of name: String) -> String {
         "\(id).\(name)"
+    }
+
+    // A command's, a key's and a host's name: letters, digits, "_" and "-", so an id splits at its last ".".
+    static func isName(_ name: String) -> Bool {
+        !name.isEmpty && name.unicodeScalars.allSatisfy { scalar in
+            (scalar.isASCII && CharacterSet.alphanumerics.contains(scalar)) || scalar == "_" || scalar == "-"
+        }
     }
 
     // MARK: - Private

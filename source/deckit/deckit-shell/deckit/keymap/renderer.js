@@ -7,22 +7,21 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createKeymap() {
     // MARK: - Property
-    const declaredKeys = new Map(); // name -> { command, args, scope }
+    const declaredKeys = new Map(); // name -> { run, scope }
     const listeners = new Set();
     let hearing = null; // the recording under way
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's keys, { name: { command, args, label, key, scope } }, as its run contributes them: each runs one of the
-    // mod's commands with `args`, and the core judges each chord, that its command is declared and its args fit, and
-    // whether the mod may have its scope, `local` when it names none. One with no command or no scope there is, or
-    // that `problemOf(entry)`, the shell's reason a key would never run, asked with its scope, refuses, is told to
-    // `invalid` and left out.
+    // A mod's keys, { name: { label, key, scope, run } }, as its run contributes them: `run()` is what pressing it
+    // does, here, and the core judges each label and chord, and whether the mod may have its scope, `local` when it
+    // names none. One with no function to run or no scope there is, or that `problemOf(entry)`, the shell's reason a
+    // key would never run, asked with its scope, refuses, is told to `invalid` and left out.
     function declare(keys, { invalid, problemOf }) {
         const declared = [];
         for (const [name, entry] of Object.entries(keys || {})) {
-            if (typeof entry?.command !== 'string' || !entry.command) {
-                invalid(`key "${name}" cannot be used: it needs the name of a command in "command"`);
+            if (typeof entry?.run !== 'function') {
+                invalid(`key "${name}" cannot be used: it needs a function in "run"`);
                 continue;
             }
             const scope = entry.scope ?? 'local';
@@ -35,27 +34,29 @@ export function createKeymap() {
                 invalid(`key "${name}" never runs: ${never}`);
                 continue;
             }
-            const args = entry.args && typeof entry.args === 'object' ? entry.args : null;
-            declaredKeys.set(name, { command: entry.command, args, scope });
+            declaredKeys.set(name, { run: entry.run, scope });
             declared.push({
                 name,
-                command: entry.command,
-                ...(args ? { args } : {}),
-                key: String(entry.key ?? ''),
                 label: typeof entry.label === 'string' ? entry.label : '',
+                key: String(entry.key ?? ''),
                 scope,
             });
         }
         return declared;
     }
 
-    // `run(command, args)` runs one of the mod's commands as a key does. A key pressed in the page while
-    // `blocksKeys()` is dropped, so it cannot act on what is behind a dialog; one that works past the page was pressed
-    // wherever the person is, and runs.
-    function hear({ run, blocksKeys }) {
-        PROTOCOL.key.on(({ name }) => {
+    // A key pressed in the page while `blocksKeys()` is dropped, so it cannot act on what is behind a dialog; one that
+    // works past the page was pressed wherever the person is, and runs. What a key throws is only logged: no one asked
+    // to be told.
+    function hear({ blocksKeys }) {
+        PROTOCOL.key.on(async ({ name }) => {
             const key = declaredKeys.get(name);
-            if (key && (KEY_SCOPE.isWide(key.scope) || !blocksKeys())) run(key.command, key.args);
+            if (!key || (!KEY_SCOPE.isWide(key.scope) && blocksKeys())) return;
+            try {
+                await key.run();
+            } catch (error) {
+                console.warn(`[deckit] the key ${name} did not run`, error);
+            }
         });
         PROTOCOL.changed.on(() => {
             for (const listener of listeners) listener();

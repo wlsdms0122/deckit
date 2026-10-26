@@ -59,7 +59,7 @@ export function createPanel({ REGION, deckit, host }) {
         stage = deckit.pages.stage();
         stage.whenResized(update);
         listen();
-        declareCommands();
+        declare();
         makeFrame();
         deckit.mods.onChange(reconcile);
         // Who is whose child changes with the runs, which reconcile hears too: a region's change is only layout.
@@ -245,40 +245,36 @@ export function createPanel({ REGION, deckit, host }) {
         return isActive(page) && look.dismissible;
     }
 
-    // `show` puts a mod on screen, by its id, its candidates every mod there is to show.
-    function declareCommands() {
+    // `show` puts a mod on screen, by its id, its candidates every mod there is to show. The panel's keys run here.
+    function declare() {
         deckit.commands
             .define(PROVIDER, {
                 show: {
-                    label: 'Show',
                     description: 'Puts a mod on screen in the panel.',
                     params: {
                         type: 'object',
                         properties: { mod: { type: 'string', title: 'Mod' } },
                         required: ['mod'],
                     },
-                    run: ({ mod }, { activates }) => {
+                    run: ({ mod }) => {
                         if (!canBringToFront(mod)) throw new Error(`${mod} has nothing to show`);
-                        if (activates) bringToFront(mod);
-                        else select(frontOf(mod));
+                        bringToFront(mod);
                     },
                     complete: (param, partial) => (param === 'mod' ? showable(partial) : []),
                 },
-                'toggle-sidebar': {
+            })
+            .catch((error) => deckit.log.error("the panel's commands were not declared", error));
+        deckit.keymap
+            .register(PROVIDER, {
+                toggleSidebar: {
                     label: 'Toggle Sidebar',
+                    key: 'mod+\\',
                     run: () => setSidebar({ collapsed: !sidebar.collapsed }),
                 },
-                back: { label: 'Back to the Previous Mod', run: () => step(-1) },
-                forward: { label: 'Forward to the Next Mod', run: () => step(1) },
+                back: { label: 'Back to the Previous Mod', key: 'ctrl+mod+[', run: () => step(-1) },
+                forward: { label: 'Forward to the Next Mod', key: 'ctrl+mod+]', run: () => step(1) },
             })
-            .then(() =>
-                deckit.keymap.register(PROVIDER, {
-                    toggleSidebar: { command: 'toggle-sidebar', key: 'mod+\\' },
-                    back: { command: 'back', key: 'ctrl+mod+[' },
-                    forward: { command: 'forward', key: 'ctrl+mod+]' },
-                })
-            )
-            .catch((error) => deckit.log.error("the panel's commands were not declared", error));
+            .catch((error) => deckit.log.error("the panel's keys were not registered", error));
     }
 
     // The mods there are to show, `{ value, title, keywords }`, every one in the list's order for nothing typed and

@@ -86,8 +86,8 @@ struct ManifestReaderTests {
                 #"main must be a path inside the mod's folder, as main = "dist/main.js", not "../x.js""#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[optional]\#na = "1.0.0""#,
-                "a names itself in [optional]"
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[extends]\#na = "1.0.0""#,
+                "a names itself in [extends]"
             ),
             (
                 #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[permissions]\#nx = "y""#,

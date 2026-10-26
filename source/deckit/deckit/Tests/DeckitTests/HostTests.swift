@@ -15,8 +15,7 @@ import Deckit
 struct HostTests {
     // MARK: - Property
     private let root = FileManager.default.temporaryDirectory.appending(path: "host-tests-\(UUID().uuidString)")
-    private let find = JSONValue.object(["name": .string("find"), "label": .string("Find")])
-    private let findKey = Key(name: "find", command: "find", args: nil, spec: "mod+f", label: "", scope: .local)
+    private let findKey = Key(name: "find", label: "Find", spec: "mod+f", scope: .local)
 
     // MARK: - Initializer
     // MARK: - Test
@@ -26,7 +25,6 @@ struct HostTests {
         let sut = try deckit()
 
         // When
-        try sut.commands.define([find], provider: "@app")
         let keymap = try sut.keymap.register(findKey, provider: "@app")
 
         // Then
@@ -48,13 +46,11 @@ struct HostTests {
             extensionPoints: [],
             extensions: [:],
             layers: [
-                "commands": .array([.object(["name": .string("next"), "label": .string("Next")])]),
                 "keys": .array([
                     .object([
                         "name": .string("next"),
-                        "command": .string("next"),
+                        "label": .string("Next"),
                         "key": .string("mod+j"),
-                        "label": .string(""),
                         "scope": .string("local")
                     ])
                 ])
@@ -76,11 +72,7 @@ struct HostTests {
     @Test("a part kept after the deckit it came from is let go still works")
     func partOutlivesItsDeckit() throws {
         // Given
-        let sut = try {
-            let deckit = try deckit()
-            try deckit.commands.define([find], provider: "@app")
-            return deckit.keymap
-        }()
+        let sut = try deckit().keymap
 
         // When
         let resolved = try sut.register(findKey, provider: "@app")

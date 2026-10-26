@@ -6,35 +6,28 @@
 //
 
 import Foundation
-import Deck
 
-// A key as its provider declares it: its name, the provider's command it runs with `args`, its default chord as
-// written, what a person reads it as when it has args, and where it works.
+// A key as its provider declares it: its name among the provider's, what a person reads it as, the chord it is bound to
+// by default and where it works.
 public struct Key: Decodable, Equatable, Sendable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case name
-        case command
-        case args
-        case spec = "key"
         case label
+        case spec = "key"
         case scope
     }
 
     public let name: String
-    public let command: String
-    public let args: JSONValue?
-    public let spec: String
     public let label: String
+    public let spec: String
     public let scope: KeyScope
 
     // MARK: - Initializer
-    public init(name: String, command: String, args: JSONValue?, spec: String, label: String, scope: KeyScope) {
+    public init(name: String, label: String, spec: String, scope: KeyScope) {
         self.name = name
-        self.command = command
-        self.args = args
-        self.spec = spec
         self.label = label
+        self.spec = spec
         self.scope = scope
     }
 

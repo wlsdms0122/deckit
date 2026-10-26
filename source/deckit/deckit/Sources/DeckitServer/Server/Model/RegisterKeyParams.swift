@@ -8,7 +8,7 @@
 import Foundation
 import Deckit
 
-// A host's key, `provider` the name it declared the key's command under.
+// A host's key, `provider` the name it registers it under.
 struct RegisterKeyParams: Decodable {
     // MARK: - Property
     let provider: String

@@ -5,59 +5,27 @@ import * as PROXY from './proxy.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// What a mod's page reaches of the mods it requires and uses optionally, and how it answers a call into its own
-// exports. `RUN` is the page's run.
+// What a mod's page reaches of the mods it requires, and how it answers a call into its own exports. `RUN` is the
+// page's run.
 export function createExport({ RUN }) {
     // MARK: - Property
     let caller = null; // the mod whose call into this mod's exports is running, in its synchronous part
 
     // MARK: - Initializer
     // MARK: - Public
-    // What each mod it requires exports: values copied and frozen, functions called through main. Its optional
-    // dependencies are set on `optional` as they are now. Null when main refused them, as when one it requires does not
-    // run.
-    async function requiresOf(optional) {
+    // What each mod it requires exports: values copied and frozen, functions called through main. Null when main
+    // refused them, as when one it requires does not run.
+    async function requiresOf() {
         let given;
         try {
-            given = await PROTOCOL.dependencies.invoke({ run: RUN.number });
+            given = await PROTOCOL.requires.invoke({ run: RUN.number });
         } catch (error) {
             RUN.fail(error.message || String(error));
             return null;
         }
-        for (const [id, exported] of Object.entries(given.optional)) optional.set(id, exported);
         const out = {};
-        for (const [id, exported] of Object.entries(given.requires)) out[id] = exportsOf(id, exported);
+        for (const [id, exported] of Object.entries(given)) out[id] = exportsOf(id, exported);
         return Object.freeze(out);
-    }
-
-    // Each optional dependency, as a handle: `exports()` is what that one exports while it runs, or null;
-    // `onChange(listener)` hears it each time that one launches or ends, and answers its off. Listening starts
-    // before what it is now is asked, so no change falls between.
-    function optionalOf() {
-        const handles = {};
-        const sides = new Map(); // id -> { set }
-        for (const id of Object.keys(RUN.mod.optional)) {
-            const listeners = new Set();
-            let current = null;
-            sides.set(id, {
-                set(exported) {
-                    const next = exported ? exportsOf(id, exported) : null;
-                    if (!next && !current) return;
-                    current = next;
-                    for (const listener of listeners) RUN.deliver('onChange()', listener, current);
-                },
-            });
-            handles[id] = Object.freeze({
-                exports: () => current,
-                onChange(listener) {
-                    if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
-                    listeners.add(listener);
-                    return () => listeners.delete(listener);
-                },
-            });
-        }
-        PROTOCOL.optionalChanged.on(({ id, exports }) => sides.get(id)?.set(exports));
-        return { handles: Object.freeze(handles), set: (id, exported) => sides.get(id)?.set(exported) };
     }
 
     // The mod that called one of this mod's exports, while the function runs to its first await.
@@ -90,5 +58,5 @@ export function createExport({ RUN }) {
         );
     }
 
-    return { requiresOf, optionalOf, callerNow, answer };
+    return { requiresOf, callerNow, answer };
 }

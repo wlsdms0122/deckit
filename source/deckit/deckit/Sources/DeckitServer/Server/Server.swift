@@ -212,9 +212,9 @@ final class Server {
             let params = try request.decodeParams(as: RunParams.self)
             return try deck.stopped(params.mod, run: params.run)
 
-        case "export/dependencies":
+        case "export/requires":
             let params = try request.decodeParams(as: RunParams.self)
-            return try deck.exports.dependencies(mod: params.mod, run: params.run)
+            return try deck.exports.requires(mod: params.mod, run: params.run)
 
         case "export/call":
             let params = try request.decodeParams(as: CallExportParams.self)
@@ -274,8 +274,8 @@ final class Server {
             let params = try request.decodeParams(as: CheckCommandParams.self)
             return try deckit.commands.check(params.command, of: params.provider, args: params.args)
 
-        case "command/provider":
-            return deckit.commands.provider(of: try request.decodeParams(as: ProviderParams.self).id)
+        case "provider":
+            return deckit.provider(of: try request.decodeParams(as: ProviderParams.self).id)
 
         case "open/route":
             let params = try request.decodeParams(as: RouteParams.self)
