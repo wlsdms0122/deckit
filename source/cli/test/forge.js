@@ -1,17 +1,20 @@
 // The Forge mod's runs (mods/forge/main-process/runs.js) over a stand-in for `forge workflow dispatch --stream`: a
-// dispatch answers once forge has taken the run, the run tells the steps of its own it starts and its end, one cut off
-// ends failed, and one forge took no run for rejects with what forge said.
+// dispatch answers once forge has taken the run, the run tells the steps of its own it starts and its end, whole
+// characters however the pipe splits them, one whose stream ends first ends failed, and one forge took no run for, or
+// none in time, rejects with what forge said.
 // Exits 1 with a line for each check that failed.
 const { EventEmitter } = require('events');
+const { PassThrough } = require('stream');
 const path = require('path');
 
 const makeRuns = require(path.join(__dirname, '..', '..', 'deckit', 'mods', 'forge', 'main-process', 'runs.js'));
 
 function stream() {
     const child = new EventEmitter();
-    child.stdout = new EventEmitter();
-    child.stderr = new EventEmitter();
-    child.line = (message) => child.stdout.emit('data', JSON.stringify(message) + '\n');
+    child.stdout = new PassThrough();
+    child.stderr = new PassThrough();
+    child.line = (message) => child.stdout.write(JSON.stringify(message) + '\n');
+    child.kill = () => setImmediate(() => child.emit('close', null));
     return child;
 }
 
@@ -31,7 +34,8 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
     const heard = [];
-    const runs = makeRuns({ changed: (run) => heard.push(run) });
+    const runs = makeRuns({ changed: (run) => heard.push(run), acceptWithin: 300 });
+    const tick = () => new Promise((resolve) => setImmediate(resolve));
 
     const child = stream();
     const taken = runs.follow('default', child);
@@ -41,17 +45,21 @@ async function main() {
     check('a run taken is running', runs.get('wf-1')?.status === 'running', runs.get('wf-1'));
 
     // A step comes split across two writes, as a pipe may hand it.
-    const started = JSON.stringify(event('wf-1', 'step.started', { step: 'review' })) + '\n';
-    child.stdout.emit('data', started.slice(0, 20));
-    child.stdout.emit('data', started.slice(20));
-    check('a step the run starts is its step', runs.get('wf-1')?.step === 'review', runs.get('wf-1'));
+    const started = Buffer.from(JSON.stringify(event('wf-1', 'step.started', { step: '검토' })) + '\n');
+    const inside = started.indexOf(Buffer.from('검')) + 1;
+    child.stdout.write(started.subarray(0, inside));
+    child.stdout.write(started.subarray(inside));
+    await tick();
+    check('a step the run starts is its step, split as it may be', runs.get('wf-1')?.step === '검토', runs.get('wf-1'));
     child.line(event('wf-2', 'step.started', { step: 'inside' }));
-    check('a step of a run it dispatched is not its step', runs.get('wf-1')?.step === 'review', runs.get('wf-1'));
+    await tick();
+    check('a step of a run it dispatched is not its step', runs.get('wf-1')?.step === '검토', runs.get('wf-1'));
 
     child.line({
         kind: 'workflow.result',
         result: { workflow_id: 'wf-1', status: 'ok', outputs: { verdict: 'pass' } },
     });
+    await tick();
     child.emit('close', 0);
     const ended = runs.get('wf-1');
     check('a run ends as forge says', ended?.status === 'ok' && ended.outputs.verdict === 'pass', ended);
@@ -63,18 +71,30 @@ async function main() {
     await cutTaken;
     cut.emit('close', null);
     const lost = runs.get('wf-3');
-    check('a run cut off ends failed, unfollowed', lost?.status === 'failed' && lost.error.type === 'unfollowed', lost);
+    check(
+        'a run whose stream ends first ends failed, unfollowed',
+        lost?.status === 'failed' && lost.error.type === 'unfollowed',
+        lost
+    );
 
     const refused = stream();
     const refusal = runs.follow('default', refused).then(
         () => null,
         (error) => error
     );
-    refused.stderr.emit('data', 'forge: workflow dispatch: denied by policy\nmore\n');
+    refused.stderr.write('forge: workflow dispatch: denied by policy\nmore\n');
+    await tick();
     refused.emit('close', 6);
     const error = await refusal;
     check('a run forge did not take rejects with what forge said', /denied by policy$/.test(error?.message), error);
     check('the rejection keeps the exit status forge gave', error?.code === 6, error?.code);
+
+    const silent = stream();
+    const waited = await runs.follow('default', silent).then(
+        () => null,
+        (error) => error
+    );
+    check('a run forge takes not in time rejects', /took no run/.test(waited?.message), waited?.message);
 
     for (const line of failed) console.error(line);
     if (failed.length) process.exit(1);
