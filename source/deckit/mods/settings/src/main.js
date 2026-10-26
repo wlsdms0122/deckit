@@ -55,12 +55,11 @@ module.exports = {
             ui,
             modSettings: deck.modSettings,
             actions,
-            registry: deck.commandRegistry,
             nameOf: (id) => deck.mods.list().running.find((mod) => mod.id === id)?.name || id,
             onFailure: mods.showNotice,
         });
         const urlSchemes = urlSchemesSection({ ui, urlSchemes: deck.urlSchemes, appName: APP_NAME });
-        const keyboard = keyboardSection({ ui, keymap: deck.keymap, registry: deck.commandRegistry });
+        const keyboard = keyboardSection({ ui, keymap: deck.keymap, providerOf: deck.provider });
         const sections = [mods, modSettings, urlSchemes, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
@@ -86,26 +85,45 @@ module.exports = {
             },
         });
         deck.commands({
-            'show-mods': showing(mods),
-            'show-mod-settings': showing(modSettings),
-            'show-url-schemes': showing(urlSchemes),
-            'show-keyboard': showing(keyboard),
             'show-settings-of': {
-                label: "Show a Mod's Settings",
-                description: 'Shows the settings of one mod.',
-                keywords: ['설정', 'settings'],
+                description: 'Shows the settings of one mod in Settings.',
                 params: {
                     type: 'object',
                     properties: { mod: { type: 'string', title: 'Mod' } },
                     required: ['mod'],
                 },
-                run: ({ mod }, { activates }) => {
-                    if (!modSettings.groups().some((group) => group.id === mod))
-                        throw new Error(`${mod} has no settings`);
-                    if (activates) deck.show();
-                    showSettingsOf(mod);
-                },
+                run: showSettingsOf,
                 complete: (_param, partial) => settingsOf(partial),
+            },
+        });
+        deck.extends.switcher({
+            actions: {
+                list: () => [
+                    ...sections.map((section, index) => ({
+                        label: section.title,
+                        keywords: section.keywords,
+                        value: { action: 'show-section', index },
+                    })),
+                    {
+                        label: "Show a Mod's Settings",
+                        keywords: ['설정', 'settings'],
+                        opens: true,
+                        value: { action: 'show-settings-of' },
+                    },
+                ],
+                search: (query, within) =>
+                    within?.action === 'show-settings-of'
+                        ? settingsOf(query).map(({ value, title }) => ({
+                              label: title,
+                              value: { ...within, mod: value },
+                          }))
+                        : [],
+                run: async ({ action, index, mod }) => {
+                    if (action === 'show-section') {
+                        deck.show();
+                        requestAnimationFrame(() => contents.go(sections[index]));
+                    } else await showSettingsOf({ mod }, { ready: deck.show });
+                },
             },
         });
         deck.mods.onChange(() => shown && redraw());
@@ -136,19 +154,6 @@ module.exports = {
             keyboard.draw(shortcuts);
         }
 
-        // The command that brings `section` on screen.
-        function showing(section) {
-            return {
-                label: section.title,
-                description: `Shows the ${section.title} section of Settings.`,
-                keywords: section.keywords,
-                run: (_args, { activates }) => {
-                    if (activates) deck.show();
-                    requestAnimationFrame(() => contents.go(section));
-                },
-            };
-        }
-
         // The mods with settings as they were last drawn, ranked for `partial`, matched by their name, id and the
         // labels of their settings.
         function settingsOf(partial) {
@@ -175,7 +180,11 @@ module.exports = {
                 .map(({ candidate }) => candidate);
         }
 
-        async function showSettingsOf(id) {
+        // Asked of the mods with settings as they were last drawn, which the switcher listed.
+        // `ready()` is told once the mod is found to have settings.
+        async function showSettingsOf({ mod: id }, { ready = () => {} } = {}) {
+            if (!modSettings.groups().some((group) => group.id === id)) throw new Error(`${id} has no settings`);
+            ready();
             await modSettings.draw();
             requestAnimationFrame(() => {
                 const card = modSettings.cardOf(id);

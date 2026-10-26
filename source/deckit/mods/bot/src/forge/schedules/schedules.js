@@ -675,14 +675,6 @@ const schedulesView = ({ deck, bot, picker }) => {
             specRequest++;
             clearTimeout(timer);
         },
-        rows: () => [
-            {
-                label: 'Schedules',
-                hint: 'Manage Forge workflow schedules',
-                icon: ui.icon('calendar', { size: 16 }),
-                run: { command: 'show', args: { view: 'schedules' } },
-            },
-        ],
     };
 };
 module.exports = { schedulesView };

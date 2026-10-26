@@ -12,5 +12,5 @@ url-schemes = ["http", "https"]
 "system.files" = "Opens a file on this Mac in a tab when you type its path or a file:// address."
 "system.clipboard-write" = "Copy Link in a tab's or a bookmark's menu puts its address on the clipboard."
 
-[optional]
+[extends]
 switcher = "1.0.0"

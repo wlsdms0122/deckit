@@ -2,8 +2,8 @@ const { chip } = require('../../chip/chip.js');
 const { section } = require('../section/section.js');
 
 // The Keyboard section: every mod's shortcuts, recorded anew by a click, with what keeps one from working. A card's
-// name and whether it is the app's are its provider's, as `registry` tells them.
-function keyboardSection({ ui, keymap, registry }) {
+// name and whether it is the app's are its provider's, as `providerOf(id)` tells them.
+function keyboardSection({ ui, keymap, providerOf }) {
     const TITLE = 'Keyboard';
     const KEYWORDS = ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys'];
     const DESCRIPTION =
@@ -99,7 +99,7 @@ function keyboardSection({ ui, keymap, registry }) {
                 shortcuts.flatMap(({ provider, issues }) => [provider, ...issues.map(({ other }) => other.provider)])
             ),
         ];
-        const found = await Promise.all(ids.map((id) => registry.provider(id)));
+        const found = await Promise.all(ids.map((id) => providerOf(id)));
         if (turn !== drawing) return;
         providers = new Map(found.filter(Boolean).map((provider) => [provider.id, provider]));
         const conflicted = shortcuts.filter((shortcut) => shortcut.issues.length).length;

@@ -6,7 +6,7 @@ const { findInPage } = require('./find-in-page/find-in-page.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
 const { store } = require('./store/store.js');
-const { switcher } = require('./switcher/switcher.js');
+const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabList, tabLabel } = require('./tabs/tab-list.js');
 
 module.exports = {
@@ -161,113 +161,50 @@ module.exports = {
 
         deck.commands({
             'new-tab': {
-                label: 'New Tab',
                 description: 'Opens a new tab, at the address given or the homepage.',
-                keywords: ['웹', '웹페이지', '열기', '주소', '새탭', 'url', 'open', 'web', 'address', 'new tab'],
                 params: { type: 'object', properties: { url: { type: 'string', title: 'Address' } } },
-                run: ({ url } = {}, { activates }) => {
-                    const address = url === undefined ? home() : parseAddress(url);
-                    if (!address) throw new Error(`${url} is not a web address`);
-                    if (activates) deck.show();
-                    tabs.add(address);
-                },
+                run: ({ url } = {}) => newTab(url),
             },
-            'reopen-tab': {
-                label: 'Reopen Closed Tab',
-                description: 'Opens the tab closed last again, where it was.',
-                keywords: ['닫은탭', '다시열기', '복구', 'reopen', 'undo', 'closed tab'],
-                run: (_args, { activates }) => {
-                    if (!tabs.lastClosed()) throw new Error('No tab was closed');
-                    if (activates) deck.show();
-                    tabs.reopen();
-                },
-            },
-            'close-tab': {
-                label: 'Close Tab',
-                description: 'Closes the tab in front.',
-                run: () => tabs.close(tabs.front()),
-            },
-            'show-tab': {
-                label: 'Show Tab',
-                description: 'Brings the tab at an index to the front, counted from 0, or from the end when negative.',
-                params: { type: 'object', properties: { index: { type: 'integer' } }, required: ['index'] },
-                run: ({ index }, { activates }) => {
-                    const tab = tabs.list().at(index);
-                    if (!tab) throw new Error(`There is no tab at ${index}`);
-                    if (activates) deck.show();
-                    tabs.select(tab);
-                },
-            },
+            'reopen-tab': { description: 'Opens the tab closed last again, where it was.', run: reopenTab },
             'switch-to-tab': {
-                label: 'Switch to Tab',
                 description: 'Brings an open tab to the front.',
-                keywords: ['탭', 'tabs'],
                 params: {
                     type: 'object',
                     properties: { tab: { type: 'string', title: 'Tab' } },
                     required: ['tab'],
                 },
-                run: ({ tab }, { activates }) => {
-                    const found = itemOf(tabs.tree(), tab);
-                    if (!found) throw new Error(`There is no tab ${tab}`);
-                    if (activates) deck.show();
-                    tabs.select(found);
-                },
+                run: switchToTab,
                 complete: (_param, partial) => candidatesOf(tabs.tree(), tabLabel, partial, deck.util),
             },
             'open-bookmark': {
-                label: 'Open Bookmark',
                 description: 'Opens a bookmark in a new tab.',
-                keywords: ['북마크', '즐겨찾기', 'bookmarks'],
                 params: {
                     type: 'object',
                     properties: { bookmark: { type: 'string', title: 'Bookmark' } },
                     required: ['bookmark'],
                 },
-                run: ({ bookmark }, { activates }) => {
-                    const found = itemOf(bookmarks.tree(), bookmark);
-                    if (!found) throw new Error(`There is no bookmark ${bookmark}`);
-                    if (activates) deck.show();
-                    tabs.add(found.url);
-                },
+                run: openBookmark,
                 complete: (_param, partial) =>
                     candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), partial, deck.util),
             },
-            'find-in-page': showing({
-                label: 'Find in Page',
-                description: 'Opens the find bar over the page in front.',
-                run: openFind,
-            }),
-            'edit-address': showing({
-                label: 'Edit Address',
-                description: 'Opens the address bar to type an address or words to search.',
-                run: () => bar.edit(),
-            }),
-            reload: showing({ label: 'Reload', description: 'Loads the page in front again.', run: reload }),
-            back: showing({ label: 'Back', description: 'Goes back in the history of the tab in front.', run: goBack }),
-            forward: showing({
-                label: 'Forward',
-                description: 'Goes forward in the history of the tab in front.',
-                run: goForward,
-            }),
         });
 
         deck.keys({
-            newTab: { command: 'new-tab', key: 'mod+t' },
-            reopenTab: { command: 'reopen-tab', key: 'mod+shift+t' },
-            find: { command: 'find-in-page', key: 'mod+f' },
-            closeTab: { command: 'close-tab', key: 'mod+w' },
-            address: { command: 'edit-address', key: 'mod+l' },
-            reload: { command: 'reload', key: 'mod+r' },
-            back: { command: 'back', key: 'mod+[' },
-            forward: { command: 'forward', key: 'mod+]' },
+            newTab: { label: 'New Tab', key: 'mod+t', run: () => newTab() },
+            reopenTab: { label: 'Reopen Closed Tab', key: 'mod+shift+t', run: reopenTab },
+            find: { label: 'Find in Page', key: 'mod+f', run: openFind },
+            closeTab: { label: 'Close Tab', key: 'mod+w', run: closeTab },
+            address: { label: 'Edit Address', key: 'mod+l', run: editAddress },
+            reload: { label: 'Reload', key: 'mod+r', run: reload },
+            back: { label: 'Back', key: 'mod+[', run: goBack },
+            forward: { label: 'Forward', key: 'mod+]', run: goForward },
             ...Object.fromEntries(
                 [1, 2, 3, 4, 5, 6, 7, 8].map((number) => [
                     `tab${number}`,
-                    { command: 'show-tab', args: { index: number - 1 }, label: `Tab ${number}`, key: `mod+${number}` },
+                    { label: `Tab ${number}`, key: `mod+${number}`, run: () => showTab(number - 1) },
                 ])
             ),
-            lastTab: { command: 'show-tab', args: { index: -1 }, label: 'Last Tab', key: 'mod+9' },
+            lastTab: { label: 'Last Tab', key: 'mod+9', run: () => showTab(-1) },
         });
 
         deck.handleURL((url, { activates = true, target = '' } = {}) => {
@@ -278,7 +215,27 @@ module.exports = {
             return true;
         });
 
-        deck.extend({ 'switcher:rows': switcher({ ui, lastClosedTab: () => tabs.lastClosed() }) });
+        deck.extends.switcher({
+            actions: switcher({
+                ui,
+                util: deck.util,
+                tabs,
+                bookmarks,
+                show: deck.show,
+                does: inFront({
+                    'new-tab': ({ url }) => newTab(url),
+                    'reopen-tab': reopenTab,
+                    'switch-to-tab': switchToTab,
+                    'open-bookmark': openBookmark,
+                    'close-tab': closeTab,
+                    'find-in-page': openFind,
+                    'edit-address': editAddress,
+                    reload,
+                    back: goBack,
+                    forward: goForward,
+                }),
+            }),
+        });
 
         function home() {
             return parseAddress(settings.get('homepage')) || 'about:blank';
@@ -299,6 +256,43 @@ module.exports = {
             bar.show(tab, { bookmarked: bookmarks.has(tab.url) });
         }
 
+        function newTab(url) {
+            const address = url === undefined ? home() : parseAddress(url);
+            if (!address) throw new Error(`${url} is not a web address`);
+            tabs.add(address);
+        }
+
+        function reopenTab() {
+            if (!tabs.lastClosed()) throw new Error('No tab was closed');
+            tabs.reopen();
+        }
+
+        function switchToTab({ tab }) {
+            const found = itemOf(tabs.tree(), tab);
+            if (!found) throw new Error(`There is no tab ${tab}`);
+            tabs.select(found);
+        }
+
+        function openBookmark({ bookmark }) {
+            const found = itemOf(bookmarks.tree(), bookmark);
+            if (!found) throw new Error(`There is no bookmark ${bookmark}`);
+            tabs.add(found.url);
+        }
+
+        // Counted from 0, or from the end when negative; a number past the last tab shows none.
+        function showTab(index) {
+            const tab = tabs.list().at(index);
+            if (tab) tabs.select(tab);
+        }
+
+        function closeTab() {
+            tabs.close(tabs.front());
+        }
+
+        function editAddress() {
+            bar.edit();
+        }
+
         function goBack() {
             tabs.front().page.back();
         }
@@ -316,18 +310,6 @@ module.exports = {
         // The find bar takes the top right corner, or the top left when the address bar is there.
         function openFind() {
             find.show({ left: bar.isInTopRight() });
-        }
-
-        // A command that does `run` on screen: a person running it brings the Browser to the front.
-        function showing({ label, description, run }) {
-            return {
-                label,
-                description,
-                run: (_args, { activates }) => {
-                    if (activates) deck.show();
-                    run();
-                },
-            };
         }
 
         function notify(tab, notification) {

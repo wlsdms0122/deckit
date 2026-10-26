@@ -9,5 +9,5 @@ main = "main.js"
 "system.file-handlers" = "Show in Finder in a note's or a folder's menu shows it in Finder."
 "system.clipboard-write" = "Copy as Markdown in a note's menu, and Copy in the menu over a note's text, put the text on the clipboard."
 
-[optional]
+[extends]
 switcher = "1.0.0"

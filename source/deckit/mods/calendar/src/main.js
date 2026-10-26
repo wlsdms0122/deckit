@@ -19,32 +19,33 @@ module.exports = {
     },
 
     start(deck) {
-        const { content, sidebar, ask, didAppear, didDisappear, commands, keys, rows, now } = calendar({
+        const { content, sidebar, ask, didAppear, didDisappear, commands, keys, actions } = calendar({
             deck,
             accountsPoint: deck.extensionPoint('accounts'),
+            sendTest: () => sendTest(deck),
         });
         deck.view({ content, sidebar, didAppear, didDisappear });
         deck.commands({
             ...commands,
             'send-test': {
-                label: 'Send a Test Notification',
-                description: 'Shows one now, to see that macOS lets it through.',
-                keywords: ['알림', 'notification', 'test'],
+                description:
+                    'Shows a notification now, to see that macOS lets it through. Answers what came of it, as text.',
                 run: () => sendTest(deck),
             },
         });
         deck.keys(keys);
-        deck.extend({
-            'switcher:rows': { rows, now },
-            'settings:actions': {
-                actions: () => [
+        deck.extends.switcher({ actions });
+        deck.extends.settings({
+            actions: {
+                list: () => [
                     {
                         button: 'Send a test',
                         hint: 'Shows one now, to see that macOS lets it through.',
                         after: 'notify',
-                        run: { command: 'send-test' },
+                        value: 'send-test',
                     },
                 ],
+                run: () => sendTest(deck),
             },
         });
         deck.exports({ ask });

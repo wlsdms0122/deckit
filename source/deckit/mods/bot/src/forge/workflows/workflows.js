@@ -337,14 +337,6 @@ const workflowsView = ({ deck, bot, picker }) => {
             detailRequest++;
             clearTimeout(timer);
         },
-        rows: () => [
-            {
-                label: 'Workflows',
-                hint: 'Browse, run and cancel Forge workflows',
-                icon: ui.icon('list', { size: 16 }),
-                run: { command: 'show', args: { view: 'workflows' } },
-            },
-        ],
     };
 };
 

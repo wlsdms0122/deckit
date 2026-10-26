@@ -3,6 +3,7 @@ const { workflowsView } = require('./forge/workflows/workflows.js');
 const { schedulesView } = require('./forge/schedules/schedules.js');
 const { sessionPicker } = require('./forge/sessions/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
+const { switcher, inFront } = require('./switcher/switcher.js');
 
 // The settings that say where forge and llmemory are, handed to the main process together.
 const PLACES = ['forge', 'forgeConfig', 'llmemory', 'brain'];
@@ -120,6 +121,7 @@ module.exports = {
                 system: 'Forge',
                 label: 'Workflows',
                 icon: 'list',
+                hint: 'Browse, run and cancel Forge workflows',
                 view: workflowsView({ deck, bot, picker }),
             },
             {
@@ -127,6 +129,7 @@ module.exports = {
                 system: 'Forge',
                 label: 'Schedules',
                 icon: 'calendar',
+                hint: 'Manage Forge workflow schedules',
                 view: schedulesView({ deck, bot, picker }),
             },
             {
@@ -232,8 +235,6 @@ module.exports = {
 
         const supervisor = modeOf('supervisor').view;
         const brain = modeOf('brain').view;
-        const workflows = modeOf('workflows').view;
-        const schedules = modeOf('schedules').view;
 
         deck.view({
             content,
@@ -247,12 +248,9 @@ module.exports = {
                 hide();
             },
         });
-        const BRAIN_KEYWORDS = ['brain', 'memory', 'note', 'llmemory', '브레인', '기억', '지식', '노트'];
         deck.commands({
             show: {
-                label: 'Show View',
-                description: 'Shows Services, Workflows, Schedules or Brain, a Forge view on the session given.',
-                keywords: ['forge', 'workflow', 'schedule', '워크플로우', '스케줄', '스케쥴', ...BRAIN_KEYWORDS],
+                description: 'Shows Bot on Services, Workflows, Schedules or Brain, a Forge view on the session given.',
                 params: {
                     type: 'object',
                     properties: {
@@ -269,98 +267,111 @@ module.exports = {
                     },
                     required: ['view'],
                 },
-                run: ({ view, session }, { activates }) => {
-                    if (!MODES.some((entry) => entry.key === view)) throw new Error(`Bot has no view ${view}`);
-                    if (session) picker.choose(session);
-                    if (activates) deck.show();
-                    setMode(view);
+                run: (args) => {
+                    showView(args);
+                    deck.show();
                 },
             },
             'choose-session': {
-                label: 'Choose Forge Session',
                 description: 'Chooses which daemon the Forge views show.',
-                keywords: ['forge', 'session', 'daemon', '세션', '데몬'],
                 params: {
                     type: 'object',
                     properties: { session: { type: 'string', title: 'Forge session' } },
                     required: ['session'],
                 },
-                run: async ({ session }, { activates }) => {
-                    if (!(await picker.exists(session))) throw new Error(`There is no forge session ${session}`);
-                    picker.choose(session);
-                    if (!activates) return;
-                    deck.show();
-                    if (mode.system !== 'Forge') setMode('supervisor');
-                },
+                run: chooseSession,
                 complete: (_param, partial) => picker.candidates(partial),
             },
             'restart-forge': {
-                label: 'Restart Forge',
                 description: "Restarts the chosen session's daemon with the services it supervises, or starts it.",
-                keywords: ['forge', '데몬', '재시작', '기동', 'restart', 'start'],
-                run: (_args, { activates }) => {
-                    if (activates) {
-                        deck.show();
-                        setMode('supervisor');
-                    }
-                    return supervisor.restart();
-                },
+                run: () => supervisor.restart(),
             },
             'search-brain': {
-                label: 'Search the Brain',
                 description: 'Lists the notes of the brain that match a search, in Brain.',
-                keywords: ['search', '검색', ...BRAIN_KEYWORDS],
                 params: {
                     type: 'object',
                     properties: { query: { type: 'string', title: 'Search' } },
                     required: ['query'],
                 },
-                run: ({ query }, { activates }) => {
-                    if (activates) deck.show();
-                    setMode('brain');
-                    brain.find(query);
-                },
+                run: searchBrain,
             },
             'read-note': {
-                label: 'Read a Brain Note',
                 description: 'Opens a note of the brain in Brain.',
-                keywords: ['search', '검색', ...BRAIN_KEYWORDS],
                 params: {
                     type: 'object',
                     properties: { note: { type: 'string', title: 'Note' } },
                     required: ['note'],
                 },
-                run: ({ note }, { activates }) => {
-                    if (activates) deck.show();
-                    setMode('brain');
-                    brain.read(note);
-                },
+                run: readNote,
                 complete: (_param, partial, { signal }) => brain.notesFor(partial, { signal }),
             },
-            'brain-back': {
-                label: 'Back to the Note Before',
-                description: 'Opens the note Brain showed before the one it shows.',
-                keywords: ['back', ...BRAIN_KEYWORDS],
-                run: () => {
-                    if (mode.key !== 'brain') throw new Error('Brain is not shown');
-                    brain.back();
-                },
-            },
         });
+        // The key of each view.
+        const KEY_OF = { supervisor: 'services', brain: 'brain', workflows: 'workflows', schedules: 'schedules' };
+        const viewKey = (view, key) => ({ label: modeOf(view).label, key, run: () => showView({ view }) });
         deck.keys({
-            services: { command: 'show', args: { view: 'supervisor' }, label: 'Services', key: 'mod+1' },
-            brain: { command: 'show', args: { view: 'brain' }, label: 'Brain', key: 'mod+2' },
-            workflows: { command: 'show', args: { view: 'workflows' }, label: 'Workflows', key: 'mod+3' },
-            schedules: { command: 'show', args: { view: 'schedules' }, label: 'Schedules', key: 'mod+4' },
-            searchBrain: { command: 'show', args: { view: 'brain' }, label: 'Search the brain', key: 'mod+f' },
-            brainBack: { command: 'brain-back', key: 'mod+[' },
+            services: viewKey('supervisor', 'mod+1'),
+            brain: viewKey('brain', 'mod+2'),
+            workflows: viewKey('workflows', 'mod+3'),
+            schedules: viewKey('schedules', 'mod+4'),
+            searchBrain: { label: 'Search the brain', key: 'mod+f', run: () => showView({ view: 'brain' }) },
+            brainBack: { label: 'Back to the Note Before', key: 'mod+[', run: brainBack },
         });
-        deck.extend({
-            'switcher:rows': {
-                rows: () => [...supervisor.rows(), ...workflows.rows(), ...schedules.rows()],
-                now: supervisor.now,
-            },
+        deck.extends.switcher({
+            actions: switcher({
+                ui,
+                modes: MODES,
+                keyOf: KEY_OF,
+                supervisor,
+                picker,
+                brain,
+                show: deck.show,
+                does: {
+                    ...inFront({
+                        show: showView,
+                        'restart-forge': () => {
+                            setMode('supervisor');
+                            return supervisor.restart();
+                        },
+                        'search-brain': searchBrain,
+                        'read-note': readNote,
+                        'brain-back': brainBack,
+                    }),
+                    'choose-session': async ({ session }, { ready }) => {
+                        await chooseSession({ session });
+                        ready();
+                        if (mode.system !== 'Forge') setMode('supervisor');
+                    },
+                },
+            }),
         });
+
+        function showView({ view, session }) {
+            if (!MODES.some((entry) => entry.key === view)) throw new Error(`Bot has no view ${view}`);
+            if (session) picker.choose(session);
+            setMode(view);
+        }
+
+        async function chooseSession({ session }) {
+            if (!(await picker.exists(session))) throw new Error(`There is no forge session ${session}`);
+            picker.choose(session);
+        }
+
+        function searchBrain({ query }) {
+            setMode('brain');
+            brain.find(query);
+        }
+
+        function readNote({ note }) {
+            setMode('brain');
+            brain.read(note);
+        }
+
+        function brainBack() {
+            if (mode.key !== 'brain') throw new Error('Brain is not shown');
+            brain.back();
+        }
+
         deck.settings.on((key) => {
             if (PLACES.includes(key))
                 bot.use(places()).then((renewed) => {

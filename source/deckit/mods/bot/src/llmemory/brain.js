@@ -617,7 +617,7 @@ const brainView = ({ deck, bot }) => {
         PAGE_LIMIT = 8;
     const notesFor = (raw, { signal } = {}) => {
         const text = String(raw || '').trim();
-        if (text.length < PAGE_MIN) return [];
+        if (text.length < PAGE_MIN) return Promise.resolve([]);
         return new Promise((settle, refuse) => {
             const pending = setTimeout(() => {
                 bot.brain

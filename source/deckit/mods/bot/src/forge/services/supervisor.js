@@ -649,7 +649,7 @@ const supervisorView = ({ deck, bot, picker }) => {
         now: async () => {
             const entry = await bot.forge.supervisor.session();
             const { daemon, services, authority, error } = await snapshot(entry);
-            const run = { command: 'show', args: { view: 'supervisor', session: entry.name } };
+            const value = { action: 'show', view: 'supervisor', session: entry.name };
             if (!daemon) {
                 return [
                     {
@@ -658,7 +658,7 @@ const supervisorView = ({ deck, bot, picker }) => {
                         icon: ui.icon('power', { size: 18 }),
                         tone: 'alert',
                         attention: true,
-                        run,
+                        value,
                     },
                 ];
             }
@@ -671,7 +671,7 @@ const supervisorView = ({ deck, bot, picker }) => {
                         hint: error,
                         icon: ui.icon('server', { size: 18 }),
                         tone: 'warn',
-                        run,
+                        value,
                     },
                 ];
             const bad = services.filter((service) => service.state !== 'running');
@@ -683,7 +683,7 @@ const supervisorView = ({ deck, bot, picker }) => {
                     icon: ui.icon('server', { size: 18 }),
                     tone: bad.some((service) => service.state === 'failed') ? 'alert' : 'warn',
                     attention: bad.some((service) => service.state === 'failed'),
-                    run,
+                    value,
                 },
             ];
         },
@@ -694,13 +694,14 @@ const supervisorView = ({ deck, bot, picker }) => {
             if (failure) throw new Error(failure);
         },
 
-        rows: () => [
+        actions: () => [
             {
                 label: 'Restart Forge',
                 hint: `The ${session} session's daemon, with the services it supervises; started if it is not running`,
                 icon: ui.icon('reload', { size: 16 }),
                 group: 'Forge',
-                run: { command: 'restart-forge' },
+                keywords: ['forge', '데몬', '재시작', '기동', 'restart', 'start'],
+                value: { action: 'restart-forge' },
             },
         ],
     };

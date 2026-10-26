@@ -414,7 +414,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
             folder: mod?.folder,
             permissions: mod?.permissions,
             mainProcessFailure: mod?.mainProcess.failure,
-            dependencies: mod?.dependencies,
+            relations: mod?.relations,
             dependents: mod?.dependents,
             hides: mod?.hides,
         });

@@ -1,10 +1,10 @@
 const { section } = require('../section/section.js');
 
 // The Mod Settings section: a card per mod that declares settings or adds buttons through `actions`, the point
-// `settings:actions`, a control per setting and a row per button. A button runs a command of its mod through
-// `registry` and shows under it what the command left; `nameOf(mod)` names a card that has only buttons.
-// `onFailure` hears a change that did not apply.
-function modSettingsSection({ ui, modSettings, actions, registry, nameOf, onFailure }) {
+// `settings:actions`, a control per setting and a row per button. A button gives its value to the `run` of its mod's
+// extension and shows under it the text that answers; `nameOf(mod)` names a card that has only buttons. `onFailure`
+// hears a change that did not apply.
+function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
     const TITLE = 'Mod Settings';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
@@ -66,13 +66,13 @@ function modSettingsSection({ ui, modSettings, actions, registry, nameOf, onFail
         showMessage(read.length ? '' : 'No mod has settings.');
     }
 
-    // The buttons each mod adds, `[mod id, buttons]`, each `{ button, hint, after, reference }`: `reference` is the
-    // command of that mod it runs, `{ provider, command, args }`, and `after` the key of the setting it follows.
+    // The buttons each mod adds, `[mod id, buttons]`, each `{ button, hint, after, runs }`: `runs` is `{ mod, value }`,
+    // the value that mod's `run` is given, and `after` the key of the setting it follows.
     function buttonsOf() {
         return Promise.all(
             Object.entries(actions.extensions()).map(async ([mod, extension]) => {
                 try {
-                    const given = typeof extension.actions === 'function' ? await extension.actions() : [];
+                    const given = typeof extension.list === 'function' ? await extension.list() : [];
                     return [mod, (Array.isArray(given) ? given : []).map((action) => buttonOf(mod, action))];
                 } catch (error) {
                     console.error(`[settings] ${mod}'s actions answered nothing`, error);
@@ -163,11 +163,11 @@ function modSettingsSection({ ui, modSettings, actions, registry, nameOf, onFail
             if (declared === shape) {
                 // A button has no value: everything it shows is in its shape. A control being typed in keeps what is
                 // typed.
-                if (!item.reference && !control.element.contains(document.activeElement)) control.set(valueOf(item));
+                if (!item.runs && !control.element.contains(document.activeElement)) control.set(valueOf(item));
                 return;
             }
             shape = declared;
-            const made = item.reference ? actionButton(item, answer) : controlOf(item, change);
+            const made = item.runs ? actionButton(item, answer) : controlOf(item, change);
             if (control) control.element.replaceWith(made.element);
             else row.append(made.element);
             control = made;
@@ -224,14 +224,17 @@ function modSettingsSection({ ui, modSettings, actions, registry, nameOf, onFail
     }
 
     function actionButton(item, answer) {
-        const { provider, command, args } = item.reference;
+        const { mod, value } = item.runs;
         return ui.button({
             label: item.button,
             onClick: async () => {
                 answer.hidden = true;
                 let text = '';
                 try {
-                    text = (await registry.run({ provider, command }, args, { activates: true })) || '';
+                    const extension = actions.extensions()[mod];
+                    if (typeof extension?.run !== 'function') throw new Error(`${nameOf(mod)} is not running`);
+                    const said = await extension.run(value);
+                    text = typeof said === 'string' ? said : '';
                 } catch (error) {
                     text = 'Did not work: ' + error.message;
                 }
@@ -264,15 +267,14 @@ function modSettingsSection({ ui, modSettings, actions, registry, nameOf, onFail
     }
 }
 
-// A button as Settings reads it, or null for one with no label or nothing to run.
+// A button as Settings reads it, or null for one with no label or no value to run.
 function buttonOf(mod, action) {
-    if (typeof action?.button !== 'string' || !action.button || typeof action.run?.command !== 'string') return null;
-    const args = action.run.args && typeof action.run.args === 'object' ? action.run.args : {};
+    if (typeof action?.button !== 'string' || !action.button || action.value == null) return null;
     return {
         button: action.button,
         hint: typeof action.hint === 'string' ? action.hint : '',
         after: typeof action.after === 'string' ? action.after : '',
-        reference: { provider: mod, command: action.run.command, args },
+        runs: { mod, value: action.value },
     };
 }
 

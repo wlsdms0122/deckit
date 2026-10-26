@@ -10,5 +10,5 @@ url-schemes = ["file"]
 "system.file-handlers" = "Show in Finder in a file's menu shows it in Finder, and a file that is not text opens in the app this Mac opens it with."
 "system.clipboard-write" = "Copy Path and Copy Relative Path in a file's menu put its path on the clipboard."
 
-[optional]
+[extends]
 switcher = "1.0.0"
