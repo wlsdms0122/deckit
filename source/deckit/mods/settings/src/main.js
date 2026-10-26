@@ -1,4 +1,5 @@
 const { CHIP_STYLE } = require('./chip/chip.js');
+const { fontsSection } = require('./sections/fonts/fonts-section.js');
 const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
 const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
 const { modsSection } = require('./sections/mods/mods-section.js');
@@ -59,8 +60,9 @@ module.exports = {
             onFailure: mods.showNotice,
         });
         const urlSchemes = urlSchemesSection({ ui, urlSchemes: deck.urlSchemes, appName: APP_NAME });
+        const fonts = fontsSection({ ui, fonts: deck.fonts, onFailure: mods.showNotice });
         const keyboard = keyboardSection({ ui, keymap: deck.keymap, providerOf: deck.provider });
-        const sections = [mods, modSettings, urlSchemes, keyboard];
+        const sections = [mods, modSettings, urlSchemes, fonts, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
@@ -127,6 +129,8 @@ module.exports = {
             },
         });
         deck.mods.onChange(() => shown && redraw());
+        // Fonts set elsewhere come as a new theme.
+        deck.theme.onChange(() => shown && fonts.draw());
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
@@ -151,6 +155,7 @@ module.exports = {
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();
             urlSchemes.draw(handlerLists);
+            fonts.draw();
             keyboard.draw(shortcuts);
         }
 
