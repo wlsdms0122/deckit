@@ -15,6 +15,8 @@ const BROKEN = 'opens-everything';
 const NEXT_CHILD = 'region-child-next';
 // A mod removed with its data whose web sessions were not cleared then, so what deck keeps of it is erased at start.
 const REMOVED = 'removed-with-data';
+// The title of the Browser tab brought back behind the one in front.
+const BEHIND = 'Behind';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
 // The test's own mods, installed, one of them naming schemes it may not, Settings placed second in the panel's list,
@@ -45,6 +47,14 @@ function seed({ data, files }) {
     const record = path.join(data, 'deckit', 'records', 'editor', 'session.json');
     fs.mkdirSync(path.dirname(record), { recursive: true });
     fs.writeFileSync(record, JSON.stringify(session));
+    // Two tabs the Browser brings back, the one behind asleep.
+    const tabs = [
+        { id: 1, url: 'https://example.com/', title: 'Example', icon: '' },
+        { id: 2, url: 'https://example.org/', title: BEHIND, icon: '' },
+    ];
+    const browserRecord = path.join(data, 'deckit', 'records', 'browser', 'session.json');
+    fs.mkdirSync(path.dirname(browserRecord), { recursive: true });
+    fs.writeFileSync(browserRecord, JSON.stringify({ tabs, front: 1, closed: [] }));
     fs.mkdirSync(path.join(data, 'deckit', 'state', 'host'), { recursive: true });
     fs.writeFileSync(
         path.join(data, 'deckit', 'state', 'host', 'panel-order.json'),
@@ -400,6 +410,16 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const browser = await page('deckit://browser.mod');
         const webview = await browser?.evaluate(`document.querySelector('webview')?.getAttribute('partition')`);
         check('browser web page is in its own session', /:browser:web$/.test(webview || ''), webview);
+        const pagesShown = `document.querySelectorAll('webview').length`;
+        const asleep = await browser?.evaluate(pagesShown);
+        check('a tab brought back sleeps until it comes to the front', asleep === 1, asleep);
+        const behind = `[...document.querySelectorAll('.browser-row-label')].find((label) => label.textContent === '${BEHIND}')`;
+        await browser?.evaluate(`${behind}?.click()`);
+        const woken = await until(async () => (await browser?.evaluate(pagesShown)) === 2, 3000);
+        check('a tab asleep wakes as it comes to the front', woken, await browser?.evaluate(pagesShown));
+        await browser?.evaluate(
+            `[...document.querySelectorAll('.browser-row-label')].find((label) => label.textContent === 'Example')?.click()`
+        );
         const stolen = await editor.evaluate(`new Promise((resolve) => {
             const page = document.createElement('webview');
             page.setAttribute('partition', 'persist:deckit:browser:web');
