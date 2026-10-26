@@ -6,7 +6,7 @@ const SHOW = Object.freeze({ provider: '@shell', command: 'show' });
 // MARK: - Initializer
 // MARK: - Public
 // What the list holds, before it is made runnable: `{ id, label, hint, icon, group, section, keywords, tone,
-// attention, fallback, key, mod, value, opens, shows }`, `section` the one it is in, `{ id, name, icon }`. An item
+// attention, fallback, mod, value, opens, shows }`, `section` the one it is in, `{ id, name, icon }`. An item
 // gives `value` to the `run` of `mod`, the mod whose action it is, or with `opens` searches inside it; a Show item
 // `shows` a mod; one with neither is read only.
 
@@ -64,7 +64,6 @@ function blank(section) {
         tone: 'info',
         attention: false,
         fallback: false,
-        key: '',
         mod: '',
         value: null,
         opens: false,

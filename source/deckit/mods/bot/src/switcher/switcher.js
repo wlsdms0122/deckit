@@ -1,9 +1,9 @@
 // What Bot adds to the switcher through its point `switcher:actions`: a view each, Restart Forge, Choose Forge Session,
 // a search of the brain and a note of it to read, Back to the Note Before, and what is wrong with Forge now. Each
 // action's value is `{ action, ...args }`, run by `does[action](args, { ready })`; one that opens a search is the value
-// its results add an arg to. `modes` are the views, `{ key, label, icon, hint }`, each under the key `keyOf[key]`;
-// `supervisor` answers the Now strip and `picker` and `brain` what is searched inside an action.
-function switcher({ ui, modes, keyOf, supervisor, picker, brain, show, does }) {
+// its results add an arg to. `modes` are the views, `{ key, label, icon, hint }`; `supervisor` answers the Now strip
+// and `picker` and `brain` what is searched inside an action.
+function switcher({ ui, modes, supervisor, picker, brain, show, does }) {
     const brainKeywords = ['brain', 'memory', 'note', 'llmemory', '브레인', '기억', '지식', '노트'];
     let reading = null; // the search of notes under way, which a newer one stops
     return { list, now: supervisor.now, search, run };
@@ -14,7 +14,6 @@ function switcher({ ui, modes, keyOf, supervisor, picker, brain, show, does }) {
                 label,
                 hint: hint || '',
                 icon: ui.icon(icon, { size: 16 }),
-                key: keyOf[key],
                 keywords: ['forge', 'workflow', 'schedule', '워크플로우', '스케줄', '스케쥴', ...brainKeywords],
                 value: { action: 'show', view: key },
             })),
@@ -42,7 +41,6 @@ function switcher({ ui, modes, keyOf, supervisor, picker, brain, show, does }) {
             },
             {
                 label: 'Back to the Note Before',
-                key: 'brainBack',
                 keywords: ['back', ...brainKeywords],
                 group: 'Brain',
                 value: { action: 'brain-back' },

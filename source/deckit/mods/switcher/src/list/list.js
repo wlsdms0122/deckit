@@ -81,13 +81,6 @@ const STYLE =
         font: var(--deckit-type-small);
     }
     .switcher-row[data-lead] .switcher-hint { max-width: none; opacity: 0.6; }
-    .switcher-chord {
-        flex: 0 0 auto;
-        margin-left: 6px;
-        opacity: 0.45;
-        font: var(--deckit-type-small);
-        white-space: nowrap;
-    }
     .switcher-status {
         display: flex;
         flex: 0 0 auto;
@@ -266,7 +259,6 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
         item.tone,
         item.attention,
         item.lead,
-        item.chord,
         lit,
         hint,
         number,
@@ -296,11 +288,6 @@ function fillRow(ui, theme, made, { item, lit, hint, number, actionable, status 
             glow.animate(BREATH, { duration: BREATH_MS, easing: 'ease-in-out' });
         }
     } else made.replaceChildren(glyph, label, note);
-    if (item.chord) {
-        const chord = element('span', 'switcher-chord');
-        chord.textContent = item.chord;
-        made.append(chord);
-    }
     if (status) made.append(statusOf(ui, status));
     if (number) {
         const badge = element('span', 'switcher-number');
