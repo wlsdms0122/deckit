@@ -17,7 +17,7 @@ forge runs with the login shell's PATH, as do the daemons it starts, for an app 
 
 Each forge session is a daemon of its own, with a folder of forge's own (`~/.config/forge/<name>`, or under `$XDG_CONFIG_HOME`) where its socket is and where Forge writes what the daemon prints, `log/proc.log`. `default` is served with the Forge configuration, every other with its folder's.
 
-forge hands the token that controls a daemon to the process that starts it, and keeping it is that process's to do. Forge keeps it in the session's folder, `admin.token`, readable only by the person, for each daemon it starts. A daemon started elsewhere can be stopped and restarted from here; its operations are reached once its folder holds its token. The daemons Forge starts are the person's and run on after the app quits.
+forge hands the token that controls a daemon to the process that starts it, and keeping it is that process's to do. Forge keeps it in the session's folder, `admin.token`, readable only by the person, for each daemon it starts, `default` too. A daemon started elsewhere can be stopped and restarted from here; its operations are reached once its folder holds its token. The daemons Forge starts are the person's and run on after the app quits.
 
 ## For other mods
 
@@ -47,7 +47,7 @@ A mod that names `forge` in `[requires]` receives these. Each takes the session 
 | `schedule.create` | `{ workflow, inputs, trigger, concurrency }` | |
 | `schedule.enable`, `schedule.disable`, `schedule.delete` | `{ id }` | |
 
-A run is `{ id, name, session, status, step, startedAt, endedAt, outputs, error }`. `status` is forge's, `running` and then `ok` or `failed`, with `error` as forge gives it, `{ type, message }`; `step` is the step of the run itself it last started. Each change, a step started or the end, is sent as the event `forge:run` with the run. A run cut off from Forge, the daemon stopping or the Forge settings changing, ends `failed` with the error type `unfollowed`. Ended runs are answered by `run(id)` until a hundred more have ended.
+A run is `{ id, name, session, status, step, startedAt, endedAt, outputs, error }`. `status` is forge's, `running` and then `ok` or `failed`, with `error` as forge gives it, `{ type, message }`; `step` is the step of the run itself it last started. Each change, a step started or the end, is sent as the event `forge:run` with the run. A run is followed whatever the settings become; one whose stream ends before forge tells its end, as when the daemon stops, ends `failed` with the error type `unfollowed`. Forge waits fifteen seconds for forge to take a run, and rejects the dispatch after. Ended runs are answered by `run(id)` until a hundred more have ended.
 
 forge records a run as dispatched by the mod that called.
 

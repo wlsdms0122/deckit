@@ -5,7 +5,7 @@ module.exports = ({ emit }) => {
     const os = require('os');
     const path = require('path');
     const commands = require('./command.js')();
-    // Runs outlive the settings they were dispatched with: one cut off by a change is told as ended.
+    // Runs outlive the settings they were dispatched with.
     const runs = require('./runs.js')({ changed: (run) => emit('run', run) });
     // What is served for the settings in use, `{ key, children, live, methods, problem }`: when they change, the
     // commands it still runs end and those it would start after end at once.
@@ -77,6 +77,7 @@ module.exports = ({ emit }) => {
         run: async (id) => runs.get(id),
         // The daemons it started are the person's and run on after the app; the commands it runs end with it.
         dispose: () => {
+            runs.stop();
             retire();
             commands.end();
         },

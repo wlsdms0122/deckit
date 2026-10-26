@@ -1,7 +1,7 @@
 // `command` runs forge, and `config` is the config.toml the `default` session is served with, forge's own in the
-// session's folder when null. `track(child)` is handed each command it runs, and once `live()` is false it starts no
-// daemon. `commands` runs them, and `runs` follows each run dispatched to its end. A dispatch is told `by` whom: the
-// mod that asked, which forge records as who dispatched the run.
+// session's folder when null. `track(child)` is handed each command it runs for an answer, and once `live()` is false
+// it starts no daemon. `commands` runs them. `runs` follows each run dispatched to its end, whatever settings come
+// after. A dispatch is told `by` whom: the mod that asked, which forge records as who dispatched the run.
 module.exports = ({ command, config, track, live, commands, runs }) => {
     const { app } = require('electron');
     const { spawn } = require('child_process');
@@ -181,7 +181,6 @@ module.exports = ({ command, config, track, live, commands, runs }) => {
         const sent = readToken(session);
         env.FORGE_ACCESS_TOKEN = sent;
         const child = spawn(command, [...argv, '--session', session], { env, stdio: ['ignore', 'pipe', 'pipe'] });
-        track(child);
         return runs
             .follow(session, child)
             .catch((error) => refusedOn(session, sent)(error.syscall ? commands.notRun('forge', error) : error));
@@ -266,7 +265,7 @@ module.exports = ({ command, config, track, live, commands, runs }) => {
         const logFd = fs.openSync(log, 'a');
         try {
             const env = { ...(await environment()), FORGE_BOOTSTRAP_FD: '3' };
-            if (!live()) throw new Error("the bot's settings changed before forge started");
+            if (!live()) throw new Error("Forge's settings changed before the daemon started");
             const argv = ['serve', '--session', session, ...(given ? ['--config', given] : [])];
             const child = spawn(command, argv, {
                 cwd: given ? path.dirname(given) : sessionHome(session),
@@ -389,5 +388,5 @@ module.exports = ({ command, config, track, live, commands, runs }) => {
         }
     };
 
-    return { methods, run: runForge, hasToken: (session) => readToken(sessionName(session)) !== null, DEFAULT };
+    return { methods };
 };
