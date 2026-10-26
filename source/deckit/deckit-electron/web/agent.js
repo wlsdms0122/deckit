@@ -23,17 +23,21 @@ export function createAgent({ CONFIG, DEBUGGER, LOG }) {
         const userAgent = browserAgent(page.getUserAgent());
         const browser = { userAgent, userAgentMetadata: browserMetadata() };
         const overrideFor = (url) => SITE_OVERRIDES[siteOf(hostOf(url))] || browser;
-        let override = overrideFor(page.getURL());
-        let armed = false;
+        let override = overrideFor(page.getURL()); // what the page is to be shown
+        let sent = null; // what it was last given; null until it is armed
+        let sending = false;
         page.setUserAgent(userAgent);
         if (!DEBUGGER.attach(page)) return;
         DEBUGGER.on(page, (method, params) => {
             if (method !== 'Target.attachedToTarget') return;
             const session = params.sessionId;
             const kind = params.targetInfo?.type;
+            // A frame is shown what its own site is, as its requests are; one with no address yet, what its page is.
+            const url = params.targetInfo?.url;
+            const shown = /^https?:/i.test(url || '') ? overrideFor(url) : override;
             const dressed =
                 kind === 'iframe' || kind === 'page'
-                    ? DEBUGGER.send(page, 'Emulation.setUserAgentOverride', override, session).then(() =>
+                    ? DEBUGGER.send(page, 'Emulation.setUserAgentOverride', shown, session).then(() =>
                           DEBUGGER.send(page, 'Target.setAutoAttach', HOLD, session)
                       )
                     : Promise.resolve();
@@ -45,29 +49,46 @@ export function createAgent({ CONFIG, DEBUGGER, LOG }) {
                 )
                 .catch(() => {});
         });
+        // Gives the page what it is to be shown, once it is armed, one change at a time: one made while another is
+        // on its way is sent after it.
+        const apply = () => {
+            if (sent === null || sending || sent === override) return;
+            const given = override;
+            sending = true;
+            DEBUGGER.send(page, 'Emulation.setUserAgentOverride', given)
+                .catch((error) => LOG.error('could not hand a page the agent of the site it is on', error))
+                .then(() => {
+                    sent = given;
+                    sending = false;
+                    apply();
+                });
+        };
         // On the page itself too: a window handed over already loading is too late for setUserAgent. A page not
         // yet loading has no target, so this waits for it.
-        const arm = () =>
-            DEBUGGER.send(page, 'Emulation.setUserAgentOverride', override)
-                .then(() => (armed = true))
+        const arm = () => {
+            const given = override;
+            DEBUGGER.send(page, 'Emulation.setUserAgentOverride', given)
+                .then(() => (sent = given))
                 .then(() => DEBUGGER.send(page, 'Target.setAutoAttach', HOLD))
+                .then(apply)
                 .catch((error) => LOG.error('could not hand frames the browser agent', error));
+        };
         if (page.getURL() || page.isLoading()) arm();
         else page.once('did-start-loading', arm);
         // A page going to a site with an agent of its own is shown it from the start of the navigation, and the
-        // browser's again once it leaves; the frames it holds are shown what it is.
+        // browser's again once it leaves. A navigation that never lands, cancelled or failed, leaves the page shown
+        // what its address is once it stops loading.
         const follow = (details) => {
             if (!details.isMainFrame) return;
-            const next = overrideFor(details.url);
-            if (next === override) return;
-            override = next;
-            if (!armed) return;
-            DEBUGGER.send(page, 'Emulation.setUserAgentOverride', override).catch((error) =>
-                LOG.error('could not hand a page the agent of the site it goes to', error)
-            );
+            override = overrideFor(details.url);
+            apply();
         };
         LOG.guard(page, 'did-start-navigation', follow);
         LOG.guard(page, 'did-redirect-navigation', follow);
+        LOG.guard(page, 'did-stop-loading', () => {
+            override = overrideFor(page.getURL());
+            apply();
+        });
     }
 
     // A request to a site with an agent of its own goes with that agent, and without the client hints Chrome sends and
@@ -90,7 +111,7 @@ export function createAgent({ CONFIG, DEBUGGER, LOG }) {
 
     function hostOf(url) {
         try {
-            return new URL(url).host;
+            return new URL(url).hostname;
         } catch {
             return '';
         }
@@ -105,7 +126,8 @@ export function createAgent({ CONFIG, DEBUGGER, LOG }) {
             win32: 'Windows NT 10.0; Win64; x64',
             linux: 'X11; Linux x86_64',
         };
-        return `Mozilla/5.0 (${SYSTEMS[process.platform] || SYSTEMS.linux}; rv:${version}) Gecko/20100101 Firefox/${version}`;
+        const system = SYSTEMS[process.platform] || SYSTEMS.linux;
+        return `Mozilla/5.0 (${system}; rv:${version}) Gecko/20100101 Firefox/${version}`;
     }
 
     // A name with its version ("Electron/44.3.0") or on its own, as a whole token.
