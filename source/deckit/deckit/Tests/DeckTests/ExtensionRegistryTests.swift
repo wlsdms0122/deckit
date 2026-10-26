@@ -16,11 +16,11 @@ struct ExtensionRegistryTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("what a run extends that it cannot is a problem, and a point of an optional dependency never is")
+    @Test("what a run extends that it cannot is a problem, and a point its mod does not open never is")
     func extendingWhatCannotBeIsAProblem() throws {
         // Given
         try fixture.write("calendar")
-        try fixture.write("google", requires: ["calendar": "1.0.0"], optional: ["outlook": "1.0.0"])
+        try fixture.write("google", requires: ["calendar": "1.0.0"], extends: ["calendar": "1.0.0", "outlook": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.load(["calendar"])
@@ -44,9 +44,8 @@ struct ExtensionRegistryTests {
         // Then
         #expect(
             problems == [
-                "deck.extend() names calendar:missing, which calendar does not open",
-                "deck.extend() names lone:point, but lone is in neither [requires] nor [optional]",
-                "deck.extend() names nope, which is not <mod id>:<point>"
+                "deck.extends.lone extends point, and lone is not in [extends]",
+                "nope is not <mod id>:<point>"
             ]
         )
     }
@@ -55,7 +54,7 @@ struct ExtensionRegistryTests {
     func pointsModIsToldWhatExtendsIt() throws {
         // Given
         try fixture.write("calendar")
-        try fixture.write("google", requires: ["calendar": "1.0.0"])
+        try fixture.write("google", extends: ["calendar": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.load(["calendar"])
@@ -97,7 +96,7 @@ struct ExtensionRegistryTests {
     func endingModTakesNoNewPoint() throws {
         // Given
         try fixture.write("calendar")
-        try fixture.write("google", requires: ["calendar": "1.0.0"])
+        try fixture.write("google", requires: ["calendar": "1.0.0"], extends: ["calendar": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.load(["calendar"])
@@ -122,12 +121,12 @@ struct ExtensionRegistryTests {
         #expect(throws: ExtensionError.notExtending(mod: "google", point: "calendar:accounts")) { try called.get() }
     }
 
-    @Test("an optional dependency's point is extended only at a version the mod names")
-    func optionalDependencyPointIsExtendedAtItsVersion() throws {
+    @Test("a point is extended only by a mod that names its mod in [extends] at its version")
+    func pointIsExtendedAtItsVersion() throws {
         // Given
         try fixture.write("calendar")
-        try fixture.write("a", optional: ["calendar": "1.0.0"])
-        try fixture.write("b", optional: ["calendar": "2.0.0"])
+        try fixture.write("a", extends: ["calendar": "1.0.0"])
+        try fixture.write("b", extends: ["calendar": "2.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.load(["calendar", "a", "b"])
@@ -149,8 +148,8 @@ struct ExtensionRegistryTests {
     func pointsModCallsWhatExtendsIt() throws {
         // Given
         try fixture.write("calendar")
-        try fixture.write("google", requires: ["calendar": "1.0.0"])
-        try fixture.write("notes", requires: ["calendar": "1.0.0"])
+        try fixture.write("google", extends: ["calendar": "1.0.0"])
+        try fixture.write("notes", extends: ["calendar": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ExtensionRegistry(runner: runner)
         _ = try runner.load(["calendar"])

@@ -19,6 +19,9 @@ function createWindow({ CONFIG, THEME }) {
     const looks = new WeakMap(); // window -> { glass, covered }: how its bar page is drawn
     const titles = new WeakMap(); // window -> the title it shows
     const covered = new WeakSet(); // the windows whose view covers the bar, where its title would be
+    // floating window -> { key, moved, timer }: the key it keeps where the person moved it to by, and whether they
+    // moved it since it was last shown
+    const floating = new WeakMap();
 
     // MARK: - Initializer
     // MARK: - Public
@@ -74,6 +77,58 @@ function createWindow({ CONFIG, THEME }) {
         return window;
     }
 
+    // A window over every app, on every Space and over an app in full screen, that takes the keyboard without bringing
+    // Deckit.app forward. It blurs what is behind it, macOS draws its edge, and it has no bar, so what is laid in it,
+    // as glass, is all it draws, and it moves by what that marks to drag. `size` is its own; where it was moved to is
+    // kept by `key`. `place(window)` puts a view in it, which fills it; `focus` hands the view the keyboard as the
+    // window takes it, and `blur` hears it lose it. It opens hidden: `float(window)` shows it.
+    function openFloating({ size, key, place, focus, blur }) {
+        const { BrowserWindow } = require('electron');
+        const window = new BrowserWindow({
+            ...size,
+            type: 'panel',
+            show: false,
+            frame: false,
+            vibrancy: 'hud',
+            visualEffectState: 'active',
+            resizable: false,
+            minimizable: false,
+            maximizable: false,
+            fullscreenable: false,
+            skipTaskbar: true,
+            alwaysOnTop: true,
+        });
+        window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
+        place(window);
+        keepMoves(window, key);
+        window.on('focus', () => setImmediate(() => !window.isDestroyed() && window.isFocused() && focus()));
+        window.on('blur', blur);
+        return window;
+    }
+
+    // A floating window shown with the keyboard on the screen the pointer is on: where it was last moved to, when that
+    // is on this screen, or else centred across it, a fifth of the way down.
+    function float(window) {
+        const { screen } = require('electron');
+        const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+        const { width, height } = window.getBounds();
+        const moving = floating.get(window);
+        moving.moved = false;
+        const kept = read()[moving.key];
+        const inside =
+            !!kept &&
+            kept.x >= area.x &&
+            kept.y >= area.y &&
+            kept.x + width <= area.x + area.width &&
+            kept.y + height <= area.y + area.height;
+        const at = inside
+            ? kept
+            : { x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + area.height / 5) };
+        window.setBounds({ x: at.x, y: at.y, width, height });
+        window.show();
+        window.focus();
+    }
+
     // Where a view goes in the window: all of it below the bar.
     function viewBounds({ width, height }) {
         return { x: 0, y: BAR.height, width, height: Math.max(0, height - BAR.height) };
@@ -111,6 +166,22 @@ function createWindow({ CONFIG, THEME }) {
             if (url.protocol === 'http:' || url.protocol === 'https:') site = url.host;
         } catch {}
         return site && title !== site ? `${title} (${site})` : title;
+    }
+
+    // Kept as the person moves it, and only then: `will-move` comes before a move they make, and never before one
+    // `setBounds` makes.
+    function keepMoves(window, key) {
+        const moving = { key, moved: false, timer: null };
+        floating.set(window, moving);
+        window.on('will-move', () => (moving.moved = true));
+        window.on('move', () => {
+            if (!moving.moved) return;
+            clearTimeout(moving.timer);
+            moving.timer = setTimeout(
+                () => !window.isDestroyed() && write({ ...read(), [key]: window.getBounds() }),
+                SAVE_DELAY
+            );
+        });
     }
 
     // Kept as it moves, and as it closes in case that came first.
@@ -215,7 +286,7 @@ window.setTitle = (text) => { document.getElementById('title').textContent = tex
         }
     }
 
-    return { open, viewBounds, titleBar: TITLE_BAR, setTitle, recolor };
+    return { open, openFloating, float, viewBounds, titleBar: TITLE_BAR, setTitle, recolor };
 }
 
 module.exports = { createWindow };

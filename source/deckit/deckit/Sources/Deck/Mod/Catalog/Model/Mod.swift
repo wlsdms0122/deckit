@@ -26,7 +26,8 @@ public struct Mod: Sendable {
     // Two reads of a mod with one revision are the same code: a copy installed again, even of the same version, is
     // not.
     public let revision: String
-    public internal(set) var dependencies: [Dependency]
+    // The mods its manifest names: those it requires, then those whose points it extends.
+    public internal(set) var relations: [Relation]
     // The mods that load and require it, directly or through another, by id.
     public internal(set) var dependents: [String]
     // The file its main names, where it really is.

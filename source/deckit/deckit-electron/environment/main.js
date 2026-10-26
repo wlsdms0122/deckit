@@ -22,6 +22,30 @@ const INPUT = { keyDown: 'keydown', keyUp: 'keyup', mouseDown: 'mousedown', mous
 const ERR_ABORTED = -3;
 // Chromium's own schemes: its pages, its extensions' and its tools'.
 const CHROMIUM_SCHEMES = Object.freeze(['chrome', 'chrome-extension', 'devtools', 'view-source']);
+// Electron's accelerator key for each key code a spec names that is not a letter, a digit or a function key.
+const ACCELERATOR_KEYS = Object.freeze({
+    ArrowLeft: 'Left',
+    ArrowRight: 'Right',
+    ArrowUp: 'Up',
+    ArrowDown: 'Down',
+    Enter: 'Enter',
+    Escape: 'Escape',
+    Space: 'Space',
+    Tab: 'Tab',
+    Backspace: 'Backspace',
+    Delete: 'Delete',
+    BracketLeft: '[',
+    BracketRight: ']',
+    Comma: ',',
+    Period: '.',
+    Slash: '/',
+    Backslash: '\\',
+    Minus: '-',
+    Equal: '=',
+    Semicolon: ';',
+    Quote: "'",
+    Backquote: '`',
+});
 
 // MARK: - Initializer
 // MARK: - Public
@@ -116,7 +140,7 @@ function createEnvironment({ core, preload, openWindow }) {
             watchInput: (page, listener) => watchInput(guard, page, listener),
             clearStorage: (modId) => clearStorage(CONFIG.id, modId),
         }),
-        keys: Object.freeze({ capture: (page, handler) => capture(guard, page, handler) }),
+        keys: Object.freeze({ capture: (page, handler) => capture(guard, page, handler), hotkey, focused }),
         open: Object.freeze({ url: openURL, file: openFile, reveal, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({
@@ -290,9 +314,9 @@ function watch(
     };
 }
 
-// A navigation keeps the page, so a page that left its address would still be known as its owner while it ran
-// another's page with that one's storage, or ran its own again beside itself. So it stays at the address its first
-// load commits. Main's own loadURL and reload pass without these events.
+// A navigation keeps the page, so a page that left its address would still be taken for what it first loaded while it
+// ran another's page with that one's storage, or ran its own again beside itself. So it stays at the address its
+// first load commits. Main's own loadURL and reload pass without these events.
 function pin(guard, page) {
     let address = null;
     guard(page, 'did-navigate', (_event, url) => (address ??= withoutFragment(url)), { once: true });
@@ -318,6 +342,45 @@ function capture(guard, page, handler) {
         const pressed = { type: kind, code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
         if (handler(Object.freeze(pressed))) event.preventDefault();
     });
+}
+
+// A key held with Electron's global shortcuts, which the system hands Deckit.app wherever it is pressed. Holding one
+// already held, by this app or another, fails.
+function hotkey(keystroke, handler) {
+    const { globalShortcut } = require('electron');
+    const accelerator = acceleratorOf(keystroke);
+    if (!accelerator || globalShortcut.isRegistered(accelerator)) return null;
+    if (!globalShortcut.register(accelerator, () => handler())) return null;
+    let held = true;
+    return () => {
+        if (!held) return;
+        held = false;
+        globalShortcut.unregister(accelerator);
+    };
+}
+
+// The page with the keyboard, in the window that has it: a view keeps its focus in a window gone to the back, and
+// while another app has the keyboard no window of the app's does.
+function focused() {
+    const { BrowserWindow, webContents } = require('electron');
+    return BrowserWindow.getFocusedWindow() ? webContents.getFocusedWebContents() : null;
+}
+
+// A key as Electron's accelerator names it, or null for a key it has no name for.
+function acceleratorOf({ code, meta, control, alt, shift }) {
+    const key =
+        code.match(/^Key([A-Z])$/)?.[1] ||
+        code.match(/^Digit([0-9])$/)?.[1] ||
+        code.match(/^(F[0-9]{1,2})$/)?.[1] ||
+        ACCELERATOR_KEYS[code];
+    if (!key) return null;
+    const modifiers = [
+        [control, 'Control'],
+        [alt, 'Alt'],
+        [shift, 'Shift'],
+        [meta, 'Super'],
+    ];
+    return [...modifiers.filter(([held]) => held).map(([, name]) => name), key].join('+');
 }
 
 function openURL(url, { activate = true } = {}) {

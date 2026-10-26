@@ -1,7 +1,7 @@
 import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
-// Above the page's own fixed things. A float (a toolbar, an autocomplete) is placed by its owner and answers
+// Above the page's own fixed things. A float (a toolbar, an autocomplete) is placed by its caller and answers
 // nothing; a layer is above every float, by its place in the stack; what a drag carries is above them all.
 const Z = Object.freeze({ float: 1150, layer: 1200, drag: 2147483646 });
 // How far inside the window a placed box stays.

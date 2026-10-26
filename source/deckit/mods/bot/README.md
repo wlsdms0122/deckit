@@ -17,7 +17,7 @@ The commands run with the login shell's PATH, as do the daemons they start, for 
 
 ## Sessions
 
-Each forge session is a daemon of its own, with a folder of forge's own (`~/.config/forge/<name>`, or under `$XDG_CONFIG_HOME`) where its socket is and where Bot writes what the daemon prints, `log/proc.log`. `default` is the bot's, served with the Forge configuration; every other with its folder's. Services, Workflows and Schedules show one session, chosen from the pop-up button in the title bar, where each is marked running, started elsewhere or stopped, or with Forge Session in the switcher.
+Each forge session is a daemon of its own, with a folder of forge's own (`~/.config/forge/<name>`, or under `$XDG_CONFIG_HOME`) where its socket is and where Bot writes what the daemon prints, `log/proc.log`. `default` is the bot's, served with the Forge configuration; every other with its folder's. Services, Workflows and Schedules show one session, chosen from the pop-up button in the title bar, where each is marked running, started elsewhere or stopped, or with Choose Forge Session in the switcher.
 
 forge hands the token that controls a daemon to the process that starts it. A daemon started elsewhere can be stopped and restarted from here; its services, workflows and schedules are reached once it is started from here, or, for a session other than `default`, once its folder holds an `admin.token`, which Bot writes for such a session it starts. The daemons Bot starts are the person's and run on after the app quits.
 

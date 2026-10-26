@@ -1,13 +1,38 @@
-const { addDays, startOfDay, clockText } = require('../date/date.js');
+const { addDays, startOfDay, clockText, dayText } = require('../date/date.js');
 const { nameOf, isSpanning } = require('../occurrence/occurrence.js');
 
 // How far ahead the next meeting is still news: the rest of a working day, not tomorrow.
 const NOW_HORIZON_MS = 6 * 3600000;
 
-// What Calendar offers the switcher: the meeting on now and the next, and its commands. `occurrences(from, to)` answers
-// what the strip may show.
-function switcher({ ui, show, modes, reminders, occurrences, onGoTo, onMode, onAddAccount }) {
-    return { now, commands };
+// What Calendar adds to the switcher through its point `switcher:actions`: an action for each view and for what its
+// keys do, Go to Date, Add Calendar Account and Send a Test Notification, and the meeting on now and the next. Each
+// action's value is `{ action, ...args }`, run by `does[action](args, { ready })`. `occurrences(from, to)` answers what
+// the strip may show.
+function switcher({ ui, modes, reminders, occurrences, show, does }) {
+    return { list, now, search, run };
+
+    function list() {
+        const icon = ui.icon('layers', { size: 16 });
+        return [
+            ...modes.map(([view, label]) => ({
+                label: label + ' View',
+                icon,
+                key: view + 'View',
+                keywords: ['일간', '주간', '월간', '보기', 'view'],
+                value: { action: 'show-view', view },
+            })),
+            { label: 'Go to Today', key: 'today', keywords: ['오늘', 'today'], value: { action: 'go-to-today' } },
+            { label: 'Go to Date', keywords: ['날짜', 'date', 'day'], opens: true, value: { action: 'go-to-date' } },
+            { label: 'Previous', key: 'previous', value: { action: 'previous' } },
+            { label: 'Next', key: 'next', value: { action: 'next' } },
+            { label: 'Add Calendar Account…', keywords: ['계정', '추가', 'account'], value: { action: 'add-account' } },
+            {
+                label: 'Send a Test Notification',
+                keywords: ['알림', 'notification', 'test'],
+                value: { action: 'send-test' },
+            },
+        ];
+    }
 
     // What is running, and what is next once the running one is past its midpoint (or nothing is running), and only
     // within NOW_HORIZON_MS.
@@ -27,13 +52,10 @@ function switcher({ ui, show, modes, reminders, occurrences, onGoTo, onMode, onA
             hint: live
                 ? `In progress · until ${clockText(occurrence.end)}`
                 : `${untilText(occurrence.start, at)} · ${clockText(occurrence.start)}`,
-            icon: ui.icon('clock', { size: 18 }),
+            icon: ui.icon('clock', { size: 16 }),
             // Asks for attention while the notice would be due, so the two say the same thing.
             attention: !live && reminders.isDue(occurrence, +at, lead),
-            run: () => {
-                show();
-                onGoTo(occurrence.start);
-            },
+            value: { action: 'go-to-date', date: dayText(occurrence.start) },
         });
 
         const out = [];
@@ -43,36 +65,17 @@ function switcher({ ui, show, modes, reminders, occurrences, onGoTo, onMode, onA
         return out;
     }
 
-    function commands() {
-        return [
-            {
-                label: 'Go to Today',
-                icon: ui.icon('calendarDays'),
-                keywords: ['오늘', 'today'],
-                run: () => {
-                    show();
-                    onGoTo(new Date());
-                },
-            },
-            ...modes.map(([key, label]) => ({
-                label: label + ' View',
-                icon: ui.icon('layers'),
-                keywords: [{ day: '일간', week: '주간', month: '월간' }[key], '보기', 'view'],
-                run: () => {
-                    show();
-                    onMode(key);
-                },
-            })),
-            {
-                label: 'Add Calendar Account…',
-                icon: ui.icon('plus'),
-                keywords: ['계정', '추가', 'account'],
-                run: () => {
-                    show();
-                    onAddAccount();
-                },
-            },
-        ];
+    // Inside Go to Date, the day as typed.
+    function search(query, within) {
+        if (within?.action !== 'go-to-date' || !query) return [];
+        return [{ label: query, hint: 'A day, as YYYY-MM-DD', value: { ...within, date: query } }];
+    }
+
+    // An action calls `ready()` once it has found it can be done, and the mod comes to the front then, so a refusal
+    // is read under the switcher's list; one whose result goes on elsewhere does not call it.
+    async function run({ action, ...args }) {
+        const said = await does[action](args, { ready: show });
+        return typeof said === 'string' ? said : null;
     }
 }
 
@@ -86,4 +89,19 @@ function untilText(when, from) {
     return rest ? `in ${hours}h ${rest}m` : `in ${hours}h`;
 }
 
-module.exports = { switcher };
+// The actions of `does` done with the mod in front, each ready once its synchronous part, where a refusal throws,
+// is past.
+function inFront(does) {
+    return Object.fromEntries(
+        Object.entries(does).map(([name, run]) => [
+            name,
+            (args, { ready }) => {
+                const doing = run(args);
+                ready();
+                return doing;
+            },
+        ])
+    );
+}
+
+module.exports = { switcher, inFront };

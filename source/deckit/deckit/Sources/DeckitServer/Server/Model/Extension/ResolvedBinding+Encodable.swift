@@ -8,17 +8,16 @@
 import Foundation
 import Deckit
 
-// One object: the binding, with `key` and `spec` as written, `chord` and `defaultChord` as a person reads them, `app`
-// for the app's own, and what the driver resolves a keystroke with, `keystroke` and `editsText` (a text field owns it).
+// One object: the binding, with `key` and `spec` as written, `chord` and `defaultChord` as a person reads them, the
+// `provider` that runs it, and what the driver resolves a keystroke with, `keystroke` and `takenByFields` (a field with
+// focus may take it).
 extension ResolvedBinding: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case id
-        case owner
-        case ownerName
-        case app
+        case provider
         case scope
-        case action
+        case name
         case label
         case key
         case spec
@@ -28,7 +27,7 @@ extension ResolvedBinding: Encodable {
         case active
         case issues
         case keystroke
-        case editsText
+        case takenByFields
     }
 
     // MARK: - Initializer
@@ -36,11 +35,9 @@ extension ResolvedBinding: Encodable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(binding.id, forKey: .id)
-        try container.encode(binding.owner.id, forKey: .owner)
-        try container.encode(binding.owner.name, forKey: .ownerName)
-        try container.encode(binding.owner.isApp, forKey: .app)
+        try container.encode(binding.provider.id, forKey: .provider)
         try container.encode(binding.scope, forKey: .scope)
-        try container.encode(binding.action, forKey: .action)
+        try container.encode(binding.name, forKey: .name)
         try container.encode(binding.label, forKey: .label)
         try container.encode(binding.defaultKeystroke?.spec, forKey: .key)
         try container.encode(binding.keystroke?.spec, forKey: .spec)
@@ -50,7 +47,7 @@ extension ResolvedBinding: Encodable {
         try container.encode(active, forKey: .active)
         try container.encode(issues, forKey: .issues)
         try container.encode(binding.keystroke, forKey: .keystroke)
-        try container.encode(binding.keystroke?.editsText ?? false, forKey: .editsText)
+        try container.encode(binding.keystroke?.takenByFields ?? false, forKey: .takenByFields)
     }
 
     // MARK: - Private

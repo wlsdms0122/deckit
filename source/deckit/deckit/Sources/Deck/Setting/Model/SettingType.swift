@@ -13,7 +13,6 @@ public enum SettingType: String, Codable, Sendable {
     case number
     case text
     case choice
-    case action
 
     // MARK: - Property
     // MARK: - Initializer

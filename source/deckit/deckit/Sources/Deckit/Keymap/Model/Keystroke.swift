@@ -11,8 +11,8 @@ import Foundation
 // physical key, since a modifier can change the character typed.
 public struct Keystroke: Equatable, Sendable {
     // MARK: - Property
-    // What a global key, one taken from every page, text fields included, needs of its chord.
-    static let globalRule = "a global key needs ⌘, ⌃ or ⌥, and none a text field uses"
+    // What a key that works past its page, taken from every page, text fields included, needs of its chord.
+    static let wideRule = "a key that works past its page needs ⌘, ⌃ or ⌥, and none a field with focus takes"
     // `mod` is ⌘ on a Mac, and Ctrl elsewhere.
     static let isMac: Bool = {
         #if os(macOS)
@@ -114,13 +114,16 @@ public struct Keystroke: Equatable, Sendable {
         return (control ? "⌃" : "") + (alt ? "⌥" : "") + (shift ? "⇧" : "") + (meta ? "⌘" : "") + key
     }
 
-    public var editsText: Bool {
+    // Whether a field with focus may take it: one that edits text, and Return with ⌘, ⌃ or ⌥, which a code editor
+    // or a text area acts on.
+    public var takenByFields: Bool {
         Self.editing.contains(code) || (meta && !control && !alt && Self.editCommands.contains(code))
+            || (code == "Enter" && (meta || control || alt))
     }
 
-    // Whether it holds to `globalRule`.
-    var fitsGlobal: Bool {
-        (meta || control || alt) && !editsText
+    // Whether it may work in `scope`: past its page only by `wideRule`.
+    func fits(_ scope: KeyScope) -> Bool {
+        !scope.isWide || ((meta || control || alt) && !takenByFields)
     }
 
     // MARK: - Initializer

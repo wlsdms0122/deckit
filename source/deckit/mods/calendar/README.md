@@ -4,10 +4,13 @@ Day, week and month views of the calendars of your accounts, what is on now and 
 
 ## Providing accounts
 
-A mod that provides accounts requires Calendar and extends `calendar:accounts`:
+A mod that provides accounts extends Calendar's point `accounts`, and requires Calendar too when it asks the person through it (Asking):
 
 ```toml
 [requires]
+calendar = "1.0.0"
+
+[extends]
 calendar = "1.0.0"
 
 [permissions]
@@ -15,8 +18,8 @@ calendar = "1.0.0"
 ```
 
 ```js
-deck.extend({
-    'calendar:accounts': {
+deck.extends.calendar({
+    accounts: {
         name: 'Google',
         hint: 'A Google account',
         icon: `<svg …>`,
@@ -75,4 +78,4 @@ const open = await deck.requires.calendar.ask({
 });
 ```
 
-Calendar comes on screen and asks in a dialog under the provider's name, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only for a provider while its `signIn` runs: any other mod, or the provider at any other time, is refused, and a question still open when the provider has no sign-in left under way closes and resolves `false`. `detail`, `confirmLabel` and `cancelLabel` are optional (`''`, `OK`, `Cancel`). A provider that uses Calendar optionally calls `deck.optional.calendar.exports().ask` the same way. The sign-in window is not moved: where it stands in front of the panel, the dialog is behind it.
+Calendar comes on screen and asks in a dialog under the provider's name, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only for a provider while its `signIn` runs: any other mod, or the provider at any other time, is refused, and a question still open when the provider has no sign-in left under way closes and resolves `false`. `detail`, `confirmLabel` and `cancelLabel` are optional (`''`, `OK`, `Cancel`). The sign-in window is not moved: where it stands in front of the panel, the dialog is behind it.

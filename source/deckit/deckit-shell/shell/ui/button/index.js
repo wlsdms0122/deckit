@@ -165,7 +165,7 @@ function rowAction({ icon = '', label = '', title, onClick }) {
 }
 
 // One of a few choices, side by side. `items` are { key, label, title, lead }: `lead` an element before the label.
-// With `fill`, the choices share the width it is given. A press reports the choice; the owner sets it.
+// With `fill`, the choices share the width it is given. A press reports the choice; the caller sets it.
 function segmented({ items, value = null, size = 'medium', accent = null, fill = false, onChange }) {
     const element = document.createElement('div');
     element.className = 'deckit-segmented';
@@ -222,7 +222,7 @@ function segmented({ items, value = null, size = 'medium', accent = null, fill =
 }
 
 // A button that stays on or off, beside a text field that keeps the keyboard. A press reports the new state; the
-// owner sets it. `setMarked` lights it without turning it on.
+// caller sets it. `setMarked` lights it without turning it on.
 function toggleButton({ icon = '', label = '', title, value = false, onChange }) {
     const element = buttonOf('deckit-toggle-button', title, 'medium');
     if (icon) element.innerHTML = icon;
@@ -241,7 +241,7 @@ function toggleButton({ icon = '', label = '', title, value = false, onChange })
     return { element, set, setMarked: (on) => element.toggleAttribute('data-marked', !!on) };
 }
 
-// A switch. A press reports the new state; the owner sets it.
+// A switch. A press reports the new state; the caller sets it.
 function toggle({ value = false, onChange }) {
     const element = buttonOf('deckit-toggle', '', 'medium');
     element.setAttribute('role', 'switch');

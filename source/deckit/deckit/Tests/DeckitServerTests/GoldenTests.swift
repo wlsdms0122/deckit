@@ -18,9 +18,8 @@ struct GoldenTests {
     // MARK: - Property
     private static let refusals: [(any Refusal, String)] = [
         (ErasureError.notAMod("x"), "MOD"),
-        (ExportError.notADependency(mod: "a", of: "b"), "DEPENDENCY"),
+        (ExportError.notRequired(mod: "a", of: "b"), "NOT_REQUIRED"),
         (ExportError.notRunning("a"), "NOT_RUNNING"),
-        (ExportError.otherVersion(mod: "a", version: "1.0.0", dependent: "b", wanted: "2.0.0"), "VERSION"),
         (ExportError.noSuchFunction(mod: "a", path: ["f"]), "FUNCTION"),
         (ExtensionError.notAPoint("p", of: "a"), "POINT"),
         (ExtensionError.notRunning("a"), "NOT_RUNNING"),
@@ -41,8 +40,6 @@ struct GoldenTests {
         (ModStorageError.notAMod("x"), "MOD"),
         (RecordError.notAKey("k"), "KEY"),
         (SettingError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
-        (SettingError.notAnAction(mod: "a", key: "k"), "NOT_AN_ACTION"),
-        (SettingError.isAnAction("k"), "ACTION"),
         (SettingError.notOfType(key: "k", type: .number), "TYPE"),
         (SettingError.notAnOption(key: "k", value: nil), "OPTION"),
         (StateError.notAKey("k"), "KEY"),
@@ -50,7 +47,12 @@ struct GoldenTests {
         (StateError.reserved("keys"), "RESERVED"),
         (KeymapError.noSuchBinding("@app.x"), "SHORTCUT"),
         (KeymapError.notAChord("x"), "CHORD"),
-        (KeymapError.cannotBeGlobal(label: "C"), "REFUSED"),
+        (KeymapError.cannotWork(label: "C", scope: .app), "REFUSED"),
+        (KeymapError.notAHost("x"), "REFUSED"),
+        (KeymapError.noLabel("k"), "REFUSED"),
+        (CommandError.noSuchCommand("a.c"), "COMMAND"),
+        (CommandError.arguments(command: "a.c", why: "w"), "ARGUMENTS"),
+        (CommandError.notAName("a.b"), "REFUSED"),
         (URLRouterError.noHandlers("x"), "SCHEME")
     ]
 
@@ -66,7 +68,7 @@ struct GoldenTests {
             in: "source",
             adding: "url-schemes = [\"mailto\"]\n[permissions]\n\"system.global-keys\" = \"to test\""
         )
-        try writeMod("b", in: "source", adding: "[requires]\na = \"1.0.0\"")
+        try writeMod("b", in: "source", adding: "[requires]\na = \"1.0.0\"\n[extends]\na = \"1.0.0\"")
         try writeMod("c", in: "ship")
         try writeMod("d", in: "spare")
         let requests = try lines(of: "session")

@@ -2,9 +2,9 @@
 // it held, and what was seen.
 const fs = require('fs');
 const path = require('path');
-const { until, sleep, CTRL, META, SHIFT } = require('./devtools.js');
+const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 
-// The mods Deckit.app ships with a view: every one but Deckit, which is commands only.
+// The mods Deckit.app ships with a view: every one but Deckit, which has none, and the Switcher, a window.
 const VIEWS = 7;
 // The test's own mods with a view: the region parent and the window probe. Its region child is in no list.
 const TEST_VIEWS = 2;
@@ -166,15 +166,15 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await sleep(600);
         check('back key returns to Editor', (await visibility('editor')) === 'visible', await visibility('editor'));
 
-        await editor.key('g', 'KeyG', META | SHIFT, 71);
-        const switcher = await until(() => page('deckit://switcher'));
+        await editor.key(' ', 'Space', ALT, 32);
+        const switcher = await until(() => page('deckit://switcher.mod'));
         await until(async () => /Notes/.test((await switcher?.evaluate('document.body.innerText')) || ''));
         check('switcher opens on its chord', switcher);
         if (switcher) {
             const items = await switcher.evaluate(`document.body.innerText`);
             check('switcher lists mods', /Notes/.test(items || ''), String(items).slice(0, 200));
             await switcher.shot('switcher');
-            const activeLabel = `document.querySelector('[data-active] .deckit-switcher-label')?.textContent`;
+            const activeLabel = `document.querySelector('[data-active] .switcher-label')?.textContent`;
             const first = await switcher.evaluate(activeLabel);
             await switcher.key('ArrowDown', 'ArrowDown', 0, 40);
             await sleep(200);
@@ -186,12 +186,15 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
                 first && second && first !== second && (await switcher.evaluate(activeLabel)) === first,
                 `${first} -> ${second}`
             );
-            await switcher.type('Open Notes');
+            await switcher.type('Show Notes');
             await sleep(1200);
             await switcher.shot('switcher-typed');
             await switcher.key('Enter', 'Enter', 0, 13);
             await until(async () => (await visibility('note')) === 'visible', 4000);
-            check('switcher opens Notes', (await visibility('note')) === 'visible', await visibility('note'));
+            check('switcher shows Notes', (await visibility('note')) === 'visible', await visibility('note'));
+            const rows = `document.querySelectorAll('.switcher-row').length`;
+            const gone = await until(async () => (await switcher.evaluate(rows)) === 0, 3000);
+            check('the switcher goes as the mod it showed takes the keyboard', gone, await switcher.evaluate(rows));
         }
 
         const note = await page('deckit://note.mod');
@@ -333,6 +336,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             () => settings.evaluate(`document.querySelector('.settings-order')?.hidden === false`),
             2000
         );
+        await settings?.evaluate(`document.querySelector('.settings-order').scrollIntoView({ block: 'center' })`);
         await settings?.press('.settings-order [data-variant="primary"]');
         const refusal = `document.querySelector('.settings-order-text[data-refused]')?.textContent || ''`;
         await until(async () => (await settings.evaluate(refusal)).includes('Could not apply'), 3000);
@@ -352,6 +356,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await settings?.evaluate(`${lastRows(-1)}.scrollIntoView({ block: 'center' })`);
         await settings?.drag(lastRows(-2), lastRows(-1));
         await until(() => settings.evaluate(`document.querySelector('.settings-order')?.hidden === false`), 2000);
+        await settings?.evaluate(`document.querySelector('.settings-order').scrollIntoView({ block: 'center' })`);
         await settings?.press('.settings-order [data-variant="primary"]');
         const applied = await until(() => keptOrder() !== orderBefore, 3000);
         const swapped = rowsBefore.split(',');
@@ -430,20 +435,20 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await sleep(1500);
         const stayed = (await targets()).filter((target) => target.url.startsWith('deckit://finder.mod')).length;
         check("a mod's view cannot move to another mod's origin", stayed === 1, stayed + ' finder pages');
-        await editor.key('g', 'KeyG', META | SHIFT, 71);
-        const again = await page('deckit://switcher');
+        await editor.key(' ', 'Space', ALT, 32);
+        const again = await page('deckit://switcher.mod');
         const listed = await until(
             async () => /Open Folder/.test((await again?.evaluate('document.body.innerText')) || ''),
             5000
         );
-        check('a refused navigation leaves the page its commands', listed, '');
+        check('a refused navigation leaves the page its keys', listed, '');
         await again?.key('Escape', 'Escape', 0, 27);
         // A stage shown with no page shown on it draws nothing and still takes the window's clicks.
         const stagesNow = async () => (await stackNow()).stages;
         const shows = (stage, url) => stage.pages.some((shown) => shown.startsWith(url));
         const putAway = await until(async () => {
             const stages = await stagesNow();
-            return stages.length && !stages.some((stage) => shows(stage, 'deckit://switcher')) && stages;
+            return stages.length && !stages.some((stage) => shows(stage, 'deckit://switcher.mod')) && stages;
         }, 3000);
         check(
             'the switcher put away leaves no stage over the window',
@@ -500,11 +505,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const pinged = await until(async () => (await mark(user, 'pinged')) === '7', 4000);
         check('an event reaches the mod that listens to it', pinged, await mark(user, 'pinged'));
 
-        // Keys, as the core resolves them: a mod's key that works everywhere, bound again, and a chord recorded.
+        // Keys, as the core resolves them: a mod's key that works anywhere in the app, bound again, and a chord
+        // recorded.
         const keys = await page('deckit://keys-user.mod');
         await editor.key('9', 'Digit9', META | SHIFT, 57);
         const pressed = await until(async () => (await mark(keys, 'pressed')) === '1', 3000);
-        check("a mod's global key runs from another mod's page", pressed, await mark(keys, 'pressed'));
+        check("a mod's key that reaches the app runs from another mod's page", pressed, await mark(keys, 'pressed'));
         await keys.evaluate(`document.dispatchEvent(new CustomEvent('test-bind', { detail: 'mod+shift+8' }))`);
         const rebound = await until(async () => /8/.test((await mark(keys, 'chord')) || ''), 3000);
         await editor.key('8', 'Digit8', META | SHIFT, 56);
@@ -525,8 +531,8 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             3000
         );
         check("an address of a mod's scheme reaches it", reached, await mark(opener, 'opened'));
-        await editor.key('g', 'KeyG', META | SHIFT, 71);
-        const query = await until(() => page('deckit://switcher'));
+        await editor.key(' ', 'Space', ALT, 32);
+        const query = await until(() => page('deckit://switcher.mod'));
         await until(async () => /Notes/.test((await query?.evaluate('document.body.innerText')) || ''));
         await query?.type('probe open user');
         const resolved = await until(

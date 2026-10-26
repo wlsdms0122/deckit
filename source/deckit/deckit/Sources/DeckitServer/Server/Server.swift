@@ -146,11 +146,6 @@ final class Server {
             let params = try request.decodeParams(as: SetSettingParams.self)
             return try deck.settings.set(mod: params.mod, key: params.key, value: params.value, options: params.options)
 
-        case "setting/action":
-            let params = try request.decodeParams(as: ModKeyParams.self)
-            _ = try deck.settings.action(mod: params.mod, key: params.key)
-            return true
-
         case "catalog/read":
             return deck.readCatalog()
 
@@ -217,9 +212,9 @@ final class Server {
             let params = try request.decodeParams(as: RunParams.self)
             return try deck.stopped(params.mod, run: params.run)
 
-        case "export/dependencies":
+        case "export/requires":
             let params = try request.decodeParams(as: RunParams.self)
-            return try deck.exports.dependencies(mod: params.mod, run: params.run)
+            return try deck.exports.requires(mod: params.mod, run: params.run)
 
         case "export/call":
             let params = try request.decodeParams(as: CallExportParams.self)
@@ -247,7 +242,8 @@ final class Server {
             return deck.events.emit(mod: params.mod, run: params.run, name: params.name)
 
         case "keymap/register":
-            return deckit.keymap.register(try request.decodeParams(as: Key.self))
+            let params = try request.decodeParams(as: RegisterKeyParams.self)
+            return try deckit.keymap.register(params.key, provider: params.provider)
 
         case "keymap/bind":
             let params = try request.decodeParams(as: BindKeyParams.self)
@@ -262,14 +258,30 @@ final class Server {
         case "keymap/keystrokes":
             return try request.decodeParams(as: KeystrokesParams.self).specs.map(Keystroke.init(spec:))
 
-        case "command/sources":
-            return deckit.commands.sources()
+        case "command/define":
+            let params = try request.decodeParams(as: DefineCommandsParams.self)
+            try deckit.commands.define(params.commands, provider: params.provider)
+            return true
+
+        case "command/list":
+            return deckit.commands.list()
+
+        case "command/find":
+            let params = try request.decodeParams(as: CheckCommandParams.self)
+            return try deckit.commands.find(params.command, of: params.provider)
+
+        case "command/check":
+            let params = try request.decodeParams(as: CheckCommandParams.self)
+            return try deckit.commands.check(params.command, of: params.provider, args: params.args)
+
+        case "provider":
+            return deckit.provider(of: try request.decodeParams(as: ProviderParams.self).id)
 
         case "open/route":
             let params = try request.decodeParams(as: RouteParams.self)
             return deckit.urlRouter.route(
                 params.url,
-                userInitiated: params.userInitiated,
+                opensFiles: params.opensFiles,
                 usesDefaultApp: params.usesDefaultApp
             )
 

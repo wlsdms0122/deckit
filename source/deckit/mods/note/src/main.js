@@ -1,20 +1,24 @@
 const { dragAndDrop } = require('./browsing/drag-and-drop.js');
 const { folderAt } = require('./notes-folder/folder.js');
+const { foldersFound, notesFound } = require('./candidates/candidates.js');
 const { gallery } = require('./browsing/gallery.js');
 const { NOTEBOOK_SHAPES } = require('./icons/icons.js');
-const { keyboardShortcuts } = require('./commands/keyboard-shortcuts.js');
 const { linkTargetOf, linkedNotePath } = require('./editor/link.js');
 const { liveEditor } = require('./editor/live-editor.js');
 const { menus } = require('./browsing/menus.js');
 const { navigationBar } = require('./navigation/navigation-bar.js');
 const { navigationHistory } = require('./navigation/navigation-history.js');
 const { operations } = require('./notes-folder/operations.js');
-const { paletteCommands } = require('./commands/palette-commands.js');
-const { parentOf, isWithin } = require('./notes-folder/path.js');
+const { PARAGRAPH_STYLES } = require('./editor/paragraph-style.js');
+const { parentOf, isWithin, noteNameOf } = require('./notes-folder/path.js');
 const { relocationLog } = require('./notes-folder/relocation-log.js');
 const { session } = require('./session/session.js');
+const { switcher, inFront } = require('./switcher/switcher.js');
 const { tree } = require('./browsing/tree.js');
 const { FONTS, typefaceOf } = require('./editor/typeface.js');
+
+// The paragraph styles, without the separators of their menu.
+const STYLES = PARAGRAPH_STYLES.filter((style) => style !== '-');
 
 // What stop() waits for: the open note written, its title typed and not yet applied too, so what was typed just before
 // the run ends is kept, and the notes folder no longer watched.
@@ -122,7 +126,6 @@ module.exports = {
         });
         const fileOperations = operations({
             ui,
-            show: deck.show,
             clipboard: deck.clipboard,
             reveal: deck.reveal,
             notesFolder,
@@ -152,7 +155,7 @@ module.exports = {
             openPath: noteSession.path,
             onOpenNote: openNote,
             onFocusTitle: noteSession.focusTitle,
-            onNewNote: (into) => fileOperations.newNote(into),
+            onNewNote: (into) => newNote(into),
             labelFor,
         });
         const dragging = dragAndDrop({ ui, relocations, onMove: (...move) => fileOperations.move(...move) });
@@ -164,7 +167,7 @@ module.exports = {
             acceptDrops: dragging.acceptDrops,
             onOpenNote: (path, options) => openNote(path, options),
             onOpenFolder: (path) => showFolder(path),
-            onNewNote: () => fileOperations.newNote(currentFolder()),
+            onNewNote: () => newNote(currentFolder()),
             onNewFolder: () => fileOperations.newFolder(currentFolder()),
         };
         const galleryNavigation = navigationBarFor();
@@ -235,34 +238,123 @@ module.exports = {
                 notesFolder.watch(false).catch(() => {});
             },
         });
-        deck.keys(
-            keyboardShortcuts({
-                editor,
-                onNewNote: browsing.onNewNote,
-                onNewFolder: browsing.onNewFolder,
-                onTrash: () => {
-                    if (place.kind === 'note') fileOperations.trashNote(place.path);
-                    else if (place.path) fileOperations.trashFolder(place.path);
+        const newNoteHere = () => newNote(currentFolder());
+        const newFolder = () => fileOperations.newFolder(currentFolder());
+        deck.commands({
+            'new-note': {
+                description: 'Makes a note in the folder in front and opens it, its name selected to type over.',
+                run: async () => {
+                    await fileOperations.newNote(currentFolder());
                 },
-                onSearch: async () => {
-                    if (place.kind === 'note' && !(await showFolder(currentFolder()))) return;
-                    notesGallery.focusSearch();
+            },
+            open: {
+                description: 'Opens a note.',
+                params: { type: 'object', properties: { id: { type: 'string', title: 'Note' } }, required: ['id'] },
+                run: openNoteOf,
+                complete: (_param, partial, { signal }) => notesFound(partial, { searchNotes, allNotes, signal }),
+            },
+            'show-folder': {
+                description: 'Shows the gallery of a folder.',
+                params: {
+                    type: 'object',
+                    properties: { path: { type: 'string', title: 'Folder' } },
+                    required: ['path'],
                 },
-                onBack: () => placeHistory.goBack(),
-                onForward: () => placeHistory.goForward(),
-            })
-        );
-        deck.commands(() =>
-            paletteCommands({
+                run: showFolderOf,
+                complete: (_param, partial) => foldersFound(partial, { allNotes, util }),
+            },
+        });
+        deck.keys({
+            newNote: { label: 'New Note', key: 'mod+n', run: newNoteHere },
+            newFolder: { label: 'New Folder', key: 'mod+shift+n', run: newFolder },
+            // While a text field has focus, ⌘⌫ stays the field's (delete to line start).
+            trash: { label: 'Move to Trash', key: 'mod+backspace', run: trash },
+            search: { label: 'Search in Gallery', key: 'mod+f', run: searchInGallery },
+            back: { label: 'Back', key: 'mod+[', run: goBack },
+            forward: { label: 'Forward', key: 'mod+]', run: goForward },
+            title: styleKey('title', 'mod+shift+t'),
+            heading: styleKey('heading', 'mod+shift+h'),
+            subheading: styleKey('subheading', 'mod+shift+j'),
+            body: styleKey('body', 'mod+shift+b'),
+            monospaced: styleKey('monospaced', 'mod+shift+m'),
+            bulletedList: styleKey('bulletedList', 'mod+shift+7'),
+            numberedList: styleKey('numberedList', 'mod+shift+9'),
+            checklist: styleKey('checklist', 'mod+shift+l'),
+            markChecked: { label: 'Mark as Checked', key: 'mod+shift+u', run: markChecked },
+            blockQuote: styleKey('blockQuote', "mod+'"),
+        });
+        deck.extends.switcher({
+            actions: switcher({
                 ui,
+                util,
+                allNotes: () => allNotes,
+                notesOf: (query, { signal }) => notesFound(query, { searchNotes, allNotes, signal }),
+                styles: STYLES,
                 show: deck.show,
-                searchNotes,
-                allNotes,
-                onNewNote: browsing.onNewNote,
-                onOpenNote: openNote,
-                onShowFolder: showFolder,
-            })
-        );
+                does: {
+                    open: openNoteOf,
+                    'show-folder': showFolderOf,
+                    search: searchInGallery,
+                    ...inFront({
+                        'new-note': newNoteHere,
+                        'new-folder': newFolder,
+                        trash,
+                        back: goBack,
+                        forward: goForward,
+                        'paragraph-style': ({ style }) => setParagraphStyle(style),
+                        'mark-checked': markChecked,
+                    }),
+                },
+            }),
+        });
+
+        // `ready()` is told once the note is reached.
+        async function openNoteOf({ id }, { ready = () => {} } = {}) {
+            if (!(await openNote(id))) throw new Error(`Could not open ${noteNameOf(id)}`);
+            ready();
+        }
+
+        // `ready()` is told once the folder is reached.
+        async function showFolderOf({ path }, { ready = () => {} } = {}) {
+            if (!(await showFolder(path))) throw new Error(`Could not show ${path || 'All Notes'}`);
+            ready();
+        }
+
+        function trash() {
+            if (place.kind === 'folder' && !place.path)
+                throw new Error('Open a note or a folder to move it to the Trash');
+            if (place.kind === 'note') fileOperations.trashNote(place.path);
+            else fileOperations.trashFolder(place.path);
+        }
+
+        // `ready()` is told once the gallery is shown.
+        async function searchInGallery(args, { ready = () => {} } = {}) {
+            if (place.kind === 'note' && !(await showFolder(currentFolder())))
+                throw new Error('Could not show the gallery');
+            ready();
+            notesGallery.focusSearch();
+        }
+
+        function goBack() {
+            if (!placeHistory.canGoBack()) throw new Error('There is nothing to go back to');
+            placeHistory.goBack();
+        }
+
+        function goForward() {
+            if (!placeHistory.canGoForward()) throw new Error('There is nothing to go forward to');
+            placeHistory.goForward();
+        }
+
+        function setParagraphStyle(style) {
+            if (!STYLES.some(({ key }) => key === style)) throw new Error(`There is no paragraph style ${style}`);
+            whileWriting();
+            editor.setParagraphStyle(style);
+        }
+
+        function markChecked() {
+            whileWriting();
+            editor.toggleChecked();
+        }
 
         // Stopped in the main process when `signal` aborts.
         async function searchNotes(query, { signal }) {
@@ -368,6 +460,12 @@ module.exports = {
             drawPlace();
         }
 
+        // Made on screen, where its name is typed.
+        function newNote(into) {
+            deck.show();
+            return fileOperations.newNote(into);
+        }
+
         // A note made here opens with its name selected, to be typed over.
         async function noteMade(path) {
             if (!(await openNote(path))) return;
@@ -424,6 +522,16 @@ module.exports = {
                 onGo: (path) => showFolder(path),
                 acceptDrops: dragging.acceptDrops,
             });
+        }
+
+        // Only while the note holds the cursor: elsewhere a text key would change a line nobody is looking at.
+        function whileWriting() {
+            if (!editor.holdsFocus()) throw new Error('Put the cursor in a note first');
+        }
+
+        function styleKey(style, key) {
+            const { label } = STYLES.find((each) => each.key === style);
+            return { label, key, run: () => setParagraphStyle(style) };
         }
 
         function currentTypeface() {

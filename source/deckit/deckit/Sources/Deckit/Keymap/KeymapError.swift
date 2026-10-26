@@ -11,7 +11,9 @@ import Deck
 public enum KeymapError: Refusal, Equatable {
     case noSuchBinding(String)
     case notAChord(String)
-    case cannotBeGlobal(label: String)
+    case cannotWork(label: String, scope: KeyScope)
+    case notAHost(String)
+    case noLabel(String)
 
     // MARK: - Property
     public var message: String {
@@ -22,8 +24,14 @@ public enum KeymapError: Refusal, Equatable {
         case let .notAChord(spec):
             "not a chord: \(spec)"
 
-        case let .cannotBeGlobal(label):
-            "\(label) cannot work everywhere: \(Keystroke.globalRule)"
+        case let .cannotWork(label, scope):
+            "\(label) cannot work \(scope.phrase): \(Keystroke.wideRule)"
+
+        case let .notAHost(provider):
+            "\"\(provider)\" is no host's name: a host's name starts with @"
+
+        case let .noLabel(name):
+            "key \"\(name)\" cannot be used: it needs a \"label\""
         }
     }
 

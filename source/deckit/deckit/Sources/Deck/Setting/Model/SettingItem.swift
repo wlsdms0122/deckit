@@ -11,7 +11,7 @@ import Foundation
 public struct SettingItem: Sendable {
     // MARK: - Property
     public let declaration: SettingDeclaration
-    // What was saved, over what was declared by default; none for an action.
+    // What was saved, over what was declared by default, or none.
     public let value: SettingValue?
     public let options: [SettingOption]
 

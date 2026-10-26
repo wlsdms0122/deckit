@@ -14,14 +14,16 @@ public struct Permission: Equatable, Sendable {
     public let id: String
     public let name: String
     public let means: String
-    public let reach: PermissionReach
+    // The id's prefix says it: `system.` past the app, any other inside it.
+    public var reach: PermissionReach {
+        id.hasPrefix("system.") ? .system : .app
+    }
 
     // MARK: - Initializer
-    public init(id: String, name: String, means: String, reach: PermissionReach) {
+    public init(id: String, name: String, means: String) {
         self.id = id
         self.name = name
         self.means = means
-        self.reach = reach
     }
 
     // MARK: - Public

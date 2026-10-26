@@ -203,7 +203,7 @@ public final class Catalog {
             problem: problem,
             hides: [],
             revision: revision.joined(separator: "\n"),
-            dependencies: [],
+            relations: [],
             dependents: [],
             entry: manifest.main.flatMap { main in modFolder.entry(of: source, main: main) }
         )

@@ -75,8 +75,7 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
             fail,
         });
         SETTINGS.declare(RUN.number, entry.settings);
-        const optional = EXPORT.optionalOf();
-        const requires = await EXPORT.requiresOf(optional);
+        const requires = await EXPORT.requiresOf();
         if (!requires) {
             made.reject(new Error(`${mod.id} did not start`));
             return RUN.notStarted();
@@ -87,7 +86,6 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
             given,
             settings,
             requires,
-            optional: optional.handles,
             register: registry.register,
             extensionPoint: registry.extensionPoint,
         });
@@ -114,7 +112,7 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
             return RUN.notStarted();
         }
         EXPORT.answer(parts.exports);
-        EXTENSION.answer(parts.extend, parts.points);
+        EXTENSION.answer(parts.extensions, parts.points);
         PROTOCOL.started.send({
             run: RUN.number,
             contributions: { ...reported.contributions, ...contributions },
@@ -156,10 +154,13 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
     }
 
     // What start() registers, each once and only while it runs: deck contributes it all when start() ends, and
-    // hands what is on deck what was registered. An extension point is opened once by its name.
+    // hands what is on deck what was registered. An extension point is opened once by its name, and the points of each
+    // mod in [extends] are extended once, by `deck.extends[id]`.
     function registryOf(added) {
         const registered = {};
         const points = new Map(); // a point's name -> its handle's own side
+        const extensions = {}; // "<mod id>:<point>" -> the extension
+        const extended = new Set(); // the ids whose points it extended
         let open = true;
         const once = (name, problemOf) => (value) => {
             if (!open) return RUN.fail(`deck.${name}() is called in start(), and start() has ended`);
@@ -169,18 +170,29 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
             registered[name] = value;
         };
         const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
-        const extensions = (value) => {
-            if (!value || typeof value !== 'object') return 'takes { "<mod id>:<point>": extension }';
-            const wrong = Object.entries(value).find(
-                ([point, extension]) => !SCOPED.isScoped(point) || !extension || typeof extension !== 'object'
-            );
-            return wrong ? `takes { "<mod id>:<point>": extension }, not "${wrong[0]}"` : '';
+        const extend = (id) => (value) => {
+            const name = `deck.extends.${id}()`;
+            if (!open) return RUN.fail(`${name} is called in start(), and start() has ended`);
+            if (extended.has(id)) return RUN.fail(`${name} is called once`);
+            const wrong =
+                !value || typeof value !== 'object'
+                    ? ['']
+                    : Object.entries(value).find(
+                          ([point, extension]) => !point || !extension || typeof extension !== 'object'
+                      );
+            if (wrong) return RUN.fail(`${name} takes { <point>: extension }${wrong[0] ? `, not "${wrong[0]}"` : ''}`);
+            extended.add(id);
+            for (const [point, extension] of Object.entries(value))
+                extensions[SCOPED.scopedName(id, point)] = extension;
         };
         return {
             register: {
                 ...Object.fromEntries(Object.entries(added).map(([name, check]) => [name, once(name, check)])),
                 exports: once('exports', table),
-                extend: once('extend', extensions),
+                // Every id, so the core says why of one not in [extends].
+                extends: new Proxy(Object.freeze({}), {
+                    get: (_, id) => (typeof id === 'string' ? extend(id) : undefined),
+                }),
             },
             // A call it refuses is shown on the mod's row like any registration's, and answers a point nothing
             // extends.
@@ -195,15 +207,15 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
                 }
                 return EXTENSION.pointOf(name).handle;
             },
-            // What it registered, by kind, and the points it opens.
+            // What it registered, by kind, the points it opens and what it extends.
             close() {
                 open = false;
-                return { ...registered, points };
+                return { ...registered, points, extensions };
             },
         };
     }
 
-    function deckOf({ given, settings, requires, optional, register, extensionPoint }) {
+    function deckOf({ given, settings, requires, register, extensionPoint }) {
         const { mod } = RUN;
         const has = (permission) => mod.permissions.some(({ id }) => id === permission);
         return Object.freeze({
@@ -213,7 +225,6 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
             settings,
             storage: Object.freeze({ values: STORAGE.values(), records: STORAGE.records(RUN.fail) }),
             requires,
-            optional,
             caller: EXPORT.callerNow,
             ...register,
             extensionPoint,
@@ -237,9 +248,9 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, MODS, modules: M
             exports: copy('deck.exports()', parts.exports || {}),
             extensionPoints: [...parts.points.keys()],
             extensions: Object.fromEntries(
-                Object.entries(parts.extend || {}).map(([point, extension]) => [
+                Object.entries(parts.extensions).map(([point, extension]) => [
                     point,
-                    copy('deck.extend()', extension),
+                    copy(`deck.extends.${SCOPED.modOf(point)}()`, extension),
                 ])
             ),
         };

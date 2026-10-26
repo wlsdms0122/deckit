@@ -1,4 +1,4 @@
-const supervisorView = ({ deck, bot, picker, reveal }) => {
+const supervisorView = ({ deck, bot, picker }) => {
     const { theme, ui } = deck;
     const store = deck.storage.values;
 
@@ -394,21 +394,22 @@ const supervisorView = ({ deck, bot, picker, reveal }) => {
         renderLog();
     };
 
-    // What an action answers is shown only while its session is.
+    // What an action answers, `{ note, failure }`, is shown only while its session is.
     const act = async (action) => {
         actionError = actionNote = '';
-        const owner = session;
+        const target = session;
         let note = '',
             failure = '';
         try {
-            note = (await action(forgeOf(owner)))?.note || '';
+            note = (await action(forgeOf(target)))?.note || '';
         } catch (error) {
             failure = String(error?.message || error);
         }
-        if (owner !== session) return;
+        if (target !== session) return { note, failure };
         actionNote = note;
         actionError = failure;
         await load();
+        return { note, failure };
     };
 
     const render = () => {
@@ -643,13 +644,12 @@ const supervisorView = ({ deck, bot, picker, reveal }) => {
             stopPolling();
         },
 
+        // What is wrong with the main session's daemon, as readouts for the switcher's Now strip, each showing its
+        // services.
         now: async () => {
             const entry = await bot.forge.supervisor.session();
             const { daemon, services, authority, error } = await snapshot(entry);
-            const go = () => {
-                picker.choose(entry.name);
-                reveal();
-            };
+            const value = { action: 'show', view: 'supervisor', session: entry.name };
             if (!daemon) {
                 return [
                     {
@@ -658,7 +658,7 @@ const supervisorView = ({ deck, bot, picker, reveal }) => {
                         icon: ui.icon('power', { size: 18 }),
                         tone: 'alert',
                         attention: true,
-                        run: go,
+                        value,
                     },
                 ];
             }
@@ -671,7 +671,7 @@ const supervisorView = ({ deck, bot, picker, reveal }) => {
                         hint: error,
                         icon: ui.icon('server', { size: 18 }),
                         tone: 'warn',
-                        run: go,
+                        value,
                     },
                 ];
             const bad = services.filter((service) => service.state !== 'running');
@@ -683,22 +683,25 @@ const supervisorView = ({ deck, bot, picker, reveal }) => {
                     icon: ui.icon('server', { size: 18 }),
                     tone: bad.some((service) => service.state === 'failed') ? 'alert' : 'warn',
                     attention: bad.some((service) => service.state === 'failed'),
-                    run: go,
+                    value,
                 },
             ];
         },
 
-        commands: () => [
+        // The chosen session's daemon restarted with its services, or started: a throw says why it could not be.
+        restart: async () => {
+            const { failure } = await act((forge) => forge.restart());
+            if (failure) throw new Error(failure);
+        },
+
+        actions: () => [
             {
                 label: 'Restart Forge',
                 hint: `The ${session} session's daemon, with the services it supervises; started if it is not running`,
                 icon: ui.icon('reload', { size: 16 }),
                 group: 'Forge',
                 keywords: ['forge', '데몬', '재시작', '기동', 'restart', 'start'],
-                run: () => {
-                    reveal();
-                    return act((forge) => forge.restart());
-                },
+                value: { action: 'restart-forge' },
             },
         ],
     };

@@ -7,8 +7,8 @@
 
 import Foundation
 
-// The mods found, joined by what each requires and uses optionally: whether each loads by what it requires, and who
-// requires whom.
+// The mods found, joined by what each requires and extends: whether each loads by what it requires, and who requires
+// whom.
 struct DependencyGraph {
     // MARK: - Property
     private let found: [Mod]
@@ -23,7 +23,7 @@ struct DependencyGraph {
 
     // MARK: - Public
     // A cycle fails every mod in it; then a failure spreads to whoever requires it, until nothing changes. Each lists
-    // what it requires, then its optional dependencies, which stop nothing, and the mods that require it.
+    // what it requires, then the mods whose points it extends, which stop nothing, and the mods that require it.
     func resolved() -> [Mod] {
         var mods = found
         for loop in cycles() {
@@ -52,8 +52,8 @@ struct DependencyGraph {
         let provided = mods
         for place in mods.indices {
             let manifest = mods[place].manifest
-            mods[place].dependencies = dependencies(manifest.requires, optional: false, in: provided)
-                + dependencies(manifest.optional, optional: true, in: provided)
+            mods[place].relations = relations(manifest.requires, kind: .requires, in: provided)
+                + relations(manifest.extends, kind: .extends, in: provided)
             mods[place].dependents = dependents(of: manifest.id, in: provided)
         }
 
@@ -117,15 +117,15 @@ struct DependencyGraph {
         return reached.sorted()
     }
 
-    private func dependencies(_ wanted: [String: String], optional: Bool, in mods: [Mod]) -> [Dependency] {
+    private func relations(_ wanted: [String: String], kind: Relation.Kind, in mods: [Mod]) -> [Relation] {
         wanted.sorted { one, other in one.key < other.key }.map { id, want in
             let provider = places[id].map { place in mods[place] }
-            return Dependency(
+            return Relation(
                 id: id,
+                kind: kind,
                 want: want,
                 name: provider?.manifest.name ?? id,
-                ok: problem(id, want: want, provider: provider) == nil,
-                optional: optional
+                ok: problem(id, want: want, provider: provider) == nil
             )
         }
     }

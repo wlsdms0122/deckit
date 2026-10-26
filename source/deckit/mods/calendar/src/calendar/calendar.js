@@ -1,5 +1,5 @@
 const { accountEditor } = require('../accounts/account-editor.js');
-const { WEEKDAYS, MONTHS, addDays, startOfDay, startOfWeek, clockText } = require('../date/date.js');
+const { WEEKDAYS, MONTHS, addDays, startOfDay, startOfWeek, clockText, dayOf } = require('../date/date.js');
 const { eventDetail } = require('../event-detail/event-detail.js');
 const { monthView } = require('../views/month-view.js');
 const { paintPastNow } = require('../occurrence/paint.js');
@@ -8,7 +8,7 @@ const { readCache } = require('../read-cache/read-cache.js');
 const { reminder } = require('../reminder/reminder.js');
 const { sidebar } = require('../sidebar/sidebar.js');
 const { store } = require('../accounts/store.js');
-const { switcher } = require('../switcher/switcher.js');
+const { switcher, inFront } = require('../switcher/switcher.js');
 const { timeGridView } = require('../views/time-grid-view.js');
 
 const MODES = [
@@ -20,7 +20,7 @@ const MODES = [
 // Calendar: the mode and the day on screen, which it hands to the view that draws them with their occurrences. An
 // account is a provider's: a mod that extends the `accounts` point (README.md) signs it in, keeps what it signed in
 // with, and reads its calendars. Calendar keeps which accounts there are and which of their calendars are shown.
-function calendar({ deck, accountsPoint }) {
+function calendar({ deck, accountsPoint, sendTest }) {
     const { theme, ui, settings } = deck;
     const { values } = deck.storage;
     // A failed write is shown on this mod's row in Settings.
@@ -53,15 +53,23 @@ function calendar({ deck, accountsPoint }) {
     const month = monthView({ ui, detail, onOpenDay: (day) => goTo(day, 'day') });
     const timeGrid = timeGridView({ detail });
     const side = sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, onChange: render });
-    const { now, commands } = switcher({
+    const actions = switcher({
         ui,
-        show: () => deck.show(),
         modes: MODES,
         reminders,
         occurrences: occurrencesBetween,
-        onGoTo: goTo,
-        onMode: setMode,
-        onAddAccount: editor.addAccount,
+        show: deck.show,
+        does: {
+            ...inFront({
+                'show-view': showView,
+                'go-to-today': goToToday,
+                'go-to-date': goToDate,
+                previous: () => shift(-1),
+                next: () => shift(1),
+                'add-account': () => editor.addAccount(),
+            }),
+            'send-test': sendTest,
+        },
     });
 
     const content = document.createElement('div');
@@ -181,16 +189,41 @@ function calendar({ deck, accountsPoint }) {
             visible = false;
             detail.close();
         },
-        keys: {
-            today: { key: 'mod+t', label: 'Go to today', run: () => goTo(new Date()) },
-            dayView: { key: 'mod+1', label: 'Day view', run: () => setMode('day') },
-            weekView: { key: 'mod+2', label: 'Week view', run: () => setMode('week') },
-            monthView: { key: 'mod+3', label: 'Month view', run: () => setMode('month') },
-            previous: { key: 'mod+left', label: 'Previous', run: () => shift(-1) },
-            next: { key: 'mod+right', label: 'Next', run: () => shift(1) },
+        commands: {
+            'go-to-date': {
+                description: 'Shows a day in the view on screen.',
+                params: {
+                    type: 'object',
+                    properties: { date: { type: 'string', title: 'Date', description: 'A day, as YYYY-MM-DD.' } },
+                    required: ['date'],
+                },
+                run: goToDate,
+            },
+            'show-view': {
+                description: 'Shows the day, the week or the month view.',
+                params: {
+                    type: 'object',
+                    properties: {
+                        view: {
+                            type: 'string',
+                            title: 'View',
+                            oneOf: MODES.map(([key, label]) => ({ const: key, title: label })),
+                        },
+                    },
+                    required: ['view'],
+                },
+                run: showView,
+            },
         },
-        now,
-        commands,
+        keys: {
+            today: { label: 'Go to Today', key: 'mod+t', run: goToToday },
+            dayView: { label: 'Day view', key: 'mod+1', run: () => showView({ view: 'day' }) },
+            weekView: { label: 'Week view', key: 'mod+2', run: () => showView({ view: 'week' }) },
+            monthView: { label: 'Month view', key: 'mod+3', run: () => showView({ view: 'month' }) },
+            previous: { label: 'Previous', key: 'mod+left', run: () => shift(-1) },
+            next: { label: 'Next', key: 'mod+right', run: () => shift(1) },
+        },
+        actions,
     };
 
     function tick() {
@@ -311,6 +344,21 @@ function calendar({ deck, accountsPoint }) {
         else cursor = new Date(cursor.getFullYear(), cursor.getMonth() + by, 1);
         render();
         follow();
+    }
+
+    function goToToday() {
+        goTo(new Date());
+    }
+
+    function goToDate({ date }) {
+        const day = dayOf(date);
+        if (!day) throw new Error(`${date} is not a day written as YYYY-MM-DD`);
+        goTo(day);
+    }
+
+    function showView({ view }) {
+        if (!MODES.some(([key]) => key === view)) throw new Error(`Calendar has no ${view} view`);
+        setMode(view);
     }
 
     // Keeps the mode the person chose; only a click on a day number in the grid asks for the day.

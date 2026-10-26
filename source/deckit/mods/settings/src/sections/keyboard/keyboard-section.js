@@ -1,17 +1,22 @@
 const { chip } = require('../../chip/chip.js');
 const { section } = require('../section/section.js');
 
-// The Keyboard section: every mod's shortcuts, recorded anew by a click, with what keeps one from working.
-function keyboardSection({ ui, keymap }) {
+// The Keyboard section: every mod's shortcuts, recorded anew by a click, with what keeps one from working. A card's
+// name and whether it is the app's are its provider's, as `providerOf(id)` tells them.
+function keyboardSection({ ui, keymap, providerOf }) {
     const TITLE = 'Keyboard';
     const KEYWORDS = ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys'];
     const DESCRIPTION =
-        'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Mods may share a chord. A change onto ' +
-        'a chord already in use is not applied until that chord is free.';
-    const SCOPE_NAMES = { global: 'Everywhere', app: 'On any mod' };
+        'Click a shortcut to record a new one: Esc cancels, ⌫ clears it. Of shortcuts on one chord, the one that ' +
+        'works in the fewest places runs there. A change onto a chord another uses in the same places is not ' +
+        'applied until that chord is free.';
+    const SCOPE_NAMES = { global: 'In every app', app: 'Anywhere in the app' };
+    const APP = '@';
 
     let recording = null; // the key a chord is recorded for, and the end of its recording: { id, end }
     let drawAfterRecording = false;
+    let drawing = 0;
+    let providers = new Map(); // a provider's id -> { id, name, host }, as last drawn
     const cardFills = new WeakMap(); // card -> its fill(group)
     const cellFills = new WeakMap(); // shortcut cell -> its fill(shortcut)
 
@@ -52,18 +57,21 @@ function keyboardSection({ ui, keymap }) {
             cursor: pointer;
         }
         .settings-chord[data-unset] { opacity: 0.45; }
-        .settings-chord[data-level='warning'] { border: 1px solid var(--deckit-warn); color: var(--deckit-warn); }
-        .settings-chord[data-level='error'] { border: 1px solid var(--deckit-alert); color: var(--deckit-alert); }
+        .settings-chord[data-conflicts] { border: 1px solid var(--deckit-alert); color: var(--deckit-alert); }
         .settings-chord[data-recording] { border-color: var(--deckit-accent); color: var(--deckit-accent); opacity: 1; }
         .settings-shortcut-line .settings-reset { opacity: 0.6; }
         .settings-shortcut-line .settings-reset[data-unchanged] { opacity: 0; pointer-events: none; }
-        .settings-issue { padding: 0 0 5px; color: var(--deckit-warn); font: 11.5px var(--deckit-font); line-height: 1.45; }
-        .settings-issue[data-error] { color: var(--deckit-alert); }
+        .settings-issue {
+            padding: 0 0 5px;
+            color: var(--deckit-alert);
+            font: 11.5px var(--deckit-font);
+            line-height: 1.45;
+        }
     `);
     const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const conflicts = chip({ ui, text: '' });
     const cards = ui.list({
-        key: (group) => group.owner,
+        key: (group) => group.id,
         create: shortcutCard,
         update: (card, group) => cardFills.get(card)(group),
     });
@@ -75,8 +83,9 @@ function keyboardSection({ ui, keymap }) {
     return { element, title: TITLE, keywords: KEYWORDS, draw, stopRecording };
 
     // While a key is recorded the cards wait, and are drawn once it ends. A key that left the key map, its mod
-    // stopped, ends its recording, as the chord would have no key to go to.
-    function draw(shortcuts) {
+    // stopped, ends its recording, as the chord would have no key to go to. A later drawing that starts while this
+    // one reads the providers draws instead.
+    async function draw(shortcuts) {
         if (recording && shortcuts.some((shortcut) => shortcut.id === recording.id)) {
             drawAfterRecording = true;
             return;
@@ -84,14 +93,24 @@ function keyboardSection({ ui, keymap }) {
         recording?.end();
         recording = null;
         drawAfterRecording = false;
-        const errors = shortcuts.filter((shortcut) => shortcut.issues.some(isError)).length;
-        conflicts.element.textContent = `${errors} conflict${errors === 1 ? '' : 's'}`;
-        conflicts.element.hidden = !errors;
-        const owners = [...new Set(shortcuts.map((shortcut) => shortcut.owner))];
+        const turn = ++drawing;
+        const ids = [
+            ...new Set(
+                shortcuts.flatMap(({ provider, issues }) => [provider, ...issues.map(({ other }) => other.provider)])
+            ),
+        ];
+        const found = await Promise.all(ids.map((id) => providerOf(id)));
+        if (turn !== drawing) return;
+        providers = new Map(found.filter(Boolean).map((provider) => [provider.id, provider]));
+        const conflicted = shortcuts.filter((shortcut) => shortcut.issues.length).length;
+        conflicts.element.textContent = `${conflicted} conflict${conflicted === 1 ? '' : 's'}`;
+        conflicts.element.hidden = !conflicted;
+        // The hosts' keys are the app's: one card under its name.
+        const cardOf = (shortcut) => (providers.get(shortcut.provider)?.host ? APP : shortcut.provider);
         cards.set(
-            owners.map((owner) => {
-                const owned = shortcuts.filter((shortcut) => shortcut.owner === owner);
-                return { owner, name: owned[0].ownerName, shortcuts: owned };
+            [...new Set(shortcuts.map(cardOf))].map((id) => {
+                const held = shortcuts.filter((shortcut) => cardOf(shortcut) === id);
+                return { id, name: providers.get(held[0].provider)?.name || held[0].provider, shortcuts: held };
             })
         );
     }
@@ -178,38 +197,34 @@ function keyboardSection({ ui, keymap }) {
         function fill(shortcut) {
             current = shortcut;
             name.textContent = name.title = shortcut.label;
-            scope.textContent = SCOPE_NAMES[shortcut.scope] || '';
-            scope.hidden = !SCOPE_NAMES[shortcut.scope];
+            scope.textContent =
+                SCOPE_NAMES[shortcut.scope] || (providers.get(shortcut.provider)?.host ? 'On any mod' : '');
+            scope.hidden = !scope.textContent;
             chord.textContent = shortcut.spec ? shortcut.chord : 'None';
             chord.title = shortcut.changed ? `Changed from ${shortcut.defaultChord || 'none'}` : 'Click to change';
             chord.toggleAttribute('data-unset', !shortcut.spec);
             chord.removeAttribute('data-recording');
-            if (shortcut.issues.length) chord.dataset.level = shortcut.issues.some(isError) ? 'error' : 'warning';
-            else delete chord.dataset.level;
+            chord.toggleAttribute('data-conflicts', shortcut.issues.length > 0);
             reset.element.title = `Back to ${shortcut.defaultChord || 'none'}`;
             reset.element.toggleAttribute('data-unchanged', !shortcut.changed);
             for (const note of notes) note.remove();
-            notes = shortcut.issues.map((issue) => {
-                const note = ui.element('div', { className: 'settings-issue', text: issueText(shortcut, issue) });
-                note.toggleAttribute('data-error', isError(issue));
-                return note;
-            });
+            notes = shortcut.issues.map((issue) =>
+                ui.element('div', { className: 'settings-issue', text: issueText(shortcut, issue, providers) })
+            );
             cell.append(...notes);
         }
     }
-
-    function isError(issue) {
-        return issue.level === 'error';
-    }
 }
 
-// What a keystroke does instead, in words, from an issue's facts.
-function issueText(shortcut, { kind, other }) {
-    const name = other.app || other.owner === shortcut.owner ? other.label : `${other.ownerName} ${other.label}`;
+// What a keystroke does instead, in words, from an issue's facts and the providers of the keys.
+function issueText(shortcut, { kind, other }, providers) {
+    const provider = providers.get(other.provider);
+    const name =
+        provider?.host || other.provider === shortcut.provider
+            ? other.label
+            : `${provider?.name || other.provider} ${other.label}`;
     if (kind === 'held') return `Not applied: ${other.chord} is already ${name}`;
-    if (kind === 'shadowed') return `Never runs: ${other.chord} is ${name}`;
-    if (kind === 'hides') return `Hides ${other.label} while ${shortcut.ownerName} is on screen`;
-    return `Not on ${other.ownerName}, where ${other.chord} is ${other.label}`;
+    return `Never runs: ${other.chord} is ${name}`;
 }
 
 module.exports = { keyboardSection };

@@ -23,7 +23,6 @@ extension SettingItem: Encodable {
         case step
         case unit
         case placeholder
-        case button
         case value
         case options
     }
@@ -43,7 +42,6 @@ extension SettingItem: Encodable {
         try container.encodeIfPresent(declaration.step, forKey: .step)
         try container.encodeIfPresent(declaration.unit, forKey: .unit)
         try container.encodeIfPresent(declaration.placeholder, forKey: .placeholder)
-        try container.encodeIfPresent(declaration.button, forKey: .button)
         try container.encodeIfPresent(value, forKey: .value)
         try container.encode(options, forKey: .options)
     }

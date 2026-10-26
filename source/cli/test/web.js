@@ -33,15 +33,15 @@ async function main() {
     const plain = { id: 'plain', permissions: [] };
     const filesPage = { name: 'files page' };
     const plainPage = { name: 'plain page' };
-    const owners = new Map([
+    const mods = new Map([
         [filesPage, files],
         [plainPage, plain],
     ]);
     const activated = new Set();
     const IDENTITY = {
-        modOf: (page) => owners.get(page) || null,
+        modOf: (page) => mods.get(page) || null,
         pageNameOf: () => null,
-        modFrom: (page) => owners.get(page),
+        modFrom: (page) => mods.get(page),
         consumeUserActivation: (page) => activated.delete(page),
         watchPresses: () => {},
     };
@@ -72,7 +72,7 @@ async function main() {
         embed: () => {},
         pageOf: (id) => webPages.get(id) || null,
         holderOf: (page) => ({ embedder: page.embedder, id: page.id, tab: page.id, inPage: true }),
-        sessionOf: (page) => ({ mod: owners.get(page.embedder)?.id, name: 'main' }),
+        sessionOf: (page) => ({ mod: mods.get(page.embedder)?.id, name: 'main' }),
         permissionsChanged: () => changes++,
         openWindow: () => {
             webPages.set(9, windowPage);

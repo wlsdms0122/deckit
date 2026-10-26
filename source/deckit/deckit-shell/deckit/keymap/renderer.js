@@ -1,48 +1,62 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
+import * as KEY_SCOPE from './model/scope.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createKeymap() {
     // MARK: - Property
-    const runs = new Map(); // action -> run
+    const declaredKeys = new Map(); // name -> { run, scope }
     const listeners = new Set();
     let hearing = null; // the recording under way
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's keys, { action: { key, label, run, global } }, as its run contributes them: the core judges each chord.
-    // One with no function to run, or that `problemOf(entry)`, the shell's reason a key would never run, refuses, is
-    // told to `invalid` and left out.
+    // A mod's keys, { name: { label, key, scope, run } }, as its run contributes them: `run()` is what pressing it
+    // does, here, and the core judges each label and chord, and whether the mod may have its scope, `local` when it
+    // names none. One with no function to run or no scope there is, or that `problemOf(entry)`, the shell's reason a
+    // key would never run, asked with its scope, refuses, is told to `invalid` and left out.
     function declare(keys, { invalid, problemOf }) {
         const declared = [];
-        for (const [action, entry] of Object.entries(keys || {})) {
+        for (const [name, entry] of Object.entries(keys || {})) {
             if (typeof entry?.run !== 'function') {
-                invalid(`key "${action}" cannot be used: it needs a function in "run"`);
+                invalid(`key "${name}" cannot be used: it needs a function in "run"`);
                 continue;
             }
-            const never = problemOf(entry);
+            const scope = entry.scope ?? 'local';
+            if (!KEY_SCOPE.SCOPES.includes(scope)) {
+                invalid(`key "${name}" cannot be used: its "scope" is one of ${KEY_SCOPE.SCOPES.join(', ')}`);
+                continue;
+            }
+            const never = problemOf({ ...entry, scope });
             if (never) {
-                invalid(`key "${action}" never runs: ${never}`);
+                invalid(`key "${name}" never runs: ${never}`);
                 continue;
             }
-            runs.set(action, entry.run);
+            declaredKeys.set(name, { run: entry.run, scope });
             declared.push({
-                action,
-                key: String(entry.key ?? ''),
+                name,
                 label: typeof entry.label === 'string' ? entry.label : '',
-                global: !!entry.global,
+                key: String(entry.key ?? ''),
+                scope,
             });
         }
         return declared;
     }
 
-    // `deliver` runs a mod's function and records what it throws. A key pressed while `blocksKeys()` is dropped,
-    // so it cannot act on what is behind a dialog.
-    function hear({ deliver, blocksKeys }) {
-        PROTOCOL.key.on(({ action }) => {
-            if (!blocksKeys() && runs.has(action)) deliver(`key ${action}`, runs.get(action));
+    // A key pressed in the page while `blocksKeys()` is dropped, so it cannot act on what is behind a dialog; one that
+    // works past the page was pressed wherever the person is, and runs. What a key throws is only logged: no one asked
+    // to be told.
+    function hear({ blocksKeys }) {
+        PROTOCOL.key.on(async ({ name }) => {
+            const key = declaredKeys.get(name);
+            if (!key || (!KEY_SCOPE.isWide(key.scope) && blocksKeys())) return;
+            try {
+                await key.run();
+            } catch (error) {
+                console.warn(`[deckit] the key ${name} did not run`, error);
+            }
         });
         PROTOCOL.changed.on(() => {
             for (const listener of listeners) listener();
@@ -61,9 +75,9 @@ export function createKeymap() {
         document.addEventListener('focusout', tell);
     }
 
-    // The chord one of the mod's keys is bound to now, or with `app`, one the app registered.
-    function chord(action, { app = false } = {}) {
-        return PROTOCOL.chord.invoke({ action: String(action), app });
+    // The chord one of the mod's keys is bound to now, or with `provider`, one that host registered.
+    function chord(name, { provider = '' } = {}) {
+        return PROTOCOL.chord.invoke({ name: String(name), ...(provider ? { provider } : {}) });
     }
 
     function bindings() {

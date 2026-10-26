@@ -1,8 +1,10 @@
 const { section } = require('../section/section.js');
 
-// The Mod Settings section: a card per mod that declares settings, a control per setting. `onFailure` hears a
-// change that did not apply.
-function modSettingsSection({ ui, modSettings, onFailure }) {
+// The Mod Settings section: a card per mod that declares settings or adds buttons through `actions`, the point
+// `settings:actions`, a control per setting and a row per button. A button gives its value to the `run` of its mod's
+// extension and shows under it the text that answers; `nameOf(mod)` names a card that has only buttons. `onFailure`
+// hears a change that did not apply.
+function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
     const TITLE = 'Mod Settings';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
@@ -45,10 +47,11 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
         let read = null;
         let failure = '';
         try {
-            read = (await modSettings.list()).map((group) => ({
-                ...group,
-                items: group.items.map(withDefaults),
-            }));
+            const [settings, buttons] = await Promise.all([modSettings.list(), buttonsOf()]);
+            read = withButtons(
+                settings.map((group) => ({ ...group, items: group.items.map(withDefaults) })),
+                buttons
+            );
         } catch (error) {
             failure = error.message;
         }
@@ -61,6 +64,39 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
         groups = read;
         cards.set(read);
         showMessage(read.length ? '' : 'No mod has settings.');
+    }
+
+    // The buttons each mod adds, `[mod id, buttons]`, each `{ button, hint, after, runs }`: `runs` is `{ mod, value }`,
+    // the value that mod's `run` is given, and `after` the key of the setting it follows.
+    function buttonsOf() {
+        return Promise.all(
+            Object.entries(actions.extensions()).map(async ([mod, extension]) => {
+                try {
+                    const given = typeof extension.list === 'function' ? await extension.list() : [];
+                    return [mod, (Array.isArray(given) ? given : []).map((action) => buttonOf(mod, action))];
+                } catch (error) {
+                    console.error(`[settings] ${mod}'s actions answered nothing`, error);
+                    return [mod, []];
+                }
+            })
+        ).then((read) => read.map(([mod, buttons]) => [mod, buttons.filter(Boolean)]));
+    }
+
+    // Each button follows the setting it names, in the order its mod gave them, and the rest end the card. A mod with
+    // buttons and no settings has a card of its own.
+    function withButtons(groups, buttons) {
+        for (const [mod, given] of buttons) {
+            if (!given.length) continue;
+            let group = groups.find((group) => group.id === mod);
+            if (!group) groups.push((group = { id: mod, name: nameOf(mod), items: [] }));
+            const rows = given.map((button, index) => ({ ...button, key: `action\u0000${index}`, label: '' }));
+            const keys = new Set(group.items.map((item) => item.key));
+            group.items = [
+                ...group.items.flatMap((item) => [item, ...rows.filter((row) => row.after === item.key)]),
+                ...rows.filter((row) => !keys.has(row.after)),
+            ];
+        }
+        return groups;
     }
 
     function cardOf(id) {
@@ -120,18 +156,18 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
         function fill(item) {
             current = item;
             label.textContent = item.label;
+            label.hidden = !item.label;
             hint.textContent = item.hint;
             hint.hidden = !item.hint;
             const declared = shapeOf(item);
             if (declared === shape) {
-                // An action has no value: everything it shows is in its shape. A control being typed in keeps what is
+                // A button has no value: everything it shows is in its shape. A control being typed in keeps what is
                 // typed.
-                if (item.type !== 'action' && !control.element.contains(document.activeElement))
-                    control.set(valueOf(item));
+                if (!item.runs && !control.element.contains(document.activeElement)) control.set(valueOf(item));
                 return;
             }
             shape = declared;
-            const made = item.type === 'action' ? actionButton(modId, item, answer) : controlOf(item, change);
+            const made = item.runs ? actionButton(item, answer) : controlOf(item, change);
             if (control) control.element.replaceWith(made.element);
             else row.append(made.element);
             control = made;
@@ -187,15 +223,18 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
         return field;
     }
 
-    function actionButton(modId, item, answer) {
+    function actionButton(item, answer) {
+        const { mod, value } = item.runs;
         return ui.button({
             label: item.button,
-            title: item.label,
             onClick: async () => {
                 answer.hidden = true;
                 let text = '';
                 try {
-                    text = await modSettings.run(modId, item.key);
+                    const extension = actions.extensions()[mod];
+                    if (typeof extension?.run !== 'function') throw new Error(`${nameOf(mod)} is not running`);
+                    const said = await extension.run(value);
+                    text = typeof said === 'string' ? said : '';
                 } catch (error) {
                     text = 'Did not work: ' + error.message;
                 }
@@ -221,12 +260,22 @@ function modSettingsSection({ ui, modSettings, onFailure }) {
         return {
             ...item,
             label: item.label || item.key,
-            button: item.button || item.label || item.key,
             hint: item.hint || '',
             unit: item.unit || '',
             placeholder: item.placeholder || '',
         };
     }
+}
+
+// A button as Settings reads it, or null for one with no label or no value to run.
+function buttonOf(mod, action) {
+    if (typeof action?.button !== 'string' || !action.button || action.value == null) return null;
+    return {
+        button: action.button,
+        hint: typeof action.hint === 'string' ? action.hint : '',
+        after: typeof action.after === 'string' ? action.after : '',
+        runs: { mod, value: action.value },
+    };
 }
 
 module.exports = { modSettingsSection };

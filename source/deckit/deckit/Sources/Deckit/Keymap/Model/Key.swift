@@ -7,28 +7,28 @@
 
 import Foundation
 
-// A key as its owner declares it: the action it runs, its default chord as written, what a person reads it as, and
-// whether it works wherever the keyboard is in the app.
+// A key as its provider declares it: its name among the provider's, what a person reads it as, the chord it is bound to
+// by default and where it works.
 public struct Key: Decodable, Equatable, Sendable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
-        case action
-        case spec = "key"
+        case name
         case label
-        case global
+        case spec = "key"
+        case scope
     }
 
-    public let action: String
-    public let spec: String
+    public let name: String
     public let label: String
-    public let global: Bool
+    public let spec: String
+    public let scope: KeyScope
 
     // MARK: - Initializer
-    public init(action: String, spec: String, label: String, global: Bool) {
-        self.action = action
-        self.spec = spec
+    public init(name: String, label: String, spec: String, scope: KeyScope) {
+        self.name = name
         self.label = label
-        self.global = global
+        self.spec = spec
+        self.scope = scope
     }
 
     // MARK: - Public

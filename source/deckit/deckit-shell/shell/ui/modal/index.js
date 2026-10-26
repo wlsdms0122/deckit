@@ -14,6 +14,7 @@ const STYLE = `
         transition: opacity var(--deckit-base) var(--deckit-easing);
     }
     .deckit-modal[data-align='top'] { align-items: flex-start; padding-top: 12vh; }
+    .deckit-modal[data-align='fill'] { align-items: stretch; background: transparent; }
     .deckit-modal-card {
         box-sizing: border-box;
         max-height: 80vh;
@@ -28,6 +29,17 @@ const STYLE = `
     }
     .deckit-modal[data-bare] .deckit-modal-card { padding: 8px; }
     .deckit-modal[data-state='closed'] .deckit-modal-card { transform: translateY(6px) scale(.99); }
+    .deckit-modal[data-align='fill'] .deckit-modal-card {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-height: none;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .deckit-modal[data-drags] .deckit-modal-card { -webkit-app-region: drag; }
+    .deckit-modal[data-drags] :is(input, textarea, select, button, a) { -webkit-app-region: no-drag; }
     .deckit-modal-title { font: 700 var(--deckit-type-heading); margin-bottom: 12px; }
     .deckit-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 `;
@@ -41,7 +53,9 @@ function make(theme, ui) {
 // MARK: - Private
 // A card over the page that holds every press. `fill(card)` puts the content in and returns what takes the
 // focus. With `chrome`, a title and Cancel and confirm buttons, a label of null leaving its button out; Enter in a
-// text field confirms. `onKey` has a key first and returns whether it took it.
+// text field confirms. `onKey` has a key first and returns whether it took it. `align` is `center`, `top`, or
+// `fill`, the card all the page draws, filling it, its edge the page's. With `drags` the card drags the window it is
+// in where nothing in it is pressed. With `glass` its colour is laid at that strength, for a page over what blurs.
 function modal(
     ui,
     {
@@ -53,6 +67,8 @@ function modal(
         onExtra = null,
         chrome = true,
         align = 'center',
+        drags = false,
+        glass = null,
         width = 'min(420px, calc(100vw - 48px))',
         fill,
         onKey: given = () => false,
@@ -66,9 +82,12 @@ function modal(
     scrim.className = 'deckit-modal';
     scrim.dataset.align = align;
     if (!chrome) scrim.dataset.bare = '';
+    if (drags) scrim.dataset.drags = '';
     const card = document.createElement('div');
     card.className = 'deckit-modal-card';
-    card.style.width = width;
+    if (align !== 'fill') card.style.width = width;
+    if (glass !== null)
+        card.style.background = `color-mix(in srgb, var(--deckit-background) ${glass * 100}%, transparent)`;
     scrim.append(card);
     let closed = false;
     const close = () => {

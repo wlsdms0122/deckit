@@ -166,7 +166,7 @@ function field({
     };
 }
 
-// A number typed or stepped, drawn as the owner sets it. Enter and leaving the field commit what is typed; Escape
+// A number typed or stepped, drawn as the caller sets it. Enter and leaving the field commit what is typed; Escape
 // puts the value back.
 function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = '', onChange } = {}) {
     const element = document.createElement('div');
@@ -179,7 +179,7 @@ function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = 
     const show = () => {
         input.value = String(+current.toFixed(4)) + unit;
     };
-    // Reports what was asked, then shows the value the owner set, or kept.
+    // Reports what was asked, then shows the value the caller set, or kept.
     const commit = (number) => {
         const next = clamp(Number.isFinite(number) ? number : current);
         if (next !== current) onChange?.(next);

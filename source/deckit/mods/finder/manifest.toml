@@ -6,3 +6,8 @@ main = "main.js"
 
 [permissions]
 "system.main-process" = "Lists and watches the folders you browse, draws their icons, shows Quick Look, and makes, renames, moves and trashes files there."
+"system.file-handlers" = "Opens a file in the app that handles it, and shows a file or folder in the macOS Finder."
+"system.clipboard-write" = "Copy Path in a file's or a folder's menu puts its path on the clipboard."
+
+[extends]
+switcher = "1.0.0"

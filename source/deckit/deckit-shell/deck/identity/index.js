@@ -7,7 +7,7 @@ export function createIdentity({ pages: PAGES }) {
     // How long after a person's click or key deck takes what a page does as theirs: deck's own window, as a browser
     // has one for a page's user activation.
     const ACTIVATION_MS = 5000;
-    const owners = new Map(); // page -> { mod }, or { page }, the name of a page that runs no mod
+    const identities = new Map(); // page -> { mod }, or { page }, the name of a page that runs no mod
     const pages = new Map(); // mod id -> its page
     const ends = new Map(); // page -> Set of what undoes what its page set up
     const activated = new WeakMap(); // page -> when a person last pressed a key or the mouse in it
@@ -18,12 +18,12 @@ export function createIdentity({ pages: PAGES }) {
     // MARK: - Public
     // Only main makes the pages a mod runs in and the pages that run none, so who sent a message is known by which
     // page it came from, and never by what the message says. A key is counted before what watches the page's input
-    // after it may take it. A page is held to the address it loads, so it is known as its owner for as long as it is.
-    function add(page, owner) {
-        owners.set(page, owner);
+    // after it may take it. A page is held to the address it loads, so it keeps that identity for as long as it is.
+    function add(page, identity) {
+        identities.set(page, identity);
         PAGES.pin(page);
         watchPresses(page);
-        if (owner.mod) pages.set(owner.mod.id, page);
+        if (identity.mod) pages.set(identity.mod.id, page);
         ends.set(page, new Set());
         // Each undo runs whatever another throws, told how the document ended.
         const end = (undos, ending) => {
@@ -39,8 +39,8 @@ export function createIdentity({ pages: PAGES }) {
             destroyed: () => {
                 end(ends.get(page), { destroyed: true });
                 ends.delete(page);
-                owners.delete(page);
-                if (owner.mod && pages.get(owner.mod.id) === page) pages.delete(owner.mod.id);
+                identities.delete(page);
+                if (identity.mod && pages.get(identity.mod.id) === page) pages.delete(identity.mod.id);
             },
         });
     }
@@ -93,14 +93,9 @@ export function createIdentity({ pages: PAGES }) {
         return held.has(page) || Date.now() - (pointed.get(page) || 0) < ACTIVATION_MS;
     }
 
-    // A press elsewhere that acts in this page, as a command picked in another page runs in the mod's.
-    function passUserActivation(page) {
-        activated.set(page, Date.now());
-    }
-
     // The mod a page runs, or null for one that is not a mod's.
     function modOf(page) {
-        return owners.get(page)?.mod || null;
+        return identities.get(page)?.mod || null;
     }
 
     // The mod that sent this, held to holding `permission` when one is named.
@@ -117,7 +112,7 @@ export function createIdentity({ pages: PAGES }) {
 
     // The name of the page that runs no mod, or null.
     function pageNameOf(page) {
-        return owners.get(page)?.page || null;
+        return identities.get(page)?.page || null;
     }
 
     function pageOf(modId) {
@@ -133,7 +128,6 @@ export function createIdentity({ pages: PAGES }) {
         consumeUserActivation,
         isPressing,
         isPointing,
-        passUserActivation,
         modOf,
         modFrom,
         pageNameOf,

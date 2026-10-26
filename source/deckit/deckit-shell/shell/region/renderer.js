@@ -93,10 +93,10 @@ function seenRect(element) {
     return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
 
-// Why a view's parent is not one a mod may name, or '': a mod it uses, in its [requires] or [optional].
+// Why a view's parent is not one a mod may name, or '': a mod it links, in its [requires] or [extends].
 export function parentProblem(parent, mod) {
     if (parent === undefined || parent === null) return '';
     if (typeof parent !== 'string') return "takes a parent that is a mod's id";
-    if (!MOD.links(mod, parent)) return `names the parent ${parent}, which is in neither [requires] nor [optional]`;
+    if (!MOD.links(mod, parent)) return `names the parent ${parent}, which is in neither [requires] nor [extends]`;
     return '';
 }

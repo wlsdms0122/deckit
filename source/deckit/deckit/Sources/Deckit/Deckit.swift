@@ -35,12 +35,14 @@ public final class Deckit {
             ship: ship,
             sources: sources,
             api: api,
-            permissions: permissions + [Keymap.globalKeys],
+            permissions: permissions + [Keymap.appKeysPermission, Keymap.globalKeysPermission],
             fields: [urlSchemes]
         )
-        let keymap = Keymap(deck: deck, appName: name)
+        let commands = CommandRegistry(deck: deck, hostName: name)
+        let keymap = Keymap(deck: deck, hostName: name)
         let urlRouter = URLRouter(deck: deck, field: urlSchemes, schemeHandlers: schemeHandlers)
         // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
+        deck.add(Layer(problems: { [weak commands] run, mod in commands?.problems(of: run, mod: mod) ?? [] }))
         deck.add(Layer(
             problems: { [weak keymap] run, mod in keymap?.problems(of: run, mod: mod) ?? [] },
             changes: { [weak keymap] in keymap?.changes() ?? [] }
@@ -48,10 +50,18 @@ public final class Deckit {
         deck.add(Layer(problems: { [weak urlRouter] run, mod in urlRouter?.problems(of: run, mod: mod) ?? [] }))
         self.deck = deck
         self.keymap = keymap
-        self.commands = CommandRegistry(deck: deck)
+        self.commands = commands
         self.urlRouter = urlRouter
     }
 
     // MARK: - Public
+    // The provider of `id`: a host that declared a command or registered a key, or a mod deck loads. Nil for neither.
+    public func provider(of id: String) -> Provider? {
+        if let host = (commands.hosts + keymap.hosts).first(where: { host in host.id == id }) { return host }
+        guard let mod = deck.catalog.loading.first(where: { mod in mod.manifest.id == id }) else { return nil }
+
+        return .mod(id: mod.manifest.id, name: mod.manifest.name)
+    }
+
     // MARK: - Private
 }

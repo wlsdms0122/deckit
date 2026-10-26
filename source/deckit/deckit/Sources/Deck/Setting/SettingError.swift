@@ -7,11 +7,9 @@
 
 import Foundation
 
-// Why a setting was not set, or an action not run.
+// Why a setting was not set.
 public enum SettingError: Refusal, Equatable {
     case undeclared(mod: String, key: String)
-    case notAnAction(mod: String, key: String)
-    case isAnAction(String)
     case notOfType(key: String, type: SettingType)
     case notAnOption(key: String, value: SettingValue?)
 
@@ -20,12 +18,6 @@ public enum SettingError: Refusal, Equatable {
         switch self {
         case let .undeclared(mod, key):
             "\(mod) has no setting \"\(key)\""
-
-        case let .notAnAction(mod, key):
-            "\(mod) has no action \"\(key)\""
-
-        case let .isAnAction(key):
-            "\(key) is an action, not a value"
 
         case let .notOfType(key, .toggle):
             "\(key) is on or off"

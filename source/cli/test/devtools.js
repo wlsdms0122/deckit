@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Modifiers: alt 1, ctrl 2, meta 4, shift 8.
+const ALT = 1;
 const CTRL = 2;
 const META = 4;
 const SHIFT = 8;
@@ -187,4 +188,4 @@ function connect({ port, shots }) {
     return { targets, page, pages, compose, thrown, close };
 }
 
-module.exports = { connect, until, sleep, CTRL, META, SHIFT };
+module.exports = { connect, until, sleep, ALT, CTRL, META, SHIFT };

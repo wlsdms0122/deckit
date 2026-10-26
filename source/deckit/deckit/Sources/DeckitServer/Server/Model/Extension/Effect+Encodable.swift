@@ -24,8 +24,6 @@ extension Effect: Encodable {
         case problem
         case summary
         case contributions
-        case dependency
-        case exports
         case name
         case extensions
         case points
@@ -62,12 +60,6 @@ extension Effect: Encodable {
         case let .close(modId):
             try container.encode("close", forKey: .effect)
             try container.encode(modId, forKey: .mod)
-
-        case let .optionalChanged(modId, dependency, exports):
-            try container.encode("optionalChanged", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
-            try container.encode(dependency, forKey: .dependency)
-            try container.encode(exports, forKey: .exports)
 
         case let .extensionsChanged(modId, run, name, extensions):
             try container.encode("extensionsChanged", forKey: .effect)

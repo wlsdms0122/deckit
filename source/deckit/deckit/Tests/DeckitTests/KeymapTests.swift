@@ -17,42 +17,91 @@ struct KeymapTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a mod's keys are those its run contributed, a global one only with system.global-keys")
+    @Test("a mod's keys are those its run contributed, one past its page only with the permission for its scope")
     func modKeysComeFromItsRun() throws {
         // Given
-        try fixture.write("a", permissions: ["system.global-keys"])
-        try fixture.write("b")
+        try fixture.write("a", permissions: ["deckit.app-keys", "system.global-keys"])
+        try fixture.write("b", permissions: ["deckit.app-keys"])
         let sut = try fixture.deckit()
 
         // When
-        let a = try sut.started("a", run: 1, keys: [key("find", "mod+shift+f", global: true), key("next", "mod+j")])
-        let b = try sut.started("b", run: 1, keys: [key("go", "mod+shift+g", global: true), key("bad", "mod+nope")])
+        let a = try sut.started(
+            "a",
+            run: 1,
+            keys: [
+                key("find", "mod+shift+f", scope: .app),
+                key("call", "alt+space", scope: .global),
+                key("next", "mod+j")
+            ]
+        )
+        let b = try sut.started("b", run: 1, keys: [key("go", "mod+shift+g", scope: .global), key("bad", "mod+nope")])
 
         // Then
         let keymap = try #require(a.keymapChange)
         #expect(keymap.line(of: "a.find") == "a.find active")
+        #expect(keymap.line(of: "a.call") == "a.call active")
         #expect(keymap.line(of: "a.next") == "a.next active")
         #expect(b.keymapChange == nil)
-        #expect(b.problem == "key \"go\" cannot be global: that takes the system.global-keys permission")
+        #expect(b.problem == "key \"go\" cannot work in every app: that takes the system.global-keys permission")
     }
 
-    @Test("bindings are listed as a keystroke tries them, and a mod's own key hides the app's in its page")
+    @Test("bindings are listed as a keystroke tries them, the narrowest scope first, and contend only in one scope")
     func keystrokesResolveInOrder() throws {
         // Given
-        try fixture.write("a", permissions: ["system.global-keys"])
+        try fixture.write("a", permissions: ["deckit.app-keys"])
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
-        _ = sut.keymap.register(appKey("back", "mod+["))
+        _ = try register(sut, "switch", "mod+shift+g", scope: .global)
+        _ = try register(sut, "find", "mod+shift+f", scope: .app)
+        _ = try register(sut, "back", "mod+[")
 
         // When
-        let effects = try sut.started("a", run: 1, keys: [key("summon", "mod+shift+g", global: true), key("prev", "mod+[")])
+        let effects = try sut.started(
+            "a",
+            run: 1,
+            keys: [
+                key("summon", "mod+shift+g", scope: .app),
+                key("look", "mod+shift+f", scope: .app),
+                key("prev", "mod+["),
+                key("undo", "mod+z"),
+                key("redo", "mod+z")
+            ]
+        )
 
         // Then
         let keymap = try #require(effects.keymapChange)
-        #expect(keymap.bindings.map(\.binding.id) == ["@app.switch", "a.summon", "a.prev", "@app.back"])
-        #expect(keymap.line(of: "a.summon") == "a.summon active shadowed:@app.switch")
-        #expect(keymap.line(of: "@app.back") == "@app.back active hidden:a.prev")
-        #expect(keymap.line(of: "a.prev") == "a.prev active hides:@app.back")
+        #expect(
+            keymap.bindings.map(\.binding.id)
+                == ["a.prev", "a.undo", "a.redo", "@app.back", "@app.find", "a.summon", "a.look", "@app.switch"]
+        )
+        #expect(keymap.line(of: "a.prev") == "a.prev active")
+        #expect(keymap.line(of: "@app.back") == "@app.back active")
+        #expect(keymap.line(of: "a.summon") == "a.summon active")
+        #expect(keymap.line(of: "@app.switch") == "@app.switch active")
+        #expect(keymap.line(of: "a.look") == "a.look active shadowed:@app.find")
+        #expect(keymap.line(of: "a.redo") == "a.redo active shadowed:a.undo")
+    }
+
+    @Test("a change is held only where a key of its scope has the chord")
+    func changeIsHeldInItsScope() throws {
+        // Given
+        try fixture.write("a")
+        let sut = try fixture.deckit()
+        _ = try register(sut, "switch", "alt+space", scope: .global)
+        _ = try register(sut, "back", "mod+[")
+        _ = try sut.started("a", run: 1, keys: [key("prev", "mod+j")])
+
+        // When
+        let narrower = try sut.keymap.bind("a.prev", spec: "alt+space")
+        let same = try sut.keymap.bind("a.prev", spec: "mod+[")
+
+        // Then
+        #expect(narrower.line(of: "a.prev") == "a.prev active")
+        #expect(same.line(of: "a.prev") == "a.prev active")
+        #expect(try sut.keymap.bind("@app.back", spec: "alt+space").line(of: "@app.back") == "@app.back active")
+        #expect(try sut.keymap.bind("@app.back", spec: "mod+k").line(of: "@app.back") == "@app.back active")
+        _ = try register(sut, "forward", "mod+j")
+        let held = try sut.keymap.bind("@app.forward", spec: "mod+k")
+        #expect(held.line(of: "@app.forward") == "@app.forward inactive held:@app.back")
     }
 
     @Test("a change landing on a chord taken is held, by the order changes were made in, which a restart keeps")
@@ -60,7 +109,7 @@ struct KeymapTests {
         // Given
         let sut = try fixture.deckit()
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
-            _ = sut.keymap.register(appKey(action, chord))
+            _ = try register(sut, action, chord)
         }
 
         // When
@@ -70,7 +119,7 @@ struct KeymapTests {
         let restarted = try fixture.deckit()
         var keymap = ResolvedKeymap(revision: 0, bindings: [])
         for (action, chord) in [("one", "mod+1"), ("two", "mod+2"), ("three", "mod+3")] {
-            keymap = restarted.keymap.register(appKey(action, chord))
+            keymap = try register(restarted, action, chord)
         }
 
         // Then
@@ -84,7 +133,7 @@ struct KeymapTests {
     func bindingGoesBackToItsDefault(resets: Bool) throws {
         // Given
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("one", "mod+1"))
+        _ = try register(sut, "one", "mod+1")
         _ = try sut.keymap.bind("@app.one", spec: "cmd+9")
 
         // When
@@ -101,13 +150,13 @@ struct KeymapTests {
         arguments: [
             ("@app.none", "cmd+1", KeymapError.noSuchBinding("@app.none")),
             ("@app.switch", "cmd+nope", .notAChord("cmd+nope")),
-            ("@app.switch", "cmd+c", .cannotBeGlobal(label: "⌘C"))
+            ("@app.switch", "cmd+c", .cannotWork(label: "⌘C", scope: .global))
         ]
     )
     func bindRefuses(id: String, spec: String, refusal: KeymapError) throws {
         // Given
         let sut = try fixture.deckit()
-        _ = sut.keymap.register(appKey("switch", "mod+shift+g", global: true))
+        _ = try register(sut, "switch", "mod+shift+g", scope: .global)
 
         // When
         let bound = Result { try sut.keymap.bind(id, spec: spec) }
@@ -132,14 +181,64 @@ struct KeymapTests {
         #expect(try #require(ended.keymapChange).bindings.isEmpty)
     }
 
+    @Test("a key needs a label and a chord, and a host's are registered under a name that starts with @")
+    func keyNeedsALabel() throws {
+        // Given
+        try fixture.write("a")
+        let sut = try fixture.deckit()
+        let unlabeled = JSONValue.object([
+            "name": .string("new"),
+            "key": .string("mod+n"),
+            "label": .string(""),
+            "scope": .string("local")
+        ])
+
+        // When
+        let a = try sut.started("a", run: 1, keys: [key("tab1", "mod+1"), unlabeled])
+        let unnamed = Result { try sut.keymap.register(Key(name: "go", label: "Go", spec: "mod+g", scope: .local), provider: "app") }
+        let blank = Result { try sut.keymap.register(Key(name: "go", label: "", spec: "mod+g", scope: .local), provider: "@app") }
+
+        // Then
+        let keymap = try #require(a.keymapChange)
+        #expect(keymap.bindings.map { resolved in "\(resolved.binding.id) \(resolved.binding.label)" } == ["a.tab1 Tab1"])
+        #expect(a.problem == KeymapError.noLabel("new").message)
+        #expect(throws: KeymapError.notAHost("app")) { try unnamed.get() }
+        #expect(throws: KeymapError.noLabel("go")) { try blank.get() }
+    }
+
+    @Test("a host's key registered again by its name takes the place of the one before")
+    func registeredAgain() throws {
+        // Given
+        let sut = try fixture.deckit()
+        _ = try register(sut, "find", "mod+f")
+
+        // When
+        let keymap = try register(sut, "find", "mod+shift+f")
+
+        // Then
+        #expect(keymap.bindings.map { resolved in "\(resolved.binding.id) \(resolved.binding.keystroke?.spec ?? "")" } == ["@app.find shift+cmd+f"])
+    }
+
     // MARK: - Private
     // A key as a run contributes it.
-    private func key(_ action: String, _ spec: String, global: Bool = false) -> JSONValue {
-        .object(["action": .string(action), "key": .string(spec), "label": .string(""), "global": .bool(global)])
+    private func key(_ name: String, _ spec: String, scope: KeyScope = .local) -> JSONValue {
+        .object(
+            [
+                "name": .string(name),
+                "label": .string(name.capitalized),
+                "key": .string(spec),
+                "scope": .string(scope.rawValue)
+            ]
+        )
     }
 
     // A key as the app registers it.
-    private func appKey(_ action: String, _ spec: String, global: Bool = false) -> Key {
-        Key(action: action, spec: spec, label: "", global: global)
+    private func register(
+        _ sut: Deckit,
+        _ name: String,
+        _ spec: String,
+        scope: KeyScope = .local
+    ) throws -> ResolvedKeymap {
+        try sut.keymap.register(Key(name: name, label: name.capitalized, spec: spec, scope: scope), provider: "@app")
     }
 }

@@ -5,8 +5,8 @@ import * as MOD_PERMISSION from '../mod/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// The mods' settings, as the core judges and keeps them: what only a mod's page knows, the options it works out and
-// its actions, is asked of the page here and handed to the core.
+// The mods' settings, as the core judges and keeps them: what only a mod's page knows, the options it works out, is
+// asked of the page here and handed to the core.
 export function createSetting({ CORE, LOG, IDENTITY, RUNNER }) {
     // MARK: - Property
     // How long a mod has to work out a setting's options: a mod still starting answers once it has.
@@ -32,10 +32,6 @@ export function createSetting({ CORE, LOG, IDENTITY, RUNNER }) {
         PROTOCOL.setModSetting.handle(({ mod, key, value }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MOD_SETTINGS);
             return set(mod, key, value);
-        });
-        PROTOCOL.runModSetting.handle(({ mod, key }, sender) => {
-            IDENTITY.modFrom(sender, MOD_PERMISSION.MOD_SETTINGS);
-            return runAction(mod, key);
         });
     }
 
@@ -64,13 +60,6 @@ export function createSetting({ CORE, LOG, IDENTITY, RUNNER }) {
     async function optionsOf(modId, key) {
         const page = IDENTITY.pageOf(modId);
         return page ? PROTOCOL.settingOptions.invoke(page, { key }, { timeout: OPTIONS_LIMIT_MS }) : [];
-    }
-
-    async function runAction(modId, key) {
-        await CORE.request('setting/action', { mod: modId, key });
-        const page = IDENTITY.pageOf(modId);
-        if (!page) throw new Error(`${modId} is not running`);
-        return PROTOCOL.runSetting.invoke(page, { key });
     }
 
     return { start };

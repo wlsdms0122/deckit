@@ -21,8 +21,6 @@ public enum Effect: Sendable {
     case stop(modId: String, number: Int)
     // Close the mod's sandbox, which runs no more.
     case close(modId: String)
-    // Tell the mod's run what an optional dependency of its exports to it now, or that it exports nothing.
-    case optionalChanged(modId: String, dependency: String, exports: Snapshot?)
     // Tell the mod's `run`th run what extends its extension point `name` now, by the id of the mod that extends it.
     case extensionsChanged(modId: String, run: Int, name: String, extensions: [String: Snapshot])
     // The scoped names of the points the mod extends now.

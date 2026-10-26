@@ -23,8 +23,7 @@ extension Permission: Codable {
         self.init(
             id: try container.decode(String.self, forKey: .id),
             name: try container.decode(String.self, forKey: .name),
-            means: try container.decode(String.self, forKey: .means),
-            reach: try container.decode(PermissionReach.self, forKey: .reach)
+            means: try container.decode(String.self, forKey: .means)
         )
     }
 

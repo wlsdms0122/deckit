@@ -10,16 +10,10 @@ export const setSetting = CHANNEL.pageToMain(
 );
 export const settingChanged = CHANNEL.mainToPage('deckit-shell:setting-changed');
 export const settingOptions = CHANNEL.mainToPage('deckit-shell:setting-options', { reply: true });
-export const runSetting = CHANNEL.mainToPage('deckit-shell:setting-run', { reply: true });
 // deckit.mod-settings
 export const modSettings = CHANNEL.pageToMain('deckit-shell:mod-settings', {}, { reply: true });
 export const setModSetting = CHANNEL.pageToMain(
     'deckit-shell:mod-settings-set',
     { mod: 'string', key: 'string', value: 'any' },
-    { reply: true }
-);
-export const runModSetting = CHANNEL.pageToMain(
-    'deckit-shell:mod-settings-run',
-    { mod: 'string', key: 'string' },
     { reply: true }
 );

@@ -244,7 +244,7 @@ struct ServerTests {
     @Test("initialize refuses a permission defined twice")
     func initializeRefusesPermissionDefinedTwice() throws {
         // Given
-        let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them.","reach":"app"}"#
+        let permission = #"{"id":"deckit.mods","name":"Mods","means":"All of them."}"#
 
         // When
         let response = try send(
@@ -298,8 +298,8 @@ struct ServerTests {
         // When
         let response = try send(#"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":\#(started)}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/load","params":{"mods":["google"]}}"#, to: sut)
-        let dependencies = try send(
-            #"{"jsonrpc":"2.0","id":6,"method":"export/dependencies","params":{"mod":"google","run":1}}"#,
+        let requires = try send(
+            #"{"jsonrpc":"2.0","id":6,"method":"export/requires","params":{"mod":"google","run":1}}"#,
             to: sut
         )
 
@@ -313,7 +313,7 @@ struct ServerTests {
         #expect(value(in: told, at: "contributions", "styles") == .array([.string("a.css")]))
         #expect(value(in: told, at: "contributions", "extensionPoints") == .array([.string("accounts")]))
         #expect(
-            value(in: dependencies, at: "result", "requires", "calendar")
+            value(in: requires, at: "result", "calendar")
                 == (try json(#"{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]}"#))
         )
     }
@@ -351,7 +351,7 @@ struct ServerTests {
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["mail"]}}"#, to: sut)
         let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{},"#
-            + #""handleURL":true,"commands":true}"#
+            + #""handleURL":true,"commands":[{"name":"compose"}]}"#
         _ = try send(
             #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
                 + #""contributions":\#(contributions)}}"#,
@@ -359,9 +359,14 @@ struct ServerTests {
         )
 
         // When
+        let defined = try send(
+            #"{"jsonrpc":"2.0","id":5,"method":"command/define","params":{"provider":"@app","#
+                + #""commands":[{"name":"go"}]}}"#,
+            to: sut
+        )
         let registered = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"action":"go","key":"mod+1","label":"Go","#
-                + #""global":false}}"#,
+            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"provider":"@app","key":{"name":"go","#
+                + #""label":"Go","key":"mod+1","scope":"local"}}}"#,
             to: sut
         )
         let bound = try send(
@@ -374,26 +379,41 @@ struct ServerTests {
             to: sut
         )
         let routed = try send(
-            #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","userInitiated":true,"#
+            #"{"jsonrpc":"2.0","id":8,"method":"open/route","params":{"url":"mailto:a@b.c","opensFiles":true,"#
                 + #""usesDefaultApp":false}}"#,
             to: sut
         )
-        let sources = try send(#"{"jsonrpc":"2.0","id":9,"method":"command/sources"}"#, to: sut)
+        let listed = try send(#"{"jsonrpc":"2.0","id":9,"method":"command/list"}"#, to: sut)
+        let checked = try send(
+            #"{"jsonrpc":"2.0","id":10,"method":"command/check","params":{"provider":"mail","command":"compose"}}"#,
+            to: sut
+        )
+        let provider = try send(
+            #"{"jsonrpc":"2.0","id":11,"method":"provider","params":{"id":"@app"}}"#,
+            to: sut
+        )
+        let nobody = try send(#"{"jsonrpc":"2.0","id":12,"method":"provider","params":{"id":"post"}}"#, to: sut)
 
         // Then
         guard case let .array(bindings)? = value(in: bound, at: "result", "bindings"), let go = bindings.first else {
             Issue.record("no bindings in \(bound)")
             return
         }
+        #expect(value(in: defined, at: "result") == .bool(true))
         #expect(value(in: registered, at: "result", "revision") != nil)
         #expect(value(in: go, at: "id") == .string("@app.go"))
         #expect(value(in: go, at: "spec") == .string("cmd+2"))
         #expect(value(in: set, at: "result") == .bool(true))
         #expect(value(in: routed, at: "result", "handlers") == .array([.string("mail")]))
-        #expect(sources == (try json(
-            #"{"jsonrpc":"2.0","id":9,"result":[{"id":"mail","name":"mail","commands":true,"now":false,"#
-                + #""resolve":false}]}"#
+        #expect(listed == (try json(
+            #"{"jsonrpc":"2.0","id":9,"result":[{"provider":"@app","command":"go","description":"","params":null},"#
+                + #"{"provider":"mail","command":"compose","description":"","params":null}]}"#
         )))
+        #expect(value(in: checked, at: "result", "command") == .string("compose"))
+        #expect(value(in: provider, at: "result") == .object([
+            "id": .string("@app"), "name": .string("Deckit"), "host": .bool(true),
+        ]))
+        #expect(value(in: nobody, at: "result") == .null)
     }
 
     @Test("a setting lists as Settings reads it: the declaration's fields, `default` as declared, value and options")
@@ -431,10 +451,10 @@ struct ServerTests {
     func keymapIsJSON() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        for (id, (action, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
+        for (id, (name, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
             _ = try send(
-                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"action":"\#(action)","#
-                    + #""key":"\#(spec)","label":"","global":false}}"#,
+                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"provider":"@app","#
+                    + #""key":{"name":"\#(name)","label":"\#(name)","key":"\#(spec)","scope":"local"}}}"#,
                 to: sut
             )
         }
@@ -460,11 +480,9 @@ struct ServerTests {
         #expect(value(in: two, at: "changed") == .bool(true))
         #expect(value(in: two, at: "active") == .bool(false))
         #expect(value(in: two, at: "keystroke", "code") == .string("Digit1"))
-        #expect(value(in: held, at: "level") == .string("error"))
         #expect(value(in: held, at: "kind") == .string("held"))
         #expect(value(in: held, at: "other", "id") == .string("@app.one"))
-        #expect(value(in: held, at: "other", "ownerName") == .string("Deckit"))
-        #expect(value(in: held, at: "other", "app") == .bool(true))
+        #expect(value(in: held, at: "other", "provider") == .string("@app"))
     }
 
     @Test("a result that cannot be written is answered with an internal error, never dropped")

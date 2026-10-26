@@ -54,24 +54,30 @@ struct KeystrokeTests {
     }
 
     @Test(
-        "a global chord has ⌘, ⌃ or ⌥, and none a text field uses",
+        "a chord that works past its page has ⌘, ⌃ or ⌥, and none a field with focus takes",
         arguments: [
             ("cmd+shift+g", true),
             ("shift+g", false),
             ("cmd+c", false),
             ("cmd+left", false),
-            ("ctrl+c", true)
+            ("ctrl+c", true),
+            ("ctrl+enter", false),
+            ("alt+shift+enter", false)
         ]
     )
-    func globalChordIsJudged(spec: String, fits: Bool) throws {
+    func wideChordIsJudged(spec: String, fits: Bool) throws {
         // Given
         let sut = try #require(Keystroke(spec: spec))
 
         // When
-        let fitsGlobal = sut.fitsGlobal
+        let fitsApp = sut.fits(.app)
+        let fitsGlobal = sut.fits(.global)
+        let fitsLocal = sut.fits(.local)
 
         // Then
+        #expect(fitsApp == fits)
         #expect(fitsGlobal == fits)
+        #expect(fitsLocal)
     }
 
     @Test(

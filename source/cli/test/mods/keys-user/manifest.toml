@@ -5,5 +5,5 @@ api = "1.0.0"
 main = "main.js"
 
 [permissions]
-"system.global-keys" = "to test a key that works everywhere"
-"deckit.key-map" = "to test binding and recording a chord"
+"deckit.app-keys" = "to test a key that works anywhere in the app"
+"deckit.keymap" = "to test binding and recording a chord"

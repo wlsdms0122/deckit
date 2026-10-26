@@ -20,7 +20,7 @@ extension Mod: Encodable {
         case problem
         case hides
         case revision
-        case dependencies
+        case relations
         case dependents
         case entry
     }
@@ -37,7 +37,7 @@ extension Mod: Encodable {
         try container.encodeIfPresent(problem, forKey: .problem)
         try container.encode(hides.map { hidden in hidden.path(percentEncoded: false) }, forKey: .hides)
         try container.encode(revision, forKey: .revision)
-        try container.encode(dependencies, forKey: .dependencies)
+        try container.encode(relations, forKey: .relations)
         try container.encode(dependents, forKey: .dependents)
         try container.encodeIfPresent(entry?.path(percentEncoded: false), forKey: .entry)
     }

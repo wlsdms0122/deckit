@@ -102,7 +102,7 @@ function menu({ items, anchor = null, point = null, onClose }) {
     return shown;
 }
 
-// One of `options` ({ value, label, font, icon, hint }), chosen from a menu. A choice is reported; the owner sets it.
+// One of `options` ({ value, label, font, icon, hint }), chosen from a menu. A choice is reported; the caller sets it.
 function select({ options, value = null, onChange }) {
     let current = value;
     let choices = options;
@@ -197,7 +197,7 @@ function contextMenu(area, { rowAt, items, keyRow = () => rowAt(document.activeE
     };
 }
 
-// A bar over what its owner acts on: `show(rect)` puts it centred above the rect, or below when only that fits.
+// A bar over what its caller acts on: `show(rect)` puts it centred above the rect, or below when only that fits.
 // A press on it never takes the focus from the text it acts on.
 function floatingToolbar() {
     const element = tag('div', 'deckit-menu deckit-toolbar');
@@ -214,7 +214,7 @@ function floatingToolbar() {
     };
 }
 
-// Candidates under a text its owner edits: the owner moves through them with its own keys. In the page only
+// Candidates under a text its caller edits: the caller moves through them with its own keys. In the page only
 // while open: left in it, it would keep alive whatever its rows hold.
 function autocomplete({ onPick }) {
     const box = tag('div', 'deckit-menu');

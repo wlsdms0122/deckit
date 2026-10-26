@@ -188,6 +188,9 @@ function liveEditor({ theme, ui, match, typeface, chordOf, clipboard, onChange, 
         text: () => (view ? view.state.doc.toString() : ''),
         isOpen: () => !!view,
         hasFocus: () => !!view && view.hasFocus,
+        // The page's focus is in the note, whether or not its window has the keyboard: a command picked in the
+        // switcher's window acts where the person was writing.
+        holdsFocus: () => !!view && view.root.activeElement === view.contentDOM,
         selectionText,
         setTypeface: (next) => {
             currentTypeface = next;

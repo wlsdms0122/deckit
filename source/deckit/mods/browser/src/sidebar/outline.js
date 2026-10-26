@@ -31,7 +31,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
 
     let shownTree = null;
     let shownRows = [];
-    let chosen = null; // the item chosen, as the owner last set it
+    let chosen = null; // the item chosen, as the caller last set it
     let leadKey = null; // the row the keys stand on, when it is not the chosen item's
     const folderRows = new WeakMap(); // row element -> { row, glyph, label, count }
 
@@ -185,7 +185,7 @@ function outline({ ui, describe, createItem, updateItem, nameOf, choose = null, 
         list.set(shownRows);
     }
 
-    // The keys stand on `key`. An item the owner chooses becomes the chosen one, which the owner draws; a press has
+    // The keys stand on `key`. An item the caller chooses becomes the chosen one, which the caller draws; a press has
     // already chosen what it pressed.
     function lead(key, { pressed = false } = {}) {
         const { node } = rowOf(key);

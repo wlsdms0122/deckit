@@ -17,6 +17,7 @@ export function createApi({
     WEB,
     KEYMAP,
     COMMAND,
+    PROVIDER,
     MAIN_PROCESS,
     PAGE,
     SETUP,
@@ -25,7 +26,7 @@ export function createApi({
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
     const facts = new WeakMap(); // a run -> what the host app reads of it
-    const listings = new WeakMap(); // a run that launched -> how it listed its mod, { icon, keywords }
+    const listings = new WeakMap(); // a run that launched -> how it listed its mod: its summary
 
     // MARK: - Initializer
 
@@ -83,7 +84,16 @@ export function createApi({
                 listen: (page, { keys } = {}) => KEYMAP.listen(page, { keys, page: WEB.pageFor(page) }),
                 delegate: KEYMAP.delegate,
             }),
-            commands: Object.freeze({ tones: COMMAND.TONES, session: COMMAND.session }),
+            commands: Object.freeze({
+                define: COMMAND.define,
+                list: COMMAND.list,
+                run: COMMAND.run,
+                complete: (command, param, partial, { args, signal } = {}) =>
+                    COMMAND.complete(command, param, partial, { args, signal }),
+                onChange: COMMAND.onChange,
+            }),
+            // Who declares keys and commands: `provider(id)` answers `{ id, name, host }` or null.
+            provider: PROVIDER.provider,
             permissions: Object.freeze({ define: PERMISSION.define }),
             // What the host app and its shell keep of the person's, in a folder of their own beside deck's state.
             state: STORAGE.stateIn('host'),
@@ -100,11 +110,7 @@ export function createApi({
     function listingOf(id) {
         const run = RUNNER.launchedOf(id);
         if (!run) return null;
-        if (!listings.has(run))
-            listings.set(
-                run,
-                Object.freeze({ icon: run.summary.icon, keywords: Object.freeze([...run.summary.keywords]) })
-            );
+        if (!listings.has(run)) listings.set(run, frozen(run.summary));
         return listings.get(run);
     }
 

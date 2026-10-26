@@ -45,8 +45,9 @@ export function createRegion({ deckit }) {
     // child id -> its rect: the children `parent`'s regions show, of those `shown(id)` lets on screen, laid out.
     function laidOut(parent, shown) {
         const laid = new Map();
-        for (const { parent: owner, rect, child } of every()) {
-            if (owner !== parent || !child || parentOf(child) !== parent || !shown(child)) continue;
+        for (const region of every()) {
+            const { rect, child } = region;
+            if (region.parent !== parent || !child || parentOf(child) !== parent || !shown(child)) continue;
             if (rect.width > 0 && rect.height > 0) laid.set(child, rect);
         }
         return laid;

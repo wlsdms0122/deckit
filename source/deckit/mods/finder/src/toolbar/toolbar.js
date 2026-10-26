@@ -1,7 +1,7 @@
 const { nameOf, parentOf } = require('../path/path.js');
 
 // The bar over the files: back, forward and the enclosing folder, the path, the favorite star, the view menu and the
-// filter. A press reports what it asks for; the owner sets what the bar shows. `onToggleFavorite()` answers whether
+// filter. A press reports what it asks for; the caller sets what the bar shows. `onToggleFavorite()` answers whether
 // it did, and the star then pulses.
 function toolbar({
     ui,

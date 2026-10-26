@@ -38,7 +38,7 @@ const USED = {
         stage: 'function',
     },
     keymap: { register: 'function', chordOf: 'function', listen: 'function', delegate: 'function' },
-    commands: { session: 'function', tones: 'array' },
+    commands: { define: 'function' },
     state: { read: 'function', write: 'function' },
     web: { pageFor: 'function', holdsKeyboard: 'function' },
     log: { warn: 'function' },
@@ -109,13 +109,13 @@ async function main() {
             })
         );
     const environment = standIn(ENVIRONMENT.MAIN);
-    const host = { notificationClicked() {}, restart() {} };
+    const host = { notificationClicked() {}, restart() {}, showWindow() {}, hideWindow() {} };
     // What the build defines as it bundles.
     globalThis.DECKIT_VERSION = '0.0.0';
     globalThis.DECKIT_SOURCE = 'test';
     const SHELL = await import(url('deckit-shell', 'main.js'));
     const uiHost = Object.fromEntries(
-        ['start', 'showsPanel', 'show', 'dismiss', 'summonSwitcher', 'panelTitled'].map((name) => [name, () => {}])
+        ['start', 'showsPanel', 'show', 'dismiss', 'panelTitled'].map((name) => [name, () => {}])
     );
     const early = thrown(() => SHELL.attach({}, { host: uiHost }));
     check('attach before connect is refused, saying so', /attach comes after connect/.test(early), early);

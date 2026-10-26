@@ -1,140 +1,97 @@
-import * as TONE from './model/tone.js';
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/renderer.js';
 import * as DECLARED from './protocol.js';
+import * as CANDIDATE from './model/candidate.js';
+import * as RESULT from './model/result.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createCommand() {
     // MARK: - Property
-    // The functions behind the entries each session was handed, which holds only their ids, until it ends.
-    const sessions = new Map(); // session -> Map of id -> { run, submenu }
-    const ended = new Set(); // sessions whose late answers keep nothing
-    const searching = new Map(); // entry id -> the AbortController of its query in flight
-    let sequence = 0;
+    const own = new Map(); // name -> { run, complete }, of the commands the mod declared
+    const completing = new Map(); // call -> the AbortController of a completion asked of this page
+    const listeners = new Set();
+    let calls = 0;
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod as a source of commands. What it returns is checked here, and an entry with no label is left out and
-    // told to `fail` rather than taking every other mod's search down. A function of the mod's that throws or rejects
-    // is told to `fail` too, and answers nothing.
-    // `icon` is the mod's, which an entry with none of its own is drawn with.
-    function source({ icon, commands, now, resolve, fail }) {
-        const strings = (list) => (Array.isArray(list) ? list.filter((word) => typeof word === 'string' && word) : []);
-
-        const entryOf = (session, command, kind) => {
-            if (typeof command?.label !== 'string' || !command.label) {
-                fail(`a command needs a label (${kind})`);
-                return null;
+    // A mod's commands, { name: { description, params, run(args), complete(param, partial, { args, signal }) } }, as
+    // its run contributes them: the core judges each declaration. One with no function to run is told to `invalid` and
+    // left out. What `run` answers is its result, and a throw is why it did not run, both the caller's to read.
+    function declare(commands, { invalid }) {
+        const declared = [];
+        for (const [name, entry] of Object.entries(commands || {})) {
+            if (typeof entry?.run !== 'function') {
+                invalid(`command "${name}" cannot be used: it needs a function in "run"`);
+                continue;
             }
-            const id = 'entry-' + ++sequence;
-            const submenu = isSubmenu(command.submenu) ? command.submenu : null;
-            localOf(session).set(id, { run: typeof command.run === 'function' ? command.run : null, submenu });
-            return {
-                id,
-                group: typeof command.group === 'string' ? command.group : '',
-                label: command.label,
-                hint: typeof command.hint === 'string' ? command.hint : '',
-                icon: command.icon || icon || '',
-                keywords: strings(command.keywords).join(' '),
-                address: typeof command.address === 'string' ? command.address : '',
-                runnable: typeof command.run === 'function' || !!submenu,
-                submenu: submenu
-                    ? {
-                          placeholder: String(submenu.placeholder || ''),
-                          icon: icon || '',
-                          ranked: typeof submenu.entries === 'function',
-                      }
-                    : null,
-            };
-        };
-
-        PROTOCOL.collect.handle(({ session }) => {
-            const offered = commands?.();
-            return (Array.isArray(offered) ? offered : [])
-                .filter((command) => command && (typeof command.run === 'function' || isSubmenu(command.submenu)))
-                .map((command) => entryOf(session, command, 'command'))
-                .filter(Boolean);
-        });
-        PROTOCOL.collectNow.handle(async ({ session }) => {
-            const rows = await called('now()', () => now?.(), fail);
-            return (Array.isArray(rows) ? rows : [])
-                .map((row) => {
-                    const entry = entryOf(session, row, 'now');
-                    // An intent, not a style: the list decides how it is drawn, and that it stops.
-                    return (
-                        entry && {
-                            ...entry,
-                            tone: TONE.TONES.includes(row.tone) ? row.tone : 'info',
-                            attention: !!row.attention,
-                        }
-                    );
-                })
-                .filter(Boolean);
-        });
-        PROTOCOL.resolve.handle(async ({ session, raw }) => {
-            const found = await called('resolve()', () => resolve(raw), fail);
-            return (Array.isArray(found) ? found : [])
-                .map((command) => {
-                    const entry = entryOf(session, command, 'resolved');
-                    return entry && { ...entry, fallback: !!command.fallback };
-                })
-                .filter(Boolean);
-        });
-        // A search a newer one replaced is aborted and answers null, so its answer never stands for a query.
-        PROTOCOL.search.handle(async ({ session, raw, submenu: id }) => {
-            const submenu = sessions.get(session)?.get(id)?.submenu;
-            if (!submenu) return null;
-            searching.get(id)?.abort();
-            const asked = new AbortController();
-            searching.set(id, asked);
-            let found;
-            try {
-                found =
-                    typeof submenu.search === 'function'
-                        ? await submenu.search(raw, { signal: asked.signal })
-                        : await submenu.entries();
-            } catch (error) {
-                if (!asked.signal.aborted) fail(`a submenu threw: ${error.message || error}`);
-            }
-            if (asked.signal.aborted) return null;
-            searching.delete(id);
-            return (Array.isArray(found) ? found : [])
-                .map((command) => entryOf(session, command, 'submenu'))
-                .filter(Boolean);
-        });
-        // What a command's run returns stays in the page: only that it ran crosses back.
-        PROTOCOL.run.handle(async ({ session, id }) => {
-            const run = sessions.get(session)?.get(id)?.run;
-            if (run) await called("a command's run()", run, fail);
-        });
-        PROTOCOL.end.on(({ session }) => {
-            sessions.delete(session);
-            ended.add(session);
-        });
+            own.set(name, { run: entry.run, complete: typeof entry.complete === 'function' ? entry.complete : null });
+            declared.push({
+                name,
+                ...(typeof entry.description === 'string' ? { description: entry.description } : {}),
+                ...(entry.params !== undefined ? { params: entry.params } : {}),
+            });
+        }
+        answer();
+        return declared;
     }
+
+    // What every mod and host declared, for a mod with deckit.command-registry: `list()`, `run(command, args)` with
+    // `command` `{ provider, command }`, which answers the command's result or null,
+    // `complete(command, param, partial, { args, signal })` and `onChange(listener)`.
+    const registry = Object.freeze({
+        list: () => PROTOCOL.list.invoke({}),
+        run: ({ provider, command }, args) =>
+            PROTOCOL.runOf.invoke({ provider: String(provider), command: String(command), ...argsOf(args) }),
+        complete({ provider, command }, param, partial, { args, signal } = {}) {
+            const call = ++calls;
+            const asked = PROTOCOL.completeOf.invoke({
+                call,
+                provider: String(provider),
+                command: String(command),
+                param: String(param),
+                partial: String(partial ?? ''),
+                ...argsOf(args),
+            });
+            const cancel = () => PROTOCOL.cancel.send({ call });
+            signal?.addEventListener('abort', cancel, { once: true });
+            return asked.finally(() => signal?.removeEventListener('abort', cancel));
+        },
+        onChange(listener) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        },
+    });
 
     // MARK: - Private
-    // A session that ended keeps nothing an answer still on its way hands out.
-    function localOf(session) {
-        if (ended.has(session)) return new Map();
-        if (!sessions.has(session)) sessions.set(session, new Map());
-        return sessions.get(session);
+    function answer() {
+        PROTOCOL.run.handle(async ({ command, args }) => {
+            const run = own.get(command)?.run;
+            if (!run) throw new Error(`no command ${command} runs here`);
+            return RESULT.resultOf(await run(args ?? {}));
+        });
+        // A completion aborted answers null, so its answer never stands for a newer one.
+        PROTOCOL.complete.handle(async ({ call, command, param, partial, args }) => {
+            const complete = own.get(command)?.complete;
+            if (!complete) return [];
+            const asked = new AbortController();
+            completing.set(call, asked);
+            try {
+                const found = await complete(param, partial, { args: args ?? {}, signal: asked.signal });
+                return asked.signal.aborted ? null : CANDIDATE.candidatesOf(found);
+            } finally {
+                completing.delete(call);
+            }
+        });
+        PROTOCOL.abort.on(({ call }) => completing.get(call)?.abort());
+        PROTOCOL.changed.on(() => {
+            for (const listener of listeners) listener();
+        });
     }
 
-    // A mod's function: a throw or a rejection is told to `fail`, and answers nothing.
-    async function called(what, call, fail) {
-        try {
-            return await call();
-        } catch (error) {
-            fail(`${what} threw: ${error.message || error}`);
-            return undefined;
-        }
+    function argsOf(args) {
+        return args && typeof args === 'object' ? { args } : {};
     }
 
-    function isSubmenu(submenu) {
-        return !!submenu && (typeof submenu.search === 'function' || typeof submenu.entries === 'function');
-    }
-
-    return { source };
+    return { declare, registry };
 }

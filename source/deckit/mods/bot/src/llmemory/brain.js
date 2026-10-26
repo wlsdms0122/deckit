@@ -1,7 +1,7 @@
 const { styled } = require('../dom/dom.js');
 const { renderMarkdown } = require('./markdown.js');
 
-const brainView = ({ deck, bot, reveal }) => {
+const brainView = ({ deck, bot }) => {
     const { theme, ui, settings } = deck;
     const store = deck.storage.values;
     const LINK = 'var(--deckit-accent)';
@@ -612,37 +612,26 @@ const brainView = ({ deck, bot, reveal }) => {
         }
     };
 
+    // The notes llmemory finds for `raw` once typing pauses, as values of a command's arg.
     const PAGE_MIN = 2,
         PAGE_LIMIT = 8;
-    const searchSubmenu = (raw, { signal } = {}) => {
+    const notesFor = (raw, { signal } = {}) => {
         const text = String(raw || '').trim();
-        if (!text) return [];
-        const go = (then) => () => {
-            reveal();
-            then();
-        };
-        const searchAll = {
-            label: `Search the brain for “${text}”`,
-            hint: 'Brain',
-            icon: ui.icon('search', { size: 16 }),
-            run: go(() => find(text)),
-        };
-        if (text.length < PAGE_MIN) return [searchAll];
+        if (text.length < PAGE_MIN) return Promise.resolve([]);
         return new Promise((settle, refuse) => {
             const pending = setTimeout(() => {
                 bot.brain
                     .search(text, PAGE_LIMIT)
                     .catch(() => [])
                     .then((found) =>
-                        settle([
-                            ...(found || []).map((result) => ({
-                                label: result.title || result.id,
-                                hint: result.axis,
-                                icon: ui.icon('fileText', { size: 16 }),
-                                run: go(() => read(result.id)),
-                            })),
-                            searchAll,
-                        ])
+                        settle(
+                            (found || []).map((result) => ({
+                                value: result.id,
+                                title: result.title || result.id,
+                                hint: result.axis || '',
+                                keywords: [],
+                            }))
+                        )
                     );
             }, SEARCH_DELAY_MS);
             signal?.addEventListener(
@@ -693,16 +682,9 @@ const brainView = ({ deck, bot, reveal }) => {
             refresh();
             if (current) open(current, false);
         },
-        commands: () => [
-            {
-                label: 'Search the Brain',
-                hint: 'What the bot knows',
-                icon: ui.icon('search', { size: 16 }),
-                group: 'LLMemory',
-                keywords: ['brain', 'memory', 'note', 'search', 'llmemory', '브레인', '기억', '지식', '노트', '검색'],
-                submenu: { placeholder: 'Search the brain', search: searchSubmenu },
-            },
-        ],
+        find,
+        read,
+        notesFor,
     };
 };
 

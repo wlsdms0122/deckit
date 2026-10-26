@@ -13,7 +13,7 @@ struct ManifestReader {
     // MARK: - Property
     let file = "manifest.toml"
 
-    private let ownFields: Set<String> = ["id", "name", "version", "api", "main", "requires", "optional", "permissions"]
+    private let ownFields: Set<String> = ["id", "name", "version", "api", "main", "requires", "extends", "permissions"]
     private let parser = TOMLParser()
     private let store: Store
     private let api: Version
@@ -55,8 +55,8 @@ struct ManifestReader {
             version: string(of: raw["version"]),
             api: string(of: raw["api"]),
             main: string(of: raw["main"]),
-            requires: dependencies(of: raw["requires"]),
-            optional: dependencies(of: raw["optional"]),
+            requires: versions(of: raw["requires"]),
+            extends: versions(of: raw["extends"]),
             permissions: permissions.compactMap { permission in
                 asked[permission.id].map { reason in
                     PermissionRequest(
@@ -107,9 +107,9 @@ struct ManifestReader {
         }
 
         return mainProblem(raw)
-            ?? dependencyProblem(raw, field: "requires")
-            ?? dependencyProblem(raw, field: "optional")
-            ?? optionalProblem(raw, id: id)
+            ?? versionsProblem(raw, field: "requires")
+            ?? versionsProblem(raw, field: "extends")
+            ?? extendsProblem(raw, id: id)
             ?? permissionsProblem(raw)
             ?? fieldsProblem(raw)
     }
@@ -144,7 +144,7 @@ struct ManifestReader {
         return nil
     }
 
-    private func dependencyProblem(_ raw: [String: TOMLValue], field: String) -> String? {
+    private func versionsProblem(_ raw: [String: TOMLValue], field: String) -> String? {
         guard let written = raw[field] else { return nil }
         guard case let .table(table) = written else {
             return "\(field) must be a [\(field)] table of mod id = version"
@@ -162,16 +162,10 @@ struct ManifestReader {
         return nil
     }
 
-    // An optional dependency is neither the mod itself nor one it requires.
-    private func optionalProblem(_ raw: [String: TOMLValue], id: String) -> String? {
-        guard case let .table(optional) = raw["optional"] else { return nil }
-        guard optional[id] == nil else { return "\(id) names itself in [optional]" }
-        guard case let .table(requires) = raw["requires"] else { return nil }
-
-        let both = optional.keys.filter { other in requires[other] != nil }.sorted()
-        guard !both.isEmpty else { return nil }
-
-        return "\(quoted(both)) \(both.count > 1 ? "are" : "is") in both [requires] and [optional]"
+    // A mod has no points of its own to extend.
+    private func extendsProblem(_ raw: [String: TOMLValue], id: String) -> String? {
+        guard case let .table(extends) = raw["extends"], extends[id] != nil else { return nil }
+        return "\(id) names itself in [extends]"
     }
 
     private func permissionsProblem(_ raw: [String: TOMLValue]) -> String? {
@@ -209,7 +203,7 @@ struct ManifestReader {
         return nil
     }
 
-    private func dependencies(of written: TOMLValue?) -> [String: String] {
+    private func versions(of written: TOMLValue?) -> [String: String] {
         guard case let .table(table) = written else { return [:] }
         return table.mapValues(self.written)
     }

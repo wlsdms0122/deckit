@@ -10,20 +10,15 @@ export function createClipboard({ IDENTITY, clipboard: CLIPBOARD }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // From main: a page reaches the clipboard only while it has focus, and a command picked in a page of the shell
-    // runs in a mod's page while that page has it. Copying is everyone's; reading what was copied is
-    // system.clipboard.
+    // From main, by the permission of the mod in the page that asks.
     function start() {
         PROTOCOL.readText.handle((_payload, sender) => {
-            IDENTITY.modFrom(sender, CLIPBOARD_PERMISSION.CLIPBOARD);
+            IDENTITY.modFrom(sender, CLIPBOARD_PERMISSION.CLIPBOARD_READ);
             return CLIPBOARD.readText();
         });
-        // Copying replaces what the person copied, so it is their act: during their click or key in the page.
         PROTOCOL.writeText.handle(({ text }, sender) => {
-            IDENTITY.modFrom(sender);
-            if (!IDENTITY.consumeUserActivation(sender)) return false;
+            IDENTITY.modFrom(sender, CLIPBOARD_PERMISSION.CLIPBOARD_WRITE);
             CLIPBOARD.writeText(text);
-            return true;
         });
     }
 

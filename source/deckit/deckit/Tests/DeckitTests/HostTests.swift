@@ -15,6 +15,7 @@ import Deckit
 struct HostTests {
     // MARK: - Property
     private let root = FileManager.default.temporaryDirectory.appending(path: "host-tests-\(UUID().uuidString)")
+    private let findKey = Key(name: "find", label: "Find", spec: "mod+f", scope: .local)
 
     // MARK: - Initializer
     // MARK: - Test
@@ -24,12 +25,12 @@ struct HostTests {
         let sut = try deckit()
 
         // When
-        let keymap = sut.keymap.register(Key(action: "find", spec: "mod+f", label: "Find", global: false))
+        let keymap = try sut.keymap.register(findKey, provider: "@app")
 
         // Then
         let find = try #require(keymap.bindings.first)
         #expect(find.binding.id == "@app.find")
-        #expect(find.binding.owner.name == "Host")
+        #expect(find.binding.provider.name == "Host")
         #expect(find.binding.keystroke == Keystroke(spec: "mod+f"))
         #expect(find.active)
         #expect(find.issues.isEmpty)
@@ -47,10 +48,10 @@ struct HostTests {
             layers: [
                 "keys": .array([
                     .object([
-                        "action": .string("next"),
-                        "key": .string("mod+j"),
+                        "name": .string("next"),
                         "label": .string("Next"),
-                        "global": .bool(false)
+                        "key": .string("mod+j"),
+                        "scope": .string("local")
                     ])
                 ])
             ]
@@ -65,7 +66,7 @@ struct HostTests {
         }
         let keymap = try #require(changes.last)
         #expect(keymap.bindings.map(\.binding.id) == ["notes.next"])
-        #expect(keymap.bindings.first?.binding.owner.name == "NOTES")
+        #expect(keymap.bindings.first?.binding.provider.name == "NOTES")
     }
 
     @Test("a part kept after the deckit it came from is let go still works")
@@ -74,7 +75,7 @@ struct HostTests {
         let sut = try deckit().keymap
 
         // When
-        let resolved = sut.register(Key(action: "find", spec: "mod+f", label: "Find", global: false))
+        let resolved = try sut.register(findKey, provider: "@app")
 
         // Then
         #expect(resolved.bindings.map(\.binding.id) == ["@app.find"])

@@ -8,16 +8,17 @@ const { fileActions } = require('./open-file/file-actions.js');
 const { fileDisk } = require('./open-file/file-disk.js');
 const { fileOpener } = require('./open-file/file-opener.js');
 const { filePathBar, PATH_BAR_STYLE } = require('./open-file/file-path-bar.js');
+const { filesFound } = require('./candidates/candidates.js');
 const { fileTree, TREE_STYLE } = require('./file-tree/file-tree.js');
 const { findInFile } = require('./code/find-in-file.js');
 const { goToLine } = require('./code/go-to-line.js');
-const { paletteCommands } = require('./command-palette/palette-commands.js');
 const { nameOf, parentOf, isInside, relativePath } = require('./path/path.js');
 const { quickOpen, QUICK_OPEN_STYLE } = require('./quick-open/quick-open.js');
 const { recentFolders } = require('./workspace/recent-folders.js');
 const { replaceMatches } = require('./workspace-search/replace.js');
 const { savedSession } = require('./workspace/saved-session.js');
 const { sidebar, SIDEBAR_STYLE } = require('./workspace/sidebar.js');
+const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabs, TABS_STYLE } = require('./workspace/tabs.js');
 const { treeEntryActions } = require('./file-tree/tree-entry-actions.js');
 const { MONOSPACED_FONTS } = require('./code/typeface.js');
@@ -302,68 +303,120 @@ module.exports = {
             if (opened && !background) deck.show();
             return opened;
         });
-        deck.keys({
-            quickOpen: { key: 'mod+p', label: 'Open Quickly', run: () => quickOpener.show() },
-            showFiles: { key: 'mod+1', label: 'Show the files', run: () => setMode('files') },
-            showFind: { key: 'mod+3', label: 'Show find', run: () => setMode('search') },
-            reveal: {
-                key: 'mod+shift+j',
-                label: 'Reveal in the files',
-                run: () => revealInFiles(workspaces.current()),
+        // Each its own, so a completion of `open`, a search of the switcher and one in Open Quickly do not cancel
+        // each other.
+        const fileRanker = util.ranker({ paths: true });
+        const actionRanker = util.ranker({ paths: true });
+        const noFolder = () => (workspaces.front()?.root ? '' : 'Open a folder first');
+        const noFile = () => (workspaces.current() ? '' : 'No file is open');
+        const openQuickly = () => quickOpener.show();
+        const newFile = when(noFolder, () => createHere('file'));
+        const newFolder = when(noFolder, () => createHere('folder'));
+        const trash = when(
+            () => (workspaces.front()?.tree?.picked() ? '' : 'Pick a file or a folder in the files first'),
+            () => entryActions.trash(workspaces.front(), workspaces.front().tree.picked())
+        );
+        const showFiles = when(noFolder, () => setMode('files'));
+        const reveal = when(
+            () => {
+                const root = workspaces.front()?.root;
+                if (!workspaces.current()) return 'No file is open';
+                return root && isInside(workspaces.current().path, root)
+                    ? ''
+                    : 'The open file is not in the folder in front';
             },
-            openFolder: { key: 'mod+o', label: 'Open a folder', run: () => pickFolder() },
-            openFile: { key: 'mod+alt+o', label: 'Open a file', run: () => pickFiles() },
-            newFile: { key: 'mod+n', label: 'New file', run: () => createHere('file') },
-            newFolder: { key: 'mod+alt+n', label: 'New folder', run: () => createHere('folder') },
-            // Only the row picked in the tree; elsewhere ⌘⌫ is a text field's.
-            trash: {
-                key: 'mod+backspace',
-                label: 'Move to Trash',
-                run: () => {
-                    const entry = workspaces.front()?.tree?.picked();
-                    if (entry) entryActions.trash(workspaces.front(), entry);
+            () => revealInFiles(workspaces.current())
+        );
+        const findInWorkspace = when(noFolder, () => setMode('search'));
+        const previousTab = when(noOtherTab, () => stepTab(-1));
+        const nextTab = when(noOtherTab, () => stepTab(1));
+        const saveFile = when(noFile, () => save(workspaces.current()));
+        const saveAllFiles = () => saveAll(workspaces.files());
+        const closeFile = when(noFile, () => close(workspaces.current()));
+        const findInOpenFile = when(noFile, () => openFind({ replace: false }));
+        const replaceInOpenFile = when(noFile, () => openFind({ replace: true }));
+        const askLine = when(noFile, () => goTo.show(workspaces.current().view));
+        const wrapLines = () => settings.set('wrap', !settings.get('wrap'));
+        deck.commands({
+            open: {
+                description:
+                    'Opens a file of a workspace, the one in front unless its folder is given, without bringing it to the front.',
+                params: {
+                    type: 'object',
+                    properties: {
+                        path: { type: 'string', title: 'File' },
+                        root: { type: 'string', title: 'Workspace' },
+                    },
+                    required: ['path'],
+                },
+                run: (args) => goToFile(args, { background: true }),
+                complete: (_param, partial, { args }) => {
+                    const workspace = args?.root === undefined ? workspaces.front() : workspaces.withRoot(args.root);
+                    return filesFound(workspace, partial, { listFiles: workspaces.listFiles, ranker: fileRanker });
                 },
             },
-            previousTab: { key: 'mod+shift+[', label: 'Previous tab', run: () => stepTab(-1) },
-            nextTab: { key: 'mod+shift+]', label: 'Next tab', run: () => stepTab(1) },
-            save: { key: 'mod+s', label: 'Save', run: () => save(workspaces.current()) },
-            saveAll: { key: 'mod+alt+s', label: 'Save all', run: () => saveAll(workspaces.files()) },
-            closeFile: { key: 'mod+w', label: 'Close file', run: () => close(workspaces.current()) },
-            find: { key: 'mod+f', label: 'Find in file', run: () => openFind({ replace: false }) },
-            replace: { key: 'mod+alt+f', label: 'Replace in file', run: () => openFind({ replace: true }) },
-            searchFolder: { key: 'mod+shift+f', label: 'Find in the workspace', run: () => setMode('search') },
-            goToLine: {
-                key: 'mod+l',
-                label: 'Go to line',
-                run: () => {
-                    const file = workspaces.current();
-                    if (file) goTo.show(file.view);
-                },
-            },
-            wrapLines: {
-                key: 'alt+z',
-                label: 'Wrap lines',
-                run: () => settings.set('wrap', !settings.get('wrap')),
+            'open-folder': {
+                description: 'Opens a folder as a workspace, or brings it to the front; with none given, asks for one.',
+                params: { type: 'object', properties: { path: { type: 'string', title: 'Folder' } } },
+                run: openFolderAt,
             },
         });
-        // Its own, so a search in the switcher's page and one in Open Quickly do not cancel each other.
-        const fileRanker = util.ranker({ paths: true });
-        deck.commands(() =>
-            paletteCommands({
+        deck.keys({
+            quickOpen: { label: 'Open Quickly', key: 'mod+p', run: openQuickly },
+            showFiles: { label: 'Show Files', key: 'mod+1', run: showFiles },
+            showFind: { label: 'Find in Workspace', key: 'mod+3', run: findInWorkspace },
+            reveal: { label: 'Reveal in Files', key: 'mod+shift+j', run: reveal },
+            openFolder: { label: 'Open Folder…', key: 'mod+o', run: () => openFolderAt() },
+            openFile: { label: 'Open File…', key: 'mod+alt+o', run: pickFiles },
+            newFile: { label: 'New File', key: 'mod+n', run: newFile },
+            newFolder: { label: 'New Folder', key: 'mod+alt+n', run: newFolder },
+            // Only the row picked in the tree; elsewhere ⌘⌫ is a text field's.
+            trash: { label: 'Move to Trash', key: 'mod+backspace', run: trash },
+            previousTab: { label: 'Previous Tab', key: 'mod+shift+[', run: previousTab },
+            nextTab: { label: 'Next Tab', key: 'mod+shift+]', run: nextTab },
+            save: { label: 'Save', key: 'mod+s', run: saveFile },
+            saveAll: { label: 'Save All', key: 'mod+alt+s', run: saveAllFiles },
+            closeFile: { label: 'Close File', key: 'mod+w', run: closeFile },
+            find: { label: 'Find in File', key: 'mod+f', run: findInOpenFile },
+            replace: { label: 'Replace in File', key: 'mod+alt+f', run: replaceInOpenFile },
+            searchFolder: { label: 'Find in Workspace', key: 'mod+shift+f', run: findInWorkspace },
+            goToLine: { label: 'Go to Line', key: 'mod+l', run: askLine },
+            wrapLines: { label: 'Wrap Lines', key: 'alt+z', run: wrapLines },
+        });
+        deck.extends.switcher({
+            actions: switcher({
                 ui,
-                show: deck.show,
                 util,
-                fileRanker,
                 workspaces,
                 recentFolders: recent.unopened,
-                onPickFolder: pickFolder,
-                onPickFiles: pickFiles,
-                onCreateFile: () => createHere('file'),
-                onSwitch: switchTo,
-                onOpenFolder: (path) => openFolder(path),
-                onOpen: (path) => open(path),
-            })
-        );
+                filesOf: (workspace, query) =>
+                    filesFound(workspace, query, { listFiles: workspaces.listFiles, ranker: actionRanker }),
+                show: deck.show,
+                does: {
+                    open: goToFile,
+                    'open-folder': openFolderAt,
+                    ...inFront({
+                        'open-quickly': openQuickly,
+                        'open-file': pickFiles,
+                        'new-file': newFile,
+                        'new-folder': newFolder,
+                        trash,
+                        'show-files': showFiles,
+                        'reveal-in-files': reveal,
+                        'find-in-workspace': findInWorkspace,
+                        'previous-tab': previousTab,
+                        'next-tab': nextTab,
+                        save: saveFile,
+                        'save-all': saveAllFiles,
+                        'close-file': closeFile,
+                        'find-in-file': findInOpenFile,
+                        'replace-in-file': replaceInOpenFile,
+                        'go-to-line': askLine,
+                        'wrap-lines': wrapLines,
+                    }),
+                },
+            }),
+        });
 
         function heardDiskState(file) {
             if (disk.isDirty(file)) drafts.keepSoon();
@@ -410,7 +463,7 @@ module.exports = {
         // A file only previewed from the tree, with `preserveFocus`, leaves the keyboard there, for the next row or ⌘⌫.
         function show(file, { preserveFocus = false } = {}) {
             if (!file) return;
-            workspaces.bringToFront(workspaces.ownerOf(file) || workspaces.front(), file);
+            workspaces.bringToFront(workspaces.workspaceOf(file) || workspaces.front(), file);
             paint();
             session.save();
             workspaces.front().tree?.reveal(file.path);
@@ -421,6 +474,40 @@ module.exports = {
             const files = workspaces.front()?.files || [];
             const index = files.indexOf(workspaces.current());
             if (files.length > 1) show(files[(index + by + files.length) % files.length]);
+        }
+
+        function noOtherTab() {
+            return (workspaces.front()?.files.length || 0) > 1 ? '' : 'There is no other tab';
+        }
+
+        // `run` where `unable()`, why it cannot act now, answers '', and else that reason thrown.
+        function when(unable, run) {
+            return () => {
+                const reason = unable();
+                if (reason) throw new Error(reason);
+                return run();
+            };
+        }
+
+        // A file of the workspace `root` names, or of the one in front, brought to the front with its workspace, or
+        // with `background` opened in a tab that does not come to the front. `ready()` is told once it can be done.
+        async function goToFile({ path, root }, { background = false, ready = () => {} } = {}) {
+            const workspace = root === undefined ? null : workspaces.withRoot(root);
+            if (root !== undefined && !workspace) throw new Error(`No workspace is open at ${root}`);
+            if (!path.startsWith('/')) throw new Error(`${path} is not the path of a file`);
+            ready();
+            if (!background) switchTo(workspace);
+            await open(path, { background });
+        }
+
+        // The folder at `path` as a workspace, brought to the front if it is one; with no path, one asked for.
+        // `ready()` is told once it can be done.
+        async function openFolderAt({ path } = {}, { ready = () => {} } = {}) {
+            if (path !== undefined && !path.startsWith('/')) throw new Error(`${path} is not the path of a folder`);
+            ready();
+            if (path === undefined) pickFolder();
+            else if (workspaces.withRoot(path)) switchTo(workspaces.withRoot(path));
+            else await openFolder(path);
         }
 
         function tabMenu(file) {

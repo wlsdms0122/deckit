@@ -5,7 +5,7 @@ const { workflowForm } = require('./workflow-form.js');
 const { listDivider } = require('../pane/list-divider.js');
 const { installContent, actions, section, values, feedback } = require('../pane/content-ui.js');
 
-const workflowsView = ({ deck, bot, picker, reveal }) => {
+const workflowsView = ({ deck, bot, picker }) => {
     const { ui } = deck;
     installContent(ui);
     let form = null,
@@ -132,16 +132,16 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
         selected = name;
         spec = null;
         const request = ++detailRequest,
-            owner = session;
+            target = session;
         paintCatalog();
         paintDetail();
         try {
-            const described = await call(owner, 'describe', { name });
-            if (request !== detailRequest || owner !== session) return;
+            const described = await call(target, 'describe', { name });
+            if (request !== detailRequest || target !== session) return;
             spec = described;
             paintDetail();
         } catch (error) {
-            if (request === detailRequest && owner === session) feedback(notice, error.message, true);
+            if (request === detailRequest && target === session) feedback(notice, error.message, true);
         }
     }
     function paintDetail() {
@@ -170,8 +170,8 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
         }
         if (spec.description) intro.append(muted(spec.description));
         const name = selected,
-            owner = session,
-            key = `${owner}:${name}`;
+            target = session,
+            key = `${target}:${name}`;
         if (!drafts.has(key)) drafts.set(key, {});
         form = workflowForm({ ui, fields: fieldsOf(spec), draft: drafts.get(key) });
         runButton = ui.button({
@@ -181,8 +181,8 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
             onClick: () => {
                 const inputs = form.read();
                 if (inputs === null) return;
-                act(owner, async () => {
-                    const result = await call(owner, 'dispatch', { name, inputs });
+                act(target, async () => {
+                    const result = await call(target, 'dispatch', { name, inputs });
                     return `Dispatched ${name} · ${result.workflow_id}`;
                 });
             },
@@ -211,9 +211,9 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
                 size: 'small',
                 onClick: () => {
                     const run = runParts.get(row).run,
-                        owner = session;
-                    act(owner, async () => {
-                        await call(owner, 'cancel', { id: run.workflow_id });
+                        target = session;
+                    act(target, async () => {
+                        await call(target, 'cancel', { id: run.workflow_id });
                         return `Cancellation requested · ${run.workflow_id}`;
                     });
                 },
@@ -249,23 +249,23 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
             if (part?.run) part.cancel.setEnabled(!busy && available && part.run.state !== 'cancelling');
         }
     }
-    async function act(owner, action) {
+    async function act(target, action) {
         if (busy) return;
         busy = true;
         updateBusy();
         feedback(notice, '');
         try {
             const message = await action();
-            if (owner === session) feedback(notice, message);
+            if (target === session) feedback(notice, message);
         } catch (error) {
-            if (owner === session) {
+            if (target === session) {
                 form?.showError(error.message);
                 feedback(notice, error.message, true);
             }
         } finally {
             busy = false;
             updateBusy();
-            if (owner === session) {
+            if (target === session) {
                 epoch++;
                 refreshing = null;
             }
@@ -337,15 +337,6 @@ const workflowsView = ({ deck, bot, picker, reveal }) => {
             detailRequest++;
             clearTimeout(timer);
         },
-        commands: () => [
-            {
-                label: 'Workflows',
-                hint: 'Browse, run and cancel Forge workflows',
-                icon: ui.icon('list', { size: 16 }),
-                keywords: ['forge', 'workflow', '워크플로우'],
-                run: reveal,
-            },
-        ],
     };
 };
 

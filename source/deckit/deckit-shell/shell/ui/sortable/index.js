@@ -25,7 +25,7 @@ function make(theme) {
 
 // MARK: - Private
 // The rows of a keyed list put in a new order by a drag. The list itself is not reordered: `onReorder(key, toKey)`
-// hears that the item `key` goes where `toKey` is, and the owner draws the new order. Keys, so a change to the
+// hears that the item `key` goes where `toKey` is, and the caller draws the new order. Keys, so a change to the
 // items while the drag holds the list does not move another one. The rows move along the list's axis: down it, or
 // across it when the list is laid out as a flex row. Returns the dispose.
 //
@@ -54,7 +54,7 @@ function sortable(theme, list, { onReorder, depth = null, movesInto = null, onMo
     });
 }
 
-// The row lifted, the others sliding aside as it passes them. The rows are the owner's items as laid out: one that
+// The row lifted, the others sliding aside as it passes them. The rows are the caller's items as laid out: one that
 // is not laid out has no place to move to or from, and one folding away is no longer an item.
 function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto, describe }, finished) {
     const { base, easing } = TOKEN.MOTION;
@@ -198,7 +198,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
         if (to === from) return held[start];
         return to > from ? boxes[to][end] - held[size] : boxes[to][start];
     };
-    // Everything as it was, all at once, so the next frame is the owner's order and nothing in between.
+    // Everything as it was, all at once, so the next frame is the caller's order and nothing in between.
     const restore = () => {
         done = true;
         clearTimeout(timer);
@@ -226,7 +226,7 @@ function lift(theme, keyed, row, down, { onReorder, depth, movesInto, onMoveInto
     };
     return {
         follow,
-        // The list is let go of whatever the owner's reorder does, or every later change would wait on it.
+        // The list is let go of whatever the caller's reorder does, or every later change would wait on it.
         drop: (x, y) => {
             if (out) return endOut((carried) => carried.drop(x, y));
             const intoKey = into >= 0 ? keyOf(rows[into]) : null;

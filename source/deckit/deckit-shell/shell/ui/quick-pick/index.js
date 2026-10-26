@@ -36,6 +36,9 @@ const STYLE = `
     }
     .deckit-quick-pick-rule { margin: 2px 0 4px; border-top: var(--deckit-border); }
     .deckit-quick-pick-list { max-height: 44vh; overflow-y: auto; }
+    .deckit-modal[data-align='fill'] .deckit-quick-pick-list { flex: 1 1 auto; min-height: 0; max-height: none; }
+    .deckit-modal[data-drags] .deckit-quick-pick-field { -webkit-app-region: drag; }
+    .deckit-modal[data-drags] .deckit-quick-pick-list { -webkit-app-region: no-drag; }
     .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; opacity: 0.45; }
     .deckit-quick-pick-message:empty { display: none; }
     .deckit-quick-pick-message[data-alert] { opacity: 1; color: var(--deckit-alert); }
@@ -56,18 +59,23 @@ function make(theme, ui) {
 }
 
 // MARK: - Private
-// A field over a list to pick from, on a modal at the top of the page. The owner says what the list holds
+// A field over a list to pick from, on a modal at the top of the page. The caller says what the list holds
 // (`set`), and hears what is typed (`onInput(text)`) and what is picked (`onPick(item, index)`). Items are drawn
 // by `key`, `create` and `update`, as a keyed list draws them; `optionOf(item)` is null for an item that is no
 // option (a heading), or else `{ disabled }`. The arrows move the active option and Enter picks it, or with
-// `onEnter({ item, text })` hands both to the owner. `onKey(event)` has a key first and returns whether it took
+// `onEnter({ item, text })` hands both to the caller. `onKey(event)` has a key first and returns whether it took
 // it. `onActive(item, index, { pointer })` hears the active option move, and `onCommandKey(held)` the Command
 // key held down in it or let go. The field keeps the focus: a press anywhere else on the card leaves it there.
+// With `fills` it is all the page draws, filling it, and with `drags` it drags the window it is in from anywhere but
+// its list, the field too, which keeps the keyboard all the same. `glass` is the modal's.
 function quickPick(
     ui,
     {
         placeholder = '',
         value = '',
+        fills = false,
+        drags = false,
+        glass = null,
         width = 'min(520px, calc(100vw - 48px))',
         key,
         create,
@@ -102,7 +110,9 @@ function quickPick(
     field.addEventListener('blur', () => onCommandKey(false));
     const modal = ui.modal({
         chrome: false,
-        align: 'top',
+        align: fills ? 'fill' : 'top',
+        drags,
+        glass,
         width,
         onKey: handleKey,
         onClose,
@@ -155,7 +165,7 @@ function quickPick(
         chip.replaceChildren(...(scope ? [ICON.sanitize(scope.icon), scope.label] : []));
     }
 
-    // The text typed is the owner's to set too; one it sets is not heard as typed.
+    // The text typed is the caller's to set too; one it sets is not heard as typed.
     return {
         text: () => field.value,
         setText: (text) => (field.value = text),

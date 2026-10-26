@@ -24,7 +24,7 @@ const SECTION_STYLE = `
     .settings-card-title { padding: 0 12px 4px; font: 600 var(--deckit-type-body); }
 `;
 
-// A titled part of the Settings view. The owner adds to `head`, after the title, and fills `body`.
+// A titled part of the Settings view. The caller adds to `head`, after the title, and fills `body`.
 function section({ ui, title, description = '' }) {
     const element = ui.element('div', { className: 'settings-section' });
     const head = ui.element('div', { className: 'settings-section-head' });

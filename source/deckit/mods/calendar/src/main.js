@@ -16,38 +16,55 @@ module.exports = {
                 ...REMINDER_LEADS.map((lead) => ({ value: lead, label: leadText(lead) })),
             ],
         },
-        test: {
-            label: 'Test notification',
-            type: 'action',
-            button: 'Send a test',
-            hint: 'Shows one now, to see that macOS lets it through.',
-            run: async (deck) => {
-                let shown = false;
-                try {
-                    shown = await deck.notify({
-                        title: 'Calendar',
-                        body: 'This is what a reminder looks like',
-                        onClick: () => deck.show(),
-                    });
-                } catch {}
-                // macOS reports a notice as shown even when its settings keep it off the screen.
-                return (
-                    (shown ? 'Sent. ' : 'Not shown. ') +
-                    `If none appeared, allow ${deck.about().name} in System Settings › Notifications.`
-                );
-            },
-        },
     },
 
     start(deck) {
-        const { content, sidebar, ask, didAppear, didDisappear, keys, now, commands } = calendar({
+        const { content, sidebar, ask, didAppear, didDisappear, commands, keys, actions } = calendar({
             deck,
             accountsPoint: deck.extensionPoint('accounts'),
+            sendTest: () => sendTest(deck),
         });
         deck.view({ content, sidebar, didAppear, didDisappear });
+        deck.commands({
+            ...commands,
+            'send-test': {
+                description:
+                    'Shows a notification now, to see that macOS lets it through. Answers what came of it, as text.',
+                run: () => sendTest(deck),
+            },
+        });
         deck.keys(keys);
-        deck.now(now);
-        deck.commands(commands);
+        deck.extends.switcher({ actions });
+        deck.extends.settings({
+            actions: {
+                list: () => [
+                    {
+                        button: 'Send a test',
+                        hint: 'Shows one now, to see that macOS lets it through.',
+                        after: 'notify',
+                        value: 'send-test',
+                    },
+                ],
+                run: () => sendTest(deck),
+            },
+        });
         deck.exports({ ask });
     },
 };
+
+// Shows a notification the way a reminder looks, and answers what the person reads of how it went.
+async function sendTest(deck) {
+    let shown = false;
+    try {
+        shown = await deck.notify({
+            title: 'Calendar',
+            body: 'This is what a reminder looks like',
+            onClick: () => deck.show(),
+        });
+    } catch {}
+    // macOS reports a notice as shown even when its settings keep it off the screen.
+    return (
+        (shown ? 'Sent. ' : 'Not shown. ') +
+        `If none appeared, allow ${deck.about().name} in System Settings › Notifications.`
+    );
+}

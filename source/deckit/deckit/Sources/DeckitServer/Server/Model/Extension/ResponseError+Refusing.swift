@@ -29,14 +29,11 @@ extension ResponseError {
 
         case let error as ExportError:
             switch error {
-            case .notADependency:
-                "DEPENDENCY"
+            case .notRequired:
+                "NOT_REQUIRED"
 
             case .notRunning:
                 "NOT_RUNNING"
-
-            case .otherVersion:
-                "VERSION"
 
             case .noSuchFunction:
                 "FUNCTION"
@@ -122,12 +119,6 @@ extension ResponseError {
             case .undeclared:
                 "UNDECLARED"
 
-            case .notAnAction:
-                "NOT_AN_ACTION"
-
-            case .isAnAction:
-                "ACTION"
-
             case .notOfType:
                 "TYPE"
 
@@ -155,7 +146,19 @@ extension ResponseError {
             case .notAChord:
                 "CHORD"
 
-            case .cannotBeGlobal:
+            case .cannotWork, .notAHost, .noLabel:
+                "REFUSED"
+            }
+
+        case let error as CommandError:
+            switch error {
+            case .noSuchCommand:
+                "COMMAND"
+
+            case .arguments:
+                "ARGUMENTS"
+
+            case .notAName, .declaration, .schema, .defined:
                 "REFUSED"
             }
 
