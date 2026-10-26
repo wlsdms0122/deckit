@@ -7,7 +7,7 @@ const { listDivider } = require('../pane/list-divider.js');
 const { triggerOf, triggerSummary } = require('./schedule-trigger.js');
 const { installContent, actions, section, values, feedback } = require('../pane/content-ui.js');
 
-const schedulesView = ({ deck, bot, picker }) => {
+const schedulesView = ({ deck, forge, picker }) => {
     const { ui } = deck,
         store = deck.storage.values;
     installContent(ui);
@@ -39,7 +39,7 @@ const schedulesView = ({ deck, bot, picker }) => {
         concurrency: 'skip',
     };
     const inputDrafts = new Map();
-    const call = (target, operation, args) => bot.forge.supervisor.call(target, operation, args);
+    const call = (target, operation, args) => forge.call(operation, args, target);
     const muted = (text) =>
         styled('div', { color: 'var(--deckit-muted)', font: '12px var(--deckit-font)', whiteSpace: 'pre-wrap' }, text);
     const bar = styled('div', { display: 'none', flex: '1', gap: '8px', alignItems: 'center', minWidth: '0' });
@@ -256,7 +256,7 @@ const schedulesView = ({ deck, bot, picker }) => {
                 icon: ui.icon('play', { size: 14 }),
                 onClick: () =>
                     act(target, async () => {
-                        const result = await bot.forge.supervisor.runSchedule(target, id);
+                        const result = await forge.runSchedule(id, target);
                         return `Dispatched ${id} · ${result.workflow_id}`;
                     }),
             });
@@ -611,7 +611,7 @@ const schedulesView = ({ deck, bot, picker }) => {
         pending = request;
         const current = () => visible && epoch === request.epoch && session === request.session;
         try {
-            const chosen = await bot.forge.supervisor.session(session);
+            const chosen = await forge.session(session);
             if (!current()) return;
             if (!chosen?.up || !chosen.authority)
                 throw new Error(

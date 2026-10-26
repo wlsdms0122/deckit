@@ -5,7 +5,7 @@ const { workflowForm } = require('./workflow-form.js');
 const { listDivider } = require('../pane/list-divider.js');
 const { installContent, actions, section, values, feedback } = require('../pane/content-ui.js');
 
-const workflowsView = ({ deck, bot, picker }) => {
+const workflowsView = ({ deck, forge, picker }) => {
     const { ui } = deck;
     installContent(ui);
     let form = null,
@@ -23,7 +23,7 @@ const workflowsView = ({ deck, bot, picker }) => {
         busy = false,
         available = false;
     const drafts = new Map();
-    const call = (name, operation, args) => bot.forge.supervisor.call(name, `workflow.${operation}`, args);
+    const call = (name, operation, args) => forge.call(`workflow.${operation}`, args, name);
     const muted = (text) => styled('div', { color: 'var(--deckit-muted)', font: '12px var(--deckit-font)' }, text);
     const status = muted('');
     const notice = styled('div');
@@ -279,7 +279,7 @@ const workflowsView = ({ deck, bot, picker }) => {
         refreshing = request;
         const current = () => visible && request.epoch === epoch && request.session === session;
         try {
-            const chosen = await bot.forge.supervisor.session(session);
+            const chosen = await forge.session(session);
             if (!current()) return;
             if (!chosen?.up || !chosen.authority)
                 throw new Error(

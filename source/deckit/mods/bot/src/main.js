@@ -5,8 +5,8 @@ const { sessionPicker } = require('./forge/sessions/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 
-// The settings that say where forge and llmemory are, handed to the main process together.
-const PLACES = ['forge', 'forgeConfig', 'llmemory', 'brain'];
+// The settings that say where llmemory and the brain are, handed to the main process together.
+const PLACES = ['llmemory', 'brain'];
 
 module.exports = {
     keywords: [
@@ -31,20 +31,6 @@ module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`,
 
     settings: {
-        forge: {
-            label: 'Forge command',
-            type: 'text',
-            default: '',
-            placeholder: 'forge',
-            hint: "Where the forge program is, as a full path. Empty: the forge on your login shell's PATH.",
-        },
-        forgeConfig: {
-            label: 'Forge configuration',
-            type: 'text',
-            default: '',
-            placeholder: '~/.config/forge/default/config.toml',
-            hint: "The config.toml the default session is served with. Empty: forge's own, in the session's folder.",
-        },
         llmemory: {
             label: 'LLMemory command',
             type: 'text',
@@ -70,6 +56,7 @@ module.exports = {
     async start(deck) {
         const { ui } = deck;
         const store = deck.storage.values;
+        const { forge } = deck.requires;
         const bot = await deck.mainProcess('main-process/bot/bot.js');
         const places = () => Object.fromEntries(PLACES.map((key) => [key, deck.settings.get(key)]));
         await bot.use(places());
@@ -99,7 +86,7 @@ module.exports = {
 
         const picker = sessionPicker({
             deck,
-            bot,
+            forge,
             onChange: (name) => {
                 for (const entry of MODES) if (entry.system === 'Forge') entry.view.setSession(name);
             },
@@ -114,7 +101,7 @@ module.exports = {
                 system: 'Forge',
                 label: 'Services',
                 icon: 'server',
-                view: supervisorView({ deck, bot, picker }),
+                view: supervisorView({ deck, forge, picker }),
             },
             {
                 key: 'workflows',
@@ -122,7 +109,7 @@ module.exports = {
                 label: 'Workflows',
                 icon: 'list',
                 hint: 'Browse, run and cancel Forge workflows',
-                view: workflowsView({ deck, bot, picker }),
+                view: workflowsView({ deck, forge, picker }),
             },
             {
                 key: 'schedules',
@@ -130,7 +117,7 @@ module.exports = {
                 label: 'Schedules',
                 icon: 'calendar',
                 hint: 'Manage Forge workflow schedules',
-                view: schedulesView({ deck, bot, picker }),
+                view: schedulesView({ deck, forge, picker }),
             },
             {
                 key: 'brain',
@@ -375,11 +362,8 @@ module.exports = {
         deck.settings.on((key) => {
             if (PLACES.includes(key))
                 bot.use(places()).then((renewed) => {
-                    if (renewed.brain) brain.reload();
+                    if (renewed) brain.reload();
                 });
         });
-        deck.exports({ forge: { tasks: bot.forge.tasks, release: bot.forge.release } });
-
-        for (const name of ['tasks', 'release']) bot.on(name, (state) => deck.emit(name, state));
     },
 };

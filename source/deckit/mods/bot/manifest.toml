@@ -5,8 +5,11 @@ api = "1.0.0"
 main = "main.js"
 
 [permissions]
-"system.main-process" = "Starts and stops the forge daemons and reads the brain, by running the forge and llmemory commands."
+"system.main-process" = "Reads the brain, by running the llmemory command."
 "system.clipboard-write" = "The copy button on a code block in a note puts the block on the clipboard."
+
+[requires]
+forge = "1.0.0"
 
 [extends]
 switcher = "1.0.0"

@@ -1,15 +1,15 @@
-const supervisorView = ({ deck, bot, picker }) => {
+const supervisorView = ({ deck, forge, picker }) => {
     const { theme, ui } = deck;
     const store = deck.storage.values;
 
     let session = picker.current();
 
     const forgeOf = (name) => ({
-        call: (operation, args) => bot.forge.supervisor.call(name, operation, args),
-        start: () => bot.forge.supervisor.start(name),
-        stop: () => bot.forge.supervisor.stop(name),
-        restart: () => bot.forge.supervisor.restart(name),
-        log: (lines) => bot.forge.supervisor.log(name, lines),
+        call: (operation, args) => forge.call(operation, args, name),
+        start: () => forge.start(name),
+        stop: () => forge.stop(name),
+        restart: () => forge.restart(name),
+        log: (lines) => forge.log(lines, name),
     });
     const REFRESH_MS = 3000;
 
@@ -371,7 +371,7 @@ const supervisorView = ({ deck, bot, picker }) => {
     const load = async () => {
         const mine = ++generation;
         try {
-            const next = await snapshot(await bot.forge.supervisor.session(session));
+            const next = await snapshot(await forge.session(session));
             if (mine !== generation) return;
             state = { ...next, loading: false };
         } catch (error) {
@@ -647,7 +647,7 @@ const supervisorView = ({ deck, bot, picker }) => {
         // What is wrong with the main session's daemon, as readouts for the switcher's Now strip, each showing its
         // services.
         now: async () => {
-            const entry = await bot.forge.supervisor.session();
+            const entry = await forge.session();
             const { daemon, services, authority, error } = await snapshot(entry);
             const value = { action: 'show', view: 'supervisor', session: entry.name };
             if (!daemon) {
