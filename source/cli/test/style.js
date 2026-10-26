@@ -18,13 +18,13 @@ async function main() {
     const mod = (id, links = {}) => ({
         id,
         requires: links.requires || {},
-        optional: links.optional || {},
+        extends: links.extends || {},
         permissions: [{ id: 'deckit.styles' }],
     });
     const runs = {
         a: { mod: mod('a'), state: 'running', contributions: { styles: { a: 'a-own', '*': 'a-all' } } },
         b: { mod: mod('b', { requires: { a: '1.0.0' } }), state: 'running', contributions: { styles: { a: 'b-a' } } },
-        c: { mod: mod('c', { optional: { a: '1.0.0' } }), state: 'running', contributions: { styles: { a: 'c-a' } } },
+        c: { mod: mod('c', { extends: { a: '1.0.0' } }), state: 'running', contributions: { styles: { a: 'c-a' } } },
         d: { mod: mod('d'), state: 'running', contributions: { styles: { a: 'd-a', '*': 'd-all' } } },
     };
     const handlers = {};

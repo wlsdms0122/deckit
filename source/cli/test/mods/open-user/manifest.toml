@@ -5,5 +5,5 @@ api = "1.0.0"
 main = "main.js"
 url-schemes = ["test-open"]
 
-[optional]
+[extends]
 switcher = "1.0.0"

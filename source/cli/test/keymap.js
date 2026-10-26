@@ -1,9 +1,9 @@
-// The key map (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a key pressed in a
-// page is answered at once, taken or not, by what the core last told of the bindings, the page's own keys, the
-// shell's monitor and the page in front, the narrowest scope first, a field focused keeps a chord a field takes, and
-// recording takes every key. A host's key runs its command, and a mod's is told to its page. A key that works in every
-// app, a host's or a mod's, is held as a hotkey on the chord it is bound to now, and lands, pressed, in the page that
-// has the keyboard.
+// The key map (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a key
+// pressed in a page is answered at once, taken or not, by what the core last told of the bindings, the page's own keys,
+// the shell's monitor and the page in front, the narrowest scope first, a field focused keeps a chord a field takes,
+// and recording takes every key. A host's key runs what it registered, and a mod's is told to its page. A key that
+// works in every app, a host's or a mod's, is held as a hotkey on the chord it is bound to now, and lands, pressed, in
+// the page that has the keyboard.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -63,8 +63,7 @@ async function main() {
     });
     const binding = (fields) => ({
         id: `${fields.provider}.${fields.name}`,
-        command: fields.name,
-        args: null,
+        label: fields.name,
         active: true,
         takenByFields: false,
         scope: 'local',
@@ -91,9 +90,9 @@ async function main() {
         },
     };
     const ran = [];
-    const COMMAND = { run: ({ command }) => (ran.push([command]), Promise.resolve(null)) };
+    const runs = (name) => () => ran.push([name]);
     const WINDOW = { isActive: () => false };
-    const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, COMMAND, WINDOW, pages, keys });
+    const KEYMAP = createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, WINDOW, pages, keys });
     KEYMAP.start();
     let inFront = shell;
     const monitored = [];
@@ -105,14 +104,14 @@ async function main() {
         },
     });
     await KEYMAP.register('@app', {
-        summon: { command: 'summon', key: 'Alt+Space', scope: 'app' },
-        switch: { command: 'switch', key: 'Meta+K' },
-        find: { command: 'find', key: 'Meta+G', scope: 'app' },
-        jump: { command: 'jump', key: 'Ctrl+J' },
-        anywhere: { command: 'any', key: 'Ctrl+Space', scope: 'global' },
+        summon: { label: 'Summon', key: 'Alt+Space', scope: 'app', run: runs('summon') },
+        switch: { label: 'Switch', key: 'Meta+K', run: runs('switch') },
+        find: { label: 'Find', key: 'Meta+G', scope: 'app', run: runs('find') },
+        jump: { label: 'Jump', key: 'Ctrl+J', run: runs('jump') },
+        anywhere: { label: 'Anywhere', key: 'Ctrl+Space', scope: 'global', run: runs('any') },
     });
     const anywhere = (fields) =>
-        binding({ name: 'anywhere', command: 'any', provider: '@app', scope: 'global', chord: '⌃Space', ...fields });
+        binding({ name: 'anywhere', provider: '@app', scope: 'global', chord: '⌃Space', ...fields });
     // As the core lists them, the narrowest scope first.
     bindingsChanged({
         revision: 1,
@@ -137,7 +136,7 @@ async function main() {
 
     // A key that works anywhere in the app runs wherever a listened page has the keyboard, and is taken at once.
     check('a key that works anywhere in the app is taken', press(mod, 'Space', { alt: true }) === true, ran);
-    check('a host key runs its command', ran.at(-1)?.[0] === 'summon', ran);
+    check('a host key runs what it registered', ran.at(-1)?.[0] === 'summon', ran);
     // An app key runs only in the page in front.
     inFront = shell;
     check('an app key is taken in the page in front', press(shell, 'KeyK', { meta: true }) === true, ran);
@@ -178,18 +177,18 @@ async function main() {
     heard.told(mod, { channel: 'deckit-shell:keymap-record', payload: { on: false } });
 
     let threw = false;
-    await KEYMAP.register('@app', { nowhere: { command: 'nowhere', key: 'Ctrl+N', scope: 'everywhere' } }).catch(
-        () => (threw = true)
-    );
+    await KEYMAP.register('@app', {
+        nowhere: { label: 'Nowhere', key: 'Ctrl+N', scope: 'everywhere', run: runs('nowhere') },
+    }).catch(() => (threw = true));
     check('a key of no known scope is refused', threw, threw);
     // A key that works in every app tells the core its provider and scope, and is held as a hotkey.
     const registered = asked.find(
         ({ method, params }) => method === 'keymap/register' && params.key.name === 'anywhere'
     );
     check(
-        'a key tells the core its provider, command and scope',
+        'a key tells the core its provider, label and scope',
         registered?.params.provider === '@app' &&
-            registered.params.key.command === 'any' &&
+            registered.params.key.label === 'Anywhere' &&
             registered.params.key.scope === 'global',
         registered
     );

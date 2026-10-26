@@ -1,6 +1,6 @@
-// A headless mod that opens the addresses of a scheme of its own and answers one query in the switcher, which marks
-// its page. The test opens an address by an event it sends the page, types the query in the switcher, and reads the
-// marks.
+// A headless mod that opens the addresses of a scheme of its own and answers one query in the switcher with an action
+// that marks its page. The test opens an address by an event it sends the page, types the query in the switcher, and
+// reads the marks.
 module.exports = {
     start(deck) {
         const marks = document.documentElement.dataset;
@@ -8,11 +8,12 @@ module.exports = {
             marks.opened = url;
             return true;
         });
-        deck.commands({ probe: { label: 'Probe', run: () => (marks.ran = '1') } });
-        deck.extend({
-            'switcher:rows': {
-                resolve: (raw) =>
-                    raw === 'probe open user' ? [{ label: 'Open User Probe', run: { command: 'probe' } }] : [],
+        deck.extends.switcher({
+            actions: {
+                search: (query) => (query === 'probe open user' ? [{ label: 'Open User Probe', value: 'probe' }] : []),
+                run: () => {
+                    marks.ran = '1';
+                },
             },
         });
         document.addEventListener(

@@ -3,7 +3,7 @@ module.exports = {
     async start(deck) {
         const marks = document.documentElement.dataset;
         const provider = deck.requires['broker-provider'];
-        deck.extend({ 'broker-provider:hooks': { hello: (from) => `hello ${from}` } });
+        deck.extends['broker-provider']({ hooks: { hello: (from) => `hello ${from}` } });
         deck.on('broker-provider:ping', (number) => (marks.pinged = String(number)));
         marks.asked = await provider.ask(41);
         await provider.ping(7);

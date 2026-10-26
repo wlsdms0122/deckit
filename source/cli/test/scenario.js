@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 
-// The mods Deckit.app ships with a view: every one but Deckit, which is commands only, and the Switcher, a window.
+// The mods Deckit.app ships with a view: every one but Deckit, which has none, and the Switcher, a window.
 const VIEWS = 7;
 // The test's own mods with a view: the region parent and the window probe. Its region child is in no list.
 const TEST_VIEWS = 2;
@@ -438,7 +438,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             async () => /Open Folder/.test((await again?.evaluate('document.body.innerText')) || ''),
             5000
         );
-        check('a refused navigation leaves the page its commands', listed, '');
+        check('a refused navigation leaves the page its keys', listed, '');
         await again?.key('Escape', 'Escape', 0, 27);
         // A stage shown with no page shown on it draws nothing and still takes the window's clicks.
         const stagesNow = async () => (await stackNow()).stages;
