@@ -14,12 +14,15 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 
 ## The theme
 
-`deck.theme` is derived from the host app's colours, and changes when the host app gives new ones. Each key is read as it is now; `theme.onChange(listener)` hears a new theme and answers its off.
+`deck.theme` is derived from the host app's colours and the person's fonts (MOD.md, `deck.fonts`), and changes when the host app gives new colours or the person new fonts. Each key is read as it is now; `theme.onChange(listener)` hears a new theme and answers its off.
 
 | Key | What it holds |
 |---|---|
 | `dark` | whether the background is dark |
-| `font`, `mono` | the families |
+| `font` | the family the app's own parts are in, the host app's |
+| `textFont` | the family text a person reads and writes is in: the person's face, falling back to `font` |
+| `mono` | the fixed-width family: the person's face, falling back to the kit's |
+| `textSize` | the size in px text a person reads and writes is in: the person's, 14 by default |
 | `type` | font shorthands: `caption` 11, `small` 12, `body` 13, `medium` 14, `large` 15, `heading` 16, `title` 18 |
 | `border` | the border shorthand |
 | `color` | `text`, `muted`, `disabled`, `background`, `surface`, `lifted`, `divider`, `fill`, `hover`, `selected`, `pressed`, `accent`, `onAccent`, `ok`, `warn`, `alert`, `focus`, `target`, `scrim`, `folder` |
@@ -29,7 +32,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 | `syntax` | the code palette: `keyword`, `string`, `number`, `comment`, `function`, `type`, `property`, `operator`, `meta`, `invalid` |
 | `glass` | 0.68, the strength a surface drawn as glass lays its colour at over what is behind it, blurred through |
 
-For CSS, the token is also custom properties on the page's root: each colour by its name in kebab case (`--deckit-muted`, `--deckit-on-accent`), `--deckit-type-*`, `--deckit-radius-*` in px, `--deckit-shadow-*`, `--deckit-fast`, `--deckit-base` and `--deckit-slow` in ms, `--deckit-easing`, `--deckit-font`, `--deckit-mono` and `--deckit-border`. `dark`, `syntax` and `entrance` are read from `theme`. A new theme changes the custom properties and the page's `color-scheme` in place, so whatever is drawn with them (and CSS `light-dark()`) follows by itself; what a mod worked out from `theme` in code it works out again in `onChange`. A mod adds rules of its own with `ui.addStyle(css)`; its class names start with its id. A mod with `deckit.styles` styles other pages with the same names (MOD.md, `deck.styles`).
+For CSS, the token is also custom properties on the page's root: each colour by its name in kebab case (`--deckit-muted`, `--deckit-on-accent`), `--deckit-type-*`, `--deckit-radius-*` in px, `--deckit-shadow-*`, `--deckit-fast`, `--deckit-base` and `--deckit-slow` in ms, `--deckit-easing`, `--deckit-font`, `--deckit-mono`, `--deckit-text-font`, `--deckit-text-size` in px and `--deckit-border`. `dark`, `syntax` and `entrance` are read from `theme`. A new theme changes the custom properties and the page's `color-scheme` in place, so whatever is drawn with them (and CSS `light-dark()`) follows by itself; what a mod worked out from `theme` in code it works out again in `onChange`. A mod adds rules of its own with `ui.addStyle(css)`; its class names start with its id. A mod with `deckit.styles` styles other pages with the same names (MOD.md, `deck.styles`).
 
 ## Buttons
 
@@ -103,4 +106,4 @@ Two floats are placed by their caller and are not layers: the keyboard stays wit
 - `element(tag, { className, style, text })`.
 - `edgeFade(element, { size })`, `pressable(element)`, `selectable(element)`, `titleBar(element)` are decorators: the edges of what scrolls fade, something pressed is washed and ringed, text can be selected, and a bar along the top of the view lies in the window's title bar area (MOD.md, `deck.view`): at least as tall as it, clear of the window's buttons, and dragging the window wherever nothing in it is pressed. Buttons, fields, links and anything with a `tabindex` in it take presses; another control there marks itself `-webkit-app-region: no-drag`.
 - `isFullyVisible(element)`, `capturePointer(cursor)` (returns the release), `mix(foreground, background, amount)`, `alpha(color, amount)`.
-- `installedFonts(faces)`: the faces (`{ font }`) installed on this Mac.
+- `installedFonts(faces)`: the faces (`{ font }`) installed on this Mac. `textFonts()` and `monospacedFonts()`: the installed ones of the faces offered for text and of the fixed-width ones, as a choice's options `{ value, label, font }`, the first `{ value: 'default', label: 'Default' }`, which leaves the face to the theme.

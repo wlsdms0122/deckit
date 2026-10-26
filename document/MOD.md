@@ -1,6 +1,6 @@
 # Writing a mod
 
-A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, a window, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view and a window are abilities like the rest, and a mod with neither is headless. `deck` is put together by deck, deckit on it, and the shell on deckit. The view, styles, `theme`, `ui`, `show()`, `region()`, `children`, `iconOf()` and the pins on `mods` are the shell's; deckit's own shell (the panel and the kit) gives them as this document says. A host app with no shell, or with a shell of its own, may give none of them, and a mod that registers a view where there is no `deck.view` does not start: a mod that runs on any host app tests for the shell's members before it uses them. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
+A mod is a manifest and one entry. deck reads the manifest, runs the entry in a sandbox of the mod's own, and calls its `start(deck)`; in `start` the mod registers what it contributes: a view, a window, keys, commands, a URL scheme handler, exports for other mods, extension points other mods extend, what it extends another's with, styles for other mods' pages, in any mix. A view and a window are abilities like the rest, and a mod with neither is headless. `deck` is put together by deck, deckit on it, and the shell on deckit. The view, styles, `theme`, `ui`, `show()`, `region()`, `children`, `iconOf()`, `fonts` and the pins on `mods` are the shell's; deckit's own shell (the panel and the kit) gives them as this document says. A host app with no shell, or with a shell of its own, may give none of them, and a mod that registers a view where there is no `deck.view` does not start: a mod that runs on any host app tests for the shell's members before it uses them. Code that needs the app's main process (files, the network, programs) goes in a main process module the mod starts when it needs it.
 
 How the folder is laid out is the mod's own. The folder's name says nothing; the manifest says who the mod is, and its `main` names the entry:
 
@@ -81,6 +81,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `deckit.keymap` | binding, changing and switching off the keys of every mod | `deck.keymap` |
 | `deckit.url-schemes` | who is asked first to open each scheme | `deck.urlSchemes` |
 | `deckit.styles` | how every page looks, other mods' among them, and so what they show | `deck.styles` |
+| `deckit.fonts` | the fonts and the text size every mod writes text in | `deck.fonts` |
 
 An unknown permission, or one without a reason, stops the mod. Without asking, a mod has its own sandbox, records, values, settings, keys and web sessions, and of deckit and its shell: asking for an address to be opened, putting itself on screen, a window of its own, and `about()`. None of it reaches another mod.
 
@@ -206,11 +207,11 @@ With `deckit.styles`, styles other pages while the mod runs: by id its own page 
 
 ## deck
 
-`start(deck)` receives `{ id, name, settings, storage, web, requires, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), and `mainProcess` for a mod with `system.main-process`. deckit adds the registration `window`, and `commandRegistry` with `deckit.command-registry`. The shell adds `theme`, `ui`, `show()`, `region()`, `children` and `iconOf()`, the registrations `view` and `styles`, and the pins on `mods` (the beginning of this document).
+`start(deck)` receives `{ id, name, settings, storage, web, requires, util }`, what it registers with (above, `styles` with `deckit.styles`), what it asks of deck (below), and `mainProcess` for a mod with `system.main-process`. deckit adds the registration `window`, and `commandRegistry` with `deckit.command-registry`. The shell adds `theme`, `ui`, `show()`, `region()`, `children`, `iconOf()` and `fonts` with `deckit.fonts`, the registrations `view` and `styles`, and the pins on `mods` (the beginning of this document).
 
 ### theme and ui
 
-`theme` is the look, derived from the host app's: `dark`, `font`, `mono`, `type`, `border`, `color`, `radius`, `shadow`, `motion`, `syntax` and `glass` (the strength, 0.68, a surface drawn as glass lays its colour at over what is behind it), each read as it is now, and `onChange(listener)` for a new one. `ui` is the kit, drawn in it. Both are in [UI.md](UI.md).
+`theme` is the look, derived from the host app's and the person's fonts: `dark`, `font`, `mono`, `textFont`, `textSize`, `type`, `border`, `color`, `radius`, `shadow`, `motion`, `syntax` and `glass` (the strength, 0.68, a surface drawn as glass lays its colour at over what is behind it), each read as it is now, and `onChange(listener)` for a new one, which new fonts are too. `ui` is the kit, drawn in it. Both are in [UI.md](UI.md).
 
 ### settings
 
@@ -276,6 +277,7 @@ A site gets what a browser lets it have without asking (full screen, writing wha
 | `modSettings` | with `deckit.mod-settings`: `list`, `set(id, key, value)` |
 | `keymap` | with `deckit.keymap`: `list`, `set`, `reset`, `record`, `onChange`; `list` answers at once, `onChange` returns the unsubscribe |
 | `commandRegistry` | with `deckit.command-registry`: `list()`, `[{ provider, command, description, params }]`, the app's commands first, then the mods' in the load order, `provider` the id of what declared and runs one: a mod's, or a host's `@` name; `run({ provider, command }, args)`, which resolves to the command's result or null and rejects with why it did not run; `complete({ provider, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
+| `fonts` | the shell's, with `deckit.fonts`: `get()`, the person's `{ font, mono, size }` at once, each null for the default: a face's name for `font` and `mono`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `mono`, `textSize`) |
 | `urlSchemes` | with `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once; `set(scheme, { order, off })`; `everyScheme` |
 
 ### util
