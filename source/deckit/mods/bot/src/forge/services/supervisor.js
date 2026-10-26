@@ -29,20 +29,8 @@ const supervisorView = ({ deck, forge, picker }) => {
     let timer = null,
         visible = false;
 
-    const headState = document.createElement('div');
-    Object.assign(headState.style, {
-        flex: '1 1 auto',
-        minWidth: '0',
-        opacity: '.5',
-        font: '12px var(--deckit-font)',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-    });
-
     const bar = document.createElement('div');
     Object.assign(bar.style, { display: 'flex', flex: '1 1 auto', minWidth: '0', alignItems: 'center', gap: '10px' });
-    bar.append(headState);
 
     const body = document.createElement('div');
     Object.assign(body.style, { flex: '1 1 auto', minHeight: '0', overflowY: 'auto', padding: '10px 12px' });
@@ -417,16 +405,6 @@ const supervisorView = ({ deck, forge, picker }) => {
         const services = state.services || [];
         const error = actionError || state.error;
         const up = !!daemon;
-
-        headState.textContent = loading
-            ? 'Checking…'
-            : !up
-              ? 'No daemon'
-              : !authority
-                ? 'Started elsewhere'
-                : state.services === null
-                  ? 'Services unknown'
-                  : `${services.filter((service) => service.state === 'running').length}/${services.length} services`;
 
         notice.style.display = 'none';
         if (error) {
