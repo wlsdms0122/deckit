@@ -16,20 +16,20 @@ function switcher({ ui, util, atHand, favorites, foldersAtHand, places, show, do
             })),
             { label: 'Open Folder', keywords: ['폴더', 'folder'], opens: true, value: { action: 'open-folder' } },
             { label: 'Go to Place', opens: true, value: { action: 'go-to-place' } },
-            { label: 'Go to Folder…', key: 'goToFolder', value: { action: 'go-to-folder' } },
-            { label: 'New Tab', key: 'newTab', value: { action: 'new-tab' } },
-            { label: 'Close Tab', key: 'closeTab', value: { action: 'close-tab' } },
-            { label: 'Reopen Closed Tab', key: 'reopenTab', value: { action: 'reopen-tab' } },
-            { label: 'Back', key: 'back', value: { action: 'back' } },
-            { label: 'Forward', key: 'forward', value: { action: 'forward' } },
-            { label: 'Enclosing Folder', key: 'enclosing', value: { action: 'enclosing-folder' } },
-            { label: 'Open', key: 'open', value: { action: 'open' } },
-            { label: 'Open with Default App', key: 'openWithDefaultApp', value: { action: 'open-with-default-app' } },
-            { label: 'Filter This Folder', key: 'filter', value: { action: 'filter' } },
-            { label: 'Show Hidden Files', key: 'hidden', value: { action: 'toggle-hidden' } },
-            { label: 'New Folder', key: 'newFolder', value: { action: 'new-folder' } },
+            { label: 'Go to Folder…', value: { action: 'go-to-folder' } },
+            { label: 'New Tab', value: { action: 'new-tab' } },
+            { label: 'Close Tab', value: { action: 'close-tab' } },
+            { label: 'Reopen Closed Tab', value: { action: 'reopen-tab' } },
+            { label: 'Back', value: { action: 'back' } },
+            { label: 'Forward', value: { action: 'forward' } },
+            { label: 'Enclosing Folder', value: { action: 'enclosing-folder' } },
+            { label: 'Open', value: { action: 'open' } },
+            { label: 'Open with Default App', value: { action: 'open-with-default-app' } },
+            { label: 'Filter This Folder', value: { action: 'filter' } },
+            { label: 'Show Hidden Files', value: { action: 'toggle-hidden' } },
+            { label: 'New Folder', value: { action: 'new-folder' } },
             { label: 'View As', opens: true, value: { action: 'show-as' } },
-            { label: 'Move to Trash', key: 'trash', value: { action: 'trash' } },
+            { label: 'Move to Trash', value: { action: 'trash' } },
         ];
     }
 
@@ -55,8 +55,8 @@ function switcher({ ui, util, atHand, favorites, foldersAtHand, places, show, do
         if (within?.action === 'show-as')
             return matching(
                 [
-                    { label: 'Columns', key: 'columnView', value: { ...within, view: 'columns' } },
-                    { label: 'List', key: 'listView', value: { ...within, view: 'list' } },
+                    { label: 'Columns', value: { ...within, view: 'columns' } },
+                    { label: 'List', value: { ...within, view: 'list' } },
                 ],
                 query
             );

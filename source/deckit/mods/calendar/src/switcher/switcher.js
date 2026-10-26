@@ -17,14 +17,13 @@ function switcher({ ui, modes, reminders, occurrences, show, does }) {
             ...modes.map(([view, label]) => ({
                 label: label + ' View',
                 icon,
-                key: view + 'View',
                 keywords: ['일간', '주간', '월간', '보기', 'view'],
                 value: { action: 'show-view', view },
             })),
-            { label: 'Go to Today', key: 'today', keywords: ['오늘', 'today'], value: { action: 'go-to-today' } },
+            { label: 'Go to Today', keywords: ['오늘', 'today'], value: { action: 'go-to-today' } },
             { label: 'Go to Date', keywords: ['날짜', 'date', 'day'], opens: true, value: { action: 'go-to-date' } },
-            { label: 'Previous', key: 'previous', value: { action: 'previous' } },
-            { label: 'Next', key: 'next', value: { action: 'next' } },
+            { label: 'Previous', value: { action: 'previous' } },
+            { label: 'Next', value: { action: 'next' } },
             { label: 'Add Calendar Account…', keywords: ['계정', '추가', 'account'], value: { action: 'add-account' } },
             {
                 label: 'Send a Test Notification',

@@ -27,17 +27,16 @@ function switcher({ ui, util, allNotes, notesOf, styles, show, does }) {
             })),
             {
                 label: 'New Note',
-                key: 'newNote',
                 keywords: ['새 노트', '새 메모', '노트', '메모', 'new', 'note', 'memo'],
                 value: { action: 'new-note' },
             },
-            { label: 'New Folder', key: 'newFolder', value: { action: 'new-folder' } },
-            { label: 'Move to Trash', key: 'trash', value: { action: 'trash' } },
-            { label: 'Search in Gallery', key: 'search', value: { action: 'search' } },
-            { label: 'Back', key: 'back', value: { action: 'back' } },
-            { label: 'Forward', key: 'forward', value: { action: 'forward' } },
+            { label: 'New Folder', value: { action: 'new-folder' } },
+            { label: 'Move to Trash', value: { action: 'trash' } },
+            { label: 'Search in Gallery', value: { action: 'search' } },
+            { label: 'Back', value: { action: 'back' } },
+            { label: 'Forward', value: { action: 'forward' } },
             { label: 'Set Paragraph Style', opens: true, value: { action: 'paragraph-style' } },
-            { label: 'Mark as Checked', key: 'markChecked', value: { action: 'mark-checked' } },
+            { label: 'Mark as Checked', value: { action: 'mark-checked' } },
         ];
     }
 

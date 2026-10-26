@@ -293,8 +293,6 @@ module.exports = {
                 complete: (_param, partial, { signal }) => brain.notesFor(partial, { signal }),
             },
         });
-        // The key of each view.
-        const KEY_OF = { supervisor: 'services', brain: 'brain', workflows: 'workflows', schedules: 'schedules' };
         const viewKey = (view, key) => ({ label: modeOf(view).label, key, run: () => showView({ view }) });
         deck.keys({
             services: viewKey('supervisor', 'mod+1'),
@@ -308,7 +306,6 @@ module.exports = {
             actions: switcher({
                 ui,
                 modes: MODES,
-                keyOf: KEY_OF,
                 supervisor,
                 picker,
                 brain,

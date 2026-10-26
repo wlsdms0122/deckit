@@ -17,7 +17,7 @@ const NOW_WAIT_MS = 150;
 function switcher(deck, window, point) {
     const registry = deck.commandRegistry;
     const records = deck.storage.records;
-    let open = null; // the list on screen: { list, left, about, submenus, chords }, `left` once its exit has started
+    let open = null; // the list on screen: { list, left, about, submenus }, `left` once its exit has started
     let leaving = null; // the timer that puts the window away once the list's exit has played
 
     return { toggle, putAway, closed };
@@ -32,7 +32,7 @@ function switcher(deck, window, point) {
         clearTimeout(leaving);
         leaving = null;
         if (open && !open.left) return;
-        const current = { list: null, left: false, about: null, submenus: new Map(), chords: new Map() };
+        const current = { list: null, left: false, about: null, submenus: new Map() };
         open = current;
         window.open();
         let supplied;
@@ -96,17 +96,12 @@ function switcher(deck, window, point) {
             iconOf: deck.iconOf,
         };
         const used = records.get(USE, {});
-        const listed = await withChords(current, ITEMS.listed({ actions, shown, about: current.about }));
+        const listed = ITEMS.listed({ actions, shown, about: current.about });
         const items = listed.map((item) => hydrate(current, { ...item, used: frecency(used[keyOf(item)]) }, true));
         const buckets = [];
         const landed = extensions.map(([mod, extension], index) =>
             actionsOf(mod, extension, 'now')
-                .then((actions) =>
-                    withChords(
-                        current,
-                        (actions || []).map((each) => ITEMS.itemOf('now', mod, each, current.about))
-                    )
-                )
+                .then((actions) => (actions || []).map((each) => ITEMS.itemOf('now', mod, each, current.about)))
                 .then((now) => (buckets[index] = now.map((item) => hydrate(current, item))))
         );
         await Promise.race([Promise.all(landed), new Promise((done) => setTimeout(done, NOW_WAIT_MS))]);
@@ -129,14 +124,7 @@ function switcher(deck, window, point) {
         if (!left) return answer();
         for (const [mod, extension] of extensions)
             actionsOf(mod, extension, 'search', raw, parent ? parent.value : null)
-                .then(
-                    (actions) =>
-                        actions &&
-                        withChords(
-                            current,
-                            actions.map((each) => ITEMS.itemOf(parent?.id ?? raw, mod, each, current.about))
-                        )
-                )
+                .then((actions) => actions?.map((each) => ITEMS.itemOf(parent?.id ?? raw, mod, each, current.about)))
                 .then((found) => {
                     left--;
                     if (found) {
@@ -213,18 +201,6 @@ function switcher(deck, window, point) {
             console.error(`[switcher] ${mod}'s ${name} answered nothing`, error);
             return [];
         }
-    }
-
-    // Each item with the chord its key is bound to now, asked once an open.
-    function withChords(current, items) {
-        return Promise.all(
-            items.map(async (item) => {
-                if (!item.key) return item;
-                const id = `${item.mod}\u0000${item.key}`;
-                if (!current.chords.has(id)) current.chords.set(id, deck.chordOf(item.key, { provider: item.mod }));
-                return { ...item, chord: (await current.chords.get(id)) || '' };
-            })
-        );
     }
 
     function roundRobin(buckets) {

@@ -16,7 +16,6 @@ function switcher({ ui, util, tabs, bookmarks, show, does }) {
             {
                 label: 'New Tab',
                 icon,
-                key: 'newTab',
                 keywords: ['웹', '웹페이지', '열기', '주소', '새탭', 'url', 'open', 'web', 'address', 'new tab'],
                 value: { action: 'new-tab' },
             },
@@ -26,7 +25,6 @@ function switcher({ ui, util, tabs, bookmarks, show, does }) {
                           label: 'Reopen Closed Tab',
                           hint: lastClosed.title || placeOf(lastClosed.url),
                           icon,
-                          key: 'reopenTab',
                           keywords: ['닫은탭', '다시열기', '복구', 'reopen', 'undo', 'closed tab'],
                           value: { action: 'reopen-tab' },
                       },
@@ -39,12 +37,12 @@ function switcher({ ui, util, tabs, bookmarks, show, does }) {
                 opens: true,
                 value: { action: 'open-bookmark' },
             },
-            { label: 'Close Tab', key: 'closeTab', value: { action: 'close-tab' } },
-            { label: 'Find in Page', key: 'find', value: { action: 'find-in-page' } },
-            { label: 'Edit Address', key: 'address', value: { action: 'edit-address' } },
-            { label: 'Reload', key: 'reload', value: { action: 'reload' } },
-            { label: 'Back', key: 'back', value: { action: 'back' } },
-            { label: 'Forward', key: 'forward', value: { action: 'forward' } },
+            { label: 'Close Tab', value: { action: 'close-tab' } },
+            { label: 'Find in Page', value: { action: 'find-in-page' } },
+            { label: 'Edit Address', value: { action: 'edit-address' } },
+            { label: 'Reload', value: { action: 'reload' } },
+            { label: 'Back', value: { action: 'back' } },
+            { label: 'Forward', value: { action: 'forward' } },
         ];
     }
 
