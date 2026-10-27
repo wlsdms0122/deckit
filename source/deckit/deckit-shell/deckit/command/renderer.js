@@ -12,17 +12,24 @@ export function createCommand() {
     const completing = new Map(); // call -> the AbortController of a completion asked of this page
     const listeners = new Set();
     let calls = 0;
+    let answering = false;
 
     // MARK: - Initializer
     // MARK: - Public
     // A mod's commands, { name: { description, params, run(args), complete(param, partial, { args, signal }) } }, as
-    // its run contributes them: the core judges each declaration. One with no function to run is told to `invalid` and
-    // left out. What `run` answers is its result, and a throw is why it did not run, both the caller's to read.
+    // one lifecycle of its run contributes them: the core judges each declaration. One with no function to run, or one
+    // a lifecycle under it has declared, is told to `invalid` and left out. What `run` answers is its result, and a
+    // throw is why it did not run, both the caller's to read. Answers those declared, and their off.
     function declare(commands, { invalid }) {
+        if (!answering) answer();
         const declared = [];
         for (const [name, entry] of Object.entries(commands || {})) {
             if (typeof entry?.run !== 'function') {
                 invalid(`command "${name}" cannot be used: it needs a function in "run"`);
+                continue;
+            }
+            if (own.has(name)) {
+                invalid(`command "${name}" is declared under it, so this one is left out`);
                 continue;
             }
             own.set(name, { run: entry.run, complete: typeof entry.complete === 'function' ? entry.complete : null });
@@ -32,8 +39,7 @@ export function createCommand() {
                 ...(entry.params !== undefined ? { params: entry.params } : {}),
             });
         }
-        answer();
-        return declared;
+        return { declared, off: () => declared.forEach(({ name }) => own.delete(name)) };
     }
 
     // What every mod and host declared, for a mod with deckit.command-registry: `list()`, `run(command, args)` with
@@ -65,6 +71,7 @@ export function createCommand() {
 
     // MARK: - Private
     function answer() {
+        answering = true;
         PROTOCOL.run.handle(async ({ command, args }) => {
             const run = own.get(command)?.run;
             if (!run) throw new Error(`no command ${command} runs here`);

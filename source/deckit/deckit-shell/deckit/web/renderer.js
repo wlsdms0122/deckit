@@ -6,19 +6,78 @@ import * as SESSION from './model/session.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// `web` is the environment's (environment/: PAGE.web): what shows a web page in this page. `sessions` is what the
-// environment names this mod's web sessions by, as the page was told it, handed back as it is.
+// A mod's web in its page: its sessions, and the pages that show what they load, in its page, as an element of it, and
+// in windows. `web` is the environment's (environment/: PAGE.web): what shows a web page in this page. `sessions` is
+// what the environment names this mod's web sessions by, as the page was told it, handed back as it is.
 export function createWeb({ sessions, web: WEB }) {
     // MARK: - Property
-    const pages = new Map(); // page id -> { apply, receive }
+    const pages = new Map(); // page id -> { receive }
     // What main said about a page before this side knew which element it was, in order.
     const early = new Map(); // page id -> [[event, payload]]
+    const made = new Map(); // a session's name -> its handle
     // A session is named only by a handle the mod was given, so it cannot name one it was not.
     const names = new WeakMap(); // session handle -> its name
+    let listening = false;
 
     // MARK: - Initializer
     // MARK: - Public
+    // `deckit.web`: the mod's sessions by name, one handle for each. `permissions` decides which of a session's tools
+    // exist.
+    function forMod({ permissions }) {
+        const has = (permission) => permissions.includes(permission);
+        const session = (name) => {
+            if (made.has(name)) return made.get(name);
+            SESSION.nameOf(name);
+            const handle = Object.freeze({
+                name,
+                clear: () => PROTOCOL.clear.invoke({ name }),
+                ...(has(WEB_PERMISSION.NETWORK)
+                    ? { fetchText: (url) => PROTOCOL.fetchText.invoke({ name, url: String(url) }) }
+                    : {}),
+                ...(has(WEB_PERMISSION.CERTIFICATES)
+                    ? { trust: (entries) => PROTOCOL.trust.invoke({ name, entries: [].concat(entries) }) }
+                    : {}),
+                ...(has(WEB_PERMISSION.SITE_PERMISSIONS)
+                    ? {
+                          allow: (entries) => PROTOCOL.allow.invoke({ name, entries: [].concat(entries) }),
+                          revoke: (entries) => PROTOCOL.revoke.invoke({ name, entries: [].concat(entries) }),
+                      }
+                    : {}),
+            });
+            names.set(handle, name);
+            made.set(name, handle);
+            return handle;
+        };
+        return Object.freeze({ session });
+    }
+
+    // What shows web pages, for a handle of the shell's: pages in the mod's view and in windows, each showing what a
+    // session from `deckit.web.session` loads. `owner` is whoever hands it out ({ deliver, recordFailure }), `opener`
+    // what opens an address the page passes on; a page or window made is closed, and nothing more is heard about it,
+    // once `scope` is cut.
+    function surfacesOf({ owner, opener, scope }) {
+        if (!listening) listen();
+        const named = (handle) => {
+            if (!names.has(handle)) throw new Error('a web page needs a session from deckit.web.session(name)');
+            return names.get(handle);
+        };
+        const kept = (made) => {
+            scope.add(() => {
+                made.delegate = null;
+                made.close();
+            });
+            return made;
+        };
+        return Object.freeze({
+            page: ({ session: handle, url = '' } = {}) => kept(page(named(handle), url, owner, opener, handle)),
+            window: ({ session: handle, url = '', title = '' } = {}) =>
+                kept(windowPage(named(handle), url, title, owner, opener, handle)),
+        });
+    }
+
+    // MARK: - Private
     function listen() {
+        listening = true;
         PROTOCOL.changed.on(({ id, state }) => deliver(id, 'change', state));
         PROTOCOL.refused.on(({ id, certificate }) => deliver(id, 'certificate', certificate));
         PROTOCOL.found.on(({ id, matches, active, final }) => deliver(id, 'found', { matches, active, final }));
@@ -51,48 +110,6 @@ export function createWeb({ sessions, web: WEB }) {
         PROTOCOL.closed.on(({ id }) => deliver(id, 'closed'));
     }
 
-    // What a mod is handed of the web: its sessions, pages in its view, and pages in windows. `owner` is
-    // whoever hands it out ({ deliver, recordFailure }), `opener` what opens an address the page passes on, and
-    // `permissions` decides which of the session's tools exist.
-    function forMod({ permissions, owner, opener }) {
-        const has = (permission) => permissions.includes(permission);
-        const made = new Map();
-        const session = (name) => {
-            if (made.has(name)) return made.get(name);
-            SESSION.nameOf(name);
-            const handle = Object.freeze({
-                name,
-                clear: () => PROTOCOL.clear.invoke({ name }),
-                ...(has(WEB_PERMISSION.NETWORK)
-                    ? { fetchText: (url) => PROTOCOL.fetchText.invoke({ name, url: String(url) }) }
-                    : {}),
-                ...(has(WEB_PERMISSION.CERTIFICATES)
-                    ? { trust: (entries) => PROTOCOL.trust.invoke({ name, entries: [].concat(entries) }) }
-                    : {}),
-                ...(has(WEB_PERMISSION.SITE_PERMISSIONS)
-                    ? {
-                          allow: (entries) => PROTOCOL.allow.invoke({ name, entries: [].concat(entries) }),
-                          revoke: (entries) => PROTOCOL.revoke.invoke({ name, entries: [].concat(entries) }),
-                      }
-                    : {}),
-            });
-            names.set(handle, name);
-            made.set(name, handle);
-            return handle;
-        };
-        const nameOf = (handle) => {
-            if (!names.has(handle)) throw new Error('a web page needs a session from deck.web.session(name)');
-            return names.get(handle);
-        };
-        return Object.freeze({
-            session,
-            page: ({ session: handle, url = '' } = {}) => page(nameOf(handle), url, owner, opener, handle),
-            window: ({ session: handle, url = '', title = '' } = {}) =>
-                windowPage(nameOf(handle), url, title, owner, opener, handle),
-        });
-    }
-
-    // MARK: - Private
     function deliver(id, event, payload) {
         const known = pages.get(id);
         if (known) {
@@ -242,5 +259,5 @@ export function createWeb({ sessions, web: WEB }) {
         return Object.assign(handle, { close });
     }
 
-    return { listen, forMod };
+    return { forMod, surfacesOf };
 }

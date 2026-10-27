@@ -4,7 +4,7 @@ import * as WIDTH from './model/width.js';
 import * as PAGE from './model/page-name.js';
 import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
-import * as MATCH from '../match/match.js';
+import * as MATCH from '../../deckit/match/match.js';
 
 // `deckit` is what connect answered, `host` the app's answers.
 export function createPanel({ REGION, deckit, host }) {
@@ -135,6 +135,7 @@ export function createPanel({ REGION, deckit, host }) {
         PROTOCOL.setup.handle((_payload, sender) => ({ guide: guideOf(sender), shown: sent.onScreen.has(sender) }));
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
         PROTOCOL.icon.handle(({ mod }) => deckit.mods.listingOf(mod)?.icon || '');
+        PROTOCOL.form.handle(({ mod }) => deckit.mods.listingOf(mod)?.form || {});
         PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);

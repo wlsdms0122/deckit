@@ -1,16 +1,12 @@
 import * as CHANNEL from '../../deck/channel/index.js';
-import * as IPC from '../../deck/ipc/main.js';
-import * as LIFECYCLE from '../../deck/mod/lifecycle.js';
-import * as ENVIRONMENT from '../../environment/index.js';
 import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
 
-const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
-
-// `stage` is the environment's (environment: MAIN.stage); `showWindow(control)` and `hideWindow(control)` are the host
-// app's, which puts a mod's window on screen and away.
-export function createWindow({ IDENTITY, RUNNER, PAGE, stage, showWindow, hideWindow }) {
+// `deckit` is what connect answered; `showWindow(control)` and `hideWindow(control)` are the host app's, which puts a
+// mod's window on screen and away.
+export function createWindow({ deckit, showWindow, hideWindow }) {
     // MARK: - Property
+    const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     // mod id -> { control, page, look, stage, shown }: `page` the mod's page while a run of it that has a window
     // runs, `look` its window as that run said, `stage` where the page is laid, made as the window is first placed
     const windows = new Map();
@@ -22,7 +18,7 @@ export function createWindow({ IDENTITY, RUNNER, PAGE, stage, showWindow, hideWi
     function start() {
         PROTOCOL.open.on((_payload, sender) => open(heldBy(sender)));
         PROTOCOL.close.on((_payload, sender) => close(heldBy(sender)));
-        for (const name of LIFECYCLE.NOTIFICATIONS) RUNNER.observe(name, reconcile);
+        for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
         reconcile();
     }
 
@@ -35,7 +31,8 @@ export function createWindow({ IDENTITY, RUNNER, PAGE, stage, showWindow, hideWi
     // A window open while its mod's page goes is put away: the page in it is gone.
     function reconcile() {
         const running = new Map(
-            RUNNER.runs()
+            deckit.mods
+                .runs()
                 .filter(({ run }) => run.state === 'running' && run.summary?.window)
                 .map(({ run, page }) => [run.mod.id, { run, page }])
         );
@@ -88,7 +85,7 @@ export function createWindow({ IDENTITY, RUNNER, PAGE, stage, showWindow, hideWi
                     },
                 }),
             contains: (page) => !!page && page === held.page,
-            focus: () => held.page && PAGE.focus(held.page),
+            focus: () => held.page && deckit.pages.focus(held.page),
             didResignKey: () => held.shown && PROTOCOL.resignKey.send(held.page, {}),
         });
         windows.set(id, held);
@@ -96,16 +93,16 @@ export function createWindow({ IDENTITY, RUNNER, PAGE, stage, showWindow, hideWi
     }
 
     function heldBy(sender) {
-        const held = windows.get(IDENTITY.modOf(sender)?.id);
+        const held = windows.get(deckit.mods.modOf(sender));
         return held?.page === sender ? held : null;
     }
 
     function open(held) {
-        if (!held || held.shown || !PAGE.isAlive(held.page)) return;
+        if (!held || held.shown || !deckit.pages.isAlive(held.page)) return;
         held.shown = true;
         lay(held);
         showWindow(held.control);
-        PAGE.focus(held.page);
+        deckit.pages.focus(held.page);
         PROTOCOL.shown.send(held.page, { on: true });
     }
 
@@ -119,12 +116,12 @@ export function createWindow({ IDENTITY, RUNNER, PAGE, stage, showWindow, hideWi
         held.shown = false;
         lay(held);
         if (told) hideWindow(held.control);
-        if (PAGE.isAlive(held.page)) PROTOCOL.shown.send(held.page, { on: false });
+        if (deckit.pages.isAlive(held.page)) PROTOCOL.shown.send(held.page, { on: false });
     }
 
     function stageOf(held) {
         if (!held.stage) {
-            held.stage = ENVIRONMENT.checked(stage(), ENVIRONMENT.STAGE, 'a stage');
+            held.stage = deckit.pages.stage();
             held.stage.whenResized(() => lay(held));
             lay(held);
         }
@@ -136,7 +133,7 @@ export function createWindow({ IDENTITY, RUNNER, PAGE, stage, showWindow, hideWi
         const { stage, page } = held;
         if (!stage) return;
         stage.show(held.shown);
-        if (!page || !PAGE.isAlive(page)) return stage.lay([]);
+        if (!page || !deckit.pages.isAlive(page)) return stage.lay([]);
         stage.lay([held.shown ? { page, rect: { x: 0, y: 0, ...stage.size() } } : { page, hidden: true }]);
     }
 

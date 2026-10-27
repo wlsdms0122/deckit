@@ -21,17 +21,21 @@ export function createNotification() {
         });
     }
 
-    function notify({ title = '', body = '', silent = false, onClick = null } = {}) {
-        const id = 'notification-' + ++sequence;
-        if (typeof onClick === 'function') {
-            handlers.set(id, onClick);
-            // Most notifications are never clicked; without this every handler stays for the life of the page.
-            setTimeout(() => handlers.delete(id), TTL);
-        }
-        return PROTOCOL.show.invoke({ id, title: String(title), body: String(body), silent: !!silent });
+    // `notify` for a handle: a click is heard until `scope` is cut.
+    function notifyOf(scope) {
+        return ({ title = '', body = '', silent = false, onClick = null } = {}) => {
+            const id = 'notification-' + ++sequence;
+            if (typeof onClick === 'function') {
+                handlers.set(id, onClick);
+                // Most notifications are never clicked; without this every handler stays for the life of the page.
+                setTimeout(() => handlers.delete(id), TTL);
+                scope.add(() => handlers.delete(id));
+            }
+            return PROTOCOL.show.invoke({ id, title: String(title), body: String(body), silent: !!silent });
+        };
     }
 
     // MARK: - Private
 
-    return { listen, notify };
+    return { listen, notifyOf };
 }

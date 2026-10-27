@@ -13,8 +13,9 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // is answered at once. `pages` and `app` are the environment's (environment/: MAIN.pages, MAIN.app).
 export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: APP }) {
     // MARK: - Property
-    // mod id -> { mod, page, run, update, loadedItself }: a mod's sandbox, the page it runs in, its latest run and how
-    // what the core tells of it is kept, and whether its page has just loaded by itself.
+    // mod id -> { mod, page, run, update, loadedItself, lifecycles }: a mod's sandbox, the page it runs in, its latest
+    // run and how what the core tells of it is kept, whether its page has just loaded by itself, and how many
+    // lifecycles its latest run stacks, as its page said.
     const sandboxes = new Map();
     // mod id -> its latest run that launched: kept while the mod launches again, or in a new sandbox, until it goes
     const lastLaunched = new Map();
@@ -283,7 +284,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     // page that did not load runs no mod: what loaded instead is never the mod's page.
     function openSandbox(mod) {
         const page = PAGES.make({ modId: mod.id });
-        const sandbox = { mod, page, run: null, update: null, loadedItself: false };
+        const sandbox = { mod, page, run: null, update: null, loadedItself: false, lifecycles: 1 };
         PAGES.watch(page, {
             failed: (why) => crash(sandbox.run, `its page did not load (${why})`),
             gone: (why) => crash(sandbox.run, endedProblem({ gone: why })),
@@ -300,12 +301,15 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         if (!sandbox.loadedItself) PAGES.load(sandbox.page);
     }
 
-    // The mod's stop() asked of its page. The page runs it once, however often it is asked. The core is told once it
-    // has answered, its time ran out or the page is gone, which refuses the question at once (deck/ipc).
+    // The run's end asked of its page, which ends each of its lifecycles once, however often it is asked, each within
+    // its own limit. The core is told once it has answered, its time ran out or the page is gone, which refuses the
+    // question at once (deck/ipc).
     function stop(modId, number) {
-        const page = sandboxes.get(modId)?.page;
-        const stopping = page
-            ? PROTOCOL.stop.invoke(page, {}, { timeout: LIMIT.END_LIMIT_MS }).catch(() => {})
+        const sandbox = sandboxes.get(modId);
+        const stopping = sandbox
+            ? PROTOCOL.stop
+                  .invoke(sandbox.page, {}, { timeout: LIMIT.END_LIMIT_MS * sandbox.lifecycles })
+                  .catch(() => {})
             : Promise.resolve();
         stopping.then(() => send('runner/stopped', { mod: modId, run: number }));
     }
@@ -356,16 +360,28 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
             const { mod, run } = sandbox;
             if (run.state !== 'launching') throw Object.assign(new Error(run.problem), { kind: 'REFUSED' });
             IDENTITY.whenPageEnds(sender, (ending) => crash(run, endedProblem(ending)));
-            return {
-                manifest: mod.manifest,
-                source: await CATALOG.sourceOf(mod),
-                settings: await CORE.request('setting/read', { mod: id }),
-                run: run.number,
-            };
+            sandbox.lifecycles = 1;
+            return { manifest: mod.manifest, source: await CATALOG.sourceOf(mod), run: run.number };
+        });
+        PROTOCOL.described.on(({ run: number, summary, lifecycles }, sender) => {
+            const sandbox = sandboxes.get(IDENTITY.modFrom(sender).id);
+            if (sandbox.run.number === number) sandbox.lifecycles = Math.max(1, lifecycles);
+            send('runner/described', { mod: sandbox.mod.id, run: number, summary });
         });
         PROTOCOL.started.on(({ run: number, contributions, summary }, sender) =>
             send('runner/started', { mod: IDENTITY.modFrom(sender).id, run: number, summary, contributions })
         );
+        // Joined once the core has kept what it contributes now.
+        PROTOCOL.joined.on(({ run: number, contributions, summary }, sender) => {
+            const { id } = IDENTITY.modFrom(sender);
+            ask('runner/joined', { mod: id, run: number, summary, contributions }).then(
+                () => {
+                    const run = runOf(id);
+                    if (run?.number === number && run.state === 'running') notifications.emit('didJoin', run);
+                },
+                (error) => LOG.error('the core did not take runner/joined', error)
+            );
+        });
         PROTOCOL.problem.on(({ run: number, problem }, sender) =>
             send('runner/problem', { mod: IDENTITY.modFrom(sender).id, run: number, problem })
         );

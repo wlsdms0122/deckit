@@ -1,38 +1,36 @@
 // The permissions deck checks itself, as a person reads them before installing.
 const MODS = 'deckit.mods';
-const MOD_SETTINGS = 'deckit.mod-settings';
 const PERMISSIONS = Object.freeze([
     Object.freeze({
         id: MODS,
         name: 'Mods',
         means: 'It can see every installed mod, add one from a folder, which gets every permission it asks for, and delete installed ones, with what they stored.',
     }),
-    Object.freeze({
-        id: MOD_SETTINGS,
-        name: 'Mod Settings',
-        means: 'It can read and change the settings of every mod, not only its own.',
-    }),
 ]);
 
-export function createPermission() {
+// `vocabulary` is every permission the mod contract names, `{ id, name, means }`, as a person reads them before
+// installing.
+export function createPermission({ vocabulary }) {
     // MARK: - Property
-    const defined = []; // { id, name, means }, in the order each was defined
+    const given = []; // the ids the layers on this host defined, in the order each was defined
     let handed = false; // the core has them
 
     // MARK: - Initializer
     // MARK: - Public
-    // A permission a layer guards what it adds with: `name` and `means` are what a person reads before installing.
-    // The id's prefix says how far it reaches: `system.` past the app, `deckit.` inside it. Defined before the core
-    // starts, which reads every manifest against them.
-    function define({ id, name, means }) {
+    // A permission of the contract a layer on this host gives, guarding what it adds. Defined before the core starts,
+    // which reads every manifest against them: one the contract names that no layer gives is not usable here.
+    function define({ id }) {
         if (handed) throw new Error(`[deckit] ${id} is defined after the core started`);
-        defined.push(Object.freeze({ id, name, means }));
+        if (!vocabulary.some((permission) => permission.id === id))
+            throw new Error(`[deckit] ${id} is no permission the mod contract names`);
+        given.push(id);
     }
 
-    // What the layers defined, for the core as it starts.
+    // What the core reads every manifest against, as it starts: the contract's permissions, and the ids of those this
+    // host gives.
     function all() {
         handed = true;
-        return [...defined];
+        return { permissions: vocabulary.map((permission) => ({ ...permission })), given: [...given] };
     }
 
     // MARK: - Private
@@ -40,4 +38,4 @@ export function createPermission() {
     return { define, all };
 }
 
-export { MODS, MOD_SETTINGS, PERMISSIONS };
+export { MODS, PERMISSIONS };

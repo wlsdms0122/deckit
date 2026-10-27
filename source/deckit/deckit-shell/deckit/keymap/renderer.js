@@ -13,15 +13,20 @@ export function createKeymap() {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod's keys, { name: { label, key, scope, run } }, as its run contributes them: `run()` is what pressing it
-    // does, here, and the core judges each label and chord, and whether the mod may have its scope, `local` when it
-    // names none. One with no function to run or no scope there is, or that `problemOf(entry)`, the shell's reason a
-    // key would never run, asked with its scope, refuses, is told to `invalid` and left out.
+    // A mod's keys, { name: { label, key, scope, run } }, as one lifecycle of its run contributes them: `run()` is what
+    // pressing it does, here, and the core judges each label and chord, and whether the mod may have its scope,
+    // `local` when it names none. One with no function to run or no scope there is, one a lifecycle under it has
+    // declared, or one that `problemOf(entry)`, why a key would never run, asked with its scope, refuses, is told to
+    // `invalid` and left out. Answers those declared, and their off.
     function declare(keys, { invalid, problemOf }) {
         const declared = [];
         for (const [name, entry] of Object.entries(keys || {})) {
             if (typeof entry?.run !== 'function') {
                 invalid(`key "${name}" cannot be used: it needs a function in "run"`);
+                continue;
+            }
+            if (declaredKeys.has(name)) {
+                invalid(`key "${name}" is declared under it, so this one is left out`);
                 continue;
             }
             const scope = entry.scope ?? 'local';
@@ -42,7 +47,12 @@ export function createKeymap() {
                 scope,
             });
         }
-        return declared;
+        return { declared, off: () => withdraw(declared.map(({ name }) => name)) };
+    }
+
+    // The keys named no longer run.
+    function withdraw(names) {
+        for (const name of names) declaredKeys.delete(name);
     }
 
     // A key pressed in the page while `blocksKeys()` is dropped, so it cannot act on what is behind a dialog; one that
@@ -123,5 +133,5 @@ export function createKeymap() {
         return !!element?.matches?.("input, textarea, select, [contenteditable]:not([contenteditable='false'])");
     }
 
-    return { declare, hear, chord, bindings, bind, reset, record, onChange };
+    return { declare, withdraw, hear, chord, bindings, bind, reset, record, onChange };
 }

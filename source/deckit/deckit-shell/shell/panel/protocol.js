@@ -55,8 +55,10 @@ export const guide = CHANNEL.mainToPage('deckit-shell:panel-guide');
 export const escape = CHANNEL.mainToPage('deckit-shell:panel-escape', { reply: true });
 // The sending mod asks to be on screen.
 export const show = CHANNEL.pageToMain('deckit-shell:panel-show', {});
-// The icon a mod is listed with, as its latest run that launched said, or ''.
+// The icon a mod is listed with, as its class says, or ''.
 export const icon = CHANNEL.pageToMain('deckit-shell:panel-icon', { mod: 'string' }, { reply: true, sync: true });
+// How a mod's configuration is drawn, as its class says: `{ key: { placeholder, unit, step, choices } }`.
+export const form = CHANNEL.pageToMain('deckit-shell:panel-form', { mod: 'string' }, { reply: true });
 // Something floats in the page (a dialog, a menu), so the page answers Escape.
 export const floating = CHANNEL.pageToMain('deckit-shell:panel-floating', { on: 'boolean' });
 // The children the person pinned to the panel's list, asked by a mod with deckit.mods; and pinning one.

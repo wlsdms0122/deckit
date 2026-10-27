@@ -26,7 +26,7 @@ export function createApi({
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
     const facts = new WeakMap(); // a run -> what the host app reads of it
-    const listings = new WeakMap(); // a run that launched -> how it listed its mod: its summary
+    const copies = new WeakMap(); // what a run reported, as the runner keeps it -> its frozen copy
 
     // MARK: - Initializer
 
@@ -105,25 +105,20 @@ export function createApi({
     }
 
     // MARK: - Private
-    // How a mod is listed, as its latest run that launched said: kept while it launches again, so whatever lists
-    // the mods does not lose it then.
+    // How a mod is listed, as its latest run said once it read the mod's class, or else the latest that launched:
+    // kept while it launches again, so whatever lists the mods does not lose it then.
     function listingOf(id) {
-        const run = RUNNER.launchedOf(id);
-        if (!run) return null;
-        if (!listings.has(run)) listings.set(run, frozen(run.summary));
-        return listings.get(run);
+        return copyOf(RUNNER.runOf(id)?.summary ?? RUNNER.launchedOf(id)?.summary ?? null);
     }
 
     function manifestOf(mod) {
         return frozen(mod.manifest);
     }
 
-    // What a run is, read only: its transitions are the runner's. What it reported is copied once it is known.
+    // What a run is, read only: its transitions are the runner's. What it reported is copied each time it changes.
     function factsOf(run) {
         if (!run) return null;
         if (!facts.has(run)) {
-            let summary = null;
-            let contributions = null;
             facts.set(
                 run,
                 Object.freeze({
@@ -133,12 +128,10 @@ export function createApi({
                         return run.state;
                     },
                     get summary() {
-                        if (run.summary && !summary) summary = frozen(run.summary);
-                        return summary;
+                        return copyOf(run.summary);
                     },
                     get contributions() {
-                        if (run.contributions && !contributions) contributions = frozen(run.contributions);
-                        return contributions;
+                        return copyOf(run.contributions);
                     },
                     get problem() {
                         return run.problem;
@@ -150,6 +143,12 @@ export function createApi({
             );
         }
         return facts.get(run);
+    }
+
+    function copyOf(reported) {
+        if (!reported) return null;
+        if (!copies.has(reported)) copies.set(reported, frozen(reported));
+        return copies.get(reported);
     }
 
     function frozen(value) {

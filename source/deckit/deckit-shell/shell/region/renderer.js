@@ -10,35 +10,52 @@ export function createRegion({ deliver, channels }) {
     const listeners = new Set();
     let known = null; // [{ id, name, icon }]: asked for once, then told
     let count = 0;
-    // The mod's children: the mods whose view names it as their parent. `list()` answers them in the person's
-    // order, and `onChange(listener)` hears them each time they change, answering its off.
-    const children = Object.freeze({
-        list: () => childrenNow().slice(),
-        onChange(listener) {
-            if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
-            childrenNow();
-            listeners.add(listener);
-            return () => listeners.delete(listener);
-        },
-    });
 
     // MARK: - Initializer
     // MARK: - Public
-    // A place in the mod's view where the shell shows a child's. The child runs in its own page, laid over what of
-    // `element` is seen as it moves, so what the parent draws there is covered and nothing of the parent's floats
-    // over it. `place(id)` puts a child in this region, out of any other it was in, and `clear()` leaves the region
-    // empty. The region ends when its element, once in the page, leaves it.
+    // What a handle holds of regions, what it makes ending as `scope` is cut. `region(element)` makes a place in the
+    // mod's view where the shell shows a child's. The child runs in its own page, laid over what of `element` is seen
+    // as it moves, so what the parent draws there is covered and nothing of the parent's floats over it. `place(id)`
+    // puts a child in this region, out of any other it was in, and `clear()` leaves the region empty. The region ends
+    // when its element, once in the page, leaves it. `children` are the mod's children: the mods whose view names it
+    // as their parent. `list()` answers them in the person's order, and `onChange(listener)` hears them each time they
+    // change, answering its off.
+    function forScope(scope) {
+        return {
+            region(element) {
+                const { handle, end } = make(element);
+                scope.add(end);
+                return handle;
+            },
+            children: Object.freeze({
+                list: () => childrenNow().slice(),
+                onChange(listener) {
+                    if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
+                    childrenNow();
+                    listeners.add(listener);
+                    const off = () => listeners.delete(listener);
+                    scope.add(off);
+                    return off;
+                },
+            }),
+        };
+    }
+
+    // MARK: - Private
     function make(element) {
-        if (element?.nodeType !== Node.ELEMENT_NODE) throw new Error('deck.region() takes an element');
+        if (element?.nodeType !== Node.ELEMENT_NODE) throw new Error('shell.region() takes an element');
         const region = ++count;
         let sent = '';
-        let entered = false; // a region made in start() has its element in the page only once the view is up
+        let entered = false; // a region made in attach() has its element in the page only once the view is up
         let ended = false;
+        const end = () => {
+            if (ended) return;
+            ended = true;
+            PROTOCOL.end.send({ region });
+        };
         const follow = () => {
-            if (!element.isConnected && entered) {
-                ended = true;
-                return PROTOCOL.end.send({ region });
-            }
+            if (ended) return;
+            if (!element.isConnected && entered) return end();
             entered ||= element.isConnected;
             const { x, y, width, height } = seenRect(element);
             const written = JSON.stringify([x, y, width, height]);
@@ -49,13 +66,15 @@ export function createRegion({ deliver, channels }) {
             requestAnimationFrame(follow);
         };
         follow();
-        return Object.freeze({
-            place: (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, id: String(id) })),
-            clear: () => (ended ? refused() : PROTOCOL.place.invoke({ region, id: null })),
-        });
+        return {
+            handle: Object.freeze({
+                place: (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, id: String(id) })),
+                clear: () => (ended ? refused() : PROTOCOL.place.invoke({ region, id: null })),
+            }),
+            end,
+        };
     }
 
-    // MARK: - Private
     function refused() {
         return Promise.reject(new Error('the region has ended: its element left the page'));
     }
@@ -71,7 +90,7 @@ export function createRegion({ deliver, channels }) {
         return known;
     }
 
-    return { children, make };
+    return { forScope };
 }
 
 // What of `element` is seen: its rect cut to each ancestor that clips what overflows it, and nothing while it is
