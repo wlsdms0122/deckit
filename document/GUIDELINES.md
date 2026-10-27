@@ -1,8 +1,21 @@
 # Mod guidelines
 
-What a mod takes care of so that it works as part of Deckit for the person using it. [MOD.md](MOD.md) is the contract deck holds a mod to and [UI.md](UI.md) is the kit a mod draws with; this is what to do with the two. Each item names the part of `deck` or of the kit that does it.
+What a mod takes care of so that it works as part of Deckit for the person using it: what shape it takes, and where each of its features goes. [MOD.md](MOD.md) is the contract deck holds a mod to and what each part of `deck` does; [UI.md](UI.md) is the kit a mod draws with. This document says which of them to use for what, and names them without explaining them again.
 
 A person meets a mod through its view, its actions in the switcher, its keys, its settings and its notifications. A headless mod has no view, and everything here but the view applies to it.
+
+## Where things go
+
+| What the mod has | Where it goes |
+|---|---|
+| What it shows and lets the person work in | the view's content (`deck.view`), or a window of its own (`deck.window`) for a mod that stands apart from the panel, such as one over every app |
+| The things the content can show (files, tabs, notes, calendars) | the sidebar, in sections |
+| Moving through what is shown, and acting on it | the title bar |
+| Something it does | a key (`deck.keys`) and a switcher action; also a button in the title bar or in a section's header when it is done while looking at the view |
+| Something other mods, the host app or an automation runs by name, its args saying it in full | a command (`deck.commands`). What only means something where the person is (Save, Next Tab) stays a key |
+| Something due now | the switcher's `now`, and a notification when the person may be elsewhere |
+| A choice set once that holds from then on | a setting. One switched while working is a control in the view |
+| A view shown inside another mod's | a region of that mod (`parent`, MOD.md, Using what another mod does) |
 
 ## Checklist
 
@@ -24,7 +37,7 @@ A person meets a mod through its view, its actions in the switcher, its keys, it
 
 ## The title bar
 
-`ui.titleBar(element)` makes `element` the content's title bar: as tall as the window's bar over the panel (`--deckit-title-bar-area-height`), past the window's buttons when the sidebar is folded, and dragging the window by its empty room.
+The bar along the top of the content, laid with `ui.titleBar`, which lies in the window's title bar area and drags the window by its empty room (MOD.md, `deck.view`).
 
 - Every view lays one, empty if it has nothing to put there, so the window can be dragged from the top of any mod.
 - A web page, an editor, a canvas or a map starts below it. Pressed content drawn to the top edge leaves nowhere to drag the window from.
@@ -60,14 +73,12 @@ A person meets a mod through its view, its actions in the switcher, its keys, it
 Every list answers the same keys and presses. `ui.tree` gives most of them; give the rest the same way.
 
 - **Open:** ⌃↩ opens the selected item in the mod (`onOpen`); ⌥↩ opens it in the app the system gives it, where there is one.
-- **Rename:** `ui.inlineEdit` in place. Enter keeps the name; Escape, or Enter with the name cleared, cancels.
+- **Rename:** `ui.inlineEdit` in place, on Return (`onRename`).
 - **Delete:** ⌘⌫ and Move to Trash in the context menu. A folder going to the Trash with what it holds asks first with `ui.confirmTrash`. What cannot come back asks with a `ui.dialog` whose confirm button is destructive.
 - **Context menu:** the row's actions and the keys that act on it, in the order open, make, change, remove.
 - **Drag:** a row is dragged to reorder it or move it into a folder. A folder's row shows `--deckit-target` while it would take the drop.
 
 ## What floats
-
-Menus, popovers, dialogs, modals and quick picks are on one stack (UI.md, What floats): the top one has the keys, and Escape or a press outside closes it.
 
 - `ui.menu` for a choice of actions, `ui.popover` for a small form about one thing opened from it (the bookmark editor from the star), `ui.modal` for a form that is a task of its own (adding an account), `ui.quickPick` for finding one of many by typing.
 - Ask before what is hard to undo: a folder going to the Trash with more in it, what is deleted for good. Closing a tab or leaving a form does not ask.
@@ -82,7 +93,7 @@ What a mod adds to the switcher (`switcher:actions`, MOD.md) is what it does, fo
 - **`keywords`:** words a person would type for it that the label does not hold, in Korean and in English.
 - An action that needs one more thing before it acts (which tab, which bookmark) `opens` a list of those. Something typed that the mod can act on directly (an address) is answered by `search`.
 - **`now`:** what is due now, such as an event about to start or a run that failed, with `tone` for its status.
-- An action whose work is seen in the view calls `deck.show()` once it knows it can be done. One whose work is done out of sight does not, and its row says done, or why not.
+- An action whose work is seen in the view calls `deck.show()` once it knows it can be done, so a refusal is read under the switcher's list, and before it waits on anything the person answers in the view. One whose work is done out of sight does not, and its row says done, or why not.
 
 ## Settings
 
@@ -125,12 +136,12 @@ A mod's keys are in `deck.keys`, and the person can change them in Settings: rea
 
 Draw with the kit and its tokens (UI.md, The theme). A new theme or new fonts change every token in place, and a mod drawn with them follows.
 
-- **Type:** the `--deckit-type-*` scale: caption 11, small 12, body 13, medium 14, large 15, heading 16, title 18, and no sizes between. Body is the default; small is for what sits beside something more important (a count, a time); heading and title are for the content's own titles.
+- **Type:** the `--deckit-type-*` scale, and no sizes between. Body is the default; small is for what sits beside something more important (a count, a time); heading and title are for the content's own titles.
 - **Text the person reads and writes** (a note, a file, a message being written) is in `--deckit-text-font` at `--deckit-text-size`, or `--deckit-mono` for code. The UI around it stays on the type scale.
 - **Colour:** `text`, `muted` for what is secondary, `disabled`; `fill` for fields; `hover`, `pressed` and `selected` for state; `accent` for the one thing to press and for what is on; `ok`, `warn` and `alert` for status only. A colour of the content's own (a calendar's, a file type's) is data.
-- **Radius:** `--deckit-radius-*`: control 6 for buttons and rows, medium 8, card 12 for surfaces, round for pills and fields in a bar.
+- **Radius:** `--deckit-radius-*`: `control` for buttons and rows, `card` for surfaces, `round` for pills and fields in a bar.
 - **Icons:** `ui.icon`, 16px in the title bar and section headers, 15px in rows, 13px beside text in a line.
-- **Motion:** `--deckit-fast` for state (hover, press), `--deckit-base` for what moves or changes size, `--deckit-slow` for what enters, all with `--deckit-easing`. They are 0 with reduced motion: read `theme.motion` before animating in code.
+- **Motion:** `--deckit-fast` for state (hover, press), `--deckit-base` for what moves or changes size, `--deckit-slow` for what enters, all with `--deckit-easing`. An animation in code reads `theme.motion`, which is 0 with reduced motion.
 
 ## Words
 

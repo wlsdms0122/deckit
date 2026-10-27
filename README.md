@@ -38,6 +38,6 @@ source/cli/deckit engine <mod>     build the Editor's or the Notes' editing engi
 
 - [ARCHITECTURE.md](document/ARCHITECTURE.md): how deckit is built, and why
 - [EMBEDDING.md](document/EMBEDDING.md): what a host app embeds, and how
-- [MOD.md](document/MOD.md): the mod contract
-- [UI.md](document/UI.md): the kit mods draw with
-- [GUIDELINES.md](document/GUIDELINES.md): what a mod takes care of to work as part of Deckit: its view, switcher actions, keys, settings and notifications
+- [MOD.md](document/MOD.md): writing a mod: the manifest, what a mod registers and what `deck` gives it
+- [UI.md](document/UI.md): the kit mods draw with, part by part
+- [GUIDELINES.md](document/GUIDELINES.md): what shape a mod takes and where its features go: its view, the sidebar, the switcher, keys, settings and notifications
