@@ -49,7 +49,7 @@ function switcher({ ui, util, atHand, favorites, foldersAtHand, places, show, do
         }
         if (within?.action === 'go-to-place')
             return matching(
-                places.map(([place, title]) => ({ label: title, key: place, value: { ...within, place } })),
+                places.map(([place, title]) => ({ label: title, value: { ...within, place } })),
                 query
             );
         if (within?.action === 'show-as')
