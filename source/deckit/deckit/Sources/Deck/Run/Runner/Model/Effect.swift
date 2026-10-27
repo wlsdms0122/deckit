@@ -17,7 +17,7 @@ public enum Effect: Sendable {
     case tell(LifecycleNotification, Run)
     // Keep the run as it is now: what changed is no step of it.
     case keep(Run)
-    // Ask the run's stop() of its page, and say once it answered, its time ran out or the page is gone.
+    // Ask the run's page to end it, and say once it did, its time ran out or the page is gone.
     case stop(modId: String, number: Int)
     // Close the mod's sandbox, which runs no more.
     case close(modId: String)

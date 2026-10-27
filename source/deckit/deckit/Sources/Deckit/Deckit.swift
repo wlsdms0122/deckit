@@ -15,11 +15,12 @@ public final class Deckit {
     public let keymap: Keymap
     public let commands: CommandRegistry
     public let urlRouter: URLRouter
+    public let configuration: Configuration
 
     // MARK: - Initializer
     // `name` is the app's, as a person reads it, `schemeHandlers`, by scheme, the mods it asks first to open an
-    // address, and `permissions` are those the driver defines, for what deck, deckit and the shell add; deckit adds
-    // those it checks itself.
+    // address, `permissions` those the mod contract names that the driver checks, and `given` the ids of those the
+    // layers on this host give; deckit adds those it checks itself.
     public init(
         home: URL,
         ship: [URL],
@@ -27,15 +28,18 @@ public final class Deckit {
         api: Version,
         name: String,
         schemeHandlers: [String: [String]],
-        permissions: [Permission]
+        permissions: [Permission],
+        given: Set<String>
     ) throws {
         let urlSchemes = URLSchemesField()
+        let own = [Keymap.appKeysPermission, Keymap.globalKeysPermission]
         let deck = try Deck(
             home: home,
             ship: ship,
             sources: sources,
             api: api,
-            permissions: permissions + [Keymap.appKeysPermission, Keymap.globalKeysPermission],
+            permissions: permissions + own,
+            given: given.union(own.map(\.id)),
             fields: [urlSchemes]
         )
         let commands = CommandRegistry(deck: deck, hostName: name)
@@ -52,6 +56,7 @@ public final class Deckit {
         self.keymap = keymap
         self.commands = commands
         self.urlRouter = urlRouter
+        self.configuration = try Configuration(deck: deck)
     }
 
     // MARK: - Public

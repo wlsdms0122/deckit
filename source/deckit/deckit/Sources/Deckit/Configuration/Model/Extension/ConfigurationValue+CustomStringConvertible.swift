@@ -1,14 +1,14 @@
 //
-//  SettingValue+CustomStringConvertible.swift
-//  Deck
+//  ConfigurationValue+CustomStringConvertible.swift
+//  Deckit
 //
-//  Created by JSilver on 10/20/26.
+//  Created by JSilver on 10/27/26.
 //
 
 import Foundation
 
 // As a person reads it: a whole number with no fraction.
-extension SettingValue: CustomStringConvertible {
+extension ConfigurationValue: CustomStringConvertible {
     // MARK: - Property
     public var description: String {
         switch self {

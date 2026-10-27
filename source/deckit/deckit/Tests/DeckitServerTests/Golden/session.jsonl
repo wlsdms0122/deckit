@@ -1,11 +1,13 @@
-{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","name":"Deckit","permissions":[{"id":"deckit.styles","means":"Styles pages","name":"Styles"}],"schemeHandlers":{"mailto":["a"]},"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
+{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","given":["deckit.example"],"home":"@HOME@","name":"Deckit","permissions":[{"id":"deckit.example","means":"An example","name":"Example"},{"id":"system.example","means":"An example past the app","name":"Example past the app"}],"schemeHandlers":{"mailto":["a"]},"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
 {"id":2,"jsonrpc":"2.0","method":"catalog/install-shipped"}
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a","b","c"]}}
-{"id":5,"jsonrpc":"2.0","method":"setting/declare","params":{"mod":"a","run":1,"settings":[{"computed":false,"default":12,"key":"size","label":"Size","min":8,"options":[],"type":"number"},{"computed":true,"key":"font","options":[],"type":"choice"}]}}
+{"id":5,"jsonrpc":"2.0","method":"configuration/declare","params":{"configuration":[{"default":12,"key":"size","minimum":8,"title":"Size","type":"number"},{"default":"mono","key":"font","oneOf":[{"const":"mono","title":"Mono"}],"type":"string"},{"default":"x","key":"bad","oneOf":[{"const":"y"}],"type":"string"}],"mod":"a","run":1}}
+{"id":50,"jsonrpc":"2.0","method":"runner/described","params":{"mod":"a","run":1,"summary":{"keywords":["alpha"]}}}
 {"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"commands":[{"name":"next"}],"exports":{"functions":[["ask"]],"values":"{\"n\":1}"},"extensionPoints":["accounts"],"extensions":{},"handleURL":true,"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"}]},"mod":"a","run":1,"summary":{"view":true}}}
 {"id":7,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["b"]}}
 {"id":8,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"exports":{"functions":[],"values":"{}"},"extensionPoints":[],"extensions":{"a:accounts":{"functions":[["list"]],"values":"{}"}},"now":true},"mod":"b","run":2,"summary":{}}}
+{"id":80,"jsonrpc":"2.0","method":"runner/joined","params":{"contributions":{"commands":[{"name":"next"}],"exports":{"functions":[],"values":"{}"},"extensionPoints":["accounts"],"extensions":{},"handleURL":true,"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"},{"key":"mod+k","label":"Back","name":"back","scope":"app"}]},"mod":"a","run":1,"summary":{"keywords":["alpha"],"view":true}}}
 {"id":9,"jsonrpc":"2.0","method":"export/requires","params":{"mod":"b","run":2}}
 {"id":10,"jsonrpc":"2.0","method":"export/call","params":{"caller":"b","mod":"a","path":["ask"],"run":2}}
 {"id":11,"jsonrpc":"2.0","method":"export/call","params":{"caller":"b","mod":"a","path":["nope"],"run":2}}
@@ -23,11 +25,12 @@
 {"id":23,"jsonrpc":"2.0","method":"state/write","params":{"folder":null,"key":"panel-pinned","text":"[]"}}
 {"id":24,"jsonrpc":"2.0","method":"state/write","params":{"folder":"host","key":"theme","text":"\"dark\""}}
 {"id":25,"jsonrpc":"2.0","method":"state/all"}
-{"id":26,"jsonrpc":"2.0","method":"setting/read","params":{"mod":"a"}}
-{"id":27,"jsonrpc":"2.0","method":"setting/computed-choices","params":{"mod":null}}
-{"id":28,"jsonrpc":"2.0","method":"setting/list","params":{"choices":[{"key":"font","mod":"a","options":[{"label":"Mono","value":"mono"}]}]}}
-{"id":29,"jsonrpc":"2.0","method":"setting/set","params":{"key":"size","mod":"a","options":null,"value":30}}
-{"id":30,"jsonrpc":"2.0","method":"setting/set","params":{"key":"size","mod":"a","options":null,"value":"12"}}
+{"id":26,"jsonrpc":"2.0","method":"configuration/values","params":{"mod":"a"}}
+{"id":28,"jsonrpc":"2.0","method":"configuration/list"}
+{"id":29,"jsonrpc":"2.0","method":"configuration/set","params":{"key":"size","mod":"a","value":30}}
+{"id":30,"jsonrpc":"2.0","method":"configuration/set","params":{"key":"size","mod":"a","value":"12"}}
+{"id":31,"jsonrpc":"2.0","method":"configuration/set","params":{"key":"font","mod":"a","value":"serif"}}
+{"id":32,"jsonrpc":"2.0","method":"configuration/values","params":{"mod":"a"}}
 {"id":33,"jsonrpc":"2.0","method":"storage/usage","params":{"mod":"a"}}
 {"id":340,"jsonrpc":"2.0","method":"command/define","params":{"commands":[{"name":"switch"}],"provider":"@app"}}
 {"id":34,"jsonrpc":"2.0","method":"keymap/register","params":{"key":{"key":"mod+shift+g","label":"Switch","name":"switch","scope":"global"},"provider":"@app"}}
@@ -38,7 +41,7 @@
 {"id":39,"jsonrpc":"2.0","method":"keymap/record","params":{"keystroke":{"alt":false,"code":"KeyK","control":false,"meta":false,"shift":false}}}
 {"id":40,"jsonrpc":"2.0","method":"keymap/keystrokes","params":{"specs":["mod+k","nope"]}}
 {"id":41,"jsonrpc":"2.0","method":"command/list"}
-{"id":42,"jsonrpc":"2.0","method":"open/route","params":{"url":"mailto:x@y.z","opensFiles":true,"usesDefaultApp":false}}
+{"id":42,"jsonrpc":"2.0","method":"open/route","params":{"opensFiles":true,"url":"mailto:x@y.z","usesDefaultApp":false}}
 {"id":43,"jsonrpc":"2.0","method":"open/handlerLists"}
 {"id":44,"jsonrpc":"2.0","method":"open/setHandlers","params":{"off":[],"order":["a"],"scheme":"mailto"}}
 {"id":45,"jsonrpc":"2.0","method":"open/setHandlers","params":{"off":[],"order":[],"scheme":"nope"}}
@@ -59,4 +62,4 @@
 {"id":60,"jsonrpc":"2.0","method":"erasure/cleared","params":{"mod":"d"}}
 {"id":61,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a","d"]}}
 {"id":62,"jsonrpc":"2.0","method":"no/such"}
-{"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","name":"Deckit","permissions":[],"schemeHandlers":{},"ship":[],"sources":[]}}
+{"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","given":[],"home":"@HOME@","name":"Deckit","permissions":[],"schemeHandlers":{},"ship":[],"sources":[]}}

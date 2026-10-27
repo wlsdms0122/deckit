@@ -8,11 +8,12 @@
 import Foundation
 import Deck
 
-// The permission's fields and its reason, side by side.
+// The permission's fields, its reason and whether it is usable here, side by side.
 extension PermissionRequest: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case reason
+        case usable
     }
 
     // MARK: - Initializer
@@ -21,6 +22,7 @@ extension PermissionRequest: Encodable {
         try permission.encode(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(reason, forKey: .reason)
+        try container.encode(usable, forKey: .usable)
     }
 
     // MARK: - Private

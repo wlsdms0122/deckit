@@ -21,8 +21,10 @@ struct InitializeParams: Decodable {
     // The folders of the mods the app ships, and of those read in place.
     let ship: [String]
     let sources: [String]
-    // Those the layers on deck guard what they add with, deck's own among them, in the order they were defined.
+    // Those the mod contract names that the driver checks, deck's own among them, and the ids of those the layers on
+    // this host give.
     let permissions: [Permission]
+    let given: [String]
 
     // MARK: - Initializer
     // MARK: - Public

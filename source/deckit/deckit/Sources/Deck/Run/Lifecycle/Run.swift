@@ -15,8 +15,8 @@ public struct Run: Sendable {
     public private(set) var state: RunState = .launching
     // The first problem recorded against it while it launches or runs, or why it failed or crashed.
     public private(set) var problem: String?
-    // What its page reported as it started, once it launched: `summary`, what it contributes as a person reads it, is
-    // carried and not read.
+    // What its page reported: `summary`, what the layers read of its entry and what it contributes, as a person reads
+    // it, carried and not read; and once it launched, what it contributes now.
     public private(set) var summary: JSONValue?
     public private(set) var contributions: Contribution?
 
@@ -27,6 +27,22 @@ public struct Run: Sendable {
     }
 
     // MARK: - Public
+    mutating func describe(_ summary: JSONValue) {
+        self.summary = summary
+    }
+
+    // What it contributes now replaces what it did, but for its exports, those it launched with.
+    mutating func join(summary: JSONValue, contributions: Contribution) {
+        guard let launched = self.contributions else { return }
+        self.summary = summary
+        self.contributions = Contribution(
+            exports: launched.exports,
+            extensionPoints: contributions.extensionPoints,
+            extensions: contributions.extensions,
+            layers: contributions.layers
+        )
+    }
+
     mutating func didLaunch(
         summary: JSONValue,
         contributions: Contribution

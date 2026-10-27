@@ -349,7 +349,13 @@ struct CatalogTests {
     // MARK: - Private
     private func catalog(sources: [URL] = [], ship: [URL] = []) throws -> Catalog {
         let store = Store()
-        let reader = try ManifestReader(api: try #require(Version("1.0.0")), permissions: [], fields: [], store: store)
+        let reader = try ManifestReader(
+            api: try #require(Version("1.0.0")),
+            permissions: [],
+            given: [],
+            fields: [],
+            store: store
+        )
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
         return Catalog(

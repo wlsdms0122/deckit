@@ -44,7 +44,7 @@ struct ExtensionRegistryTests {
         // Then
         #expect(
             problems == [
-                "deck.extends.lone extends point, and lone is not in [extends]",
+                "it extends lone's point, and lone is not in [extends]",
                 "nope is not <mod id>:<point>"
             ]
         )

@@ -21,13 +21,14 @@ struct ManifestReaderTests {
         sut = try ManifestReader(
             api: try #require(Version("1.2.0")),
             permissions: [mods, network],
+            given: [mods.id],
             fields: [],
             store: Store()
         )
     }
 
     // MARK: - Test
-    @Test("a manifest is read with the permissions it asks for, the widest first, and why")
+    @Test("a manifest is read with the permissions it asks for, the widest first, why, and whether this host gives each")
     func manifestIsRead() throws {
         // Given
         let text = """
@@ -52,8 +53,8 @@ struct ManifestReaderTests {
         #expect(manifest.requires == ["files": "1.0.0"])
         #expect(
             manifest.permissions == [
-                PermissionRequest(permission: network, reason: "to sync"),
-                PermissionRequest(permission: mods, reason: "to list them")
+                PermissionRequest(permission: network, reason: "to sync", usable: false),
+                PermissionRequest(permission: mods, reason: "to list them", usable: true)
             ]
         )
     }
@@ -115,9 +116,11 @@ struct ManifestReaderTests {
 
         // When
         let permissionTwice = Result {
-            try ManifestReader(api: api, permissions: [mods, mods], fields: [], store: Store())
+            try ManifestReader(api: api, permissions: [mods, mods], given: [], fields: [], store: Store())
         }
-        let fieldTwice = Result { try ManifestReader(api: api, permissions: [], fields: [MainField()], store: Store()) }
+        let fieldTwice = Result {
+            try ManifestReader(api: api, permissions: [], given: [], fields: [MainField()], store: Store())
+        }
 
         // Then
         #expect(throws: ManifestError.permissionDefined("deckit.mods")) { try permissionTwice.get() }

@@ -16,37 +16,24 @@ struct ErasureTests {
     private let record: Record
     private let dataFolder: DataFolder
     private let state: State
-    private let settings: URL
+    private let modState: ModState
     private let sut: Erasure
 
     // MARK: - Initializer
     init() throws {
         home = FileManager.default.temporaryDirectory.appending(path: "erasure-tests-\(UUID().uuidString)")
-        settings = home.appending(path: "settings")
         let store = Store()
         record = Record(folder: home.appending(path: "records"), store: store)
         dataFolder = DataFolder(folder: home.appending(path: "data"), store: store)
         state = State(root: home.appending(path: "state"), store: store)
-        let reader = try ManifestReader(api: try #require(Version("1.0.0")), permissions: [], fields: [], store: store)
-        let modFolder = ModFolder(reader: reader, store: store)
-        let folder = home.appending(path: "mods")
-        let catalog = Catalog(
-            folder: folder,
-            sources: [],
-            ship: [],
-            modFolder: modFolder,
-            dataFolder: dataFolder,
-            installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
-            store: store
-        )
-        let setting = Setting(folder: settings, store: store, catalog: catalog, runner: Runner(catalog: catalog))
-        let storage = ModStorage(dataFolder: dataFolder, record: record, setting: setting, store: store)
+        modState = ModState(root: home.appending(path: "mod-state"), store: store)
+        try modState.reserve("layer")
+        let storage = ModStorage(dataFolder: dataFolder, record: record, modState: modState, store: store)
         sut = Erasure(storage: storage, state: state, store: store)
     }
 
     // MARK: - Test
-    @Test("erasing takes the mod's data folder, records and settings, and notes it until it is cleared")
+    @Test("erasing takes the mod's data folder, records and what a layer keeps of it, and notes it until it is cleared")
     func eraseTakesWhatDeckKeeps() throws {
         // Given
         try keep("notes")
@@ -59,10 +46,10 @@ struct ErasureTests {
         // Then
         #expect(!exists("data/notes"))
         #expect(!exists("records/notes"))
-        #expect(!exists("settings/notes.json"))
+        #expect(!exists("mod-state/layer/notes.json"))
         #expect(exists("data/finder"))
         #expect(exists("records/finder"))
-        #expect(exists("settings/finder.json"))
+        #expect(exists("mod-state/layer/finder.json"))
         #expect(sut.uncleared() == ["notes"])
     }
 
@@ -81,7 +68,7 @@ struct ErasureTests {
         #expect(throws: (any Error).self) { try erased.get() }
         #expect(exists("data/notes"))
         #expect(!exists("records/notes"))
-        #expect(!exists("settings/notes.json"))
+        #expect(!exists("mod-state/layer/notes.json"))
         #expect(sut.uncleared() == ["notes"])
     }
 
@@ -119,8 +106,7 @@ struct ErasureTests {
         try FileManager.default.createDirectory(at: data, withIntermediateDirectories: true)
         try Data("x".utf8).write(to: data.appending(path: "file.txt"))
         try record.write(mod: id, key: "tabs", text: "[]")
-        try FileManager.default.createDirectory(at: settings, withIntermediateDirectories: true)
-        try Data("{}".utf8).write(to: settings.appending(path: "\(id).json"))
+        try modState.write("layer", mod: id, text: "{}")
     }
 
     private func exists(_ path: String) -> Bool {

@@ -1,14 +1,14 @@
 //
-//  SettingGroup+Encodable.swift
+//  ConfigurationGroup+Encodable.swift
 //  DeckitServer
 //
 //  Created by JSilver on 10/20/26.
 //
 
 import Foundation
-import Deck
+import Deckit
 
-extension SettingGroup: Encodable {
+extension ConfigurationGroup: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case id

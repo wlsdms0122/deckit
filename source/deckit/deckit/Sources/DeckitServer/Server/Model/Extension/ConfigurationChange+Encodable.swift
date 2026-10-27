@@ -1,14 +1,14 @@
 //
-//  SettingChange+Encodable.swift
+//  ConfigurationChange+Encodable.swift
 //  DeckitServer
 //
 //  Created by JSilver on 10/20/26.
 //
 
 import Foundation
-import Deck
+import Deckit
 
-extension SettingChange: Encodable {
+extension ConfigurationChange: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case value

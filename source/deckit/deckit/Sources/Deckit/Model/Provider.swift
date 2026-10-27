@@ -7,8 +7,8 @@
 
 import Foundation
 
-// What declares commands and keys, and runs them: a host, under a name it gives that starts with "@" (the host app, the
-// shell it puts on deckit), or a mod, whose run contributed them. Each with its name as a person reads it.
+// What declares commands and keys, and runs them: a host, under a name it gives that starts with "@" (the host app, or
+// what it puts on deckit), or a mod, whose run contributed them. Each with its name as a person reads it.
 public enum Provider: Equatable, Sendable {
     case host(id: String, name: String)
     case mod(id: String, name: String)

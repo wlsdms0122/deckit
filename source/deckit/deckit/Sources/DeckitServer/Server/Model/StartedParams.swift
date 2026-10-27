@@ -8,7 +8,8 @@
 import Foundation
 import Deck
 
-// A run that started, with what its page reported: `summary` as a person reads it, and what it contributed.
+// A run that started, or that runs, with what its page reported: `summary` as a person reads it, and what it
+// contributes.
 struct StartedParams: Decodable {
     // MARK: - Property
     let mod: String

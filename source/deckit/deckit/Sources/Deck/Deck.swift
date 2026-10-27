@@ -13,7 +13,8 @@ public final class Deck {
     // The state deck keeps, which a layer keeps its own in beside deck's.
     public let state: State
     public let records: Record
-    public let settings: Setting
+    // What the layers on deck keep for each mod, each under a name it reserves.
+    public let modState: ModState
     public let dataFolder: DataFolder
     public let storage: ModStorage
     // The mods found, installed and removed. Reading them again is deck's (`readCatalog()`).
@@ -27,19 +28,27 @@ public final class Deck {
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
-    // place. A manifest is read against `api`, the mod contract the mods are run with, and with what the layers on deck
-    // add to it: the `permissions` they guard what they add with, deck's own among them, and their `fields`.
+    // place. A manifest is read against `api`, the mod contract the mods are run with: the `permissions` it names,
+    // deck's own among them, of which the layers on this host give those `given`, and the `fields` the layers on deck
+    // add.
     public init(
         home: URL,
         ship: [URL],
         sources: [URL],
         api: Version,
         permissions: [Permission],
+        given: Set<String>,
         fields: [any ManifestField]
     ) throws {
         let store = Store()
         let folder = home.appending(path: "mods", directoryHint: .isDirectory)
-        let reader = try ManifestReader(api: api, permissions: permissions, fields: fields, store: store)
+        let reader = try ManifestReader(
+            api: api,
+            permissions: permissions,
+            given: given,
+            fields: fields,
+            store: store
+        )
         let modFolder = ModFolder(reader: reader, store: store)
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)
         let record = Record(folder: home.appending(path: "records", directoryHint: .isDirectory), store: store)
@@ -55,16 +64,11 @@ public final class Deck {
             store: store
         )
         let runner = Runner(catalog: catalog)
-        let setting = Setting(
-            folder: home.appending(path: "settings", directoryHint: .isDirectory),
-            store: store,
-            catalog: catalog,
-            runner: runner
-        )
-        let storage = ModStorage(dataFolder: dataFolder, record: record, setting: setting, store: store)
+        let modState = ModState(root: home.appending(path: "mod-state", directoryHint: .isDirectory), store: store)
+        let storage = ModStorage(dataFolder: dataFolder, record: record, modState: modState, store: store)
         self.records = record
         self.state = state
-        self.settings = setting
+        self.modState = modState
         self.dataFolder = dataFolder
         self.storage = storage
         self.catalog = catalog
@@ -76,6 +80,11 @@ public final class Deck {
     }
 
     // MARK: - Public
+    // The mod's latest run, while it has a sandbox.
+    package func run(of id: String) -> Run? {
+        runner.run(of: id)
+    }
+
     // What the mod's run contributed, from its launch until it has ended.
     package func contributions(of id: String) -> Contribution? {
         guard let run = runner.run(of: id), run.state == .running || run.state == .terminating else { return nil }
@@ -89,9 +98,7 @@ public final class Deck {
 
     // The mods read again, as the catalog reads them now.
     public func readCatalog() -> [Mod] {
-        let mods = catalog.read()
-        settings.forget()
-        return mods
+        catalog.read()
     }
 
     // The mods named load, as the catalog was last read.
@@ -104,26 +111,21 @@ public final class Deck {
         try withChanges(runner.unload(ids))
     }
 
+    // The `run`th run of `id` read its entry: `summary` is what the layers read of it, as a person reads it.
+    public func described(_ id: String, run: Int, summary: JSONValue) throws -> [Effect] {
+        try withChanges(runner.described(id, run: run, summary: summary))
+    }
+
     // The `run`th run of `id` started, with what its page reported: `summary` as a person reads it, and what it
     // contributed, which deck and each layer judge.
     public func started(_ id: String, run: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
-        var effects = try runner.started(id, run: run, summary: summary, contributions: contributions)
-        for problem in problems(of: id, run: run) {
-            effects += try runner.report(id, run: run, problem: problem)
-        }
-        return withChanges(effects)
+        try judged(id, run: run, runner.started(id, run: run, summary: summary, contributions: contributions))
     }
 
-    // The `run`th run of `id` declared its settings as its entry was read: a declaration deck does not read is a problem
-    // of the run.
-    public func declared(_ id: String, run number: Int, settings: [JSONValue]) throws -> [Effect] {
-        guard let problems = self.settings.declare(settings, mod: id, run: number) else { return [] }
-
-        var effects: [Effect] = []
-        for problem in problems {
-            effects += try runner.report(id, run: number, problem: problem)
-        }
-        return withChanges(effects)
+    // What the running `run`th run of `id` contributes now, with what its page reported: the lifecycles stacked on the
+    // run join theirs after it started, and leave as they end. Its exports are those it started with.
+    public func joined(_ id: String, run: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
+        try judged(id, run: run, runner.joined(id, run: run, summary: summary, contributions: contributions))
     }
 
     // A problem against the `run`th run of `id`.
@@ -144,6 +146,15 @@ public final class Deck {
     }
 
     // MARK: - Private
+    // What deck and each layer find wrong with what the run contributes now is recorded against it.
+    private func judged(_ id: String, run: Int, _ effects: [Effect]) throws -> [Effect] {
+        var effects = effects
+        for problem in problems(of: id, run: run) {
+            effects += try runner.report(id, run: run, problem: problem)
+        }
+        return withChanges(effects)
+    }
+
     // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, and
     // what each layer tells has changed of its own.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
@@ -152,7 +163,7 @@ public final class Deck {
             + layers.flatMap { layer in layer.changes() }.map(Effect.layer)
     }
 
-    // What is wrong with what the `number`th run of `id` contributed, deck's and each layer's, once it has launched.
+    // What is wrong with what the `number`th run of `id` contributes, deck's and each layer's, once it has launched.
     private func problems(of id: String, run number: Int) -> [String] {
         guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
 

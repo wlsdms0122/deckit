@@ -14,6 +14,7 @@ struct ModStorageTests {
     // MARK: - Property
     private let home: URL
     private let record: Record
+    private let modState: ModState
     private let sut: ModStorage
 
     // MARK: - Initializer
@@ -21,29 +22,13 @@ struct ModStorageTests {
         home = FileManager.default.temporaryDirectory.appending(path: "storage-tests-\(UUID().uuidString)")
         let store = Store()
         record = Record(folder: home.appending(path: "records"), store: store)
-        let reader = try ManifestReader(api: try #require(Version("1.0.0")), permissions: [], fields: [], store: store)
-        let modFolder = ModFolder(reader: reader, store: store)
-        let folder = home.appending(path: "mods")
-        let dataFolder = DataFolder(folder: home.appending(path: "data"), store: store)
-        let catalog = Catalog(
-            folder: folder,
-            sources: [],
-            ship: [],
-            modFolder: modFolder,
-            dataFolder: dataFolder,
-            installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
-            store: store
-        )
+        modState = ModState(root: home.appending(path: "mod-state"), store: store)
+        try modState.reserve("configuration")
+        try modState.reserve("pins")
         sut = ModStorage(
-            dataFolder: dataFolder,
+            dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             record: record,
-            setting: Setting(
-                folder: home.appending(path: "settings"),
-                store: store,
-                catalog: catalog,
-                runner: Runner(catalog: catalog)
-            ),
+            modState: modState,
             store: store
         )
     }
@@ -57,9 +42,7 @@ struct ModStorageTests {
         try Data().write(to: data.appending(path: "a"))
         try record.write(mod: "notes", key: "tabs", text: "[]")
         try record.write(mod: "notes", key: "panes", text: "[]")
-        let settings = home.appending(path: "settings")
-        try FileManager.default.createDirectory(at: settings, withIntermediateDirectories: true)
-        try Data("{}".utf8).write(to: settings.appending(path: "notes.json"))
+        try modState.write("pins", mod: "notes", text: "{}")
 
         // When
         let usage = try sut.usage(mod: "notes")
@@ -70,14 +53,14 @@ struct ModStorageTests {
             usage == StorageUsage(
                 data: DataCount(count: 1, capped: false, hidden: false),
                 records: RecordCount(count: 2, hidden: false),
-                settings: true
+                kept: ["pins"]
             )
         )
         #expect(
             other == StorageUsage(
                 data: DataCount(count: 0, capped: false, hidden: false),
                 records: RecordCount(count: 0, hidden: false),
-                settings: false
+                kept: []
             )
         )
     }

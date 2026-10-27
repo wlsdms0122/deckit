@@ -8,8 +8,8 @@
 import Foundation
 import Deck
 
-// The commands there are: those each running mod's run contributed under `commands`, declared in start(), and those
-// a host declares under a name of its own. A command is found by its provider and its name, never by a joined id.
+// The commands there are: those each running mod's run contributes under `commands`, and those a host declares under
+// a name of its own. A command is found by its provider and its name, never by a joined id.
 public final class CommandRegistry {
     // MARK: - Property
     private let contributionKey = "commands"

@@ -49,7 +49,13 @@ struct RunnerFixture {
     // A runner over what is written, as the catalog reads it, with no mod loaded.
     func runner() throws -> Runner {
         let store = Store()
-        let reader = try ManifestReader(api: try #require(Version("1.0.0")), permissions: [], fields: [], store: store)
+        let reader = try ManifestReader(
+            api: try #require(Version("1.0.0")),
+            permissions: [],
+            given: [],
+            fields: [],
+            store: store
+        )
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
         let catalog = Catalog(

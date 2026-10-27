@@ -91,7 +91,8 @@ final class Server {
                 api: params.api,
                 name: params.name,
                 schemeHandlers: params.schemeHandlers,
-                permissions: params.permissions
+                permissions: params.permissions,
+                given: Set(params.given)
             )
             self.deckit = deckit
 
@@ -129,22 +130,19 @@ final class Server {
             try deck.state.write(folder: params.folder, key: params.key, text: params.text)
             return true
 
-        case "setting/read":
-            return deck.settings.read(mod: try request.decodeParams(as: ModParams.self).mod)
+        case "configuration/declare":
+            let params = try request.decodeParams(as: DeclareConfigurationParams.self)
+            return try deckit.configuration.declare(params.configuration, mod: params.mod, run: params.run)
 
-        case "setting/declare":
-            let params = try request.decodeParams(as: DeclareSettingsParams.self)
-            return try deck.declared(params.mod, run: params.run, settings: params.settings)
+        case "configuration/values":
+            return deckit.configuration.values(of: try request.decodeParams(as: ModParams.self).mod)
 
-        case "setting/computed-choices":
-            return deck.settings.computedChoices(mod: try request.decodeParams(as: ComputedChoicesParams.self).mod)
+        case "configuration/list":
+            return deckit.configuration.list()
 
-        case "setting/list":
-            return deck.settings.list(choices: try request.decodeParams(as: ListSettingsParams.self).choices)
-
-        case "setting/set":
-            let params = try request.decodeParams(as: SetSettingParams.self)
-            return try deck.settings.set(mod: params.mod, key: params.key, value: params.value, options: params.options)
+        case "configuration/set":
+            let params = try request.decodeParams(as: SetConfigurationParams.self)
+            return try deckit.configuration.set(mod: params.mod, key: params.key, value: params.value)
 
         case "catalog/read":
             return deck.readCatalog()
@@ -187,9 +185,22 @@ final class Server {
         case "runner/unload":
             return try deck.unload(request.decodeParams(as: ModsParams.self).mods)
 
+        case "runner/described":
+            let params = try request.decodeParams(as: DescribedParams.self)
+            return try deck.described(params.mod, run: params.run, summary: params.summary)
+
         case "runner/started":
             let params = try request.decodeParams(as: StartedParams.self)
             return try deck.started(
+                params.mod,
+                run: params.run,
+                summary: params.summary,
+                contributions: params.contributions
+            )
+
+        case "runner/joined":
+            let params = try request.decodeParams(as: StartedParams.self)
+            return try deck.joined(
                 params.mod,
                 run: params.run,
                 summary: params.summary,

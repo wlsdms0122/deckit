@@ -1,13 +1,13 @@
 //
-//  SettingValue+Codable.swift
-//  Deck
+//  ConfigurationValue+Codable.swift
+//  Deckit
 //
-//  Created by JSilver on 10/20/26.
+//  Created by JSilver on 10/27/26.
 //
 
 import Foundation
 
-extension SettingValue: Codable {
+extension ConfigurationValue: Codable {
     // MARK: - Property
     // MARK: - Initializer
     public init(from decoder: any Decoder) throws {

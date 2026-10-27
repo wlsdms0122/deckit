@@ -7,7 +7,7 @@
 
 import Foundation
 
-// One of a mod's keys: a record's, or a setting's.
+// One of a mod's keys: a record's.
 struct ModKeyParams: Decodable {
     // MARK: - Property
     let mod: String

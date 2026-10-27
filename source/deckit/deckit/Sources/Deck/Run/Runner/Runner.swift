@@ -77,6 +77,17 @@ final class Runner {
         }
     }
 
+    // It read its entry, while it launches.
+    func described(_ id: String, run number: Int, summary: JSONValue) throws -> [Effect] {
+        try decide {
+            guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
+            var run = sandbox.run
+            run.describe(summary)
+            sandbox.run = run
+            effects.append(.keep(run))
+        }
+    }
+
     // It started, with what it contributed.
     func started(_ id: String, run number: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
         try decide {
@@ -84,6 +95,17 @@ final class Runner {
             try move(sandbox) { run throws(LifecycleError) in
                 try run.didLaunch(summary: summary, contributions: contributions)
             }
+        }
+    }
+
+    // What it contributes now, while it runs.
+    func joined(_ id: String, run number: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
+        try decide {
+            guard let sandbox = sandbox(of: id, run: number), sandbox.state == .running else { return }
+            var run = sandbox.run
+            run.join(summary: summary, contributions: contributions)
+            sandbox.run = run
+            effects.append(.keep(run))
         }
     }
 
@@ -97,7 +119,7 @@ final class Runner {
         }
     }
 
-    // It did not start, and why: its stop() is asked as it terminates.
+    // It did not start, and why: its end is asked of its page as it terminates.
     func notStarted(_ id: String, run number: Int, problem: String) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .launching else { return }
@@ -112,7 +134,7 @@ final class Runner {
         }
     }
 
-    // Its stop() answered, its time ran out or its page is gone.
+    // Its page ended it, its time ran out or its page is gone.
     func stopped(_ id: String, run number: Int) throws -> [Effect] {
         try decide {
             guard let sandbox = sandbox(of: id, run: number), sandbox.state == .terminating else { return }
@@ -121,7 +143,7 @@ final class Runner {
     }
 
     // MARK: - Private
-    // What one fact comes to. A terminating run's stop() is asked once every mod that requires it has ended.
+    // What one fact comes to. A terminating run's end is asked once every mod that requires it has ended.
     private func decide(_ fact: () throws -> Void) throws -> [Effect] {
         effects = []
         try fact()
@@ -178,8 +200,8 @@ final class Runner {
         try tell(notification, run, of: sandbox)
     }
 
-    // A mod runs only while what it requires runs: it terminates as one of them terminates, before that one's stop()
-    // is asked, or as one ends with no willTerminate, having crashed or not launched.
+    // A mod runs only while what it requires runs: it terminates as one of them terminates, before that one's end is
+    // asked, or as one ends with no willTerminate, having crashed or not launched.
     private func tell(_ notification: LifecycleNotification, _ run: Run, of sandbox: Sandbox) throws {
         effects.append(.tell(notification, run))
         switch notification {
