@@ -15,7 +15,7 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 | `renderer.js` | what Electron gives every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitRenderer`: `{ boot }` |
 | `shell-renderer.js` | deckit on a page: deck and deckit, and the shell's pages and what it gives a mod. It leaves one global, `DeckitShellRenderer`: `{ start }` |
 | `mods/<id>/` | deckit's own mods, each with its entry bundled, a catalog the host app picks from |
-| `document/` | this, MOD.md and UI.md |
+| `document/` | this, MOD.md, UI.md and HIG.md |
 
 In main the host app requires `main.js`, the environment, and `shell-main.js`, deckit. A deckit page loads, as its preload, a file the host app puts together:
 
