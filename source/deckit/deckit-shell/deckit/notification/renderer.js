@@ -28,8 +28,10 @@ export function createNotification() {
             if (typeof onClick === 'function') {
                 handlers.set(id, onClick);
                 // Most notifications are never clicked; without this every handler stays for the life of the page.
-                setTimeout(() => handlers.delete(id), TTL);
-                scope.add(() => handlers.delete(id));
+                setTimeout(
+                    scope.add(() => handlers.delete(id)),
+                    TTL
+                );
             }
             return PROTOCOL.show.invoke({ id, title: String(title), body: String(body), silent: !!silent });
         };

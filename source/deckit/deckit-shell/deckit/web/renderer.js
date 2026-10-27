@@ -61,11 +61,18 @@ export function createWeb({ sessions, web: WEB }) {
             if (!names.has(handle)) throw new Error('a web page needs a session from deckit.web.session(name)');
             return names.get(handle);
         };
+        // One the mod closes is closed as it asked, its delegate still told.
         const kept = (made) => {
-            scope.add(() => {
-                made.delegate = null;
-                made.close();
+            const { close } = made;
+            let asked = false;
+            const end = scope.add(() => {
+                if (!asked) made.delegate = null;
+                close();
             });
+            made.close = () => {
+                asked = true;
+                end();
+            };
             return made;
         };
         return Object.freeze({

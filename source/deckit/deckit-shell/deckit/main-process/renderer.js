@@ -43,11 +43,7 @@ function createMainProcess({ deliver }) {
                 const proxy = PROXY.proxyOf(methods, {}, (method, args) =>
                     PROTOCOL.call.invoke({ path: started, method, args })
                 );
-                proxy.on = (name, listener) => {
-                    const off = busOf(started).on(name, listener);
-                    scope.add(off);
-                    return off;
-                };
+                proxy.on = (name, listener) => scope.add(busOf(started).on(name, listener));
                 return PROXY.deepFreeze(proxy);
             });
     }

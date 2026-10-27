@@ -23,9 +23,7 @@ export function createRegion({ deliver, channels }) {
     function forScope(scope) {
         return {
             region(element) {
-                const { handle, end } = make(element);
-                scope.add(end);
-                return handle;
+                return make(element, scope);
             },
             children: Object.freeze({
                 list: () => childrenNow().slice(),
@@ -33,26 +31,24 @@ export function createRegion({ deliver, channels }) {
                     if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
                     childrenNow();
                     listeners.add(listener);
-                    const off = () => listeners.delete(listener);
-                    scope.add(off);
-                    return off;
+                    return scope.add(() => listeners.delete(listener));
                 },
             }),
         };
     }
 
     // MARK: - Private
-    function make(element) {
+    // A region ends once its element, after it was in the page, leaves it, or as `scope` is cut.
+    function make(element, scope) {
         if (element?.nodeType !== Node.ELEMENT_NODE) throw new Error('shell.region() takes an element');
         const region = ++count;
         let sent = '';
         let entered = false; // a region made in attach() has its element in the page only once the view is up
         let ended = false;
-        const end = () => {
-            if (ended) return;
+        const end = scope.add(() => {
             ended = true;
             PROTOCOL.end.send({ region });
-        };
+        });
         const follow = () => {
             if (ended) return;
             if (!element.isConnected && entered) return end();
@@ -66,13 +62,10 @@ export function createRegion({ deliver, channels }) {
             requestAnimationFrame(follow);
         };
         follow();
-        return {
-            handle: Object.freeze({
-                place: (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, id: String(id) })),
-                clear: () => (ended ? refused() : PROTOCOL.place.invoke({ region, id: null })),
-            }),
-            end,
-        };
+        return Object.freeze({
+            place: (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, id: String(id) })),
+            clear: () => (ended ? refused() : PROTOCOL.place.invoke({ region, id: null })),
+        });
     }
 
     function refused() {

@@ -30,9 +30,7 @@ export function createEvent({ RUN }) {
                 if (!SCOPED.isScoped(named))
                     throw new Error(`${handle}.on() takes "<mod id>:<event name>", not "${named}"`);
                 if (typeof listener !== 'function') throw new Error(`${handle}.on() takes a listener function`);
-                const off = busNow().on(named, listener);
-                scope.add(off);
-                return off;
+                return scope.add(busNow().on(named, listener));
             },
         };
     }

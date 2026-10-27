@@ -141,16 +141,21 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
         });
     }
 
-    // A lifecycle ends within its own limit, whatever its end throws, and what its handles made is cut once its end
-    // has run or its time ran out.
-    async function end({ lifecycle, scope, registry }, instance) {
-        registry.close();
-        let timer = null;
-        const ran = (async () => lifecycle.end(instance))().catch((error) => RUN.fail(error.message || String(error)));
-        const late = new Promise((resolve) => (timer = setTimeout(resolve, LIMIT.END_LIMIT_MS)));
-        await Promise.race([ran, late]);
-        clearTimeout(timer);
-        scope.cut();
+    // A lifecycle ends once, within its own limit, whatever its end throws, and what its handles made is cut once its
+    // end has run or its time ran out. Asked again, it answers the end already going.
+    function end(entry, instance) {
+        return (entry.ending ??= (async () => {
+            const { lifecycle, scope, registry } = entry;
+            registry.close();
+            let timer = null;
+            const ran = (async () => lifecycle.end(instance))().catch((error) =>
+                RUN.fail(error.message || String(error))
+            );
+            const late = new Promise((resolve) => (timer = setTimeout(resolve, LIMIT.END_LIMIT_MS)));
+            await Promise.race([ran, late]);
+            clearTimeout(timer);
+            scope.cut();
+        })());
     }
 
     // The entry runs as a CommonJS module with nothing else in reach, and exports the mod's class.

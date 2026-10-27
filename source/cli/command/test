@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Checks the channels between main and a page, the stage pages are laid on, what an environment gives and connect
-// answers, deck's client of the core, its runner, the key map, the web pages a mod shows and what a page is told as it
-// starts, runs the core's tests, then drives Deckit.app, put together from the archive the last build made, through the
-// scenario, with data of its own that is thrown away. Exits 1 with a line for each check that failed. Screenshots and
-// the app's log are left in .build/test/.
+// answers, deck's client of the core, its runner and the scope a lifecycle cuts, the key map, the web pages a mod shows
+// and what a page is told as it starts, runs the core's tests, then drives Deckit.app, put together from the archive
+// the last build made, through the scenario, with data of its own that is thrown away. Exits 1 with a line for each
+// check that failed. Screenshots and the app's log are left in .build/test/.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -32,6 +32,7 @@ const main = async () => {
         'environment.js',
         'core.js',
         'runner.js',
+        'scope.js',
         'keymap.js',
         'web.js',
         'page.js',

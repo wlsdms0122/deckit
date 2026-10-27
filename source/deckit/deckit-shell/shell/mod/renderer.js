@@ -113,11 +113,7 @@ function shellOf({ WEB, channels }) {
 // The page's theme on a handle: what it hears is cut with `scope`.
 function themeOf(theme, scope) {
     const read = {
-        onChange(listener) {
-            const off = theme.onChange(listener);
-            scope.add(off);
-            return off;
-        },
+        onChange: (listener) => scope.add(theme.onChange(listener)),
     };
     for (const key of Object.keys(theme).filter((key) => key !== 'onChange'))
         Object.defineProperty(read, key, { get: () => theme[key], enumerable: true });

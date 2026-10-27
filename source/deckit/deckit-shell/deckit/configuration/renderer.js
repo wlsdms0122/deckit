@@ -45,9 +45,7 @@ export function createConfiguration({ RUN }) {
                 }),
             on(listener) {
                 listeners.add(listener);
-                const off = () => listeners.delete(listener);
-                scope.add(off);
-                return off;
+                return scope.add(() => listeners.delete(listener));
             },
         });
     }

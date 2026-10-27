@@ -18,11 +18,7 @@ export function createMods({ RUN }) {
     function tool(added, scope) {
         return Object.freeze({
             ...added,
-            onChange: (listener) => {
-                const off = onChange(listener);
-                scope.add(off);
-                return off;
-            },
+            onChange: (listener) => scope.add(onChange(listener)),
             list: () => PROTOCOL.mods.invoke(),
             install: (from) => PROTOCOL.install.invoke({ from: String(from) }),
             remove: (id, data) => PROTOCOL.remove.invoke({ id: String(id), data: !!data }),

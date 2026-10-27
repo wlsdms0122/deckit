@@ -29,9 +29,7 @@ export function createExtension({ RUN }) {
                 onChange(listener) {
                     if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
                     listeners.add(listener);
-                    const off = () => listeners.delete(listener);
-                    scope.add(off);
-                    return off;
+                    return scope.add(() => listeners.delete(listener));
                 },
             }),
             set(given) {

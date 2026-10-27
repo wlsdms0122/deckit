@@ -154,11 +154,8 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
         const has = (permission) => mod.permissions.some(({ id }) => id === permission);
         const scoped =
             (subscribe) =>
-            (...args) => {
-                const off = subscribe(...args);
-                scope.add(off);
-                return off;
-            };
+            (...args) =>
+                scope.add(subscribe(...args));
         return {
             web: WEB.forMod({ permissions: mod.permissions.map(({ id }) => id) }),
             util: Object.freeze({
