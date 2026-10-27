@@ -288,7 +288,9 @@ module.exports = {
             tabs.close(tabs.front());
         }
 
+        // The bookmark editor stands by the star, which editing hides.
         function editAddress() {
+            editor.close();
             bar.edit();
         }
 

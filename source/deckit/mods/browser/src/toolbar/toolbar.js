@@ -17,8 +17,7 @@ function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, on
             grid-template-columns: 1fr minmax(0, 640px) 1fr;
             align-items: center;
             gap: 8px;
-            min-height: max(var(--deckit-title-bar-area-height, 0px), 44px);
-            padding: 0 10px;
+            padding: 6px 10px;
         }
         .browser-toolbar-side { display: flex; align-items: center; gap: 2px; }
         .browser-address-field {
