@@ -40,4 +40,4 @@ source/cli/deckit engine <mod>     build the Editor's or the Notes' editing engi
 - [EMBEDDING.md](document/EMBEDDING.md): what a host app embeds, and how
 - [MOD.md](document/MOD.md): the mod contract
 - [UI.md](document/UI.md): the kit mods draw with
-- [HIG.md](document/HIG.md): how a mod's view looks and behaves
+- [GUIDELINES.md](document/GUIDELINES.md): what a mod takes care of to work as part of Deckit: its view, switcher actions, keys, settings and notifications
