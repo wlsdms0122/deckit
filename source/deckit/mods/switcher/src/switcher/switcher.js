@@ -13,14 +13,15 @@ const NOW_WAIT_MS = 150;
 // The list of a Show item for each mod the shell can show and the actions mods add through `point`, the switcher's
 // point `actions`, in `window`, the mod's own: `toggle()` opens it, or puts it away when it is open. Each open reads
 // the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod coming on screen, another
-// app.
-function switcher(deck, window, point) {
-    const registry = deck.commandRegistry;
-    const records = deck.storage.records;
+// app. `end()` drops the list and its timer.
+function switcher(shell, deckit, window, point) {
+    const registry = deckit.commandRegistry;
+    const records = deckit.storage.records;
+    const drawing = { ui: shell.ui, theme: shell.theme, util: deckit.util }; // what the list is drawn and ranked with
     let open = null; // the list on screen: { list, left, about, submenus }, `left` once its exit has started
     let leaving = null; // the timer that puts the window away once the list's exit has played
 
-    return { toggle, putAway, closed };
+    return { toggle, putAway, closed, end };
 
     function toggle() {
         if (open && !open.left) return open.list ? open.list.close() : putAway();
@@ -43,7 +44,7 @@ function switcher(deck, window, point) {
         }
         if (open !== current) return;
         if (!supplied) return putAway();
-        current.list = LIST.open(deck, {
+        current.list = LIST.open(drawing, {
             placeholder: 'Run an action or show a mod…',
             items: supplied.items,
             now: supplied.now,
@@ -61,7 +62,7 @@ function switcher(deck, window, point) {
         leaving = setTimeout(() => {
             leaving = null;
             putAway();
-        }, deck.theme.motion.base);
+        }, shell.theme.motion.base);
     }
 
     // Away at once, as the keyboard goes elsewhere.
@@ -80,6 +81,12 @@ function switcher(deck, window, point) {
         if (open) putAway();
     }
 
+    function end() {
+        clearTimeout(leaving);
+        leaving = null;
+        open = null;
+    }
+
     // The listed actions with the Show items, and what is happening now. `later` is the Now strip as the slow mods
     // land in it.
     async function supply(current) {
@@ -90,10 +97,10 @@ function switcher(deck, window, point) {
         const shown = await showable();
         const actions = await listing;
         const mods = ITEMS.modsIn({ actions, shown });
-        const found = await Promise.all(mods.map((id) => deck.provider(id)));
+        const found = await Promise.all(mods.map((id) => deckit.provider(id)));
         current.about = {
             names: new Map(found.filter(Boolean).map(({ id, name }) => [id, name])),
-            iconOf: deck.iconOf,
+            iconOf: shell.iconOf,
         };
         const used = records.get(USE, {});
         const listed = ITEMS.listed({ actions, shown, about: current.about });
@@ -171,9 +178,9 @@ function switcher(deck, window, point) {
     }
 
     function notify(item, why) {
-        deck.notify({ title: item.label, body: why }).catch((error) =>
-            console.error(`[switcher] ${item.label} did not run: ${why}`, error)
-        );
+        deckit
+            .notify({ title: item.label, body: why })
+            .catch((error) => console.error(`[switcher] ${item.label} did not run: ${why}`, error));
     }
 
     function extensionOf(mod) {

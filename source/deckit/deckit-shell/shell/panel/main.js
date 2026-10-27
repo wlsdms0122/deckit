@@ -313,9 +313,7 @@ export function createPanel({ REGION, deckit, host }) {
         const showing = new Map(
             deckit.mods
                 .runs()
-                .filter(({ run, page }) =>
-                    run.state === 'running' ? run.summary.view : pages.get(run.mod.id) === page && inTransition(run)
-                )
+                .filter(({ run, page }) => joinedView(run) ?? (pages.get(run.mod.id) === page && inTransition(run)))
                 .map(({ run, page }) => [run.mod.id, page])
         );
         for (const [id, page] of pages) {
@@ -340,7 +338,12 @@ export function createPanel({ REGION, deckit, host }) {
     function mayShow(id) {
         const run = deckit.mods.runOf(id);
         if (!run) return false;
-        return run.state === 'running' ? run.summary.view : inTransition(run);
+        return joinedView(run) ?? inTransition(run);
+    }
+
+    // Whether a running run has a view, once the shell's lifecycle of it has joined or ended; undefined before.
+    function joinedView(run) {
+        return run.state === 'running' && run.summary?.view !== undefined ? run.summary.view : undefined;
     }
 
     // Launching, terminating, or ended to launch again.

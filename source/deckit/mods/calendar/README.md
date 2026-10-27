@@ -4,7 +4,7 @@ Day, week and month views of the calendars of your accounts, what is on now and 
 
 ## Providing accounts
 
-A mod that provides accounts extends Calendar's point `accounts`, and requires Calendar too when it asks the person through it (Asking):
+A mod that provides accounts extends Calendar's point `accounts` in `start`, since the reminders read through it where nothing is on screen, and requires Calendar too when it asks the person through it (Asking):
 
 ```toml
 [requires]
@@ -18,7 +18,7 @@ calendar = "1.0.0"
 ```
 
 ```js
-deck.extends.calendar({
+deckit.extends.calendar({
     accounts: {
         name: 'Google',
         hint: 'A Google account',
@@ -32,12 +32,12 @@ deck.extends.calendar({
 });
 ```
 
-Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's id, and hands it to every call. What the account signs in with (cookies, tokens, a web session) is the provider's, kept by `account.id` in its own mod: `deck.web.session('account-' + account.id)` is one way.
+Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's id, and hands it to every call. What the account signs in with (cookies, tokens, a web session) is the provider's, kept by `account.id` in its own mod: `deckit.web.session('account-' + account.id)` is one way.
 
 | Member | What it is |
 |---|---|
 | `name`, `hint`, `icon` | what the Add account sheet shows: the provider's name, a line under it, an inline SVG (drawn from its shapes alone) |
-| `signIn(account, { title })` | signs the account in and resolves to the address it signed in as, or to nothing when the person cancelled. The sign-in is the provider's to show, in a window of its own (`deck.web.window`, `title` its title), with whatever it asks the person on the way (a certificate, an app to open) asked through Calendar (Asking). Adding an account, a cancelled or failed sign-in leaves nothing behind in Calendar, and the provider drops what it kept for `account.id`; signing an account in again, what it had stays. Called to add an account and to sign one in again; signing in again as another address, compared exactly, is refused |
+| `signIn(account, { title })` | signs the account in and resolves to the address it signed in as, or to nothing when the person cancelled. The sign-in is the provider's to show, in a window of its own (`shell.web.window` of the `shell` its `attach` is given, `title` its title), with whatever it asks the person on the way (a certificate, an app to open) asked through Calendar (Asking). Adding an account, a cancelled or failed sign-in leaves nothing behind in Calendar, and the provider drops what it kept for `account.id`; signing an account in again, what it had stays. Called to add an account and to sign one in again; signing in again as another address, compared exactly, is refused |
 | `calendars(account)` | `[{ id, name, primary, selected, owned }]`: the account's calendars. `id` is read as a string, and a calendar without one is left out. `primary` is the account's own, `selected` one its own calendar app shows (a new account starts with those), `owned` one the account owns, whose every event reminds, not only invitations |
 | `events(account, calendar, from, to)` | the occurrences of the calendar whose `id` is `calendar` between two Dates, as an array (below). Anything else is a failure, and an answer that takes more than a minute is one too |
 | `respond(account, eventId, status)` | answers an invitation (an occurrence with `invited`): `ACCEPTED`, `DECLINED` or `TENTATIVE` |
@@ -70,7 +70,7 @@ While a provider's mod is not running its accounts stay, unread, with what was r
 The provider signing an account in asks the person through Calendar, which exports `ask`:
 
 ```js
-const open = await deck.requires.calendar.ask({
+const open = await deckit.requires.calendar.ask({
     message: 'Open the authenticator app?',
     detail: 'It confirms the sign-in on this Mac.',
     confirmLabel: 'Open',

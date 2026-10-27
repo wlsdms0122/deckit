@@ -11,7 +11,7 @@ const FORGOTTEN = 'forgotten';
 // The account providers: the mods that extend the `accounts` point (README.md), by their mod id. Calendar calls a
 // provider here alone, and reads what it answers into its own shapes here. An account whose provider is not running
 // stays, unread.
-function providerClient({ deck, ui, records, accountsPoint, onSigningIn }) {
+function providerClient({ deckit, records, accountsPoint, onSigningIn, prompt }) {
     // provider mod id -> { name, count, asks }: its sign-ins under way, and the questions they have open
     const signingIn = new Map();
 
@@ -47,29 +47,22 @@ function providerClient({ deck, ui, records, accountsPoint, onSigningIn }) {
         }
     }
 
-    // What the provider signing in asks the person on the way (README.md, Asking): Calendar comes on screen and asks in
-    // a dialog under the provider's name. Resolves whether the person confirmed, and false once the provider has no
-    // sign-in under way. A mod that is not signing in is refused.
+    // What the provider signing in asks the person on the way (README.md, Asking): `prompt(question)` brings Calendar
+    // on screen and asks in a dialog under the provider's name, answering `{ answer, close }`, or null where Calendar
+    // has no screen. Resolves whether the person confirmed, and false once the provider has no sign-in under way. A
+    // mod that is not signing in is refused.
     function ask({ message, detail = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
-        const signing = signingIn.get(deck.caller());
+        const signing = signingIn.get(deckit.caller());
         if (!signing) return Promise.reject(new Error('Calendar asks only for the provider signing in'));
-        deck.show();
-        return new Promise((resolve) => {
-            let confirmed = false;
-            const dialog = ui.dialog({
-                title: signing.name,
-                message: [String(message ?? ''), String(detail ?? '')],
-                confirmLabel: String(confirmLabel),
-                cancelLabel: String(cancelLabel),
-                onConfirm: () => (confirmed = true),
-                // The dialog closes before it confirms.
-                onClose: () => {
-                    signing.asks.delete(dialog.close);
-                    queueMicrotask(() => resolve(confirmed));
-                },
-            });
-            signing.asks.add(dialog.close);
+        const asking = prompt({
+            title: signing.name,
+            message: [String(message ?? ''), String(detail ?? '')],
+            confirmLabel: String(confirmLabel),
+            cancelLabel: String(cancelLabel),
         });
+        if (!asking) return Promise.reject(new Error('Calendar has no screen to ask on'));
+        signing.asks.add(asking.close);
+        return asking.answer.finally(() => signing.asks.delete(asking.close));
     }
 
     // The account's calendars in the shape README.md gives, the id a string: one without an id is left out.

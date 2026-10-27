@@ -1,9 +1,9 @@
 // A headless mod with a key that works anywhere in the app, which marks each press on its page. The test binds
 // it again and records a chord through the key map by events it sends the page, and reads the marks.
-module.exports = {
-    start(deck) {
+class KeysUser {
+    start(deckit) {
         const marks = document.documentElement.dataset;
-        deck.keys({
+        deckit.keys({
             mark: {
                 label: 'Mark',
                 key: 'mod+shift+9',
@@ -12,11 +12,13 @@ module.exports = {
             },
         });
         document.addEventListener('test-bind', async ({ detail: spec }) => {
-            await deck.keymap.set('keys-user.mark', spec);
-            marks.chord = deck.chordOf('mark');
+            await deckit.keymap.set('keys-user.mark', spec);
+            marks.chord = deckit.chordOf('mark');
         });
         document.addEventListener('test-record', () =>
-            deck.keymap.record((recorded) => (marks.recorded = JSON.stringify(recorded)))
+            deckit.keymap.record((recorded) => (marks.recorded = JSON.stringify(recorded)))
         );
-    },
-};
+    }
+}
+
+module.exports = KeysUser;

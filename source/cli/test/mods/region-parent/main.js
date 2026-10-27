@@ -1,19 +1,21 @@
 // A parent that shows its first child in a region inside its sidebar.
-module.exports = {
-    start(deck) {
+class RegionParent {
+    attach(shell) {
         const content = document.createElement('div');
         const sidebar = document.createElement('div');
         const slot = document.createElement('div');
         slot.id = 'region-slot';
         slot.style.height = '120px';
         sidebar.append(slot);
-        deck.view({ content, sidebar });
-        const region = deck.region(slot);
+        shell.view({ content, sidebar });
+        const region = shell.region(slot);
         const placeFirst = () => {
-            const [first] = deck.children.list();
+            const [first] = shell.children.list();
             if (first) region.place(first.id);
         };
-        deck.children.onChange(placeFirst);
+        shell.children.onChange(placeFirst);
         placeFirst();
-    },
-};
+    }
+}
+
+module.exports = RegionParent;

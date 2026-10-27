@@ -15,7 +15,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, modules: MODULES }) {
     // MARK: - Property
     // What is on deck when nothing is: no lifecycle, so the run starts once its class is made.
-    const NOTHING = Object.freeze({ handle: 'deck', read: () => ({}), mods: {}, lifecycles: [] });
+    const NOTHING = Object.freeze({ handle: 'deck', read: () => ({}), report: () => ({}), mods: {}, lifecycles: [] });
 
     // MARK: - Initializer
     // MARK: - Public
@@ -24,6 +24,8 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
     // `handle`, the name of the handle deck's members are on;
     // `read(Entry)`, what it reads of the class the entry exports, before any instance is made, as part of the
     // summary;
+    // `report()`, what main is told of the run beside deck's own now, `{ summary, contributions }`, as `join` answers
+    // it, once a lifecycle that did not start has ended;
     // `mods`, what it adds to `mods` for a mod with deckit.mods;
     // `lifecycles`, the lifecycles it stacks on the run, the lowest first. A lifecycle is `{ method, registrations,
     // start(instance, handles, scope), end(instance), join(parts, scope) }`: `method` names it in what a person reads;
@@ -110,7 +112,9 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
                 if (first) return RUN.notStarted();
                 // Only that lifecycle ends: the run goes on with those under it, and none stacks on it.
                 begun.pop();
-                return end(entry, instance);
+                await end(entry, instance);
+                if (!stopping) tell(PROTOCOL.joined, { described, joined, reported: given.report() });
+                return;
             }
             tell(first ? PROTOCOL.started : PROTOCOL.joined, { described, joined, reported });
         }

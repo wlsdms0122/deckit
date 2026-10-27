@@ -5,12 +5,12 @@ const { workflowForm } = require('./workflow-form.js');
 const { listDivider } = require('../pane/list-divider.js');
 const { installContent, actions, section, values, feedback } = require('../pane/content-ui.js');
 
-const workflowsView = ({ deck, forge, picker }) => {
-    const { ui } = deck;
+const workflowsView = ({ shell, deckit, forge, picker }) => {
+    const { ui } = shell;
     installContent(ui);
     let form = null,
         runButton = null;
-    const store = deck.storage.values;
+    const store = deckit.storage.values;
     let session = picker.current();
     let visible = false,
         epoch = 0,

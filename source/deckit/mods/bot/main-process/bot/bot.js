@@ -1,12 +1,12 @@
-// The bot's brain, where its settings say it is: `use(settings)` gives it, before anything is asked and again when one
-// changes, and answers whether it is served anew. A command left empty is the one on the login shell's PATH, and `~`
-// at the start of a path is the home folder.
+// The bot's brain, where its configuration says it is: `use(configuration)` gives it, before anything is asked and
+// again when it changes, and answers whether it is served anew. A command left empty is the one on the login shell's
+// PATH, and `~` at the start of a path is the home folder.
 module.exports = () => {
     const os = require('os');
     const path = require('path');
     const commands = require('../command/command.js')();
-    // What is served for the settings in use, `{ key, children, live, brain, problem }`: when they change, the commands
-    // it still runs end and those it would start after end at once.
+    // What is served for the configuration in use, `{ key, children, live, brain, problem }`: when it changes, the
+    // commands it still runs end and those it would start after end at once.
     let served = null;
 
     const retire = () => {
@@ -24,7 +24,7 @@ module.exports = () => {
             children.add(child);
             child.once('close', () => children.delete(child));
         };
-        // Settings that do not hold stand for the brain: every method tells the problem.
+        // A configuration that does not hold stands for the brain: every method tells the problem.
         const brain = at.problem ? null : require('../llmemory/brain.js')({ ...at, track, commands });
         return { children, live, brain, problem: at.problem || null };
     };
@@ -40,12 +40,13 @@ module.exports = () => {
         if (!path.isAbsolute(given)) throw new Error(`the llmemory command is not a name or a full path: ${value}`);
         return path.resolve(given);
     };
-    const where = (settings) => {
+    const where = (configuration) => {
         try {
-            const home = expand(settings.brain);
+            const home = expand(configuration.brain);
             if (!home) throw new Error("the brain's folder is not set: give it in Settings");
-            if (!path.isAbsolute(home)) throw new Error(`the brain's folder is not a full path: ${settings.brain}`);
-            return { command: commandOf(settings.llmemory), home: path.resolve(home) };
+            if (!path.isAbsolute(home))
+                throw new Error(`the brain's folder is not a full path: ${configuration.brain}`);
+            return { command: commandOf(configuration.llmemory), home: path.resolve(home) };
         } catch (error) {
             return { problem: error.message };
         }
@@ -58,8 +59,8 @@ module.exports = () => {
     };
 
     return {
-        use(settings) {
-            const at = where(settings);
+        use(configuration) {
+            const at = where(configuration);
             const key = JSON.stringify(at);
             if (served && served.key === key) return false;
             retire();

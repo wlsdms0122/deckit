@@ -6,7 +6,8 @@ const { nameOf } = require('../path/path.js');
 // one.
 function fileOpener({
     ui,
-    deck,
+    openURL,
+    fileURL,
     fileSystem,
     workspaces,
     disk,
@@ -27,7 +28,7 @@ function fileOpener({
         if (result.file) return result.file;
         if (result.passedBy) return null;
         if (result.error.kind === 'NOT_TEXT') {
-            if (!background && !preserveFocus) deck.open(deck.fileURL(path));
+            if (!background && !preserveFocus) openURL(fileURL(path));
         } else
             ui.dialog({
                 title: `Could not open ${nameOf(path)}`,

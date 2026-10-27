@@ -7,13 +7,14 @@ const { SECTION_STYLE } = require('./sections/section/section.js');
 const { tableOfContents } = require('./table-of-contents/table-of-contents.js');
 const { urlSchemesSection } = require('./sections/url-schemes/url-schemes-section.js');
 
-module.exports = {
-    keywords: ['설정', '모드', 'settings', 'mods'],
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
+class Settings {
+    static keywords = ['설정', '모드', 'settings', 'mods'];
+    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`;
 
-    start(deck) {
-        const { ui, util } = deck;
-        const APP_NAME = deck.about().name;
+    attach(shell, deckit) {
+        const { ui } = shell;
+        const { util } = deckit;
+        const APP_NAME = deckit.about().name;
 
         // mod id -> the keys a mod had as the Keyboard section last drew it running: a key map lists a mod's keys only
         // while it runs
@@ -45,23 +46,25 @@ module.exports = {
         const body = ui.element('div', { className: 'settings-body' });
         const mods = modsSection({
             ui,
-            mods: deck.mods,
-            everyScheme: deck.urlSchemes.everyScheme,
+            mods: deckit.mods,
+            pins: shell.mods,
+            everyScheme: deckit.urlSchemes.everyScheme,
             util,
             appName: APP_NAME,
             onChange: redraw,
         });
-        const actions = deck.extensionPoint('actions');
+        const actions = deckit.extensionPoint('actions');
         const modSettings = modSettingsSection({
             ui,
-            modSettings: deck.modSettings,
+            modConfiguration: deckit.modConfiguration,
+            formOf: shell.formOf,
             actions,
-            nameOf: (id) => deck.mods.list().running.find((mod) => mod.id === id)?.name || id,
+            nameOf: (id) => deckit.mods.list().running.find((mod) => mod.id === id)?.name || id,
             onFailure: mods.showNotice,
         });
-        const urlSchemes = urlSchemesSection({ ui, urlSchemes: deck.urlSchemes, appName: APP_NAME });
-        const fonts = fontsSection({ ui, fonts: deck.fonts, onFailure: mods.showNotice });
-        const keyboard = keyboardSection({ ui, keymap: deck.keymap, providerOf: deck.provider });
+        const urlSchemes = urlSchemesSection({ ui, urlSchemes: deckit.urlSchemes, appName: APP_NAME });
+        const fonts = fontsSection({ ui, fonts: shell.fonts, onFailure: mods.showNotice });
+        const keyboard = keyboardSection({ ui, keymap: deckit.keymap, providerOf: deckit.provider });
         const sections = [mods, modSettings, urlSchemes, fonts, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
@@ -73,7 +76,7 @@ module.exports = {
         modSettings.draw();
         actions.onChange(() => modSettings.draw());
 
-        deck.view({
+        shell.view({
             content: page,
             sidebar: contents.element,
             didAppear: () => {
@@ -86,7 +89,7 @@ module.exports = {
                 keyboard.stopRecording();
             },
         });
-        deck.commands({
+        deckit.commands({
             'show-settings-of': {
                 description: 'Shows the settings of one mod in Settings.',
                 params: {
@@ -98,7 +101,7 @@ module.exports = {
                 complete: (_param, partial) => settingsOf(partial),
             },
         });
-        deck.extends.switcher({
+        deckit.extends.switcher({
             actions: {
                 list: () => [
                     ...sections.map((section, index) => ({
@@ -122,23 +125,23 @@ module.exports = {
                         : [],
                 run: async ({ action, index, mod }) => {
                     if (action === 'show-section') {
-                        deck.show();
+                        shell.show();
                         requestAnimationFrame(() => contents.go(sections[index]));
-                    } else await showSettingsOf({ mod }, { ready: deck.show });
+                    } else await showSettingsOf({ mod }, { ready: shell.show });
                 },
             },
         });
-        deck.mods.onChange(() => shown && redraw());
+        deckit.mods.onChange(() => shown && redraw());
         // Fonts set elsewhere come as a new theme.
-        deck.theme.onChange(() => shown && fonts.draw());
+        shell.theme.onChange(() => shown && fonts.draw());
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
         // one, not as a mod gone and back.
         function redraw() {
-            const { found, running: now } = deck.mods.list();
-            const listed = deck.keymap.list();
-            const handlerLists = deck.urlSchemes.list();
+            const { found, running: now } = deckit.mods.list();
+            const listed = deckit.keymap.list();
+            const handlerLists = deckit.urlSchemes.list();
             for (const mod of now)
                 drawnKeys.set(
                     mod.id,
@@ -198,5 +201,7 @@ module.exports = {
                 modSettings.highlight(card);
             });
         }
-    },
-};
+    }
+}
+
+module.exports = Settings;

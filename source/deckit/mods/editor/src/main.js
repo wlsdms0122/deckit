@@ -26,12 +26,42 @@ const { unsavedDrafts, DRAFTS_STYLE } = require('./open-file/unsaved-drafts.js')
 const { workspaceModel } = require('./workspace/workspace-model.js');
 const { workspaceSearch, WORKSPACE_SEARCH_STYLE } = require('./workspace-search/workspace-search.js');
 
-// What stop() waits for: the unsaved text of every open file kept as a draft, typed until the run ends, and the
-// folders of the open files no longer watched.
-let endRun = null;
-
-module.exports = {
-    keywords: [
+class Editor {
+    static configuration = {
+        fontSize: {
+            type: 'string',
+            title: 'Font size',
+            description: 'Default follows the size in the Fonts section.',
+            default: 'default',
+            oneOf: FONT_SIZES,
+        },
+        font: {
+            type: 'string',
+            title: 'Font',
+            description: 'The monospaced faces installed on this Mac. Default follows the Fonts section.',
+            default: 'default',
+        },
+        wrap: {
+            type: 'boolean',
+            title: 'Wrap long lines',
+            description: "Continue a long line on the next one at the editor's edge, instead of scrolling sideways.",
+            default: false,
+        },
+        minimap: {
+            type: 'string',
+            title: 'Minimap',
+            description: "The file in miniature at the editor's right edge.",
+            default: 'scroll',
+            oneOf: [
+                { const: 'always', title: 'Always, beside the code' },
+                { const: 'scroll', title: 'While scrolling, over the code' },
+                { const: 'never', title: 'Never' },
+            ],
+        },
+    };
+    //! Lucide "file-code" (ISC).
+    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/></svg>`;
+    static keywords = [
         'editor',
         'edit',
         'code',
@@ -45,49 +75,19 @@ module.exports = {
         '파일',
         '폴더',
         '워크스페이스',
-    ],
-    //! Lucide "file-code" (ISC).
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/></svg>`,
+    ];
+    static form = { font: { choices: 'monospacedFonts' } };
 
-    settings: {
-        fontSize: {
-            label: 'Font size',
-            type: 'choice',
-            default: 'default',
-            hint: 'Default follows the size in the Fonts section.',
-            options: FONT_SIZES,
-        },
-        font: {
-            label: 'Font',
-            type: 'choice',
-            default: 'default',
-            hint: 'The monospaced faces installed on this Mac. Default follows the Fonts section.',
-            options: ({ ui }) => ui.monospacedFonts(),
-        },
-        wrap: {
-            label: 'Wrap long lines',
-            type: 'toggle',
-            default: false,
-            hint: "Continue a long line on the next one at the editor's edge, instead of scrolling sideways.",
-        },
-        minimap: {
-            label: 'Minimap',
-            type: 'choice',
-            default: 'scroll',
-            hint: "The file in miniature at the editor's right edge.",
-            options: [
-                { value: 'always', label: 'Always, beside the code' },
-                { value: 'scroll', label: 'While scrolling, over the code' },
-                { value: 'never', label: 'Never' },
-            ],
-        },
-    },
+    // What detach() waits for: the unsaved text of every open file kept as a draft, typed until the run ends, and the
+    // folders of the open files no longer watched.
+    end = null;
 
-    async start(deck) {
-        const { theme, ui, storage, settings, util } = deck;
+    async attach(shell, deckit) {
+        const { theme, ui } = shell;
+        const { storage, configuration, util } = deckit;
         const { values: store, records } = storage;
         const engine = EditorEngine;
-        const fileSystem = await deck.mainProcess('main-process/file-system.js');
+        const fileSystem = await deckit.mainProcess('main-process/file-system.js');
 
         const workspaces = workspaceModel({
             fileSystem,
@@ -113,7 +113,7 @@ module.exports = {
                 await open(path);
             },
         });
-        endRun = () => Promise.all([drafts.keepNow(), fileSystem.watch([])]);
+        this.end = () => Promise.all([drafts.keepNow(), fileSystem.watch([])]);
         const session = savedSession({ records, fileSystem, workspaces });
         const codeLook = codeTheme({ engine, theme, ui });
         const find = findInFile({ engine, ui });
@@ -121,7 +121,7 @@ module.exports = {
             engine,
             theme,
             ui,
-            settings,
+            configuration,
             themeExtensions: codeLook.extensions,
             separatorExtension: disk.separatorExtension,
             createFindPanel: find.createPanel,
@@ -155,7 +155,8 @@ module.exports = {
         });
         const { open, tryOpen, openAt, keep } = fileOpener({
             ui,
-            deck,
+            openURL: deckit.open,
+            fileURL: deckit.fileURL,
             fileSystem,
             workspaces,
             disk,
@@ -207,7 +208,7 @@ module.exports = {
         const emptyEditor = emptyState({
             ui,
             util,
-            chordOf: deck.chordOf,
+            chordOf: deckit.chordOf,
             onQuickOpen: () => quickOpener.show(),
             onPickFolder: pickFolder,
             onPickFiles: pickFiles,
@@ -215,9 +216,9 @@ module.exports = {
         });
         const entryActions = treeEntryActions({
             ui,
-            chordOf: deck.chordOf,
-            reveal: deck.reveal,
-            clipboard: deck.clipboard,
+            chordOf: deckit.chordOf,
+            reveal: deckit.reveal,
+            clipboard: deckit.clipboard,
             fileSystem,
             disk,
             filesUnder: workspaces.filesUnder,
@@ -233,7 +234,7 @@ module.exports = {
         });
         const sidePanel = sidebar({
             ui,
-            chordOf: deck.chordOf,
+            chordOf: deckit.chordOf,
             util,
             workspaces,
             isUnsaved: (workspace) => workspace.files.some(disk.isDirty),
@@ -274,12 +275,12 @@ module.exports = {
                 QUICK_OPEN_STYLE,
             ].join('\n')
         );
-        minimap.setMode(settings.get('minimap'));
+        minimap.setMode(configuration.get('minimap'));
         emptyEditor.element.hidden = true;
         stage.append(emptyEditor.element, minimap.element);
         stage.addEventListener('mousemove', (event) => minimap.showNear(event));
         content.append(tabBar.element, pathBar.element, notice.element, drafts.element, stage);
-        settings.on((key, value) => {
+        configuration.on((key, value) => {
             for (const file of workspaces.files()) code.applySetting(file.view, key, value);
             if (key === 'minimap') placeMinimap();
         });
@@ -291,7 +292,7 @@ module.exports = {
             .restore({ openFolder, openInBackground: (path) => tryOpen(path, { background: true, last: true }) })
             .then(paint);
 
-        deck.view({
+        shell.view({
             content,
             sidebar: sidePanel.element,
             didAppear() {
@@ -301,12 +302,12 @@ module.exports = {
                 workspaces.current()?.view.focus();
             },
         });
-        deck.handleURL(async (url, { activates = true } = {}) => {
+        deckit.handleURL(async (url, { activates = true } = {}) => {
             const background = !activates;
-            const path = deck.filePath(url);
+            const path = deckit.filePath(url);
             if (!path) return false;
             const opened = !!(await tryOpen(path, { background })).file;
-            if (opened && !background) deck.show();
+            if (opened && !background) shell.show();
             return opened;
         });
         // Each its own, so a completion of `open`, a search of the switcher and one in Open Quickly do not cancel
@@ -342,8 +343,8 @@ module.exports = {
         const findInOpenFile = when(noFile, () => openFind({ replace: false }));
         const replaceInOpenFile = when(noFile, () => openFind({ replace: true }));
         const askLine = when(noFile, () => goTo.show(workspaces.current().view));
-        const wrapLines = () => settings.set('wrap', !settings.get('wrap'));
-        deck.commands({
+        const wrapLines = () => configuration.set('wrap', !configuration.get('wrap'));
+        deckit.commands({
             open: {
                 description:
                     'Opens a file of a workspace, the one in front unless its folder is given, without bringing it to the front.',
@@ -367,7 +368,7 @@ module.exports = {
                 run: openFolderAt,
             },
         });
-        deck.keys({
+        deckit.keys({
             quickOpen: { label: 'Open Quickly', key: 'mod+p', run: openQuickly },
             showFiles: { label: 'Show Files', key: 'mod+1', run: showFiles },
             showFind: { label: 'Find in Workspace', key: 'mod+3', run: findInWorkspace },
@@ -389,7 +390,7 @@ module.exports = {
             goToLine: { label: 'Go to Line', key: 'mod+l', run: askLine },
             wrapLines: { label: 'Wrap Lines', key: 'alt+z', run: wrapLines },
         });
-        deck.extends.switcher({
+        deckit.extends.switcher({
             actions: switcher({
                 ui,
                 util,
@@ -397,7 +398,7 @@ module.exports = {
                 recentFolders: recent.unopened,
                 filesOf: (workspace, query) =>
                     filesFound(workspace, query, { listFiles: workspaces.listFiles, ranker: actionRanker }),
-                show: deck.show,
+                show: shell.show,
                 does: {
                     open: goToFile,
                     'open-folder': openFolderAt,
@@ -462,7 +463,7 @@ module.exports = {
         }
 
         function placeMinimap() {
-            minimap.setMode(settings.get('minimap'));
+            minimap.setMode(configuration.get('minimap'));
             for (const file of workspaces.files()) file.box.style.right = minimap.inset();
         }
 
@@ -522,11 +523,11 @@ module.exports = {
             const reveal = {
                 label: 'Reveal in Files',
                 icon: 'folders',
-                hint: deck.chordOf('reveal'),
+                hint: deckit.chordOf('reveal'),
                 run: () => revealInFiles(file),
             };
             return [
-                { label: 'Close', icon: 'x', hint: deck.chordOf('closeFile'), run: () => close(file) },
+                { label: 'Close', icon: 'x', hint: deckit.chordOf('closeFile'), run: () => close(file) },
                 '-',
                 ...(relative ? [reveal] : []),
                 ...entryActions.pathItems(file.path, relative),
@@ -733,9 +734,11 @@ module.exports = {
             paint();
             return done;
         }
-    },
+    }
 
-    stop() {
-        return endRun?.();
-    },
-};
+    detach() {
+        return this.end?.();
+    }
+}
+
+module.exports = Editor;

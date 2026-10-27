@@ -24,8 +24,9 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
     // What is on deck (deckit-shell/deck/runner/renderer.js). It reads the class's `keywords`, which whatever lists the
     // mods reads in its run's summary, and its `configuration`. `shellOf(context)` is the shell on deckit, if one is,
     // asked with `{ mod, deliver, fail }`: `read(Entry)`, what it reads of the class; `registrations`, its handle's,
-    // by name, `{ handle, check }`; `blocksKeys()`, whether a key pressed now is dropped; `start(instance, { shell,
-    // deckit }, scope)` and `end(instance)`, its lifecycle; and `join(parts, scope)`, which answers what main is told
+    // by name, `{ handle, check }`; `blocksKeys()`, whether a key pressed now is dropped; `ended`, what it tells of a
+    // run once its lifecycle has ended; `start(instance, { shell, deckit }, scope)` and `end(instance)`, its
+    // lifecycle; and `join(parts, scope)`, which answers what main is told
     // of the mod beside deckit's own, `{ summary, contributions }`, and `keyProblem(key)`, why a key would never run,
     // or ''.
     function layerOf(shellOf) {
@@ -72,8 +73,11 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                     KEYMAP.withdraw(never.map(({ name }) => name));
                     joined.keys = joined.keys.filter((key) => !never.includes(key));
                     joined.shell = { summary: shown.summary, contributions: shown.contributions };
-                    scope.add(() => (joined.shell = {}));
                 }
+                return report();
+            };
+            // What every lifecycle joined so far comes to, all of it.
+            const report = () => {
                 return {
                     // What it registered, by name, beside the shell's, for deckit's core to judge it by.
                     contributions: {
@@ -117,17 +121,18 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                 lifecycles.push({
                     method: 'attach',
                     registrations: { ...registrations, ...shell.registrations },
-                    start: (instance, handles, scope) =>
-                        shell.start(
-                            instance,
-                            { shell: handles.shell ?? {}, deckit: handleOf(handles.deckit, scope) },
-                            scope
-                        ),
+                    // Once it ends, the run has nothing on screen.
+                    start(instance, handles, scope) {
+                        scope.add(() => (joined.shell = shell.ended));
+                        const given = { shell: handles.shell ?? {}, deckit: handleOf(handles.deckit, scope) };
+                        return shell.start(instance, given, scope);
+                    },
                     end: (instance) => shell.end(instance),
                     join: (parts, scope) => join(parts, scope, shell.join(parts, scope)),
                 });
             return {
                 handle: 'deckit',
+                report,
                 read(Entry) {
                     CONFIGURED.declare(Entry.configuration);
                     return { ...shell?.read(Entry), keywords: strings(Entry.keywords) };

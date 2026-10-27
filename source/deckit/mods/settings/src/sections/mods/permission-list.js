@@ -55,7 +55,7 @@ const PERMISSION_ICONS = {
     'system.notifications': 'bell',
     'system.global-keys': 'monitor',
     'deckit.mods': 'puzzle',
-    'deckit.mod-settings': 'sliders',
+    'deckit.mod-configuration': 'sliders',
     'deckit.keymap': 'keyboard',
     'deckit.command-registry': 'list',
     'deckit.app-keys': 'window',

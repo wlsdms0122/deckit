@@ -1,15 +1,18 @@
 const { section } = require('../section/section.js');
 
-// The Mod Settings section: a card per mod that declares settings or adds buttons through `actions`, the point
-// `settings:actions`, a control per setting and a row per button. A button gives its value to the `run` of its mod's
-// extension and shows under it the text that answers; `nameOf(mod)` names a card that has only buttons. `onFailure`
-// hears a change that did not apply.
-function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
+// The Mod Settings section: a card per mod that declares a configuration or adds buttons through `actions`, the point
+// `settings:actions`, a control per configuration item and a row per button. `modConfiguration` is
+// deckit.modConfiguration; `formOf(mod)` answers how a mod's configuration is drawn (shell.formOf). A button gives its
+// value to the `run` of its mod's extension and shows under it the text that answers; `nameOf(mod)` names a card that
+// has only buttons. `onFailure` hears a change that did not apply.
+function modSettingsSection({ ui, modConfiguration, formOf, actions, nameOf, onFailure }) {
     const TITLE = 'Mod Settings';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
         'Choices each mod offers. A mod declares them; they are kept with its data, so an update keeps them.';
     const HIGHLIGHT_LENGTH = 1200;
+    // The kit's lists a form's `choices` can name.
+    const LISTS = ['textFonts', 'monospacedFonts'];
 
     // As last drawn, for the commands, which cannot wait for a drawing.
     let groups = [];
@@ -47,11 +50,8 @@ function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
         let read = null;
         let failure = '';
         try {
-            const [settings, buttons] = await Promise.all([modSettings.list(), buttonsOf()]);
-            read = withButtons(
-                settings.map((group) => ({ ...group, items: group.items.map(withDefaults) })),
-                buttons
-            );
+            const [configurations, buttons] = await Promise.all([configurationsOf(), buttonsOf()]);
+            read = withButtons(configurations, buttons);
         } catch (error) {
             failure = error.message;
         }
@@ -64,6 +64,17 @@ function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
         groups = read;
         cards.set(read);
         showMessage(read.length ? '' : 'No mod has settings.');
+    }
+
+    // Each mod's configuration, its items as its form draws them. A mod whose form cannot be read is drawn without one.
+    async function configurationsOf() {
+        const listed = await modConfiguration.list();
+        return Promise.all(
+            listed.map(async (group) => {
+                const form = await formOf(group.id).catch(() => ({}));
+                return { ...group, items: group.items.map((item) => itemOf(item, form?.[item.key] || {})) };
+            })
+        );
     }
 
     // The buttons each mod adds, `[mod id, buttons]`, each `{ button, hint, after, runs }`: `runs` is `{ mod, value }`,
@@ -177,7 +188,7 @@ function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
         async function change(value) {
             control.set(value);
             try {
-                control.set(await modSettings.set(modId, current.key, value));
+                control.set(await modConfiguration.set(modId, current.key, value));
             } catch (error) {
                 control.set(valueOf(current));
                 onFailure('Could not change the setting: ' + error.message);
@@ -187,28 +198,21 @@ function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
 
     function controlOf(item, change) {
         const value = valueOf(item);
-        if (item.type === 'toggle') return ui.toggle({ value, onChange: change });
-        // `absent`: a saved value no longer among the choices, labeled so it does not read as nothing chosen.
-        const options =
-            item.type === 'choice'
-                ? item.options.map((option) =>
-                      option.absent ? { ...option, label: option.label + ' (not available)' } : option
-                  )
-                : [];
-        if (item.type === 'choice' && !item.computed && options.length <= 4)
+        if (item.type === 'boolean') return ui.toggle({ value, onChange: change });
+        if (item.options.length && !item.listed && item.options.length <= 4)
             return ui.segmented({
-                items: options.map((option) => ({ key: option.value, label: option.label })),
+                items: item.options.map((option) => ({ key: option.value, label: option.label })),
                 value,
                 size: 'small',
                 onChange: change,
             });
-        if (item.type === 'choice') return ui.select({ options, value, onChange: change });
+        if (item.options.length || item.listed) return ui.select({ options: item.options, value, onChange: change });
         if (item.type === 'number')
             return ui.stepper({
                 value,
-                min: item.min,
-                max: item.max,
-                step: item.step || 1,
+                min: item.minimum,
+                max: item.maximum,
+                step: item.step,
                 unit: item.unit,
                 onChange: change,
             });
@@ -244,10 +248,12 @@ function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
         });
     }
 
-    // What the control of `item` is set to.
+    // What the control of `item` is set to. A value the kit's list does not have (a face chosen on another Mac) draws
+    // as the default.
     function valueOf(item) {
-        if (item.type === 'toggle') return !!item.value;
-        if (item.type === 'text') return item.value || '';
+        if (item.type === 'boolean') return !!item.value;
+        if (item.listed) return item.options.some((option) => option.value === item.value) ? item.value : item.default;
+        if (item.type === 'string' && !item.options.length) return item.value || '';
         return item.value;
     }
 
@@ -256,13 +262,28 @@ function modSettingsSection({ ui, modSettings, actions, nameOf, onFailure }) {
         return JSON.stringify({ ...item, value: null });
     }
 
-    function withDefaults(item) {
+    // A configuration item as its row draws it, with the hints of its form: its options are its `oneOf`, or for a
+    // string the list of the kit its form's `choices` names (`listed`).
+    function itemOf(item, hints) {
+        const listed = item.type === 'string' && LISTS.includes(hints.choices) ? ui[hints.choices]() : null;
+        const choices = (item.oneOf || []).map((choice) => ({
+            value: choice.const,
+            label: choice.title ?? String(choice.const),
+        }));
         return {
-            ...item,
-            label: item.label || item.key,
-            hint: item.hint || '',
-            unit: item.unit || '',
-            placeholder: item.placeholder || '',
+            key: item.key,
+            type: item.type,
+            value: item.value,
+            default: item.default,
+            label: item.title || item.key,
+            hint: item.description || '',
+            options: listed || choices,
+            listed: !!listed,
+            minimum: item.minimum,
+            maximum: item.maximum,
+            step: typeof hints.step === 'number' && hints.step > 0 ? hints.step : 1,
+            unit: typeof hints.unit === 'string' ? hints.unit : '',
+            placeholder: typeof hints.placeholder === 'string' ? hints.placeholder : '',
         };
     }
 }

@@ -43,7 +43,7 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
             const caller = IDENTITY.modOf(sender);
             if (caller) asking.get(`${caller.id}:${call}`)?.abort();
         });
-        for (const name of ['didLaunch', 'didTerminate']) RUNNER.observe(name, changed);
+        for (const name of ['didLaunch', 'didJoin', 'didTerminate']) RUNNER.observe(name, changed);
     }
 
     // A host's commands, under `provider`, a name of its own that starts with "@": { name: { description, params,

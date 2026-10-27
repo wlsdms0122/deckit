@@ -36,6 +36,11 @@ function shellOf({ WEB, channels }) {
                 ...(has(STYLE_PERMISSION.STYLES) ? { styles: { handle: 'shell', check: STYLE.problemOf } } : {}),
             },
             blocksKeys: () => OVERLAY.layers.count() > 0,
+            // What it tells of a run whose lifecycle of the shell has ended.
+            ended: Object.freeze({
+                summary: { view: false, sidebar: false, parent: null, styles: [], window: null },
+                contributions: { styles: {} },
+            }),
             async start(instance, { shell: registered, deckit }, scope) {
                 if (typeof instance.attach !== 'function') return;
                 page ??= wear();

@@ -1,7 +1,7 @@
 // `command` runs forge, and `config` is the config.toml the `default` session is served with, forge's own in the
 // session's folder when null. `track(child)` is handed each command it runs for an answer, and once `live()` is false
-// it starts no daemon. `commands` runs them. `runs` follows each run dispatched to its end, whatever settings come
-// after. A dispatch is told `by` whom: the mod that asked, which forge records as who dispatched the run.
+// it starts no daemon. `commands` runs them. `runs` follows each run dispatched to its end, whatever configuration
+// comes after. A dispatch is told `by` whom: the mod that asked, which forge records as who dispatched the run.
 module.exports = ({ command, config, track, live, commands, runs }) => {
     const { app } = require('electron');
     const { spawn } = require('child_process');

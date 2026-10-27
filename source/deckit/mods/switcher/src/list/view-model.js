@@ -10,7 +10,7 @@ const NUMBERED = 9;
 // `onQuery(raw, submenuId)` asks for answers, which come back through `setResolved`; `onPick(item)` runs a choice,
 // `mark(item, status)` shows on its row that it is `running`, `done` or `failed`, and `say(text, { alert })` puts what
 // came of it under the list; both until something is typed, a run under way past that. `state()` is what to
-// draw; `onChange` hears that it changed. `util` is deck's, whose matching ranks what is typed.
+// draw; `onChange` hears that it changed. `util` is deckit's, whose matching ranks what is typed.
 function make({ util, placeholder, items, now, onQuery, onPick }) {
     const { TIER, matchFields } = util;
     let nowItems = now.map((item) => ({ ...item, lead: true }));

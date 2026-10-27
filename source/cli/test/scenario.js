@@ -33,7 +33,7 @@ function seed({ data, files }) {
         path.join(mods, BROKEN, 'manifest.toml'),
         `id = "${BROKEN}"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\nurl-schemes = ["*", "https"]\n`
     );
-    fs.writeFileSync(path.join(mods, BROKEN, 'main.js'), 'module.exports = { start() {} };\n');
+    fs.writeFileSync(path.join(mods, BROKEN, 'main.js'), 'module.exports = class { start() {} };\n');
     const contents = {
         [LINES]: Array.from({ length: 40 }, (_, index) => `line ${index + 1}`).join('\n') + '\n',
         [FOUND]: 'export {};\n',
@@ -68,7 +68,7 @@ function seed({ data, files }) {
     );
     for (const kept of [
         ['records', REMOVED, 'tabs.json'],
-        ['settings', `${REMOVED}.json`],
+        ['mod-state', 'configuration', `${REMOVED}.json`],
         ['data', REMOVED, 'a.txt'],
     ]) {
         fs.mkdirSync(path.dirname(path.join(data, 'deckit', ...kept)), { recursive: true });
@@ -247,7 +247,7 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const notesMade = await until(() => fs.existsSync(notesKept), 3000);
         check("a main process module keeps what it keeps in its mod's data folder", notesMade, notesKept);
         const left = () =>
-            [`records/${REMOVED}`, `data/${REMOVED}`, `settings/${REMOVED}.json`].filter((kept) =>
+            [`records/${REMOVED}`, `data/${REMOVED}`, `mod-state/configuration/${REMOVED}.json`].filter((kept) =>
                 fs.existsSync(path.join(home, kept))
             );
         const uncleared = () => fs.readFileSync(path.join(home, 'state', 'uncleared.json'), 'utf8');
@@ -334,12 +334,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             after !== before && !(await settings.evaluate(menus)),
             `${before} -> ${after}`
         );
-        const settingsFolder = path.join(home, 'settings');
-        const settingKept = await until(
-            () => fs.existsSync(settingsFolder) && fs.readdirSync(settingsFolder).length,
+        const configurationFolder = path.join(home, 'mod-state', 'configuration');
+        const configurationKept = await until(
+            () => fs.existsSync(configurationFolder) && fs.readdirSync(configurationFolder).length,
             2000
         );
-        check('a setting set is kept by the core', settingKept, '');
+        check("a mod's configuration set is kept by the core", configurationKept, '');
         await settings?.evaluate(`${firstSelect}.click()`);
         await until(() => settings.evaluate(menus), 2000);
         const floated = await stackNow();
@@ -432,7 +432,9 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const told = [
             counted(filesIn(path.join(home, 'data', 'editor')), 'data file'),
             counted(filesIn(path.join(home, 'records', 'editor')), 'record'),
-            fs.existsSync(path.join(home, 'settings', 'editor.json')) ? 'settings' : '',
+            ...(fs.existsSync(path.join(home, 'mod-state')) ? fs.readdirSync(path.join(home, 'mod-state')) : [])
+                .filter((name) => fs.existsSync(path.join(home, 'mod-state', name, 'editor.json')))
+                .sort(),
         ].filter(Boolean);
         check(
             "a mod's row tells what it has where deck keeps it",
@@ -643,15 +645,19 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const back = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
         check('unfolding the sidebar brings the region back', back, await child.evaluate(seen));
 
-        // The parent's page loading again by itself ends the child's run, and the child stays down; the parent
-        // restarted from Settings brings back the mods that require it, the child in a new document.
+        // A mod's page loading again by itself ends the runs of the mods that require it, and they stay down; the mod
+        // restarted from Settings brings them back, each in a new document. A child in a region only extends its
+        // parent, so it runs on.
         const started = `performance.timeOrigin`;
-        const origin = await child.evaluate(started);
+        const origin = await user.evaluate(started);
+        const childOrigin = await child.evaluate(started);
+        await provider.evaluate('location.reload()');
         await parent.evaluate('location.reload()');
         await sleep(1500);
-        check('a mod whose requirement ran again stays down', (await child.evaluate(started)) === origin, '');
-        await settings?.evaluate(`${rowOf('Region Parent')}.querySelector('[title^="Restart this mod"]').click()`);
-        const relaunched = await until(async () => (await child.evaluate(started)) !== origin, 6000);
+        check('a mod whose requirement ran again stays down', (await user.evaluate(started)) === origin, '');
+        check('a child whose parent ran again runs on', (await child.evaluate(started)) === childOrigin, '');
+        await settings?.evaluate(`${rowOf('Broker Provider')}.querySelector('[title^="Restart this mod"]').click()`);
+        const relaunched = await until(async () => (await user.evaluate(started)) !== origin, 6000);
         check('a mod restarted from Settings brings back the mods that require it', relaunched, '');
 
         // A shown mod's next revision installed over it: its page is replaced while the panel lays it, the new one

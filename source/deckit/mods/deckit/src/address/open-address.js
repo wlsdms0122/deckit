@@ -1,4 +1,4 @@
-// An address typed with its scheme, handed to deck to open: its scheme's handlers in the person's order, then the
+// An address typed with its scheme, handed to deckit to open: its scheme's handlers in the person's order, then the
 // system's answer.
 function openAddress({ open }) {
     const ADDRESS = /^[a-z][a-z0-9+.-]*:\S+$/i;

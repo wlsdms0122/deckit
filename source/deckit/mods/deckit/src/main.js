@@ -1,19 +1,19 @@
 const { openAddress } = require('./address/open-address.js');
 const { switcher } = require('./switcher/switcher.js');
 
-// What a person asks of deck itself, as commands and as the switcher's actions: an address to open, a mod or the app
+// What a person asks of deckit itself, as commands and as the switcher's actions: an address to open, a mod or the app
 // to restart, deckit's folders, and what is running. It has no view.
-module.exports = {
-    keywords: ['deckit', 'deck'],
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg>`,
+class Deckit {
+    static keywords = ['deckit', 'deck'];
+    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/></svg>`;
 
-    start(deck) {
-        const { util } = deck;
-        const APP_NAME = deck.about().name;
-        const address = openAddress({ open: (url) => deck.open(url) });
+    start(deckit) {
+        const { util } = deckit;
+        const APP_NAME = deckit.about().name;
+        const address = openAddress({ open: (url) => deckit.open(url) });
         const STATES = { launching: 'Starting', running: 'Running', notRunning: 'Not running' };
 
-        deck.commands({
+        deckit.commands({
             'open-address': {
                 description: "Opens an address with its scheme, by its scheme's handlers in your order.",
                 params: {
@@ -45,7 +45,7 @@ module.exports = {
             'restart-app': {
                 description: `Quits ${APP_NAME} and opens it again.`,
                 run: async () => {
-                    await deck.mods.restart();
+                    await deckit.mods.restart();
                 },
             },
             'show-mods-folder': {
@@ -71,47 +71,46 @@ module.exports = {
             },
         });
 
-        deck.extends.switcher({
-            actions: switcher({
-                util,
-                appName: APP_NAME,
-                address,
-                modsFor,
-                versions,
-                does: {
-                    'open-address': ({ address: given }) => address.go(given),
-                    'restart-mod': ({ mod }) => restartMod(mod),
-                    'restart-app': () => deck.mods.restart(),
-                    'show-mods-folder': () => reveal('mods'),
-                    'show-data-folder': () => reveal('data'),
-                    'show-log': () => reveal('log'),
-                    'copy-version': copyVersion,
-                },
-            }),
-        });
+        // What the switcher's actions search and do, for attach().
+        this.actions = {
+            util,
+            appName: APP_NAME,
+            address,
+            modsFor,
+            versions,
+            does: {
+                'open-address': ({ address: given }) => address.go(given),
+                'restart-mod': ({ mod }) => restartMod(mod),
+                'restart-app': () => deckit.mods.restart(),
+                'show-mods-folder': () => reveal('mods'),
+                'show-data-folder': () => reveal('data'),
+                'show-log': () => reveal('log'),
+                'copy-version': copyVersion,
+            },
+        };
 
-        // One of deckit's places in `deck.about()`, shown in Finder.
+        // One of deckit's places in `deckit.about()`, shown in Finder.
         async function reveal(place) {
-            await deck.reveal(deck.about()[place]);
+            await deckit.reveal(deckit.about()[place]);
         }
 
         async function copyVersion({ version }) {
-            await deck.clipboard.writeText(version);
+            await deckit.clipboard.writeText(version);
         }
 
         // One not running is launched, and the mods that require it with it. One that does not restart says why: one
         // that did not load, or one stopping. A refusal is told in a notice.
         function restartMod(id) {
-            const mod = deck.mods.list().found.find((each) => each.id === id);
+            const mod = deckit.mods.list().found.find((each) => each.id === id);
             if (!mod) throw new Error(`There is no mod ${id}`);
             if (!mod.run) throw new Error(`${mod.name} did not load: ${mod.problem || 'it cannot start'}`);
             if (mod.run.state === 'terminating') throw new Error(`${mod.name} is stopping`);
-            return deck.mods.relaunch(mod.id);
+            return deckit.mods.relaunch(mod.id);
         }
 
         // Every mod found, each with its state, ranked for `partial` by its name and id.
         function modsFor(partial) {
-            const candidates = deck.mods.list().found.map((mod) => ({
+            const candidates = deckit.mods.list().found.map((mod) => ({
                 value: mod.id,
                 title: mod.name,
                 hint: !mod.run
@@ -138,7 +137,7 @@ module.exports = {
         }
 
         function versions() {
-            const about = deck.about();
+            const about = deckit.about();
             return [
                 about.app,
                 `deckit ${about.version} (${about.source})`,
@@ -146,5 +145,11 @@ module.exports = {
                 'Chrome ' + about.chrome,
             ];
         }
-    },
-};
+    }
+
+    attach(_shell, deckit) {
+        deckit.extends.switcher({ actions: switcher(this.actions) });
+    }
+}
+
+module.exports = Deckit;

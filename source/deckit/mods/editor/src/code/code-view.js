@@ -1,9 +1,18 @@
 const { fileTypeOf } = require('../file-type/file-type.js');
 const { typefaceOf } = require('./typeface.js');
 
-// The engine's view of an open file, with the editor's extensions, in a box laid over the others. The settings it reads
-// are the font, its size and line wrapping.
-function codeView({ engine, theme, ui, settings, themeExtensions, separatorExtension, createFindPanel, onUpdate }) {
+// The engine's view of an open file, with the editor's extensions, in a box laid over the others. The configuration it
+// reads is the font, its size and line wrapping.
+function codeView({
+    engine,
+    theme,
+    ui,
+    configuration,
+    themeExtensions,
+    separatorExtension,
+    createFindPanel,
+    onUpdate,
+}) {
     // The engine's special characters, less "\r" (kept by CRLF lines in a mixed file, see separatorFor in file-disk.js)
     // and the byte order mark.
     const QUIET_SPECIAL_CHARACTERS =
@@ -114,7 +123,7 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
                 separatorExtension(text),
                 language.of(languageOf(path)),
                 look.of(lookExtensions),
-                wrapping.of(settings.get('wrap') ? engine.EditorView.lineWrapping : []),
+                wrapping.of(configuration.get('wrap') ? engine.EditorView.lineWrapping : []),
                 typeface.of(typefaceNow()),
                 engine.EditorView.updateListener.of((update) => {
                     if (update.selectionSet)
@@ -136,7 +145,7 @@ function codeView({ engine, theme, ui, settings, themeExtensions, separatorExten
     function typefaceNow() {
         return typefaceOf(
             engine,
-            { font: settings.get('font'), size: settings.get('fontSize') },
+            { font: configuration.get('font'), size: configuration.get('fontSize') },
             { faces: ui.monospacedFonts(), theme }
         );
     }

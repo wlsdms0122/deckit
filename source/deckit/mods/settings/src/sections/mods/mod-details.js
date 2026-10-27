@@ -67,7 +67,7 @@ const MOD_DETAILS_STYLE = `
 // it opens, its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the base
 // duration.
-function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
+function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
     let mod = null;
     let open = false;
     let usageRead = false;
@@ -114,7 +114,7 @@ function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
             const chips = relationChips(kind);
             if (chips.length) addPart(label, chipRow(chips));
         }
-        if (mod.live?.parent && mods.setPinned) addPart('Sidebar', sidebarPin());
+        if (mod.live?.parent && pins) addPart('Sidebar', sidebarPin());
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
         if (mod.live?.urlSchemes.length) addPart('Opens', chipRow(openingChips(mod.handlerLists)));
@@ -161,7 +161,7 @@ function modDetails({ ui, mods, everyScheme, util, onPinnedChange }) {
             value: !!mod.pinned,
             onChange: (on) => {
                 toggle.set(on);
-                mods.setPinned(id, on).then(onPinnedChange, () => toggle.set(!on));
+                pins.setPinned(id, on).then(onPinnedChange, () => toggle.set(!on));
             },
         });
         pin.append(

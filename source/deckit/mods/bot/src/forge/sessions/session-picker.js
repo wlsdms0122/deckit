@@ -4,9 +4,10 @@
 const CURRENT_MS = 3000;
 const LIST_MS = 15000;
 
-const sessionPicker = ({ deck, forge, onChange }) => {
-    const { theme, ui, util } = deck;
-    const store = deck.storage.values;
+const sessionPicker = ({ shell, deckit, forge, onChange }) => {
+    const { theme, ui } = shell;
+    const { util } = deckit;
+    const store = deckit.storage.values;
     let session = store.get('session', null) || 'default';
     let sessions = [{ name: session, checking: true }]; // until the first answer
     let timers = [];
