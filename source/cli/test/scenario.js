@@ -457,6 +457,21 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const shownTab = `[...document.querySelectorAll('webview')].find((view) => view.style.visibility === 'visible')?.src`;
         const frontAgain = await until(async () => (await browser?.evaluate(shownTab)) === FRONT_TAB, 3000);
         check('a tab woken before comes back to the front', frontAgain, await browser?.evaluate(shownTab));
+        const toolbar = await browser?.evaluate(`(() => {
+            const bar = document.querySelector('.browser-toolbar');
+            const shown = [...document.querySelectorAll('webview')].find((view) => view.style.visibility === 'visible');
+            return {
+                bar: Math.round(bar.getBoundingClientRect().bottom),
+                page: Math.round(shown.getBoundingClientRect().top),
+                field: !!bar.querySelector('.browser-address-field'),
+                region: getComputedStyle(bar).getPropertyValue('-webkit-app-region'),
+            };
+        })()`);
+        check(
+            "the browser's page starts under its toolbar, which holds the address and drags the window",
+            toolbar?.bar > 0 && toolbar.page >= toolbar.bar && toolbar.field && toolbar.region === 'drag',
+            JSON.stringify(toolbar)
+        );
         const stolen = await editor.evaluate(`new Promise((resolve) => {
             const page = document.createElement('webview');
             page.setAttribute('partition', 'persist:deckit:browser:web');
