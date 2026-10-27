@@ -8,7 +8,7 @@
 import Foundation
 import Testing
 @testable import Deck
-import Deckit
+@testable import Deckit
 @testable import DeckitServer
 
 @Suite("Server")
@@ -22,7 +22,7 @@ struct ServerTests {
     // MARK: - Initializer
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
-        initializeParams = #"{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[]}"#
+        initializeParams = #"{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[],"given":[]}"#
         initializeRequest = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#
         sut = Server()
     }
@@ -193,30 +193,33 @@ struct ServerTests {
         #expect(error["code"] == .number(-32600))
     }
 
-    @Test("settings set as declared are read back as the JSON they were set as")
-    func settingsRoundTrip() throws {
+    @Test("configuration set as declared is read back as the JSON it was set as")
+    func configurationRoundTrips() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
         try mod("notes")
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["notes"]}}"#, to: sut)
-        let settings = #"[{"key":"wrap","type":"toggle","options":[],"computed":false},"#
-            + #"{"key":"size","type":"number","max":12,"options":[],"computed":false}]"#
+        let declared = #"[{"key":"wrap","type":"boolean"},{"key":"size","type":"number","maximum":12}]"#
         _ = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#,
+            #"{"jsonrpc":"2.0","id":4,"method":"configuration/declare","#
+                + #""params":{"mod":"notes","run":1,"configuration":\#(declared)}}"#,
             to: sut
         )
         _ = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"setting/set","params":{"mod":"notes","key":"wrap","value":true}}"#,
+            #"{"jsonrpc":"2.0","id":5,"method":"configuration/set","params":{"mod":"notes","key":"wrap","value":true}}"#,
             to: sut
         )
 
         // When
         let set = try send(
-            #"{"jsonrpc":"2.0","id":6,"method":"setting/set","params":{"mod":"notes","key":"size","value":14}}"#,
+            #"{"jsonrpc":"2.0","id":6,"method":"configuration/set","params":{"mod":"notes","key":"size","value":14}}"#,
             to: sut
         )
-        let response = try send(#"{"jsonrpc":"2.0","id":7,"method":"setting/read","params":{"mod":"notes"}}"#, to: sut)
+        let response = try send(
+            #"{"jsonrpc":"2.0","id":7,"method":"configuration/values","params":{"mod":"notes"}}"#,
+            to: sut
+        )
 
         // Then
         #expect(set == (try json(#"{"jsonrpc":"2.0","id":6,"result":{"value":12,"changed":true}}"#)))
@@ -248,7 +251,7 @@ struct ServerTests {
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#,
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)],"given":[]}}"#,
             to: sut
         )
 
@@ -292,7 +295,7 @@ struct ServerTests {
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["calendar"]}}"#, to: sut)
         let contributions = #"{"exports":{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]},"#
-            + #""extensionPoints":["accounts"],"extensions":{},"styles":["a.css"]}"#
+            + #""extensionPoints":["accounts"],"extensions":{},"pins":["a"]}"#
         let started = #"{"mod":"calendar","run":1,"summary":{"view":true},"contributions":\#(contributions)}"#
 
         // When
@@ -310,7 +313,7 @@ struct ServerTests {
         }
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
         #expect(value(in: told, at: "summary", "view") == .bool(true))
-        #expect(value(in: told, at: "contributions", "styles") == .array([.string("a.css")]))
+        #expect(value(in: told, at: "contributions", "pins") == .array([.string("a")]))
         #expect(value(in: told, at: "contributions", "extensionPoints") == .array([.string("accounts")]))
         #expect(
             value(in: requires, at: "result", "calendar")
@@ -318,18 +321,19 @@ struct ServerTests {
         )
     }
 
-    @Test("a setting declared that deck does not read is a problem of the run as it is declared")
-    func unreadSettingIsAProblem() throws {
+    @Test("a configuration declared that deckit does not read is a problem of the run as it is declared")
+    func unreadConfigurationIsAProblem() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
         try mod("notes")
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["notes"]}}"#, to: sut)
-        let settings = #"[{"key":"shade","type":"slider","options":[],"computed":false}]"#
+        let declared = #"[{"key":"shade","type":"slider"}]"#
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":4,"method":"setting/declare","params":{"mod":"notes","run":1,"settings":\#(settings)}}"#,
+            #"{"jsonrpc":"2.0","id":4,"method":"configuration/declare","#
+                + #""params":{"mod":"notes","run":1,"configuration":\#(declared)}}"#,
             to: sut
         )
 
@@ -339,7 +343,7 @@ struct ServerTests {
             return
         }
         #expect(effects.contains { effect in
-            value(in: effect, at: "problem") == .string(#"setting "shade": deck does not read its type"#)
+            value(in: effect, at: "problem") == .string(#"configuration "shade": deckit does not read its type"#)
         })
     }
 
@@ -416,11 +420,17 @@ struct ServerTests {
         #expect(value(in: nobody, at: "result") == .null)
     }
 
-    @Test("a setting lists as Settings reads it: the declaration's fields, `default` as declared, value and options")
-    func settingItemIsJSON() throws {
+    @Test("a configuration lists with the declaration's fields, `default` as declared, and the value it reads as")
+    func configurationItemIsJSON() throws {
         // Given
-        let size = SettingDeclaration(key: "size", type: .number, label: "Size", defaultValue: .number(12), min: 8)
-        let sut = SettingItem(declaration: size, value: .number(14), options: [])
+        let size = ConfigurationDeclaration(
+            key: "size",
+            type: .number,
+            title: "Size",
+            defaultValue: .number(12),
+            minimum: 8
+        )
+        let sut = ConfigurationItem(declaration: size, value: .number(14))
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
 
@@ -428,23 +438,7 @@ struct ServerTests {
         let listed = String(decoding: try encoder.encode(sut), as: UTF8.self)
 
         // Then
-        #expect(
-            listed == #"{"computed":false,"default":12,"key":"size","label":"Size","min":8,"options":[],"#
-                + #""type":"number","value":14}"#
-        )
-    }
-
-    @Test("options a page answered that are not options read as none")
-    func unreadableOptionsReadAsNone() throws {
-        // Given
-        let text = #"[{"mod":"notes","key":"font","options":[{"value":null}]},{"mod":"notes","key":"size"}]"#
-
-        // When
-        let sut = try JSONDecoder().decode([ComputedChoice].self, from: Data(text.utf8))
-
-        // Then
-        #expect(sut.map(\.key) == ["font", "size"])
-        #expect(sut.allSatisfy { choice in choice.options.isEmpty })
+        #expect(listed == #"{"default":12,"key":"size","minimum":8,"oneOf":[],"title":"Size","type":"number","value":14}"#)
     }
 
     @Test("the keymap reads as the driver keeps it: each binding with its chord, its issues and its keystroke")

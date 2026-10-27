@@ -1,12 +1,14 @@
 // A child that marks on its page whether its view is on screen.
-module.exports = {
-    start(deck) {
+class RegionChild {
+    attach(shell) {
         const shown = (on) => () => (document.documentElement.dataset.shown = on);
-        deck.view({
+        shell.view({
             content: document.createElement('div'),
             parent: 'region-parent',
             didAppear: shown('yes'),
             didDisappear: shown('no'),
         });
-    },
-};
+    }
+}
+
+module.exports = RegionChild;

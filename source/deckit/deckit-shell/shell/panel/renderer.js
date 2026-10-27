@@ -26,8 +26,8 @@ const STYLE = `
 // MARK: - Initializer
 // MARK: - Public
 // The panel in a mod's page, its channels bound with `channels`: `mount(view)`, `show()`, by which the mod asks to be
-// on screen, and `pins`, what a mod with deckit.mods reads and changes of the panel's list, on deck.mods: `pinned()`,
-// the children the person pinned to it, and `setPinned(id, pinned)`.
+// on screen, `iconOf(mod)` and `formOf(mod)`, and `pins`, what a mod with deckit.mods reads and changes of the panel's
+// list: `pinned()`, the children the person pinned to it, and `setPinned(id, pinned)`.
 function createPanel({ channels }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
@@ -39,14 +39,17 @@ function createPanel({ channels }) {
     // MARK: - Public
     // One mod's view, in its own page, laid out where the panel's guide says: the content in its room and the sidebar,
     // if the view has one, in the slot the panel lends it. `tell` calls a part of the view (didAppear, didDisappear);
-    // `layers` is what floats in the page.
-    function mount({ theme, view, tell, layers }) {
+    // `layers` is what floats in the page. Answers its unmount: a view on screen disappears, and its parts are told
+    // nothing more.
+    function mount({ theme, view, tell: told, layers }) {
         KIT.addStyle(STYLE);
         const setup = PROTOCOL.setup.invoke();
         const { motion: MOTION } = theme;
         let guide = setup.guide;
         let open = setup.shown;
         let appeared = false;
+        let mounted = true;
+        const tell = (name) => mounted && told(name);
 
         const root = element('div', 'deckit-view');
         const content = element('div', 'deckit-view-content');
@@ -100,6 +103,10 @@ function createPanel({ channels }) {
             else fadeOut();
         });
         PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut() : fadeIn()));
+        return () => {
+            if (appeared) tell('didDisappear');
+            mounted = false;
+        };
 
         // didAppear and didDisappear alternate, worked out in this one place.
         function appear() {
@@ -172,10 +179,15 @@ function createPanel({ channels }) {
         return PROTOCOL.icon.invoke({ mod: String(mod) });
     }
 
-    return Object.freeze({ mount, show, iconOf, pins });
+    // How a mod's configuration is drawn, by its id.
+    function formOf(mod) {
+        return PROTOCOL.form.invoke({ mod: String(mod) });
+    }
+
+    return Object.freeze({ mount, show, iconOf, formOf, pins });
 }
 
-// Why what `deck.view` was handed is not a view, or ''. Its parent is the region's to judge.
+// Why what `shell.view` was handed is not a view, or ''. Its parent is the region's to judge.
 function viewProblem(value) {
     if (value?.content?.nodeType !== Node.ELEMENT_NODE)
         return 'takes { content, sidebar, parent, didAppear, didDisappear }, content an element';

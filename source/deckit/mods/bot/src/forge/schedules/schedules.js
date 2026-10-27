@@ -7,9 +7,9 @@ const { listDivider } = require('../pane/list-divider.js');
 const { triggerOf, triggerSummary } = require('./schedule-trigger.js');
 const { installContent, actions, section, values, feedback } = require('../pane/content-ui.js');
 
-const schedulesView = ({ deck, forge, picker }) => {
-    const { ui } = deck,
-        store = deck.storage.values;
+const schedulesView = ({ shell, deckit, forge, picker }) => {
+    const { ui } = shell,
+        store = deckit.storage.values;
     installContent(ui);
     let detailId = null,
         detailParts = null,

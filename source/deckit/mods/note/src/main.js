@@ -20,12 +20,37 @@ const { TEXT_SIZES, typefaceOf } = require('./editor/typeface.js');
 // The paragraph styles, without the separators of their menu.
 const STYLES = PARAGRAPH_STYLES.filter((style) => style !== '-');
 
-// What stop() waits for: the open note written, its title typed and not yet applied too, so what was typed just before
-// the run ends is kept, and the notes folder no longer watched.
-let endRun = null;
-
-module.exports = {
-    keywords: [
+class Note {
+    static configuration = {
+        sort: {
+            type: 'string',
+            title: 'Sort notes by',
+            description: "How a folder's notes are laid out in its gallery.",
+            default: 'modified',
+            oneOf: [
+                { const: 'modified', title: 'Date Edited' },
+                { const: 'created', title: 'Date Created' },
+                { const: 'name', title: 'Name' },
+            ],
+        },
+        textSize: {
+            type: 'string',
+            title: 'Text size',
+            description: 'Default follows the size in the Fonts section.',
+            default: 'default',
+            oneOf: TEXT_SIZES,
+        },
+        font: {
+            type: 'string',
+            title: 'Font',
+            description:
+                'The face a note is written in, its title too; code stays monospaced. Default follows the Fonts section.',
+            default: 'default',
+        },
+    };
+    //! Lucide "notebook-pen" (ISC).
+    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${NOTEBOOK_SHAPES}</svg>`;
+    static keywords = [
         'notes',
         'note',
         'memo',
@@ -39,40 +64,16 @@ module.exports = {
         '마크다운',
         '체크리스트',
         '할일',
-    ],
-    //! Lucide "notebook-pen" (ISC).
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${NOTEBOOK_SHAPES}</svg>`,
+    ];
+    static form = { font: { choices: 'textFonts' } };
 
-    settings: {
-        sort: {
-            label: 'Sort notes by',
-            type: 'choice',
-            default: 'modified',
-            hint: "How a folder's notes are laid out in its gallery.",
-            options: [
-                { value: 'modified', label: 'Date Edited' },
-                { value: 'created', label: 'Date Created' },
-                { value: 'name', label: 'Name' },
-            ],
-        },
-        textSize: {
-            label: 'Text size',
-            type: 'choice',
-            default: 'default',
-            hint: 'Default follows the size in the Fonts section.',
-            options: TEXT_SIZES,
-        },
-        font: {
-            label: 'Font',
-            type: 'choice',
-            default: 'default',
-            hint: 'The face a note is written in, its title too; code stays monospaced. Default follows the Fonts section.',
-            options: ({ ui }) => ui.textFonts(),
-        },
-    },
+    // What detach() waits for: the open note written, its title typed and not yet applied too, so what was typed just
+    // before the run ends is kept, and the notes folder no longer watched.
+    end = null;
 
-    async start(deck) {
-        const { theme, ui, storage, settings, util } = deck;
+    async attach(shell, deckit) {
+        const { theme, ui } = shell;
+        const { storage, configuration, util } = deckit;
         const STYLE = `
             .note {
                 position: relative;
@@ -88,7 +89,7 @@ module.exports = {
             .note-pane[hidden] { display: none; }
         `;
         const { values: store } = storage;
-        const notesFolder = await deck.mainProcess('main-process/notes-folder.js');
+        const notesFolder = await deckit.mainProcess('main-process/notes-folder.js');
 
         // Everything in the notes folder, with the relocation count it was asked at (`since`).
         let allNotes = { name: '', path: '', folders: [], notes: [], count: 0, since: 0 };
@@ -106,8 +107,8 @@ module.exports = {
             ui,
             match: util.match,
             typeface: currentTypeface(),
-            chordOf: deck.chordOf,
-            clipboard: deck.clipboard,
+            chordOf: deckit.chordOf,
+            clipboard: deckit.clipboard,
             onChange: () => noteSession.edited(),
             onFollowLink: followLink,
         });
@@ -122,7 +123,11 @@ module.exports = {
             onRenamed: changed,
             onMenu: (path, anchor) => ui.menu({ items: noteMenus.noteItems(path), anchor }),
         });
-        endRun = () => Promise.all([noteSession.settle(), notesFolder.watch(false).catch(() => {})]);
+        this.end = () => {
+            clearTimeout(changeTimer);
+            window.removeEventListener('pagehide', saveOnPageHide);
+            return Promise.all([noteSession.settle(), notesFolder.watch(false).catch(() => {})]);
+        };
         const placeHistory = navigationHistory({
             movePath: util.movePath,
             current: () => place,
@@ -132,8 +137,8 @@ module.exports = {
         });
         const fileOperations = operations({
             ui,
-            clipboard: deck.clipboard,
-            reveal: deck.reveal,
+            clipboard: deckit.clipboard,
+            reveal: deckit.reveal,
             notesFolder,
             relocations,
             settle: noteSession.settle,
@@ -154,7 +159,7 @@ module.exports = {
         });
         const noteMenus = menus({
             ui,
-            chordOf: deck.chordOf,
+            chordOf: deckit.chordOf,
             relocations,
             fileOperations,
             allNotes: () => allNotes,
@@ -180,10 +185,10 @@ module.exports = {
         const noteNavigation = navigationBarFor();
         const notesGallery = gallery({
             ui,
-            chordOf: deck.chordOf,
+            chordOf: deckit.chordOf,
             notesFolder,
             searchNotes,
-            settings,
+            configuration,
             relocations,
             navigation: galleryNavigation,
             shownFolder: () => (place.kind === 'folder' ? place.path : null),
@@ -192,8 +197,8 @@ module.exports = {
         });
         const sidebarTree = tree({
             ui,
-            show: deck.show,
-            chordOf: deck.chordOf,
+            show: shell.show,
+            chordOf: deckit.chordOf,
             store,
             movePath: util.movePath,
             renameNote: noteMenus.renameNote,
@@ -219,16 +224,16 @@ module.exports = {
                 if (open && paths.some((path) => isWithin(open, path))) noteSession.reconcile();
             }, 100);
         });
-        settings.on((key) => {
+        configuration.on((key) => {
             if (key === 'sort') notesGallery.draw();
             if (key === 'textSize' || key === 'font') applyTypeface();
         });
         // A face and a size left to the theme follow a new one.
         theme.onChange(applyTypeface);
-        window.addEventListener('pagehide', () => noteSession.saveIfUnsaved());
+        window.addEventListener('pagehide', saveOnPageHide);
         reachSavedPlace();
 
-        deck.view({
+        shell.view({
             content,
             sidebar: sidebarTree.element,
             didAppear: () => {
@@ -246,7 +251,7 @@ module.exports = {
         });
         const newNoteHere = () => newNote(currentFolder());
         const newFolder = () => fileOperations.newFolder(currentFolder());
-        deck.commands({
+        deckit.commands({
             'new-note': {
                 description: 'Makes a note in the folder in front and opens it, its name selected to type over.',
                 run: async () => {
@@ -270,7 +275,7 @@ module.exports = {
                 complete: (_param, partial) => foldersFound(partial, { allNotes, util }),
             },
         });
-        deck.keys({
+        deckit.keys({
             newNote: { label: 'New Note', key: 'mod+n', run: newNoteHere },
             newFolder: { label: 'New Folder', key: 'mod+shift+n', run: newFolder },
             // While a text field has focus, ⌘⌫ stays the field's (delete to line start).
@@ -289,14 +294,14 @@ module.exports = {
             markChecked: { label: 'Mark as Checked', key: 'mod+shift+u', run: markChecked },
             blockQuote: styleKey('blockQuote', "mod+'"),
         });
-        deck.extends.switcher({
+        deckit.extends.switcher({
             actions: switcher({
                 ui,
                 util,
                 allNotes: () => allNotes,
                 notesOf: (query, { signal }) => notesFound(query, { searchNotes, allNotes, signal }),
                 styles: STYLES,
-                show: deck.show,
+                show: shell.show,
                 does: {
                     open: openNoteOf,
                     'show-folder': showFolderOf,
@@ -468,7 +473,7 @@ module.exports = {
 
         // Made on screen, where its name is typed.
         function newNote(into) {
-            deck.show();
+            shell.show();
             return fileOperations.newNote(into);
         }
 
@@ -499,9 +504,9 @@ module.exports = {
             else if (target?.note) openNote(linkedNotePath(noteSession.path() || '', target.note), { focus: true });
         }
 
-        // deck.open answers only whether anything opened the address, with no reason when nothing did.
+        // deckit.open answers only whether anything opened the address, with no reason when nothing did.
         async function openAddress(address) {
-            if (await deck.open(address).catch(() => false)) return;
+            if (await deckit.open(address).catch(() => false)) return;
             ui.dialog({ title: 'Could not open the link', message: address, confirmLabel: 'OK' });
         }
 
@@ -519,10 +524,14 @@ module.exports = {
             return isShown(label) ? label : null;
         }
 
+        function saveOnPageHide() {
+            noteSession.saveIfUnsaved();
+        }
+
         function navigationBarFor() {
             return navigationBar({
                 ui,
-                chordOf: deck.chordOf,
+                chordOf: deckit.chordOf,
                 onBack: () => placeHistory.goBack(),
                 onForward: () => placeHistory.goForward(),
                 onGo: (path) => showFolder(path),
@@ -542,7 +551,7 @@ module.exports = {
 
         function currentTypeface() {
             return typefaceOf(
-                { font: settings.get('font'), size: settings.get('textSize') },
+                { font: configuration.get('font'), size: configuration.get('textSize') },
                 { faces: ui.textFonts(), theme }
             );
         }
@@ -552,9 +561,11 @@ module.exports = {
             editor.setTypeface(typeface);
             noteSession.setFont(typeface.font);
         }
-    },
+    }
 
-    stop() {
-        return endRun?.();
-    },
-};
+    detach() {
+        return this.end?.();
+    }
+}
+
+module.exports = Note;

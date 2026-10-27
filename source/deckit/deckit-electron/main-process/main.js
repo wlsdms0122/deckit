@@ -155,7 +155,7 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     // What a module's method answers.
     async function call(modId, given, method, args) {
         const key = `${modId}\0${path.posix.normalize(String(given))}`;
-        if (!modules.has(key)) throw new Error(`${given} is not started; deck.mainProcess() starts it`);
+        if (!modules.has(key)) throw new Error(`${given} is not started; deckit.mainProcess() starts it`);
         const { methods } = await modules.get(key);
         const found = methods.get(JSON.stringify(method));
         if (!found) throw new Error(`${given} has no method ${method.join('.')}`);

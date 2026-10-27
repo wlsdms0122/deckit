@@ -11,7 +11,7 @@ function gallery({
     chordOf,
     notesFolder,
     searchNotes,
-    settings,
+    configuration,
     relocations,
     navigation,
     shownFolder,
@@ -309,7 +309,7 @@ function gallery({
     }
 
     function sortedNotes(notes) {
-        const order = settings.get('sort');
+        const order = configuration.get('sort');
         if (order === 'name')
             return [...notes].sort((one, other) =>
                 one.name.localeCompare(other.name, undefined, { numeric: true, sensitivity: 'base' })
@@ -339,7 +339,7 @@ function gallery({
 
     // A hit shows the words it was found by and the folder it is in.
     function noteItemOf(note, { since, isHit = false }) {
-        const time = settings.get('sort') === 'created' ? note.birth || note.mtime : note.mtime;
+        const time = configuration.get('sort') === 'created' ? note.birth || note.mtime : note.mtime;
         return {
             kind: 'note',
             path: note.path,

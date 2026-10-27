@@ -1,6 +1,6 @@
-// The runs dispatched from here, each followed to its end over forge's stream, whatever settings come after. A run is
-// `{ id, name, session, status, step, startedAt, endedAt, outputs, error }`: `status` is forge's, `running` and then
-// `ok` or `failed`, `step` the step of the run itself it last started, and `error` forge's `{ type, message }`.
+// The runs dispatched from here, each followed to its end over forge's stream, whatever configuration comes after. A
+// run is `{ id, name, session, status, step, startedAt, endedAt, outputs, error }`: `status` is forge's, `running` and
+// then `ok` or `failed`, `step` the step of the run itself it last started, and `error` forge's `{ type, message }`.
 // `changed(run)` hears each change until `stop()`, which ends the following.
 module.exports = ({ changed, acceptWithin = 15000 }) => {
     // Ended runs are still answered by id, the oldest let go past this many.

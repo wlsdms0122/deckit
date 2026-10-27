@@ -1,12 +1,13 @@
 // What an empty cell shows.
 const NO_VALUE = '–';
 
-// What `deck.mods.usage` found of a mod, in words: a phrase for each place it has something in.
-function usageParts({ data, records, settings }) {
+// What `deckit.mods.usage` found of a mod, in words: a phrase for each place it has something in, and the name of each
+// thing the layers keep for it (`kept`), such as its configuration.
+function usageParts({ data, records, kept = [] }) {
     return [
         data.count || data.hidden ? filesText(data, 'data file') : '',
         records.count || records.hidden ? filesText(records, 'record') : '',
-        settings ? 'settings' : '',
+        ...kept,
     ].filter(Boolean);
 }
 
@@ -45,7 +46,7 @@ function contributionsOf(live, keyCount, everyScheme) {
     if (live.exports) labels.push('exports');
     for (const point of live.extensionPoints) labels.push('extension point: ' + point);
     for (const target of live.extends) labels.push('extends: ' + target);
-    for (const target of live.styles) labels.push('styles: ' + (target === '*' ? 'every page' : target));
+    for (const target of live.styles ?? []) labels.push('styles: ' + (target === '*' ? 'every page' : target));
     return labels;
 }
 

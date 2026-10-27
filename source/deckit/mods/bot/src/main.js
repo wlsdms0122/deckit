@@ -5,11 +5,11 @@ const { sessionPicker } = require('./forge/sessions/session-picker.js');
 const { brainView } = require('./llmemory/brain.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 
-// The settings that say where llmemory and the brain are, handed to the main process together.
+// The configuration keys that say where llmemory and the brain are, handed to the main process together.
 const PLACES = ['llmemory', 'brain'];
 
-module.exports = {
-    keywords: [
+class Bot {
+    static keywords = [
         'bot',
         'forge',
         'daemon',
@@ -26,39 +26,45 @@ module.exports = {
         '브레인',
         '기억',
         '지식',
-    ],
+    ];
 
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`,
+    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
 
-    settings: {
+    static configuration = {
         llmemory: {
-            label: 'LLMemory command',
-            type: 'text',
+            type: 'string',
+            title: 'LLMemory command',
+            description:
+                "Where the llmemory program is, as a full path. Empty: the llmemory on your login shell's PATH.",
             default: '',
-            placeholder: 'llmemory',
-            hint: "Where the llmemory program is, as a full path. Empty: the llmemory on your login shell's PATH.",
         },
         brain: {
-            label: 'Brain folder',
-            type: 'text',
+            type: 'string',
+            title: 'Brain folder',
+            description: "The brain's folder, the one llmemory reads with --home. Brain lists nothing until it is set.",
             default: '',
-            placeholder: 'Not set',
-            hint: "The brain's folder, the one llmemory reads with --home. Brain lists nothing until it is set.",
         },
         wrapCode: {
-            label: 'Wrap code in notes',
-            type: 'toggle',
+            type: 'boolean',
+            title: 'Wrap code in notes',
+            description:
+                "Long lines in a note's code blocks wrap instead of scrolling sideways. " +
+                'The wrap button on a block switches it too.',
             default: false,
-            hint: "Long lines in a note's code blocks wrap instead of scrolling sideways. The wrap button on a block switches it too.",
         },
-    },
+    };
 
-    async start(deck) {
-        const { ui } = deck;
-        const store = deck.storage.values;
-        const { forge } = deck.requires;
-        const bot = await deck.mainProcess('main-process/bot/bot.js');
-        const places = () => Object.fromEntries(PLACES.map((key) => [key, deck.settings.get(key)]));
+    static form = {
+        llmemory: { placeholder: 'llmemory' },
+        brain: { placeholder: 'Not set' },
+    };
+
+    async attach(shell, deckit) {
+        const { ui } = shell;
+        const store = deckit.storage.values;
+        const { forge } = deckit.requires;
+        const bot = await deckit.mainProcess('main-process/bot/bot.js');
+        const places = () => Object.fromEntries(PLACES.map((key) => [key, deckit.configuration.get(key)]));
         await bot.use(places());
 
         const content = document.createElement('div');
@@ -85,7 +91,8 @@ module.exports = {
         ui.titleBar(head);
 
         const picker = sessionPicker({
-            deck,
+            shell,
+            deckit,
             forge,
             onChange: (name) => {
                 for (const entry of MODES) if (entry.system === 'Forge') entry.view.setSession(name);
@@ -101,7 +108,7 @@ module.exports = {
                 system: 'Forge',
                 label: 'Services',
                 icon: 'server',
-                view: supervisorView({ deck, forge, picker }),
+                view: supervisorView({ shell, deckit, forge, picker }),
             },
             {
                 key: 'workflows',
@@ -109,7 +116,7 @@ module.exports = {
                 label: 'Workflows',
                 icon: 'list',
                 hint: 'Browse, run and cancel Forge workflows',
-                view: workflowsView({ deck, forge, picker }),
+                view: workflowsView({ shell, deckit, forge, picker }),
             },
             {
                 key: 'schedules',
@@ -117,14 +124,14 @@ module.exports = {
                 label: 'Schedules',
                 icon: 'calendar',
                 hint: 'Manage Forge workflow schedules',
-                view: schedulesView({ deck, forge, picker }),
+                view: schedulesView({ shell, deckit, forge, picker }),
             },
             {
                 key: 'brain',
                 system: 'LLMemory',
                 label: 'Brain',
                 icon: 'search',
-                view: brainView({ deck, bot }),
+                view: brainView({ shell, deckit, bot }),
             },
         ];
         const modeOf = (key) => MODES.find((entry) => entry.key === key) || MODES[0];
@@ -223,7 +230,7 @@ module.exports = {
         const supervisor = modeOf('supervisor').view;
         const brain = modeOf('brain').view;
 
-        deck.view({
+        shell.view({
             content,
             sidebar,
             didAppear: () => {
@@ -235,7 +242,7 @@ module.exports = {
                 hide();
             },
         });
-        deck.commands({
+        deckit.commands({
             show: {
                 description: 'Shows Bot on Services, Workflows, Schedules or Brain, a Forge view on the session given.',
                 params: {
@@ -256,7 +263,7 @@ module.exports = {
                 },
                 run: (args) => {
                     showView(args);
-                    deck.show();
+                    shell.show();
                 },
             },
             'choose-session': {
@@ -294,7 +301,7 @@ module.exports = {
             },
         });
         const viewKey = (view, key) => ({ label: modeOf(view).label, key, run: () => showView({ view }) });
-        deck.keys({
+        deckit.keys({
             services: viewKey('supervisor', 'mod+1'),
             brain: viewKey('brain', 'mod+2'),
             workflows: viewKey('workflows', 'mod+3'),
@@ -302,14 +309,14 @@ module.exports = {
             searchBrain: { label: 'Search the brain', key: 'mod+f', run: () => showView({ view: 'brain' }) },
             brainBack: { label: 'Back to the Note Before', key: 'mod+[', run: brainBack },
         });
-        deck.extends.switcher({
+        deckit.extends.switcher({
             actions: switcher({
                 ui,
                 modes: MODES,
                 supervisor,
                 picker,
                 brain,
-                show: deck.show,
+                show: shell.show,
                 does: {
                     ...inFront({
                         show: showView,
@@ -356,11 +363,13 @@ module.exports = {
             brain.back();
         }
 
-        deck.settings.on((key) => {
+        deckit.configuration.on((key) => {
             if (PLACES.includes(key))
                 bot.use(places()).then((renewed) => {
                     if (renewed) brain.reload();
                 });
         });
-    },
-};
+    }
+}
+
+module.exports = Bot;

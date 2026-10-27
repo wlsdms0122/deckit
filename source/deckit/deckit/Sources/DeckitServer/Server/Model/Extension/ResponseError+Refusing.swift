@@ -114,16 +114,13 @@ extension ResponseError {
                 "KEY"
             }
 
-        case let error as SettingError:
+        case let error as ModStateError:
             switch error {
-            case .undeclared:
-                "UNDECLARED"
+            case .notAName:
+                "NAME"
 
-            case .notOfType:
-                "TYPE"
-
-            case .notAnOption:
-                "OPTION"
+            case .reserved:
+                "RESERVED"
             }
 
         case let error as StateError:
@@ -160,6 +157,18 @@ extension ResponseError {
 
             case .notAName, .declaration, .schema, .defined:
                 "REFUSED"
+            }
+
+        case let error as ConfigurationError:
+            switch error {
+            case .undeclared:
+                "UNDECLARED"
+
+            case .notOfType:
+                "TYPE"
+
+            case .notAChoice:
+                "CHOICE"
             }
 
         case let error as URLRouterError:

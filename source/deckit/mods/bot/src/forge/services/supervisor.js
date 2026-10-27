@@ -1,6 +1,6 @@
-const supervisorView = ({ deck, forge, picker }) => {
-    const { theme, ui } = deck;
-    const store = deck.storage.values;
+const supervisorView = ({ shell, deckit, forge, picker }) => {
+    const { theme, ui } = shell;
+    const store = deckit.storage.values;
 
     let session = picker.current();
 

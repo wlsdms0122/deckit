@@ -13,7 +13,7 @@ extension StorageUsage: Encodable {
     private enum CodingKeys: String, CodingKey {
         case data
         case records
-        case settings
+        case kept
     }
 
     // MARK: - Initializer
@@ -22,7 +22,7 @@ extension StorageUsage: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(data, forKey: .data)
         try container.encode(records, forKey: .records)
-        try container.encode(settings, forKey: .settings)
+        try container.encode(kept, forKey: .kept)
     }
 
     // MARK: - Private

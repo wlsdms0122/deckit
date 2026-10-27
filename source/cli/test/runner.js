@@ -1,6 +1,6 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: a run's page
 // made, known as the mod's and set up before it loads, what the core is told as the page fails, crashes or is
-// replaced, a run's stop() asked of its page, a mod loaded once what it requires has launched, one restarted with the
+// replaced, a run's end asked of its page, a mod loaded once what it requires has launched, one restarted with the
 // mods that require it, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each
 // check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
@@ -123,6 +123,25 @@ async function main() {
     await tick();
     check('the core is told at once when the page is gone', methods('runner/stopped').length === 3, asked);
     gone = false;
+
+    // What the page read of the mod's class, and how many lifecycles its run stacks: each has its own time to end.
+    const fromPage = (channel, payload) => heard.told(page, { channel: `deckit-shell:${channel}`, payload });
+    fromPage('mod-described', { run: 1, summary: { icon: 'i' }, lifecycles: 2 });
+    await tick();
+    check(
+        'what the page read of the class is told the core',
+        methods('runner/described')[0]?.params.summary.icon === 'i',
+        asked
+    );
+    stopping();
+    RUNNER.relaunch(['a']).catch(() => {});
+    await later(2100);
+    check('a run of two lifecycles is not ended by one limit', methods('runner/stopped').length === 3, asked);
+    await later(2000);
+    check('a run of two lifecycles ends within two limits', methods('runner/stopped').length === 4, asked);
+    fromPage('mod-joined', { run: 1, summary: { view: true }, contributions: {} });
+    await tick();
+    check('a lifecycle joined is told the core', methods('runner/joined')[0]?.params.summary.view === true, asked);
 
     // A mod loads once what it requires has launched.
     catalog = [...catalog, { id: 'b', requires: { a: '1.0.0' }, revision: '1', dependents: [] }];

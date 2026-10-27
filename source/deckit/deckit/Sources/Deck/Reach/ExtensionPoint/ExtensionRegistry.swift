@@ -35,7 +35,7 @@ public final class ExtensionRegistry {
         return contributions.extensions.keys.sorted().compactMap { point in
             guard let scoped = ScopedName(point) else { return "\(point) is not <mod id>:<point>" }
             guard mod.manifest.extends[scoped.modId] != nil else {
-                return "deck.extends.\(scoped.modId) extends \(scoped.name), and \(scoped.modId) is not in [extends]"
+                return "it extends \(scoped.modId)'s \(scoped.name), and \(scoped.modId) is not in [extends]"
             }
             return nil
         }

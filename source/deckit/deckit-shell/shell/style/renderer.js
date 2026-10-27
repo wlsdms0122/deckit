@@ -32,7 +32,7 @@ function wear({ channels, onChange = null }) {
     PROTOCOL.changed.on(({ styles }) => apply(styles));
 }
 
-// Why what `deck.styles` was handed is not styles, or ''.
+// Why what `shell.styles` was handed is not styles, or ''.
 function problemOf(value) {
     if (!value || typeof value !== 'object') return 'takes { "<mod id>" or "*": css }';
     const wrong = Object.entries(value).find(([, css]) => typeof css !== 'string');

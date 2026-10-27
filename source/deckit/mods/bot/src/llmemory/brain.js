@@ -1,9 +1,10 @@
 const { styled } = require('../dom/dom.js');
 const { renderMarkdown } = require('./markdown.js');
 
-const brainView = ({ deck, bot }) => {
-    const { theme, ui, settings } = deck;
-    const store = deck.storage.values;
+const brainView = ({ shell, deckit, bot }) => {
+    const { theme, ui } = shell;
+    const { configuration } = deckit;
+    const store = deckit.storage.values;
     const LINK = 'var(--deckit-accent)';
     const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
     const SEARCH_DELAY_MS = 160;
@@ -18,16 +19,16 @@ const brainView = ({ deck, bot }) => {
     const markdown = renderMarkdown({
         ui,
         onNote: (id) => open(id, true),
-        onLink: (url) => deck.open(url),
+        onLink: (url) => deckit.open(url),
         wrap: {
-            get: () => settings.get('wrapCode') === true,
-            set: (on) => settings.set('wrapCode', on),
+            get: () => configuration.get('wrapCode') === true,
+            set: (on) => configuration.set('wrapCode', on),
             on: (listener) =>
-                settings.on((key) => {
+                configuration.on((key) => {
                     if (key === 'wrapCode') listener();
                 }),
         },
-        copyText: (text) => deck.clipboard.writeText(text),
+        copyText: (text) => deckit.clipboard.writeText(text),
     });
 
     const pad = (number) => String(number).padStart(2, '0');

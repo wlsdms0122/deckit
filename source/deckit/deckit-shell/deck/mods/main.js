@@ -152,8 +152,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
     }
 
     // What a mod removed with its data kept outside its own folder: the core erases its data folder, its records and
-    // its settings, and notes it until its pages' storage and its sessions are cleared here. Each is cleared whether
-    // or not another fails; the note goes only once all are, so a failure is tried again at the next start.
+    // what the layers above deck keep for it, and notes it until its pages' storage and its sessions are cleared here.
+    // Each is cleared whether or not another fails; the note goes only once all are, so a failure is tried again at
+    // the next start.
     async function erase(id) {
         const outcomes = await Promise.allSettled([
             CORE.request('erasure/erase', { mod: id }),

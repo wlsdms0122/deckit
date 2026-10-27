@@ -39,6 +39,7 @@ const PERMISSION_LIST_STYLE = `
         font: var(--deckit-type-small);
         opacity: 0.5;
     }
+    .settings-permission-unusable { margin-top: 4px; font: var(--deckit-type-small); color: var(--deckit-warn); }
 `;
 
 // The glyph each permission is drawn with, by its id; one Settings does not know is drawn as a permission.
@@ -55,7 +56,7 @@ const PERMISSION_ICONS = {
     'system.notifications': 'bell',
     'system.global-keys': 'monitor',
     'deckit.mods': 'puzzle',
-    'deckit.mod-settings': 'sliders',
+    'deckit.mod-configuration': 'sliders',
     'deckit.keymap': 'keyboard',
     'deckit.command-registry': 'list',
     'deckit.app-keys': 'window',
@@ -65,7 +66,8 @@ const PERMISSION_ICONS = {
 };
 const PERMISSION_ICON = 'info';
 
-// The permissions a mod asks for: each one's name, id, the mod's reason and what it lets the mod do.
+// The permissions a mod asks for: each one's name, id, the mod's reason and what it lets the mod do, and whether this
+// app gives it.
 function permissionList({ ui, permissions }) {
     const element = ui.element('div', { className: 'settings-permissions' });
 
@@ -88,6 +90,13 @@ function permissionList({ ui, permissions }) {
             ui.element('div', { className: 'settings-permission-reason', text: permission.reason }),
             ui.element('div', { className: 'settings-permission-means', text: permission.means })
         );
+        if (permission.usable === false)
+            words.append(
+                ui.element('div', {
+                    className: 'settings-permission-unusable',
+                    text: 'This app does not give it, so the mod runs without it.',
+                })
+            );
         row.append(icon, words);
         return row;
     }

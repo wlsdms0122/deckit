@@ -45,6 +45,10 @@ struct DeckitFixture {
         try Data().write(to: location.appending(path: "main.js"))
     }
 
+    func remove(_ id: String) throws {
+        try FileManager.default.removeItem(at: source.appending(path: id))
+    }
+
     // A deckit over what is written, the app named App asking `schemeHandlers` first, its mods read and each that loads
     // launching.
     func deckit(schemeHandlers: [String: [String]] = [:]) throws -> Deckit {
@@ -55,7 +59,8 @@ struct DeckitFixture {
             api: try #require(Version("1.0.0")),
             name: "App",
             schemeHandlers: schemeHandlers,
-            permissions: []
+            permissions: [],
+            given: []
         )
         let mods = sut.deck.readCatalog()
         _ = try sut.deck.load(mods.map(\.manifest.id))

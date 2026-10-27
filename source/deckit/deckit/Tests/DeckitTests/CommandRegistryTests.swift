@@ -25,18 +25,18 @@ struct CommandRegistryTests {
         let sut = try fixture.deckit()
 
         // When
-        try sut.commands.define([command("toggle-sidebar")], provider: "@shell")
+        try sut.commands.define([command("toggle-sidebar")], provider: "@host")
         _ = try sut.started("b", run: 1, contributing: ["commands": .array([command("open")])])
         _ = try sut.started("a", run: 1, contributing: ["commands": .array([command("reload"), command("copy")])])
         let listed = sut.commands.list()
 
         // Then
         #expect(listed.map { registered in registered.provider.id(of: registered.command.name) } == [
-            "@shell.toggle-sidebar", "a.reload", "a.copy", "b.open"
+            "@host.toggle-sidebar", "a.reload", "a.copy", "b.open"
         ])
         #expect(listed.map(\.provider.isHost) == [true, false, false, false])
         #expect(listed[1].provider.name == "A")
-        #expect(sut.provider(of: "@shell")?.isHost == true)
+        #expect(sut.provider(of: "@host")?.isHost == true)
         #expect(sut.provider(of: "b") == .mod(id: "b", name: "B"))
         #expect(sut.provider(of: "c") == nil)
     }
@@ -117,16 +117,16 @@ struct CommandRegistryTests {
     func hostDeclaresEachNameOnce() throws {
         // Given
         let sut = try fixture.deckit()
-        try sut.commands.define([command("show")], provider: "@shell")
+        try sut.commands.define([command("show")], provider: "@host")
 
         // When
-        let again = refusal { try sut.commands.define([command("show")], provider: "@shell") }
-        let unnamed = refusal { try sut.commands.define([command("show")], provider: "shell") }
+        let again = refusal { try sut.commands.define([command("show")], provider: "@host") }
+        let unnamed = refusal { try sut.commands.define([command("show")], provider: "host") }
         let other = refusal { try sut.commands.define([command("show")], provider: "@app") }
 
         // Then
-        #expect(again == "@shell.show is declared already")
-        #expect(unnamed == "\"shell\" is no name: a name has letters, digits, \"_\" and \"-\"")
+        #expect(again == "@host.show is declared already")
+        #expect(unnamed == "\"host\" is no name: a name has letters, digits, \"_\" and \"-\"")
         #expect(other == nil)
     }
 

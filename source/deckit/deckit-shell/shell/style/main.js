@@ -25,6 +25,7 @@ export function createStyle({ deckit }) {
             return stylesFor(modId);
         });
         deckit.mods.observe('didLaunch', (run) => stylesOf(run) && tell());
+        deckit.mods.observe('didJoin', (run) => stylesOf(run) && tell());
         deckit.mods.observe('didTerminate', (run) => stylesOf(run) && tell());
         deckit.mods.onChange(tell);
     }

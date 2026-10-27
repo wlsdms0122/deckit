@@ -39,9 +39,8 @@ struct GoldenTests {
         (ManifestError.fieldDefined("f"), "FIELD"),
         (ModStorageError.notAMod("x"), "MOD"),
         (RecordError.notAKey("k"), "KEY"),
-        (SettingError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
-        (SettingError.notOfType(key: "k", type: .number), "TYPE"),
-        (SettingError.notAnOption(key: "k", value: nil), "OPTION"),
+        (ModStateError.notAName("N"), "NAME"),
+        (ModStateError.reserved("n"), "RESERVED"),
         (StateError.notAKey("k"), "KEY"),
         (StateError.notAFolder("f"), "FOLDER"),
         (StateError.reserved("keys"), "RESERVED"),
@@ -53,6 +52,9 @@ struct GoldenTests {
         (CommandError.noSuchCommand("a.c"), "COMMAND"),
         (CommandError.arguments(command: "a.c", why: "w"), "ARGUMENTS"),
         (CommandError.notAName("a.b"), "REFUSED"),
+        (ConfigurationError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
+        (ConfigurationError.notOfType(key: "k", type: .number), "TYPE"),
+        (ConfigurationError.notAChoice(key: "k", value: nil), "CHOICE"),
         (URLRouterError.noHandlers("x"), "SCHEME")
     ]
 
@@ -66,7 +68,8 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "url-schemes = [\"mailto\"]\n[permissions]\n\"system.global-keys\" = \"to test\""
+            adding: "url-schemes = [\"mailto\"]\n[permissions]\n\"system.global-keys\" = \"to test\"\n"
+                + "\"system.example\" = \"to test\""
         )
         try writeMod("b", in: "source", adding: "[requires]\na = \"1.0.0\"\n[extends]\na = \"1.0.0\"")
         try writeMod("c", in: "ship")

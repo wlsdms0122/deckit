@@ -31,7 +31,7 @@ export function createExport({ RUN }) {
     // The mod that called one of this mod's exports, while the function runs to its first await.
     function callerNow() {
         if (caller === null)
-            throw new Error("deck.caller() is read while a call into the mod's exports runs, before its first await");
+            throw new Error("caller() is read while a call into the mod's exports runs, before its first await");
         return caller;
     }
 

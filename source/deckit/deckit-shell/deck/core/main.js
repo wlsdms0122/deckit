@@ -17,8 +17,8 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
     // MARK: - Initializer
     // MARK: - Public
     // Once the app is ready, before any mod launches: what the mods are read against is handed over then, `permissions`
-    // the layers' own.
-    function start({ permissions }) {
+    // every one the mod contract names and `given` the ids of those the layers on this host give.
+    function start({ permissions, given }) {
         connection = core.open({
             onMessage: receive,
             onLog: (line) => LOG.info('core:', line),
@@ -32,6 +32,7 @@ export function createCore({ CONFIG, FOLDERS, LOG, core, home }) {
             ship: FOLDERS.ship,
             sources: FOLDERS.sources,
             permissions,
+            given,
         }).then((folders) => {
             kept = folders;
         });

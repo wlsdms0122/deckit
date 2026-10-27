@@ -8,7 +8,7 @@
 import Foundation
 
 // How deck reads a manifest: what it says, and what is wrong with it, against the mod contract `api` this deck speaks,
-// the permissions there are and the fields the layers on deck add.
+// the permissions the contract names, those the layers on this host give, and the fields the layers on deck add.
 struct ManifestReader {
     // MARK: - Property
     let file = "manifest.toml"
@@ -19,10 +19,17 @@ struct ManifestReader {
     private let api: Version
     // The widest first: those that reach past the app, then those inside it, each in the order defined.
     private let permissions: [Permission]
+    private let given: Set<String>
     private let fields: [any ManifestField]
 
     // MARK: - Initializer
-    init(api: Version, permissions: [Permission], fields: [any ManifestField], store: Store) throws {
+    init(
+        api: Version,
+        permissions: [Permission],
+        given: Set<String>,
+        fields: [any ManifestField],
+        store: Store
+    ) throws {
         var ids: Set<String> = []
         for permission in permissions {
             guard ids.insert(permission.id).inserted else { throw ManifestError.permissionDefined(permission.id) }
@@ -37,6 +44,7 @@ struct ManifestReader {
         self.permissions = PermissionReach.allCases.flatMap { reach in
             permissions.filter { permission in permission.reach == reach }
         }
+        self.given = given
         self.fields = fields
     }
 
@@ -61,7 +69,8 @@ struct ManifestReader {
                 asked[permission.id].map { reason in
                     PermissionRequest(
                         permission: permission,
-                        reason: written(reason).trimmingCharacters(in: .whitespacesAndNewlines)
+                        reason: written(reason).trimmingCharacters(in: .whitespacesAndNewlines),
+                        usable: given.contains(permission.id)
                     )
                 }
             },

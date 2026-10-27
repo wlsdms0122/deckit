@@ -7,8 +7,9 @@ const { section } = require('../section/section.js');
 
 // The Mods section: every mod found in the load order, what each contributes, installing and removing them, and putting
 // them in another order and applying it. `onChange` hears that a mod was installed, removed, restarted, pinned or moved
-// here. Failures and what was done are told in the notice under the list.
-function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
+// here. Failures and what was done are told in the notice under the list. `mods` is deckit.mods; `pins`, the panel's
+// pins (shell.mods), or nothing under a shell that has none.
+function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
     // What a mod that loads but is not running is doing, by its run's state: one starting or stopping says it by a
@@ -149,7 +150,6 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
     body.append(columns, rows.element, order, restart.element, notice);
     return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
 
-    // The panel's pins are the shell's: under a shell that has none, no child is pinned.
     function draw(state) {
         listed = state;
         restart.draw(state.found);
@@ -158,7 +158,8 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
 
     // The rows in the order dragged into while one is, those found since after them.
     function render() {
-        const pinned = new Set(mods.pinned ? mods.pinned() : []);
+        // Under a shell that has no pins, no child is pinned.
+        const pinned = new Set(pins ? pins.pinned() : []);
         const place = (mod) => (draft.includes(mod.id) ? draft.indexOf(mod.id) : draft.length);
         const found = draft ? [...listed.found].sort((mod, other) => place(mod) - place(other)) : listed.found;
         ids = found.map(({ id }) => id);
@@ -235,7 +236,7 @@ function modsSection({ ui, mods, everyScheme, util, appName, onChange }) {
         });
         const source = chip({ ui, text: 'source', muted: true });
         const failure = ui.element('div', { className: 'settings-mod-failure' });
-        const details = modDetails({ ui, mods, everyScheme, util, onPinnedChange: onChange });
+        const details = modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange: onChange });
 
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
         caret.innerHTML = ui.icon('chevronRight', { size: 13 });

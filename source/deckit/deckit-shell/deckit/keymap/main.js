@@ -8,7 +8,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Keys, as the core resolves them: the core keeps the keymap and says how each binding stands, and a keystroke is
 // resolved here against the copy it last told, where the keystroke lands. `pages` and `keys` are the environment's.
-export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, WINDOW, pages: PAGES, keys: KEYS }) {
+export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGES, keys: KEYS }) {
     // MARK: - Property
     const RECORDING_MS = 20 * 1000;
     const hotkeys = new Map(); // chord -> its off, or null where the system did not give it, as each is held in any app
@@ -50,8 +50,8 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, WINDOW, pag
         });
     }
 
-    // What the key map asks the shell of a deckit page a keystroke landed in: `isActive(page)`, whether it is the
-    // shell's page in front, where the mod's own keys and the hosts' run, as they do in a mod's window on screen;
+    // What the key map asks the shell of a deckit page a keystroke landed in: `isActive(page)`, whether it is the page
+    // in front, where the mod's own keys and the hosts' run;
     // `monitor(page, keystroke)`, the shell's look at the key pressed before any binding, `{ code, meta, control,
     // alt, shift }`, taking it by answering true.
     function delegate({ isActive, monitor }) {
@@ -213,7 +213,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, WINDOW, pag
     // and not on a chord a field focused there takes.
     function worksIn(binding, page) {
         if (KEY_SCOPE.isWide(binding.scope)) return true;
-        if (!page || !(WINDOW.isActive(page) || delegated.isActive(page))) return false;
+        if (!page || !delegated.isActive(page)) return false;
         if (binding.takenByFields && typing.has(page)) return false;
         return hosts.has(binding.provider) || binding.provider === IDENTITY.modOf(page)?.id;
     }

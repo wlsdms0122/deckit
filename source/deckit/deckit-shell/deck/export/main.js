@@ -11,7 +11,7 @@ export function createExport({ CORE, IDENTITY, RUNNER }) {
     // MARK: - Initializer
     // MARK: - Public
     // A mod reaches another only through what that one exports, and only one it requires, which runs before it loads.
-    // The function called hears who called it (`deck.caller()`).
+    // The function called hears who called it (`caller()`).
     function start() {
         PROTOCOL.requires.handle(({ run }, sender) =>
             CORE.request('export/requires', { mod: IDENTITY.modFrom(sender).id, run })

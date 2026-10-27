@@ -287,10 +287,64 @@ struct RunnerTests {
         #expect(describe(unloaded) == ["close b"])
     }
 
+    @Test("what a launching run's page read of its entry is kept, and a run past launching keeps what it has")
+    func launchingRunIsDescribed() throws {
+        // Given
+        try write("a")
+        let (sut, catalog) = try runner()
+        _ = catalog.read()
+        _ = try sut.load(["a"])
+
+        // When
+        let described = try sut.described("a", run: 1, summary: .object(["icon": .string("<svg/>")]))
+        _ = try sut.started("a", run: 1)
+        let late = try sut.described("a", run: 1, summary: .object(["icon": .string("")]))
+
+        // Then
+        #expect(describe(described) == ["keep a 1 "])
+        #expect(late.isEmpty)
+        #expect(try #require(sut.run(of: "a")).summary == .object([:]))
+    }
+
+    @Test("a running run contributes anew, keeping the exports it launched with, and one not running does not")
+    func runningRunJoins() throws {
+        // Given
+        try write("a")
+        let (sut, catalog) = try runner()
+        _ = catalog.read()
+        _ = try sut.load(["a"])
+        let joining = Contribution(
+            exports: Snapshot(values: "{}", functions: []),
+            extensionPoints: ["accounts"],
+            extensions: [:],
+            layers: ["keys": .array([])]
+        )
+        let early = try sut.joined("a", run: 1, summary: .object([:]), contributions: joining)
+        _ = try sut.started("a", run: 1, exports: [["ask"]])
+
+        // When
+        let joined = try sut.joined("a", run: 1, summary: .object(["view": .bool(true)]), contributions: joining)
+
+        // Then
+        let run = try #require(sut.run(of: "a"))
+        #expect(early.isEmpty)
+        #expect(describe(joined) == ["keep a 1 "])
+        #expect(run.summary == .object(["view": .bool(true)]))
+        #expect(run.contributions?.exports == Snapshot(values: #"{"id":"a"}"#, functions: [["ask"]]))
+        #expect(run.contributions?.extensionPoints == ["accounts"])
+        #expect(run.contributions?.layers == ["keys": .array([])])
+    }
+
     // MARK: - Private
     private func runner() throws -> (Runner, Catalog) {
         let store = Store()
-        let reader = try ManifestReader(api: try #require(Version("1.0.0")), permissions: [], fields: [], store: store)
+        let reader = try ManifestReader(
+            api: try #require(Version("1.0.0")),
+            permissions: [],
+            given: [],
+            fields: [],
+            store: store
+        )
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
         let catalog = Catalog(

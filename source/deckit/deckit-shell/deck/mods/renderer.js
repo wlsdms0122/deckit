@@ -4,7 +4,7 @@ import * as DECLARED from './protocol.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// `deck.mods` for a mod with deckit.mods. `RUN` is the page's run.
+// `deckit.mods` for a mod with deckit.mods. `RUN` is the page's run.
 export function createMods({ RUN }) {
     // MARK: - Property
     const listeners = new Set();
@@ -14,11 +14,11 @@ export function createMods({ RUN }) {
     // MARK: - Initializer
     // MARK: - Public
     // `added` is what is on deck adds. `onChange(listener)` hears that what `list()` answers may have changed, once
-    // for each change main tells in one go, and answers its off.
-    function tool(added) {
+    // for each change main tells in one go, until its off or until `scope` is cut.
+    function tool(added, scope) {
         return Object.freeze({
             ...added,
-            onChange,
+            onChange: (listener) => scope.add(onChange(listener)),
             list: () => PROTOCOL.mods.invoke(),
             install: (from) => PROTOCOL.install.invoke({ from: String(from) }),
             remove: (id, data) => PROTOCOL.remove.invoke({ id: String(id), data: !!data }),

@@ -7,12 +7,15 @@ import { createRunner } from './deck/runner/renderer.js';
 import { createRecord } from './deck/record/renderer.js';
 import { createExport } from './deck/export/renderer.js';
 import { createExtension } from './deck/extension/renderer.js';
+import { createEvent } from './deck/event/renderer.js';
 import { createMods } from './deck/mods/renderer.js';
 import { createWeb } from './deckit/web/renderer.js';
 import { createNotification } from './deckit/notification/renderer.js';
 import { createKeymap } from './deckit/keymap/renderer.js';
 import { createCommand } from './deckit/command/renderer.js';
-import { createMod, mod } from './shell/mod/renderer.js';
+import { createConfiguration } from './deckit/configuration/renderer.js';
+import { createMod } from './deckit/mod/renderer.js';
+import { shellOf } from './shell/mod/renderer.js';
 
 // MARK: - Public
 // Deckit on every page it makes, a mod's or one the shell made, as the environment boots the page with what it gives
@@ -28,8 +31,8 @@ function start(given) {
 }
 
 // MARK: - Private
-// The page the shell made is drawn; a mod's runs, deck's runner handed deckit's layer of `deck` with the shell's UI
-// over it when it is on deckit, each part handed what it uses.
+// The page the shell made is drawn; a mod's runs, deck's runner handed deckit's layer with the shell's stacked over it
+// when the shell is on deckit, each part handed what it uses.
 function run(ENV) {
     const { page, sessions, attached } = PAGE.setup();
     if (page) return PAGE.page(page, { channels: IPC.layerChannels });
@@ -39,17 +42,20 @@ function run(ENV) {
         STORAGE: createRecord(),
         EXPORT: createExport({ RUN }),
         EXTENSION: createExtension({ RUN }),
+        EVENT: createEvent({ RUN }),
         MODS: createMods({ RUN }),
         modules: ENV.modules,
     });
+    const WEB = createWeb({ sessions, web: ENV.web });
     const MOD = createMod({
-        WEB: createWeb({ sessions, web: ENV.web }),
+        WEB,
         NOTIFICATION: createNotification(),
         KEYMAP: createKeymap(),
         COMMAND: createCommand(),
-        CHANNELS: IPC.layerChannels,
+        CONFIGURATION: createConfiguration({ RUN }),
     });
-    RUNNER.start({ layer: MOD.layerOf(attached ? mod : null) });
+    const shell = attached ? shellOf({ WEB, channels: IPC.layerChannels }) : null;
+    RUNNER.start({ layer: MOD.layerOf(shell) });
 }
 
 export { start };

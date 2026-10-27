@@ -90,7 +90,7 @@ struct URLRouterTests {
         #expect(throws: URLRouterError.noHandlers("mailto")) { try unhandled.get() }
     }
 
-    @Test("a mod that names schemes and registers no handleURL, or the other way, is told so and asked nothing")
+    @Test("a mod that registers handleURL and names no schemes is told so, and one that has not registered it is passed")
     func unpairedHandlerIsAProblem() throws {
         // Given
         try fixture.write("a", urlSchemes: ["https"])
@@ -102,10 +102,9 @@ struct URLRouterTests {
         let b = try sut.started("b", run: 1, contributing: ["handleURL": .bool(true)])
 
         // Then
-        #expect(a.problem == "manifest.toml names url-schemes, but start() registered no deck.handleURL()")
+        #expect(a.problem == nil)
         #expect(
-            b.problem
-                == "start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"
+            b.problem == "it registered deckit.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"
         )
         #expect(route(sut, "https://example.com", opensFiles: false) == "https://example.com -> , browser")
     }

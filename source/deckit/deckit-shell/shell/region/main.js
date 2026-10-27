@@ -15,14 +15,18 @@ export function createRegion({ deckit }) {
     // MARK: - Initializer
     // MARK: - Public
     // The places mods give in their views, and the children shown in them. A mod whose view names a parent is
-    // that one's child from when its run starts, through launching again, until a run starts that names none.
+    // that one's child from when the shell's lifecycle of its run joins, through launching again, until one joins
+    // that names none.
     function start() {
-        deckit.mods.observe('didLaunch', ({ mod, summary }) => {
+        const judge = ({ mod, summary }) => {
+            if (!('view' in summary)) return;
             const before = parentOf(mod.id);
             if (summary.view) known.set(mod.id, { parent: summary.parent || null });
             else known.delete(mod.id);
             if (parentOf(mod.id) !== before) leave(mod.id);
-        });
+        };
+        deckit.mods.observe('didLaunch', judge);
+        deckit.mods.observe('didJoin', judge);
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, changed);
         deckit.mods.onChange(changed);
         // What a page is answered is what it knows: a parent's new page hears every change from there.

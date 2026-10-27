@@ -23,32 +23,32 @@ const PLACES = [
     ['applications', 'Applications'],
 ];
 
-module.exports = {
-    keywords: ['finder', 'files', 'file', 'folder', 'explorer', 'browse', '파인더', '파일', '폴더', '탐색기'],
+class Finder {
+    static keywords = ['finder', 'files', 'file', 'folder', 'explorer', 'browse', '파인더', '파일', '폴더', '탐색기'];
     //! Lucide "folder" (ISC).
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`,
-
-    settings: {
+    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`;
+    static configuration = {
         showHidden: {
-            label: 'Show hidden files',
-            type: 'toggle',
+            type: 'boolean',
+            title: 'Show hidden files',
+            description: 'Names that start with a dot, such as .git or .env.',
             default: false,
-            hint: 'Names that start with a dot, such as .git or .env.',
         },
         foldersFirst: {
-            label: 'Keep folders on top',
-            type: 'toggle',
+            type: 'boolean',
+            title: 'Keep folders on top',
+            description: 'Folders come before files whichever column the list is sorted by.',
             default: true,
-            hint: 'Folders come before files whichever column the list is sorted by.',
         },
-    },
+    };
 
-    async start(deck) {
-        const { theme, ui, storage, settings, util } = deck;
+    async attach(shell, deckit) {
+        const { theme, ui } = shell;
+        const { storage, configuration, util } = deckit;
         const { values, records } = storage;
-        // Every folder, icon and file change goes through this module, so a finder whose module cannot start does not
-        // start either.
-        const disk = await deck.mainProcess('main-process/disk.js');
+        // Every folder, icon and file change goes through this module, so a Finder whose module cannot start shows
+        // nothing.
+        const disk = await deckit.mainProcess('main-process/disk.js');
         const STYLE = `
             .finder-content {
                 position: relative;
@@ -73,15 +73,15 @@ module.exports = {
         const sidebar = ui.element('div', { className: 'finder-sidebar' });
         const icons = iconCache({ ui, disk, onArrive: () => area.draw() });
         const listings = listingCache({
-            about: deck.about,
+            about: deckit.about,
             disk,
             isShown: (folder) => area.shownFolders().includes(folder),
             onRead: applyListing,
         });
         const tabs = tabList({
             ui,
-            chordOf: deck.chordOf,
-            reveal: deck.reveal,
+            chordOf: deckit.chordOf,
+            reveal: deckit.reveal,
             records,
             tildify: util.tildify,
             folds,
@@ -96,9 +96,9 @@ module.exports = {
         const columns = columnView({ ui, icons, entryAt: listings.entryAt, onResize: tabs.setWidth });
         const status = folderStatus({
             ui,
-            chordOf: deck.chordOf,
-            onShowHidden: () => settings.set('showHidden', true),
-            onReveal: deck.reveal,
+            chordOf: deckit.chordOf,
+            onShowHidden: () => configuration.set('showHidden', true),
+            onReveal: deckit.reveal,
             onPrivacySettings: () => disk.privacySettings().catch(() => {}),
         });
         const area = fileArea({
@@ -110,15 +110,15 @@ module.exports = {
             columns,
             status,
             showsHidden,
-            foldersFirst: () => !!settings.get('foldersFirst'),
+            foldersFirst: () => !!configuration.get('foldersFirst'),
             select,
             setFilterText: (text) => bar.setFilter(text),
             onDraw: drawToolbar,
         });
         const operator = fileOperator({
             ui,
-            openURL: deck.open,
-            fileURL: deck.fileURL,
+            openURL: deckit.open,
+            fileURL: deckit.fileURL,
             disk,
             areaElement: area.element,
             draggableRowAt: area.draggableRowAt,
@@ -136,7 +136,7 @@ module.exports = {
         const bar = toolbar({
             ui,
             theme,
-            chordOf: deck.chordOf,
+            chordOf: deckit.chordOf,
             tildify: util.tildify,
             homeLocation: () => home,
             onBack: () => tabs.back(),
@@ -151,8 +151,8 @@ module.exports = {
         });
         const favorites = favoriteList({
             ui,
-            reveal: deck.reveal,
-            show: deck.show,
+            reveal: deckit.reveal,
+            show: shell.show,
             records,
             tildify: util.tildify,
             folds,
@@ -186,9 +186,9 @@ module.exports = {
         });
         fileMenu({
             ui,
-            chordOf: deck.chordOf,
-            reveal: deck.reveal,
-            writeText: deck.clipboard.writeText,
+            chordOf: deckit.chordOf,
+            reveal: deckit.reveal,
+            writeText: deckit.clipboard.writeText,
             areaElement: area.element,
             entryAt: listings.entryAt,
             rowOf: area.rowOf,
@@ -223,11 +223,12 @@ module.exports = {
         bar.setView(area.view());
         content.append(bar.element, list.header, area.element, area.footer);
         sidebar.append(tabs.element, favorites.element);
-        new ResizeObserver(() => {
+        this.resizing = new ResizeObserver(() => {
             if (list.fit(content.clientWidth)) area.draw();
-        }).observe(content);
+        });
+        this.resizing.observe(content);
         for (const part of [area, bar, tabs, favorites]) operator.acceptDrops(part.element, part.folderAt);
-        settings.on((key) => {
+        configuration.on((key) => {
             if (key === 'showHidden' || key === 'foldersFirst') area.draw();
         });
         disk.places()
@@ -238,7 +239,7 @@ module.exports = {
             })
             .catch(area.failToStart);
 
-        deck.view({
+        shell.view({
             content,
             sidebar,
             didAppear: () => {
@@ -261,7 +262,7 @@ module.exports = {
         const showGoTo = () => tabs.front() && goTo.show();
         const newFolder = () => operator.newFolder(area.workingFolder());
         const trash = () => operator.trash(selectedEntries());
-        deck.commands({
+        deckit.commands({
             'open-folder': {
                 description: 'Goes to a folder in the tab in front; a file goes to its folder, selected there.',
                 params: {
@@ -288,7 +289,7 @@ module.exports = {
                 run: goToPlace,
             },
         });
-        deck.keys({
+        deckit.keys({
             newTab: { label: 'New Tab', key: 'mod+t', run: () => tabs.open() },
             closeTab: { label: 'Close Tab', key: 'mod+w', run: () => tabs.close(tabs.front()) },
             reopenTab: { label: 'Reopen Closed Tab', key: 'mod+shift+t', run: () => tabs.reopen() },
@@ -321,7 +322,7 @@ module.exports = {
             listView: { label: 'As list', key: 'ctrl+mod+2', run: () => setView('list') },
             trash: { label: 'Move to Trash', key: 'mod+backspace', run: trash },
         });
-        deck.extends.switcher({
+        deckit.extends.switcher({
             actions: switcher({
                 ui,
                 util,
@@ -329,7 +330,7 @@ module.exports = {
                 favorites,
                 foldersAtHand,
                 places: PLACES,
-                show: deck.show,
+                show: shell.show,
                 does: {
                     'open-folder': openFolder,
                     ...inFront({
@@ -572,16 +573,12 @@ module.exports = {
             bar.setFavorite(!!location && favorites.has(location));
         }
 
-        function goToPlace(id) {
-            tabs.go(favorites.placePath(id));
-        }
-
         function toggleHidden() {
-            settings.set('showHidden', !showsHidden());
+            configuration.set('showHidden', !showsHidden());
         }
 
         function showsHidden() {
-            return !!settings.get('showHidden');
+            return !!configuration.get('showHidden');
         }
 
         function selectedEntries() {
@@ -592,5 +589,11 @@ module.exports = {
         function typing() {
             return !!document.activeElement?.closest('input, textarea, [contenteditable]');
         }
-    },
-};
+    }
+
+    detach() {
+        this.resizing?.disconnect();
+    }
+}
+
+module.exports = Finder;

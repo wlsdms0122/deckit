@@ -7,19 +7,19 @@
 
 import Foundation
 
-// What deck keeps of a mod: its data folder, its records and its settings.
+// What deck keeps of a mod: its data folder, its records and what the layers on deck keep for it.
 public final class ModStorage {
     // MARK: - Property
     private let dataFolder: DataFolder
     private let record: Record
-    private let setting: Setting
+    private let modState: ModState
     private let store: Store
 
     // MARK: - Initializer
-    init(dataFolder: DataFolder, record: Record, setting: Setting, store: Store) {
+    init(dataFolder: DataFolder, record: Record, modState: ModState, store: Store) {
         self.dataFolder = dataFolder
         self.record = record
-        self.setting = setting
+        self.modState = modState
         self.store = store
     }
 
@@ -31,7 +31,7 @@ public final class ModStorage {
         return StorageUsage(
             data: dataFolder.count(mod: mod),
             records: try record.count(mod: mod),
-            settings: setting.isKept(mod: mod)
+            kept: modState.kept(mod: mod)
         )
     }
 
@@ -40,7 +40,7 @@ public final class ModStorage {
         let failures = [
             Result { try dataFolder.erase(mod: mod) },
             Result { try record.erase(mod: mod) },
-            Result { try setting.erase(mod: mod) }
+            Result { try modState.erase(mod: mod) }
         ]
         for case let .failure(error) in failures {
             throw error

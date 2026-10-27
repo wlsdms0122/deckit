@@ -9,8 +9,9 @@ import Foundation
 import Deck
 
 // Which mods an address is offered to, in what order, and what deckit opens it with by itself after them. A mod handles
-// the schemes its manifest names under url-schemes once its run has registered deck.handleURL(): its run contributed
-// `handleURL`. The app names who is asked first for each scheme, and the person orders them and switches them off.
+// the schemes its manifest names under url-schemes while its run has registered deckit.handleURL(): its run contributes
+// `handleURL`. One whose run has not is passed: a run may register it on one host and not on another. The app names
+// who is asked first for each scheme, and the person orders them and switches them off.
 public final class URLRouter {
     // MARK: - Property
     private let contributionKey = "handleURL"
@@ -36,18 +37,10 @@ public final class URLRouter {
     }
 
     // MARK: - Lifecycle
-    // A mod that names schemes and opens none, or opens what it names none of, is told so as it starts.
+    // A mod that opens what it names none of is told so as it contributes it.
     func problems(of run: Run, mod: Mod) -> [String] {
-        let names = !mod.manifest.value(of: field).isEmpty
-        let opens = handlesURL(run.contributions)
-        if names && !opens {
-            return ["manifest.toml names url-schemes, but start() registered no deck.handleURL()"]
-        }
-        if opens && !names {
-            return ["start() registered deck.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"]
-        }
-
-        return []
+        guard handlesURL(run.contributions), mod.manifest.value(of: field).isEmpty else { return [] }
+        return ["it registered deckit.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"]
     }
 
     // MARK: - Public

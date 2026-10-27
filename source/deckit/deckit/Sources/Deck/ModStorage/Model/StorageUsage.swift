@@ -7,13 +7,13 @@
 
 import Foundation
 
-// What a mod has in each place deck keeps it: the files of its data folder, the files of its records, and whether it
-// has a settings file.
+// What a mod has in each place deck keeps it: the files of its data folder, the files of its records, and the names the
+// layers on deck keep anything of it under.
 public struct StorageUsage: Equatable, Sendable {
     // MARK: - Property
     public let data: DataCount
     public let records: RecordCount
-    public let settings: Bool
+    public let kept: [String]
 
     // MARK: - Initializer
     // MARK: - Public

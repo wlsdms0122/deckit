@@ -15,18 +15,19 @@ function leadText(lead) {
     return lead === null ? 'Off' : lead === 0 ? 'At start time' : `${lead} min before`;
 }
 
-// A notice before each meeting the person attends, as the Notify setting says. `occurrences(from, to)` answers what
-// reminds; `onOpen(date)` shows Calendar on that date.
-function reminder({ deck, settings, records, occurrences, onOpen }) {
+// A notice before each meeting the person attends, as the configuration's `notify` says. `occurrences(from, to)`
+// answers what reminds; `onOpen(date)` shows Calendar on that date. `stop()` ends the checks.
+function reminder({ deckit, records, occurrences, onOpen }) {
+    const { configuration } = deckit;
     // A notice still on its way, so a check does not send it again.
     const pending = new Set();
 
-    settings.on((key) => {
+    configuration.on((key) => {
         if (key === 'notify') check();
     });
-    setInterval(check, CHECK_MS);
+    const checking = setInterval(check, CHECK_MS);
 
-    return { check, lead, attends, isDue };
+    return { check, lead, attends, isDue, stop: () => clearInterval(checking) };
 
     function check() {
         const leadMinutes = lead();
@@ -49,10 +50,11 @@ function reminder({ deck, settings, records, occurrences, onOpen }) {
         }
     }
 
-    // The lead in minutes, or null when the person turned notices off.
+    // The lead in minutes, or null when the person turned notices off. The configuration holds it as text.
     function lead() {
-        const chosen = settings.get('notify');
-        return chosen === 'off' ? null : REMINDER_LEADS.includes(chosen) ? chosen : DEFAULT_LEAD;
+        const chosen = configuration.get('notify');
+        if (chosen === 'off') return null;
+        return REMINDER_LEADS.includes(Number(chosen)) ? Number(chosen) : DEFAULT_LEAD;
     }
 
     // A meeting the user was invited to and did not decline, or anything on a calendar set to notify for everything. A
@@ -71,7 +73,7 @@ function reminder({ deck, settings, records, occurrences, onOpen }) {
 
     function remind(occurrence, left) {
         const minutes = Math.round(left / 60000);
-        return deck.notify({
+        return deckit.notify({
             title: nameOf(occurrence),
             body: `${minutes > 0 ? `in ${minutes} min` : 'now'} · ${clockText(occurrence.start)}`,
             onClick: () => onOpen(occurrence.start),

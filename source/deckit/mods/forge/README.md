@@ -52,9 +52,9 @@ A run is `{ id, name, session, status, step, startedAt, endedAt, outputs, error 
 forge records a run as dispatched by the mod that called.
 
 ```js
-const { forge } = deck.requires;
+const { forge } = deckit.requires;
 const { workflow_id } = await forge.call('workflow.dispatch', { name: 'merge-gate', inputs: { number: 42 } });
-deck.on('forge:run', (run) => {
+deckit.on('forge:run', (run) => {
     if (run.id === workflow_id) draw(run);
 });
 ```

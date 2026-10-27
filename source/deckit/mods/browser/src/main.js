@@ -9,31 +9,32 @@ const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabList, tabLabel } = require('./tabs/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
 
-module.exports = {
-    icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`,
-    keywords: ['브라우저', '웹', '인터넷', 'browser', 'web'],
-    settings: {
+class Browser {
+    static icon = `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
+    static keywords = ['브라우저', '웹', '인터넷', 'browser', 'web'];
+    static configuration = {
         homepage: {
-            label: 'Homepage',
-            type: 'text',
+            type: 'string',
+            title: 'Homepage',
+            description: 'What a new tab opens.',
             default: 'https://www.google.com/',
-            hint: 'What a new tab opens.',
         },
         searchEngine: {
-            label: 'Search engine',
-            type: 'choice',
+            type: 'string',
+            title: 'Search engine',
+            description: 'Where words typed in the address bar are searched.',
             default: 'https://www.google.com/search?q=',
-            hint: 'Where words typed in the address bar are searched.',
-            options: [
-                { value: 'https://www.google.com/search?q=', label: 'Google' },
-                { value: 'https://duckduckgo.com/?q=', label: 'DuckDuckGo' },
-                { value: 'https://www.bing.com/search?q=', label: 'Bing' },
+            oneOf: [
+                { const: 'https://www.google.com/search?q=', title: 'Google' },
+                { const: 'https://duckduckgo.com/?q=', title: 'DuckDuckGo' },
+                { const: 'https://www.bing.com/search?q=', title: 'Bing' },
             ],
         },
-    },
+    };
 
-    start(deck) {
-        const { theme, ui, storage, web, settings } = deck;
+    attach(shell, deckit) {
+        const { theme, ui } = shell;
+        const { storage, configuration } = deckit;
         const { values, records } = storage;
 
         let shown = false;
@@ -56,8 +57,8 @@ module.exports = {
         `);
 
         // Files get a session of their own (system.files), so a file page never holds the web's cookies.
-        const webSession = web.session('web');
-        const filesSession = web.session('files');
+        const webSession = deckit.web.session('web');
+        const filesSession = deckit.web.session('files');
         const { bookmarks, certificates, sitePermissions } = store({ records, onBookmarksChange: showBookmarks });
         const editor = bookmarkEditor({ ui, bookmarks });
         // The view is the toolbar over the area of pages.
@@ -87,12 +88,12 @@ module.exports = {
             onSubmit: (text) =>
                 tabs.navigate(
                     tabs.front(),
-                    parseAddress(text) || settings.get('searchEngine') + encodeURIComponent(text)
+                    parseAddress(text) || configuration.get('searchEngine') + encodeURIComponent(text)
                 ),
         });
         const find = findInPage({ theme, ui, frontTab: () => tabs.front() });
         const tabs = tabList({
-            web,
+            web: shell.web,
             records,
             area,
             webSession,
@@ -119,8 +120,8 @@ module.exports = {
         });
         const sidePanel = sidebar({
             ui,
-            chordOf: deck.chordOf,
-            clipboard: deck.clipboard,
+            chordOf: deckit.chordOf,
+            clipboard: deckit.clipboard,
             values,
             bookmarks,
             notAnAddress,
@@ -146,7 +147,7 @@ module.exports = {
         tabs.restore();
         showBookmarks();
 
-        deck.view({
+        shell.view({
             content,
             sidebar: sidePanel.element,
             didAppear() {
@@ -158,7 +159,7 @@ module.exports = {
             },
         });
 
-        deck.commands({
+        deckit.commands({
             'new-tab': {
                 description: 'Opens a new tab, at the address given or the homepage.',
                 params: { type: 'object', properties: { url: { type: 'string', title: 'Address' } } },
@@ -173,7 +174,7 @@ module.exports = {
                     required: ['tab'],
                 },
                 run: switchToTab,
-                complete: (_param, partial) => candidatesOf(tabs.tree(), tabLabel, partial, deck.util),
+                complete: (_param, partial) => candidatesOf(tabs.tree(), tabLabel, partial, deckit.util),
             },
             'open-bookmark': {
                 description: 'Opens a bookmark in a new tab.',
@@ -184,11 +185,11 @@ module.exports = {
                 },
                 run: openBookmark,
                 complete: (_param, partial) =>
-                    candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), partial, deck.util),
+                    candidatesOf(bookmarks.tree(), (each) => each.title || placeOf(each.url), partial, deckit.util),
             },
         });
 
-        deck.keys({
+        deckit.keys({
             newTab: { label: 'New Tab', key: 'mod+t', run: () => newTab() },
             reopenTab: { label: 'Reopen Closed Tab', key: 'mod+shift+t', run: reopenTab },
             find: { label: 'Find in Page', key: 'mod+f', run: openFind },
@@ -206,21 +207,21 @@ module.exports = {
             lastTab: { label: 'Last Tab', key: 'mod+9', run: () => showTab(-1) },
         });
 
-        deck.handleURL((url, { activates = true, target = '' } = {}) => {
+        deckit.handleURL((url, { activates = true, target = '' } = {}) => {
             const address = parseAddress(url);
             if (!address) return false;
-            if (activates) deck.show();
+            if (activates) shell.show();
             tabs.open(address, { activates, target: String(target || '') });
             return true;
         });
 
-        deck.extends.switcher({
+        deckit.extends.switcher({
             actions: switcher({
                 ui,
-                util: deck.util,
+                util: deckit.util,
                 tabs,
                 bookmarks,
-                show: deck.show,
+                show: shell.show,
                 does: inFront({
                     'new-tab': ({ url }) => newTab(url),
                     'reopen-tab': reopenTab,
@@ -237,7 +238,7 @@ module.exports = {
         });
 
         function home() {
-            return parseAddress(settings.get('homepage')) || 'about:blank';
+            return parseAddress(configuration.get('homepage')) || 'about:blank';
         }
 
         function showTabs() {
@@ -314,13 +315,13 @@ module.exports = {
 
         function notify(tab, notification) {
             const site = hostOf(tab.url);
-            deck.notify({
+            deckit.notify({
                 title: notification.title || site,
                 body: notification.body ? notification.body + ' · ' + site : site,
                 silent: notification.silent,
                 onClick: () => {
                     if (!tabs.list().includes(tab)) return;
-                    deck.show();
+                    shell.show();
                     tabs.select(tab);
                     notification.click();
                 },
@@ -330,5 +331,7 @@ module.exports = {
         function notAnAddress(text) {
             ui.dialog({ title: 'Not a web address', message: text, confirmLabel: 'OK', cancelLabel: null });
         }
-    },
-};
+    }
+}
+
+module.exports = Browser;
