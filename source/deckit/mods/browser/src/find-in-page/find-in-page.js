@@ -21,7 +21,6 @@ function findInPage({ theme, ui, frontTab }) {
                 opacity var(--deckit-fast) var(--deckit-easing),
                 transform var(--deckit-fast) var(--deckit-easing);
         }
-        .browser-find[data-left] { right: auto; left: calc(10px + var(--deckit-title-bar-area-x, 0px)); }
         .browser-find[data-open] { opacity: 1; transform: none; }
         .browser-find-field { flex: 0 0 auto; width: 330px; margin: 0 2px; }
     `);
@@ -46,9 +45,7 @@ function findInPage({ theme, ui, frontTab }) {
 
     return { element, show, hide, showCount, release };
 
-    // `left` puts the bar in the top left corner, else it is in the top right.
-    function show({ left }) {
-        element.toggleAttribute('data-left', left);
+    function show() {
         if (!open) {
             open = true;
             clearTimeout(hiding);

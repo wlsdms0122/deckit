@@ -1,4 +1,3 @@
-const { addressBar } = require('./address-bar/address-bar.js');
 const { parseAddress, hostOf, placeOf } = require('./address/address.js');
 const { bookmarkEditor } = require('./bookmark-editor/bookmark-editor.js');
 const { candidatesOf, itemOf } = require('./candidates/candidates.js');
@@ -8,6 +7,7 @@ const { sidebar } = require('./sidebar/sidebar.js');
 const { store } = require('./store/store.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabList, tabLabel } = require('./tabs/tab-list.js');
+const { toolbar } = require('./toolbar/toolbar.js');
 
 module.exports = {
     icon: `<svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`,
@@ -60,9 +60,11 @@ module.exports = {
         const filesSession = web.session('files');
         const { bookmarks, certificates, sitePermissions } = store({ records, onBookmarksChange: showBookmarks });
         const editor = bookmarkEditor({ ui, bookmarks });
+        // The view is the toolbar over the area of pages.
         const content = ui.element('div', {
-            style: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden' },
+            style: { display: 'flex', flexDirection: 'column', width: '100%', height: '100%', overflow: 'hidden' },
         });
+        const area = ui.element('div', { style: { position: 'relative', flex: '1 1 auto', overflow: 'hidden' } });
         const prompter = sitePrompter({
             ui,
             webSession,
@@ -74,17 +76,14 @@ module.exports = {
                 if (tab !== tabs.front()) tabs.select(tab);
             },
         });
-        const bar = addressBar({
+        const bar = toolbar({
             theme,
             ui,
-            values,
-            area: content,
             onBack: goBack,
             onForward: goForward,
             onReload: reload,
             onSitePermissions: () => prompter.editSitePermissions(tabs.front().url),
             onBookmark: (star) => editor.show(tabs.front(), star),
-            isEditingBookmark: editor.isOpen,
             onSubmit: (text) =>
                 tabs.navigate(
                     tabs.front(),
@@ -95,7 +94,7 @@ module.exports = {
         const tabs = tabList({
             web,
             records,
-            area: content,
+            area,
             webSession,
             filesSession,
             home,
@@ -112,7 +111,6 @@ module.exports = {
             // A press in a page reaches this document only as the page taking the focus.
             onFocus: () => {
                 editor.close();
-                bar.close();
             },
             onCertificateRefused: (info) => prompter.askCertificate(info),
             decidePermission: (tab, request) => prompter.askPermission(tab, request),
@@ -141,7 +139,8 @@ module.exports = {
             onEditBookmark: (tab, row) => editor.show(tab, row),
         });
 
-        content.append(find.element, bar.element);
+        area.append(find.element);
+        content.append(bar.element, area);
         webSession.trust(certificates.all());
         webSession.allow(sitePermissions.all());
         tabs.restore();
@@ -307,9 +306,8 @@ module.exports = {
             tabs.front().page.reload();
         }
 
-        // The find bar takes the top right corner, or the top left when the address bar is there.
         function openFind() {
-            find.show({ left: bar.isInTopRight() });
+            find.show();
         }
 
         function notify(tab, notification) {
