@@ -182,7 +182,13 @@ export function createConnection({ RUN }) {
             const returned = await given.function.apply(given.holder, read);
             return { returned: describe(entry, returned) };
         } catch (error) {
-            return { thrown: { name: String(error?.name ?? 'Error'), message: String(error?.message ?? error) } };
+            return {
+                thrown: {
+                    name: String(error?.name ?? 'Error'),
+                    message: String(error?.message ?? error),
+                    kind: error?.kind ?? null,
+                },
+            };
         }
     }
 
@@ -262,7 +268,10 @@ export function createConnection({ RUN }) {
                 number,
                 args: describe(entry, args),
             });
-            if (answer.thrown) throw Object.assign(new Error(answer.thrown.message), { name: answer.thrown.name });
+            if (answer.thrown) {
+                const { name, message, kind } = answer.thrown;
+                throw Object.assign(new Error(message), { name, kind });
+            }
             return WIRE.materialize(answer.returned, (inner) => referenceOf(entry, inner));
         };
         handed.add(reference);

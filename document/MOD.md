@@ -485,7 +485,7 @@ deckit.dependencies.onConnect('switcher', (switcher) => {
 The exports, the args of a call and what a call answers cross the same way:
 
 - Values are copied as JSON. A value JSON does not hold (a BigInt, a Symbol, `NaN` or an infinity, an object that holds itself, a Map, a Set, an Error or another of the platform's own kinds) does not cross: in exports it leaves the connection down, and in a call it rejects the call. A value with `toJSON` crosses as what that answers.
-- A function crosses as a reference. On the far side it is a function that calls the one handed over, in the page of the mod that handed it, and answers a promise of what that answers. What it throws rejects with its `name` and `message`.
+- A function crosses as a reference. On the far side it is a function that calls the one handed over, in the page of the mod that handed it, and answers a promise of what that answers. What it throws rejects with its `name`, `message` and `kind`.
 - An object crosses as its own enumerable data, copied, and its functions and its class's methods, which cross as references bound to it. So `setProvider(new GoogleProvider())` hands over the provider's methods. Getters, `#private` fields and the class do not cross, and `instanceof` does not hold on the far side.
 - The same function handed twice on one connection is the same reference on the far side (`===`).
 - A function received from another mod is not handed on: handing it over again throws. To pass one on, a mod hands a function of its own that calls it. So whatever calls a mod's function is the mod connected to it, and `connection.mod` is always the mod that calls.

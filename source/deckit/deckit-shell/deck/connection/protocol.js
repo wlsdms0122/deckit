@@ -14,7 +14,8 @@ export const begin = CHANNEL.pageToMain(
 );
 // A lifecycle of the page's run has ended, its end method run and what its handles made cut.
 export const end = CHANNEL.pageToMain('deckit-shell:connection-end', { run: 'number', lifecycle: 'number' });
-// A function the other end handed over is called: answered with `{ returned }` or `{ thrown: { name, message } }`.
+// A function the other end handed over is called: answered with `{ returned }`, or `{ thrown: { name, message, kind } }`
+// for what it threw.
 export const call = CHANNEL.pageToMain(
     'deckit-shell:connection-call',
     { run: 'number', connection: 'number', number: 'number', args: 'object' },
