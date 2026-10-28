@@ -605,6 +605,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             same,
             await mark(user, 'same')
         );
+        const rejected = await until(async () => (await mark(user, 'refused')) === 'RangeError LATER not now', 4000);
+        check(
+            'what a function handed over throws reaches its caller with its name, kind and message',
+            rejected,
+            await mark(user, 'refused')
+        );
         check(
             'a mod runs while an optional dependency it names is not installed, its dependencies holding the required one alone',
             asked && (await mark(user, 'lasting')) === 'broker-provider',

@@ -1,5 +1,5 @@
 // A headless mod that opens its exports in start and sends an event. Each connection's exports answer who connected,
-// call back what they are handed, and tell whether a function handed again is the one handed before.
+// call back what they are handed, throw an error of a kind, and tell whether a function handed again is the one handed before.
 class BrokerProvider {
     start(deckit) {
         deckit.exports.register({
@@ -12,6 +12,9 @@ class BrokerProvider {
                         for (let number = 1; number <= last; number++) await onCount(number);
                     },
                     setThing: async (thing) => `${thing.number}: ${await thing.hello('provider')}`,
+                    refuse() {
+                        throw Object.assign(new RangeError('not now'), { kind: 'LATER' });
+                    },
                     keep(given) {
                         const same = given === kept;
                         kept = given;
