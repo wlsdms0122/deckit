@@ -17,6 +17,9 @@ class Switcher {
             didResignKey: () => this.list?.putAway(),
         });
         this.list = switcher(shell, deckit, window, deckit.extensionPoint('actions'));
+        deckit.commands({
+            show: { description: 'Opens the quick switcher.', run: () => this.list?.show() },
+        });
         deckit.keys({
             summon: {
                 label: 'Toggle Quick Switcher',
