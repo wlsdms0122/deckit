@@ -1,6 +1,6 @@
 # Forge
 
-The forge daemons, for the mods that require this one. Forge starts, stops and restarts a daemon, holds the token the daemon hands the process that starts it, and runs forge's operations on it by running the `forge` command in its main process module. It has no view: Bot shows the daemons, and any other mod uses them the same way.
+The forge daemons, for the mods that depend on this one. Forge starts, stops and restarts a daemon, holds the token the daemon hands the process that starts it, and runs forge's operations on it by running the `forge` command in its main process module. It has no view: Bot shows the daemons, and any other mod uses them the same way.
 
 ## Where forge is
 
@@ -21,24 +21,24 @@ forge hands the token that controls a daemon to the process that starts it, and 
 
 ## For other mods
 
-A mod that names `forge` in `[requires]` receives these. Each takes the session last, `default` when it is not given:
+A mod that names `forge` in `[dependencies]` reaches these as `deckit.dependencies.forge`, opened in `start`. A session not given is `default`:
 
 | Member | What it does |
 |---|---|
 | `sessions()` | every session, `{ main, sessions: [{ name, up, daemon, authority, controls }] }`: `authority` is whether its token is here, `controls` which of start, stop and restart apply |
 | `session(session)` | one session, as in `sessions()` |
 | `start(session)`, `stop(session)`, `restart(session)` | the daemon |
-| `log(lines, session)` | the last lines the daemon printed |
-| `call(operation, args, session)` | one of forge's operations, below, answering what forge answers |
-| `runSchedule(id, session)` | dispatches a schedule's workflow now, answering as `workflow.dispatch` does |
-| `run(id)` | a run dispatched from here, or `null` |
+| `log(lines, { session })` | the last lines the daemon printed |
+| `call(operation, args, { session })` | one of forge's operations, below, answering what forge answers |
+| `dispatch(name, inputs, { session, onRun })` | dispatches a workflow, answering `{ workflow_id, name, status: 'running' }` once forge has taken the run, which goes on |
+| `runSchedule(id, { session, onRun })` | dispatches a schedule's workflow now, answering as `dispatch` does |
+| `run(id, { onRun })` | a run the calling mod dispatched, or `null` |
 
 | Operation | `args` | Answers |
 |---|---|---|
 | `status` | | the daemon's status |
 | `workflow.list`, `workflow.active` | | the registered workflows, the runs under way |
 | `workflow.describe` | `{ name }` | a workflow's inputs and outputs |
-| `workflow.dispatch` | `{ name, inputs }` | `{ workflow_id, name, status: 'running' }` once forge has taken the run, which goes on |
 | `workflow.cancel` | `{ id }` | |
 | `service.status`, `service.list`, `service.reload` | | |
 | `service.run`, `service.shutdown`, `service.restart` | `{ name }` | |
@@ -47,14 +47,13 @@ A mod that names `forge` in `[requires]` receives these. Each takes the session 
 | `schedule.create` | `{ workflow, inputs, trigger, concurrency }` | |
 | `schedule.enable`, `schedule.disable`, `schedule.delete` | `{ id }` | |
 
-A run is `{ id, name, session, status, step, startedAt, endedAt, outputs, error }`. `status` is forge's, `running` and then `ok` or `failed`, with `error` as forge gives it, `{ type, message }`; `step` is the step of the run itself it last started. Each change, a step started or the end, is sent as the event `forge:run` with the run. A run is followed whatever the settings become; one whose stream ends before forge tells its end, as when the daemon stops, ends `failed` with the error type `unfollowed`. Forge waits fifteen seconds for forge to take a run, and rejects the dispatch after. Ended runs are answered by `run(id)` until a hundred more have ended.
+`call` refuses `workflow.dispatch`: a run is dispatched with `dispatch`.
 
-forge records a run as dispatched by the mod that called.
+A run is `{ id, name, session, status, step, startedAt, endedAt, outputs, error }`. `status` is forge's, `running` and then `ok` or `failed`, with `error` as forge gives it, `{ type, message }`; `step` is the step of the run itself it last started. A run is followed whatever the settings become; one whose stream ends before forge tells its end, as when the daemon stops, ends `failed` with the error type `unfollowed`. Forge waits fifteen seconds for forge to take a run, and rejects the dispatch after. Ended runs are answered by `run(id)` until a hundred more have ended.
+
+A run is the mod's that dispatched it, which forge records as who dispatched it, and only that mod reads it with `run(id)`. `onRun(run)` is told each change of the run, a step started or the end, until it ends. It lasts as long as the connection it was handed over on: a mod that starts again reaches a run it dispatched before with `run(id, { onRun })`.
 
 ```js
-const { forge } = deckit.requires;
-const { workflow_id } = await forge.call('workflow.dispatch', { name: 'merge-gate', inputs: { number: 42 } });
-deckit.on('forge:run', (run) => {
-    if (run.id === workflow_id) draw(run);
-});
+const { forge } = deckit.dependencies;
+await forge.dispatch('merge-gate', { number: 42 }, { onRun: (run) => draw(run) });
 ```

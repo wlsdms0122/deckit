@@ -1,4 +1,4 @@
-// What Bot adds to the switcher through its point `switcher:actions`: a view each, Restart Forge, Choose Forge Session,
+// What Bot adds to the switcher through its `setActions(actions)`: a view each, Restart Forge, Choose Forge Session,
 // a search of the brain and a note of it to read, Back to the Note Before, and what is wrong with Forge now. Each
 // action's value is `{ action, ...args }`, run by `does[action](args, { ready })`; one that opens a search is the value
 // its results add an arg to. `modes` are the views, `{ key, label, icon, hint }`; `supervisor` answers the Now strip

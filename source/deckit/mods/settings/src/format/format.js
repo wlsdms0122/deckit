@@ -41,11 +41,8 @@ function contributionsOf(live, keyCount, everyScheme) {
     if (keyCount) labels.push(keyCount + (keyCount === 1 ? ' key' : ' keys'));
     if (live.now) labels.push('now');
     if (live.resolver) labels.push('resolver');
-    for (const scheme of live.urlSchemes)
-        labels.push('opens: ' + (scheme === everyScheme ? 'every scheme' : scheme + ':'));
+    for (const pattern of live.urls) labels.push('opens: ' + (pattern === everyScheme ? 'every address' : pattern));
     if (live.exports) labels.push('exports');
-    for (const point of live.extensionPoints) labels.push('extension point: ' + point);
-    for (const target of live.extends) labels.push('extends: ' + target);
     for (const target of live.styles ?? []) labels.push('styles: ' + (target === '*' ? 'every page' : target));
     return labels;
 }

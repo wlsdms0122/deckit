@@ -8,17 +8,39 @@ const ANSWER_LIMIT_MS = 60 * 1000;
 // Accounts removed while their provider was not running, each forgotten by it once it runs.
 const FORGOTTEN = 'forgotten';
 
-// The account providers: the mods that extend the `accounts` point (README.md), by their mod id. Calendar calls a
+// The account providers: what the mods set through Calendar's exports (README.md), by their mod id. Calendar calls a
 // provider here alone, and reads what it answers into its own shapes here. An account whose provider is not running
 // stays, unread.
-function providerClient({ deckit, records, accountsPoint, onSigningIn, prompt }) {
+function providerClient({ records, onSigningIn, prompt }) {
+    const given = new Map(); // connection -> the provider its mod set
     // provider mod id -> { name, count, asks }: its sign-ins under way, and the questions they have open
     const signingIn = new Map();
 
-    return { providers, providerOf, isSigningIn, signIn, ask, calendars, events, respond, forget, forgetWaiting };
+    return {
+        setProvider,
+        dropProvider,
+        providers,
+        providerOf,
+        isSigningIn,
+        signIn,
+        calendars,
+        events,
+        respond,
+        forget,
+        forgetWaiting,
+    };
+
+    function setProvider(connection, provider) {
+        given.set(connection, provider);
+    }
+
+    // Answers whether the connection had set one.
+    function dropProvider(connection) {
+        return given.delete(connection);
+    }
 
     function providers() {
-        return accountsPoint.extensions();
+        return Object.fromEntries([...given].map(([connection, provider]) => [connection.mod.id, provider]));
     }
 
     function providerOf(account) {
@@ -31,13 +53,14 @@ function providerClient({ deckit, records, accountsPoint, onSigningIn, prompt })
 
     // The provider signs the account in, in a window of its own, and answers the address it signed in as, or nothing
     // when it was cancelled. Calendar keeps nothing of a cancelled or failed sign-in: the provider drops what it kept.
+    // It is handed `ask(question)` for what it asks the person on the way.
     async function signIn(provider, account, title) {
         const signing = signingIn.get(account.provider) || { name: provider.name, count: 0, asks: new Set() };
         signing.count++;
         signingIn.set(account.provider, signing);
         onSigningIn();
         try {
-            return await provider.signIn(account, { title });
+            return await provider.signIn(account, { title, ask: (question) => ask(signing, question) });
         } finally {
             if (--signing.count === 0) {
                 signingIn.delete(account.provider);
@@ -49,11 +72,9 @@ function providerClient({ deckit, records, accountsPoint, onSigningIn, prompt })
 
     // What the provider signing in asks the person on the way (README.md, Asking): `prompt(question)` brings Calendar
     // on screen and asks in a dialog under the provider's name, answering `{ answer, close }`, or null where Calendar
-    // has no screen. Resolves whether the person confirmed, and false once the provider has no sign-in under way. A
-    // mod that is not signing in is refused.
-    function ask({ message, detail = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
-        const signing = signingIn.get(deckit.caller());
-        if (!signing) return Promise.reject(new Error('Calendar asks only for the provider signing in'));
+    // has no screen. Resolves whether the person confirmed, and false once the provider has no sign-in under way.
+    function ask(signing, { message, detail = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
+        if (!signing.count) return Promise.resolve(false);
         const asking = prompt({
             title: signing.name,
             message: [String(message ?? ''), String(detail ?? '')],

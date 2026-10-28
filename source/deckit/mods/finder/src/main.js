@@ -80,7 +80,7 @@ class Finder {
         });
         const tabs = tabList({
             ui,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             reveal: deckit.reveal,
             records,
             tildify: util.tildify,
@@ -96,7 +96,7 @@ class Finder {
         const columns = columnView({ ui, icons, entryAt: listings.entryAt, onResize: tabs.setWidth });
         const status = folderStatus({
             ui,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             onShowHidden: () => configuration.set('showHidden', true),
             onReveal: deckit.reveal,
             onPrivacySettings: () => disk.privacySettings().catch(() => {}),
@@ -117,7 +117,7 @@ class Finder {
         });
         const operator = fileOperator({
             ui,
-            openURL: deckit.open,
+            openURL: deckit.urls.open,
             fileURL: deckit.fileURL,
             disk,
             areaElement: area.element,
@@ -136,7 +136,7 @@ class Finder {
         const bar = toolbar({
             ui,
             theme,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             tildify: util.tildify,
             homeLocation: () => home,
             onBack: () => tabs.back(),
@@ -186,7 +186,7 @@ class Finder {
         });
         fileMenu({
             ui,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             reveal: deckit.reveal,
             writeText: deckit.clipboard.writeText,
             areaElement: area.element,
@@ -239,7 +239,7 @@ class Finder {
             })
             .catch(area.failToStart);
 
-        shell.view({
+        shell.view.register({
             content,
             sidebar,
             didAppear: () => {
@@ -262,7 +262,7 @@ class Finder {
         const showGoTo = () => tabs.front() && goTo.show();
         const newFolder = () => operator.newFolder(area.workingFolder());
         const trash = () => operator.trash(selectedEntries());
-        deckit.commands({
+        deckit.commands.register({
             'open-folder': {
                 description: 'Goes to a folder in the tab in front; a file goes to its folder, selected there.',
                 params: {
@@ -289,7 +289,7 @@ class Finder {
                 run: goToPlace,
             },
         });
-        deckit.keys({
+        deckit.keys.register({
             newTab: { label: 'New Tab', key: 'mod+t', run: () => tabs.open() },
             closeTab: { label: 'Close Tab', key: 'mod+w', run: () => tabs.close(tabs.front()) },
             reopenTab: { label: 'Reopen Closed Tab', key: 'mod+shift+t', run: () => tabs.reopen() },
@@ -322,37 +322,36 @@ class Finder {
             listView: { label: 'As list', key: 'ctrl+mod+2', run: () => setView('list') },
             trash: { label: 'Move to Trash', key: 'mod+backspace', run: trash },
         });
-        deckit.extends.switcher({
-            actions: switcher({
-                ui,
-                util,
-                atHand,
-                favorites,
-                foldersAtHand,
-                places: PLACES,
-                show: shell.show,
-                does: {
-                    'open-folder': openFolder,
-                    ...inFront({
-                        'go-to-place': goToPlace,
-                        'go-to-folder': showGoTo,
-                        'new-tab': () => tabs.open(),
-                        'close-tab': () => tabs.close(tabs.front()),
-                        'reopen-tab': () => tabs.reopen(),
-                        back: () => tabs.back(),
-                        forward: () => tabs.forward(),
-                        'enclosing-folder': () => tabs.up(),
-                        open,
-                        'open-with-default-app': openWithDefaultApp,
-                        filter: () => bar.focusFilter(),
-                        'toggle-hidden': () => toggleHidden(),
-                        'new-folder': newFolder,
-                        'show-as': ({ view }) => setView(view),
-                        trash,
-                    }),
-                },
-            }),
+        const actions = switcher({
+            ui,
+            util,
+            atHand,
+            favorites,
+            foldersAtHand,
+            places: PLACES,
+            show: shell.show,
+            does: {
+                'open-folder': openFolder,
+                ...inFront({
+                    'go-to-place': goToPlace,
+                    'go-to-folder': showGoTo,
+                    'new-tab': () => tabs.open(),
+                    'close-tab': () => tabs.close(tabs.front()),
+                    'reopen-tab': () => tabs.reopen(),
+                    back: () => tabs.back(),
+                    forward: () => tabs.forward(),
+                    'enclosing-folder': () => tabs.up(),
+                    open,
+                    'open-with-default-app': openWithDefaultApp,
+                    filter: () => bar.focusFilter(),
+                    'toggle-hidden': () => toggleHidden(),
+                    'new-folder': newFolder,
+                    'show-as': ({ view }) => setView(view),
+                    trash,
+                }),
+            },
         });
+        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         // `ready()` is told once the path is found to be there, before Finder goes to it.
         async function openFolder({ path }, { ready = () => {} } = {}) {

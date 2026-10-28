@@ -10,12 +10,12 @@ const NOW_MAX = 3;
 // How long the list waits for slow Now actions before it opens; later ones arrive on their own.
 const NOW_WAIT_MS = 150;
 
-// The list of a Show item for each mod the shell can show and the actions mods add through `point`, the switcher's
-// point `actions`, in `window`, the mod's own: `show()` opens it, and `toggle()` opens it or puts it away when it is
+// The list of a Show item for each mod the shell can show and the actions mods set, `given`, by the connection of
+// each, in `window`, the mod's own: `show()` opens it, and `toggle()` opens it or puts it away when it is
 // open. Each open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod
 // coming on screen, another app. `end()` drops the list and its timer.
-function switcher(shell, deckit, window, point) {
-    const registry = deckit.commandRegistry;
+function switcher(shell, deckit, window, given) {
+    const registry = deckit.commands;
     const records = deckit.storage.records;
     const drawing = { ui: shell.ui, theme: shell.theme, util: deckit.util }; // what the list is drawn and ranked with
     let open = null; // the list on screen: { list, left, about, submenus }, `left` once its exit has started
@@ -90,9 +90,9 @@ function switcher(shell, deckit, window, point) {
     // The listed actions with the Show items, and what is happening now. `later` is the Now strip as the slow mods
     // land in it.
     async function supply(current) {
-        const extensions = Object.entries(point.extensions());
+        const sources = currentSources();
         const listing = Promise.all(
-            extensions.map(async ([mod, extension]) => [mod, (await actionsOf(mod, extension, 'list')) || []])
+            sources.map(async ([mod, source]) => [mod, (await actionsOf(mod, source, 'list')) || []])
         );
         const shown = await showable();
         const actions = await listing;
@@ -106,8 +106,8 @@ function switcher(shell, deckit, window, point) {
         const listed = ITEMS.listed({ actions, shown, about: current.about });
         const items = listed.map((item) => hydrate(current, { ...item, used: frecency(used[keyOf(item)]) }, true));
         const buckets = [];
-        const landed = extensions.map(([mod, extension], index) =>
-            actionsOf(mod, extension, 'now')
+        const landed = sources.map(([mod, source], index) =>
+            actionsOf(mod, source, 'now')
                 .then((actions) => (actions || []).map((each) => ITEMS.itemOf('now', mod, each, current.about)))
                 .then((now) => (buckets[index] = now.map((item) => hydrate(current, item))))
         );
@@ -123,14 +123,14 @@ function switcher(shell, deckit, window, point) {
     // search under way, and is not heard for this one.
     function search(current, raw, submenu) {
         const parent = submenu ? current.submenus.get(submenu) : null;
-        const extensions = Object.entries(point.extensions()).filter(([mod]) => !parent || mod === parent.mod);
+        const sources = currentSources().filter(([mod]) => !parent || mod === parent.mod);
         const gathered = [];
-        let left = extensions.length;
+        let left = sources.length;
         let heard = false;
         const answer = () => open === current && current.list?.model.setResolved(raw, gathered, submenu);
         if (!left) return answer();
-        for (const [mod, extension] of extensions)
-            actionsOf(mod, extension, 'search', raw, parent ? parent.value : null)
+        for (const [mod, source] of sources)
+            actionsOf(mod, source, 'search', raw, parent ? parent.value : null)
                 .then((actions) => actions?.map((each) => ITEMS.itemOf(parent?.id ?? raw, mod, each, current.about)))
                 .then((found) => {
                     left--;
@@ -164,7 +164,7 @@ function switcher(shell, deckit, window, point) {
         try {
             const left = item.shows
                 ? await registry.run(ITEMS.SHOW, { mod: item.shows })
-                : await extensionOf(item.mod).run(item.value);
+                : await sourceOf(item.mod).run(item.value);
             if (typeof left === 'string' && left) said = { text: left, alert: false };
         } catch (error) {
             said = { text: error?.message || String(error), alert: true };
@@ -183,10 +183,15 @@ function switcher(shell, deckit, window, point) {
             .catch((error) => console.error(`[switcher] ${item.label} did not run: ${why}`, error));
     }
 
-    function extensionOf(mod) {
-        const extension = point.extensions()[mod];
-        if (typeof extension?.run !== 'function') throw new Error(`${mod} has no actions now`);
-        return extension;
+    // What each mod set, `[mod id, { list, now, search, run }]`.
+    function currentSources() {
+        return [...given].map(([connection, source]) => [connection.mod.id, source]);
+    }
+
+    function sourceOf(mod) {
+        const source = currentSources().find(([id]) => id === mod)?.[1];
+        if (typeof source?.run !== 'function') throw new Error(`${mod} has no actions now`);
+        return source;
     }
 
     // The mods the shell can show, as its Show command completes them, or none for a host with no shell.
@@ -197,11 +202,11 @@ function switcher(shell, deckit, window, point) {
         return (await registry.complete(ITEMS.SHOW, 'mod', '')) || [];
     }
 
-    // The actions `extension` answers to `name`, as `action.js` reads them, or null where it answers null.
-    async function actionsOf(mod, extension, name, ...args) {
-        if (typeof extension?.[name] !== 'function') return [];
+    // The actions `source` answers to `name`, as `action.js` reads them, or null where it answers null.
+    async function actionsOf(mod, source, name, ...args) {
+        if (typeof source?.[name] !== 'function') return [];
         try {
-            const actions = await extension[name](...args);
+            const actions = await source[name](...args);
             if (actions === null) return null;
             return (Array.isArray(actions) ? actions : []).map(ACTION.read).filter(Boolean);
         } catch (error) {

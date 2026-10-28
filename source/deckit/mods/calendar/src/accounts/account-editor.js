@@ -29,7 +29,7 @@ function accountEditor({ ui, accounts, feeds, reads, client, onChange, onRefresh
                 if (!Object.keys(client.providers()).length) {
                     card.appendChild(
                         sheetText(
-                            'No mod adds accounts yet. A mod that extends Calendar with an account provider, such as one for Google, shows here.',
+                            'No mod adds accounts yet. A mod that gives Calendar an account provider, such as one for Google, shows here.',
                             {
                                 opacity: '.7',
                                 marginBottom: '14px',

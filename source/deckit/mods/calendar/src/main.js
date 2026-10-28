@@ -23,13 +23,9 @@ class Calendar {
     screen = null;
 
     start(deckit) {
-        this.calendar = calendar({
-            deckit,
-            accountsPoint: deckit.extensionPoint('accounts'),
-            screen: () => this.screen,
-        });
+        this.calendar = calendar({ deckit, screen: () => this.screen });
         this.sendTest = () => sendTest(deckit, () => this.screen?.reveal());
-        deckit.commands({
+        deckit.commands.register({
             ...this.calendar.commands,
             'send-test': {
                 description:
@@ -37,7 +33,14 @@ class Calendar {
                 run: this.sendTest,
             },
         });
-        deckit.exports({ ask: this.calendar.ask });
+        deckit.exports.register({
+            connect: (connection) => ({
+                setProvider: (provider) => {
+                    this.calendar.setProvider(connection, provider);
+                },
+            }),
+            disconnect: (connection) => this.calendar.dropProvider(connection),
+        });
     }
 
     stop() {
@@ -47,11 +50,11 @@ class Calendar {
     attach(shell, deckit) {
         this.view = calendarView({ calendar: this.calendar, shell, deckit, sendTest: this.sendTest });
         const { content, sidebar, didAppear, didDisappear, keys, actions } = this.view;
-        shell.view({ content, sidebar, didAppear, didDisappear });
-        deckit.keys(keys);
-        deckit.extends.switcher({ actions });
-        deckit.extends.settings({
-            actions: {
+        shell.view.register({ content, sidebar, didAppear, didDisappear });
+        deckit.keys.register(keys);
+        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('settings', (settings) =>
+            settings.setButtons({
                 list: () => [
                     {
                         button: 'Send a test',
@@ -61,8 +64,8 @@ class Calendar {
                     },
                 ],
                 run: this.sendTest,
-            },
-        });
+            })
+        );
         this.screen = this.view.screen;
     }
 

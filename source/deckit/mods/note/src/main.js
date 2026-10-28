@@ -107,7 +107,7 @@ class Note {
             ui,
             match: util.match,
             typeface: currentTypeface(),
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             clipboard: deckit.clipboard,
             onChange: () => noteSession.edited(),
             onFollowLink: followLink,
@@ -159,7 +159,7 @@ class Note {
         });
         const noteMenus = menus({
             ui,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             relocations,
             fileOperations,
             allNotes: () => allNotes,
@@ -185,7 +185,7 @@ class Note {
         const noteNavigation = navigationBarFor();
         const notesGallery = gallery({
             ui,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             notesFolder,
             searchNotes,
             configuration,
@@ -198,7 +198,7 @@ class Note {
         const sidebarTree = tree({
             ui,
             show: shell.show,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             store,
             movePath: util.movePath,
             renameNote: noteMenus.renameNote,
@@ -233,7 +233,7 @@ class Note {
         window.addEventListener('pagehide', saveOnPageHide);
         reachSavedPlace();
 
-        shell.view({
+        shell.view.register({
             content,
             sidebar: sidebarTree.element,
             didAppear: () => {
@@ -251,7 +251,7 @@ class Note {
         });
         const newNoteHere = () => newNote(currentFolder());
         const newFolder = () => fileOperations.newFolder(currentFolder());
-        deckit.commands({
+        deckit.commands.register({
             'new-note': {
                 description: 'Makes a note in the folder in front and opens it, its name selected to type over.',
                 run: async () => {
@@ -275,7 +275,7 @@ class Note {
                 complete: (_param, partial) => foldersFound(partial, { allNotes, util }),
             },
         });
-        deckit.keys({
+        deckit.keys.register({
             newNote: { label: 'New Note', key: 'mod+n', run: newNoteHere },
             newFolder: { label: 'New Folder', key: 'mod+shift+n', run: newFolder },
             // While a text field has focus, ⌘⌫ stays the field's (delete to line start).
@@ -294,30 +294,29 @@ class Note {
             markChecked: { label: 'Mark as Checked', key: 'mod+shift+u', run: markChecked },
             blockQuote: styleKey('blockQuote', "mod+'"),
         });
-        deckit.extends.switcher({
-            actions: switcher({
-                ui,
-                util,
-                allNotes: () => allNotes,
-                notesOf: (query, { signal }) => notesFound(query, { searchNotes, allNotes, signal }),
-                styles: STYLES,
-                show: shell.show,
-                does: {
-                    open: openNoteOf,
-                    'show-folder': showFolderOf,
-                    search: searchInGallery,
-                    ...inFront({
-                        'new-note': newNoteHere,
-                        'new-folder': newFolder,
-                        trash,
-                        back: goBack,
-                        forward: goForward,
-                        'paragraph-style': ({ style }) => setParagraphStyle(style),
-                        'mark-checked': markChecked,
-                    }),
-                },
-            }),
+        const actions = switcher({
+            ui,
+            util,
+            allNotes: () => allNotes,
+            notesOf: (query, { signal }) => notesFound(query, { searchNotes, allNotes, signal }),
+            styles: STYLES,
+            show: shell.show,
+            does: {
+                open: openNoteOf,
+                'show-folder': showFolderOf,
+                search: searchInGallery,
+                ...inFront({
+                    'new-note': newNoteHere,
+                    'new-folder': newFolder,
+                    trash,
+                    back: goBack,
+                    forward: goForward,
+                    'paragraph-style': ({ style }) => setParagraphStyle(style),
+                    'mark-checked': markChecked,
+                }),
+            },
         });
+        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         // `ready()` is told once the note is reached.
         async function openNoteOf({ id }, { ready = () => {} } = {}) {
@@ -504,9 +503,9 @@ class Note {
             else if (target?.note) openNote(linkedNotePath(noteSession.path() || '', target.note), { focus: true });
         }
 
-        // deckit.open answers only whether anything opened the address, with no reason when nothing did.
+        // deckit.urls.open answers only whether anything opened the address, with no reason when nothing did.
         async function openAddress(address) {
-            if (await deckit.open(address).catch(() => false)) return;
+            if (await deckit.urls.open(address).catch(() => false)) return;
             ui.dialog({ title: 'Could not open the link', message: address, confirmLabel: 'OK' });
         }
 
@@ -531,7 +530,7 @@ class Note {
         function navigationBarFor() {
             return navigationBar({
                 ui,
-                chordOf: deckit.chordOf,
+                chordOf: deckit.keys.chordOf,
                 onBack: () => placeHistory.goBack(),
                 onForward: () => placeHistory.goForward(),
                 onGo: (path) => showFolder(path),

@@ -19,7 +19,7 @@ const brainView = ({ shell, deckit, bot }) => {
     const markdown = renderMarkdown({
         ui,
         onNote: (id) => open(id, true),
-        onLink: (url) => deckit.open(url),
+        onLink: (url) => deckit.urls.open(url),
         wrap: {
             get: () => configuration.get('wrapCode') === true,
             set: (on) => configuration.set('wrapCode', on),

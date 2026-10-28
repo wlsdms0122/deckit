@@ -2,7 +2,7 @@ const { parseAddress, isWrittenAddress, placeOf } = require('../address/address.
 const { candidatesOf } = require('../candidates/candidates.js');
 const { tabLabel } = require('../tabs/tab-list.js');
 
-// What the Browser adds to the switcher through its point `switcher:actions`: what its keys do, the closed tab Reopen
+// What the Browser adds to the switcher through its `setActions(actions)`: what its keys do, the closed tab Reopen
 // Closed Tab would bring back, a search of the tabs and of the bookmarks, and an address typed there. Each action's
 // value is `{ action, ...args }`, run by `does[action](args, { ready })`; one that opens a search is the value its
 // results add an arg to.

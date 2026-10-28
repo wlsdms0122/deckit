@@ -1,4 +1,4 @@
-// What Finder adds to the switcher through its point `switcher:actions`: the folders at hand, a search of them and a
+// What Finder adds to the switcher through its `setActions(actions)`: the folders at hand, a search of them and a
 // path typed, the system places, and what its keys do. Each action's value is `{ action, ...args }`, run by
 // `does[action](args, { ready })`; one that opens a search is the value its results add an arg to.
 // `atHand()` answers the paths of the folders at hand, `favorites` how each is drawn, `foldersAtHand(query)` those

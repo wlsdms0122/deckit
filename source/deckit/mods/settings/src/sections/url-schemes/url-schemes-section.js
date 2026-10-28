@@ -4,7 +4,7 @@ const { section } = require('../section/section.js');
 
 // The URL Schemes section: a card per scheme with its handler list, the mods asked in turn to open an address,
 // reordered by dragging and switched off one by one, and the host app's own answer after them.
-function urlSchemesSection({ ui, urlSchemes, appName }) {
+function urlSchemesSection({ ui, urls, appName }) {
     const TITLE = 'URL Schemes';
     const KEYWORDS = [
         '열기',
@@ -25,7 +25,7 @@ function urlSchemesSection({ ui, urlSchemes, appName }) {
         browser: 'Opens in the system browser',
         file: "Opens in the system's app when you asked for it, otherwise shows it in Finder",
     };
-    const everyScheme = urlSchemes.everyScheme;
+    const everyScheme = urls.everyScheme;
 
     const cardFills = new WeakMap(); // card -> its fill(handlerList)
     const rowFills = new WeakMap(); // handler row -> its fill(entry)
@@ -110,7 +110,7 @@ function urlSchemesSection({ ui, urlSchemes, appName }) {
                 if (from < 0 || to < 0) return;
                 next.splice(to, 0, next.splice(from, 1)[0]);
                 save(current.scheme, next);
-                draw(urlSchemes.list());
+                draw(urls.list());
             },
         });
         cardFills.set(card, fill);
@@ -143,7 +143,7 @@ function urlSchemesSection({ ui, urlSchemes, appName }) {
                             candidate.id === handler.id ? { ...handler, on } : candidate
                         )
                     );
-                    draw(urlSchemes.list());
+                    draw(urls.list());
                 },
             });
             const row = handlerRow({ trailing: toggle.element, draggable: true });
@@ -165,7 +165,7 @@ function urlSchemesSection({ ui, urlSchemes, appName }) {
     }
 
     function save(scheme, handlers) {
-        urlSchemes.set(scheme, {
+        urls.set(scheme, {
             order: handlers.map((handler) => handler.id),
             off: handlers.filter((handler) => !handler.on).map((handler) => handler.id),
         });

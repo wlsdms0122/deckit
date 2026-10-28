@@ -1,16 +1,13 @@
 # Calendar
 
-Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that extends its `accounts` point, and with none there is nothing to add.
+Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add.
 
 ## Providing accounts
 
-A mod that provides accounts extends Calendar's point `accounts` in `start`, since the reminders read through it where nothing is on screen, and requires Calendar too when it asks the person through it (Asking):
+A mod that provides accounts depends on Calendar and sets its provider in `start`, since the reminders read through it where nothing is on screen. Calendar opens `setProvider(provider)` in `start`, one provider for each connection:
 
 ```toml
-[requires]
-calendar = "1.0.0"
-
-[extends]
+[dependencies]
 calendar = "1.0.0"
 
 [permissions]
@@ -18,26 +15,26 @@ calendar = "1.0.0"
 ```
 
 ```js
-deckit.extends.calendar({
-    accounts: {
-        name: 'Google',
-        hint: 'A Google account',
-        icon: `<svg …>`,
-        async signIn(account, { title }) {},
-        async calendars(account) {},
-        async events(account, calendar, from, to) {},
-        async respond(account, eventId, status) {},
-        async forget(account) {},
-    },
+deckit.dependencies.calendar.setProvider({
+    name: 'Google',
+    hint: 'A Google account',
+    icon: `<svg …>`,
+    async signIn(account, { title, ask }) {},
+    async calendars(account) {},
+    async events(account, calendar, from, to) {},
+    async respond(account, eventId, status) {},
+    async forget(account) {},
 });
 ```
+
+The provider's data is copied and its functions are called across the connection; an object made from a class crosses with its methods, so `setProvider(new GoogleProvider())` works. Setting one again replaces it.
 
 Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's id, and hands it to every call. What the account signs in with (cookies, tokens, a web session) is the provider's, kept by `account.id` in its own mod: `deckit.web.session('account-' + account.id)` is one way.
 
 | Member | What it is |
 |---|---|
 | `name`, `hint`, `icon` | what the Add account sheet shows: the provider's name, a line under it, an inline SVG (drawn from its shapes alone) |
-| `signIn(account, { title })` | signs the account in and resolves to the address it signed in as, or to nothing when the person cancelled. The sign-in is the provider's to show, in a window of its own (`shell.web.window` of the `shell` its `attach` is given, `title` its title), with whatever it asks the person on the way (a certificate, an app to open) asked through Calendar (Asking). Adding an account, a cancelled or failed sign-in leaves nothing behind in Calendar, and the provider drops what it kept for `account.id`; signing an account in again, what it had stays. Called to add an account and to sign one in again; signing in again as another address, compared exactly, is refused |
+| `signIn(account, { title, ask })` | signs the account in and resolves to the address it signed in as, or to nothing when the person cancelled. The sign-in is the provider's to show, in a window of its own (`shell.web.window` of the `shell` its `attach` is given, `title` its title), with whatever it asks the person on the way (a certificate, an app to open) asked through `ask` (Asking). Adding an account, a cancelled or failed sign-in leaves nothing behind in Calendar, and the provider drops what it kept for `account.id`; signing an account in again, what it had stays. Called to add an account and to sign one in again; signing in again as another address, compared exactly, is refused |
 | `calendars(account)` | `[{ id, name, primary, selected, owned }]`: the account's calendars. `id` is read as a string, and a calendar without one is left out. `primary` is the account's own, `selected` one its own calendar app shows (a new account starts with those), `owned` one the account owns, whose every event reminds, not only invitations |
 | `events(account, calendar, from, to)` | the occurrences of the calendar whose `id` is `calendar` between two Dates, as an array (below). Anything else is a failure, and an answer that takes more than a minute is one too |
 | `respond(account, eventId, status)` | answers an invitation (an occurrence with `invited`): `ACCEPTED`, `DECLINED` or `TENTATIVE` |
@@ -67,15 +64,17 @@ While a provider's mod is not running its accounts stay, unread, with what was r
 
 ## Asking
 
-The provider signing an account in asks the person through Calendar, which exports `ask`:
+The provider signing an account in asks the person through the `ask` its `signIn` is handed:
 
 ```js
-const open = await deckit.requires.calendar.ask({
-    message: 'Open the authenticator app?',
-    detail: 'It confirms the sign-in on this Mac.',
-    confirmLabel: 'Open',
-    cancelLabel: 'Cancel',
-});
+async signIn(account, { title, ask }) {
+    const open = await ask({
+        message: 'Open the authenticator app?',
+        detail: 'It confirms the sign-in on this Mac.',
+        confirmLabel: 'Open',
+        cancelLabel: 'Cancel',
+    });
+}
 ```
 
-Calendar comes on screen and asks in a dialog under the provider's name, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only for a provider while its `signIn` runs: any other mod, or the provider at any other time, is refused, and a question still open when the provider has no sign-in left under way closes and resolves `false`. `detail`, `confirmLabel` and `cancelLabel` are optional (`''`, `OK`, `Cancel`). The sign-in window is not moved: where it stands in front of the panel, the dialog is behind it.
+Calendar comes on screen and asks in a dialog under the provider's name, and resolves `true` when the person confirms, `false` when they cancel or close it. It asks only while the provider has a sign-in under way: asked after, it resolves `false`, and a question still open when the provider has no sign-in left under way closes and resolves `false`. `detail`, `confirmLabel` and `cancelLabel` are optional (`''`, `OK`, `Cancel`). The sign-in window is not moved: where it stands in front of the panel, the dialog is behind it.
