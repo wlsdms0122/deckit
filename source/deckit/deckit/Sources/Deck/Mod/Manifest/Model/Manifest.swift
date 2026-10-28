@@ -30,11 +30,7 @@ public struct Manifest: Sendable {
 
     // Whether `other` is one of its dependencies, at the version it names for it.
     func depends(on other: Manifest) -> Bool {
-        guard let wanted = dependencies[other.id].flatMap({ dependency in Version(dependency.version) }),
-            let version = other.version.flatMap(Version.init)
-        else { return false }
-
-        return version.satisfies(wanted)
+        dependencies[other.id]?.isSatisfied(by: other) ?? false
     }
 
     // What the manifest holds of a field the layer that asks added to deck: the reader reads each added field into it.

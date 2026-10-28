@@ -39,8 +39,8 @@ struct DependencyGraph {
             for place in mods.indices where mods[place].problem == nil {
                 let manifest = mods[place].manifest
                 for id in manifest.required {
-                    let want = manifest.dependencies[id]!.version
-                    guard let problem = problem(id, want: want, provider: places[id].map { mods[$0] }) else {
+                    let dependency = manifest.dependencies[id]!
+                    guard let problem = problem(id, dependency, provider: places[id].map { mods[$0] }) else {
                         continue
                     }
 
@@ -127,33 +127,26 @@ struct DependencyGraph {
                 version: dependency.version,
                 name: provider?.manifest.name ?? id,
                 problem: dependency.optional
-                    ? mismatch(id, want: dependency.version, provider: provider)
-                    : problem(id, want: dependency.version, provider: provider)
+                    ? mismatch(id, dependency, provider: provider)
+                    : problem(id, dependency, provider: provider)
             )
         }
     }
 
     // What is wrong with an optional dependency: only a version that does not satisfy, of one that loads.
-    private func mismatch(_ id: String, want: String, provider: Mod?) -> String? {
-        guard let provider, provider.problem == nil, !satisfies(provider, want: want) else { return nil }
-        return "uses \(id) \(want), and \(id) is \(provider.manifest.version ?? "of no version"), so it runs without it"
+    private func mismatch(_ id: String, _ dependency: Dependency, provider: Mod?) -> String? {
+        guard let provider, provider.problem == nil, !dependency.isSatisfied(by: provider.manifest) else { return nil }
+        return "uses \(id) \(dependency.version), and \(id) is \(provider.manifest.version ?? "of no version"), so it runs without it"
     }
 
-    private func problem(_ id: String, want: String, provider: Mod?) -> String? {
+    private func problem(_ id: String, _ dependency: Dependency, provider: Mod?) -> String? {
         guard let provider else { return "needs \(id), which is not installed" }
         guard provider.problem == nil else { return "needs \(id), which did not load" }
-        guard satisfies(provider, want: want) else {
-            return "needs \(id) \(want), and \(id) is \(provider.manifest.version ?? "of no version")"
+        guard dependency.isSatisfied(by: provider.manifest) else {
+            return "needs \(id) \(dependency.version), and \(id) is \(provider.manifest.version ?? "of no version")"
         }
 
         return nil
-    }
-
-    private func satisfies(_ provider: Mod, want: String) -> Bool {
-        guard let version = provider.manifest.version.flatMap(Version.init), let wanted = Version(want) else {
-            return false
-        }
-        return version.satisfies(wanted)
     }
 
     private func cycles() -> [[String]] {

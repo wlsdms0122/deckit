@@ -16,5 +16,11 @@ public struct Dependency: Equatable, Sendable {
 
     // MARK: - Initializer
     // MARK: - Public
+    // Whether `provider` is at a version it takes.
+    func isSatisfied(by provider: Manifest) -> Bool {
+        guard let wanted = Version(version), let found = provider.version.flatMap(Version.init) else { return false }
+        return found.satisfies(wanted)
+    }
+
     // MARK: - Private
 }
