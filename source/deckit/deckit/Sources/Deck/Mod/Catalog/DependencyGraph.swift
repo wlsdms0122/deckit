@@ -126,22 +126,34 @@ struct DependencyGraph {
                 optional: dependency.optional,
                 version: dependency.version,
                 name: provider?.manifest.name ?? id,
-                ok: problem(id, want: dependency.version, provider: provider) == nil
+                problem: dependency.optional
+                    ? mismatch(id, want: dependency.version, provider: provider)
+                    : problem(id, want: dependency.version, provider: provider)
             )
         }
+    }
+
+    // What is wrong with an optional dependency: only a version that does not satisfy, of one that loads.
+    private func mismatch(_ id: String, want: String, provider: Mod?) -> String? {
+        guard let provider, provider.problem == nil, !satisfies(provider, want: want) else { return nil }
+        return "uses \(id) \(want), and \(id) is \(provider.manifest.version ?? "of no version"), so it runs without it"
     }
 
     private func problem(_ id: String, want: String, provider: Mod?) -> String? {
         guard let provider else { return "needs \(id), which is not installed" }
         guard provider.problem == nil else { return "needs \(id), which did not load" }
-        guard let version = provider.manifest.version.flatMap(Version.init),
-            let wanted = Version(want),
-            version.satisfies(wanted)
-        else {
+        guard satisfies(provider, want: want) else {
             return "needs \(id) \(want), and \(id) is \(provider.manifest.version ?? "of no version")"
         }
 
         return nil
+    }
+
+    private func satisfies(_ provider: Mod, want: String) -> Bool {
+        guard let version = provider.manifest.version.flatMap(Version.init), let wanted = Version(want) else {
+            return false
+        }
+        return version.satisfies(wanted)
     }
 
     private func cycles() -> [[String]] {

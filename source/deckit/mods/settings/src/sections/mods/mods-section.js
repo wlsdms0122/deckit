@@ -277,6 +277,7 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
                 `Read from ${mod.folder || 'a source folder'}, ` + 'not installed: it is removed there, not here.';
             failure.textContent = [
                 mod.notLoaded || mod.problem,
+                ...(mod.relations || []).filter((relation) => relation.optional).map((relation) => relation.problem),
                 ...(mod.hides || []).map((folder) => `${folder} has the same id and is not read`),
             ]
                 .filter(Boolean)

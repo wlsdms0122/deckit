@@ -15,7 +15,7 @@ extension Relation: Encodable {
         case optional
         case version
         case name
-        case ok
+        case problem
     }
 
     // MARK: - Initializer
@@ -26,7 +26,7 @@ extension Relation: Encodable {
         try container.encode(optional, forKey: .optional)
         try container.encode(version, forKey: .version)
         try container.encode(name, forKey: .name)
-        try container.encode(ok, forKey: .ok)
+        try container.encodeIfPresent(problem, forKey: .problem)
     }
 
     // MARK: - Private

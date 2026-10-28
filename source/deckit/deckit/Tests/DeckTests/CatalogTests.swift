@@ -98,6 +98,31 @@ struct CatalogTests {
         #expect(problems["e"] == .some(nil))
     }
 
+    @Test("a relation says why it is not there at the version named, an optional one only of a version not satisfied")
+    func relationSaysWhy() throws {
+        // Given
+        try write("x", in: source, version: "1.2.0")
+        try write("y", in: source, requires: ["x": "2.0.0"], optional: ["v": "1.0.0"])
+        try write("z", in: source, optional: ["x": "2.0.0"])
+        let sut = try catalog(sources: [source])
+
+        // When
+        let problems = Dictionary(
+            uniqueKeysWithValues: sut.mods().flatMap { mod in
+                mod.relations.map { relation in ("\(mod.manifest.id) \(relation.id)", relation.problem) }
+            }
+        )
+
+        // Then
+        #expect(
+            problems == [
+                "y x": "needs x 2.0.0, and x is 1.2.0",
+                "y v": nil,
+                "z x": "uses x 2.0.0, and x is 1.2.0, so it runs without it",
+            ]
+        )
+    }
+
     @Test("a mod lists the mods that load and require it, directly or through another")
     func dependentsReachThrough() throws {
         // Given

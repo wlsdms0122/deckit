@@ -96,16 +96,18 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
-        // One is short while it does not load at the version wanted or is not running. An optional one short stops
-        // nothing, so it is drawn quiet, not as a fault.
+        // One is short while it has a problem or is not running, and its problem is said over it. An optional one
+        // short stops nothing, so it is drawn quiet, not as a fault.
         const relationChips = (optional) =>
             (mod.relations || [])
                 .filter((relation) => relation.optional === optional)
                 .map((relation) => {
                     const text = `${relation.name} ${relation.version}`;
-                    const ok = relation.ok && relation.running;
-                    if (optional && !ok) return chip({ ui, text, muted: true }).element;
-                    return statusChip({ ui, text, ok }).element;
+                    const ok = !relation.problem && relation.running;
+                    const { element } =
+                        optional && !ok ? chip({ ui, text, muted: true }) : statusChip({ ui, text, ok });
+                    if (relation.problem) element.title = relation.problem;
+                    return element;
                 });
         for (const [label, optional] of [
             ['Requires', false],

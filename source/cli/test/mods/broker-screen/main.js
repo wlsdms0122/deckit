@@ -1,5 +1,6 @@
 // A headless mod that opens its exports in attach: `take(ask)` calls what it is handed. It marks on its page who each
-// connection is from, and, as one ends, whether it is the connection its exports were made for.
+// connection is from, and, as one ends, whether it is the connection its exports were made for. It names the provider
+// at a version the provider is not, so it runs without it.
 class BrokerScreen {
     attach(shell, deckit) {
         const marks = document.documentElement.dataset;
