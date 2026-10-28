@@ -8,14 +8,26 @@ import * as LIMIT from '../../deck/runner/model/limit.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // A mod's main process modules, which the environment runs (`mainProcess`): a mod with system.main-process starts
-// and calls its own, they start anew with each run and end with it, and what they emit goes to the mod's page.
-export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES }) {
+// and calls its own, they start anew with each run and end with it, and what they emit goes to the mod's page. The
+// app quits once the modules of the runs that ended have ended too.
+export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app: APP }) {
     // MARK: - Property
+    const endings = new Set(); // the ends of modules still to come, each settled in its limit
+
     // MARK: - Initializer
     // MARK: - Public
     function start() {
         RUNNER.observe('willLaunch', ({ mod }) => MODULES.launching(modOf(mod)));
-        RUNNER.observe('didTerminate', ({ mod }) => MODULES.ended(modOf(mod), { within: LIMIT.END_LIMIT_MS }));
+        RUNNER.observe('didTerminate', ({ mod }) => {
+            const ending = MODULES.ended(modOf(mod), { within: LIMIT.END_LIMIT_MS }).catch(() => {});
+            endings.add(ending);
+            ending.then(() => endings.delete(ending));
+        });
+        APP.onQuit(() => {
+            if (!endings.size) return false;
+            Promise.all([...endings]).then(() => APP.quit());
+            return true;
+        });
         MODULES.onEvent((modId, path, name, args) => {
             const page = IDENTITY.pageOf(modId);
             if (page) PROTOCOL.event.send(page, { path, name, args });

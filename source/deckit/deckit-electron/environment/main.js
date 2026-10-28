@@ -79,7 +79,6 @@ function createEnvironment({ core, preload, openWindow }) {
     const WINDOW = createWindow({ LOG, openWindow });
     const MAIN_PROCESS = createMainProcess({ WINDOW, LOG, FOLDER: createFolder() });
     const NOTIFICATIONS = createNotifications({ guard });
-    MAIN_PROCESS.holdQuit();
     // A page deck made, or a surface one opened -> the view it is in, kept while the page is.
     const views = new WeakMap();
     const origins = new WeakMap(); // a page deck made -> its origin
