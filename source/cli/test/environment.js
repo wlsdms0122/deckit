@@ -38,7 +38,7 @@ const USED = {
         stage: 'function',
     },
     keymap: { register: 'function', chordOf: 'function', listen: 'function', delegate: 'function' },
-    commands: { define: 'function' },
+    commands: { register: 'function' },
     state: { read: 'function', write: 'function' },
     web: { pageFor: 'function', holdsKeyboard: 'function' },
     log: { warn: 'function' },

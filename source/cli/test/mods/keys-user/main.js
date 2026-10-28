@@ -3,7 +3,7 @@
 class KeysUser {
     start(deckit) {
         const marks = document.documentElement.dataset;
-        deckit.keys({
+        deckit.keys.register({
             mark: {
                 label: 'Mark',
                 key: 'mod+shift+9',
@@ -12,11 +12,11 @@ class KeysUser {
             },
         });
         document.addEventListener('test-bind', async ({ detail: spec }) => {
-            await deckit.keymap.set('keys-user.mark', spec);
-            marks.chord = deckit.chordOf('mark');
+            await deckit.keys.bind('keys-user.mark', spec);
+            marks.chord = deckit.keys.chordOf('mark');
         });
         document.addEventListener('test-record', () =>
-            deckit.keymap.record((recorded) => (marks.recorded = JSON.stringify(recorded)))
+            deckit.keys.record((recorded) => (marks.recorded = JSON.stringify(recorded)))
         );
     }
 }

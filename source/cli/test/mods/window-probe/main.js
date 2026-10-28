@@ -8,7 +8,7 @@ class WindowProbe {
         install.textContent = 'Install';
         const content = document.createElement('div');
         content.append(install);
-        shell.view({ content });
+        shell.view.register({ content });
         let from = '';
         document.addEventListener('test-install-from', ({ detail }) => (from = detail));
         install.addEventListener('click', () =>

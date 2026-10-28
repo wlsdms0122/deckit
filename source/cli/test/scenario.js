@@ -20,8 +20,9 @@ const FRONT_TAB = 'https://example.com/';
 const BEHIND_TAB = 'https://example.org/';
 
 // A folder of files the Editor comes back to with LINES open, as a session it saved: an Open dialog cannot be driven.
-// The test's own mods, installed, one of them naming schemes it may not, Settings placed second in the panel's list,
-// as a person would have arranged it, a load order that puts a mod before the one it requires, and what REMOVED left.
+// The test's own mods, installed, one of them asking for addresses as it may not, Settings placed second in the
+// panel's list, as a person would have arranged it, a load order that puts a mod before the one it requires, and what
+// REMOVED left.
 function seed({ data, files }) {
     const mods = path.join(data, 'deckit', 'mods');
     fs.cpSync(path.join(__dirname, 'mods'), mods, { recursive: true });
@@ -31,7 +32,7 @@ function seed({ data, files }) {
     fs.mkdirSync(path.join(mods, BROKEN), { recursive: true });
     fs.writeFileSync(
         path.join(mods, BROKEN, 'manifest.toml'),
-        `id = "${BROKEN}"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\nurl-schemes = ["*", "https"]\n`
+        `id = "${BROKEN}"\nversion = "1.0.0"\napi = "1.0.0"\nmain = "main.js"\nurls = ["*", "https:*"]\n`
     );
     fs.writeFileSync(path.join(mods, BROKEN, 'main.js'), 'module.exports = class { start() {} };\n');
     const contents = {
@@ -275,8 +276,8 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         );
         check('settings lists the mods with versions', versions.test(text), '');
         check(
-            "a mod's url-schemes are judged by the core",
-            text.includes('"*" already takes every scheme'),
+            "a mod's urls are judged by the core",
+            text.includes('"*" already takes every address'),
             text.slice(text.indexOf(BROKEN) - 100, text.indexOf(BROKEN) + 200)
         );
         await settings?.shot('settings');
@@ -573,17 +574,61 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             await visibility('bot')
         );
 
-        // What mods give each other, judged by the core: a call into what one exports, a point another extends, an
-        // event one sends.
+        // What mods give each other over a connection, judged by the core: the exports a required mod opened in start,
+        // in its dependent's start; functions handed either way, each called on the page that handed it; the exports a
+        // mod opened in attach, in its dependent's attach as they connect; and an event one sends, which is public.
         const provider = await page('deckit://broker-provider.mod');
         const user = await page('deckit://broker-user.mod');
+        const screen = await page('deckit://broker-screen.mod');
         const mark = (session, name) => session?.evaluate(`document.documentElement.dataset.${name}`);
         const asked = await until(async () => (await mark(user, 'asked')) === '42 broker-user', 4000);
-        check('a call reaches what a mod requires exports, which hears who called', asked, await mark(user, 'asked'));
-        const extended = await until(async () => (await mark(provider, 'extended')) === 'hello provider', 4000);
-        check("a point's mod calls what extends it", extended, await mark(provider, 'extended'));
+        check(
+            'a call reaches the exports a required mod opened in start, made for the mod that connected',
+            asked,
+            await mark(user, 'asked')
+        );
+        const calledBack = await until(async () => (await mark(user, 'counted')) === '1,2,3', 4000);
+        check(
+            'a function handed over is called back on the page that handed it',
+            calledBack,
+            await mark(user, 'counted')
+        );
+        const thing = await until(async () => (await mark(user, 'thing')) === '7: 7 hello provider', 4000);
+        check(
+            "an object handed over crosses with its data, and its class's methods are called on it",
+            thing,
+            await mark(user, 'thing')
+        );
+        const same = await until(async () => (await mark(user, 'same')) === 'false true', 4000);
+        check(
+            'a function handed twice on one connection is the same function on the other end',
+            same,
+            await mark(user, 'same')
+        );
+        check(
+            'a mod runs while an optional dependency it names is not installed, its dependencies holding the required one alone',
+            asked && (await mark(user, 'lasting')) === 'broker-provider',
+            await mark(user, 'lasting')
+        );
         const pinged = await until(async () => (await mark(user, 'pinged')) === '7', 4000);
         check('an event reaches the mod that listens to it', pinged, await mark(user, 'pinged'));
+        const screened = await until(
+            async () =>
+                (await mark(screen, 'connected')) === 'broker-user' &&
+                (await mark(user, 'wrapped')) === '2 broker-user',
+            4000
+        );
+        check(
+            "the exports a mod opened in attach reach its dependent's attach as they connect, made for the mod that connected",
+            screened,
+            `${await mark(screen, 'connected')} ${await mark(user, 'wrapped')}`
+        );
+        const handedOn = await mark(user, 'handedOn');
+        check(
+            'a function another mod handed over is not handed on to a third',
+            /is not handed on/.test(handedOn || ''),
+            handedOn
+        );
 
         // Keys, as the core resolves them: a mod's key that works anywhere in the app, bound again, and a chord
         // recorded.
@@ -601,16 +646,40 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const recorded = await until(async () => (await mark(keys, 'recorded')) === '{"spec":"cmd+k"}', 3000);
         check('a chord typed to be bound is recorded', recorded, await mark(keys, 'recorded'));
 
-        // Addresses and queries, as the core routes them: an address of a mod's scheme reaches it, and what the mod
-        // resolves is in the switcher and runs.
+        // Addresses and queries, as the core routes them: an address of a scheme a mod asks for reaches it, one under a
+        // path another mod asks for reaches that one first, and what a mod resolves is in the switcher and runs.
         const opener = await page('deckit://open-user.mod');
-        await opener.evaluate(`document.dispatchEvent(new CustomEvent('test-open', { detail: ' TEST-OPEN:hello ' }))`);
+        const pathOpener = await page('deckit://open-user-path.mod');
+        const openFrom = (url) =>
+            opener.evaluate(
+                `delete document.documentElement.dataset.answered; document.dispatchEvent(new CustomEvent('test-open', { detail: ${JSON.stringify(url)} }))`
+            );
+        await openFrom(' TEST-OPEN:hello ');
         const reached = await until(
             async () =>
                 (await mark(opener, 'opened')) === 'TEST-OPEN:hello' && (await mark(opener, 'answered')) === 'true',
             3000
         );
-        check("an address of a mod's scheme reaches it", reached, await mark(opener, 'opened'));
+        check('an address of a scheme a mod asks for reaches it', reached, await mark(opener, 'opened'));
+        const deep = 'test-open://probe/deep/1';
+        await openFrom(deep);
+        const narrower = await until(
+            async () => (await mark(pathOpener, 'opened')) === deep && (await mark(opener, 'answered')) === 'true',
+            3000
+        );
+        check(
+            'an address under a path a mod asks for is offered to it before the mod that asks for its whole scheme',
+            narrower && (await mark(opener, 'opened')) === 'TEST-OPEN:hello',
+            `${await mark(pathOpener, 'opened')} ${await mark(opener, 'opened')}`
+        );
+        const elsewhere = 'test-open://probe/elsewhere';
+        await openFrom(elsewhere);
+        const wider = await until(async () => (await mark(opener, 'opened')) === elsewhere, 3000);
+        check(
+            'an address outside the path a mod asks for goes to the mod that asks for its scheme',
+            wider && (await mark(pathOpener, 'opened')) === deep,
+            `${await mark(pathOpener, 'opened')} ${await mark(opener, 'opened')}`
+        );
         await editor.key(' ', 'Space', ALT, 32);
         const query = await until(() => page('deckit://switcher.mod'));
         await until(async () => /Notes/.test((await query?.evaluate('document.body.innerText')) || ''));
@@ -667,9 +736,27 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const back = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
         check('unfolding the sidebar brings the region back', back, await child.evaluate(seen));
 
+        // An optional dependency whose page loads again by itself ends its connections: the dependent's onConnect
+        // cleanup runs, and the dependency's next run connects again.
+        const screens = Number(await mark(user, 'screens'));
+        await screen.evaluate('location.reload()');
+        const cleaned = await until(async () => (await mark(user, 'cleaned')) === '1', 4000);
+        check(
+            "a dependency that ends calls the cleanup its dependent's onConnect answered",
+            cleaned,
+            await mark(user, 'cleaned')
+        );
+        const reconnected = await until(
+            async () =>
+                (await mark(user, 'screens')) === String(screens + 1) &&
+                (await mark(screen, 'connected')) === 'broker-user',
+            6000
+        );
+        check('a dependency that runs again connects again', reconnected, await mark(user, 'screens'));
+
         // A mod's page loading again by itself ends the runs of the mods that require it, and they stay down; the mod
-        // restarted from Settings brings them back, each in a new document. A child in a region only extends its
-        // parent, so it runs on.
+        // restarted from Settings brings them back, each in a new document. A child in a region depends on its parent
+        // optionally, so it runs on.
         const started = `performance.timeOrigin`;
         const origin = await user.evaluate(started);
         const childOrigin = await child.evaluate(started);
@@ -678,6 +765,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         await sleep(1500);
         check('a mod whose requirement ran again stays down', (await user.evaluate(started)) === origin, '');
         check('a child whose parent ran again runs on', (await child.evaluate(started)) === childOrigin, '');
+        const disconnected = await until(async () => (await mark(screen, 'disconnected')) === 'broker-user true', 3000);
+        check(
+            "a dependent that ends is heard by its dependency's disconnect, with the connection its connect was given",
+            disconnected,
+            await mark(screen, 'disconnected')
+        );
         await settings?.evaluate(`${rowOf('Broker Provider')}.querySelector('[title^="Restart this mod"]').click()`);
         const relaunched = await until(async () => (await user.evaluate(started)) !== origin, 6000);
         check('a mod restarted from Settings brings back the mods that require it', relaunched, '');

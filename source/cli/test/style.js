@@ -15,16 +15,19 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    const mod = (id, links = {}) => ({
-        id,
-        requires: links.requires || {},
-        extends: links.extends || {},
-        permissions: [{ id: 'deckit.styles' }],
-    });
+    const mod = (id, dependencies = {}) => ({ id, dependencies, permissions: [{ id: 'deckit.styles' }] });
     const runs = {
         a: { mod: mod('a'), state: 'running', contributions: { styles: { a: 'a-own', '*': 'a-all' } } },
-        b: { mod: mod('b', { requires: { a: '1.0.0' } }), state: 'running', contributions: { styles: { a: 'b-a' } } },
-        c: { mod: mod('c', { extends: { a: '1.0.0' } }), state: 'running', contributions: { styles: { a: 'c-a' } } },
+        b: {
+            mod: mod('b', { a: { version: '1.0.0', optional: false } }),
+            state: 'running',
+            contributions: { styles: { a: 'b-a' } },
+        },
+        c: {
+            mod: mod('c', { a: { version: '1.0.0', optional: true } }),
+            state: 'running',
+            contributions: { styles: { a: 'c-a' } },
+        },
         d: { mod: mod('d'), state: 'running', contributions: { styles: { a: 'd-a', '*': 'd-all' } } },
     };
     const handlers = {};

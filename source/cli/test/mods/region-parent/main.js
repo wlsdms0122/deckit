@@ -7,7 +7,7 @@ class RegionParent {
         slot.id = 'region-slot';
         slot.style.height = '120px';
         sidebar.append(slot);
-        shell.view({ content, sidebar });
+        shell.view.register({ content, sidebar });
         const region = shell.region(slot);
         const placeFirst = () => {
             const [first] = shell.children.list();

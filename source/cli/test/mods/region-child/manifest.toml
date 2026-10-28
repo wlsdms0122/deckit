@@ -4,5 +4,5 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 
-[extends]
-region-parent = "1.0.0"
+[dependencies]
+region-parent = { version = "1.0.0", optional = true }

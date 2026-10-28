@@ -3,7 +3,7 @@
 class WindowUser {
     attach(shell, deckit) {
         const marks = document.documentElement.dataset;
-        const window = shell.window({ content: document.createElement('div'), width: 420, height: 300 });
+        const window = shell.window.register({ content: document.createElement('div'), width: 420, height: 300 });
         document.addEventListener('test-window-open', () => window.open());
         document.addEventListener('test-window-close', () => window.close());
         document.addEventListener('test-fit', async () => {
@@ -11,7 +11,7 @@ class WindowUser {
             marks.fit = JSON.stringify(await probe.fit());
         });
         document.addEventListener('test-switcher', () =>
-            deckit.commandRegistry.run({ provider: 'switcher', command: 'show' })
+            deckit.commands.run({ provider: 'switcher', command: 'show' })
         );
     }
 }
