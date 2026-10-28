@@ -11,13 +11,13 @@ A mod that provides accounts depends on Calendar and sets its provider in `start
 calendar = "1.0.0"
 
 [permissions]
-"system.network" = "Reads your calendars from Google."
+"system.network" = "Reads your calendars from Example."
 ```
 
 ```js
 deckit.dependencies.calendar.setProvider({
-    name: 'Google',
-    hint: 'A Google account',
+    name: 'Example',
+    hint: 'An Example account',
     icon: `<svg …>`,
     async signIn(account, { title, ask }) {},
     async calendars(account) {},
@@ -27,7 +27,7 @@ deckit.dependencies.calendar.setProvider({
 });
 ```
 
-The provider's data is copied and its functions are called across the connection; an object made from a class crosses with its methods, so `setProvider(new GoogleProvider())` works. Setting one again replaces it.
+The provider's data is copied and its functions are called across the connection; an object made from a class crosses with its methods, so `setProvider(new ExampleProvider())` works. Setting one again replaces it.
 
 Calendar keeps each account as `{ id, provider, email }`, `provider` the mod's id, and hands it to every call. What the account signs in with (cookies, tokens, a web session) is the provider's, kept by `account.id` in its own mod: `deckit.web.session('account-' + account.id)` is one way.
 

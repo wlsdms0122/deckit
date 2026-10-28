@@ -15,7 +15,7 @@ function session({ theme, ui, notesFolder, editor, movePath, onLeave, onRelocate
     const TROUBLE = {
         CHANGED: {
             clearsWhenInSync: true,
-            summary: 'This note was changed outside the panel while you were editing it.',
+            summary: 'This note was changed on disk while you were editing it.',
             answers: () => [
                 {
                     label: 'Use Theirs',
@@ -32,7 +32,7 @@ function session({ theme, ui, notesFolder, editor, movePath, onLeave, onRelocate
         GONE: {
             clearsWhenInSync: true,
             yieldsToChange: true,
-            summary: 'This note was moved or deleted outside the panel.',
+            summary: 'This note was moved or deleted on disk.',
             answers: () => [
                 {
                     label: 'Save It Again',

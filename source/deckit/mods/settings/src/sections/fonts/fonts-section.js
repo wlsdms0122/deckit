@@ -7,7 +7,7 @@ function fontsSection({ ui, fonts, onFailure }) {
     const TITLE = 'Fonts';
     const KEYWORDS = ['글꼴', '폰트', '글자 크기', 'fonts', 'font size', 'typeface', 'monospaced'];
     const DESCRIPTION =
-        "The faces and the size text is written in, such as a note or a file in the Editor. A mod's own font " +
+        "The faces and the size text is written in, such as a note or a file. A mod's own font " +
         'settings follow these while they are Default.';
     const DEFAULT = 'default';
     const SIZES = [

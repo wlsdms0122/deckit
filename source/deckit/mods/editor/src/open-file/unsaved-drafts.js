@@ -19,8 +19,8 @@ const DRAFTS_STYLE = `
     .editor-draft-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 `;
 
-// Unsaved changes kept in the records as drafts, by path: the panel reloads on every install and mod change. The
-// drafts of files not open are listed, as a notice, with what can be done with them.
+// Unsaved changes kept in the records as drafts, by path: the mod's page loads again with each run. The drafts of
+// files not open are listed, as a notice, with what can be done with them.
 function unsavedDrafts({ ui, records, isOpen, openDrafts, pick, saveCopy, onOpen, onSavedAs }) {
     const KEEP_DELAY_MS = 600;
 

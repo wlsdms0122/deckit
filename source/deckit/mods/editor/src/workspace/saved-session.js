@@ -28,8 +28,8 @@ function savedSession({ records, fileSystem, workspaces }) {
         });
     }
 
-    // A person may already be asking for things (a file opened from the Finder starts the editor), so what is requested
-    // after this begins stays in front.
+    // A person may already be asking for things (a `file:` address offered while the editor starts), so what is
+    // requested after this begins stays in front.
     async function restore({ openFolder, openInBackground }) {
         const since = workspaces.latestRequest();
         const saved = records.get('session', { spaces: [], active: null });
