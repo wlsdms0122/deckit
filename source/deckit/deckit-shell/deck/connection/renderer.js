@@ -11,18 +11,20 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // page was handed is never handed on: what calls the far end is always the mod connected to it. `RUN` is the page's run.
 export function createConnection({ RUN }) {
     // MARK: - Property
-    // Connection id -> { id, mod, lifecycle, dependent, lasting, given, held, connection, exports, cleanups }:
+    // Connection id -> { id, mod, lifecycle, dependent, lasting, given, held, connection, exports, cleanups, ended }:
     // `lifecycle` is the page's own, `dependent` whether the page is the end that depends on `mod`, `lasting` whether
     // its exports are the lifecycle's for as long as it lasts, as `dependencies.<id>`; `given` its numbers by function,
-    // and functions by number; `held` its references by number; `connection` what the exports' `connect` was called
-    // with; `cleanups` what each `onConnect` answered for it.
+    // and by number each function with how many times it was handed over; `held` its references by number, each with
+    // how many times it was handed in; `connection` what the exports' `connect` was called with; `cleanups` what each
+    // `onConnect` answered for it; `ended` whether the other end ended it, as opposed to the page's lifecycle.
     const connections = new Map();
     const handed = new WeakSet(); // every reference made, which is never handed on
     const released = new FinalizationRegistry(({ id, number }) => {
         const entry = connections.get(id);
-        if (!entry || entry.held.get(number)?.deref()) return;
+        const held = entry?.held.get(number);
+        if (!held || held.reference.deref()) return;
         entry.held.delete(number);
-        PROTOCOL.release.send({ run: RUN.number, connection: id, number });
+        PROTOCOL.release.send({ run: RUN.number, connection: id, number, count: held.count });
     });
     // Lifecycle -> mod id -> the listeners its `onConnect` added.
     const listening = new Map();
@@ -35,10 +37,12 @@ export function createConnection({ RUN }) {
     PROTOCOL.connected.on((told) => opened(told));
     PROTOCOL.disconnected.on(({ id }) => ended(id));
     PROTOCOL.called.handle((asked) => answerCall(asked));
-    PROTOCOL.released.on(({ connection, number }) => {
+    PROTOCOL.released.on(({ connection, number, count }) => {
         const entry = connections.get(connection);
         const given = entry?.given.byNumber.get(number);
         if (!given) return;
+        given.count -= count;
+        if (given.count > 0) return;
         entry.given.byNumber.delete(number);
         entry.given.numbers.delete(given.key);
     });
@@ -138,11 +142,13 @@ export function createConnection({ RUN }) {
     }
 
     // The exports go to a listener, and what it answers is called as the connection ends while the listener's
-    // lifecycle lasts.
+    // lifecycle lasts, at once when the other end ended it while the listener ran.
     function hand(entry, listener) {
         RUN.deliver('dependencies.onConnect()', async () => {
             const cleanup = await listener(entry.exports);
-            if (typeof cleanup === 'function' && connections.get(entry.id) === entry) entry.cleanups.push(cleanup);
+            if (typeof cleanup !== 'function') return;
+            if (connections.get(entry.id) === entry) entry.cleanups.push(cleanup);
+            else if (entry.ended) RUN.deliver('an onConnect cleanup', cleanup);
         });
     }
 
@@ -165,6 +171,7 @@ export function createConnection({ RUN }) {
         const entry = connections.get(id);
         if (!entry) return;
         connections.delete(id);
+        entry.ended = true;
         if (entry.dependent) for (const cleanup of entry.cleanups) RUN.deliver('an onConnect cleanup', cleanup);
         else if (giving?.disconnect)
             RUN.deliver('exports.register(): disconnect()', giving.disconnect, entry.connection);
@@ -195,6 +202,7 @@ export function createConnection({ RUN }) {
             connection: null,
             exports: undefined,
             cleanups: [],
+            ended: false,
         };
     }
 
@@ -209,8 +217,9 @@ export function createConnection({ RUN }) {
             if (number === undefined) {
                 number = ++entry.given.next;
                 entry.given.numbers.set(key, number);
-                entry.given.byNumber.set(number, { function: fn, holder, key });
+                entry.given.byNumber.set(number, { function: fn, holder, key, count: 0 });
             }
+            entry.given.byNumber.get(number).count += 1;
             return number;
         });
     }
@@ -226,8 +235,12 @@ export function createConnection({ RUN }) {
 
     // The function that calls the other end's `number`: one for each number while the page holds it.
     function referenceOf(entry, number) {
-        const kept = entry.held.get(number)?.deref();
-        if (kept) return kept;
+        const held = entry.held.get(number);
+        const kept = held?.reference.deref();
+        if (kept) {
+            held.count += 1;
+            return kept;
+        }
         const reference = async (...args) => {
             if (connections.get(entry.id) !== entry) throw new Error('the mod on the other end has ended');
             const answer = await PROTOCOL.call.invoke({
@@ -240,7 +253,7 @@ export function createConnection({ RUN }) {
             return WIRE.materialize(answer.returned, (inner) => referenceOf(entry, inner));
         };
         handed.add(reference);
-        entry.held.set(number, new WeakRef(reference));
+        entry.held.set(number, { reference: new WeakRef(reference), count: 1 });
         released.register(reference, { id: entry.id, number });
         return reference;
     }

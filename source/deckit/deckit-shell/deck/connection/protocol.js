@@ -20,11 +20,13 @@ export const call = CHANNEL.pageToMain(
     { run: 'number', connection: 'number', number: 'number', args: 'object' },
     { reply: true }
 );
-// A function the other end handed over is held no more.
+// A function the other end handed over is held no more: `count` is how many times it was handed over, so one handed
+// again meanwhile stays.
 export const release = CHANNEL.pageToMain('deckit-shell:connection-release', {
     run: 'number',
     connection: 'number',
     number: 'number',
+    count: 'number',
 });
 
 // The exports the page's run opened are asked for a connection: `{ id, mod: { id, name }, lifecycle }`, answered with
@@ -37,5 +39,5 @@ export const connected = CHANNEL.mainToPage('deckit-shell:connection-connected')
 export const disconnected = CHANNEL.mainToPage('deckit-shell:connection-disconnected');
 // A function the page handed over on a connection is called: `{ connection, number, args }`, answered as `call` is.
 export const called = CHANNEL.mainToPage('deckit-shell:connection-called', { reply: true });
-// A function the page handed over on a connection is held no more: `{ connection, number }`.
+// A function the page handed over on a connection is held no more: `{ connection, number, count }`, as `release`.
 export const released = CHANNEL.mainToPage('deckit-shell:connection-released');

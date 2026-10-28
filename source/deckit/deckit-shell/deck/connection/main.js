@@ -31,10 +31,10 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             const other = await route(sender, run, connection);
             return PROTOCOL.called.invoke(IDENTITY.pageOf(other.mod), { connection, number, args });
         });
-        PROTOCOL.release.on(async ({ run, connection, number }, sender) => {
+        PROTOCOL.release.on(async ({ run, connection, number, count }, sender) => {
             const other = await route(sender, run, connection).catch(() => null);
             const page = other && IDENTITY.pageOf(other.mod);
-            if (page) PROTOCOL.released.send(page, { connection, number });
+            if (page) PROTOCOL.released.send(page, { connection, number, count });
         });
         RUNNER.handleEffect('connect', async ({ connection }) => {
             standing.add(connection.id);

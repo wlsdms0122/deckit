@@ -5,7 +5,7 @@
 // function in it, by the number `numberOf(function, holder)` gives it. An object's own enumerable data is copied, and
 // its functions and its class's methods, up to Object's, cross as references, a method held with the object it is
 // called on. A getter, a private field and what class it is do not cross. A value with `toJSON` crosses as what that
-// answers.
+// answers, and another of the platform's own kinds (a Map, a Set, an Error) does not cross.
 function describe(given, numberOf) {
     const references = [];
     const walk = (value, path, holding) => {
@@ -24,6 +24,9 @@ function describe(given, numberOf) {
         if (holding.includes(value)) throw new Error(`${named(path)} holds itself`);
         const inside = [...holding, value];
         if (Array.isArray(value)) return value.map((inner, index) => walk(inner, [...path, index], inside) ?? null);
+        const kind = Object.getPrototypeOf(value)?.constructor;
+        if (kind && kind !== Object && /\[native code\]/.test(Function.prototype.toString.call(kind)))
+            throw new Error(`${named(path)} is a ${kind.name}, which does not cross: hand its data as JSON`);
         const out = {};
         const taken = new Set();
         for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
