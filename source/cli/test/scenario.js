@@ -642,18 +642,18 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             await settings.evaluate(refusedFailure)
         );
 
-        const screenFailure = `${rowOf('Broker Screen')}?.querySelector('.settings-mod-failure')?.textContent || ''`;
+        const screenNote = `${rowOf('Broker Screen')}?.querySelector('.settings-mod-note')?.textContent || ''`;
         const mismatched = await until(
             async () =>
-                (await settings.evaluate(screenFailure)).includes(
+                (await settings.evaluate(screenNote)).includes(
                     'uses broker-provider 2.0.0, and broker-provider is 1.0.0, so it runs without it'
                 ),
             4000
         );
         check(
-            'an optional dependency at a version it does not satisfy is not there, and the row says why',
+            'an optional dependency at a version it does not take is not there, and the row says why, quietly',
             mismatched,
-            await settings.evaluate(screenFailure)
+            await settings.evaluate(screenNote)
         );
 
         // Keys, as the core resolves them: a mod's key that works anywhere in the app, bound again, and a chord

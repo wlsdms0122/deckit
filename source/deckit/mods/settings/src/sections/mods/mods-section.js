@@ -74,15 +74,17 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         .settings-mod-contributions { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
         .settings-mod-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; }
         .settings-mod-actions > [hidden] { display: none; }
-        .settings-mod-failure {
+        .settings-mod-failure,
+        .settings-mod-note {
             margin-top: -6px;
             padding: 0 8px 8px 21px;
-            color: var(--deckit-alert);
             font: var(--deckit-type-small);
             line-height: 1.5;
             white-space: pre-line;
             word-break: break-word;
         }
+        .settings-mod-failure { color: var(--deckit-alert); }
+        .settings-mod-note { opacity: 0.5; }
         .settings-notice {
             margin: 8px 0 0;
             padding: 8px 10px;
@@ -236,6 +238,8 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         });
         const source = chip({ ui, text: 'source', muted: true });
         const failure = ui.element('div', { className: 'settings-mod-failure' });
+        // What is wrong with an optional dependency stops nothing, so it is said quietly, not as a fault.
+        const note = ui.element('div', { className: 'settings-mod-note' });
         const details = modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange: onChange });
 
         row.element.classList.add('settings-mod-columns', 'settings-mod-row');
@@ -246,7 +250,8 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         row.element.append(nameCell, version, contributions, actions);
         // Selectable: this is what gets pasted into a bug report.
         ui.selectable(failure);
-        element.append(row.element, failure, details.element);
+        ui.selectable(note);
+        element.append(row.element, failure, note, details.element);
         row.element.addEventListener('click', () => {
             open = !open;
             showOpen(true);
@@ -277,12 +282,16 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
                 `Read from ${mod.folder || 'a source folder'}, ` + 'not installed: it is removed there, not here.';
             failure.textContent = [
                 mod.notLoaded || mod.problem,
-                ...(mod.relations || []).filter((relation) => relation.optional).map((relation) => relation.problem),
                 ...(mod.hides || []).map((folder) => `${folder} has the same id and is not read`),
             ]
                 .filter(Boolean)
                 .join('\n');
             failure.hidden = !failure.textContent;
+            note.textContent = (mod.relations || [])
+                .filter((relation) => relation.optional && relation.problem)
+                .map((relation) => relation.problem)
+                .join('\n');
+            note.hidden = !note.textContent;
             details.set(mod);
         }
 
