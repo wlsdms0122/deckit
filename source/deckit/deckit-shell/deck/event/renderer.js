@@ -13,25 +13,30 @@ export function createEvent({ RUN }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // What a handle holds of events. `emit(name, ...args)` sends one of the mod's own, which listeners hear named
-    // after it (SCOPED.scopedName); `on(named, listener)` hears any mod's, until its off or until `scope` is cut.
-    // Values are copied. `handle` is the name the mod reaches them by.
+    // What a handle holds of events, as `events`. `emit(name, ...args)` sends one of the mod's own, which listeners
+    // hear named after it (SCOPED.scopedName); `on(named, listener)` hears any mod's, until its off or until `scope` is
+    // cut. Values are copied. `handle` is the name the mod reaches them by.
     function forScope({ handle, scope }) {
+        const events = `${handle}.events`;
         return {
-            emit(name, ...args) {
-                try {
-                    PROTOCOL.emit.send({ run: RUN.number, name: String(name), args });
-                } catch (error) {
-                    RUN.fail(`${handle}.emit("${name}") takes values that can be copied: ${error.message || error}`);
-                }
-            },
-            on(name, listener) {
-                const named = String(name);
-                if (!SCOPED.isScoped(named))
-                    throw new Error(`${handle}.on() takes "<mod id>:<event name>", not "${named}"`);
-                if (typeof listener !== 'function') throw new Error(`${handle}.on() takes a listener function`);
-                return scope.add(busNow().on(named, listener));
-            },
+            events: Object.freeze({
+                emit(name, ...args) {
+                    try {
+                        PROTOCOL.emit.send({ run: RUN.number, name: String(name), args });
+                    } catch (error) {
+                        RUN.fail(
+                            `${events}.emit("${name}") takes values that can be copied: ${error.message || error}`
+                        );
+                    }
+                },
+                on(name, listener) {
+                    const named = String(name);
+                    if (!SCOPED.isScoped(named))
+                        throw new Error(`${events}.on() takes "<mod id>:<event name>", not "${named}"`);
+                    if (typeof listener !== 'function') throw new Error(`${events}.on() takes a listener function`);
+                    return scope.add(busNow().on(named, listener));
+                },
+            }),
         };
     }
 

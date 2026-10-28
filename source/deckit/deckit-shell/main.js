@@ -21,8 +21,7 @@ import { createCatalog } from './deck/catalog/index.js';
 import { createIdentity } from './deck/identity/index.js';
 import { createRunner } from './deck/runner/main.js';
 import { createRecord } from './deck/record/main.js';
-import { createExport } from './deck/export/main.js';
-import { createExtension } from './deck/extension/main.js';
+import { createConnection } from './deck/connection/main.js';
 import { createEvent } from './deck/event/main.js';
 import { createMods } from './deck/mods/main.js';
 import { createCore } from './deck/core/main.js';
@@ -159,10 +158,9 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
     const RECORD = createRecord({ CORE, IDENTITY });
     const CONFIGURATION = createConfiguration({ CORE, LOG, IDENTITY, RUNNER });
-    const EXPORT = createExport({ CORE, IDENTITY, RUNNER });
-    const EXTENSION = createExtension({ CORE, IDENTITY, RUNNER });
+    const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER });
     const EVENT = createEvent({ CORE, LOG, IDENTITY });
-    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pages: ENV.pages });
+    const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: ENV.pages });
     const COMMAND = createCommand({ LOG, IDENTITY, RUNNER, CORE });
     const PROVIDER = createProvider({ CORE, IDENTITY });
     const PAGE = createPage({ IDENTITY, LOG, pages: ENV.pages });
@@ -266,8 +264,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         }
         RECORD.start();
         CONFIGURATION.start();
-        EXPORT.start();
-        EXTENSION.start();
+        CONNECTION.start();
         EVENT.start();
         MODS.start({
             facts: (mod) => ({ mainProcess: MAIN_PROCESS.stateOf(mod.id) }),

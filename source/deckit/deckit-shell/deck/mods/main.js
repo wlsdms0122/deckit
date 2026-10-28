@@ -9,7 +9,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
 // again, loading, putting them in a load order and what one has where deck keeps it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
-export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pages }) {
+export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // MARK: - Property
     let layer = null;
     const TRANSITIONS = ['launching', 'terminating']; // a run's states between running and not
@@ -113,7 +113,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, EXTENSION, pa
     }
 
     function entryOf(mod, { summary, problem }) {
-        return { id: mod.id, name: mod.name, ...summary, extends: EXTENSION.pointsExtendedBy(mod.id), problem };
+        return { id: mod.id, name: mod.name, ...summary, problem };
     }
 
     // Any folder, since a mod may already run code in this process: restricting where it comes from guards

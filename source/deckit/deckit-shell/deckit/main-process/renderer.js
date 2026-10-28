@@ -1,5 +1,5 @@
 import * as EVENT_BUS from '../../deck/event/bus.js';
-import * as PROXY from '../../deck/export/proxy.js';
+import * as PROXY from '../../deck/ipc/model/proxy.js';
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/renderer.js';
 import * as DECLARED from './protocol.js';

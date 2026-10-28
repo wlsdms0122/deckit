@@ -7,9 +7,9 @@ function read(found) {
     return { ...found.manifest, ...found };
 }
 
-// Whether `mod` links the mod of `id`: names it in its [requires] or [extends].
+// Whether `mod` links the mod of `id`: names it in its [dependencies].
 function links(mod, id) {
-    return Object.hasOwn(mod.requires, id) || Object.hasOwn(mod.extends, id);
+    return Object.hasOwn(mod.dependencies, id);
 }
 
 // MARK: - Private

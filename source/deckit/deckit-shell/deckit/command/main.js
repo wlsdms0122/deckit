@@ -49,7 +49,7 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
     // A host's commands, under `provider`, a name of its own that starts with "@": { name: { description, params,
     // run(args), complete(param, partial, { args, signal }) } }. Resolves once the core has them, and rejects with why
     // it refused one.
-    async function define(provider, commands) {
+    async function register(provider, commands) {
         const declared = [];
         const kept = new Map();
         for (const [name, entry] of Object.entries(commands || {})) {
@@ -141,5 +141,5 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         }
     }
 
-    return { start, define, list, run, complete, onChange };
+    return { start, register, list, run, complete, onChange };
 }

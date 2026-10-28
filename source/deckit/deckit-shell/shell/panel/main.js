@@ -249,7 +249,7 @@ export function createPanel({ REGION, deckit, host }) {
     // `show` puts a mod on screen, by its id, its candidates every mod there is to show. The panel's keys run here.
     function declare() {
         deckit.commands
-            .define(PROVIDER, {
+            .register(PROVIDER, {
                 show: {
                     description: 'Puts a mod on screen in the panel.',
                     params: {

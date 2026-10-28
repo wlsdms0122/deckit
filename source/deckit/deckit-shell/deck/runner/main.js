@@ -114,7 +114,10 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     async function load(ids) {
         let left = CATALOG.mods()
             .filter((mod) => ids.includes(mod.id))
-            .map((mod) => ({ id: mod.id, requires: Object.keys(mod.requires) }));
+            .map((mod) => ({
+                id: mod.id,
+                requires: Object.keys(mod.dependencies).filter((id) => !mod.dependencies[id].optional),
+            }));
         const ready = ({ id, requires }) =>
             runOf(id)?.state !== 'terminating' &&
             requires.every((other) => !left.some((mod) => mod.id === other) && runOf(other)?.state !== 'launching');

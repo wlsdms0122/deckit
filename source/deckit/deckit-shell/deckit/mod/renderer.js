@@ -40,19 +40,20 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
             const registrations = {
                 keys: { handle: 'deckit', check: table },
                 commands: { handle: 'deckit', check: table },
-                handleURL: { handle: 'deckit', check: functionProblem },
+                urls: { handle: 'deckit', check: functionProblem },
             };
             // What every lifecycle joined so far contributes: deckit's, and the shell's as it last told it.
-            const joined = { keys: [], commands: [], handleURL: null, answering: false, shell: {} };
-            const handleOf = (deck, scope) => Object.freeze({ ...deck, ...membersOf(mod, scope, { mainProcess }) });
+            const joined = { keys: [], commands: [], urls: null, answering: false, shell: {} };
+            const handleOf = (deck, scope) =>
+                Object.freeze({ ...deck, ...membersOf(mod, deck, scope, { mainProcess }) });
             const join = (parts, scope, shown = null) => {
-                if (typeof parts.handleURL === 'function') {
-                    if (joined.handleURL) fail('deckit.handleURL() is registered under it, so this one is left out');
+                if (typeof parts.urls === 'function') {
+                    if (joined.urls) fail('deckit.urls.register() is called under it, so this one is left out');
                     else {
-                        if (!joined.answering) OPEN.answer((url, options) => joined.handleURL?.(url, options) ?? false);
+                        if (!joined.answering) OPEN.answer((url, options) => joined.urls?.(url, options) ?? false);
                         joined.answering = true;
-                        joined.handleURL = parts.handleURL;
-                        scope.add(() => (joined.handleURL = null));
+                        joined.urls = parts.urls;
+                        scope.add(() => (joined.urls = null));
                     }
                 }
                 const commands = COMMAND.declare(parts.commands, { invalid: fail });
@@ -84,12 +85,12 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                         ...joined.shell.contributions,
                         keys: joined.keys,
                         commands: joined.commands,
-                        handleURL: !!joined.handleURL,
+                        urls: !!joined.urls,
                     },
                     summary: {
                         ...joined.shell.summary,
                         commands: joined.commands.length > 0,
-                        urlSchemes: joined.handleURL ? mod.urlSchemes : [],
+                        urls: joined.urls ? mod.urls : [],
                     },
                 };
             };
@@ -149,8 +150,9 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
     }
 
     // MARK: - Private
-    // Deckit's members on a handle, what they make that calls back into the mod's code cut with `scope`.
-    function membersOf(mod, scope, { mainProcess }) {
+    // Deckit's members on a handle, what they make that calls back into the mod's code cut with `scope`: each
+    // namespace holds what `deck` registers in it beside what reaches others' (deckit-shell/deck/runner).
+    function membersOf(mod, deck, scope, { mainProcess }) {
         const has = (permission) => mod.permissions.some(({ id }) => id === permission);
         const scoped =
             (subscribe) =>
@@ -167,12 +169,36 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                 tildify: tildifyOf(),
             }),
             configuration: CONFIGURED.forScope(scope),
-            open: (url, options) => OPEN.open(url, options),
+            commands: Object.freeze({
+                ...deck.commands,
+                ...(has(COMMAND_PERMISSION.COMMAND_REGISTRY)
+                    ? { ...COMMAND.registry, onChange: scoped(COMMAND.registry.onChange) }
+                    : {}),
+            }),
+            keys: Object.freeze({
+                ...deck.keys,
+                chordOf: (name, { provider = '' } = {}) => KEYMAP.chord(name, { provider }),
+                ...(has(KEYMAP_PERMISSION.KEYMAP)
+                    ? {
+                          list: KEYMAP.bindings,
+                          bind: KEYMAP.bind,
+                          reset: KEYMAP.reset,
+                          record: KEYMAP.record,
+                          onChange: scoped(KEYMAP.onChange),
+                      }
+                    : {}),
+            }),
+            urls: Object.freeze({
+                ...deck.urls,
+                open: (url, options) => OPEN.open(url, options),
+                ...(has(OPEN_PERMISSION.URL_SCHEMES)
+                    ? { list: OPEN.handlerLists, set: OPEN.setHandlers, everyScheme: OPEN.EVERY }
+                    : {}),
+            }),
             ...(has(OPEN_PERMISSION.FILE_HANDLERS) ? { reveal: OPEN.reveal } : {}),
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,
             about: RUNTIME.about,
-            chordOf: (name, { provider = '' } = {}) => KEYMAP.chord(name, { provider }),
             ...(has(COMMAND_PERMISSION.COMMAND_REGISTRY) || has(KEYMAP_PERMISSION.KEYMAP)
                 ? { provider: PROVIDER.provider }
                 : {}),
@@ -182,34 +208,6 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
             }),
             ...(has(NOTIFICATION_PERMISSION.NOTIFICATIONS) ? { notify: NOTIFICATION.notifyOf(scope) } : {}),
             ...(has(MAIN_PROCESS_PERMISSION.MAIN_PROCESS) ? { mainProcess: mainProcess.forScope(scope) } : {}),
-            ...(has(KEYMAP_PERMISSION.KEYMAP)
-                ? {
-                      keymap: Object.freeze({
-                          list: KEYMAP.bindings,
-                          set: KEYMAP.bind,
-                          reset: KEYMAP.reset,
-                          record: KEYMAP.record,
-                          onChange: scoped(KEYMAP.onChange),
-                      }),
-                  }
-                : {}),
-            ...(has(COMMAND_PERMISSION.COMMAND_REGISTRY)
-                ? {
-                      commandRegistry: Object.freeze({
-                          ...COMMAND.registry,
-                          onChange: scoped(COMMAND.registry.onChange),
-                      }),
-                  }
-                : {}),
-            ...(has(OPEN_PERMISSION.URL_SCHEMES)
-                ? {
-                      urlSchemes: Object.freeze({
-                          list: OPEN.handlerLists,
-                          set: OPEN.setHandlers,
-                          everyScheme: OPEN.EVERY,
-                      }),
-                  }
-                : {}),
             ...(has(CONFIGURATION_PERMISSION.MOD_CONFIGURATION) ? { modConfiguration: CONFIGURATION.tool() } : {}),
         };
     }

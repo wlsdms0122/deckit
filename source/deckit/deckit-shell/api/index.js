@@ -1,6 +1,6 @@
 import * as MOD_PERMISSION from '../deck/mod/permission.js';
 import * as LIFECYCLE from '../deck/mod/lifecycle.js';
-import * as PROXY from '../deck/export/proxy.js';
+import * as PROXY from '../deck/ipc/model/proxy.js';
 import * as IPC from '../deck/ipc/main.js';
 import * as ENVIRONMENT from '../environment/index.js';
 
@@ -85,7 +85,7 @@ export function createApi({
                 delegate: KEYMAP.delegate,
             }),
             commands: Object.freeze({
-                define: COMMAND.define,
+                register: COMMAND.register,
                 list: COMMAND.list,
                 run: COMMAND.run,
                 complete: (command, param, partial, { args, signal } = {}) =>
