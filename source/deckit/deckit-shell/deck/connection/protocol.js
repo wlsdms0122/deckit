@@ -30,7 +30,7 @@ export const release = CHANNEL.pageToMain('deckit-shell:connection-release', {
 });
 
 // The exports the page's run opened are asked for a connection: `{ id, mod: { id, name }, lifecycle }`, answered with
-// them.
+// them, or null once that lifecycle has ended.
 export const connect = CHANNEL.mainToPage('deckit-shell:connection-connect', { reply: true });
 // A connection stands since the page's `lifecycle` began: `{ id, mod, required, exportedIn, exports, lifecycle }`, as
 // `begin` answers one.

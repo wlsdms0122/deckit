@@ -152,9 +152,10 @@ export function createConnection({ RUN }) {
         });
     }
 
-    // The exports for a new connection, made by the `connect` of the lifecycle that opened them.
+    // The exports for a new connection, made by the `connect` of the lifecycle that opened them, or null once it has
+    // ended.
     function answerConnect({ id, mod, lifecycle }) {
-        if (!giving || giving.lifecycle !== lifecycle) throw new Error(`${RUN.mod.id} has no exports open`);
+        if (!giving || giving.lifecycle !== lifecycle) return null;
         const connection = Object.freeze({ mod: Object.freeze({ id: mod.id, name: mod.name }) });
         const exports = giving.connect(connection);
         if (exports && typeof exports.then === 'function')

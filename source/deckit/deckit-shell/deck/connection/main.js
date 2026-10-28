@@ -19,7 +19,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             const connections = await CORE.request('connection/begin', { mod, run, lifecycle });
             for (const connection of connections) standing.add(connection.id);
             const opened = await Promise.all(connections.map(open));
-            return opened.filter((one) => one.problem || standing.has(one.id));
+            return opened.filter((one) => one && (one.problem || standing.has(one.id)));
         });
         PROTOCOL.end.on(({ run, lifecycle }, sender) => {
             const mod = IDENTITY.modFrom(sender).id;
@@ -40,7 +40,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             standing.add(connection.id);
             const opened = await open(connection);
             const page = IDENTITY.pageOf(connection.dependent.mod);
-            if (page && (opened.problem || standing.has(connection.id)))
+            if (page && opened && (opened.problem || standing.has(connection.id)))
                 PROTOCOL.connected.send(page, { ...opened, lifecycle: connection.dependent.lifecycle });
         });
         RUNNER.handleEffect('disconnect', ({ connection }) => {
@@ -54,22 +54,23 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
 
     // MARK: - Private
     // The exports the connection reaches, as its dependency's page answers them for it, or why it refused them: the
-    // core keeps it down from then on. One that ended while they were asked for was not refused.
+    // core keeps it down from then on. One whose dependency's lifecycle ended while they were asked for was not
+    // refused, and is null.
     async function open(connection) {
         const { id, dependent, dependency, required } = connection;
         const named = { id, mod: dependency.mod, required, exportedIn: dependency.lifecycle };
         const mod = CATALOG.mods().find((one) => one.id === dependent.mod);
         try {
             const page = IDENTITY.pageOf(dependency.mod);
-            if (!page) throw new Error(`${dependency.mod} is not running`);
+            if (!page) return null;
             const exports = await PROTOCOL.connect.invoke(page, {
                 id,
                 mod: { id: dependent.mod, name: mod?.name ?? dependent.mod },
                 lifecycle: dependency.lifecycle,
             });
-            return { ...named, exports };
+            return exports && { ...named, exports };
         } catch (error) {
-            if (!standing.delete(id)) return named;
+            if (!standing.delete(id)) return null;
             CORE.request('connection/refuse', { connection: id }).catch(() => {});
             return { ...named, problem: `${dependency.mod} did not connect: ${error.message || error}` };
         }
