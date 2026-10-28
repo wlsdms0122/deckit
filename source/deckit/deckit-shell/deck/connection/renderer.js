@@ -253,7 +253,8 @@ export function createConnection({ RUN }) {
             return WIRE.materialize(answer.returned, (inner) => referenceOf(entry, inner));
         };
         handed.add(reference);
-        entry.held.set(number, { reference: new WeakRef(reference), count: 1 });
+        // A reference let go but not yet finalized hands its count to the one that takes its number.
+        entry.held.set(number, { reference: new WeakRef(reference), count: (held?.count ?? 0) + 1 });
         released.register(reference, { id: entry.id, number });
         return reference;
     }
