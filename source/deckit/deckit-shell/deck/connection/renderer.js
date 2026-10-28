@@ -39,12 +39,7 @@ export function createConnection({ RUN }) {
     PROTOCOL.called.handle((asked) => answerCall(asked));
     PROTOCOL.released.on(({ connection, number, count }) => {
         const entry = connections.get(connection);
-        const given = entry?.given.byNumber.get(number);
-        if (!given) return;
-        given.count -= count;
-        if (given.count > 0) return;
-        entry.given.byNumber.delete(number);
-        entry.given.numbers.delete(given.key);
+        if (entry) letGo(entry, number, count);
     });
 
     // MARK: - Public
@@ -208,21 +203,38 @@ export function createConnection({ RUN }) {
     }
 
     // What crosses the connection, each function the page hands over kept by number: one function is one number, and
-    // a method one number with the object it is called on.
+    // a method one number with the object it is called on. What does not cross hands none of them over.
     function describe(entry, value) {
-        return WIRE.describe(value, (fn, holder) => {
-            if (handed.has(fn))
-                throw new Error('a function another mod handed over is not handed on: hand a function of its own');
-            const key = holder ? keyOf(entry, fn, holder) : fn;
-            let number = entry.given.numbers.get(key);
-            if (number === undefined) {
-                number = ++entry.given.next;
-                entry.given.numbers.set(key, number);
-                entry.given.byNumber.set(number, { function: fn, holder, key, count: 0 });
-            }
-            entry.given.byNumber.get(number).count += 1;
-            return number;
-        });
+        const counted = [];
+        try {
+            return WIRE.describe(value, (fn, holder) => {
+                if (handed.has(fn))
+                    throw new Error('a function another mod handed over is not handed on: hand a function of its own');
+                const key = holder ? keyOf(entry, fn, holder) : fn;
+                let number = entry.given.numbers.get(key);
+                if (number === undefined) {
+                    number = ++entry.given.next;
+                    entry.given.numbers.set(key, number);
+                    entry.given.byNumber.set(number, { function: fn, holder, key, count: 0 });
+                }
+                entry.given.byNumber.get(number).count += 1;
+                counted.push(number);
+                return number;
+            });
+        } catch (error) {
+            for (const number of counted) letGo(entry, number, 1);
+            throw error;
+        }
+    }
+
+    // The other end holds `number` `count` times fewer: at none, the page lets go of its function.
+    function letGo(entry, number, count) {
+        const given = entry.given.byNumber.get(number);
+        if (!given) return;
+        given.count -= count;
+        if (given.count > 0) return;
+        entry.given.byNumber.delete(number);
+        entry.given.numbers.delete(given.key);
     }
 
     // One key for a method held with one object.
