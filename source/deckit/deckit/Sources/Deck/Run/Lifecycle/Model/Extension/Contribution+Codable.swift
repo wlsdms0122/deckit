@@ -11,9 +11,9 @@ import Foundation
 extension Contribution: Codable {
     // MARK: - Property
     private struct Key: CodingKey {
-        static let exports = Key(stringValue: "exports")
+        static let exportedIn = Key(stringValue: "exportedIn")
         static let awaits = Key(stringValue: "awaits")
-        static let deck: Set<String> = [exports.stringValue, awaits.stringValue]
+        static let deck: Set<String> = [exportedIn.stringValue, awaits.stringValue]
 
         let stringValue: String
         var intValue: Int? { nil }
@@ -30,7 +30,7 @@ extension Contribution: Codable {
     // MARK: - Initializer
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Key.self)
-        exports = try container.decodeIfPresent(Int.self, forKey: .exports)
+        exportedIn = try container.decodeIfPresent(Int.self, forKey: .exportedIn)
         awaits = try container.decode([String: Int].self, forKey: .awaits)
         var layers: [String: JSONValue] = [:]
         for key in container.allKeys where !Key.deck.contains(key.stringValue) {
@@ -45,7 +45,7 @@ extension Contribution: Codable {
         for (key, value) in layers {
             try container.encode(value, forKey: Key(stringValue: key))
         }
-        try container.encodeIfPresent(exports, forKey: .exports)
+        try container.encodeIfPresent(exportedIn, forKey: .exportedIn)
         try container.encode(awaits, forKey: .awaits)
     }
 

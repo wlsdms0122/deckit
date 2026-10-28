@@ -132,7 +132,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
 
     // Main is told what the run contributes now, all of it, and as a person reads it.
     function tell(channel, { described, joined, reported }) {
-        const opened = joined.exportedIn === null ? {} : { exports: joined.exportedIn };
+        const opened = joined.exportedIn === null ? {} : { exportedIn: joined.exportedIn };
         channel.send({
             run: RUN.number,
             contributions: { ...reported.contributions, ...opened, awaits: CONNECTION.awaited() },

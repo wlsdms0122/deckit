@@ -87,7 +87,7 @@ public final class ConnectionBroker {
         guard let awaits = run.contributions?.awaits else { return [] }
 
         return awaits.keys.sorted().compactMap { id in
-            guard let opened = runner.run(of: id)?.contributions?.exports,
+            guard let opened = runner.run(of: id)?.contributions?.exportedIn,
                 let lifecycle = awaits[id],
                 opened > lifecycle
             else { return nil }
@@ -111,7 +111,7 @@ public final class ConnectionBroker {
                 mod.manifest.depends(on: other.manifest),
                 let otherRun = runner.run(of: id),
                 otherRun.state == .running,
-                let lifecycle = otherRun.contributions?.exports,
+                let lifecycle = otherRun.contributions?.exportedIn,
                 lifecycle <= dependent.lifecycle
             else { continue }
 

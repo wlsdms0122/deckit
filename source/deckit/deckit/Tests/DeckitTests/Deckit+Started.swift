@@ -20,7 +20,7 @@ extension Deckit {
 
     // The effects of the `run`th run of `mod` started, having contributed `layers` beside deck's own.
     func started(_ mod: String, run: Int, contributing layers: [String: JSONValue]) throws -> [Effect] {
-        let contributions = Contribution(exports: nil, awaits: [:], layers: layers)
+        let contributions = Contribution(exportedIn: nil, awaits: [:], layers: layers)
         return try deck.started(mod, run: run, summary: .object([:]), contributions: contributions)
     }
 

@@ -313,9 +313,9 @@ struct RunnerTests {
         let (sut, catalog) = try runner()
         _ = catalog.read()
         _ = try sut.load(["a"])
-        let joining = Contribution(exports: 1, awaits: ["b": 1], layers: ["keys": .array([])])
+        let joining = Contribution(exportedIn: 1, awaits: ["b": 1], layers: ["keys": .array([])])
         let early = try sut.joined("a", run: 1, summary: .object([:]), contributions: joining)
-        _ = try sut.started("a", run: 1, exports: 0)
+        _ = try sut.started("a", run: 1, exportedIn: 0)
 
         // When
         let joined = try sut.joined("a", run: 1, summary: .object(["view": .bool(true)]), contributions: joining)
@@ -325,7 +325,7 @@ struct RunnerTests {
         #expect(early.isEmpty)
         #expect(describe(joined) == ["keep a 1 "])
         #expect(run.summary == .object(["view": .bool(true)]))
-        #expect(run.contributions?.exports == 1)
+        #expect(run.contributions?.exportedIn == 1)
         #expect(run.contributions?.awaits == ["b": 1])
         #expect(run.contributions?.layers == ["keys": .array([])])
     }

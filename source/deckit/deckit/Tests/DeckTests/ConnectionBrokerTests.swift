@@ -23,7 +23,7 @@ struct ConnectionBrokerTests {
         try fixture.write("bot", requires: ["forge": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("forge", exports: 0, runner: runner, sut: sut)
+        try start("forge", exportedIn: 0, runner: runner, sut: sut)
         _ = try runner.load(["bot"])
 
         // When
@@ -64,7 +64,7 @@ struct ConnectionBrokerTests {
         // When
         let before = sut.changes()
         _ = try sut.begin(mod: "switcher", run: 1, lifecycle: 1)
-        _ = try runner.joined("switcher", run: 1, summary: .object([:]), contributions: contribution(exports: 1))
+        _ = try runner.joined("switcher", run: 1, summary: .object([:]), contributions: contribution(exportedIn: 1))
         let after = sut.changes()
 
         // Then
@@ -80,7 +80,7 @@ struct ConnectionBrokerTests {
         try fixture.write("finder", optional: ["switcher": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("switcher", exports: 0, runner: runner, sut: sut)
+        try start("switcher", exportedIn: 0, runner: runner, sut: sut)
         for id in ["note", "finder"] {
             try start(id, runner: runner, sut: sut)
         }
@@ -107,7 +107,7 @@ struct ConnectionBrokerTests {
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
         try start("google", runner: runner, sut: sut)
-        try start("calendar", exports: 0, runner: runner, sut: sut)
+        try start("calendar", exportedIn: 0, runner: runner, sut: sut)
         let connected = sut.changes()
 
         // When
@@ -116,7 +116,7 @@ struct ConnectionBrokerTests {
         _ = try runner.unload(["calendar"])
         _ = try runner.stopped("calendar", run: 1)
         _ = sut.changes()
-        try start("calendar", exports: 0, runner: runner, sut: sut, run: 2)
+        try start("calendar", exportedIn: 0, runner: runner, sut: sut, run: 2)
         let relaunched = sut.changes()
 
         // Then
@@ -132,7 +132,7 @@ struct ConnectionBrokerTests {
         try fixture.write("note", optional: ["switcher": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("switcher", exports: 1, runner: runner, sut: sut)
+        try start("switcher", exportedIn: 1, runner: runner, sut: sut)
         _ = try runner.load(["note"])
         _ = try runner.started("note", run: 1, awaits: ["switcher": 0])
         let note = try #require(runner.run(of: "note"))
@@ -152,17 +152,17 @@ struct ConnectionBrokerTests {
     // The mod launches, begins its first lifecycle and starts, its exports opened in the lifecycle `exports`, if any.
     private func start(
         _ id: String,
-        exports: Int? = nil,
+        exportedIn: Int? = nil,
         runner: Runner,
         sut: ConnectionBroker,
         run: Int = 1
     ) throws {
         _ = try runner.load([id])
         _ = try sut.begin(mod: id, run: run, lifecycle: 0)
-        _ = try runner.started(id, run: run, exports: exports)
+        _ = try runner.started(id, run: run, exportedIn: exportedIn)
     }
 
-    private func contribution(exports: Int?) -> Contribution {
-        Contribution(exports: exports, awaits: [:], layers: [:])
+    private func contribution(exportedIn: Int?) -> Contribution {
+        Contribution(exportedIn: exportedIn, awaits: [:], layers: [:])
     }
 }

@@ -296,7 +296,7 @@ struct ServerTests {
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["calendar"]}}"#, to: sut)
         let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
         _ = try send(begin + #"{"mod":"calendar","run":1,"lifecycle":0}}"#, to: sut)
-        let contributions = #"{"exports":0,"awaits":{},"pins":["a"]}"#
+        let contributions = #"{"exportedIn":0,"awaits":{},"pins":["a"]}"#
         let started = #"{"mod":"calendar","run":1,"summary":{"view":true},"contributions":\#(contributions)}"#
 
         // When
@@ -312,7 +312,7 @@ struct ServerTests {
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
         #expect(value(in: told, at: "summary", "view") == .bool(true))
         #expect(value(in: told, at: "contributions", "pins") == .array([.string("a")]))
-        #expect(value(in: told, at: "contributions", "exports") == .number(0))
+        #expect(value(in: told, at: "contributions", "exportedIn") == .number(0))
         #expect(
             value(in: connected, at: "result")
                 == (try json(

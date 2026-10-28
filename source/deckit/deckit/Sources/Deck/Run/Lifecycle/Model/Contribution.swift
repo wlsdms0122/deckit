@@ -13,14 +13,14 @@ import Foundation
 public struct Contribution: Sendable {
     // MARK: - Property
     // The lifecycle that opened its exports, or nil while none did.
-    public let exports: Int?
+    public let exportedIn: Int?
     // Mod id -> the lowest lifecycle that waits for that mod's exports to connect.
     public let awaits: [String: Int]
     public let layers: [String: JSONValue]
 
     // MARK: - Initializer
-    public init(exports: Int?, awaits: [String: Int], layers: [String: JSONValue]) {
-        self.exports = exports
+    public init(exportedIn: Int?, awaits: [String: Int], layers: [String: JSONValue]) {
+        self.exportedIn = exportedIn
         self.awaits = awaits
         self.layers = layers
     }

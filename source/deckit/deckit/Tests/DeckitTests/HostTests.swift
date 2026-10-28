@@ -42,7 +42,7 @@ struct HostTests {
         try writeMod("notes")
         let sut = try deckit()
         let contributions = Contribution(
-            exports: nil,
+            exportedIn: nil,
             awaits: [:],
             layers: [
                 "keys": .array([

@@ -14,8 +14,8 @@ extension Runner {
     // MARK: - Public
     // It started, its exports opened in the lifecycle `exports`, if any, and waiting for the mods in `awaits` from the
     // lifecycles given.
-    func started(_ id: String, run number: Int, exports: Int? = nil, awaits: [String: Int] = [:]) throws -> [Effect] {
-        let contributions = Contribution(exports: exports, awaits: awaits, layers: [:])
+    func started(_ id: String, run number: Int, exportedIn: Int? = nil, awaits: [String: Int] = [:]) throws -> [Effect] {
+        let contributions = Contribution(exportedIn: exportedIn, awaits: awaits, layers: [:])
 
         return try started(id, run: number, summary: .object([:]), contributions: contributions)
     }
