@@ -1,7 +1,7 @@
 // A headless mod that depends on the provider, the screen and a mod that is not installed. In start it calls what the
-// provider exports, hands it functions and an object of a class, and hears its event; in attach, as the screen
-// connects, it hands the screen one of the provider's functions and one of its own, and counts the screen's
-// connections and their ends. It marks each on its page.
+// provider exports, one of which throws, hands it functions and an object of a class, and hears its event; in attach,
+// as the screen connects, it hands the screen one of the provider's functions and one of its own, and counts the
+// screen's connections and their ends. It marks each on its page.
 class Thing {
     constructor(number) {
         this.number = number;
@@ -27,6 +27,10 @@ class BrokerUser {
         marks.thing = await provider.setThing(new Thing(7));
         const hello = () => 'hello';
         marks.same = `${await provider.keep(hello)} ${await provider.keep(hello)}`;
+        marks.refused = await provider.refuse().then(
+            () => 'answered',
+            (error) => `${error.name} ${error.kind} ${error.message}`
+        );
         await provider.ping(7);
     }
 
