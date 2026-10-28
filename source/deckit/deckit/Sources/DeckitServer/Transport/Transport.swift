@@ -1,5 +1,5 @@
 //
-//  Connection.swift
+//  Transport.swift
 //  DeckitServer
 //
 //  Created by JSilver on 10/20/26.
@@ -9,7 +9,7 @@ import Foundation
 
 // The driver's end of the core: a message a line, in on stdin and out on stdout. Nothing else writes to stdout; what
 // the core logs goes to stderr.
-struct Connection {
+struct Transport {
     // MARK: - Property
     // MARK: - Initializer
     // Once the driver has ended, what it sent before is still read and kept: an answer to no one is dropped, rather
