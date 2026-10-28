@@ -124,7 +124,7 @@ struct DependencyGraph {
             return Relation(
                 id: id,
                 optional: dependency.optional,
-                want: dependency.version,
+                version: dependency.version,
                 name: provider?.manifest.name ?? id,
                 ok: problem(id, want: dependency.version, provider: provider) == nil
             )

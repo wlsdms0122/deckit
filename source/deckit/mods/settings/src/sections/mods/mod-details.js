@@ -102,7 +102,7 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
             (mod.relations || [])
                 .filter((relation) => relation.optional === optional)
                 .map((relation) => {
-                    const text = `${relation.name} ${relation.want}`;
+                    const text = `${relation.name} ${relation.version}`;
                     const ok = relation.ok && relation.running;
                     if (optional && !ok) return chip({ ui, text, muted: true }).element;
                     return statusChip({ ui, text, ok }).element;

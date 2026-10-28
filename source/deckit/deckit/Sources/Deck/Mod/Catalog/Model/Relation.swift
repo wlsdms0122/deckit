@@ -12,7 +12,7 @@ public struct Relation: Equatable, Sendable {
     // MARK: - Property
     public let id: String
     public let optional: Bool
-    public let want: String
+    public let version: String
     public let name: String
     public let ok: Bool
 

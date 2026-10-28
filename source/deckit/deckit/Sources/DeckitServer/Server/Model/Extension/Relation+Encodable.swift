@@ -13,7 +13,7 @@ extension Relation: Encodable {
     private enum CodingKeys: String, CodingKey {
         case id
         case optional
-        case want
+        case version
         case name
         case ok
     }
@@ -24,7 +24,7 @@ extension Relation: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(optional, forKey: .optional)
-        try container.encode(want, forKey: .want)
+        try container.encode(version, forKey: .version)
         try container.encode(name, forKey: .name)
         try container.encode(ok, forKey: .ok)
     }
