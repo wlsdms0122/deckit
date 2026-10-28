@@ -20,12 +20,12 @@ struct URLRouterTests {
     @Test("an address is offered to its scheme's handlers, the app's first, then to what deckit opens by itself")
     func addressIsRouted() throws {
         // Given
-        try fixture.write("a", urlSchemes: ["https"])
-        try fixture.write("b", urlSchemes: ["https"])
-        try fixture.write("c", urlSchemes: ["*"])
+        try fixture.write("a", urls: ["https:*"])
+        try fixture.write("b", urls: ["https:*"])
+        try fixture.write("c", urls: ["*"])
         let sut = try fixture.deckit(schemeHandlers: ["https": ["b"]])
         for mod in ["a", "b", "c"] {
-            _ = try sut.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
+            _ = try sut.started(mod, run: 1, contributing: ["urls": .bool(true)])
         }
 
         // When
@@ -42,9 +42,9 @@ struct URLRouterTests {
     @Test("a file goes only where the caller may hand files on, and an address that is not a place opens nowhere")
     func whatIsNotAPlaceOrAFileNotHandedOnOpensNowhere() throws {
         // Given
-        try fixture.write("a", urlSchemes: ["*"])
+        try fixture.write("a", urls: ["*"])
         let sut = try fixture.deckit()
-        _ = try sut.started("a", run: 1, contributing: ["handleURL": .bool(true)])
+        _ = try sut.started("a", run: 1, contributing: ["urls": .bool(true)])
 
         // When
         let kept = route(sut, "file:///tmp/a.txt", opensFiles: false)
@@ -59,22 +59,52 @@ struct URLRouterTests {
         #expect(unschemed == "example.com -> , none")
     }
 
+    @Test("an address goes to the handlers whose patterns match it, one no one placed before a wider one")
+    func addressGoesToMatchingPatterns() throws {
+        // Given
+        try fixture.write("browser", urls: ["http:*", "https:*"])
+        try fixture.write("github", urls: ["https://github.com/*"])
+        try fixture.write("issues", urls: ["https://github.com/deckit/issues*"])
+        let sut = try fixture.deckit(schemeHandlers: ["https": ["browser"]])
+        for mod in ["browser", "github", "issues"] {
+            _ = try sut.started(mod, run: 1, contributing: ["urls": .bool(true)])
+        }
+
+        // When
+        let repository = route(sut, "https://GitHub.com/deckit", opensFiles: false)
+        let issue = route(sut, "https://github.com/deckit/issues/1", opensFiles: false)
+        let site = route(sut, "https://github.com", opensFiles: false)
+        let other = route(sut, "https://example.com/github.com/", opensFiles: false)
+        let lists = sut.urlRouter.handlerLists()
+        try sut.urlRouter.setHandlers(of: "https", order: ["browser", "github", "issues"], off: [])
+        let placed = route(sut, "https://github.com/deckit/issues/1", opensFiles: false)
+
+        // Then
+        let https = try #require(lists.first { list in list.scheme == "https" })
+        #expect(repository == "https://GitHub.com/deckit -> github browser, browser")
+        #expect(issue == "https://github.com/deckit/issues/1 -> issues github browser, browser")
+        #expect(site == "https://github.com -> github browser, browser")
+        #expect(other == "https://example.com/github.com/ -> browser, browser")
+        #expect(https.handlers.map(\.patterns) == [["https://github.com/deckit/issues*"], ["https://github.com/*"], ["https:*"]])
+        #expect(placed == "https://github.com/deckit/issues/1 -> browser github issues, browser")
+    }
+
     @Test("the person's order and switches stand over the app's, and stay over a restart")
     func personOrdersHandlers() throws {
         // Given
-        try fixture.write("a", urlSchemes: ["https"])
-        try fixture.write("b", urlSchemes: ["https"])
-        try fixture.write("c", urlSchemes: ["https"])
+        try fixture.write("a", urls: ["https:*"])
+        try fixture.write("b", urls: ["https:*"])
+        try fixture.write("c", urls: ["https:*"])
         let sut = try fixture.deckit(schemeHandlers: ["https": ["b"]])
         for mod in ["a", "b", "c"] {
-            _ = try sut.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
+            _ = try sut.started(mod, run: 1, contributing: ["urls": .bool(true)])
         }
 
         // When
         try sut.urlRouter.setHandlers(of: "https", order: ["a", "b"], off: ["c"])
         let restarted = try fixture.deckit(schemeHandlers: ["https": ["b"]])
         for mod in ["a", "b", "c"] {
-            _ = try restarted.started(mod, run: 1, contributing: ["handleURL": .bool(true)])
+            _ = try restarted.started(mod, run: 1, contributing: ["urls": .bool(true)])
         }
         let lists = restarted.urlRouter.handlerLists()
         let routed = route(restarted, "https://example.com", opensFiles: false)
@@ -90,22 +120,20 @@ struct URLRouterTests {
         #expect(throws: URLRouterError.noHandlers("mailto")) { try unhandled.get() }
     }
 
-    @Test("a mod that registers handleURL and names no schemes is told so, and one that has not registered it is passed")
+    @Test("a mod that registers a handler and names no urls is told so, and one that has not registered it is passed")
     func unpairedHandlerIsAProblem() throws {
         // Given
-        try fixture.write("a", urlSchemes: ["https"])
+        try fixture.write("a", urls: ["https:*"])
         try fixture.write("b")
         let sut = try fixture.deckit()
 
         // When
         let a = try sut.started("a", run: 1, contributing: [:])
-        let b = try sut.started("b", run: 1, contributing: ["handleURL": .bool(true)])
+        let b = try sut.started("b", run: 1, contributing: ["urls": .bool(true)])
 
         // Then
         #expect(a.problem == nil)
-        #expect(
-            b.problem == "it registered deckit.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"
-        )
+        #expect(b.problem == "it registered urls.register(), but manifest.toml names no urls, so nothing asks it")
         #expect(route(sut, "https://example.com", opensFiles: false) == "https://example.com -> , browser")
     }
 

@@ -261,12 +261,12 @@ struct ServerTests {
         )
     }
 
-    @Test("the catalog reads a mod's url-schemes as deckit judges them")
-    func catalogReadsURLSchemes() throws {
+    @Test("the catalog reads a mod's urls as deckit judges them")
+    func catalogReadsURLs() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("opener", schemes: #"["https", "https"]"#)
-        try mod("broken", schemes: #"["https", "*"]"#)
+        try mod("opener", urls: #"["https:*", "https:*"]"#)
+        try mod("broken", urls: #"["https:*", "*"]"#)
 
         // When
         let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
@@ -278,11 +278,11 @@ struct ServerTests {
         }
         let opener = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("opener") }
         let broken = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("broken") }
-        #expect(opener.flatMap { mod in value(in: mod, at: "manifest", "urlSchemes") } == .array([.string("https")]))
+        #expect(opener.flatMap { mod in value(in: mod, at: "manifest", "urls") } == .array([.string("https:*")]))
         #expect(opener.flatMap { mod in value(in: mod, at: "problem") } == nil)
         #expect(
             broken.flatMap { mod in value(in: mod, at: "problem") }
-                == .string(#"url-schemes: "*" already takes every scheme, so it stands alone"#)
+                == .string(#"urls: "*" already takes every address, so it stands alone"#)
         )
     }
 
@@ -351,11 +351,11 @@ struct ServerTests {
     @Test("deckit's own methods answer through the server, as deck's do")
     func deckitMethodsAnswer() throws {
         // Given
-        try mod("mail", schemes: #"["mailto"]"#)
+        try mod("mail", urls: #"["mailto:*"]"#)
         _ = try send(initializeRequest, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["mail"]}}"#, to: sut)
-        let contributions = #"{"awaits":{},"handleURL":true,"commands":[{"name":"compose"}]}"#
+        let contributions = #"{"awaits":{},"urls":true,"commands":[{"name":"compose"}]}"#
         _ = try send(
             #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
                 + #""contributions":\#(contributions)}}"#,
@@ -512,7 +512,7 @@ struct ServerTests {
     }
 
     // MARK: - Private
-    private func mod(_ id: String, schemes: String? = nil, dependencies: String? = nil) throws {
+    private func mod(_ id: String, urls: String? = nil, dependencies: String? = nil) throws {
         let folder = URL(filePath: home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let manifest = """
@@ -520,7 +520,7 @@ struct ServerTests {
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            """ + (schemes.map { schemes in "\nurl-schemes = \(schemes)" } ?? "")
+            """ + (urls.map { urls in "\nurls = \(urls)" } ?? "")
             + (dependencies.map { dependencies in "\n[dependencies]\n\(dependencies)" } ?? "")
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
         try Data().write(to: folder.appending(path: "main.js"))

@@ -24,23 +24,23 @@ struct DeckitFixture {
     }
 
     // MARK: - Public
-    func write(_ id: String, permissions: [String] = [], urlSchemes: [String] = []) throws {
+    func write(_ id: String, permissions: [String] = [], urls: [String] = []) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let asked = permissions.isEmpty
             ? ""
             : "\n[permissions]\n" + permissions.map { permission in "\"\(permission)\" = \"to test\"" }
                 .joined(separator: "\n")
-        let schemes = urlSchemes.isEmpty
+        let patterns = urls.isEmpty
             ? ""
-            : "\nurl-schemes = [" + urlSchemes.map { scheme in "\"\(scheme)\"" }.joined(separator: ", ") + "]"
+            : "\nurls = [" + urls.map { pattern in "\"\(pattern)\"" }.joined(separator: ", ") + "]"
         let text = """
             id = "\(id)"
             name = "\(id.uppercased())"
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            """ + schemes + asked
+            """ + patterns + asked
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         try Data().write(to: location.appending(path: "main.js"))
     }

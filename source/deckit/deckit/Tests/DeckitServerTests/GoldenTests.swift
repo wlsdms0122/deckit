@@ -64,7 +64,7 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "url-schemes = [\"mailto\"]\n[permissions]\n\"system.global-keys\" = \"to test\"\n"
+            adding: "urls = [\"mailto:*\"]\n[permissions]\n\"system.global-keys\" = \"to test\"\n"
                 + "\"system.example\" = \"to test\""
         )
         try writeMod("b", in: "source", adding: "[dependencies]\na = \"1.0.0\"")
