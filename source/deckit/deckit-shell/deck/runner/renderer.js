@@ -82,16 +82,16 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         // The lifecycle that opened the run's exports, once one has, as deck joins it.
         const joined = { exportedIn: null };
         if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined, reported: {} });
-        // A required connection refused once its lifecycle has begun ends that lifecycle.
-        CONNECTION.onRefused((index, problem) => {
-            const entry = begun.find((one) => one.index === index);
-            if (!entry || stopping) return;
+        // A required connection refused once its lifecycle has begun ends that lifecycle and those stacked on it, the
+        // highest first.
+        CONNECTION.onRefused(async (index, problem) => {
+            const at = begun.findIndex((one) => one.index === index);
+            if (at < 0 || stopping) return;
             fail(problem);
-            begun.splice(begun.indexOf(entry), 1);
-            if (joined.exportedIn === index) joined.exportedIn = null;
-            end(entry, instance).then(() => {
-                if (!stopping) tell(PROTOCOL.joined, { described, joined, reported: given.report() });
-            });
+            const ending = begun.splice(at).reverse();
+            if (joined.exportedIn !== null && joined.exportedIn >= index) joined.exportedIn = null;
+            for (const entry of ending) await end(entry, instance);
+            if (!stopping) tell(PROTOCOL.joined, { described, joined, reported: given.report() });
         });
         for (const [index, lifecycle] of given.lifecycles.entries()) {
             const first = index === 0;

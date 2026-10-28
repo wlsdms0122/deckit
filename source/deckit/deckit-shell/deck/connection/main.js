@@ -5,8 +5,8 @@ import * as DECLARED from './protocol.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
-// what crosses goes from page to page through here, never read. A connection is handed to its dependent only while it
-// stands: one that ended while its exports were asked for is left out.
+// what crosses goes from page to page through here, never read. A connection is handed to its dependent while it
+// stands, and so is one its dependency refused, with why: one that ended while its exports were asked for is left out.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -19,7 +19,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             const connections = await CORE.request('connection/begin', { mod, run, lifecycle });
             for (const connection of connections) standing.add(connection.id);
             const opened = await Promise.all(connections.map(open));
-            return opened.filter(({ id }) => standing.has(id));
+            return opened.filter((one) => one.problem || standing.has(one.id));
         });
         PROTOCOL.end.on(({ run, lifecycle }, sender) => {
             const mod = IDENTITY.modFrom(sender).id;
@@ -40,7 +40,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             standing.add(connection.id);
             const opened = await open(connection);
             const page = IDENTITY.pageOf(connection.dependent.mod);
-            if (standing.has(connection.id) && page)
+            if (page && (opened.problem || standing.has(connection.id)))
                 PROTOCOL.connected.send(page, { ...opened, lifecycle: connection.dependent.lifecycle });
         });
         RUNNER.handleEffect('disconnect', ({ connection }) => {
@@ -53,8 +53,8 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     }
 
     // MARK: - Private
-    // The exports the connection reaches, as its dependency's page answers them for it, or why it did not: the core
-    // keeps it down from then on.
+    // The exports the connection reaches, as its dependency's page answers them for it, or why it refused them: the
+    // core keeps it down from then on. One that ended while they were asked for was not refused.
     async function open(connection) {
         const { id, dependent, dependency, required } = connection;
         const named = { id, mod: dependency.mod, required, exportedIn: dependency.lifecycle };
@@ -69,7 +69,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
             });
             return { ...named, exports };
         } catch (error) {
-            standing.delete(id);
+            if (!standing.delete(id)) return named;
             CORE.request('connection/refuse', { connection: id }).catch(() => {});
             return { ...named, problem: `${dependency.mod} did not connect: ${error.message || error}` };
         }
