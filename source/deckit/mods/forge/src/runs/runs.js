@@ -1,8 +1,8 @@
 // The runs mods dispatch through Forge, each the dispatching mod's, and the `onRun` each connection handed over for
 // one: told each change of that run until it ends, then dropped. `forge` is the main process module, which records a
 // dispatch by the mod named and sends each change of a run as its event `run`. A change heard before its dispatch has
-// answered is kept until it has. Ended runs are answered by id until a hundred more have ended, as the main process
-// keeps them.
+// answered is kept until it has, for the last hundred runs heard so. Ended runs are answered by id until a hundred more
+// have ended, as the main process keeps them.
 function runs(forge) {
     const KEPT = 100;
     const owners = new Map(); // workflow id -> the id of the mod that dispatched it
@@ -11,11 +11,9 @@ function runs(forge) {
     const early = new Map(); // workflow id -> its last change, heard before its dispatch answered
 
     forge.on('run', (run) => {
-        if (!owners.has(run.id)) return early.set(run.id, run);
-        tell(run);
-        if (run.status === 'running') return;
-        ended.push(run.id);
-        while (ended.length > KEPT) owners.delete(ended.shift());
+        if (owners.has(run.id)) return heard(run);
+        early.set(run.id, run);
+        if (early.size > KEPT) early.delete(early.keys().next().value);
     });
 
     return { dispatch, runSchedule, run, forget };
@@ -49,9 +47,17 @@ function runs(forge) {
     function claim(connection, id, onRun) {
         owners.set(id, connection.mod.id);
         if (onRun) listen(connection, id, onRun);
-        const heard = early.get(id);
+        const change = early.get(id);
         early.delete(id);
-        if (heard) tell(heard);
+        if (change) heard(change);
+    }
+
+    // A change of a run a mod dispatched: told, and an ended run kept among the last hundred.
+    function heard(run) {
+        tell(run);
+        if (run.status === 'running') return;
+        ended.push(run.id);
+        while (ended.length > KEPT) owners.delete(ended.shift());
     }
 
     function listen(connection, id, onRun) {
