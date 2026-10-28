@@ -11,9 +11,9 @@ const NOW_MAX = 3;
 const NOW_WAIT_MS = 150;
 
 // The list of a Show item for each mod the shell can show and the actions mods add through `point`, the switcher's
-// point `actions`, in `window`, the mod's own: `toggle()` opens it, or puts it away when it is open. Each open reads
-// the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod coming on screen, another
-// app. `end()` drops the list and its timer.
+// point `actions`, in `window`, the mod's own: `show()` opens it, and `toggle()` opens it or puts it away when it is
+// open. Each open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod
+// coming on screen, another app. `end()` drops the list and its timer.
 function switcher(shell, deckit, window, point) {
     const registry = deckit.commandRegistry;
     const records = deckit.storage.records;
@@ -21,7 +21,7 @@ function switcher(shell, deckit, window, point) {
     let open = null; // the list on screen: { list, left, about, submenus }, `left` once its exit has started
     let leaving = null; // the timer that puts the window away once the list's exit has played
 
-    return { toggle, putAway, closed, end };
+    return { show, toggle, putAway, closed, end };
 
     function toggle() {
         if (open && !open.left) return open.list ? open.list.close() : putAway();
