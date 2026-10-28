@@ -58,4 +58,16 @@ struct URLsFieldTests {
         #expect(!pattern.matches("https://github.com/deckit"))
         #expect(!pattern.matches("https://github.com.evil/Deckit"))
     }
+
+    @Test("a host's every address is matched with its path, even one with no path before its query or fragment")
+    func hostWithNoPath() throws {
+        // Given
+        let pattern = try #require(sut.read(.array([.string("https://github.com/*")])).first)
+
+        // Then
+        #expect(pattern.matches("https://github.com"))
+        #expect(pattern.matches("https://github.com?tab=1"))
+        #expect(pattern.matches("https://github.com#top"))
+        #expect(pattern.matches("https://github.com/deckit?tab=1"))
+    }
 }

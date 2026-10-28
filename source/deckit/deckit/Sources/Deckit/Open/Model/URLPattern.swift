@@ -88,7 +88,7 @@ public struct URLPattern: Equatable, Sendable {
                 ?? place.endIndex
             guard place[..<end].lowercased() == host else { return false }
 
-            let located = place[end...]
+            let located = place[end...].prefix { character in character != "?" && character != "#" }
             return located.hasPrefix(path) || path == "/" && located.isEmpty
         }
     }
