@@ -91,7 +91,7 @@ class Editor {
         const ranker = (options) => {
             const made = util.ranker(options);
             rankers.add(made);
-            return made;
+            return Object.freeze({ ...made, close: () => rankers.delete(made) && made.close() });
         };
         const engine = EditorEngine;
         const fileSystem = await deckit.mainProcess('main-process/file-system.js');
