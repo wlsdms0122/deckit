@@ -113,7 +113,7 @@ final class Runner {
         try decide {
             guard let sandbox = sandbox(of: id, run: number) else { return }
             var run = sandbox.run
-            run.record(problem)
+            guard run.record(problem) else { return }
             sandbox.run = run
             effects.append(.keep(run))
         }

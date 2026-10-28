@@ -71,9 +71,11 @@ public struct Run: Sendable {
         return notification
     }
 
-    mutating func record(_ problem: String) {
-        guard state == .launching || state == .running else { return }
-        self.problem = self.problem ?? problem
+    // Whether the problem is recorded: a run keeps its first.
+    mutating func record(_ problem: String) -> Bool {
+        guard state == .launching || state == .running, self.problem == nil else { return false }
+        self.problem = problem
+        return true
     }
 
     // MARK: - Private

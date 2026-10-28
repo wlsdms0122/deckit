@@ -135,7 +135,7 @@ struct RunnerTests {
         #expect(describe(loaded) == ["tell willLaunch a 2 launching", "loadPage a"])
     }
 
-    @Test("the first problem recorded against a run is kept, and told with no step")
+    @Test("the first problem recorded against a run is kept, and told with no step, once")
     func problemIsKept() throws {
         // Given
         try write("a")
@@ -149,7 +149,7 @@ struct RunnerTests {
 
         // Then
         #expect(describe(first) == ["keep a 1 a listener threw"])
-        #expect(describe(second) == ["keep a 1 a listener threw"])
+        #expect(describe(second).isEmpty)
     }
 
     @Test("a run that did not start terminates, its stop() asked, and ends once that answered")
