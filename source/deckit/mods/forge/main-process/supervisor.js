@@ -3,14 +3,14 @@
 // it starts no daemon. `commands` runs them. `runs` follows each run dispatched to its end, whatever configuration
 // comes after. A dispatch is told `by` whom: the mod that asked, which forge records as who dispatched the run.
 module.exports = ({ command, config, track, live, commands, runs }) => {
-    const { app } = require('electron');
     const { spawn } = require('child_process');
+    const os = require('os');
     const path = require('path');
     const fs = require('fs');
 
     const DEFAULT = 'default';
     const SESSION_NAME = /^[a-z0-9][a-z0-9_-]*$/i;
-    const SESSIONS_DIR = path.join(process.env.XDG_CONFIG_HOME || path.join(app.getPath('home'), '.config'), 'forge');
+    const SESSIONS_DIR = path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), 'forge');
     const sessionHome = (session) => path.join(SESSIONS_DIR, session);
     const sessionName = (session) => {
         const name = String(session || DEFAULT);
