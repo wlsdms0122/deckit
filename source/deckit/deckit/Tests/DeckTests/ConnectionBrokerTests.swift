@@ -125,7 +125,7 @@ struct ConnectionBrokerTests {
         #expect(relaunched.map(\.line) == ["connect 2 google#1@0 -> calendar#2@0"])
     }
 
-    @Test("a run that waits for exports in a lifecycle they do not reach is told so once")
+    @Test("a run that waits for exports in a lifecycle they do not reach is told so")
     func unreachedWaitIsAProblem() throws {
         // Given
         try fixture.write("switcher")
@@ -138,16 +138,14 @@ struct ConnectionBrokerTests {
         let note = try #require(runner.run(of: "note"))
 
         // When
-        let first = sut.problems(of: note)
-        let second = sut.problems(of: note)
+        let problems = sut.problems(of: note)
 
         // Then
         #expect(
-            first == [
+            problems == [
                 "it waits for switcher in a lifecycle switcher's exports do not reach: switcher opens them in one stacked above"
             ]
         )
-        #expect(second.isEmpty)
     }
 
     // MARK: - Private

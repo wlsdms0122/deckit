@@ -20,8 +20,6 @@ public final class ConnectionBroker {
     private var connections: [Connection] = []
     // The ends of connections a dependency's page refused, never asked again while both are up.
     private var refused: Set<[Endpoint]> = []
-    // "<mod id> <run> <dependency id>": a wait already shown on the run's row.
-    private var warned: Set<String> = []
     private var lastId = 0
 
     // MARK: - Initializer
@@ -83,16 +81,15 @@ public final class ConnectionBroker {
         return effects
     }
 
-    // What the run waits for in a lifecycle the exports it waits for do not reach, each once: `awaits` names the
-    // lowest lifecycle that waits for each mod.
+    // What the run waits for in a lifecycle the exports it waits for do not reach: `awaits` names the lowest lifecycle
+    // that waits for each mod.
     func problems(of run: Run) -> [String] {
         guard let awaits = run.contributions?.awaits else { return [] }
 
         return awaits.keys.sorted().compactMap { id in
             guard let opened = runner.run(of: id)?.contributions?.exports,
                 let lifecycle = awaits[id],
-                opened > lifecycle,
-                warned.insert("\(run.modId) \(run.number) \(id)").inserted
+                opened > lifecycle
             else { return nil }
             return "it waits for \(id) in a lifecycle \(id)'s exports do not reach: "
                 + "\(id) opens them in one stacked above"
