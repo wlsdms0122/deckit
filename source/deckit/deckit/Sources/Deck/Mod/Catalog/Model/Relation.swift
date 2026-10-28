@@ -7,8 +7,8 @@
 
 import Foundation
 
-// A mod another names in its [dependencies], as it names it, and why it is not there at that version, or nil. An
-// optional one not installed or not loaded is not there and nothing is wrong: only a version it does not satisfy is.
+// A mod another names in its [dependencies], as it names it, and what is wrong with it, or nil: a required one not
+// there at that version, or an optional one there at a version it does not take.
 public struct Relation: Equatable, Sendable {
     // MARK: - Property
     public let id: String
