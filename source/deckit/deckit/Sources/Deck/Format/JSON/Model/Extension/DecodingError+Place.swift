@@ -9,7 +9,7 @@ import Foundation
 
 extension DecodingError {
     // MARK: - Property
-    // Where in what was decoded what was not there, or not of its kind, is: `settings.2.label`, or nil for the whole.
+    // Where in what was decoded what was not there, or not of its kind, is: `items.2.name`, or nil for the whole.
     package var place: String? {
         let path = switch self {
         case let .keyNotFound(key, context):

@@ -236,8 +236,7 @@ const WEB_DECK = Object.freeze({
 // window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
 // `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one keeps the
 // place it has, a new one goes in over the layer before it, and a page left out, or gone, is taken off. Where a page
-// laid on it marks itself with `-webkit-app-region: drag`, as the shell's frame and kit do, a press drags the window it
-// is in.
+// laid on it marks itself with `-webkit-app-region: drag`, a press drags the window it is in.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',

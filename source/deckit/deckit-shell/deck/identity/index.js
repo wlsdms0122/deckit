@@ -55,8 +55,8 @@ export function createIdentity({ pages: PAGES }) {
         return () => undos.delete(undo);
     }
 
-    // A person's presses in a page, read by what follows: every page of deck's is watched, and another, as a web page
-    // a mod shows, is watched once it is handed here.
+    // A person's presses in a page, read by what follows: every page of deck's is watched, and another page, once it
+    // is handed here.
     function watchPresses(page) {
         PAGES.watchInput(page, ({ type }) => {
             // A drag tells what it did as it is let go, however long it was held: the release is a press too.

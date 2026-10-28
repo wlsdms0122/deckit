@@ -66,7 +66,7 @@ The bar along the top of the content, laid with `ui.titleBar`, which lies in the
 
 - **Empty:** `ui.emptyState` with an icon, a title that says what is missing ("This folder is empty", "No notes yet"), at most one line of hint, and the one or two actions that fill it, as `small` buttons with their keys in their tooltips.
 - **Loading:** `ui.loading` where the content waits on something slow.
-- **Failed:** what the person asked for and could not be done is a `ui.dialog` saying what failed and why, with OK. What failed without being asked for (a sync, a background fetch) is shown where its result would be. A command that fails is shown on the mod's row in Settings by deck.
+- **Failed:** what the person asked for and could not be done is a `ui.dialog` saying what failed and why, with OK. What failed without being asked for (a sync, a background fetch) is shown where its result would be. A command that fails is recorded against the run, which Settings shows on the mod's row.
 
 ## Lists
 
@@ -130,7 +130,7 @@ A mod's keys are registered with `deckit.keys.register`, and the person can chan
 
 - Use the key in the table for its action, and no other key for it.
 - A key is shown only where typing it works: in the tooltip of the button that does the same (`ui.tooltip(element, { text, chord: () => deckit.keys.chordOf(name) })`), not in a list of actions from elsewhere such as the switcher.
-- The shell's keys (⌥Space for the switcher, ⌘\ for the sidebar) are not taken by a mod.
+- The shell's keys (⌘\ for the sidebar) and the Switcher's (⌥Space) are not taken by another mod.
 
 ## The theme
 

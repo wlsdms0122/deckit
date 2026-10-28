@@ -343,7 +343,7 @@ function capture(guard, page, handler) {
     });
 }
 
-// A key held with Electron's global shortcuts, which the system hands Deckit.app wherever it is pressed. Holding one
+// A key held with Electron's global shortcuts, which the system hands the app wherever it is pressed. Holding one
 // already held, by this app or another, fails.
 function hotkey(keystroke, handler) {
     const { globalShortcut } = require('electron');

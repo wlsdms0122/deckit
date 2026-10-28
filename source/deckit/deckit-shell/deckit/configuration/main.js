@@ -10,8 +10,8 @@ export function createConfiguration({ CORE, LOG, IDENTITY, RUNNER }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // What a run declares the core cannot read, and the values saved that it does not take, are shown on its row; its
-    // page is answered what its values read as.
+    // What a run declares the core cannot read, and the values saved that it does not take, are recorded against the
+    // run; its page is answered what its values read as.
     function start() {
         PROTOCOL.declare.handle(async ({ run, configuration }, sender) => {
             const { id } = IDENTITY.modFrom(sender);

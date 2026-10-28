@@ -21,7 +21,7 @@ const MOTION = Object.freeze({
         return reducedMotion() ? 0 : LENGTH.slow;
     },
     easing: 'cubic-bezier(.2,.7,.3,1)',
-    // Where a panel or a modal arrives from and leaves to.
+    // Where a surface that slides in arrives from and leaves to.
     entrance: 'translateY(6px) scale(.99)',
 });
 // A surface drawn as glass lays its colour at this strength over what is behind it, blurred through.

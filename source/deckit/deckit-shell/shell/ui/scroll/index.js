@@ -29,7 +29,7 @@ function isFullyVisible(element) {
 }
 
 // The scrolling box's own edges fade where there is more to scroll to. A mask, so it fades into whatever is behind
-// the box, the panel's glass included. Returns the dispose.
+// the box, a translucent surface included. Returns the dispose.
 function edgeFade(element, { size = 18 } = {}) {
     let frame = 0;
     const paint = () => {

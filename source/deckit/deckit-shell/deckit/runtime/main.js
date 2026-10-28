@@ -35,7 +35,7 @@ export function createRuntime({ CONFIG, CORE, LOG, IDENTITY, restart, about: ABO
     }
 
     // MARK: - Private
-    // Each engine's version under its key, as a mod reads them (`electron`, `chrome`).
+    // Each engine's version under the key the environment names it by, as a mod reads them.
     function enginesOf(engines) {
         return Object.fromEntries(engines.map(({ key, version }) => [key, version]));
     }

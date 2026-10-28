@@ -7,9 +7,9 @@
 
 import Foundation
 
-// What deck keeps of a mod removed with its data is erased: what its storage holds here, and what its pages stored and
-// its web sessions by the driver. The mod is noted as uncleared before any of it is erased,
-// and until the driver says it cleared its part, so whatever was not erased is erased again.
+// What deck keeps of a mod removed with its data is erased: what its storage holds here, and by the driver what the
+// driver keeps of it outside the core (its pages' storage among it). The mod is noted as uncleared before any of it is
+// erased, and until the driver says it cleared its part, so whatever was not erased is erased again.
 public final class Erasure {
     // MARK: - Property
     private let key = "uncleared"
@@ -37,7 +37,7 @@ public final class Erasure {
         try storage.erase(mod: mod)
     }
 
-    // The mods erased whose pages' storage and web sessions the driver has not cleared yet.
+    // The mods erased whose part kept outside the core the driver has not cleared yet.
     public func uncleared() -> [String] {
         guard let text = try? state.read(folder: nil, key: key) else { return [] }
         return (try? JSONDecoder().decode([String].self, from: Data(text.utf8))) ?? []
