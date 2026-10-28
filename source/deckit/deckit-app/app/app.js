@@ -70,7 +70,7 @@ function createApp({ WINDOW, THEME }) {
         // last left, at the size the mod gives it now.
         function showWindow(control) {
             const window = modWindow(control);
-            window.setContentSize(control.width, control.height);
+            WINDOW.setViewSize(window, control);
             if (control.overlay) WINDOW.float(window);
             else raise(window);
         }

@@ -134,6 +134,12 @@ function createWindow({ CONFIG, THEME }) {
         return { x: 0, y: BAR.height, width, height: Math.max(0, height - BAR.height) };
     }
 
+    // Gives a window's view `size`: below the bar in a window with one, the whole of a floating one.
+    function setViewSize(window, { width, height }) {
+        const bar = floating.has(window) ? null : covered.has(window) ? FULL_SIZE_BAR : BAR;
+        window.setContentSize(width, height + (bar?.height || 0));
+    }
+
     function setTitle(window, title) {
         if (window.isDestroyed()) return;
         titles.set(window, title);
@@ -286,7 +292,7 @@ window.setTitle = (text) => { document.getElementById('title').textContent = tex
         }
     }
 
-    return { open, openFloating, float, viewBounds, titleBar: TITLE_BAR, setTitle, recolor };
+    return { open, openFloating, float, viewBounds, setViewSize, titleBar: TITLE_BAR, setTitle, recolor };
 }
 
 module.exports = { createWindow };

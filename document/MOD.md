@@ -235,7 +235,7 @@ The view came on screen, and went. They come in turn, never twice running, and a
 
 ### shell.window({ content, width, height, overlay, didAppear, didDisappear, didResignKey })
 
-Returns `{ open(), close() }`: the mod's page fills a window the host app makes, `width` by `height`, with `content` in it, and `open` and `close` put it on screen and away. `overlay` floats the window over every app and needs `system.overlay-windows`; without it the window is refused and shown on the mod's row. `didAppear` and `didDisappear` are as a view's, and `didResignKey` is the keyboard leaving the window. A mod has a view or a window: a `shell.view` beside a window is refused ("shell.view() is for a mod with no window"). Its `local` keys work while the window is on screen.
+Returns `{ open(), close() }`: the mod's page, `width` by `height` with `content` in it, in a window the host app makes, and `open` and `close` put it on screen and away. `overlay` floats the window over every app and needs `system.overlay-windows`; without it the window is refused and shown on the mod's row. `didAppear` and `didDisappear` are as a view's, and `didResignKey` is the keyboard leaving the window. A mod has a view or a window: a `shell.view` beside a window is refused ("shell.view() is for a mod with no window"). Its `local` keys work while the window is on screen.
 
 ### shell.styles({ '<mod id>' or '*': css })
 

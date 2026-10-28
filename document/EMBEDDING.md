@@ -92,7 +92,7 @@ What the host app answers deckit's shell. A page is a page token, which the envi
 | `show()` | "show me": a mod's `shell.show()`, the shell's `show` command |
 | `dismiss()` | "put it away": Escape with nothing else to close |
 | `panelTitled(title)` | the panel's title changed: the name of the mod in front, or the host app's name when none is |
-| `showWindow(control)` | a mod's window comes on screen: the host app makes or brings forward a window for it, at `width` by `height`, and puts the mod's page in it with `control.place` |
+| `showWindow(control)` | a mod's window comes on screen: the host app makes or brings forward a window for it and puts the mod's page in it with `control.place`, the page `width` by `height` and the window that and any bar the host app draws |
 | `hideWindow(control)` | a mod's window goes away |
 
 A mod's window control is the same object from run to run: `{ mod, name, width, height, overlay, place(window, { front, bounds, onClose }), contains(page), focus(), didResignKey() }`. `overlay` asks for a window over every app's; `didResignKey()` is the host app telling the mod the keyboard left the window. A window the host app closes puts the mod's away.
