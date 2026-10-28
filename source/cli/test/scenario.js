@@ -629,6 +629,18 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             /is not handed on/.test(handedOn || ''),
             handedOn
         );
+        const refusedFailure = `${rowOf('Broker Refused')}?.querySelector('.settings-mod-failure')?.textContent || ''`;
+        const refusedRow = await until(
+            async () =>
+                /broker-refuser did not connect: .*no connections here/.test(await settings.evaluate(refusedFailure)),
+            4000
+        );
+        const refusedPage = await page('deckit://broker-refused.mod');
+        check(
+            'a required connection its dependency refuses does not start its dependent, and its row says why',
+            refusedRow && !(await mark(refusedPage, 'started')),
+            await settings.evaluate(refusedFailure)
+        );
 
         // Keys, as the core resolves them: a mod's key that works anywhere in the app, bound again, and a chord
         // recorded.
