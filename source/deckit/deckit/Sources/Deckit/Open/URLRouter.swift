@@ -103,7 +103,7 @@ public final class URLRouter {
     // The mods that answer addresses, in the load order, with the patterns each names.
     private func answering() -> [(mod: Mod, patterns: [URLPattern])] {
         deck.catalog.loading.compactMap { mod in
-            let patterns = mod.manifest.value(of: field).compactMap(URLPattern.init)
+            let patterns = mod.manifest.value(of: field)
             guard !patterns.isEmpty, handlesURL(deck.contributions(of: mod.manifest.id)) else { return nil }
             return (mod, patterns)
         }

@@ -10,16 +10,16 @@ import Foundation
 // Which addresses a mod asks to be offered, as its manifest writes it: `*` every address, `<scheme>:*` every one of a
 // scheme, and `<scheme>://<host>/<path>*` those of a host whose path starts so. Scheme and host are lower case as
 // compared; a `*` stands only at the end, after the scheme's `:` or a `/` of the path.
-struct URLPattern: Equatable, Sendable {
-    enum Match: Equatable, Sendable {
+public struct URLPattern: Equatable, Sendable {
+    public enum Match: Equatable, Sendable {
         case every
         case scheme(String)
         case host(scheme: String, host: String, path: String)
     }
 
     // MARK: - Property
-    let written: String
-    let match: Match
+    public let written: String
+    public let match: Match
 
     // The scheme whose handler list it is in.
     var scheme: String {

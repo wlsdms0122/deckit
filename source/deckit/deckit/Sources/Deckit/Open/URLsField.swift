@@ -19,9 +19,9 @@ public struct URLsField: ManifestField {
     public init() {}
 
     // MARK: - Public
-    public func read(_ written: TOMLValue?) -> [String] {
+    public func read(_ written: TOMLValue?) -> [URLPattern] {
         guard case let .array(values) = written else { return [] }
-        return patterns(in: values).map(\.written)
+        return patterns(in: values)
     }
 
     public func problem(of written: TOMLValue) -> String? {

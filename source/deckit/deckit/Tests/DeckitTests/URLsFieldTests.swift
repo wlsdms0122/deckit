@@ -49,11 +49,11 @@ struct URLsFieldTests {
 
         // When
         let read = sut.read(written)
-        let pattern = try #require(URLPattern(read[0]))
+        let pattern = try #require(read.first)
 
         // Then
         #expect(sut.problem(of: written) == nil)
-        #expect(read == ["HTTPS://GitHub.com/Deckit*", "board:*"])
+        #expect(read.map(\.written) == ["HTTPS://GitHub.com/Deckit*", "board:*"])
         #expect(pattern.matches("https://github.COM/Deckit/issues"))
         #expect(!pattern.matches("https://github.com/deckit"))
         #expect(!pattern.matches("https://github.com.evil/Deckit"))
