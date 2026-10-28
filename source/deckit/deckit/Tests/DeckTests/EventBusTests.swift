@@ -56,6 +56,7 @@ struct EventBusTests {
         _ = try runner.unload(["b"])
         _ = try runner.stopped("b", run: 1)
         _ = try runner.load(["b"])
+        sut.dropEnded()
         let relaunched = sut.emit(mod: "a", run: 1, name: "status")
         sut.listen(mod: "b", run: 1, names: ["a:status"])
         let older = sut.emit(mod: "a", run: 1, name: "status")

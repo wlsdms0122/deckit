@@ -65,7 +65,11 @@ public final class ConnectionBroker {
     }
 
     // The connections that ended since, then those that stand since and were not answered to a beginning lifecycle.
+    // A run that ended has no lifecycle up.
     func changes() -> [Effect] {
+        up = up.filter { id, up in
+            runner.run(of: id).map { run in run.number == up.run && run.state != .notRunning } ?? false
+        }
         let ended = connections.filter { connection in !isUp(connection.dependent) || !isUp(connection.dependency) }
         connections.removeAll { connection in ended.contains(connection) }
         refused = refused.filter { ends in ends.allSatisfy(isUp) }
@@ -136,12 +140,8 @@ public final class ConnectionBroker {
     }
 
     private func isUp(_ endpoint: Endpoint) -> Bool {
-        guard let up = up[endpoint.modId],
-            up.run == endpoint.run,
-            up.lifecycles.contains(endpoint.lifecycle),
-            let run = runner.run(of: endpoint.modId)
-        else { return false }
+        guard let up = up[endpoint.modId] else { return false }
 
-        return run.number == endpoint.run && run.state != .notRunning
+        return up.run == endpoint.run && up.lifecycles.contains(endpoint.lifecycle)
     }
 }
