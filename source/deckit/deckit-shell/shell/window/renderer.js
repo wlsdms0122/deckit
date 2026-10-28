@@ -24,6 +24,7 @@ function createWindow({ running, fail, deliver, channels }) {
     let started = false;
     let shown = false;
     let mounted = false;
+    let placed = null; // { style, root }, what mount() put on the page
 
     // MARK: - Public
     function register(value) {
@@ -47,6 +48,7 @@ function createWindow({ running, fail, deliver, channels }) {
         root.className = 'deckit-window';
         root.append(window.content);
         document.body.appendChild(root);
+        placed = { style, root };
         mounted = true;
         PROTOCOL.shown.on(({ on }) => {
             if (shown === on) return;
@@ -62,12 +64,19 @@ function createWindow({ running, fail, deliver, channels }) {
         mounted = false;
     }
 
+    // Taken off the page, once the lifecycle that mounted it has ended.
+    function remove() {
+        placed?.root.remove();
+        placed?.style.remove();
+        placed = null;
+    }
+
     // MARK: - Private
     function tell(name) {
         if (mounted && typeof window[name] === 'function') deliver(`${name}()`, () => window[name]());
     }
 
-    return Object.freeze({ register, mount, unmount, has: () => !!window });
+    return Object.freeze({ register, mount, unmount, remove, has: () => !!window });
 }
 
 // MARK: - Private

@@ -39,8 +39,8 @@ function createPanel({ channels }) {
     // MARK: - Public
     // One mod's view, in its own page, laid out where the panel's guide says: the content in its room and the sidebar,
     // if the view has one, in the slot the panel lends it. `tell` calls a part of the view (didAppear, didDisappear);
-    // `layers` is what floats in the page. Answers its unmount: a view on screen disappears, and its parts are told
-    // nothing more.
+    // `layers` is what floats in the page. Answers `{ unmount, remove }`: on unmount a view on screen disappears and
+    // what main tells of it is heard no more; on remove it is taken off the page.
     function mount({ theme, view, tell: told, layers }) {
         KIT.addStyle(STYLE);
         const setup = PROTOCOL.setup.invoke();
@@ -70,10 +70,11 @@ function createPanel({ channels }) {
         lay();
         appear();
 
-        layers.onChange((on) => PROTOCOL.floating.send({ on }));
+        layers.onChange((on) => mounted && PROTOCOL.floating.send({ on }));
         // Main took this Escape, so the field never saw it: it is played again as a keydown. A field that handles
         // it keeps the caret; one that does not is left, as a browser would, so the next Escape reaches the page.
         PROTOCOL.escape.handle(() => {
+            if (!mounted) return false;
             const top = layers.top();
             if (top) {
                 top.dismiss();
@@ -88,11 +89,12 @@ function createPanel({ channels }) {
             return true;
         });
         PROTOCOL.guide.on((next) => {
+            if (!mounted) return;
             guide = next;
             lay();
         });
         PROTOCOL.visible.on(({ open: on, animate }) => {
-            if (open === on) return;
+            if (!mounted || open === on) return;
             open = on;
             appear();
             if (!animate) {
@@ -102,10 +104,14 @@ function createPanel({ channels }) {
             if (on) fadeIn();
             else fadeOut();
         });
-        PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut() : fadeIn()));
-        return () => {
-            if (appeared) tell('didDisappear');
-            mounted = false;
+        PROTOCOL.play.on(({ direction }) => mounted && (direction === 'out' ? fadeOut() : fadeIn()));
+        return {
+            unmount() {
+                if (appeared) tell('didDisappear');
+                mounted = false;
+                PROTOCOL.floating.send({ on: false });
+            },
+            remove: () => root.remove(),
         };
 
         // didAppear and didDisappear alternate, worked out in this one place.

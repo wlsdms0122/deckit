@@ -28,7 +28,7 @@ function shellOf({ WEB, channels }) {
         const PANEL = createPanel({ channels });
         const REGION = createRegion({ deliver, channels });
         let page = null; // the theme and the kit, once the page wears them
-        let unmount = () => {};
+        let mounted = { unmount() {}, remove() {} };
         return {
             read: (Entry) => ({ icon: iconOf(Entry, fail), form: formOf(Entry, fail) }),
             registrations: {
@@ -63,15 +63,18 @@ function shellOf({ WEB, channels }) {
                     throw new Error(`attach() threw: ${error.message || error}`);
                 }
             },
-            // What is on screen goes first: a view or window there disappears, then detach() runs.
+            // What is on screen goes first: a view or window there disappears, then detach() runs, and then they are
+            // taken off the page.
             async end(instance) {
-                unmount();
+                mounted.unmount();
                 WINDOW.unmount();
-                if (typeof instance.detach !== 'function') return;
                 try {
-                    await instance.detach();
+                    if (typeof instance.detach === 'function') await instance.detach();
                 } catch (error) {
                     throw new Error(`detach() threw: ${error.message || error}`);
+                } finally {
+                    mounted.remove();
+                    WINDOW.remove();
                 }
             },
             // A page is laid in one place: one in a window of its own is not in the panel too.
@@ -82,7 +85,7 @@ function shellOf({ WEB, channels }) {
                 const view = (!windowed && parts.view) || null;
                 if (view) {
                     const tell = (name) => typeof view[name] === 'function' && deliver(`${name}()`, () => view[name]());
-                    unmount = PANEL.mount({ theme: page.theme, view, tell, layers: OVERLAY.layers });
+                    mounted = PANEL.mount({ theme: page.theme, view, tell, layers: OVERLAY.layers });
                 }
                 const window = WINDOW.mount();
                 const styles = { ...(parts.styles || {}) };
