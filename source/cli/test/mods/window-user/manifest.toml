@@ -1,0 +1,9 @@
+id = "window-user"
+name = "Window User"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[permissions]
+"deckit.command-registry" = "to test opening the switcher by its command"
+"system.main-process" = "to test how its page sits in its window"

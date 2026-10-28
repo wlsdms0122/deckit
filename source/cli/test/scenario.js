@@ -623,6 +623,28 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const picked = await until(async () => (await mark(opener, 'ran')) === '1', 3000);
         check('what a mod resolves is in the switcher and runs', resolved && picked, `${resolved} ${picked}`);
 
+        // The switcher opens by its command too, and a mod's own window holds its page at the size the mod gives.
+        const rowsOf = async () => query?.evaluate(`document.querySelectorAll('.switcher-row').length`);
+        await query?.key('Escape', 'Escape', 0, 27);
+        await until(async () => (await rowsOf()) === 0, 3000);
+        const windowed = await page('deckit://window-user.mod');
+        await windowed?.evaluate(`document.dispatchEvent(new CustomEvent('test-switcher'))`);
+        check('the switcher opens by its command', await until(async () => (await rowsOf()) > 0, 3000), await rowsOf());
+        await query?.key('Escape', 'Escape', 0, 27);
+        await until(async () => (await rowsOf()) === 0, 3000);
+        await windowed?.evaluate(`document.dispatchEvent(new CustomEvent('test-window-open'))`);
+        const fit = async () => {
+            await windowed?.evaluate(
+                `delete document.documentElement.dataset.fit; document.dispatchEvent(new CustomEvent('test-fit'))`
+            );
+            return JSON.parse((await until(() => mark(windowed, 'fit'), 3000)) || 'null');
+        };
+        const whole = ({ page, window } = {}) =>
+            page?.width === 420 && page.height === 300 && page.y + page.height <= window.height;
+        const fits = await until(async () => whole((await fit()) || undefined), 4000);
+        check("a mod's window shows its page whole at the size it gives", fits, JSON.stringify(await fit()));
+        await windowed?.evaluate(`document.dispatchEvent(new CustomEvent('test-window-close'))`);
+
         // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.
         await frame.press('[data-mod-id="region-parent"]');
         await until(async () => (await visibility('region-parent')) === 'visible', 3000);
