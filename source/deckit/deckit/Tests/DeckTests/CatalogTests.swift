@@ -187,7 +187,7 @@ struct CatalogTests {
         try write("b", in: source, requires: ["a": "1.0.0"])
         try write("e", in: source, requires: ["f": "1.0.0"])
         try write("f", in: source, requires: ["e": "1.0.0"])
-        try write("g", in: source, extends: ["h": "1.0.0"])
+        try write("g", in: source, optional: ["h": "1.0.0"])
         try write("h", in: source)
         let sut = try catalog(sources: [source])
 
@@ -377,16 +377,13 @@ struct CatalogTests {
         version: String = "1.0.0",
         main: String? = "main.js",
         requires: [String: String] = [:],
-        extends: [String: String] = [:]
+        optional: [String: String] = [:]
     ) throws {
         let location = parent.appending(path: folder ?? id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let table = { (name: String, wanted: [String: String]) in
-            wanted.isEmpty
-                ? ""
-                : "\n[\(name)]\n" + wanted.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
-        }
-        let relations = table("requires", requires) + table("extends", extends)
+        let dependencies = requires.map { other, want in "\(other) = \"\(want)\"" }
+            + optional.map { other, want in "\(other) = { version = \"\(want)\", optional = true }" }
+        let relations = dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n")
         let text = """
             id = "\(id)"
             version = "\(version)"

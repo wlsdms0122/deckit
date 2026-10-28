@@ -24,9 +24,7 @@ extension Effect: Encodable {
         case problem
         case summary
         case contributions
-        case name
-        case extensions
-        case points
+        case connection
     }
 
     // MARK: - Initializer
@@ -61,17 +59,13 @@ extension Effect: Encodable {
             try container.encode("close", forKey: .effect)
             try container.encode(modId, forKey: .mod)
 
-        case let .extensionsChanged(modId, run, name, extensions):
-            try container.encode("extensionsChanged", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
-            try container.encode(run, forKey: .run)
-            try container.encode(name, forKey: .name)
-            try container.encode(extensions, forKey: .extensions)
+        case let .connect(connection):
+            try container.encode("connect", forKey: .effect)
+            try container.encode(connection, forKey: .connection)
 
-        case let .extendsChanged(modId, points):
-            try container.encode("extendsChanged", forKey: .effect)
-            try container.encode(modId, forKey: .mod)
-            try container.encode(points, forKey: .points)
+        case let .disconnect(connection):
+            try container.encode("disconnect", forKey: .effect)
+            try container.encode(connection, forKey: .connection)
 
         case let .layer(keymap as ResolvedKeymap):
             try keymap.encode(to: encoder)

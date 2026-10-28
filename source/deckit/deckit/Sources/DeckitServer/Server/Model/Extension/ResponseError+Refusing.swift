@@ -27,31 +27,16 @@ extension ResponseError {
                 "MOD"
             }
 
-        case let error as ExportError:
+        case let error as ConnectionError:
             switch error {
-            case .notRequired:
-                "NOT_REQUIRED"
-
             case .notRunning:
                 "NOT_RUNNING"
 
-            case .noSuchFunction:
-                "FUNCTION"
-            }
+            case .ended:
+                "ENDED_CONNECTION"
 
-        case let error as ExtensionError:
-            switch error {
-            case .notAPoint:
-                "POINT"
-
-            case .notRunning:
-                "NOT_RUNNING"
-
-            case .notExtending:
-                "EXTENSION"
-
-            case .noSuchFunction:
-                "FUNCTION"
+            case .notAnEnd:
+                "NOT_AN_END"
             }
 
         case let error as InstallError:

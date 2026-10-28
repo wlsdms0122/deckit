@@ -31,16 +31,11 @@ public struct Run: Sendable {
         self.summary = summary
     }
 
-    // What it contributes now replaces what it did, but for its exports, those it launched with.
+    // What it contributes now replaces what it did, once it launched.
     mutating func join(summary: JSONValue, contributions: Contribution) {
-        guard let launched = self.contributions else { return }
+        guard self.contributions != nil else { return }
         self.summary = summary
-        self.contributions = Contribution(
-            exports: launched.exports,
-            extensionPoints: contributions.extensionPoints,
-            extensions: contributions.extensions,
-            layers: contributions.layers
-        )
+        self.contributions = contributions
     }
 
     mutating func didLaunch(

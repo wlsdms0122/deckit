@@ -21,10 +21,10 @@ public enum Effect: Sendable {
     case stop(modId: String, number: Int)
     // Close the mod's sandbox, which runs no more.
     case close(modId: String)
-    // Tell the mod's `run`th run what extends its extension point `name` now, by the id of the mod that extends it.
-    case extensionsChanged(modId: String, run: Int, name: String, extensions: [String: Snapshot])
-    // The scoped names of the points the mod extends now.
-    case extendsChanged(modId: String, points: [String])
+    // Ask the dependency's page for the exports the connection reaches, and hand them to the dependent's.
+    case connect(Connection)
+    // Tell both pages the connection has ended.
+    case disconnect(Connection)
     // What a layer on deck tells has changed of its own.
     case layer(any LayerChange)
 

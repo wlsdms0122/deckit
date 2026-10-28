@@ -16,7 +16,7 @@ struct TOMLParserTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a manifest's kinds of values are read, tables, quoted keys and arrays over lines among them")
+    @Test("a manifest's kinds of values are read, tables, quoted keys, arrays over lines and inline tables among them")
     func valuesAreRead() throws {
         // Given
         let text = """
@@ -31,6 +31,10 @@ struct TOMLParserTests {
 
             [permissions]
             "deckit.mods" = "to list \\"them\\" \\u00e9"
+
+            [dependencies]
+            switcher = { version = "1.0.0", "optional" = true }
+            empty = {}
             """
 
         // When
@@ -44,7 +48,11 @@ struct TOMLParserTests {
                 "on": .boolean(true),
                 "path": .string("C:\\raw"),
                 "list": .array([.string("a"), .string("b")]),
-                "permissions": .table(["deckit.mods": .string("to list \"them\" é")])
+                "permissions": .table(["deckit.mods": .string("to list \"them\" é")]),
+                "dependencies": .table([
+                    "switcher": .table(["version": .string("1.0.0"), "optional": .boolean(true)]),
+                    "empty": .table([:])
+                ])
             ]
         )
     }
@@ -60,6 +68,10 @@ struct TOMLParserTests {
             ("a = \"x\" y", "line 1: unexpected text after the value of a"),
             ("a = \"\\q\"", "line 1: unknown escape \\q"),
             ("a = [1 2]", "line 1: expected , or ] in an array"),
+            ("a = { b = 1 c = 2 }", "line 1: expected , or } in an inline table"),
+            ("a = { b = 1, }", "line 1: an inline table ends with no , before }"),
+            ("a = { b = 1, b = 2 }", "line 1: b is set twice"),
+            ("a = { b 1 }", "line 1: expected = after b in an inline table"),
             ("a = " + String(repeating: "[", count: 10_000), "line 1: arrays nest at most 32 deep")
         ]
     )

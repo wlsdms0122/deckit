@@ -27,21 +27,18 @@ struct RunnerFixture {
         _ id: String,
         version: String = "1.0.0",
         requires: [String: String] = [:],
-        extends: [String: String] = [:]
+        optional: [String: String] = [:]
     ) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let section = { (name: String, wants: [String: String]) in
-            wants.isEmpty
-                ? ""
-                : "\n[\(name)]\n" + wants.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
-        }
+        let dependencies = requires.map { other, want in "\(other) = \"\(want)\"" }
+            + optional.map { other, want in "\(other) = { version = \"\(want)\", optional = true }" }
         let text = """
             id = "\(id)"
             version = "\(version)"
             api = "1.0.0"
             main = "main.js"
-            """ + section("requires", requires) + section("extends", extends)
+            """ + (dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n"))
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         try Data().write(to: location.appending(path: "main.js"))
     }

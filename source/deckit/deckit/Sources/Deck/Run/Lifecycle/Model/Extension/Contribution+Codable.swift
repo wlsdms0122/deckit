@@ -12,9 +12,8 @@ extension Contribution: Codable {
     // MARK: - Property
     private struct Key: CodingKey {
         static let exports = Key(stringValue: "exports")
-        static let extensionPoints = Key(stringValue: "extensionPoints")
-        static let extensions = Key(stringValue: "extensions")
-        static let deck: Set<String> = [exports.stringValue, extensionPoints.stringValue, extensions.stringValue]
+        static let awaits = Key(stringValue: "awaits")
+        static let deck: Set<String> = [exports.stringValue, awaits.stringValue]
 
         let stringValue: String
         var intValue: Int? { nil }
@@ -31,9 +30,8 @@ extension Contribution: Codable {
     // MARK: - Initializer
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Key.self)
-        exports = try container.decode(Snapshot.self, forKey: .exports)
-        extensionPoints = try container.decode([String].self, forKey: .extensionPoints)
-        extensions = try container.decode([String: Snapshot].self, forKey: .extensions)
+        exports = try container.decodeIfPresent(Int.self, forKey: .exports)
+        awaits = try container.decode([String: Int].self, forKey: .awaits)
         var layers: [String: JSONValue] = [:]
         for key in container.allKeys where !Key.deck.contains(key.stringValue) {
             layers[key.stringValue] = try container.decode(JSONValue.self, forKey: key)
@@ -47,9 +45,8 @@ extension Contribution: Codable {
         for (key, value) in layers {
             try container.encode(value, forKey: Key(stringValue: key))
         }
-        try container.encode(exports, forKey: .exports)
-        try container.encode(extensionPoints, forKey: .extensionPoints)
-        try container.encode(extensions, forKey: .extensions)
+        try container.encodeIfPresent(exports, forKey: .exports)
+        try container.encode(awaits, forKey: .awaits)
     }
 
     // MARK: - Private

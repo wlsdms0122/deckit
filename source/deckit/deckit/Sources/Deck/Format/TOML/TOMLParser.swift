@@ -7,8 +7,8 @@
 
 import Foundation
 
-// The subset of TOML a manifest is written in: tables, bare and quoted keys, strings, integers, booleans and arrays.
-// Anything else is refused by line.
+// The subset of TOML a manifest is written in: tables, bare and quoted keys, strings, integers, booleans, arrays and
+// inline tables. Anything else is refused by line.
 struct TOMLParser {
     // MARK: - Property
     private let escapes: [Character: Character] = [
@@ -29,7 +29,7 @@ struct TOMLParser {
     private let literalString = #/'[^']*'/#
     private let boolean = #/(true|false)(?![A-Za-z0-9_])/#
     private let integer = #/[+-]?[0-9]+(?![A-Za-z0-9_.])/#
-    // Arrays inside arrays, as deep as a manifest has any need for.
+    // Arrays and inline tables inside each other, as deep as a manifest has any need for.
     private let depthLimit = 32
 
     // MARK: - Initializer
@@ -119,6 +119,12 @@ struct TOMLParser {
             }
             return try array(in: &source, depth: depth + 1, line: line)
         }
+        if source.hasPrefix("{") {
+            guard depth < depthLimit else {
+                throw TOMLError(line: line, reason: "inline tables nest at most \(depthLimit) deep")
+            }
+            return try inlineTable(in: &source, depth: depth + 1, line: line)
+        }
 
         let shown = source.prefix { character in !character.isNewline }.prefix(40)
         throw TOMLError(line: line, reason: "not a value this reads: \(shown)")
@@ -139,6 +145,39 @@ struct TOMLParser {
         source = source.dropFirst()
 
         return .array(values)
+    }
+
+    // `{ key = value, … }` on one line, as TOML writes an inline table.
+    private func inlineTable(in source: inout Substring, depth: Int, line: Int) throws(TOMLError) -> TOMLValue {
+        var values: [String: TOMLValue] = [:]
+        source = source.dropFirst().drop(while: \.isWhitespace)
+        while !source.hasPrefix("}") {
+            guard let match = source.prefixMatch(of: quotedKey) ?? source.prefixMatch(of: bareKey) else {
+                throw TOMLError(line: line, reason: "expected a key in an inline table")
+            }
+            let rawKey = String(match.output)
+            source = source[match.range.upperBound...].drop(while: \.isWhitespace)
+            guard source.hasPrefix("=") else {
+                throw TOMLError(line: line, reason: "expected = after \(rawKey) in an inline table")
+            }
+            source = source.dropFirst()
+            let key = rawKey.hasPrefix("\"") ? try unquote(rawKey, line: line) : rawKey
+            guard values[key] == nil else { throw TOMLError(line: line, reason: "\(key) is set twice") }
+
+            values[key] = try value(in: &source, depth: depth, line: line)
+            source = source.drop(while: \.isWhitespace)
+            if source.hasPrefix(",") {
+                source = source.dropFirst().drop(while: \.isWhitespace)
+                guard !source.hasPrefix("}") else {
+                    throw TOMLError(line: line, reason: "an inline table ends with no , before }")
+                }
+            } else if !source.hasPrefix("}") {
+                throw TOMLError(line: line, reason: "expected , or } in an inline table")
+            }
+        }
+        source = source.dropFirst()
+
+        return .table(values)
     }
 
     // A basic string takes backslash escapes, a literal one does not.
