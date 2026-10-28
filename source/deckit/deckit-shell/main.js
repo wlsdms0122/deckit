@@ -238,7 +238,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
         LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
-        CORE.start(PERMISSION.all());
+        CORE.start({ ...PERMISSION.all(), layers: { schemeHandlers: CONFIG.schemeHandlers } });
         await STORAGE.load();
         await CATALOG.load();
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
@@ -271,7 +271,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             onFactsChange: MAIN_PROCESS.onChange,
             installed: MAIN_PROCESS.installed,
             removed: MAIN_PROCESS.removed,
-            clearSessions: WEB.clearSessions,
+            erase: WEB.clearSessions,
         });
         RUNNER.start({ preparePage });
     }

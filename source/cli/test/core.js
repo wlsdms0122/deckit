@@ -38,11 +38,11 @@ async function main() {
         error: (...parts) => logged.push(['error', ...parts]),
     };
     const answer = (id, result) => listeners.onMessage(JSON.stringify({ jsonrpc: '2.0', id, result }));
-    const CONFIG = { name: 'Test', schemeHandlers: {} };
+    const CONFIG = { name: 'Test' };
     const FOLDERS = { ship: ['/ship'], sources: [] };
     const CORE = createCore({ CONFIG, FOLDERS, LOG, core, home: '/home/deckit' });
 
-    CORE.start({ permissions: [{ id: 'a.b' }, { id: 'a.c' }], given: ['a.b'] });
+    CORE.start({ permissions: [{ id: 'a.b' }, { id: 'a.c' }], given: ['a.b'], layers: { handlers: { x: ['a'] } } });
     const early = outcome(CORE.request('catalog/read', {}));
     await tick();
     check('initialize goes first, alone', sent.length === 1 && sent[0].method === 'initialize', sent);
@@ -51,6 +51,11 @@ async function main() {
         sent[0].params.home === '/home/deckit' &&
             sent[0].params.permissions[1].id === 'a.c' &&
             sent[0].params.given.join() === 'a.b',
+        sent[0].params
+    );
+    check(
+        'initialize carries what the layers hand the core as it is',
+        sent[0].params.handlers?.x?.join() === 'a',
         sent[0].params
     );
     answer(sent[0].id, {});
