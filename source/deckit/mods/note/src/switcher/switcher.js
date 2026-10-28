@@ -1,7 +1,7 @@
 const { foldersIn } = require('../notes-folder/folder.js');
 const { parentOf } = require('../notes-folder/path.js');
 
-// What Notes adds to the switcher through its point `switcher:actions`: a search of every note, each folder to go to,
+// What Notes adds to the switcher through its `setActions(actions)`: a search of every note, each folder to go to,
 // what its keys do, and the paragraph styles. Each action's value is `{ action, ...args }`, run by
 // `does[action](args, { ready })`; one that opens a search is the value its results add an arg to.
 // `notesOf(query, { signal })` answers the notes found, and `styles` are the paragraph styles, `{ key, label }`, each

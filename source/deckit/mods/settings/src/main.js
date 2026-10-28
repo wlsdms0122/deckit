@@ -48,23 +48,23 @@ class Settings {
             ui,
             mods: deckit.mods,
             pins: shell.mods,
-            everyScheme: deckit.urlSchemes.everyScheme,
+            everyScheme: deckit.urls.everyScheme,
             util,
             appName: APP_NAME,
             onChange: redraw,
         });
-        const actions = deckit.extensionPoint('actions');
+        const sources = new Map(); // connection -> the buttons its mod set
         const modSettings = modSettingsSection({
             ui,
             modConfiguration: deckit.modConfiguration,
             formOf: shell.formOf,
-            actions,
+            sources,
             nameOf: (id) => deckit.mods.list().running.find((mod) => mod.id === id)?.name || id,
             onFailure: mods.showNotice,
         });
-        const urlSchemes = urlSchemesSection({ ui, urlSchemes: deckit.urlSchemes, appName: APP_NAME });
+        const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
         const fonts = fontsSection({ ui, fonts: shell.fonts, onFailure: mods.showNotice });
-        const keyboard = keyboardSection({ ui, keymap: deckit.keymap, providerOf: deckit.provider });
+        const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
         const sections = [mods, modSettings, urlSchemes, fonts, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
@@ -74,9 +74,20 @@ class Settings {
         page.append(title, body);
         // A mod's settings can be asked for by its command before the first visit draws anything.
         modSettings.draw();
-        actions.onChange(() => modSettings.draw());
+        deckit.exports.register({
+            connect: (connection) => ({
+                setButtons: (buttons) => {
+                    sources.set(connection, buttons);
+                    modSettings.draw();
+                },
+            }),
+            disconnect: (connection) => {
+                sources.delete(connection);
+                modSettings.draw();
+            },
+        });
 
-        shell.view({
+        shell.view.register({
             content: page,
             sidebar: contents.element,
             didAppear: () => {
@@ -89,7 +100,7 @@ class Settings {
                 keyboard.stopRecording();
             },
         });
-        deckit.commands({
+        deckit.commands.register({
             'show-settings-of': {
                 description: 'Shows the settings of one mod in Settings.',
                 params: {
@@ -101,8 +112,8 @@ class Settings {
                 complete: (_param, partial) => settingsOf(partial),
             },
         });
-        deckit.extends.switcher({
-            actions: {
+        deckit.dependencies.onConnect('switcher', (quickSwitcher) =>
+            quickSwitcher.setActions({
                 list: () => [
                     ...sections.map((section, index) => ({
                         label: section.title,
@@ -129,8 +140,8 @@ class Settings {
                         requestAnimationFrame(() => contents.go(sections[index]));
                     } else await showSettingsOf({ mod }, { ready: shell.show });
                 },
-            },
-        });
+            })
+        );
         deckit.mods.onChange(() => shown && redraw());
         // Fonts set elsewhere come as a new theme.
         shell.theme.onChange(() => shown && fonts.draw());
@@ -140,8 +151,8 @@ class Settings {
         // one, not as a mod gone and back.
         function redraw() {
             const { found, running: now } = deckit.mods.list();
-            const listed = deckit.keymap.list();
-            const handlerLists = deckit.urlSchemes.list();
+            const listed = deckit.keys.list();
+            const handlerLists = deckit.urls.list();
             for (const mod of now)
                 drawnKeys.set(
                     mod.id,

@@ -4,8 +4,7 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 
-[requires]
+[dependencies]
 broker-provider = "1.0.0"
-
-[extends]
-broker-provider = "1.0.0"
+broker-screen = { version = "1.0.0", optional = true }
+broker-absent = { version = "1.0.0", optional = true }

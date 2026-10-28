@@ -223,25 +223,21 @@ final class Server {
             let params = try request.decodeParams(as: RunParams.self)
             return try deck.stopped(params.mod, run: params.run)
 
-        case "export/requires":
-            let params = try request.decodeParams(as: RunParams.self)
-            return try deck.exports.requires(mod: params.mod, run: params.run)
+        case "connection/begin":
+            let params = try request.decodeParams(as: LifecycleParams.self)
+            return try deck.connections.begin(mod: params.mod, run: params.run, lifecycle: params.lifecycle)
 
-        case "export/call":
-            let params = try request.decodeParams(as: CallExportParams.self)
-            try deck.exports.call(from: params.caller, run: params.run, mod: params.mod, path: params.path)
+        case "connection/end":
+            let params = try request.decodeParams(as: LifecycleParams.self)
+            return deck.ended(params.mod, run: params.run, lifecycle: params.lifecycle)
+
+        case "connection/refuse":
+            deck.connections.refuse(try request.decodeParams(as: ConnectionParams.self).connection)
             return true
 
-        case "extension/call":
-            let params = try request.decodeParams(as: CallExtensionParams.self)
-            try deck.extensions.call(
-                from: params.caller,
-                run: params.run,
-                mod: params.mod,
-                point: params.point,
-                path: params.path
-            )
-            return true
+        case "connection/route":
+            let params = try request.decodeParams(as: MessageParams.self)
+            return try deck.connections.route(from: params.mod, run: params.run, connection: params.connection)
 
         case "event/listen":
             let params = try request.decodeParams(as: ListenParams.self)

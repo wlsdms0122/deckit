@@ -37,8 +37,9 @@ struct ManifestReaderTests {
             version = "1.0.0"
             api = "1.1.0"
             main = "dist/main.js"
-            [requires]
+            [dependencies]
             files = "1.0.0"
+            switcher = { version = "1.2.0", optional = true }
             [permissions]
             "deckit.mods" = " to list them "
             "system.network" = "to sync"
@@ -50,7 +51,13 @@ struct ManifestReaderTests {
         // Then
         #expect(sut.problem(of: text) == nil)
         #expect(manifest.id == "notes")
-        #expect(manifest.requires == ["files": "1.0.0"])
+        #expect(
+            manifest.dependencies == [
+                "files": Dependency(version: "1.0.0", optional: false),
+                "switcher": Dependency(version: "1.2.0", optional: true)
+            ]
+        )
+        #expect(manifest.required == ["files"])
         #expect(
             manifest.permissions == [
                 PermissionRequest(permission: network, reason: "to sync", usable: false),
@@ -87,8 +94,20 @@ struct ManifestReaderTests {
                 #"main must be a path inside the mod's folder, as main = "dist/main.js", not "../x.js""#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[extends]\#na = "1.0.0""#,
-                "a names itself in [extends]"
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#na = "1.0.0""#,
+                "a names itself in [dependencies]"
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { optional = true }"#,
+                #"dependencies b needs a version written as "MAJOR.MINOR.PATCH", as other = "1.0.0", or other = { version = "1.0.0", optional = true }"#
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { version = "1.0.0", optional = 1 }"#,
+                "dependencies b: optional must be true or false"
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { version = "1.0.0", lazy = true }"#,
+                #"dependencies b has "lazy"; it takes version and optional"#
             ),
             (
                 #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[permissions]\#nx = "y""#,

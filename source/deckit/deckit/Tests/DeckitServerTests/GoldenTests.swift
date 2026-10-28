@@ -18,13 +18,9 @@ struct GoldenTests {
     // MARK: - Property
     private static let refusals: [(any Refusal, String)] = [
         (ErasureError.notAMod("x"), "MOD"),
-        (ExportError.notRequired(mod: "a", of: "b"), "NOT_REQUIRED"),
-        (ExportError.notRunning("a"), "NOT_RUNNING"),
-        (ExportError.noSuchFunction(mod: "a", path: ["f"]), "FUNCTION"),
-        (ExtensionError.notAPoint("p", of: "a"), "POINT"),
-        (ExtensionError.notRunning("a"), "NOT_RUNNING"),
-        (ExtensionError.notExtending(mod: "a", point: "b:p"), "EXTENSION"),
-        (ExtensionError.noSuchFunction(mod: "a", point: "b:p", path: ["f"]), "FUNCTION"),
+        (ConnectionError.notRunning("a"), "NOT_RUNNING"),
+        (ConnectionError.ended, "ENDED_CONNECTION"),
+        (ConnectionError.notAnEnd(mod: "a"), "NOT_AN_END"),
         (InstallError.notLoadable("p"), "NOT_LOADABLE"),
         (InstallError.installedThere, "INSTALLED_THERE"),
         (InstallError.nested, "NESTED"),
@@ -68,10 +64,10 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "url-schemes = [\"mailto\"]\n[permissions]\n\"system.global-keys\" = \"to test\"\n"
+            adding: "urls = [\"mailto:*\"]\n[permissions]\n\"system.global-keys\" = \"to test\"\n"
                 + "\"system.example\" = \"to test\""
         )
-        try writeMod("b", in: "source", adding: "[requires]\na = \"1.0.0\"\n[extends]\na = \"1.0.0\"")
+        try writeMod("b", in: "source", adding: "[dependencies]\na = \"1.0.0\"")
         try writeMod("c", in: "ship")
         try writeMod("d", in: "spare")
         let requests = try lines(of: "session")

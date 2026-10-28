@@ -16,7 +16,7 @@ import { createWindow } from '../window/renderer.js';
 // What the shell on deckit gives a mod's page (deckit-shell/deckit/mod/renderer.js): the lifecycle it calls,
 // attach(shell, deckit) and detach(), and the handle `shell`: the theme, the kit, `show()`, `iconOf(mod)`,
 // `formOf(mod)`, `region(element)`, `children`, `web`, with deckit.fonts `fonts`, with deckit.mods the panel's pins on
-// `mods`, and the registrations `view`, `window` and, with deckit.styles, `styles`. The page wears the theme, the kit
+// `mods`, and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme, the kit
 // and the styles from just before attach(). Once attach() has ended, a view is laid where the panel's guide says, or a
 // region's for a child, unless the page is in a window of its own. It reads the class's `icon` and `form` into the
 // run's summary, where whatever lists the mods reads them. `WEB` is deckit's web in the page, whose pages the shell
@@ -53,7 +53,7 @@ function shellOf({ WEB, channels }) {
                     formOf: PANEL.formOf,
                     ...REGION.forScope(scope),
                     web: WEB.surfacesOf({ owner: { deliver, recordFailure: fail }, opener: deckit, scope }),
-                    window: WINDOW.register,
+                    window: Object.freeze({ register: WINDOW.register }),
                     ...(has(FONTS_PERMISSION.FONTS) ? { fonts: FONTS.tool({ channels }) } : {}),
                     ...(has(MOD_PERMISSION.MODS) ? { mods: PANEL.pins } : {}),
                 });
@@ -77,7 +77,8 @@ function shellOf({ WEB, channels }) {
             // A page is laid in one place: one in a window of its own is not in the panel too.
             join(parts) {
                 const windowed = WINDOW.has();
-                if (parts.view && windowed) fail('shell.view() is for a mod with no window: its page is in its window');
+                if (parts.view && windowed)
+                    fail('shell.view.register() is for a mod with no window: its page is in its window');
                 const view = (!windowed && parts.view) || null;
                 if (view) {
                     const tell = (name) => typeof view[name] === 'function' && deliver(`${name}()`, () => view[name]());

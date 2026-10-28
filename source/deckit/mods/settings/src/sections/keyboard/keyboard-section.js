@@ -3,7 +3,7 @@ const { section } = require('../section/section.js');
 
 // The Keyboard section: every mod's shortcuts, recorded anew by a click, with what keeps one from working. A card's
 // name and whether it is the app's are its provider's, as `providerOf(id)` tells them.
-function keyboardSection({ ui, keymap, providerOf }) {
+function keyboardSection({ ui, keys, providerOf }) {
     const TITLE = 'Keyboard';
     const KEYWORDS = ['단축키', '키맵', '키보드', 'shortcuts', 'keymap', 'keyboard', 'keys'];
     const DESCRIPTION =
@@ -118,7 +118,7 @@ function keyboardSection({ ui, keymap, providerOf }) {
     function stopRecording() {
         recording?.end();
         recording = null;
-        if (drawAfterRecording) draw(keymap.list());
+        if (drawAfterRecording) draw(keys.list());
     }
 
     function shortcutCard(group) {
@@ -155,9 +155,9 @@ function keyboardSection({ ui, keymap, providerOf }) {
             icon: ui.icon('reload', { size: 13 }),
             title: '',
             onClick: () =>
-                keymap.reset(current.id).then(
-                    () => draw(keymap.list()),
-                    () => draw(keymap.list())
+                keys.reset(current.id).then(
+                    () => draw(keys.list()),
+                    () => draw(keys.list())
                 ),
         });
 
@@ -167,20 +167,20 @@ function keyboardSection({ ui, keymap, providerOf }) {
             stopRecording();
             chord.textContent = 'Press a shortcut…';
             chord.toggleAttribute('data-recording', true);
-            const end = keymap.record((recorded) => {
+            const end = keys.record((recorded) => {
                 if (recorded.error) {
                     chord.textContent = recorded.error;
                     return;
                 }
                 recording = null;
                 drawAfterRecording = false;
-                const asked = recorded.spec || recorded.clear ? keymap.set(current.id, recorded.spec || '') : null;
+                const asked = recorded.spec || recorded.clear ? keys.bind(current.id, recorded.spec || '') : null;
                 // A chord the key map refuses (one that cannot work everywhere for a key that does) says why on the
                 // key, until it is drawn again.
                 Promise.resolve(asked).then(
-                    () => draw(keymap.list()),
+                    () => draw(keys.list()),
                     (error) => {
-                        draw(keymap.list());
+                        draw(keys.list());
                         chord.textContent = error.message;
                     }
                 );

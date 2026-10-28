@@ -1,4 +1,4 @@
-// What Deckit adds to the switcher through its point `switcher:actions`: what its commands do, those with an arg
+// What Deckit adds to the switcher through its `setActions(actions)`: what its commands do, those with an arg
 // searched inside the action. Each action's value is `{ action, ...args }`, run by `does[action](args)`; one that
 // opens a search is the value its results add an arg to. `address`, `modsFor(query)` and `versions()` answer what is
 // searched, and `appName` is the app's.

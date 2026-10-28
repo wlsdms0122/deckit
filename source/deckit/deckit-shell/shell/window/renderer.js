@@ -11,9 +11,9 @@ const STYLE = `
 
 // MARK: - Initializer
 // MARK: - Public
-// A mod's window, in its own page: `register(value)` is `shell.window`, called once while attach() runs, which
-// answers the window's handle; `mount()`, once attach() has ended, lays its content in the page and answers what main
-// is told of it, or null; `unmount()` ends it: a window on screen disappears, and its parts are told nothing more.
+// A mod's window, in its own page: `register(value)` is `shell.window.register`, called once while attach() runs,
+// which answers the window's handle; `mount()`, once attach() has ended, lays its content in the page and answers what
+// main is told of it, or null; `unmount()` ends it: a window on screen disappears, and its parts are told nothing more.
 // `running` is the mod, `fail` records against it, `deliver` calls what the mod handed, and `channels` binds the
 // window's channels in the page.
 function createWindow({ running, fail, deliver, channels }) {
@@ -32,7 +32,7 @@ function createWindow({ running, fail, deliver, channels }) {
             : window
               ? 'is called once'
               : problemOf(value, running);
-        if (problem) fail(`shell.window() ${problem}`);
+        if (problem) fail(`shell.window.register() ${problem}`);
         else window = value;
         return handle;
     }
@@ -71,7 +71,7 @@ function createWindow({ running, fail, deliver, channels }) {
 }
 
 // MARK: - Private
-// Why what `shell.window` was handed is not a window this mod may have, or ''.
+// Why what `shell.window.register` was handed is not a window this mod may have, or ''.
 function problemOf(value, running) {
     const size = (number) => Number.isFinite(number) && number > 0;
     if (value?.content?.nodeType !== Node.ELEMENT_NODE || !size(value.width) || !size(value.height))

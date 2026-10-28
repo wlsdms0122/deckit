@@ -3,7 +3,7 @@ name = "Browser"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-url-schemes = ["http", "https"]
+urls = ["http:*", "https:*"]
 
 [permissions]
 "system.certificates" = "Asks you about a site whose certificate this Mac cannot verify, and loads it once you say yes."
@@ -12,5 +12,5 @@ url-schemes = ["http", "https"]
 "system.files" = "Opens a file on this Mac in a tab when you type its path or a file:// address."
 "system.clipboard-write" = "Copy Link in a tab's or a bookmark's menu puts its address on the clipboard."
 
-[extends]
-switcher = "1.0.0"
+[dependencies]
+switcher = { version = "1.0.0", optional = true }

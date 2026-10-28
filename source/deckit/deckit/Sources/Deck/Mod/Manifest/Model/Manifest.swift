@@ -15,23 +15,22 @@ public struct Manifest: Sendable {
     public let version: String?
     public let api: String?
     public let main: String?
-    // Mod id -> the version wanted: what it runs only with.
-    public let requires: [String: String]
-    // Mod id -> the version wanted: whose extension points it extends.
-    public let extends: [String: String]
+    // Mod id -> how it depends on that mod.
+    public let dependencies: [String: Dependency]
     public let permissions: [PermissionRequest]
     // What the layers' fields hold, by the key each is held under.
     let fields: [String: any Sendable]
 
     // MARK: - Initializer
     // MARK: - Public
-    // Whether `other` is at a version its [extends] names for it.
-    func extends(_ other: Manifest) -> Bool {
-        guard let wanted = extends[other.id].flatMap(Version.init),
-            let version = other.version.flatMap(Version.init)
-        else { return false }
+    // The mods it runs only with, by id.
+    public var required: [String] {
+        dependencies.filter { _, dependency in !dependency.optional }.keys.sorted()
+    }
 
-        return version.satisfies(wanted)
+    // Whether `other` is one of its dependencies, at the version it names for it.
+    func depends(on other: Manifest) -> Bool {
+        dependencies[other.id]?.isSatisfied(by: other) ?? false
     }
 
     // What the manifest holds of a field the layer that asks added to deck: the reader reads each added field into it.

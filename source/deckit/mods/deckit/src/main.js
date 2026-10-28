@@ -10,10 +10,10 @@ class Deckit {
     start(deckit) {
         const { util } = deckit;
         const APP_NAME = deckit.about().name;
-        const address = openAddress({ open: (url) => deckit.open(url) });
+        const address = openAddress({ open: (url) => deckit.urls.open(url) });
         const STATES = { launching: 'Starting', running: 'Running', notRunning: 'Not running' };
 
-        deckit.commands({
+        deckit.commands.register({
             'open-address': {
                 description: "Opens an address with its scheme, by its scheme's handlers in your order.",
                 params: {
@@ -148,7 +148,8 @@ class Deckit {
     }
 
     attach(_shell, deckit) {
-        deckit.extends.switcher({ actions: switcher(this.actions) });
+        const actions = switcher(this.actions);
+        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
     }
 }
 

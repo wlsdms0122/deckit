@@ -42,9 +42,8 @@ struct HostTests {
         try writeMod("notes")
         let sut = try deckit()
         let contributions = Contribution(
-            exports: Snapshot(values: "{}", functions: []),
-            extensionPoints: [],
-            extensions: [:],
+            exportedIn: nil,
+            awaits: [:],
             layers: [
                 "keys": .array([
                     .object([

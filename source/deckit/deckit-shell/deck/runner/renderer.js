@@ -1,7 +1,6 @@
 import * as CHANNEL from '../channel/index.js';
 import * as IPC from '../ipc/renderer.js';
 import * as DECLARED from './protocol.js';
-import * as SCOPED from '../mod/model/scoped-name.js';
 import * as MOD_PERMISSION from '../mod/permission.js';
 import * as LIMIT from './model/limit.js';
 import { makeScope } from './model/scope.js';
@@ -9,10 +8,10 @@ import { makeScope } from './model/scope.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The run of a mod in its page: its entry evaluated, the class it exports made once and its lifecycles started in the
-// order they are stacked, and what each registered told to main as it joins. `RUN` is the page's run; `STORAGE`,
-// `EXPORT`, `EXTENSION`, `EVENT` and `MODS` are what deck gives it; `modules` is the environment's (environment/:
-// PAGE.modules).
-export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, modules: MODULES }) {
+// order they are stacked, each connected to the mods it depends on as it begins, and what each registered told to main
+// as it joins. `RUN` is the page's run; `STORAGE`, `CONNECTION`, `EVENT` and `MODS` are what deck gives it; `modules`
+// is the environment's (environment/: PAGE.modules).
+export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: MODULES }) {
     // MARK: - Property
     // What is on deck when nothing is: no lifecycle, so the run starts once its class is made.
     const NOTHING = Object.freeze({ handle: 'deck', read: () => ({}), report: () => ({}), mods: {}, lifecycles: [] });
@@ -73,8 +72,6 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
             return RUN.notStarted();
         }
         PROTOCOL.described.send({ run: RUN.number, summary: described, lifecycles: given.lifecycles.length });
-        const requires = await EXPORT.requiresOf();
-        if (!requires) return RUN.notStarted();
         if (stopping) return;
         try {
             instance = new Entry();
@@ -82,30 +79,43 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
             fail(`its constructor threw: ${error.message || error}`);
             return RUN.notStarted();
         }
-        // What deck joins of every lifecycle so far. A run with no lifecycle starts once its class is made.
-        const joined = { exported: false, exports: snapshotOf({}), points: new Map(), extensions: {} };
-        if (!given.lifecycles.length) {
-            EXPORT.answer({});
-            return tell(PROTOCOL.started, { described, joined, reported: {} });
-        }
+        // The lifecycle that opened the run's exports, once one has, as deck joins it.
+        const joined = { exportedIn: null };
+        if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined, reported: {} });
+        // A required connection refused once its lifecycle has begun ends that lifecycle and those stacked on it, the
+        // highest first.
+        CONNECTION.onRefused(async (index, problem) => {
+            const at = begun.findIndex((one) => one.index === index);
+            if (at < 0 || stopping) return;
+            fail(problem);
+            const ending = begun.splice(at).reverse();
+            if (joined.exportedIn !== null && joined.exportedIn >= index) joined.exportedIn = null;
+            for (const entry of ending) await end(entry, instance);
+            if (!stopping) tell(PROTOCOL.joined, { described, joined, reported: given.report() });
+        });
         for (const [index, lifecycle] of given.lifecycles.entries()) {
             const first = index === 0;
             const scope = makeScope();
-            const registry = registryOf(lifecycle, { first, scope, handle: given.handle });
-            const entry = { lifecycle, scope, registry };
+            const registry = registryOf(lifecycle, { handle: given.handle, joined });
+            const entry = { index, lifecycle, scope, registry };
             begun.push(entry);
             const { handles } = registry;
-            handles[given.handle] = { ...deckOf({ given, scope, requires }), ...handles[given.handle] };
             let reported;
             try {
+                const { dependencies, problems } = await CONNECTION.begin(index, scope);
+                for (const { required, problem } of problems) {
+                    if (required) throw new Error(problem);
+                    fail(problem);
+                }
+                handles[given.handle] = { ...deckOf({ given, scope, dependencies }), ...handles[given.handle] };
                 await lifecycle.start(instance, handles, scope);
                 if (stopping) return;
                 const parts = registry.close();
-                const { added, ...own } = ownOf(parts, joined, { first, handle: given.handle });
                 reported = lifecycle.join(parts, scope) || {};
-                Object.assign(joined, own);
-                if (first) EXPORT.answer(parts.exports);
-                scope.add(EXTENSION.join(added.extensions, added.points));
+                if (parts.exports) {
+                    CONNECTION.give(index, parts.exports);
+                    joined.exportedIn = index;
+                }
             } catch (error) {
                 registry.close();
                 fail(error.message || String(error));
@@ -122,30 +132,19 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
 
     // Main is told what the run contributes now, all of it, and as a person reads it.
     function tell(channel, { described, joined, reported }) {
-        const extensionPoints = [...joined.points.keys()];
+        const opened = joined.exportedIn === null ? {} : { exportedIn: joined.exportedIn };
         channel.send({
             run: RUN.number,
-            contributions: {
-                ...reported.contributions,
-                exports: joined.exports,
-                extensionPoints,
-                extensions: joined.extensions,
-            },
-            summary: {
-                ...described,
-                ...reported.summary,
-                exports: joined.exported,
-                extensionPoints,
-                requires: Object.keys(RUN.mod.requires),
-            },
+            contributions: { ...reported.contributions, ...opened, awaits: CONNECTION.awaited() },
+            summary: { ...described, ...reported.summary, exports: joined.exportedIn !== null },
         });
     }
 
     // A lifecycle ends once, within its own limit, whatever its end throws, and what its handles made is cut once its
-    // end has run or its time ran out. Asked again, it answers the end already going.
+    // end has run or its time ran out, then its connections. Asked again, it answers the end already going.
     function end(entry, instance) {
         return (entry.ending ??= (async () => {
-            const { lifecycle, scope, registry } = entry;
+            const { index, lifecycle, scope, registry } = entry;
             registry.close();
             let timer = null;
             const ran = (async () => lifecycle.end(instance))().catch((error) =>
@@ -155,6 +154,7 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
             await Promise.race([ran, late]);
             clearTimeout(timer);
             scope.cut();
+            CONNECTION.leave(index);
         })());
     }
 
@@ -175,15 +175,11 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
         return exported;
     }
 
-    // What a lifecycle's handles register, each once and only while its start runs, by the handle each is on:
-    // deck's own, `exports` on the first lifecycle's only, `extends` and `extensionPoint`, on the handle named
-    // `handle`, beside the lifecycle's. An extension point is opened once by its name, and the points of each mod in
-    // [extends] are extended once, by `<handle>.extends[id]`.
-    function registryOf(lifecycle, { first, scope, handle }) {
+    // What a lifecycle's handles register, each once and only while its start runs, by the handle each is on: each as
+    // `<handle>.<name>.register()`, deck's own `exports` on the handle named `handle`, once for the run, beside the
+    // lifecycle's.
+    function registryOf(lifecycle, { handle, joined }) {
         const registered = {};
-        const points = new Map(); // a point's name -> its handle's own side
-        const extensions = {}; // "<mod id>:<point>" -> the extension
-        const extended = new Set(); // the ids whose points it extended
         let open = true;
         const closed = (name) => `${name} is called in ${lifecycle.method}(), and ${lifecycle.method}() has ended`;
         const once = (name, label, problemOf) => (value) => {
@@ -193,134 +189,44 @@ export function createRunner({ RUN, STORAGE, EXPORT, EXTENSION, EVENT, MODS, mod
             if (problem) return RUN.fail(`${label} ${problem}`);
             registered[name] = value;
         };
-        const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
-        const extend = (id) => (value) => {
-            const name = `${handle}.extends.${id}()`;
-            if (!open) return RUN.fail(closed(name));
-            if (extended.has(id)) return RUN.fail(`${name} is called once`);
-            const wrong =
-                !value || typeof value !== 'object'
-                    ? ['']
-                    : Object.entries(value).find(
-                          ([point, extension]) => !point || !extension || typeof extension !== 'object'
-                      );
-            if (wrong) return RUN.fail(`${name} takes { <point>: extension }${wrong[0] ? `, not "${wrong[0]}"` : ''}`);
-            extended.add(id);
-            for (const [point, extension] of Object.entries(value))
-                extensions[SCOPED.scopedName(id, point)] = extension;
+        const exportsProblem = (value) => {
+            if (joined.exportedIn !== null) return 'is called once for the run, and a lifecycle under it opened them';
+            if (!value || typeof value.connect !== 'function') return 'takes { connect(connection), disconnect? }';
+            if (value.disconnect !== undefined && typeof value.disconnect !== 'function')
+                return 'takes a disconnect function';
+            return '';
         };
         const handles = {};
+        const registers = (on, name, problemOf) =>
+            ((handles[on] ??= {})[name] = Object.freeze({
+                register: once(name, `${on}.${name}.register()`, problemOf),
+            }));
         for (const [name, { handle: on, check }] of Object.entries(lifecycle.registrations || {}))
-            (handles[on] ??= {})[name] = once(name, `${on}.${name}()`, check);
-        handles[handle] = {
-            ...handles[handle],
-            ...(first ? { exports: once('exports', `${handle}.exports()`, table) } : {}),
-            // Every id, so the core says why of one not in [extends].
-            extends: new Proxy(Object.freeze({}), {
-                get: (_, id) => (typeof id === 'string' ? extend(id) : undefined),
-            }),
-            // A call it refuses is shown on the mod's row like any registration's, and answers a point nothing
-            // extends.
-            extensionPoint(asked) {
-                const name = String(asked);
-                const label = `${handle}.extensionPoint()`;
-                if (!open) RUN.fail(closed(label));
-                else if (!name) RUN.fail(`${label} takes a name`);
-                else if (points.has(name)) RUN.fail(`${handle}.extensionPoint("${name}") is called once`);
-                else {
-                    points.set(name, EXTENSION.pointOf(name, scope));
-                    return points.get(name).handle;
-                }
-                return EXTENSION.pointOf(name, scope).handle;
-            },
-        };
+            registers(on, name, check);
+        registers(handle, 'exports', exportsProblem);
         return {
             handles,
-            // What it registered, by name, the points it opens and what it extends.
+            // What it registered, by name.
             close() {
                 open = false;
-                return { ...registered, points, extensions };
+                return { ...registered };
             },
         };
     }
 
-    // Deck's members on a lifecycle's handle, what they make cut with `scope`.
-    function deckOf({ given, scope, requires }) {
+    // Deck's members on a lifecycle's handle, what they make cut with `scope`: `dependencies` is what the lifecycle
+    // was connected to as it began.
+    function deckOf({ given, scope, dependencies }) {
         const { mod } = RUN;
         const has = (permission) => mod.permissions.some(({ id }) => id === permission);
         return {
             id: mod.id,
             name: mod.name,
             storage: Object.freeze({ values: STORAGE.values(), records: STORAGE.records(RUN.fail) }),
-            requires,
-            caller: EXPORT.callerNow,
+            dependencies,
             ...EVENT.forScope({ handle: given.handle, scope }),
             ...(has(MOD_PERMISSION.MODS) ? { mods: MODS.tool(given.mods, scope) } : {}),
         };
-    }
-
-    // What deck joins of what a lifecycle registered, over what it joined of those under it: exports, the first
-    // lifecycle's, its values copied as JSON text and the paths of its functions; the points it opens; each extension,
-    // copied as exports are. A point or an extension a lifecycle under it has already is that one's, and this
-    // lifecycle's is left out. Answers it all so far, and `added`, this lifecycle's own.
-    function ownOf(parts, joined, { first, handle }) {
-        const copy = (what, value) => {
-            try {
-                return snapshotOf(value);
-            } catch (error) {
-                throw new Error(`${what} takes values that can be copied as JSON: ${error.message || error}`);
-            }
-        };
-        const points = new Map();
-        for (const [name, point] of parts.points) {
-            if (joined.points.has(name))
-                RUN.fail(`extension point "${name}" is opened under it, so this one is left out`);
-            else points.set(name, point);
-        }
-        const extensions = {};
-        for (const [point, extension] of Object.entries(parts.extensions)) {
-            if (Object.hasOwn(joined.extensions, point)) RUN.fail(`${point} is extended under it, so this is left out`);
-            else extensions[point] = extension;
-        }
-        const copied = Object.fromEntries(
-            Object.entries(extensions).map(([point, extension]) => [
-                point,
-                copy(`${handle}.extends.${SCOPED.modOf(point)}()`, extension),
-            ])
-        );
-        return {
-            exported: first ? !!parts.exports : joined.exported,
-            exports: first ? copy(`${handle}.exports()`, parts.exports || {}) : joined.exports,
-            points: new Map([...joined.points, ...points]),
-            extensions: { ...joined.extensions, ...copied },
-            added: { points, extensions },
-        };
-    }
-
-    // Values as JSON text, functions as the paths main calls them by. An object inside itself has no path to end.
-    function snapshotOf(given) {
-        const functions = [];
-        const walk = (value, path, holding) => {
-            if (typeof value === 'function') {
-                functions.push(path);
-                return undefined;
-            }
-            if (
-                typeof value === 'bigint' ||
-                typeof value === 'symbol' ||
-                (typeof value === 'number' && !Number.isFinite(value))
-            )
-                throw new Error(`${path.join('.') || 'it'} is ${String(value)}, which JSON does not hold`);
-            if (!value || typeof value !== 'object') return value;
-            if (holding.includes(value)) throw new Error(`${path.join('.') || 'it'} holds itself`);
-            const out = Array.isArray(value) ? [] : {};
-            for (const [key, inner] of Object.entries(value)) {
-                const copied = walk(inner, [...path, key], [...holding, value]);
-                if (copied !== undefined) out[key] = copied;
-            }
-            return out;
-        };
-        return { values: JSON.stringify(walk(given, [], []) ?? null), functions };
     }
 
     return { start };

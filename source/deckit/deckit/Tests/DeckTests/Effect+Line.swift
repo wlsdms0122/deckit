@@ -38,11 +38,11 @@ extension Effect {
         case let .close(modId):
             "close \(modId)"
 
-        case let .extensionsChanged(modId, run, name, extensions):
-            "extensionsChanged \(modId) \(run) \(name) \(extensions.keys.sorted().joined(separator: ","))"
+        case let .connect(connection):
+            "connect \(connection.line)"
 
-        case let .extendsChanged(modId, points):
-            "extendsChanged \(modId) \(points.joined(separator: ","))"
+        case let .disconnect(connection):
+            "disconnect \(connection.line)"
 
         case let .layer(change):
             "layer \(type(of: change))"

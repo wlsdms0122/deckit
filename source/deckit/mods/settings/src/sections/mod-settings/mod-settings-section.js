@@ -1,11 +1,12 @@
 const { section } = require('../section/section.js');
 
-// The Mod Settings section: a card per mod that declares a configuration or adds buttons through `actions`, the point
-// `settings:actions`, a control per configuration item and a row per button. `modConfiguration` is
-// deckit.modConfiguration; `formOf(mod)` answers how a mod's configuration is drawn (shell.formOf). A button gives its
-// value to the `run` of its mod's extension and shows under it the text that answers; `nameOf(mod)` names a card that
-// has only buttons. `onFailure` hears a change that did not apply.
-function modSettingsSection({ ui, modConfiguration, formOf, actions, nameOf, onFailure }) {
+// The Mod Settings section: a card per mod that declares a configuration or sets buttons through Settings' exports,
+// `setButtons(buttons)`, a control per configuration item and a row per button. `modConfiguration` is
+// deckit.modConfiguration; `formOf(mod)` answers how a mod's configuration is drawn (shell.formOf). `sources` is what
+// each mod set, `{ list, run }`, by its connection. A button gives its value to the `run` its mod set and shows under
+// it the text that answers; `nameOf(mod)` names a card that has only buttons. `onFailure` hears a change that did not
+// apply.
+function modSettingsSection({ ui, modConfiguration, formOf, sources, nameOf, onFailure }) {
     const TITLE = 'Mod Settings';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
@@ -81,12 +82,13 @@ function modSettingsSection({ ui, modConfiguration, formOf, actions, nameOf, onF
     // the value that mod's `run` is given, and `after` the key of the setting it follows.
     function buttonsOf() {
         return Promise.all(
-            Object.entries(actions.extensions()).map(async ([mod, extension]) => {
+            [...sources].map(async ([connection, source]) => {
+                const mod = connection.mod.id;
                 try {
-                    const given = typeof extension.list === 'function' ? await extension.list() : [];
-                    return [mod, (Array.isArray(given) ? given : []).map((action) => buttonOf(mod, action))];
+                    const listed = typeof source.list === 'function' ? await source.list() : [];
+                    return [mod, (Array.isArray(listed) ? listed : []).map((action) => buttonOf(mod, action))];
                 } catch (error) {
-                    console.error(`[settings] ${mod}'s actions answered nothing`, error);
+                    console.error(`[settings] ${mod}'s buttons answered nothing`, error);
                     return [mod, []];
                 }
             })
@@ -235,9 +237,9 @@ function modSettingsSection({ ui, modConfiguration, formOf, actions, nameOf, onF
                 answer.hidden = true;
                 let text = '';
                 try {
-                    const extension = actions.extensions()[mod];
-                    if (typeof extension?.run !== 'function') throw new Error(`${nameOf(mod)} is not running`);
-                    const said = await extension.run(value);
+                    const source = [...sources].find(([connection]) => connection.mod.id === mod)?.[1];
+                    if (typeof source?.run !== 'function') throw new Error(`${nameOf(mod)} is not running`);
+                    const said = await source.run(value);
                     text = typeof said === 'string' ? said : '';
                 } catch (error) {
                     text = 'Did not work: ' + error.message;

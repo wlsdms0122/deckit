@@ -62,7 +62,7 @@ class Bot {
     async attach(shell, deckit) {
         const { ui } = shell;
         const store = deckit.storage.values;
-        const { forge } = deckit.requires;
+        const { forge } = deckit.dependencies;
         const bot = await deckit.mainProcess('main-process/bot/bot.js');
         const places = () => Object.fromEntries(PLACES.map((key) => [key, deckit.configuration.get(key)]));
         await bot.use(places());
@@ -230,7 +230,7 @@ class Bot {
         const supervisor = modeOf('supervisor').view;
         const brain = modeOf('brain').view;
 
-        shell.view({
+        shell.view.register({
             content,
             sidebar,
             didAppear: () => {
@@ -242,7 +242,7 @@ class Bot {
                 hide();
             },
         });
-        deckit.commands({
+        deckit.commands.register({
             show: {
                 description: 'Shows Bot on Services, Workflows, Schedules or Brain, a Forge view on the session given.',
                 params: {
@@ -301,7 +301,7 @@ class Bot {
             },
         });
         const viewKey = (view, key) => ({ label: modeOf(view).label, key, run: () => showView({ view }) });
-        deckit.keys({
+        deckit.keys.register({
             services: viewKey('supervisor', 'mod+1'),
             brain: viewKey('brain', 'mod+2'),
             workflows: viewKey('workflows', 'mod+3'),
@@ -309,33 +309,32 @@ class Bot {
             searchBrain: { label: 'Search the brain', key: 'mod+f', run: () => showView({ view: 'brain' }) },
             brainBack: { label: 'Back to the Note Before', key: 'mod+[', run: brainBack },
         });
-        deckit.extends.switcher({
-            actions: switcher({
-                ui,
-                modes: MODES,
-                supervisor,
-                picker,
-                brain,
-                show: shell.show,
-                does: {
-                    ...inFront({
-                        show: showView,
-                        'restart-forge': () => {
-                            setMode('supervisor');
-                            return supervisor.restart();
-                        },
-                        'search-brain': searchBrain,
-                        'read-note': readNote,
-                        'brain-back': brainBack,
-                    }),
-                    'choose-session': async ({ session }, { ready }) => {
-                        await chooseSession({ session });
-                        ready();
-                        if (mode.system !== 'Forge') setMode('supervisor');
+        const actions = switcher({
+            ui,
+            modes: MODES,
+            supervisor,
+            picker,
+            brain,
+            show: shell.show,
+            does: {
+                ...inFront({
+                    show: showView,
+                    'restart-forge': () => {
+                        setMode('supervisor');
+                        return supervisor.restart();
                     },
+                    'search-brain': searchBrain,
+                    'read-note': readNote,
+                    'brain-back': brainBack,
+                }),
+                'choose-session': async ({ session }, { ready }) => {
+                    await chooseSession({ session });
+                    ready();
+                    if (mode.system !== 'Forge') setMode('supervisor');
                 },
-            }),
+            },
         });
+        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         function showView({ view, session }) {
             if (!MODES.some((entry) => entry.key === view)) throw new Error(`Bot has no view ${view}`);

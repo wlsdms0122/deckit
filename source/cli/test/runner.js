@@ -49,7 +49,7 @@ async function main() {
     IPC.carry({ messages, pages }, { report: () => {} });
     const app = { onQuit: (given) => (hold = given), quit: () => done.push(['quit']) };
     const IDENTITY = { add: (page) => done.push(['add', page.modId]), modFrom: () => ({ id: 'a' }) };
-    let catalog = [{ id: 'a', requires: {}, revision: '1', dependents: [] }];
+    let catalog = [{ id: 'a', dependencies: {}, revision: '1', dependents: [] }];
     const CATALOG = { onChange: () => {}, mods: () => catalog };
     const LOG = { warn: () => {}, error: () => {} };
     // The core answers each request with what the test queued for its method, a list of effects or a function that
@@ -144,7 +144,10 @@ async function main() {
     check('a lifecycle joined is told the core', methods('runner/joined')[0]?.params.summary.view === true, asked);
 
     // A mod loads once what it requires has launched.
-    catalog = [...catalog, { id: 'b', requires: { a: '1.0.0' }, revision: '1', dependents: [] }];
+    catalog = [
+        ...catalog,
+        { id: 'b', dependencies: { a: { version: '1.0.0', optional: false } }, revision: '1', dependents: [] },
+    ];
     answers.set('runner/load', [
         [{ effect: 'open', found: found('b') }, told('willLaunch', 'launching', 'b'), { effect: 'loadPage', mod: 'b' }],
     ]);

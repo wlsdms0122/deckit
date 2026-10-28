@@ -20,8 +20,7 @@ public final class Deck {
     // The mods found, installed and removed. Reading them again is deck's (`readCatalog()`).
     public let catalog: Catalog
     public let erasure: Erasure
-    public let exports: ExportBroker
-    public let extensions: ExtensionRegistry
+    public let connections: ConnectionBroker
     public let events: EventBus
     private let runner: Runner
     private var layers: [Layer] = []
@@ -74,8 +73,7 @@ public final class Deck {
         self.catalog = catalog
         self.runner = runner
         self.erasure = Erasure(storage: storage, state: state, store: store)
-        self.exports = ExportBroker(runner: runner)
-        self.extensions = ExtensionRegistry(runner: runner)
+        self.connections = ConnectionBroker(runner: runner)
         self.events = EventBus(runner: runner)
     }
 
@@ -123,7 +121,7 @@ public final class Deck {
     }
 
     // What the running `run`th run of `id` contributes now, with what its page reported: the lifecycles stacked on the
-    // run join theirs after it started, and leave as they end. Its exports are those it started with.
+    // run join theirs after it started, and leave as they end.
     public func joined(_ id: String, run: Int, summary: JSONValue, contributions: Contribution) throws -> [Effect] {
         try judged(id, run: run, runner.joined(id, run: run, summary: summary, contributions: contributions))
     }
@@ -145,12 +143,25 @@ public final class Deck {
         try withChanges(runner.stopped(id, run: run))
     }
 
+    // The `lifecycle`th lifecycle of the `run`th run of `id` has ended: the connections it is an end of end.
+    public func ended(_ id: String, run: Int, lifecycle: Int) -> [Effect] {
+        connections.end(mod: id, run: run, lifecycle: lifecycle)
+        return withChanges([])
+    }
+
     // MARK: - Private
-    // What deck and each layer find wrong with what the run contributes now is recorded against it.
+    // What deck and each layer find wrong with what the run contributes now is recorded against it, and what deck
+    // finds wrong with what the runs that depend on it wait for, against each of those.
     private func judged(_ id: String, run: Int, _ effects: [Effect]) throws -> [Effect] {
         var effects = effects
         for problem in problems(of: id, run: run) {
             effects += try runner.report(id, run: run, problem: problem)
+        }
+        for mod in runner.mods() where mod.manifest.dependencies[id] != nil {
+            guard let dependent = runner.run(of: mod.manifest.id) else { continue }
+            for problem in connections.problems(of: dependent) {
+                effects += try runner.report(mod.manifest.id, run: dependent.number, problem: problem)
+            }
         }
         return withChanges(effects)
     }
@@ -159,7 +170,7 @@ public final class Deck {
     // what each layer tells has changed of its own.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
         effects
-            + extensions.changes()
+            + connections.changes()
             + layers.flatMap { layer in layer.changes() }.map(Effect.layer)
     }
 
@@ -167,7 +178,7 @@ public final class Deck {
     private func problems(of id: String, run number: Int) -> [String] {
         guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
 
-        return extensions.problems(of: run, mod: mod)
+        return connections.problems(of: run)
             + layers.flatMap { layer in layer.problems(run, mod) }
     }
 }

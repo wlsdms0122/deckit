@@ -1,4 +1,6 @@
-// The forge daemons, for the mods that require this one: it starts, stops and restarts them, holds the token each
+const { runs } = require('./runs/runs.js');
+
+// The forge daemons, for the mods that depend on this one: it starts, stops and restarts them, holds the token each
 // hands the process that starts it, and runs forge's operations on them. It has no view.
 class Forge {
     static configuration = {
@@ -32,19 +34,28 @@ class Forge {
             if (PLACES.includes(key)) forge.use(places());
         });
 
-        // Each takes a session last, `default` when it is not given. A dispatch is recorded as the calling mod's.
-        deckit.exports({
-            sessions: () => forge.sessions(),
-            session: (session) => forge.session(session),
-            start: (session) => forge.start(session),
-            stop: (session) => forge.stop(session),
-            restart: (session) => forge.restart(session),
-            log: (lines, session) => forge.log(session, lines),
-            call: (operation, args, session) => forge.call(session, operation, args, deckit.caller()),
-            runSchedule: (id, session) => forge.runSchedule(session, id, deckit.caller()),
-            run: (id) => forge.run(id),
+        // A session not given is `default`. A run is the dispatching mod's (runs.js).
+        const dispatched = runs(forge);
+        deckit.exports.register({
+            connect: (connection) => ({
+                sessions: () => forge.sessions(),
+                session: (session) => forge.session(session),
+                start: (session) => forge.start(session),
+                stop: (session) => forge.stop(session),
+                restart: (session) => forge.restart(session),
+                log: (lines, { session } = {}) => forge.log(session, lines),
+                call: (operation, args, { session } = {}) => {
+                    if (operation === 'workflow.dispatch')
+                        throw new Error('call() does not dispatch: use dispatch(name, inputs)');
+                    return forge.call(session, operation, args);
+                },
+                dispatch: (name, inputs, { session, onRun } = {}) =>
+                    dispatched.dispatch(connection, session, name, inputs, onRun),
+                runSchedule: (id, { session, onRun } = {}) => dispatched.runSchedule(connection, session, id, onRun),
+                run: (id, { onRun } = {}) => dispatched.run(connection, id, onRun),
+            }),
+            disconnect: (connection) => dispatched.forget(connection),
         });
-        forge.on('run', (run) => deckit.emit('run', run));
     }
 }
 

@@ -4,7 +4,7 @@ const { nameOf, isSpanning } = require('../occurrence/occurrence.js');
 // How far ahead the next meeting is still news: the rest of a working day, not tomorrow.
 const NOW_HORIZON_MS = 6 * 3600000;
 
-// What Calendar adds to the switcher through its point `switcher:actions`: an action for each view and for what its
+// What Calendar adds to the switcher through its `setActions(actions)`: an action for each view and for what its
 // keys do, Go to Date, Add Calendar Account and Send a Test Notification, and the meeting on now and the next. Each
 // action's value is `{ action, ...args }`, run by `does[action](args, { ready })`. `occurrences(from, to)` answers what
 // the strip may show.

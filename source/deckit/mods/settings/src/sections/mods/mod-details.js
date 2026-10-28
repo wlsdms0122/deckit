@@ -63,7 +63,7 @@ const MOD_DETAILS_STYLE = `
     .settings-details-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 `;
 
-// What an opened mod row shows: what it requires and extends, where its view is shown, its permissions, the addresses
+// What an opened mod row shows: the mods it depends on, where its view is shown, its permissions, the addresses
 // it opens, its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the base
 // duration.
@@ -96,28 +96,30 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
-        // One is short while it does not load at the version wanted or is not running. A mod it extends short stops
-        // nothing, so it is drawn quiet, not as a fault.
-        const relationChips = (kind) =>
+        // One is short while it has a problem or is not running, and its problem is said over it. An optional one
+        // short stops nothing, so it is drawn quiet, not as a fault.
+        const relationChips = (optional) =>
             (mod.relations || [])
-                .filter((relation) => relation.kind === kind)
+                .filter((relation) => relation.optional === optional)
                 .map((relation) => {
-                    const text = `${relation.name} ${relation.want}`;
-                    const ok = relation.ok && relation.running;
-                    if (kind === 'extends' && !ok) return chip({ ui, text, muted: true }).element;
-                    return statusChip({ ui, text, ok }).element;
+                    const text = `${relation.name} ${relation.version}`;
+                    const ok = !relation.problem && relation.running;
+                    const { element } =
+                        optional && !ok ? chip({ ui, text, muted: true }) : statusChip({ ui, text, ok });
+                    if (relation.problem) element.title = relation.problem;
+                    return element;
                 });
-        for (const [label, kind] of [
-            ['Requires', 'requires'],
-            ['Extends', 'extends'],
+        for (const [label, optional] of [
+            ['Requires', false],
+            ['Uses', true],
         ]) {
-            const chips = relationChips(kind);
+            const chips = relationChips(optional);
             if (chips.length) addPart(label, chipRow(chips));
         }
         if (mod.live?.parent && pins) addPart('Sidebar', sidebarPin());
         if (mod.permissions?.length)
             addPart('Permissions', permissionList({ ui, permissions: mod.permissions }).element);
-        if (mod.live?.urlSchemes.length) addPart('Opens', chipRow(openingChips(mod.handlerLists)));
+        if (mod.live?.urls.length) addPart('Opens', chipRow(openingChips(mod.handlerLists)));
         if (mod.keys.length) addPart('Keys', keyGrid());
         const location = ui.element('div', { className: 'settings-details-location' });
         if (mod.folder) location.append(detailsLine(util.tildify(mod.folder)));

@@ -5,8 +5,7 @@ import * as PAGE from './shell/page/renderer.js';
 import { createRun } from './deck/runner/run.js';
 import { createRunner } from './deck/runner/renderer.js';
 import { createRecord } from './deck/record/renderer.js';
-import { createExport } from './deck/export/renderer.js';
-import { createExtension } from './deck/extension/renderer.js';
+import { createConnection } from './deck/connection/renderer.js';
 import { createEvent } from './deck/event/renderer.js';
 import { createMods } from './deck/mods/renderer.js';
 import { createWeb } from './deckit/web/renderer.js';
@@ -40,8 +39,7 @@ function run(ENV) {
     const RUNNER = createRunner({
         RUN,
         STORAGE: createRecord(),
-        EXPORT: createExport({ RUN }),
-        EXTENSION: createExtension({ RUN }),
+        CONNECTION: createConnection({ RUN }),
         EVENT: createEvent({ RUN }),
         MODS: createMods({ RUN }),
         modules: ENV.modules,

@@ -1,0 +1,6 @@
+id = "open-user-path"
+name = "Open User Path"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+urls = ["test-open://probe/deep/*"]

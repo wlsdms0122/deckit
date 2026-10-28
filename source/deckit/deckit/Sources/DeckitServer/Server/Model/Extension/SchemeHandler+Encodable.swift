@@ -13,6 +13,7 @@ extension SchemeHandler: Encodable {
     private enum CodingKeys: String, CodingKey {
         case id
         case name
+        case patterns
         case on
     }
 
@@ -22,6 +23,7 @@ extension SchemeHandler: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
+        try container.encode(patterns, forKey: .patterns)
         try container.encode(on, forKey: .on)
     }
 

@@ -9,5 +9,5 @@ main = "main.js"
 "system.file-handlers" = "Opens a file in the app that handles it, and shows a file or folder in the macOS Finder."
 "system.clipboard-write" = "Copy Path in a file's or a folder's menu puts its path on the clipboard."
 
-[extends]
-switcher = "1.0.0"
+[dependencies]
+switcher = { version = "1.0.0", optional = true }

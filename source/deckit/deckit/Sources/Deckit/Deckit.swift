@@ -31,7 +31,7 @@ public final class Deckit {
         permissions: [Permission],
         given: Set<String>
     ) throws {
-        let urlSchemes = URLSchemesField()
+        let urls = URLsField()
         let own = [Keymap.appKeysPermission, Keymap.globalKeysPermission]
         let deck = try Deck(
             home: home,
@@ -40,11 +40,11 @@ public final class Deckit {
             api: api,
             permissions: permissions + own,
             given: given.union(own.map(\.id)),
-            fields: [urlSchemes]
+            fields: [urls]
         )
         let commands = CommandRegistry(deck: deck, hostName: name)
         let keymap = Keymap(deck: deck, hostName: name)
-        let urlRouter = URLRouter(deck: deck, field: urlSchemes, schemeHandlers: schemeHandlers)
+        let urlRouter = URLRouter(deck: deck, field: urls, schemeHandlers: schemeHandlers)
         // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
         deck.add(Layer(problems: { [weak commands] run, mod in commands?.problems(of: run, mod: mod) ?? [] }))
         deck.add(Layer(

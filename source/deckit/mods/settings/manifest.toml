@@ -11,5 +11,5 @@ main = "main.js"
 "deckit.url-schemes" = "Its URL Schemes section sets which mod is asked first to open an address, scheme by scheme."
 "deckit.fonts" = "Its Fonts section sets the fonts and the text size mods write text in."
 
-[extends]
-switcher = "1.0.0"
+[dependencies]
+switcher = { version = "1.0.0", optional = true }

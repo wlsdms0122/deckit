@@ -3,12 +3,12 @@ name = "Editor"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-url-schemes = ["file"]
+urls = ["file:*"]
 
 [permissions]
 "system.main-process" = "Reads, writes and searches the files and folders you open, and puts the ones you delete in the Trash."
 "system.file-handlers" = "Show in Finder in a file's menu shows it in Finder, and a file that is not text opens in the app this Mac opens it with."
 "system.clipboard-write" = "Copy Path and Copy Relative Path in a file's menu put its path on the clipboard."
 
-[extends]
-switcher = "1.0.0"
+[dependencies]
+switcher = { version = "1.0.0", optional = true }

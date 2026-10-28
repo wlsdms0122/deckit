@@ -1,0 +1,8 @@
+id = "broker-refused"
+name = "Broker Refused"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+
+[dependencies]
+broker-refuser = "1.0.0"

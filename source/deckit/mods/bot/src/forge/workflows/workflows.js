@@ -23,7 +23,7 @@ const workflowsView = ({ shell, deckit, forge, picker }) => {
         busy = false,
         available = false;
     const drafts = new Map();
-    const call = (name, operation, args) => forge.call(`workflow.${operation}`, args, name);
+    const call = (name, operation, args) => forge.call(`workflow.${operation}`, args, { session: name });
     const muted = (text) => styled('div', { color: 'var(--deckit-muted)', font: '12px var(--deckit-font)' }, text);
     const status = muted('');
     const notice = styled('div');
@@ -182,7 +182,7 @@ const workflowsView = ({ shell, deckit, forge, picker }) => {
                 const inputs = form.read();
                 if (inputs === null) return;
                 act(target, async () => {
-                    const result = await call(target, 'dispatch', { name, inputs });
+                    const result = await forge.dispatch(name, inputs, { session: target });
                     return `Dispatched ${name} · ${result.workflow_id}`;
                 });
             },

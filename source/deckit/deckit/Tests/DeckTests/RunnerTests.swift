@@ -135,7 +135,7 @@ struct RunnerTests {
         #expect(describe(loaded) == ["tell willLaunch a 2 launching", "loadPage a"])
     }
 
-    @Test("the first problem recorded against a run is kept, and told with no step")
+    @Test("the first problem recorded against a run is kept, and told with no step, once")
     func problemIsKept() throws {
         // Given
         try write("a")
@@ -149,7 +149,7 @@ struct RunnerTests {
 
         // Then
         #expect(describe(first) == ["keep a 1 a listener threw"])
-        #expect(describe(second) == ["keep a 1 a listener threw"])
+        #expect(describe(second).isEmpty)
     }
 
     @Test("a run that did not start terminates, its stop() asked, and ends once that answered")
@@ -306,21 +306,16 @@ struct RunnerTests {
         #expect(try #require(sut.run(of: "a")).summary == .object([:]))
     }
 
-    @Test("a running run contributes anew, keeping the exports it launched with, and one not running does not")
+    @Test("a running run contributes anew, what it contributes now in place of what it did, and one not running does not")
     func runningRunJoins() throws {
         // Given
         try write("a")
         let (sut, catalog) = try runner()
         _ = catalog.read()
         _ = try sut.load(["a"])
-        let joining = Contribution(
-            exports: Snapshot(values: "{}", functions: []),
-            extensionPoints: ["accounts"],
-            extensions: [:],
-            layers: ["keys": .array([])]
-        )
+        let joining = Contribution(exportedIn: 1, awaits: ["b": 1], layers: ["keys": .array([])])
         let early = try sut.joined("a", run: 1, summary: .object([:]), contributions: joining)
-        _ = try sut.started("a", run: 1, exports: [["ask"]])
+        _ = try sut.started("a", run: 1, exportedIn: 0)
 
         // When
         let joined = try sut.joined("a", run: 1, summary: .object(["view": .bool(true)]), contributions: joining)
@@ -330,8 +325,8 @@ struct RunnerTests {
         #expect(early.isEmpty)
         #expect(describe(joined) == ["keep a 1 "])
         #expect(run.summary == .object(["view": .bool(true)]))
-        #expect(run.contributions?.exports == Snapshot(values: #"{"id":"a"}"#, functions: [["ask"]]))
-        #expect(run.contributions?.extensionPoints == ["accounts"])
+        #expect(run.contributions?.exportedIn == 1)
+        #expect(run.contributions?.awaits == ["b": 1])
         #expect(run.contributions?.layers == ["keys": .array([])])
     }
 
@@ -371,7 +366,7 @@ struct RunnerTests {
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let dependencies = requires.isEmpty
             ? ""
-            : "\n[requires]\n" + requires.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
+            : "\n[dependencies]\n" + requires.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
         let text = """
             id = "\(id)"
             version = "\(version)"

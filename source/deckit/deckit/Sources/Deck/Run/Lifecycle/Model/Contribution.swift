@@ -7,26 +7,21 @@
 
 import Foundation
 
-// What a run contributed as it started. Deck reads its exports, the extension points it opens by name and what it
-// extends others' points with, by each point's scoped name; what the layers on deck add beside them, by key, it
-// carries and does not read.
+// What a run contributes now, of the lifecycles that joined. Deck reads the lifecycle its exports were opened in and
+// those that wait for other mods' exports; what the layers on deck add beside them, by key, it carries and does not
+// read.
 public struct Contribution: Sendable {
     // MARK: - Property
-    public let exports: Snapshot
-    public let extensionPoints: [String]
-    public let extensions: [String: Snapshot]
+    // The lifecycle that opened its exports, or nil while none did.
+    public let exportedIn: Int?
+    // Mod id -> the lowest lifecycle that waits for that mod's exports to connect.
+    public let awaits: [String: Int]
     public let layers: [String: JSONValue]
 
     // MARK: - Initializer
-    public init(
-        exports: Snapshot,
-        extensionPoints: [String],
-        extensions: [String: Snapshot],
-        layers: [String: JSONValue]
-    ) {
-        self.exports = exports
-        self.extensionPoints = extensionPoints
-        self.extensions = extensions
+    public init(exportedIn: Int?, awaits: [String: Int], layers: [String: JSONValue]) {
+        self.exportedIn = exportedIn
+        self.awaits = awaits
         self.layers = layers
     }
 

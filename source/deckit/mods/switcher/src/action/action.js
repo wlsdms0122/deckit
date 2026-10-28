@@ -3,7 +3,7 @@ const { TONES } = require('./tone.js');
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// An action a mod hands the switcher through its point `actions`, as the list reads it, or null for one with no
+// An action a mod hands the switcher through its `setActions(actions)`, as the list reads it, or null for one with no
 // label: `{ label, hint, icon, group, tone, attention, fallback, keywords, value, opens }`. Choosing one gives
 // `value`, the JSON the mod knows the action by, to the mod's `run`, or with `opens` searches inside it; one with no
 // value is read only. `keywords` are the words it is found by too.

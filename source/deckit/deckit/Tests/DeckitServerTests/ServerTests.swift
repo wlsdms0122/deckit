@@ -261,12 +261,12 @@ struct ServerTests {
         )
     }
 
-    @Test("the catalog reads a mod's url-schemes as deckit judges them")
-    func catalogReadsURLSchemes() throws {
+    @Test("the catalog reads a mod's urls as deckit judges them")
+    func catalogReadsURLs() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("opener", schemes: #"["https", "https"]"#)
-        try mod("broken", schemes: #"["https", "*"]"#)
+        try mod("opener", urls: #"["https:*", "https:*"]"#)
+        try mod("broken", urls: #"["https:*", "*"]"#)
 
         // When
         let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
@@ -278,33 +278,31 @@ struct ServerTests {
         }
         let opener = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("opener") }
         let broken = mods.first { mod in value(in: mod, at: "manifest", "id") == .string("broken") }
-        #expect(opener.flatMap { mod in value(in: mod, at: "manifest", "urlSchemes") } == .array([.string("https")]))
+        #expect(opener.flatMap { mod in value(in: mod, at: "manifest", "urls") } == .array([.string("https:*")]))
         #expect(opener.flatMap { mod in value(in: mod, at: "problem") } == nil)
         #expect(
             broken.flatMap { mod in value(in: mod, at: "problem") }
-                == .string(#"url-schemes: "*" already takes every scheme, so it stands alone"#)
+                == .string(#"urls: "*" already takes every address, so it stands alone"#)
         )
     }
 
-    @Test("what a run contributed comes back with it, the layers' too, and is what the mods that require it are given")
+    @Test("what a run contributed comes back with it, the layers' too, and a mod that depends on it connects to its exports")
     func contributionsRoundTrip() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
         try mod("calendar")
-        try mod("google", requires: #"calendar = "1.0.0""#)
+        try mod("google", dependencies: #"calendar = "1.0.0""#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["calendar"]}}"#, to: sut)
-        let contributions = #"{"exports":{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]},"#
-            + #""extensionPoints":["accounts"],"extensions":{},"pins":["a"]}"#
+        let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
+        _ = try send(begin + #"{"mod":"calendar","run":1,"lifecycle":0}}"#, to: sut)
+        let contributions = #"{"exportedIn":0,"awaits":{},"pins":["a"]}"#
         let started = #"{"mod":"calendar","run":1,"summary":{"view":true},"contributions":\#(contributions)}"#
 
         // When
-        let response = try send(#"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":\#(started)}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/load","params":{"mods":["google"]}}"#, to: sut)
-        let requires = try send(
-            #"{"jsonrpc":"2.0","id":6,"method":"export/requires","params":{"mod":"google","run":1}}"#,
-            to: sut
-        )
+        let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":6,"method":"runner/load","params":{"mods":["google"]}}"#, to: sut)
+        let connected = try send(begin + #"{"mod":"google","run":1,"lifecycle":0}}"#, to: sut)
 
         // Then
         guard case let .array(effects)? = value(in: response, at: "result"), let told = effects.first else {
@@ -314,10 +312,13 @@ struct ServerTests {
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
         #expect(value(in: told, at: "summary", "view") == .bool(true))
         #expect(value(in: told, at: "contributions", "pins") == .array([.string("a")]))
-        #expect(value(in: told, at: "contributions", "extensionPoints") == .array([.string("accounts")]))
+        #expect(value(in: told, at: "contributions", "exportedIn") == .number(0))
         #expect(
-            value(in: requires, at: "result", "calendar")
-                == (try json(#"{"values":"{\"name\":\"Calendar\"}","functions":[["ask"]]}"#))
+            value(in: connected, at: "result")
+                == (try json(
+                    #"[{"id":1,"dependent":{"mod":"google","run":1,"lifecycle":0},"#
+                        + #""dependency":{"mod":"calendar","run":1,"lifecycle":0},"required":true}]"#
+                ))
         )
     }
 
@@ -350,12 +351,11 @@ struct ServerTests {
     @Test("deckit's own methods answer through the server, as deck's do")
     func deckitMethodsAnswer() throws {
         // Given
-        try mod("mail", schemes: #"["mailto"]"#)
+        try mod("mail", urls: #"["mailto:*"]"#)
         _ = try send(initializeRequest, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["mail"]}}"#, to: sut)
-        let contributions = #"{"exports":{"values":"{}","functions":[]},"extensionPoints":[],"extensions":{},"#
-            + #""handleURL":true,"commands":[{"name":"compose"}]}"#
+        let contributions = #"{"awaits":{},"urls":true,"commands":[{"name":"compose"}]}"#
         _ = try send(
             #"{"jsonrpc":"2.0","id":4,"method":"runner/started","params":{"mod":"mail","run":1,"summary":{},"#
                 + #""contributions":\#(contributions)}}"#,
@@ -512,7 +512,7 @@ struct ServerTests {
     }
 
     // MARK: - Private
-    private func mod(_ id: String, schemes: String? = nil, requires: String? = nil) throws {
+    private func mod(_ id: String, urls: String? = nil, dependencies: String? = nil) throws {
         let folder = URL(filePath: home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let manifest = """
@@ -520,8 +520,8 @@ struct ServerTests {
             version = "1.0.0"
             api = "1.0.0"
             main = "main.js"
-            """ + (schemes.map { schemes in "\nurl-schemes = \(schemes)" } ?? "")
-            + (requires.map { requires in "\n[requires]\n\(requires)" } ?? "")
+            """ + (urls.map { urls in "\nurls = \(urls)" } ?? "")
+            + (dependencies.map { dependencies in "\n[dependencies]\n\(dependencies)" } ?? "")
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
         try Data().write(to: folder.appending(path: "main.js"))
     }

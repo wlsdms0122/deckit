@@ -155,7 +155,7 @@ class Editor {
         });
         const { open, tryOpen, openAt, keep } = fileOpener({
             ui,
-            openURL: deckit.open,
+            openURL: deckit.urls.open,
             fileURL: deckit.fileURL,
             fileSystem,
             workspaces,
@@ -208,7 +208,7 @@ class Editor {
         const emptyEditor = emptyState({
             ui,
             util,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             onQuickOpen: () => quickOpener.show(),
             onPickFolder: pickFolder,
             onPickFiles: pickFiles,
@@ -216,7 +216,7 @@ class Editor {
         });
         const entryActions = treeEntryActions({
             ui,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             reveal: deckit.reveal,
             clipboard: deckit.clipboard,
             fileSystem,
@@ -234,7 +234,7 @@ class Editor {
         });
         const sidePanel = sidebar({
             ui,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             util,
             workspaces,
             isUnsaved: (workspace) => workspace.files.some(disk.isDirty),
@@ -292,7 +292,7 @@ class Editor {
             .restore({ openFolder, openInBackground: (path) => tryOpen(path, { background: true, last: true }) })
             .then(paint);
 
-        shell.view({
+        shell.view.register({
             content,
             sidebar: sidePanel.element,
             didAppear() {
@@ -302,7 +302,7 @@ class Editor {
                 workspaces.current()?.view.focus();
             },
         });
-        deckit.handleURL(async (url, { activates = true } = {}) => {
+        deckit.urls.register(async (url, { activates = true } = {}) => {
             const background = !activates;
             const path = deckit.filePath(url);
             if (!path) return false;
@@ -344,7 +344,7 @@ class Editor {
         const replaceInOpenFile = when(noFile, () => openFind({ replace: true }));
         const askLine = when(noFile, () => goTo.show(workspaces.current().view));
         const wrapLines = () => configuration.set('wrap', !configuration.get('wrap'));
-        deckit.commands({
+        deckit.commands.register({
             open: {
                 description:
                     'Opens a file of a workspace, the one in front unless its folder is given, without bringing it to the front.',
@@ -368,7 +368,7 @@ class Editor {
                 run: openFolderAt,
             },
         });
-        deckit.keys({
+        deckit.keys.register({
             quickOpen: { label: 'Open Quickly', key: 'mod+p', run: openQuickly },
             showFiles: { label: 'Show Files', key: 'mod+1', run: showFiles },
             showFind: { label: 'Find in Workspace', key: 'mod+3', run: findInWorkspace },
@@ -390,40 +390,39 @@ class Editor {
             goToLine: { label: 'Go to Line', key: 'mod+l', run: askLine },
             wrapLines: { label: 'Wrap Lines', key: 'alt+z', run: wrapLines },
         });
-        deckit.extends.switcher({
-            actions: switcher({
-                ui,
-                util,
-                workspaces,
-                recentFolders: recent.unopened,
-                filesOf: (workspace, query) =>
-                    filesFound(workspace, query, { listFiles: workspaces.listFiles, ranker: actionRanker }),
-                show: shell.show,
-                does: {
-                    open: goToFile,
-                    'open-folder': openFolderAt,
-                    ...inFront({
-                        'open-quickly': openQuickly,
-                        'open-file': pickFiles,
-                        'new-file': newFile,
-                        'new-folder': newFolder,
-                        trash,
-                        'show-files': showFiles,
-                        'reveal-in-files': reveal,
-                        'find-in-workspace': findInWorkspace,
-                        'previous-tab': previousTab,
-                        'next-tab': nextTab,
-                        save: saveFile,
-                        'save-all': saveAllFiles,
-                        'close-file': closeFile,
-                        'find-in-file': findInOpenFile,
-                        'replace-in-file': replaceInOpenFile,
-                        'go-to-line': askLine,
-                        'wrap-lines': wrapLines,
-                    }),
-                },
-            }),
+        const actions = switcher({
+            ui,
+            util,
+            workspaces,
+            recentFolders: recent.unopened,
+            filesOf: (workspace, query) =>
+                filesFound(workspace, query, { listFiles: workspaces.listFiles, ranker: actionRanker }),
+            show: shell.show,
+            does: {
+                open: goToFile,
+                'open-folder': openFolderAt,
+                ...inFront({
+                    'open-quickly': openQuickly,
+                    'open-file': pickFiles,
+                    'new-file': newFile,
+                    'new-folder': newFolder,
+                    trash,
+                    'show-files': showFiles,
+                    'reveal-in-files': reveal,
+                    'find-in-workspace': findInWorkspace,
+                    'previous-tab': previousTab,
+                    'next-tab': nextTab,
+                    save: saveFile,
+                    'save-all': saveAllFiles,
+                    'close-file': closeFile,
+                    'find-in-file': findInOpenFile,
+                    'replace-in-file': replaceInOpenFile,
+                    'go-to-line': askLine,
+                    'wrap-lines': wrapLines,
+                }),
+            },
         });
+        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         function heardDiskState(file) {
             if (disk.isDirty(file)) drafts.keepSoon();
@@ -523,11 +522,11 @@ class Editor {
             const reveal = {
                 label: 'Reveal in Files',
                 icon: 'folders',
-                hint: deckit.chordOf('reveal'),
+                hint: deckit.keys.chordOf('reveal'),
                 run: () => revealInFiles(file),
             };
             return [
-                { label: 'Close', icon: 'x', hint: deckit.chordOf('closeFile'), run: () => close(file) },
+                { label: 'Close', icon: 'x', hint: deckit.keys.chordOf('closeFile'), run: () => close(file) },
                 '-',
                 ...(relative ? [reveal] : []),
                 ...entryActions.pathItems(file.path, relative),

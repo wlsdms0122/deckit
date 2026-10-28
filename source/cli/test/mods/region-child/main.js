@@ -2,7 +2,7 @@
 class RegionChild {
     attach(shell) {
         const shown = (on) => () => (document.documentElement.dataset.shown = on);
-        shell.view({
+        shell.view.register({
             content: document.createElement('div'),
             parent: 'region-parent',
             didAppear: shown('yes'),

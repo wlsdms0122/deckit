@@ -7,8 +7,8 @@
 
 import Foundation
 
-// The mods found, joined by what each requires and extends: whether each loads by what it requires, and who requires
-// whom.
+// The mods found, joined by their dependencies: whether each loads by what it requires, and who requires whom. A mod
+// requires its dependencies that are not optional.
 struct DependencyGraph {
     // MARK: - Property
     private let found: [Mod]
@@ -23,7 +23,7 @@ struct DependencyGraph {
 
     // MARK: - Public
     // A cycle fails every mod in it; then a failure spreads to whoever requires it, until nothing changes. Each lists
-    // what it requires, then the mods whose points it extends, which stop nothing, and the mods that require it.
+    // its dependencies, of which an optional one stops nothing, and the mods that require it.
     func resolved() -> [Mod] {
         var mods = found
         for loop in cycles() {
@@ -37,8 +37,10 @@ struct DependencyGraph {
         while changed {
             changed = false
             for place in mods.indices where mods[place].problem == nil {
-                for (id, want) in mods[place].manifest.requires.sorted(by: { one, other in one.key < other.key }) {
-                    guard let problem = problem(id, want: want, provider: places[id].map { mods[$0] }) else {
+                let manifest = mods[place].manifest
+                for id in manifest.required {
+                    let dependency = manifest.dependencies[id]!
+                    guard let problem = problem(id, dependency, provider: places[id].map { mods[$0] }) else {
                         continue
                     }
 
@@ -52,8 +54,7 @@ struct DependencyGraph {
         let provided = mods
         for place in mods.indices {
             let manifest = mods[place].manifest
-            mods[place].relations = relations(manifest.requires, kind: .requires, in: provided)
-                + relations(manifest.extends, kind: .extends, in: provided)
+            mods[place].relations = relations(manifest.dependencies, in: provided)
             mods[place].dependents = dependents(of: manifest.id, in: provided)
         }
 
@@ -69,7 +70,7 @@ struct DependencyGraph {
         func place(_ mod: Mod) {
             guard ids.insert(mod.manifest.id).inserted else { return }
             if mod.problem == nil {
-                for other in mod.manifest.requires.keys.compactMap({ id in places[id] }).sorted() {
+                for other in mod.manifest.required.compactMap({ id in places[id] }).sorted() {
                     place(mods[other])
                 }
             }
@@ -90,7 +91,7 @@ struct DependencyGraph {
         let loading = Set(mods.map(\.manifest.id))
         var placed: Set<String> = []
         for mod in mods {
-            let later = mod.manifest.requires.keys.sorted().first { id in loading.contains(id) && !placed.contains(id) }
+            let later = mod.manifest.required.first { id in loading.contains(id) && !placed.contains(id) }
             if let later {
                 return (mod.manifest.id, later)
             }
@@ -107,7 +108,7 @@ struct DependencyGraph {
         var reached: Set<String> = []
         var next = [id]
         while let current = next.popLast() {
-            for mod in mods where mod.problem == nil && mod.manifest.requires[current] != nil {
+            for mod in mods where mod.problem == nil && mod.manifest.required.contains(current) {
                 guard reached.insert(mod.manifest.id).inserted else { continue }
                 next.append(mod.manifest.id)
             }
@@ -117,27 +118,32 @@ struct DependencyGraph {
         return reached.sorted()
     }
 
-    private func relations(_ wanted: [String: String], kind: Relation.Kind, in mods: [Mod]) -> [Relation] {
-        wanted.sorted { one, other in one.key < other.key }.map { id, want in
+    private func relations(_ dependencies: [String: Dependency], in mods: [Mod]) -> [Relation] {
+        dependencies.sorted { one, other in one.key < other.key }.map { id, dependency in
             let provider = places[id].map { place in mods[place] }
             return Relation(
                 id: id,
-                kind: kind,
-                want: want,
+                optional: dependency.optional,
+                version: dependency.version,
                 name: provider?.manifest.name ?? id,
-                ok: problem(id, want: want, provider: provider) == nil
+                problem: dependency.optional
+                    ? mismatch(id, dependency, provider: provider)
+                    : problem(id, dependency, provider: provider)
             )
         }
     }
 
-    private func problem(_ id: String, want: String, provider: Mod?) -> String? {
+    // What is wrong with an optional dependency: only a version that does not satisfy, of one that loads.
+    private func mismatch(_ id: String, _ dependency: Dependency, provider: Mod?) -> String? {
+        guard let provider, provider.problem == nil, !dependency.isSatisfied(by: provider.manifest) else { return nil }
+        return "uses \(id) \(dependency.version), and \(id) is \(provider.manifest.version ?? "of no version"), so it runs without it"
+    }
+
+    private func problem(_ id: String, _ dependency: Dependency, provider: Mod?) -> String? {
         guard let provider else { return "needs \(id), which is not installed" }
         guard provider.problem == nil else { return "needs \(id), which did not load" }
-        guard let version = provider.manifest.version.flatMap(Version.init),
-            let wanted = Version(want),
-            version.satisfies(wanted)
-        else {
-            return "needs \(id) \(want), and \(id) is \(provider.manifest.version ?? "of no version")"
+        guard dependency.isSatisfied(by: provider.manifest) else {
+            return "needs \(id) \(dependency.version), and \(id) is \(provider.manifest.version ?? "of no version")"
         }
 
         return nil
@@ -155,7 +161,7 @@ struct DependencyGraph {
             }
 
             visiting.insert(id)
-            for other in found[places[id]!].manifest.requires.keys.sorted() where places[other] != nil {
+            for other in found[places[id]!].manifest.required where places[other] != nil {
                 visit(other, trail: trail + [id])
             }
             visiting.remove(id)

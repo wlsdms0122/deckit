@@ -11,12 +11,12 @@ const MODES = [
 ];
 
 // Calendar: the mode and the day it is on, what is read of the accounts' calendars, and the reminders, which the view
-// (view.js) draws. An account is a provider's: a mod that extends the `accounts` point (README.md) signs it in, keeps
-// what it signed in with, and reads its calendars. Calendar keeps which accounts there are and which of their
-// calendars are shown. `screen()` is what the view has put on screen, or null: `changed()` draws again, `moved()`
-// draws where the mode or the day moved to, `reveal()` brings Calendar forward, and `prompt(question)` asks in a
-// dialog (provider-client.js).
-function calendar({ deckit, accountsPoint, screen }) {
+// (view.js) draws. An account is a provider's: a mod that sets a provider through Calendar's exports (README.md) signs
+// it in, keeps what it signed in with, and reads its calendars. Calendar keeps which accounts there are and which of
+// their calendars are shown. `screen()` is what the view has put on screen, or null: `changed()` draws again, `moved()`
+// draws where the mode or the day moved to, `reveal()` brings Calendar forward, and `prompt(question)` asks in a dialog
+// (provider-client.js).
+function calendar({ deckit, screen }) {
     const { values } = deckit.storage;
     // A failed write is shown on this mod's row in Settings.
     const records = {
@@ -29,9 +29,7 @@ function calendar({ deckit, accountsPoint, screen }) {
 
     const { accounts, feeds } = store({ records });
     const client = providerClient({
-        deckit,
         records,
-        accountsPoint,
         onSigningIn: changed,
         prompt: (question) => screen()?.prompt(question) ?? null,
     });
@@ -44,12 +42,6 @@ function calendar({ deckit, accountsPoint, screen }) {
         follow();
     }, 60 * 1000);
 
-    // A provider that starts reads its accounts at once; one that ends leaves what was read.
-    accountsPoint.onChange(() => {
-        client.forgetWaiting();
-        changed();
-        read(true);
-    });
     read();
 
     return {
@@ -72,7 +64,8 @@ function calendar({ deckit, accountsPoint, screen }) {
         showView,
         setMode,
         answer,
-        ask: client.ask,
+        setProvider,
+        dropProvider,
         commands: {
             'go-to-date': {
                 description: 'Shows a day in the view on screen.',
@@ -107,6 +100,22 @@ function calendar({ deckit, accountsPoint, screen }) {
 
     function changed() {
         screen()?.changed();
+    }
+
+    // A provider that comes reads its accounts at once; one that goes leaves what was read.
+    function setProvider(connection, provider) {
+        client.setProvider(connection, provider);
+        providersChanged();
+    }
+
+    function dropProvider(connection) {
+        if (client.dropProvider(connection)) providersChanged();
+    }
+
+    function providersChanged() {
+        client.forgetWaiting();
+        changed();
+        read(true);
     }
 
     // Every calendar's, hidden ones too: hiding a calendar takes it off the screen, and it still reminds.

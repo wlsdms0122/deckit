@@ -8,8 +8,6 @@ main = "main.js"
 "system.main-process" = "Reads the brain, by running the llmemory command."
 "system.clipboard-write" = "The copy button on a code block in a note puts the block on the clipboard."
 
-[requires]
+[dependencies]
 forge = "1.0.0"
-
-[extends]
-switcher = "1.0.0"
+switcher = { version = "1.0.0", optional = true }

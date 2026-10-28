@@ -113,7 +113,7 @@ final class Runner {
         try decide {
             guard let sandbox = sandbox(of: id, run: number) else { return }
             var run = sandbox.run
-            run.record(problem)
+            guard run.record(problem) else { return }
             sandbox.run = run
             effects.append(.keep(run))
         }
@@ -244,12 +244,12 @@ final class Runner {
     }
 
     private func directDependents(of id: String) -> [Sandbox] {
-        sandboxes.filter { sandbox in sandbox.mod.manifest.requires[id] != nil }
+        sandboxes.filter { sandbox in sandbox.mod.manifest.required.contains(id) }
     }
 
     // The first mod it requires, by id, that does not run, or nil.
     private func missing(_ sandbox: Sandbox) -> String? {
-        sandbox.mod.manifest.requires.keys.sorted().first { id in self.sandbox(of: id)?.state != .running }
+        sandbox.mod.manifest.required.first { id in self.sandbox(of: id)?.state != .running }
     }
 
     private func sandbox(of id: String) -> Sandbox? {

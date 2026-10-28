@@ -3,7 +3,7 @@ name = "Open User"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
-url-schemes = ["test-open"]
+urls = ["test-open:*"]
 
-[extends]
-switcher = "1.0.0"
+[dependencies]
+switcher = { version = "1.0.0", optional = true }

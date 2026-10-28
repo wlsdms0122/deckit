@@ -120,7 +120,7 @@ class Browser {
         });
         const sidePanel = sidebar({
             ui,
-            chordOf: deckit.chordOf,
+            chordOf: deckit.keys.chordOf,
             clipboard: deckit.clipboard,
             values,
             bookmarks,
@@ -147,7 +147,7 @@ class Browser {
         tabs.restore();
         showBookmarks();
 
-        shell.view({
+        shell.view.register({
             content,
             sidebar: sidePanel.element,
             didAppear() {
@@ -159,7 +159,7 @@ class Browser {
             },
         });
 
-        deckit.commands({
+        deckit.commands.register({
             'new-tab': {
                 description: 'Opens a new tab, at the address given or the homepage.',
                 params: { type: 'object', properties: { url: { type: 'string', title: 'Address' } } },
@@ -189,7 +189,7 @@ class Browser {
             },
         });
 
-        deckit.keys({
+        deckit.keys.register({
             newTab: { label: 'New Tab', key: 'mod+t', run: () => newTab() },
             reopenTab: { label: 'Reopen Closed Tab', key: 'mod+shift+t', run: reopenTab },
             find: { label: 'Find in Page', key: 'mod+f', run: openFind },
@@ -207,7 +207,7 @@ class Browser {
             lastTab: { label: 'Last Tab', key: 'mod+9', run: () => showTab(-1) },
         });
 
-        deckit.handleURL((url, { activates = true, target = '' } = {}) => {
+        deckit.urls.register((url, { activates = true, target = '' } = {}) => {
             const address = parseAddress(url);
             if (!address) return false;
             if (activates) shell.show();
@@ -215,27 +215,26 @@ class Browser {
             return true;
         });
 
-        deckit.extends.switcher({
-            actions: switcher({
-                ui,
-                util: deckit.util,
-                tabs,
-                bookmarks,
-                show: shell.show,
-                does: inFront({
-                    'new-tab': ({ url }) => newTab(url),
-                    'reopen-tab': reopenTab,
-                    'switch-to-tab': switchToTab,
-                    'open-bookmark': openBookmark,
-                    'close-tab': closeTab,
-                    'find-in-page': openFind,
-                    'edit-address': editAddress,
-                    reload,
-                    back: goBack,
-                    forward: goForward,
-                }),
+        const actions = switcher({
+            ui,
+            util: deckit.util,
+            tabs,
+            bookmarks,
+            show: shell.show,
+            does: inFront({
+                'new-tab': ({ url }) => newTab(url),
+                'reopen-tab': reopenTab,
+                'switch-to-tab': switchToTab,
+                'open-bookmark': openBookmark,
+                'close-tab': closeTab,
+                'find-in-page': openFind,
+                'edit-address': editAddress,
+                reload,
+                back: goBack,
+                forward: goForward,
             }),
         });
+        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         function home() {
             return parseAddress(configuration.get('homepage')) || 'about:blank';

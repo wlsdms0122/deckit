@@ -1,6 +1,6 @@
 const { nameOf } = require('../path/path.js');
 
-// What the Editor adds to the switcher through its point `switcher:actions`: New File named for the workspace in front,
+// What the Editor adds to the switcher through its `setActions(actions)`: New File named for the workspace in front,
 // the workspaces and recent folders to go to, a search of each workspace's files, and what its keys do. Each action's
 // value is `{ action, ...args }`, run by `does[action](args, { ready })`; one that opens a search is the value its
 // results add an arg to. `filesOf(workspace, query)` answers the files found in one.

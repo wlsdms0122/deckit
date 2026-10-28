@@ -8,15 +8,16 @@
 import Foundation
 import Deck
 
-// Which mods an address is offered to, in what order, and what deckit opens it with by itself after them. A mod handles
-// the schemes its manifest names under url-schemes while its run has registered deckit.handleURL(): its run contributes
-// `handleURL`. One whose run has not is passed: a run may register it on one host and not on another. The app names
-// who is asked first for each scheme, and the person orders them and switches them off.
+// Which mods an address is offered to, in what order, and what deckit opens it with by itself after them. A mod is
+// offered the addresses its manifest's urls patterns match while its run has registered a handler: its run contributes
+// `urls`. One whose run has not is passed: a run may register it on one host and not on another. Each scheme has one
+// list of handlers. The app names who is asked first, the person orders them and switches them off, and a mod no one
+// placed goes before the first whose pattern is wider than its own.
 public final class URLRouter {
     // MARK: - Property
-    private let contributionKey = "handleURL"
+    private let contributionKey = "urls"
     private let preferencesKey = "scheme-handlers"
-    private let field: URLSchemesField
+    private let field: URLsField
     private let deck: Deck
     // Scheme -> the mods the app asks first.
     private let schemeHandlers: [String: [String]]
@@ -24,8 +25,8 @@ public final class URLRouter {
     private var preferences: [String: HandlerPreference]
 
     // MARK: - Initializer
-    // `field` is the url-schemes field deck reads manifests with.
-    init(deck: Deck, field: URLSchemesField, schemeHandlers: [String: [String]]) {
+    // `field` is the urls field deck reads manifests with.
+    init(deck: Deck, field: URLsField, schemeHandlers: [String: [String]]) {
         self.deck = deck
         self.field = field
         self.schemeHandlers = schemeHandlers
@@ -40,7 +41,7 @@ public final class URLRouter {
     // A mod that opens what it names none of is told so as it contributes it.
     func problems(of run: Run, mod: Mod) -> [String] {
         guard handlesURL(run.contributions), mod.manifest.value(of: field).isEmpty else { return [] }
-        return ["it registered deckit.handleURL(), but manifest.toml names no url-schemes, so nothing asks it"]
+        return ["it registered urls.register(), but manifest.toml names no urls, so nothing asks it"]
     }
 
     // MARK: - Public
@@ -55,14 +56,21 @@ public final class URLRouter {
         let system = SystemHandler(scheme: scheme.name)
         guard opensFiles || system != .file else { return URLRoute(url: address, handlers: [], system: nil) }
 
-        let handlers = usesDefaultApp ? [] : handlers(of: handledAs(scheme)).filter(\.on).map(\.id)
+        let handlers = usesDefaultApp
+            ? []
+            : asked(in: handledAs(scheme))
+                .filter { asked in asked.on && asked.patterns.contains { pattern in pattern.matches(address) } }
+                .map { asked in asked.mod.manifest.id }
         return URLRoute(url: address, handlers: handlers, system: system)
     }
 
     // Every scheme with a handler list: those deckit opens by itself, then each one a mod handles, then every other.
     public func handlerLists() -> [HandlerList] {
         schemes().map { scheme in
-            HandlerList(scheme: scheme, system: SystemHandler(scheme: scheme), handlers: handlers(of: scheme))
+            let handlers = asked(in: scheme).map { mod, patterns, on in
+                SchemeHandler(id: mod.manifest.id, name: mod.manifest.name, patterns: patterns.map(\.written), on: on)
+            }
+            return HandlerList(scheme: scheme, system: SystemHandler(scheme: scheme), handlers: handlers)
         }
     }
 
@@ -92,17 +100,17 @@ public final class URLRouter {
         contributions?.layers[contributionKey] == .bool(true)
     }
 
-    // The mods that answer addresses, in the load order, with the schemes each names.
-    private func answering() -> [(mod: Mod, schemes: [String])] {
+    // The mods that answer addresses, in the load order, with the patterns each names.
+    private func answering() -> [(mod: Mod, patterns: [URLPattern])] {
         deck.catalog.loading.compactMap { mod in
-            let schemes = mod.manifest.value(of: field)
-            guard !schemes.isEmpty, handlesURL(deck.contributions(of: mod.manifest.id)) else { return nil }
-            return (mod, schemes)
+            let patterns = mod.manifest.value(of: field)
+            guard !patterns.isEmpty, handlesURL(deck.contributions(of: mod.manifest.id)) else { return nil }
+            return (mod, patterns)
         }
     }
 
     private func schemes() -> [String] {
-        let named = answering().flatMap(\.schemes)
+        let named = answering().flatMap { _, patterns in patterns.map(\.scheme) }
         let own = named.filter { scheme in scheme != URLScheme.every }
         let every = named.contains(URLScheme.every) ? [URLScheme.every] : []
         var seen: Set<String> = []
@@ -125,18 +133,28 @@ public final class URLRouter {
         preferences[scheme] ?? HandlerPreference(order: [], off: [])
     }
 
-    // In the scheme's order; a mod no one placed comes after, by its id: the load order says nothing of who opens
-    // what.
-    private func handlers(of scheme: String) -> [SchemeHandler] {
+    // The scheme's handlers in its order, each with its patterns for the scheme and whether it is on. A mod no one
+    // placed goes before the first whose pattern is wider than its own, the narrowest first and then by id: the load
+    // order says nothing of who opens what.
+    private func asked(in scheme: String) -> [(mod: Mod, patterns: [URLPattern], on: Bool)] {
         let order = order(of: scheme)
         let off = preference(of: scheme).off
-        let rank = { (id: String) in order.firstIndex(of: id) ?? order.count }
-
-        return answering()
-            .filter { _, schemes in schemes.contains { named in named == URLScheme.every || named == scheme } }
-            .map { mod, _ in
-                SchemeHandler(id: mod.manifest.id, name: mod.manifest.name, on: !off.contains(mod.manifest.id))
+        let asking = answering().compactMap { mod, patterns in
+            let own = patterns.filter { pattern in pattern.match == .every || pattern.scheme == scheme }
+            return own.isEmpty ? nil : (mod: mod, patterns: own, specificity: own.map(\.specificity).max()!)
+        }
+        let placed = order.compactMap { id in asking.first { asks in asks.mod.manifest.id == id } }
+        let unplaced = asking
+            .filter { asks in !order.contains(asks.mod.manifest.id) }
+            .sorted { one, other in
+                (-one.specificity, one.mod.manifest.id) < (-other.specificity, other.mod.manifest.id)
             }
-            .sorted { one, other in (rank(one.id), one.id) < (rank(other.id), other.id) }
+        var ordered = placed
+        for asks in unplaced {
+            let wider = ordered.firstIndex { other in other.specificity < asks.specificity } ?? ordered.endIndex
+            ordered.insert(asks, at: wider)
+        }
+
+        return ordered.map { mod, patterns, _ in (mod, patterns, !off.contains(mod.manifest.id)) }
     }
 }

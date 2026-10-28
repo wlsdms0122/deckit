@@ -14,12 +14,12 @@ struct DeckitServer {
     // MARK: - Initializer
     // MARK: - Public
     static func main() {
-        let connection = Connection()
-        connection.log("started, pid \(getpid())")
+        let transport = Transport()
+        transport.log("started, pid \(getpid())")
         let server = Server()
-        while let message = connection.receive() {
+        while let message = transport.receive() {
             guard let response = server.respond(to: message) else { continue }
-            connection.send(response)
+            transport.send(response)
         }
     }
 
