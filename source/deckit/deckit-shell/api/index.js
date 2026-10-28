@@ -1,6 +1,5 @@
 import * as MOD_PERMISSION from '../deck/mod/permission.js';
 import * as LIFECYCLE from '../deck/mod/lifecycle.js';
-import * as PROXY from '../deck/ipc/model/proxy.js';
 import * as IPC from '../deck/ipc/main.js';
 import * as ENVIRONMENT from '../environment/index.js';
 
@@ -152,8 +151,16 @@ export function createApi({
     }
 
     function frozen(value) {
-        return PROXY.deepFreeze(structuredClone(value));
+        return deepFreeze(structuredClone(value));
     }
 
     return { make };
+}
+
+function deepFreeze(value) {
+    if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+        Object.freeze(value);
+        for (const inner of Object.values(value)) deepFreeze(inner);
+    }
+    return value;
 }
