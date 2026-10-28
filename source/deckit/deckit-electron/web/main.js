@@ -293,7 +293,8 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold }) {
         holdWindowOpen(modPage, page, { inPage: false });
         const size = options.width && options.height ? { width: options.width, height: options.height } : null;
         const window = showInWindow(pageView, { size: size || WINDOW_SIZE });
-        LOG.guard(opener, 'destroyed', () => !window.isDestroyed() && window.close());
+        const closeWithOpener = LOG.guard(opener, 'destroyed', () => !window.isDestroyed() && window.close());
+        page.once('destroyed', () => !opener.isDestroyed() && opener.removeListener('destroyed', closeWithOpener));
         return page;
     }
 
