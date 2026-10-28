@@ -23,8 +23,8 @@ struct ModStorageTests {
         let store = Store()
         record = Record(folder: home.appending(path: "records"), store: store)
         modState = ModState(root: home.appending(path: "mod-state"), store: store)
-        try modState.reserve("configuration")
-        try modState.reserve("pins")
+        try modState.reserve("layer")
+        try modState.reserve("other-layer")
         sut = ModStorage(
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             record: record,
@@ -42,18 +42,18 @@ struct ModStorageTests {
         try Data().write(to: data.appending(path: "a"))
         try record.write(mod: "notes", key: "tabs", text: "[]")
         try record.write(mod: "notes", key: "panes", text: "[]")
-        try modState.write("pins", mod: "notes", text: "{}")
+        try modState.write("other-layer", mod: "notes", text: "{}")
 
         // When
         let usage = try sut.usage(mod: "notes")
-        let other = try sut.usage(mod: "finder")
+        let other = try sut.usage(mod: "other")
 
         // Then
         #expect(
             usage == StorageUsage(
                 data: DataCount(count: 1, capped: false, hidden: false),
                 records: RecordCount(count: 2, hidden: false),
-                kept: ["pins"]
+                kept: ["other-layer"]
             )
         )
         #expect(

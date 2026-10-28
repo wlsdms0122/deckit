@@ -33,7 +33,7 @@ struct TOMLParserTests {
             "deckit.mods" = "to list \\"them\\" \\u00e9"
 
             [dependencies]
-            switcher = { version = "1.0.0", "optional" = true }
+            dep = { version = "1.0.0", "optional" = true }
             empty = {}
             """
 
@@ -50,7 +50,7 @@ struct TOMLParserTests {
                 "list": .array([.string("a"), .string("b")]),
                 "permissions": .table(["deckit.mods": .string("to list \"them\" é")]),
                 "dependencies": .table([
-                    "switcher": .table(["version": .string("1.0.0"), "optional": .boolean(true)]),
+                    "dep": .table(["version": .string("1.0.0"), "optional": .boolean(true)]),
                     "empty": .table([:])
                 ])
             ]

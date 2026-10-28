@@ -296,9 +296,9 @@ struct RunnerTests {
         _ = try sut.load(["a"])
 
         // When
-        let described = try sut.described("a", run: 1, summary: .object(["icon": .string("<svg/>")]))
+        let described = try sut.described("a", run: 1, summary: .object(["x": .string("1")]))
         _ = try sut.started("a", run: 1)
-        let late = try sut.described("a", run: 1, summary: .object(["icon": .string("")]))
+        let late = try sut.described("a", run: 1, summary: .object(["x": .string("")]))
 
         // Then
         #expect(describe(described) == ["keep a 1 "])
@@ -313,21 +313,21 @@ struct RunnerTests {
         let (sut, catalog) = try runner()
         _ = catalog.read()
         _ = try sut.load(["a"])
-        let joining = Contribution(exportedIn: 1, awaits: ["b": 1], layers: ["keys": .array([])])
+        let joining = Contribution(exportedIn: 1, awaits: ["b": 1], layers: ["layer": .array([])])
         let early = try sut.joined("a", run: 1, summary: .object([:]), contributions: joining)
         _ = try sut.started("a", run: 1, exportedIn: 0)
 
         // When
-        let joined = try sut.joined("a", run: 1, summary: .object(["view": .bool(true)]), contributions: joining)
+        let joined = try sut.joined("a", run: 1, summary: .object(["x": .bool(true)]), contributions: joining)
 
         // Then
         let run = try #require(sut.run(of: "a"))
         #expect(early.isEmpty)
         #expect(describe(joined) == ["keep a 1 "])
-        #expect(run.summary == .object(["view": .bool(true)]))
+        #expect(run.summary == .object(["x": .bool(true)]))
         #expect(run.contributions?.exportedIn == 1)
         #expect(run.contributions?.awaits == ["b": 1])
-        #expect(run.contributions?.layers == ["keys": .array([])])
+        #expect(run.contributions?.layers == ["layer": .array([])])
     }
 
     // MARK: - Private

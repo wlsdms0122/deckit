@@ -25,43 +25,43 @@ struct ModStateTests {
     @Test("what a name keeps of a mod is its own, one file a mod in the name's folder")
     func eachNameKeepsItsOwn() throws {
         // Given
-        try sut.reserve("configuration")
-        try sut.reserve("pins")
+        try sut.reserve("layer")
+        try sut.reserve("other-layer")
 
         // When
-        try sut.write("configuration", mod: "notes", text: #"{"wrap":true}"#)
-        try sut.write("pins", mod: "finder", text: "[]")
+        try sut.write("layer", mod: "notes", text: #"{"wrap":true}"#)
+        try sut.write("other-layer", mod: "other", text: "[]")
 
         // Then
-        #expect(sut.read("configuration", mod: "notes") == #"{"wrap":true}"#)
-        #expect(sut.read("pins", mod: "notes") == nil)
-        #expect(sut.kept(mod: "notes") == ["configuration"])
-        #expect(sut.kept(mod: "finder") == ["pins"])
-        #expect(FileManager.default.fileExists(atPath: home.appending(path: "mod-state/pins/finder.json").path()))
+        #expect(sut.read("layer", mod: "notes") == #"{"wrap":true}"#)
+        #expect(sut.read("other-layer", mod: "notes") == nil)
+        #expect(sut.kept(mod: "notes") == ["layer"])
+        #expect(sut.kept(mod: "other") == ["other-layer"])
+        #expect(FileManager.default.fileExists(atPath: home.appending(path: "mod-state/other-layer/other.json").path()))
     }
 
     @Test("a name reserved again, or one that is no name, is refused")
     func nameIsReservedOnce() throws {
         // Given
-        try sut.reserve("configuration")
+        try sut.reserve("layer")
 
         // When
-        let again = Result { try sut.reserve("configuration") }
+        let again = Result { try sut.reserve("layer") }
         let unnamed = Result { try sut.reserve("../up") }
 
         // Then
-        #expect(throws: ModStateError.reserved("configuration")) { try again.get() }
+        #expect(throws: ModStateError.reserved("layer")) { try again.get() }
         #expect(throws: ModStateError.notAName("../up")) { try unnamed.get() }
     }
 
     @Test("erasing a mod takes what every name keeps of it, and nothing of another mod's")
     func eraseTakesEveryName() throws {
         // Given
-        try sut.reserve("configuration")
-        try sut.reserve("pins")
-        try sut.write("configuration", mod: "notes", text: "{}")
-        try sut.write("pins", mod: "notes", text: "[]")
-        try sut.write("pins", mod: "finder", text: "[]")
+        try sut.reserve("layer")
+        try sut.reserve("other-layer")
+        try sut.write("layer", mod: "notes", text: "{}")
+        try sut.write("other-layer", mod: "notes", text: "[]")
+        try sut.write("other-layer", mod: "other", text: "[]")
 
         // When
         try sut.erase(mod: "notes")
@@ -69,6 +69,6 @@ struct ModStateTests {
 
         // Then
         #expect(sut.kept(mod: "notes").isEmpty)
-        #expect(sut.kept(mod: "finder") == ["pins"])
+        #expect(sut.kept(mod: "other") == ["other-layer"])
     }
 }

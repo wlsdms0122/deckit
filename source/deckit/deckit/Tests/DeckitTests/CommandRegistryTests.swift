@@ -25,14 +25,14 @@ struct CommandRegistryTests {
         let sut = try fixture.deckit()
 
         // When
-        try sut.commands.define([command("toggle-sidebar")], provider: "@host")
+        try sut.commands.define([command("close")], provider: "@host")
         _ = try sut.started("b", run: 1, contributing: ["commands": .array([command("open")])])
         _ = try sut.started("a", run: 1, contributing: ["commands": .array([command("reload"), command("copy")])])
         let listed = sut.commands.list()
 
         // Then
         #expect(listed.map { registered in registered.provider.id(of: registered.command.name) } == [
-            "@host.toggle-sidebar", "a.reload", "a.copy", "b.open"
+            "@host.close", "a.reload", "a.copy", "b.open"
         ])
         #expect(listed.map(\.provider.isHost) == [true, false, false, false])
         #expect(listed[1].provider.name == "A")

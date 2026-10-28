@@ -231,7 +231,7 @@ struct ServerTests {
         // Given
         _ = try send(initializeRequest, to: sut)
         _ = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":"host","key":"pinned","text":"[]"}}"#,
+            #"{"jsonrpc":"2.0","id":2,"method":"state/write","params":{"folder":"b","key":"k","text":"[]"}}"#,
             to: sut
         )
 
@@ -240,7 +240,7 @@ struct ServerTests {
 
         // Then
         #expect(
-            response == (try json(#"{"jsonrpc":"2.0","id":3,"result":[{"folder":"host","key":"pinned","text":"[]"}]}"#))
+            response == (try json(#"{"jsonrpc":"2.0","id":3,"result":[{"folder":"b","key":"k","text":"[]"}]}"#))
         )
     }
 
@@ -290,19 +290,19 @@ struct ServerTests {
     func contributionsRoundTrip() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("calendar")
-        try mod("google", dependencies: #"calendar = "1.0.0""#)
+        try mod("dep")
+        try mod("a", dependencies: #"dep = "1.0.0""#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["calendar"]}}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["dep"]}}"#, to: sut)
         let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
-        _ = try send(begin + #"{"mod":"calendar","run":1,"lifecycle":0}}"#, to: sut)
-        let contributions = #"{"exportedIn":0,"awaits":{},"pins":["a"]}"#
-        let started = #"{"mod":"calendar","run":1,"summary":{"view":true},"contributions":\#(contributions)}"#
+        _ = try send(begin + #"{"mod":"dep","run":1,"lifecycle":0}}"#, to: sut)
+        let contributions = #"{"exportedIn":0,"awaits":{},"layer":["a"]}"#
+        let started = #"{"mod":"dep","run":1,"summary":{"x":true},"contributions":\#(contributions)}"#
 
         // When
         let response = try send(#"{"jsonrpc":"2.0","id":5,"method":"runner/started","params":\#(started)}"#, to: sut)
-        _ = try send(#"{"jsonrpc":"2.0","id":6,"method":"runner/load","params":{"mods":["google"]}}"#, to: sut)
-        let connected = try send(begin + #"{"mod":"google","run":1,"lifecycle":0}}"#, to: sut)
+        _ = try send(#"{"jsonrpc":"2.0","id":6,"method":"runner/load","params":{"mods":["a"]}}"#, to: sut)
+        let connected = try send(begin + #"{"mod":"a","run":1,"lifecycle":0}}"#, to: sut)
 
         // Then
         guard case let .array(effects)? = value(in: response, at: "result"), let told = effects.first else {
@@ -310,14 +310,14 @@ struct ServerTests {
             return
         }
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
-        #expect(value(in: told, at: "summary", "view") == .bool(true))
-        #expect(value(in: told, at: "contributions", "pins") == .array([.string("a")]))
+        #expect(value(in: told, at: "summary", "x") == .bool(true))
+        #expect(value(in: told, at: "contributions", "layer") == .array([.string("a")]))
         #expect(value(in: told, at: "contributions", "exportedIn") == .number(0))
         #expect(
             value(in: connected, at: "result")
                 == (try json(
-                    #"[{"id":1,"dependent":{"mod":"google","run":1,"lifecycle":0},"#
-                        + #""dependency":{"mod":"calendar","run":1,"lifecycle":0},"required":true}]"#
+                    #"[{"id":1,"dependent":{"mod":"a","run":1,"lifecycle":0},"#
+                        + #""dependency":{"mod":"dep","run":1,"lifecycle":0},"required":true}]"#
                 ))
         )
     }

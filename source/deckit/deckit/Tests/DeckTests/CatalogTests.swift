@@ -358,13 +358,13 @@ struct CatalogTests {
     @Test("removing a mod whose manifest names no mod id answers that deck keeps nothing under it")
     func removeAnswersWhetherIdKeepsData() throws {
         // Given
-        try write("Note", in: home.appending(path: "mods"))
-        try write("note", in: home.appending(path: "mods"), folder: "note-copy")
+        try write("A", in: home.appending(path: "mods"))
+        try write("a", in: home.appending(path: "mods"), folder: "a-copy")
         let sut = try catalog()
 
         // When
-        let other = try sut.remove("Note")
-        let own = try sut.remove("note")
+        let other = try sut.remove("A")
+        let own = try sut.remove("a")
 
         // Then
         #expect(other == false)

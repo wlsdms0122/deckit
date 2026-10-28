@@ -19,28 +19,28 @@ struct ConnectionBrokerTests {
     @Test("each lifecycle that begins connects to the exports of a mod it requires, and a message on it goes to the other end")
     func beginningLifecycleConnects() throws {
         // Given
-        try fixture.write("forge")
-        try fixture.write("bot", requires: ["forge": "1.0.0"])
+        try fixture.write("dep")
+        try fixture.write("a", requires: ["dep": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("forge", exportedIn: 0, runner: runner, sut: sut)
-        _ = try runner.load(["bot"])
+        try start("dep", exportedIn: 0, runner: runner, sut: sut)
+        _ = try runner.load(["a"])
 
         // When
-        let first = try sut.begin(mod: "bot", run: 1, lifecycle: 0)
-        _ = try runner.started("bot", run: 1)
-        let second = try sut.begin(mod: "bot", run: 1, lifecycle: 1)
-        let reached = try sut.route(from: "bot", run: 1, connection: 1)
-        let back = try sut.route(from: "forge", run: 1, connection: 1)
-        let stranger = Result { try sut.route(from: "note", run: 1, connection: 1) }
-        let none = Result { try sut.route(from: "bot", run: 1, connection: 9) }
+        let first = try sut.begin(mod: "a", run: 1, lifecycle: 0)
+        _ = try runner.started("a", run: 1)
+        let second = try sut.begin(mod: "a", run: 1, lifecycle: 1)
+        let reached = try sut.route(from: "a", run: 1, connection: 1)
+        let back = try sut.route(from: "dep", run: 1, connection: 1)
+        let stranger = Result { try sut.route(from: "b", run: 1, connection: 1) }
+        let none = Result { try sut.route(from: "a", run: 1, connection: 9) }
 
         // Then
-        #expect(first.map(\.line) == ["1 bot#1@0 -> forge#1@0 required"])
-        #expect(second.map(\.line) == ["2 bot#1@1 -> forge#1@0 required"])
-        #expect(reached == Endpoint(modId: "forge", run: 1, lifecycle: 0))
-        #expect(back == Endpoint(modId: "bot", run: 1, lifecycle: 0))
-        #expect(throws: ConnectionError.notAnEnd(mod: "note")) { try stranger.get() }
+        #expect(first.map(\.line) == ["1 a#1@0 -> dep#1@0 required"])
+        #expect(second.map(\.line) == ["2 a#1@1 -> dep#1@0 required"])
+        #expect(reached == Endpoint(modId: "dep", run: 1, lifecycle: 0))
+        #expect(back == Endpoint(modId: "a", run: 1, lifecycle: 0))
+        #expect(throws: ConnectionError.notAnEnd(mod: "b")) { try stranger.get() }
         #expect(throws: ConnectionError.ended) { try none.get() }
         #expect(sut.changes().isEmpty)
     }
@@ -48,102 +48,102 @@ struct ConnectionBrokerTests {
     @Test("exports opened in a lifecycle reach that lifecycle and those above, and an optional mod connects as it comes")
     func exportsReachTheirLifecycleAndAbove() throws {
         // Given
-        try fixture.write("switcher")
-        try fixture.write("note", optional: ["switcher": "1.0.0"])
-        try fixture.write("old", optional: ["switcher": "2.0.0"])
+        try fixture.write("dep")
+        try fixture.write("a", optional: ["dep": "1.0.0"])
+        try fixture.write("old", optional: ["dep": "2.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        for id in ["note", "old"] {
+        for id in ["a", "old"] {
             try start(id, runner: runner, sut: sut)
             _ = try sut.begin(mod: id, run: 1, lifecycle: 1)
         }
-        _ = try runner.load(["switcher"])
-        _ = try sut.begin(mod: "switcher", run: 1, lifecycle: 0)
-        _ = try runner.started("switcher", run: 1)
+        _ = try runner.load(["dep"])
+        _ = try sut.begin(mod: "dep", run: 1, lifecycle: 0)
+        _ = try runner.started("dep", run: 1)
 
         // When
         let before = sut.changes()
-        _ = try sut.begin(mod: "switcher", run: 1, lifecycle: 1)
-        _ = try runner.joined("switcher", run: 1, summary: .object([:]), contributions: contribution(exportedIn: 1))
+        _ = try sut.begin(mod: "dep", run: 1, lifecycle: 1)
+        _ = try runner.joined("dep", run: 1, summary: .object([:]), contributions: contribution(exportedIn: 1))
         let after = sut.changes()
 
         // Then
         #expect(before.isEmpty)
-        #expect(after.map(\.line) == ["connect 1 note#1@1 -> switcher#1@1"])
+        #expect(after.map(\.line) == ["connect 1 a#1@1 -> dep#1@1"])
     }
 
     @Test("a connection ends with either lifecycle, and only once")
     func connectionEndsWithEitherLifecycle() throws {
         // Given
-        try fixture.write("switcher")
-        try fixture.write("note", optional: ["switcher": "1.0.0"])
-        try fixture.write("finder", optional: ["switcher": "1.0.0"])
+        try fixture.write("dep")
+        try fixture.write("a", optional: ["dep": "1.0.0"])
+        try fixture.write("b", optional: ["dep": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("switcher", exportedIn: 0, runner: runner, sut: sut)
-        for id in ["note", "finder"] {
+        try start("dep", exportedIn: 0, runner: runner, sut: sut)
+        for id in ["a", "b"] {
             try start(id, runner: runner, sut: sut)
         }
         _ = sut.changes()
 
         // When
-        sut.end(mod: "note", run: 1, lifecycle: 0)
-        let noteEnded = sut.changes()
-        _ = try runner.crashed("switcher", run: 1, problem: "gone")
-        let switcherCrashed = sut.changes()
+        sut.end(mod: "a", run: 1, lifecycle: 0)
+        let aEnded = sut.changes()
+        _ = try runner.crashed("dep", run: 1, problem: "gone")
+        let depCrashed = sut.changes()
         let again = sut.changes()
 
         // Then
-        #expect(noteEnded.map(\.line) == ["disconnect 1 note#1@0 -> switcher#1@0"])
-        #expect(switcherCrashed.map(\.line) == ["disconnect 2 finder#1@0 -> switcher#1@0"])
+        #expect(aEnded.map(\.line) == ["disconnect 1 a#1@0 -> dep#1@0"])
+        #expect(depCrashed.map(\.line) == ["disconnect 2 b#1@0 -> dep#1@0"])
         #expect(again.isEmpty)
     }
 
     @Test("a connection its dependency's page refused is not made again while both its ends are up")
     func refusedConnectionStaysDown() throws {
         // Given
-        try fixture.write("calendar")
-        try fixture.write("google", optional: ["calendar": "1.0.0"])
+        try fixture.write("dep")
+        try fixture.write("a", optional: ["dep": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("google", runner: runner, sut: sut)
-        try start("calendar", exportedIn: 0, runner: runner, sut: sut)
+        try start("a", runner: runner, sut: sut)
+        try start("dep", exportedIn: 0, runner: runner, sut: sut)
         let connected = sut.changes()
 
         // When
         sut.refuse(1)
         let refused = sut.changes()
-        _ = try runner.unload(["calendar"])
-        _ = try runner.stopped("calendar", run: 1)
+        _ = try runner.unload(["dep"])
+        _ = try runner.stopped("dep", run: 1)
         _ = sut.changes()
-        try start("calendar", exportedIn: 0, runner: runner, sut: sut, run: 2)
+        try start("dep", exportedIn: 0, runner: runner, sut: sut, run: 2)
         let relaunched = sut.changes()
 
         // Then
-        #expect(connected.map(\.line) == ["connect 1 google#1@0 -> calendar#1@0"])
+        #expect(connected.map(\.line) == ["connect 1 a#1@0 -> dep#1@0"])
         #expect(refused.isEmpty)
-        #expect(relaunched.map(\.line) == ["connect 2 google#1@0 -> calendar#2@0"])
+        #expect(relaunched.map(\.line) == ["connect 2 a#1@0 -> dep#2@0"])
     }
 
     @Test("a run that waits for exports in a lifecycle they do not reach is told so")
     func unreachedWaitIsAProblem() throws {
         // Given
-        try fixture.write("switcher")
-        try fixture.write("note", optional: ["switcher": "1.0.0"])
+        try fixture.write("dep")
+        try fixture.write("a", optional: ["dep": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("switcher", exportedIn: 1, runner: runner, sut: sut)
-        _ = try runner.load(["note"])
-        _ = try runner.started("note", run: 1, awaits: ["switcher": 0])
-        let note = try #require(runner.run(of: "note"))
+        try start("dep", exportedIn: 1, runner: runner, sut: sut)
+        _ = try runner.load(["a"])
+        _ = try runner.started("a", run: 1, awaits: ["dep": 0])
+        let waiting = try #require(runner.run(of: "a"))
 
         // When
-        let problems = sut.problems(of: note)
+        let problems = sut.problems(of: waiting)
 
         // Then
         #expect(
             problems == [
-                "it waits for switcher in a lifecycle switcher's exports do not reach: switcher opens them in one stacked above"
+                "it waits for dep in a lifecycle dep's exports do not reach: dep opens them in one stacked above"
             ]
         )
     }

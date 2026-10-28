@@ -25,10 +25,10 @@ struct StateTests {
     @Test("all reads back every key written, the state folder's first, then each folder's by name")
     func allReadsBackEveryKey() throws {
         // Given
-        try sut.write(folder: "host", key: "pinned", text: #"["notes"]"#)
-        try sut.write(folder: nil, key: "panel-order", text: #"["b","a"]"#)
+        try sut.write(folder: "b", key: "k", text: #"["a"]"#)
+        try sut.write(folder: nil, key: "order", text: #"["b","a"]"#)
         try sut.write(folder: "app", key: "size", text: "1")
-        try sut.write(folder: nil, key: "panel-order", text: #"["a","b"]"#)
+        try sut.write(folder: nil, key: "order", text: #"["a","b"]"#)
 
         // When
         let entries = try sut.all()
@@ -36,9 +36,9 @@ struct StateTests {
         // Then
         #expect(
             entries == [
-                StateEntry(folder: nil, key: "panel-order", text: #"["a","b"]"#),
+                StateEntry(folder: nil, key: "order", text: #"["a","b"]"#),
                 StateEntry(folder: "app", key: "size", text: "1"),
-                StateEntry(folder: "host", key: "pinned", text: #"["notes"]"#)
+                StateEntry(folder: "b", key: "k", text: #"["a"]"#)
             ]
         )
     }
@@ -46,17 +46,17 @@ struct StateTests {
     @Test("a reserved key of the state folder is written only by its keeper; one of the same name in a folder is not")
     func reservedKeyIsRefused() throws {
         // Given
-        sut.reserve("keys")
-        try sut.write(reserved: "keys", text: "[]")
-        try sut.write(folder: "host", key: "keys", text: "1")
+        sut.reserve("k")
+        try sut.write(reserved: "k", text: "[]")
+        try sut.write(folder: "b", key: "k", text: "1")
 
         // When
-        let written = Result { try sut.write(folder: nil, key: "keys", text: "{}") }
+        let written = Result { try sut.write(folder: nil, key: "k", text: "{}") }
 
         // Then
-        #expect(throws: StateError.reserved("keys")) { try written.get() }
-        #expect(try sut.read(folder: nil, key: "keys") == "[]")
-        #expect(try sut.read(folder: "host", key: "keys") == "1")
+        #expect(throws: StateError.reserved("k")) { try written.get() }
+        #expect(try sut.read(folder: nil, key: "k") == "[]")
+        #expect(try sut.read(folder: "b", key: "k") == "1")
     }
 
     @Test("all reads none from a state folder that is not there")
@@ -98,7 +98,7 @@ struct StateTests {
         #expect(throws: StateError.notAKey(key)) { try written.get() }
     }
 
-    @Test("a folder that would not name one is refused as FOLDER", arguments: ["", "Host", "a/b", ".."])
+    @Test("a folder that would not name one is refused as FOLDER", arguments: ["", "B", "a/b", ".."])
     func badFolderIsRefused(folder: String) {
         // Given
         // When

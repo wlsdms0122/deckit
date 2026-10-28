@@ -37,7 +37,7 @@ struct ErasureTests {
     func eraseTakesWhatDeckKeeps() throws {
         // Given
         try keep("notes")
-        try keep("finder")
+        try keep("other")
 
         // When
         try sut.erase(mod: "notes")
@@ -47,9 +47,9 @@ struct ErasureTests {
         #expect(!exists("data/notes"))
         #expect(!exists("records/notes"))
         #expect(!exists("mod-state/layer/notes.json"))
-        #expect(exists("data/finder"))
-        #expect(exists("records/finder"))
-        #expect(exists("mod-state/layer/finder.json"))
+        #expect(exists("data/other"))
+        #expect(exists("records/other"))
+        #expect(exists("mod-state/layer/other.json"))
         #expect(sut.uncleared() == ["notes"])
     }
 
@@ -76,14 +76,14 @@ struct ErasureTests {
     func clearedTakesTheNote() throws {
         // Given
         try sut.erase(mod: "notes")
-        try sut.erase(mod: "finder")
+        try sut.erase(mod: "other")
 
         // When
         try sut.cleared(mod: "notes")
 
         // Then
-        #expect(sut.uncleared() == ["finder"])
-        #expect(try state.read(folder: nil, key: "uncleared") == #"["finder"]"#)
+        #expect(sut.uncleared() == ["other"])
+        #expect(try state.read(folder: nil, key: "uncleared") == #"["other"]"#)
     }
 
     @Test("an id that is no mod's is refused, and nothing is noted")
