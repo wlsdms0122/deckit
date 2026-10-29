@@ -25,7 +25,7 @@ struct CommandRegistryTests {
         let sut = try fixture.deckit()
 
         // When
-        try sut.commands.define([command("close")], provider: "@host")
+        try sut.commands.define([command("close")], provider: "@host", name: "Host")
         _ = try sut.started("b", run: 1, contributing: ["commands": .array([command("open")])])
         _ = try sut.started("a", run: 1, contributing: ["commands": .array([command("reload"), command("copy")])])
         let listed = sut.commands.list()
@@ -117,12 +117,12 @@ struct CommandRegistryTests {
     func hostDeclaresEachNameOnce() throws {
         // Given
         let sut = try fixture.deckit()
-        try sut.commands.define([command("show")], provider: "@host")
+        try sut.commands.define([command("show")], provider: "@host", name: "Host")
 
         // When
-        let again = refusal { try sut.commands.define([command("show")], provider: "@host") }
-        let unnamed = refusal { try sut.commands.define([command("show")], provider: "host") }
-        let other = refusal { try sut.commands.define([command("show")], provider: "@app") }
+        let again = refusal { try sut.commands.define([command("show")], provider: "@host", name: "Host") }
+        let unnamed = refusal { try sut.commands.define([command("show")], provider: "host", name: "Host") }
+        let other = refusal { try sut.commands.define([command("show")], provider: "@app", name: "App") }
 
         // Then
         #expect(again == "@host.show is declared already")

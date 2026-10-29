@@ -12,6 +12,8 @@ import Deck
 struct DefineCommandsParams: Decodable {
     // MARK: - Property
     let provider: String
+    // The host's, as a person reads it.
+    let name: String
     let commands: [JSONValue]
 
     // MARK: - Initializer

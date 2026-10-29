@@ -160,7 +160,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const LOG = createLog({ log: ENV.log, reports: ENV.reports, about: ENV.about, folder: HOME.logs, name: CONFIG.id });
     // The channels are carried before anything crosses.
     IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
-    const CORE = createCore({ CONFIG, FOLDERS, LOG, core: ENV.core, home: HOME.folder });
+    const CORE = createCore({ FOLDERS, LOG, core: ENV.core, home: HOME.folder });
     const STORAGE = createStorage({ CORE, LOG });
     const PERMISSION = createPermission({ vocabulary: VOCABULARY });
     const CATALOG = createCatalog({ CORE, LOG, files: ENV.files });

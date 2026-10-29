@@ -93,11 +93,12 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         });
     }
 
-    // A host's keys, under `provider`, a name of its own that starts with "@": { name: { label, key, scope, run } },
-    // `run()` what pressing it does, here. By its `scope` a key works in the page in front, anywhere a page is listened
-    // to, or in every app too. Resolves once the core has them, and rejects with why it refused one, as one with no
-    // label.
-    async function register(provider, keys) {
+    // A host's keys, under `host`, `{ id, name }`: `id` a name of its own that starts with "@", and `name` as a person
+    // reads it. Keys are { name: { label, key, scope, run } }, `run()` what pressing it does, here. By its `scope` a
+    // key works in the page in front, anywhere a page is listened to, or in every app too. Resolves once the core has
+    // them, and rejects with why it refused one, as one with no label.
+    async function register(host, keys) {
+        const provider = host.id;
         for (const [name, { label = '', key = '', scope = 'local', run } = {}] of Object.entries(keys || {})) {
             if (typeof run !== 'function') throw new Error(`[deckit] the key ${provider}.${name} needs a run`);
             if (!KEY_SCOPE.SCOPES.includes(scope))
@@ -110,6 +111,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
                 keep(
                     await CORE.request('keymap/register', {
                         provider,
+                        name: host.name,
                         key: { name, label: String(label), key: String(key), scope },
                     })
                 );

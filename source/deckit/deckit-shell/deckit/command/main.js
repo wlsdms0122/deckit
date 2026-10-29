@@ -46,10 +46,11 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         for (const name of ['didLaunch', 'didJoin', 'didTerminate']) RUNNER.observe(name, changed);
     }
 
-    // A host's commands, under `provider`, a name of its own that starts with "@": { name: { description, params,
-    // run(args), complete(param, partial, { args, signal }) } }. Resolves once the core has them, and rejects with why
-    // it refused one.
-    async function register(provider, commands) {
+    // A host's commands, under `host`, `{ id, name }`: `id` a name of its own that starts with "@", and `name` as a
+    // person reads it. Commands are { name: { description, params, run(args), complete(param, partial, { args,
+    // signal }) } }. Resolves once the core has them, and rejects with why it refused one.
+    async function register(host, commands) {
+        const provider = host.id;
         const declared = [];
         const kept = new Map();
         for (const [name, entry] of Object.entries(commands || {})) {
@@ -62,7 +63,7 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         const before = hosts.get(provider);
         hosts.set(provider, new Map([...(before || []), ...kept]));
         try {
-            await CORE.request('command/define', { provider, commands: declared });
+            await CORE.request('command/define', { provider, name: host.name, commands: declared });
         } catch (error) {
             if (before) hosts.set(provider, before);
             else hosts.delete(provider);

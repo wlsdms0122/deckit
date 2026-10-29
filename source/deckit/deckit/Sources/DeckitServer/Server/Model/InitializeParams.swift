@@ -12,8 +12,6 @@ struct InitializeParams: Decodable {
     // MARK: - Property
     // Deckit's folder, as the host app configured it.
     let home: String
-    // The app's, as a person reads it.
-    let name: String
     // By scheme, the mods the app asks first to open an address.
     let schemeHandlers: [String: [String]]
     // The mod contract the mods are run with.

@@ -14,15 +14,12 @@ public final class CommandRegistry {
     // MARK: - Property
     private let contributionKey = "commands"
     private let deck: Deck
-    private let hostName: String
     // In the order they were declared.
     private var hostCommands: [RegisteredCommand] = []
 
     // MARK: - Initializer
-    // `hostName` is the app's, as a person reads it.
-    init(deck: Deck, hostName: String) {
+    init(deck: Deck) {
         self.deck = deck
-        self.hostName = hostName
     }
 
     // MARK: - Lifecycle
@@ -41,9 +38,10 @@ public final class CommandRegistry {
     }
 
     // MARK: - Public
-    // Commands of a host, `provider` its name, which starts with "@". Each name is declared once.
-    public func define(_ declarations: [JSONValue], provider: String) throws {
-        guard let host = Provider(host: provider, name: hostName) else { throw CommandError.notAName(provider) }
+    // Commands of a host, `provider` its name, which starts with "@", and `name` the host's as a person reads it. Each
+    // name is declared once.
+    public func define(_ declarations: [JSONValue], provider: String, name: String) throws {
+        guard let host = Provider(host: provider, name: name) else { throw CommandError.notAName(provider) }
         var next = hostCommands
         for value in declarations {
             let command = try Command(declared: value)

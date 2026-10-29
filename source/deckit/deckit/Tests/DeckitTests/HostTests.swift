@@ -25,12 +25,12 @@ struct HostTests {
         let sut = try deckit()
 
         // When
-        let keymap = try sut.keymap.register(findKey, provider: "@app")
+        let keymap = try sut.keymap.register(findKey, provider: "@app", name: "App")
 
         // Then
         let find = try #require(keymap.bindings.first)
         #expect(find.binding.id == "@app.find")
-        #expect(find.binding.provider.name == "Host")
+        #expect(find.binding.provider.name == "App")
         #expect(find.binding.keystroke == Keystroke(spec: "mod+f"))
         #expect(find.active)
         #expect(find.issues.isEmpty)
@@ -74,21 +74,20 @@ struct HostTests {
         let sut = try deckit().keymap
 
         // When
-        let resolved = try sut.register(findKey, provider: "@app")
+        let resolved = try sut.register(findKey, provider: "@app", name: "App")
 
         // Then
         #expect(resolved.bindings.map(\.binding.id) == ["@app.find"])
     }
 
     // MARK: - Private
-    // A deckit named Host over the mods written, read and each that loads launching.
+    // A deckit over the mods written, read and each that loads launching.
     private func deckit() throws -> Deckit {
         let deckit = try Deckit(
             home: root.appending(path: "home"),
             ship: [],
             sources: [root.appending(path: "source")],
             api: try #require(Version("1.0.0")),
-            name: "Host",
             schemeHandlers: [:],
             permissions: [],
             given: []

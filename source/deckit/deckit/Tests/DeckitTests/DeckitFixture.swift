@@ -49,7 +49,7 @@ struct DeckitFixture {
         try FileManager.default.removeItem(at: source.appending(path: id))
     }
 
-    // A deckit over what is written, the app named App asking `schemeHandlers` first, its mods read and each that loads
+    // A deckit over what is written, the app asking `schemeHandlers` first, its mods read and each that loads
     // launching.
     func deckit(schemeHandlers: [String: [String]] = [:]) throws -> Deckit {
         let sut = try Deckit(
@@ -57,7 +57,6 @@ struct DeckitFixture {
             ship: [],
             sources: [source],
             api: try #require(Version("1.0.0")),
-            name: "App",
             schemeHandlers: schemeHandlers,
             permissions: [],
             given: []

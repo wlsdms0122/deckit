@@ -22,7 +22,7 @@ struct ServerTests {
     // MARK: - Initializer
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
-        initializeParams = #"{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[],"given":[]}"#
+        initializeParams = #"{"home":"\#(home)","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[],"given":[]}"#
         initializeRequest = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#
         sut = Server()
     }
@@ -251,7 +251,7 @@ struct ServerTests {
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","name":"Deckit","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)],"given":[]}}"#,
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)],"given":[]}}"#,
             to: sut
         )
 
@@ -364,12 +364,12 @@ struct ServerTests {
 
         // When
         let defined = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"command/define","params":{"provider":"@app","#
+            #"{"jsonrpc":"2.0","id":5,"method":"command/define","params":{"provider":"@app","name":"Deckit","#
                 + #""commands":[{"name":"go"}]}}"#,
             to: sut
         )
         let registered = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"provider":"@app","key":{"name":"go","#
+            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"provider":"@app","name":"Deckit","key":{"name":"go","#
                 + #""label":"Go","key":"mod+1","scope":"local"}}}"#,
             to: sut
         )
@@ -447,7 +447,7 @@ struct ServerTests {
         _ = try send(initializeRequest, to: sut)
         for (id, (name, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
             _ = try send(
-                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"provider":"@app","#
+                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"provider":"@app","name":"Deckit","#
                     + #""key":{"name":"\#(name)","label":"\#(name)","key":"\#(spec)","scope":"local"}}}"#,
                 to: sut
             )

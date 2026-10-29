@@ -103,13 +103,16 @@ async function main() {
             return pressed.code === 'Escape';
         },
     });
-    await KEYMAP.register('@app', {
-        summon: { label: 'Summon', key: 'Alt+Space', scope: 'app', run: runs('summon') },
-        switch: { label: 'Switch', key: 'Meta+K', run: runs('switch') },
-        find: { label: 'Find', key: 'Meta+G', scope: 'app', run: runs('find') },
-        jump: { label: 'Jump', key: 'Ctrl+J', run: runs('jump') },
-        anywhere: { label: 'Anywhere', key: 'Ctrl+Space', scope: 'global', run: runs('any') },
-    });
+    await KEYMAP.register(
+        { id: '@app', name: 'App' },
+        {
+            summon: { label: 'Summon', key: 'Alt+Space', scope: 'app', run: runs('summon') },
+            switch: { label: 'Switch', key: 'Meta+K', run: runs('switch') },
+            find: { label: 'Find', key: 'Meta+G', scope: 'app', run: runs('find') },
+            jump: { label: 'Jump', key: 'Ctrl+J', run: runs('jump') },
+            anywhere: { label: 'Anywhere', key: 'Ctrl+Space', scope: 'global', run: runs('any') },
+        }
+    );
     const anywhere = (fields) =>
         binding({ name: 'anywhere', provider: '@app', scope: 'global', chord: '⌃Space', ...fields });
     // As the core lists them, the narrowest scope first.
@@ -177,17 +180,21 @@ async function main() {
     heard.told(mod, { channel: 'deckit-shell:keymap-record', payload: { on: false } });
 
     let threw = false;
-    await KEYMAP.register('@app', {
-        nowhere: { label: 'Nowhere', key: 'Ctrl+N', scope: 'everywhere', run: runs('nowhere') },
-    }).catch(() => (threw = true));
+    await KEYMAP.register(
+        { id: '@app', name: 'App' },
+        {
+            nowhere: { label: 'Nowhere', key: 'Ctrl+N', scope: 'everywhere', run: runs('nowhere') },
+        }
+    ).catch(() => (threw = true));
     check('a key of no known scope is refused', threw, threw);
     // A key that works in every app tells the core its provider and scope, and is held as a hotkey.
     const registered = asked.find(
         ({ method, params }) => method === 'keymap/register' && params.key.name === 'anywhere'
     );
     check(
-        'a key tells the core its provider, label and scope',
+        'a key tells the core its provider, the name it gives, label and scope',
         registered?.params.provider === '@app' &&
+            registered.params.name === 'App' &&
             registered.params.key.label === 'Anywhere' &&
             registered.params.key.scope === 'global',
         registered
