@@ -276,10 +276,6 @@ class Bot {
                 run: chooseSession,
                 complete: (_param, partial) => picker.candidates(partial),
             },
-            'restart-forge': {
-                description: "Restarts the chosen session's daemon with the services it supervises, or starts it.",
-                run: () => supervisor.restart(),
-            },
             'search-brain': {
                 description: 'Lists the notes of the brain that match a search, in Brain.',
                 params: {
