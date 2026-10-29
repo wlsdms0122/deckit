@@ -262,7 +262,7 @@ const WEB_DECK = Object.freeze({
     windowSize: { width: 'number', height: 'number' },
 });
 
-// What `SHELL.stage()` makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
+// What SHELL.stage() makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
 // a time, `bounds` a rect or a function of the window's content size that it follows, `front` over what is in the
 // window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
 // `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one keeps the

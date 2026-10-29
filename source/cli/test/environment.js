@@ -1,6 +1,6 @@
 // What an environment gives deckit (deckit-shell/environment): how a given object is held to it, that connect and
-// attach refuse an environment that lacks a member, and what connect answers the UI and the host app. Exits 1 with a line for each check
-// that failed. The packages are ES modules, so they are imported as such.
+// attach refuse an environment that lacks a member, and what connect answers the UI and the host app. Exits 1 with a
+// line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 

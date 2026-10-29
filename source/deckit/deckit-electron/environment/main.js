@@ -1,5 +1,5 @@
-// What Electron gives deck and the shell on main's side (deckit-shell/environment: MAIN, SHELL): its IPC carries the
-// messages, a page is its webContents, in a view of its own, the core is a child process, and the log a file of its own.
+// What Electron gives deck and the shell in main (deckit-shell/environment: MAIN, SHELL): its IPC carries the messages,
+// a page is its webContents, in a view of its own, the core is a child process, and the log a file of its own.
 import * as LISTENER from '../listener/index.js';
 import * as HANDLER from '../handler/index.js';
 import { createReports } from './reports.js';

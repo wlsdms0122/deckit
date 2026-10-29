@@ -1,7 +1,7 @@
 // What a page deckit makes is told as it starts (deckit-shell/deckit/setup), over a stand-in for the environment's
 // messages: a page that runs no mod by its name, and a mod's page its web sessions and the layers stacked over deckit
-// on it, so a host app that never attaches the shell runs its mods with deck's and deckit's alone. Exits 1 with a line for each
-// check that failed. The packages are ES modules, so they are imported as such.
+// on it, so a host app that never attaches the shell runs its mods with deck's and deckit's alone. Exits 1 with a line
+// for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
