@@ -108,7 +108,9 @@ const MAIN = Object.freeze({
     // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
     mainProcess: {
         start: 'function', // start(mod, path) -> Promise of { path, methods }: the module, started once in a run
-        call: 'function', // call(modId, path, method, args) -> Promise of what the method answered
+        // call(modId, path, method, args) -> Promise of what the method answered, refused with kind `NOT_STARTED` for
+        // a module not started in this run
+        call: 'function',
         launching: 'function', // launching(mod): its run is about to launch
         // ended(mod, { within }) -> Promise, settled once they have: its run ended, and its modules end with it, each
         // given `within` ms to finish starting and to dispose
