@@ -31,14 +31,14 @@ export function createWindow({ deckit, showWindow, hideWindow, closeWindow }) {
 
     // MARK: - Private
     // A window open while its mod's page goes is put away: the page in it is gone. The window of a mod gone from the
-    // catalog is ended.
+    // catalog is ended, though its run may not have ended yet.
     function reconcile() {
         const found = new Set(deckit.mods.list().map(({ id }) => id));
         for (const [id, held] of windows) if (!found.has(id)) end(id, held);
         const running = new Map(
             deckit.mods
                 .runs()
-                .filter(({ run }) => run.state === 'running' && run.summary?.window)
+                .filter(({ run }) => found.has(run.mod.id) && run.state === 'running' && run.summary?.window)
                 .map(({ run, page }) => [run.mod.id, { run, page }])
         );
         for (const held of windows.values()) {
