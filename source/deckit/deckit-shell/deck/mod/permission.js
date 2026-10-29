@@ -8,29 +8,30 @@ const PERMISSIONS = Object.freeze([
     }),
 ]);
 
-// `vocabulary` is every permission the mod contract names, `{ id, name, means }`, as a person reads them before
-// installing.
-export function createPermission({ vocabulary }) {
+// The permissions the layers on this host define, each guarding what its layer adds and checked there. Deck knows
+// none of them: it reads every manifest against them, and one no layer defines is not usable here.
+export function createPermission() {
     // MARK: - Property
-    const given = []; // the ids the layers on this host defined, in the order each was defined
+    const defined = []; // `{ id, name, means }`, in the order each was defined
     let handed = false; // the core has them
 
     // MARK: - Initializer
     // MARK: - Public
-    // A permission of the contract a layer on this host gives, guarding what it adds. Defined before the core starts,
-    // which reads every manifest against them: one the contract names that no layer gives is not usable here.
-    function define({ id }) {
+    // A permission of a layer on this host: `name` and `means` are what a person reads before installing. Defined
+    // once, before the core starts.
+    function define({ id, name, means }) {
         if (handed) throw new Error(`[deckit] ${id} is defined after the core started`);
-        if (!vocabulary.some((permission) => permission.id === id))
-            throw new Error(`[deckit] ${id} is no permission the mod contract names`);
-        given.push(id);
+        for (const [key, value] of Object.entries({ id, name, means }))
+            if (typeof value !== 'string' || !value.trim())
+                throw new Error(`[deckit] a permission's ${key} is no text`);
+        if (defined.some((permission) => permission.id === id)) throw new Error(`[deckit] ${id} is defined twice`);
+        defined.push({ id, name, means });
     }
 
-    // What the core reads every manifest against, as it starts: the contract's permissions, and the ids of those this
-    // host gives.
+    // What the core reads every manifest against, as it starts.
     function all() {
         handed = true;
-        return { permissions: vocabulary.map((permission) => ({ ...permission })), given: [...given] };
+        return { permissions: defined.map((permission) => ({ ...permission })) };
     }
 
     // MARK: - Private

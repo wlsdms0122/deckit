@@ -1,4 +1,4 @@
-{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","given":["deckit.example"],"home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example"},{"id":"system.example","means":"An example past the app","name":"Example past the app"}],"schemeHandlers":{"mailto":["a"]},"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
+{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example"}],"schemeHandlers":{"mailto":["a"]},"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
 {"id":2,"jsonrpc":"2.0","method":"catalog/install-shipped"}
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a","b","c"]}}
@@ -67,4 +67,4 @@
 {"id":60,"jsonrpc":"2.0","method":"erasure/cleared","params":{"mod":"d"}}
 {"id":61,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a","d"]}}
 {"id":62,"jsonrpc":"2.0","method":"no/such"}
-{"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","given":[],"home":"@HOME@","permissions":[],"schemeHandlers":{},"ship":[],"sources":[]}}
+{"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[],"schemeHandlers":{},"ship":[],"sources":[]}}

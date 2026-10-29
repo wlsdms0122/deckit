@@ -89,8 +89,7 @@ struct HostTests {
             sources: [root.appending(path: "source")],
             api: try #require(Version("1.0.0")),
             schemeHandlers: [:],
-            permissions: [],
-            given: []
+            permissions: []
         )
         let mods = deckit.deck.readCatalog()
         _ = try deckit.deck.load(mods.map(\.manifest.id))

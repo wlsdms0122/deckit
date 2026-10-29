@@ -27,16 +27,14 @@ public final class Deck {
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
-    // place. A manifest is read against `api`, the mod contract the mods are run with: the `permissions` it names,
-    // deck's own among them, of which the layers on this host give those `given`, and the `fields` the layers on deck
-    // add.
+    // place. A manifest is read against `api`, the mod contract the mods are run with, the `permissions` the layers on
+    // this host define, deck's own among them, and the `fields` the layers on deck add.
     public init(
         home: URL,
         ship: [URL],
         sources: [URL],
         api: Version,
         permissions: [Permission],
-        given: Set<String>,
         fields: [any ManifestField]
     ) throws {
         let store = Store()
@@ -44,7 +42,6 @@ public final class Deck {
         let reader = try ManifestReader(
             api: api,
             permissions: permissions,
-            given: given,
             fields: fields,
             store: store
         )

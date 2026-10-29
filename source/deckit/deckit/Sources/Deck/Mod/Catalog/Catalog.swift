@@ -192,7 +192,7 @@ public final class Catalog {
             source.path(percentEncoded: false),
             manifest.version ?? "",
             String(installs[manifest.id] ?? 0)
-        ] + manifest.permissions.map { requested in "\(requested.permission.id)=\(requested.reason)" }
+        ] + manifest.permissions.map { requested in "\(requested.id)=\(requested.reason)" }
 
         return Mod(
             manifest: manifest,

@@ -49,7 +49,6 @@ struct RunnerFixture {
         let reader = try ManifestReader(
             api: try #require(Version("1.0.0")),
             permissions: [],
-            given: [],
             fields: [],
             store: store
         )

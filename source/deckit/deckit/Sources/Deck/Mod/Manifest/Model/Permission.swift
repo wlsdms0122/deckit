@@ -14,9 +14,8 @@ public struct Permission: Equatable, Sendable {
     public let id: String
     public let name: String
     public let means: String
-    // The id's prefix says it: `system.` past the app, any other inside it.
     public var reach: PermissionReach {
-        id.hasPrefix("system.") ? .system : .app
+        PermissionReach(of: id)
     }
 
     // MARK: - Initializer

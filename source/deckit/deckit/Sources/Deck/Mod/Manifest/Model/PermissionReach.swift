@@ -14,6 +14,11 @@ public enum PermissionReach: String, CaseIterable, Codable, Sendable {
 
     // MARK: - Property
     // MARK: - Initializer
+    // The id's prefix says it: `system.` past the app, any other inside it.
+    init(of id: String) {
+        self = id.hasPrefix("system.") ? .system : .app
+    }
+
     // MARK: - Public
     // MARK: - Private
 }

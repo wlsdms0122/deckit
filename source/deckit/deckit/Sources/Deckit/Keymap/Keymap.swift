@@ -128,7 +128,7 @@ public final class Keymap {
         if key.label.isEmpty { return KeymapError.noLabel(key.name).message }
         guard let permission = Self.permission(for: key.scope) else { return nil }
         let cannot = "key \"\(key.name)\" cannot work \(key.scope.phrase)"
-        guard mod.manifest.permissions.contains(where: { request in request.permission.id == permission.id }) else {
+        guard mod.manifest.permissions.contains(where: { request in request.id == permission.id }) else {
             return "\(cannot): that takes the \(permission.id) permission"
         }
         guard keystroke.fits(key.scope) else { return "\(cannot): \(Keystroke.wideRule)" }

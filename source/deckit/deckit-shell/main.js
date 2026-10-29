@@ -66,8 +66,7 @@ const ATTACH_ANSWERS = [
     'hideWindow',
     'closeWindow',
 ];
-// Every permission the mod contract names, in the order a person reads them: deck's, deckit's, and those of deckit's
-// shell. Each layer on a host defines those it gives.
+// The permissions each layer defines, in the order a person reads them.
 const DECK_PERMISSIONS = [MOD_PERMISSION];
 const DECKIT_PERMISSIONS = [
     MAIN_PROCESS_PERMISSION,
@@ -80,9 +79,6 @@ const DECKIT_PERMISSIONS = [
     CONFIGURATION_PERMISSION,
 ];
 const SHELL_PERMISSIONS = [WINDOW_PERMISSION, STYLE_PERMISSION, FONTS_PERMISSION];
-const VOCABULARY = [...DECK_PERMISSIONS, ...DECKIT_PERMISSIONS, ...SHELL_PERMISSIONS].flatMap(
-    (model) => model.PERMISSIONS
-);
 // Main's channels are the process's: deckit connects once, and the UI is attached once, to what connect answered.
 let connected = null;
 let attached = false;
@@ -162,7 +158,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
     const CORE = createCore({ FOLDERS, LOG, core: ENV.core, home: HOME.folder });
     const STORAGE = createStorage({ CORE, LOG });
-    const PERMISSION = createPermission({ vocabulary: VOCABULARY });
+    const PERMISSION = createPermission();
     const CATALOG = createCatalog({ CORE, LOG, files: ENV.files });
     const IDENTITY = createIdentity({ pages: ENV.pages });
     const RUNNER = createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: ENV.pages, app: ENV.app });
