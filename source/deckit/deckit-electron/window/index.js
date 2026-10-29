@@ -68,6 +68,16 @@ export function createWindow({ LOG, openWindow }) {
         return null;
     }
 
+    // A view taken out of the window it is in, unheard as that window closes.
+    function unplace(view) {
+        const at = placed.get(view);
+        if (!at) return;
+        placed.delete(view);
+        roots.delete(view);
+        inWindow.get(at.window)?.delete(view);
+        if (!at.window.isDestroyed()) at.window.contentView.removeChildView(view);
+    }
+
     // MARK: - Private
     function size(view) {
         const at = placed.get(view);
@@ -79,15 +89,6 @@ export function createWindow({ LOG, openWindow }) {
 
     function holds(view, webContents) {
         return view.webContents === webContents || (view.children || []).some((child) => holds(child, webContents));
-    }
-
-    function unplace(view) {
-        const at = placed.get(view);
-        if (!at) return;
-        placed.delete(view);
-        roots.delete(view);
-        inWindow.get(at.window)?.delete(view);
-        if (!at.window.isDestroyed()) at.window.contentView.removeChildView(view);
     }
 
     // A closing window destroys every view still in it, and touching a destroyed webContents in main throws. So
@@ -107,5 +108,5 @@ export function createWindow({ LOG, openWindow }) {
         });
     }
 
-    return { open, get, close, place, windowOf, windowShowing };
+    return { open, get, close, place, unplace, windowOf, windowShowing };
 }

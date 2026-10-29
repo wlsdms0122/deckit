@@ -61,9 +61,10 @@ async function main() {
         if (!views.has(name)) views.set(name, new View(name));
         return name;
     };
+    const unplaced = [];
     const stage = createStage({
         LOG: { guard: () => () => {}, info: () => {} },
-        WINDOW: { place: () => {} },
+        WINDOW: { place: () => {}, unplace: (view) => unplaced.push(view) },
         viewOf: (name) => views.get(name) || null,
     }).stage();
     const failed = [];
@@ -168,6 +169,13 @@ async function main() {
         both,
         neither,
     ]);
+    lay(['backdrop', 'a']);
+    stage.close();
+    check(
+        'a closed stage takes its pages off and leaves its window',
+        orderOf() === '' && unplaced.length === 1 && unplaced[0] === made[0],
+        orderOf()
+    );
 
     for (const line of failed) console.error(line);
     if (failed.length) {

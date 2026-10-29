@@ -118,6 +118,11 @@ function createApp({ WINDOW, THEME }) {
             dismiss: () => {},
             showWindow,
             hideWindow: (control) => live(state.windows.get(control))?.hide(),
+            closeWindow: (control) => {
+                const window = live(state.windows.get(control));
+                state.windows.delete(control);
+                window?.close();
+            },
             // Deckit's own windows: a mod's, a web page's, a popup's.
             openWindow: (options) => WINDOW.open(options),
             panelTitled: (title) => {

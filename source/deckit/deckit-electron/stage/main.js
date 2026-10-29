@@ -36,6 +36,12 @@ export function createStage({ LOG, WINDOW, viewOf }) {
             container.setVisible(!!on);
         }
 
+        // The stage ended: its pages taken off and it out of its window.
+        function close() {
+            lay([]);
+            WINDOW.unplace(container);
+        }
+
         // What is on the stage: each layer `{ page, rect }`, laid there, or `{ page, hidden: true }`, unseen. The
         // pages laid are in the order given, bottom to top; a hidden one keeps the place it has, and a new one goes in
         // over the layer before it. A page left out, or whose page is gone, is taken off. Each is clear where it draws
@@ -109,7 +115,7 @@ export function createStage({ LOG, WINDOW, viewOf }) {
             for (const view of views.slice(from)) container.addChildView(view);
         }
 
-        return Object.freeze({ place, size, whenResized, show, lay });
+        return Object.freeze({ place, size, whenResized, show, lay, close });
     }
 
     // MARK: - Private

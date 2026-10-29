@@ -242,14 +242,16 @@ const WEB_DECK = Object.freeze({
 // a time, `bounds` a rect or a function of the window's content size that it follows, `front` over what is in the
 // window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
 // `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one keeps the
-// place it has, a new one goes in over the layer before it, and a page left out, or gone, is taken off. Where a page
-// laid on it marks itself with `-webkit-app-region: drag`, a press drags the window it is in.
+// place it has, a new one goes in over the layer before it, and a page left out, or gone, is taken off; `close()`, the
+// stage ended, its pages taken off and it out of its window. Where a page laid on it marks itself with
+// `-webkit-app-region: drag`, a press drags the window it is in.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',
     whenResized: 'function',
     show: 'function',
     lay: 'function',
+    close: 'function',
 });
 
 const PAGE = Object.freeze({

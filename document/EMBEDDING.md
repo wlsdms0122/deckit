@@ -53,7 +53,7 @@ A key deckit does not read stops `connect` with its name. A page holds none of i
 
 Deck runs mods; deckit's shell makes the views they are seen in. Where those are shown is the host app's, the way a browser decides whether a page goes in a tab or a window while the page stays the same. There is one panel, wherever the host app puts it. Mods live in it: the host app is there before the panel.
 
-Every window is the host app's: its frame, its bar, where it opens. Deckit makes none; a window it needs is asked of the host app. The panel is drawn as glass, clear where nothing is drawn, so the host app puts it over something that blurs: a window with vibrancy, or a surface of its own. A mod's window is the host app's too, shown and put away through the shell's `showWindow` and `hideWindow`; its page may draw as glass; an overlay window then blurs what is behind it.
+Every window is the host app's: its frame, its bar, where it opens. Deckit makes none; a window it needs is asked of the host app. The panel is drawn as glass, clear where nothing is drawn, so the host app puts it over something that blurs: a window with vibrancy, or a surface of its own. A mod's window is the host app's too, shown, put away and closed through the shell's `showWindow`, `hideWindow` and `closeWindow`; its page may draw as glass; an overlay window then blurs what is behind it.
 
 In main, before the host app is ready:
 
@@ -94,8 +94,9 @@ What the host app answers deckit's shell. A page is a page token, which the envi
 | `panelTitled(title)` | the panel's title changed: the name of the mod in front, or the host app's name when none is |
 | `showWindow(control)` | a mod's window comes on screen: the host app makes or brings forward a window for it and puts the mod's page in it with `control.place`, the page `width` by `height` and the window that and any bar the host app draws |
 | `hideWindow(control)` | a mod's window goes away |
+| `closeWindow(control)` | the mod is gone: its window closes, and the control is not handed again |
 
-A mod's window control is the same object from run to run: `{ mod, name, width, height, overlay, place(window, { front, bounds, onClose }), contains(page), focus(), didResignKey() }`. `overlay` asks for a window over every app's; `didResignKey()` is the host app telling the mod the keyboard left the window. A window the host app closes puts the mod's away.
+A mod's window control is the same object from run to run, until the mod is gone: `{ mod, name, width, height, overlay, place(window, { front, bounds, onClose }), contains(page), focus(), didResignKey() }`. `overlay` asks for a window over every app's; `didResignKey()` is the host app telling the mod the keyboard left the window. A window the host app closes puts the mod's away.
 
 When the host app quits, once every window has closed, deck holds the quit at `will-quit` until every mod's run has ended, `detach()` and `stop()` two seconds at most each, and deckit until the main process modules of those runs have ended (`dispose`, two seconds at most each), and then asks for the quit again: it goes on as any quit does, `quit` and all. The host app's `before-quit` and `will-quit` listeners hear both. While a mod runs, the first `will-quit` is deck's hold, and while a main process module is still ending, the next one is deckit's: the host app calls the quit off at the first `before-quit` or at a later pass, and with nothing running there is one pass. A quit the host app calls off leaves the mods that stopped for it stopped, and the next quit stops the runs that started since. A core that has ended holds no quit. A restart the host app makes is a quit too, `app.relaunch()` and then `app.quit()`; `app.exit()` skips every end. The process ends with code 0; a host app that ends it with another calls `app.exit(code)` from its `quit` listener. `openWindow` can be asked as mods load, and `panelTitled` before `start`.
 
