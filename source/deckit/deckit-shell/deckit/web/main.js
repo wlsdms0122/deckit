@@ -15,6 +15,12 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     const SESSIONS = 'web-sessions'; // the state's key: mod id -> the names of the web sessions it used
     const TITLE_LIMIT = 200;
     const BODY_LIMIT = 400;
+    // A cookie with no expiry would sign the person out of every site at each launch; a browser restoring its session
+    // keeps them, so here it is given a lifetime.
+    const COOKIE_LIFETIME = 60 * 60 * 24 * 14;
+    // `fetchText` reads in the app's process, and a huge answer would be held whole there.
+    const FETCH_LIMIT = 4 * 1024 * 1024;
+    const WINDOW_SIZE = Object.freeze({ width: 520, height: 700 });
     // Asked per scheme, so a site allowed one app is not allowed every app. These are the web's own, never an app's.
     const NEVER_OUT = new Set([
         'javascript',
@@ -57,6 +63,9 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             permitted,
             request,
             requestApp: (embedder, id, { url, origin }) => mayOpenApp(embedder, id, url, origin),
+            cookieLifetime: COOKIE_LIFETIME,
+            fetchLimit: FETCH_LIMIT,
+            windowSize: WINDOW_SIZE,
         });
         listen();
     }

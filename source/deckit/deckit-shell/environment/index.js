@@ -215,7 +215,10 @@ const MAIN = Object.freeze({
 // certificate)`; and `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's
 // notification shows. Asked, each a promise of whether it is allowed: `request(embedder, id, { origin, permissions })`
 // and `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks, `permissions` as deck names
-// them (web/model/site-permission.js), none where the environment's name for it is none of deck's.
+// them (web/model/site-permission.js), none where the environment's name for it is none of deck's. Kept as given:
+// `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
+// past which `fetchText` refuses an answer; and `windowSize`, `{ width, height }`, a web page's window where it asks
+// for no size.
 const WEB_DECK = Object.freeze({
     loading: 'function',
     attaching: 'function',
@@ -230,6 +233,9 @@ const WEB_DECK = Object.freeze({
     notified: 'function',
     request: 'function',
     requestApp: 'function',
+    cookieLifetime: 'number',
+    fetchLimit: 'number',
+    windowSize: { width: 'number', height: 'number' },
 });
 
 // What `MAIN.stage()` makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
