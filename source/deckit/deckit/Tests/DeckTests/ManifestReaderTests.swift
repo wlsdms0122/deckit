@@ -21,14 +21,13 @@ struct ManifestReaderTests {
         sut = try ManifestReader(
             api: try #require(Version("1.2.0")),
             permissions: [mods, network],
-            given: [mods.id],
             fields: [],
             store: Store()
         )
     }
 
     // MARK: - Test
-    @Test("a manifest is read with the permissions it asks for, the widest first, why, and whether this host gives each")
+    @Test("a manifest is read with its permissions, why, and what a layer here defines each as, the widest first")
     func manifestIsRead() throws {
         // Given
         let text = """
@@ -43,6 +42,7 @@ struct ManifestReaderTests {
             [permissions]
             "deckit.mods" = " to list them "
             "system.network" = "to sync"
+            "system.camera" = "to see"
             """
 
         // When
@@ -60,8 +60,9 @@ struct ManifestReaderTests {
         #expect(manifest.required == ["files"])
         #expect(
             manifest.permissions == [
-                PermissionRequest(permission: network, reason: "to sync", usable: false),
-                PermissionRequest(permission: mods, reason: "to list them", usable: true)
+                PermissionRequest(id: network.id, reason: "to sync", permission: network),
+                PermissionRequest(id: "system.camera", reason: "to see", permission: nil),
+                PermissionRequest(id: mods.id, reason: "to list them", permission: mods)
             ]
         )
     }
@@ -110,10 +111,6 @@ struct ManifestReaderTests {
                 #"dependencies b has "lazy"; it takes version and optional"#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[permissions]\#nx = "y""#,
-                #"unknown permission "x"; there are "system.network", "deckit.mods""#
-            ),
-            (
                 #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[permissions]\#n"deckit.mods" = " ""#,
                 #"permission "deckit.mods" needs the reason it is asked for, as text"#
             )
@@ -135,10 +132,10 @@ struct ManifestReaderTests {
 
         // When
         let permissionTwice = Result {
-            try ManifestReader(api: api, permissions: [mods, mods], given: [], fields: [], store: Store())
+            try ManifestReader(api: api, permissions: [mods, mods], fields: [], store: Store())
         }
         let fieldTwice = Result {
-            try ManifestReader(api: api, permissions: [], given: [], fields: [MainField()], store: Store())
+            try ManifestReader(api: api, permissions: [], fields: [MainField()], store: Store())
         }
 
         // Then

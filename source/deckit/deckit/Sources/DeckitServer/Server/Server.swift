@@ -90,8 +90,7 @@ final class Server {
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
                 schemeHandlers: params.schemeHandlers,
-                permissions: params.permissions,
-                given: Set(params.given)
+                permissions: params.permissions
             )
             self.deckit = deckit
 

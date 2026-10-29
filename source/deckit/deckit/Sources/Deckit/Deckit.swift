@@ -18,17 +18,15 @@ public final class Deckit {
     public let configuration: Configuration
 
     // MARK: - Initializer
-    // `schemeHandlers` is, by scheme, the mods the app asks first to open an address, `permissions` those the mod
-    // contract names that the driver checks, and `given` the ids of those the layers on this host give; deckit adds
-    // those it checks itself.
+    // `schemeHandlers` is, by scheme, the mods the app asks first to open an address, and `permissions` those the layers
+    // the driver runs define; deckit adds those it checks itself.
     public init(
         home: URL,
         ship: [URL],
         sources: [URL],
         api: Version,
         schemeHandlers: [String: [String]],
-        permissions: [Permission],
-        given: Set<String>
+        permissions: [Permission]
     ) throws {
         let urls = URLsField()
         let own = [Keymap.appKeysPermission, Keymap.globalKeysPermission]
@@ -38,7 +36,6 @@ public final class Deckit {
             sources: sources,
             api: api,
             permissions: permissions + own,
-            given: given.union(own.map(\.id)),
             fields: [urls]
         )
         let commands = CommandRegistry(deck: deck)

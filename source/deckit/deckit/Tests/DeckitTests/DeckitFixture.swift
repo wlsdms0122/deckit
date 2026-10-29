@@ -58,8 +58,7 @@ struct DeckitFixture {
             sources: [source],
             api: try #require(Version("1.0.0")),
             schemeHandlers: schemeHandlers,
-            permissions: [],
-            given: []
+            permissions: []
         )
         let mods = sut.deck.readCatalog()
         _ = try sut.deck.load(mods.map(\.manifest.id))

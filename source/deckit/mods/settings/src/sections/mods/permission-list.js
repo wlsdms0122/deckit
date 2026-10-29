@@ -67,7 +67,7 @@ const PERMISSION_ICONS = {
 const PERMISSION_ICON = 'info';
 
 // The permissions a mod asks for: each one's name, id, the mod's reason and what it lets the mod do, and whether this
-// app gives it.
+// app gives it. One this app does not give has only its id and the reason.
 function permissionList({ ui, permissions }) {
     const element = ui.element('div', { className: 'settings-permissions' });
 
@@ -81,15 +81,12 @@ function permissionList({ ui, permissions }) {
         const head = ui.element('div', { className: 'settings-permission-head' });
 
         icon.innerHTML = ui.icon(PERMISSION_ICONS[permission.id] || PERMISSION_ICON, { size: 15 });
-        head.append(
-            ui.element('span', { className: 'settings-permission-name', text: permission.name }),
-            ui.element('span', { className: 'settings-permission-id', text: permission.id })
-        );
-        words.append(
-            head,
-            ui.element('div', { className: 'settings-permission-reason', text: permission.reason }),
-            ui.element('div', { className: 'settings-permission-means', text: permission.means })
-        );
+        if (permission.name)
+            head.append(ui.element('span', { className: 'settings-permission-name', text: permission.name }));
+        head.append(ui.element('span', { className: 'settings-permission-id', text: permission.id }));
+        words.append(head, ui.element('div', { className: 'settings-permission-reason', text: permission.reason }));
+        if (permission.means)
+            words.append(ui.element('div', { className: 'settings-permission-means', text: permission.means }));
         if (permission.usable === false)
             words.append(
                 ui.element('div', {

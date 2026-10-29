@@ -8,7 +8,7 @@
 import Foundation
 
 // How deck reads a manifest: what it says, and what is wrong with it, against the mod contract `api` this deck speaks,
-// the permissions the contract names, those the layers on this host give, and the fields the layers on deck add.
+// the permissions the layers on this host define, and the fields the layers on deck add.
 struct ManifestReader {
     // MARK: - Property
     let file = "manifest.toml"
@@ -19,14 +19,12 @@ struct ManifestReader {
     private let api: Version
     // The widest first: those that reach past the app, then those inside it, each in the order defined.
     private let permissions: [Permission]
-    private let given: Set<String>
     private let fields: [any ManifestField]
 
     // MARK: - Initializer
     init(
         api: Version,
         permissions: [Permission],
-        given: Set<String>,
         fields: [any ManifestField],
         store: Store
     ) throws {
@@ -44,7 +42,6 @@ struct ManifestReader {
         self.permissions = PermissionReach.allCases.flatMap { reach in
             permissions.filter { permission in permission.reach == reach }
         }
-        self.given = given
         self.fields = fields
     }
 
@@ -64,15 +61,7 @@ struct ManifestReader {
             api: string(of: raw["api"]),
             main: string(of: raw["main"]),
             dependencies: dependencies(of: raw["dependencies"]),
-            permissions: permissions.compactMap { permission in
-                asked[permission.id].map { reason in
-                    PermissionRequest(
-                        permission: permission,
-                        reason: written(reason).trimmingCharacters(in: .whitespacesAndNewlines),
-                        usable: given.contains(permission.id)
-                    )
-                }
-            },
+            permissions: requests(of: asked),
             fields: Dictionary(uniqueKeysWithValues: fields.map { field in (field.key, field.read(raw[field.name])) })
         )
     }
@@ -198,11 +187,6 @@ struct ManifestReader {
         let example = "[permissions] table of name = \"why it is needed\", such as \"deckit.mods\" = \"…\""
         guard case let .table(asked) = written else { return "permissions must be a \(example)" }
 
-        let unknown = asked.keys.filter { id in !permissions.contains { permission in permission.id == id } }.sorted()
-        guard unknown.isEmpty else {
-            return "unknown permission \(quoted(unknown)); there are \(quoted(permissions.map(\.id)))"
-        }
-
         let unexplained = asked
             .filter { _, reason in
                 guard case let .string(reason) = reason else { return true }
@@ -225,6 +209,23 @@ struct ManifestReader {
         }
 
         return nil
+    }
+
+    // The widest first, those a layer defines in the order defined, then those none does.
+    private func requests(of asked: [String: TOMLValue]) -> [PermissionRequest] {
+        let requests = asked.keys.sorted().map { id in
+            PermissionRequest(
+                id: id,
+                reason: written(asked[id]!).trimmingCharacters(in: .whitespacesAndNewlines),
+                permission: permissions.first { permission in permission.id == id }
+            )
+        }
+        let defined = permissions.compactMap { permission in requests.first { request in request.id == permission.id } }
+        let undefined = requests.filter { request in !request.usable }
+
+        return PermissionReach.allCases.flatMap { reach in
+            (defined + undefined).filter { request in request.reach == reach }
+        }
     }
 
     // A required one by its version, an optional one as its table says.
