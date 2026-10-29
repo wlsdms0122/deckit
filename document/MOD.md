@@ -330,7 +330,7 @@ With `deckit.mods`: `list`, `pick`, `install`, `remove`, `relaunch`, `load`, `ar
 | `match(text, query)` | the switcher's matching: `{ tier, score, at }` or null |
 | `matchFields(fields, query)` | the same over several fields, `[{ text, name, weight, cap }]`: `{ tier, raw, score, at }` or null |
 | `TIER` | the tiers a match is in, best first: `EXACT` 5, `PREFIX` 4, `WORD` 3, `INSIDE` 2, `SPREAD` 1 |
-| `ranker({ paths })` | the same off the page, for a list too long to rank on every key (`paths`: the names are paths, matched by their last part first): `{ rank(names, query, { limit }), close() }` |
+| `ranker({ paths })` | the same off the page, for a list too long to rank on every key (`paths`: the names are paths, matched by their last part first): `{ rank(names, query, { limit }), close() }`, closed as the lifecycle whose handle made it ends |
 | `movePath(path, from, to)` | a path after `from` moved to `to`, or null when it went with it |
 | `tildify(path)` | a path as it is shown, from `~` under the home folder |
 

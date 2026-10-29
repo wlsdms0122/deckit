@@ -86,13 +86,7 @@ class Editor {
         const { theme, ui } = shell;
         const { storage, configuration, util } = deckit;
         const { values: store, records } = storage;
-        // What a ranker lists stays in the page's worker until it is closed: each closes as the screen lifecycle ends.
-        const rankers = new Set();
-        const ranker = (options) => {
-            const made = util.ranker(options);
-            rankers.add(made);
-            return Object.freeze({ ...made, close: () => rankers.delete(made) && made.close() });
-        };
+        const { ranker } = util;
         const engine = EditorEngine;
         const fileSystem = await deckit.mainProcess('main-process/file-system.js');
 
@@ -120,10 +114,7 @@ class Editor {
                 await open(path);
             },
         });
-        this.end = () => {
-            for (const made of rankers) made.close();
-            return Promise.all([drafts.keepNow(), fileSystem.watch([])]);
-        };
+        this.end = () => Promise.all([drafts.keepNow(), fileSystem.watch([])]);
         const session = savedSession({ records, fileSystem, workspaces });
         const codeLook = codeTheme({ engine, theme, ui });
         const find = findInFile({ engine, ui });
