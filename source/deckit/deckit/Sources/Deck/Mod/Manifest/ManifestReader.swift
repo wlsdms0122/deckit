@@ -213,10 +213,10 @@ struct ManifestReader {
 
     // The widest first, those a layer defines in the order defined, then those none does.
     private func requests(of asked: [String: TOMLValue]) -> [PermissionRequest] {
-        let requests = asked.keys.sorted().map { id in
+        let requests = asked.sorted { one, other in one.key < other.key }.map { id, reason in
             PermissionRequest(
                 id: id,
-                reason: written(asked[id]!).trimmingCharacters(in: .whitespacesAndNewlines),
+                reason: written(reason).trimmingCharacters(in: .whitespacesAndNewlines),
                 permission: permissions.first { permission in permission.id == id }
             )
         }

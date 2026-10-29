@@ -18,9 +18,13 @@ export function createPermission() {
     // MARK: - Initializer
     // MARK: - Public
     // A permission of a layer on this host: `name` and `means` are what a person reads before installing. Defined
-    // before the core starts.
+    // once, before the core starts.
     function define({ id, name, means }) {
         if (handed) throw new Error(`[deckit] ${id} is defined after the core started`);
+        for (const [key, value] of Object.entries({ id, name, means }))
+            if (typeof value !== 'string' || !value.trim())
+                throw new Error(`[deckit] a permission's ${key} is no text`);
+        if (defined.some((permission) => permission.id === id)) throw new Error(`[deckit] ${id} is defined twice`);
         defined.push({ id, name, means });
     }
 
