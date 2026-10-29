@@ -72,7 +72,8 @@ function providerClient({ records, onSigningIn, prompt }) {
 
     // What the provider signing in asks the person on the way (README.md, Asking): `prompt(question)` brings Calendar
     // on screen and asks in a dialog under the provider's name, answering `{ answer, close }`, or null where Calendar
-    // has no screen. Resolves whether the person confirmed, and false once the provider has no sign-in under way.
+    // has no screen. Resolves whether the person confirmed, and false where Calendar has no screen, once the provider
+    // has no sign-in under way, or when the screen goes and closes the dialog.
     function ask(signing, { message, detail = '', confirmLabel = 'OK', cancelLabel = 'Cancel' } = {}) {
         if (!signing.count) return Promise.resolve(false);
         const asking = prompt({
@@ -81,7 +82,7 @@ function providerClient({ records, onSigningIn, prompt }) {
             confirmLabel: String(confirmLabel),
             cancelLabel: String(cancelLabel),
         });
-        if (!asking) return Promise.reject(new Error('Calendar has no screen to ask on'));
+        if (!asking) return Promise.resolve(false);
         signing.asks.add(asking.close);
         return asking.answer.finally(() => signing.asks.delete(asking.close));
     }

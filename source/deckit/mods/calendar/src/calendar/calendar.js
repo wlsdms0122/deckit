@@ -1,31 +1,23 @@
-const { addDays, startOfDay, startOfWeek, dayOf } = require('../date/date.js');
 const { providerClient } = require('../accounts/provider-client.js');
 const { readCache } = require('../read-cache/read-cache.js');
 const { reminder } = require('../reminder/reminder.js');
 const { store } = require('../accounts/store.js');
 
-const MODES = [
-    ['day', 'Day'],
-    ['week', 'Week'],
-    ['month', 'Month'],
-];
-
-// Calendar: the mode and the day it is on, what is read of the accounts' calendars, and the reminders, which the view
-// (view.js) draws. An account is a provider's: a mod that sets a provider through Calendar's exports (README.md) signs
-// it in, keeps what it signed in with, and reads its calendars. Calendar keeps which accounts there are and which of
-// their calendars are shown. `screen()` is what the view has put on screen, or null: `changed()` draws again, `moved()`
-// draws where the mode or the day moved to, `reveal()` brings Calendar forward, and `prompt(question)` asks in a dialog
-// (provider-client.js).
+// Calendar: what is read of the accounts' calendars, and the reminders. An account is a provider's: a mod that sets a
+// provider through Calendar's exports (README.md) signs it in, keeps what it signed in with, and reads its calendars.
+// Calendar keeps which accounts there are and which of their calendars are shown. It reads the `now` window the
+// sidebar and the reminders stand on (read-cache.js), and the days the view shows while one says so through
+// `follow(range)`. `screen()` is what the view (view.js) has put on screen, or null: `changed()` draws again,
+// `showDate(date)` brings Calendar forward on that day, and `prompt(question)` asks in a dialog (provider-client.js).
 function calendar({ deckit, screen }) {
-    const { values } = deckit.storage;
     // A failed write is shown on this mod's row in Settings.
     const records = {
         get: (key, fallback) => deckit.storage.records.get(key, fallback),
         set: (key, value) => deckit.storage.records.set(key, value).catch(() => {}),
     };
 
-    let mode = MODES.some(([key]) => key === values.get('mode', '')) ? values.get('mode') : 'month';
-    let cursor = startOfDay(new Date());
+    // The days the view shows, [from, to), or null where none shows any.
+    let shown = null;
 
     const { accounts, feeds } = store({ records });
     const client = providerClient({
@@ -34,7 +26,12 @@ function calendar({ deckit, screen }) {
         prompt: (question) => screen()?.prompt(question) ?? null,
     });
     const reads = readCache({ records, accounts, feeds, client, onChange: changed, onRead });
-    const reminders = reminder({ deckit, records, occurrences: occurrencesBetween, onOpen: showDate });
+    const reminders = reminder({
+        deckit,
+        records,
+        occurrences: occurrencesBetween,
+        onOpen: (date) => screen()?.showDate(date),
+    });
 
     // A read decides for itself whether it is due, so asking every minute costs nothing.
     const reading = setInterval(() => {
@@ -45,9 +42,6 @@ function calendar({ deckit, screen }) {
     read();
 
     return {
-        mode: () => mode,
-        cursor: () => cursor,
-        range: () => rangeOf(mode, cursor),
         accounts,
         feeds,
         reads,
@@ -57,41 +51,9 @@ function calendar({ deckit, screen }) {
         shownBetween,
         read,
         follow,
-        shift,
-        goTo,
-        goToToday,
-        goToDate,
-        showView,
-        setMode,
         answer,
         setProvider,
         dropProvider,
-        commands: {
-            'go-to-date': {
-                description: 'Shows a day in the view on screen.',
-                params: {
-                    type: 'object',
-                    properties: { date: { type: 'string', title: 'Date', description: 'A day, as YYYY-MM-DD.' } },
-                    required: ['date'],
-                },
-                run: goToDate,
-            },
-            'show-view': {
-                description: 'Shows the day, the week or the month view.',
-                params: {
-                    type: 'object',
-                    properties: {
-                        view: {
-                            type: 'string',
-                            title: 'View',
-                            oneOf: MODES.map(([key, label]) => ({ const: key, title: label })),
-                        },
-                    },
-                    required: ['view'],
-                },
-                run: showView,
-            },
-        },
         stop() {
             clearInterval(reading);
             reminders.stop();
@@ -132,59 +94,20 @@ function calendar({ deckit, screen }) {
     }
 
     function read(force = false) {
-        reads.refresh(rangeOf(mode, cursor), force);
+        reads.refresh(shown, force);
     }
 
-    // Asked where the range moves, on the minute, and when a read ends, so a range moved to while it ran is read. Not
-    // from a draw: the view puts a draw off while hidden, and the read must not be.
-    function follow() {
-        reads.follow(rangeOf(mode, cursor));
+    // The view calls it with the days it shows as they move, and with null as it goes. Asked too on the minute and
+    // when a read ends, so a range moved to while it ran is read. Not from a draw: the view puts a draw off while
+    // hidden, and the read must not be.
+    function follow(range = shown) {
+        shown = range;
+        reads.follow(shown);
     }
 
     function onRead() {
         changed();
         reminders.check();
-        follow();
-    }
-
-    function shift(by) {
-        if (mode === 'day') cursor = addDays(cursor, by);
-        else if (mode === 'week') cursor = addDays(cursor, 7 * by);
-        else cursor = new Date(cursor.getFullYear(), cursor.getMonth() + by, 1);
-        changed();
-        follow();
-    }
-
-    function goToToday() {
-        goTo(new Date());
-    }
-
-    function goToDate({ date }) {
-        const day = dayOf(date);
-        if (!day) throw new Error(`${date} is not a day written as YYYY-MM-DD`);
-        goTo(day);
-    }
-
-    function showView({ view }) {
-        if (!MODES.some(([key]) => key === view)) throw new Error(`Calendar has no ${view} view`);
-        setMode(view);
-    }
-
-    // Keeps the mode the person chose; only a click on a day number in the grid asks for the day.
-    function goTo(date, next) {
-        cursor = startOfDay(date);
-        setMode(next || mode);
-    }
-
-    function showDate(date) {
-        screen()?.reveal();
-        goTo(date);
-    }
-
-    function setMode(next) {
-        mode = next;
-        values.set('mode', next);
-        screen()?.moved();
         follow();
     }
 
@@ -197,12 +120,4 @@ function calendar({ deckit, screen }) {
     }
 }
 
-// The days on screen, [from, to).
-function rangeOf(mode, cursor) {
-    if (mode === 'day') return [cursor, addDays(cursor, 1)];
-    if (mode === 'week') return [startOfWeek(cursor), addDays(startOfWeek(cursor), 7)];
-    const start = startOfWeek(new Date(cursor.getFullYear(), cursor.getMonth(), 1));
-    return [start, addDays(start, 42)];
-}
-
-module.exports = { calendar, MODES };
+module.exports = { calendar };

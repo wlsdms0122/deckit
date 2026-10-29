@@ -7,14 +7,16 @@ const CACHE_KEY = 'cache';
 const REFRESH_INTERVAL = 10 * 60 * 1000;
 const RETRY_MS = 60 * 1000;
 // Two windows, as a provider answers the occurrences of a range: `now` is today and the fortnight the sidebar and the
-// reminders need, always read; `view` is the screen with a margin, read only when `now` does not reach it.
+// reminders need, always read; `view` is the days the view shows with a margin, read only when `now` does not reach
+// them.
 const NOW_BEFORE = DAY_MS;
 const NOW_AFTER = 17 * DAY_MS;
 const VIEW_MARGIN = 35 * DAY_MS;
 
 // What has been read, by calendar: { now, view, error, signIn, failedAt }. A failed read keeps what was read before
 // it. `now` is cached across launches, because the first read after a launch often fails and the sidebar and the
-// reminders stand on it; `view` is not. A range is the screen's, [from, to).
+// reminders stand on it; `view` is not. A range is the days the view shows, [from, to), or null where none shows
+// any, and then only `now` is read.
 function readCache({ records, accounts, feeds, client, onChange, onRead }) {
     const record = new Map();
     const accountStatus = new Map(); // account id -> { loading, signedOut }
@@ -83,8 +85,8 @@ function readCache({ records, accounts, feeds, client, onChange, onRead }) {
         onRead();
     }
 
-    // Reads when a forced read waits, or a calendar has nothing for `range`. A calendar whose provider is not running
-    // is left as it is: it is not read.
+    // Reads when a forced read waits, or a calendar has nothing for `now` or `range`. A calendar whose provider is not
+    // running is left as it is: it is not read.
     function follow(range) {
         if (loading) return;
         const providing = new Set(
@@ -191,11 +193,14 @@ function readCache({ records, accounts, feeds, client, onChange, onRead }) {
         if (!entry) return false;
         // Signed out waits for a sign-in; any other failure is read again after RETRY_MS.
         if (entry.error && (entry.signIn || Date.now() - entry.failedAt < RETRY_MS)) return true;
-        const screen = range.map(Number);
-        return within(entry.now, nowWindow()) && (within(entry.now, screen) || within(entry.view, screen));
+        if (!within(entry.now, nowWindow())) return false;
+        if (!range) return true;
+        const shown = range.map(Number);
+        return within(entry.now, shown) || within(entry.view, shown);
     }
 
     function viewWindow(range) {
+        if (!range) return null;
         const [from, to] = range.map(Number);
         if (within({ from: nowWindow()[0], to: nowWindow()[1] }, [from, to])) return null;
         return [from - VIEW_MARGIN, to + VIEW_MARGIN];
