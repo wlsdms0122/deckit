@@ -20,7 +20,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // What is on deck is told of a mod installed, once what runs in its place has launched, and answers what it adds
     // to what install answers (`installed(id)`, which may answer a promise), and of one removed (`removed(id)`). It
     // is asked what it knows of a mod (`facts(mod)`), and tells when that may have changed (`onFactsChange(tell)`),
-    // and to clear the sessions it made for a mod removed with its data (`clearSessions(id)`, a promise).
+    // and to erase what it keeps outside deck of a mod removed with its data (`erase(id)`, a promise).
     function start(given) {
         layer = given;
         eraseUncleared();
@@ -139,8 +139,8 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
         return { data: true };
     }
 
-    // A mod removed with its data, whose pages' storage and sessions were not cleared then, or what the core keeps of
-    // it not erased: erased here.
+    // A mod removed with its data, whose pages' storage or what the layer keeps of it was not cleared then, or what the
+    // core keeps of it not erased: erased here.
     async function eraseUncleared() {
         const uncleared = await CORE.request('erasure/uncleared').catch((error) => {
             LOG.warn('could not read which mods removed are left to erase', error);
@@ -152,14 +152,14 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     }
 
     // What a mod removed with its data kept outside its own folder: the core erases its data folder, its records and
-    // what the layers above deck keep for it, and notes it until its pages' storage and its sessions are cleared here.
-    // Each is cleared whether or not another fails; the note goes only once all are, so a failure is tried again at
-    // the next start.
+    // what the layers above deck keep for it, and notes it until its pages' storage and what the layer keeps of it
+    // outside deck are cleared here. Each is cleared whether or not another fails; the note goes only once all are, so
+    // a failure is tried again at the next start.
     async function erase(id) {
         const outcomes = await Promise.allSettled([
             CORE.request('erasure/erase', { mod: id }),
             pages.clearStorage(id),
-            layer.clearSessions(id),
+            layer.erase(id),
         ]);
         const failed = outcomes.find(({ status }) => status === 'rejected');
         if (failed) throw failed.reason;

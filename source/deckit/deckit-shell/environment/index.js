@@ -104,14 +104,14 @@ const MAIN = Object.freeze({
     dialogs: { chooseFolder: 'function' },
     // stage() -> a stage (`STAGE`): where pages deck made are laid in one of the host app's windows
     stage: 'function',
-    // A mod's main process modules, which the environment runs, deck saying which mod starts what and when. A mod is
+    // A mod's main process modules, which the environment runs, deckit saying which mod starts what and when. A mod is
     // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
     mainProcess: {
         start: 'function', // start(mod, path) -> Promise of { path, methods }: the module, started once in a run
         call: 'function', // call(modId, path, method, args) -> Promise of what the method answered
         launching: 'function', // launching(mod): its run is about to launch
-        // ended(mod, { within }): its run ended, and its modules end with it, each given `within` ms to finish
-        // starting and to dispose
+        // ended(mod, { within }) -> Promise, settled once they have: its run ended, and its modules end with it, each
+        // given `within` ms to finish starting and to dispose
         ended: 'function',
         removed: 'function', // removed(modId, { running }): the mod was taken away, its run not ended when `running`
         // installed(modId) -> Promise of { restart }: the mod installed again, once what ran in its place has ended,
@@ -236,8 +236,7 @@ const WEB_DECK = Object.freeze({
 // window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
 // `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one keeps the
 // place it has, a new one goes in over the layer before it, and a page left out, or gone, is taken off. Where a page
-// laid on it marks itself with `-webkit-app-region: drag`, as the shell's frame and kit do, a press drags the window it
-// is in.
+// laid on it marks itself with `-webkit-app-region: drag`, a press drags the window it is in.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',

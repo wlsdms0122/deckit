@@ -50,9 +50,9 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         });
     }
 
-    // What the key map asks the shell of a deckit page a keystroke landed in: `isActive(page)`, whether it is the page
-    // in front, where the mod's own keys and the hosts' run;
-    // `monitor(page, keystroke)`, the shell's look at the key pressed before any binding, `{ code, meta, control,
+    // What the key map asks whoever delegates, of a deckit page a keystroke landed in: `isActive(page)`, whether it is
+    // the page in front, where the mod's own keys and the hosts' run;
+    // `monitor(page, keystroke)`, its look at the key pressed before any binding, `{ code, meta, control,
     // alt, shift }`, taking it by answering true.
     function delegate({ isActive, monitor }) {
         delegated = { isActive, monitor };

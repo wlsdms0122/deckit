@@ -33,11 +33,14 @@ public final class EventBus {
         guard let run = runner.run(of: id), run.number == number, run.state == .running else {
             return EventDelivery(name: scoped, listeners: [])
         }
-        let listeners = listening.filter { listener, listens in
-            listens.names.contains(scoped) && isLive(listener, run: listens.run)
-        }
+        let listeners = listening.filter { _, listens in listens.names.contains(scoped) }
 
         return EventDelivery(name: scoped, listeners: listeners.keys.sorted())
+    }
+
+    // The runs that ended listen no more.
+    func dropEnded() {
+        listening = listening.filter { id, listens in isLive(id, run: listens.run) }
     }
 
     // MARK: - Private

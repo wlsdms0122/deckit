@@ -182,7 +182,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         notifications: ENV.notifications,
     });
     const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
-    const MAIN_PROCESS = createMainProcess({ IDENTITY, RUNNER, mainProcess: ENV.mainProcess });
+    const MAIN_PROCESS = createMainProcess({ IDENTITY, RUNNER, mainProcess: ENV.mainProcess, app: ENV.app });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
     const RUNTIME = createRuntime({
         CONFIG,
@@ -238,7 +238,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
         LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
-        CORE.start(PERMISSION.all());
+        CORE.start({ ...PERMISSION.all(), layers: { schemeHandlers: CONFIG.schemeHandlers } });
         await STORAGE.load();
         await CATALOG.load();
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
@@ -271,7 +271,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             onFactsChange: MAIN_PROCESS.onChange,
             installed: MAIN_PROCESS.installed,
             removed: MAIN_PROCESS.removed,
-            clearSessions: WEB.clearSessions,
+            erase: WEB.clearSessions,
         });
         RUNNER.start({ preparePage });
     }

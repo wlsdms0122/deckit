@@ -50,7 +50,7 @@ struct RecordTests {
         try sut.write(mod: "notes", key: "tabs", text: "1")
 
         // When
-        let text = try sut.read(mod: "finder", key: "tabs")
+        let text = try sut.read(mod: "other", key: "tabs")
 
         // Then
         #expect(text == nil)
@@ -61,7 +61,7 @@ struct RecordTests {
         // Given
         try sut.write(mod: "notes", key: "b", text: "1")
         try sut.write(mod: "notes", key: "a", text: "2")
-        try sut.write(mod: "finder", key: "c", text: "3")
+        try sut.write(mod: "other", key: "c", text: "3")
 
         // When
         let keys = try sut.keys(mod: "notes")
@@ -88,7 +88,7 @@ struct RecordTests {
     func eraseTakesOnlyTheModsRecords() throws {
         // Given
         try sut.write(mod: "notes", key: "a", text: "1")
-        try sut.write(mod: "finder", key: "a", text: "2")
+        try sut.write(mod: "other", key: "a", text: "2")
 
         // When
         try sut.erase(mod: "notes")
@@ -96,7 +96,7 @@ struct RecordTests {
 
         // Then
         #expect(try sut.keys(mod: "notes").isEmpty)
-        #expect(try sut.read(mod: "finder", key: "a") == "2")
+        #expect(try sut.read(mod: "other", key: "a") == "2")
     }
 
     @Test("count is every file of the mod's records but the hidden ones, and says whether there are any")

@@ -141,7 +141,7 @@ function dialog(
 function confirmTrash(ui, { name, onConfirm }) {
     return dialog(ui, {
         title: `Move \u201c${name}\u201d to the Trash?`,
-        message: 'The folder and everything in it go to the macOS Trash, from where Finder can put them back.',
+        message: 'The folder and everything in it go to the Trash, from where they can be put back.',
         confirmLabel: 'Move to Trash',
         destructive: true,
         onConfirm: () => onConfirm(),

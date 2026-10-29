@@ -24,7 +24,7 @@ export const joined = CHANNEL.pageToMain('deckit-shell:mod-joined', {
     contributions: 'object',
     summary: 'object',
 });
-// A problem recorded against the mod, which a person reads on its row.
+// A problem recorded against the run, which whoever lists the mods reads.
 export const problem = CHANNEL.pageToMain('deckit-shell:mod-problem', { run: 'number', problem: 'string' });
 // It did not start, and why: what the mods that require it are told.
 export const notStarted = CHANNEL.pageToMain('deckit-shell:mod-not-started', { run: 'number', problem: 'string' });

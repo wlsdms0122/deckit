@@ -169,7 +169,9 @@ public final class Deck {
     // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, and
     // what each layer tells has changed of its own.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
-        effects
+        events.dropEnded()
+
+        return effects
             + connections.changes()
             + layers.flatMap { layer in layer.changes() }.map(Effect.layer)
     }

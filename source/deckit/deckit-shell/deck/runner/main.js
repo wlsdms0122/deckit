@@ -86,7 +86,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return notifications.on(name, observer);
     }
 
-    // A problem against the run, which a person reads on its row: the first one while it launches or runs is kept.
+    // A problem recorded against the run: the first one while it launches or runs is kept.
     function reportProblem(run, problem) {
         send('runner/problem', { mod: run.mod.id, run: run.number, problem });
     }

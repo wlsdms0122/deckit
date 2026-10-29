@@ -39,7 +39,7 @@ struct HostTests {
     @Test("a mod's run started with the keys it contributed changes the keymap, which deck carries")
     func runChangesTheKeymap() throws {
         // Given
-        try writeMod("notes")
+        try writeMod("a")
         let sut = try deckit()
         let contributions = Contribution(
             exportedIn: nil,
@@ -57,15 +57,15 @@ struct HostTests {
         )
 
         // When
-        let effects = try sut.deck.started("notes", run: 1, summary: .object([:]), contributions: contributions)
+        let effects = try sut.deck.started("a", run: 1, summary: .object([:]), contributions: contributions)
 
         // Then
         let changes = effects.compactMap { effect in
             if case let .layer(change) = effect { change as? ResolvedKeymap } else { nil }
         }
         let keymap = try #require(changes.last)
-        #expect(keymap.bindings.map(\.binding.id) == ["notes.next"])
-        #expect(keymap.bindings.first?.binding.provider.name == "NOTES")
+        #expect(keymap.bindings.map(\.binding.id) == ["a.next"])
+        #expect(keymap.bindings.first?.binding.provider.name == "A")
     }
 
     @Test("a part kept after the deckit it came from is let go still works")

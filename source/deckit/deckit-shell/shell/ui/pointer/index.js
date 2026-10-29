@@ -6,8 +6,8 @@ let waiting = [];
 
 // MARK: - Initializer
 // MARK: - Public
-// The page's one pointer tracker. Forgotten when the page stops seeing the pointer: a panel put away gets no
-// mouseout, and the first move afterwards is a position, not a move.
+// The page's one pointer tracker. Forgotten when the page stops seeing the pointer: a page hidden while the pointer
+// is over it gets no mouseout, and the first move afterwards is a position, not a move.
 function start() {
     window.addEventListener('mousemove', track, { capture: true, passive: true });
     window.addEventListener('mouseout', (event) => !event.relatedTarget && forget(), { capture: true });

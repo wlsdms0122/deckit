@@ -79,7 +79,6 @@ function createEnvironment({ core, preload, openWindow }) {
     const WINDOW = createWindow({ LOG, openWindow });
     const MAIN_PROCESS = createMainProcess({ WINDOW, LOG, FOLDER: createFolder() });
     const NOTIFICATIONS = createNotifications({ guard });
-    MAIN_PROCESS.holdQuit();
     // A page deck made, or a surface one opened -> the view it is in, kept while the page is.
     const views = new WeakMap();
     const origins = new WeakMap(); // a page deck made -> its origin
@@ -344,7 +343,7 @@ function capture(guard, page, handler) {
     });
 }
 
-// A key held with Electron's global shortcuts, which the system hands Deckit.app wherever it is pressed. Holding one
+// A key held with Electron's global shortcuts, which the system hands the app wherever it is pressed. Holding one
 // already held, by this app or another, fails.
 function hotkey(keystroke, handler) {
     const { globalShortcut } = require('electron');

@@ -39,7 +39,7 @@ struct ManifestReaderTests {
             main = "dist/main.js"
             [dependencies]
             files = "1.0.0"
-            switcher = { version = "1.2.0", optional = true }
+            dep = { version = "1.2.0", optional = true }
             [permissions]
             "deckit.mods" = " to list them "
             "system.network" = "to sync"
@@ -54,7 +54,7 @@ struct ManifestReaderTests {
         #expect(
             manifest.dependencies == [
                 "files": Dependency(version: "1.0.0", optional: false),
-                "switcher": Dependency(version: "1.2.0", optional: true)
+                "dep": Dependency(version: "1.2.0", optional: true)
             ]
         )
         #expect(manifest.required == ["files"])

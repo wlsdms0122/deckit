@@ -55,9 +55,9 @@ export function createKeymap() {
         for (const name of names) declaredKeys.delete(name);
     }
 
-    // A key pressed in the page while `blocksKeys()` is dropped, so it cannot act on what is behind a dialog; one that
-    // works past the page was pressed wherever the person is, and runs. What a key throws is only logged: no one asked
-    // to be told.
+    // A key pressed in the page while `blocksKeys()` is dropped, so it cannot act on what is behind whatever blocks
+    // them; one that works past the page was pressed wherever the person is, and runs. What a key throws is only
+    // logged: no one asked to be told.
     function hear({ blocksKeys }) {
         PROTOCOL.key.on(async ({ name }) => {
             const key = declaredKeys.get(name);

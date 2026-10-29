@@ -62,11 +62,11 @@ struct URLRouterTests {
     @Test("an address goes to the handlers whose patterns match it, one no one placed before a wider one")
     func addressGoesToMatchingPatterns() throws {
         // Given
-        try fixture.write("browser", urls: ["http:*", "https:*"])
+        try fixture.write("a", urls: ["http:*", "https:*"])
         try fixture.write("github", urls: ["https://github.com/*"])
         try fixture.write("issues", urls: ["https://github.com/deckit/issues*"])
-        let sut = try fixture.deckit(schemeHandlers: ["https": ["browser"]])
-        for mod in ["browser", "github", "issues"] {
+        let sut = try fixture.deckit(schemeHandlers: ["https": ["a"]])
+        for mod in ["a", "github", "issues"] {
             _ = try sut.started(mod, run: 1, contributing: ["urls": .bool(true)])
         }
 
@@ -76,17 +76,17 @@ struct URLRouterTests {
         let site = route(sut, "https://github.com", opensFiles: false)
         let other = route(sut, "https://example.com/github.com/", opensFiles: false)
         let lists = sut.urlRouter.handlerLists()
-        try sut.urlRouter.setHandlers(of: "https", order: ["browser", "github", "issues"], off: [])
+        try sut.urlRouter.setHandlers(of: "https", order: ["a", "github", "issues"], off: [])
         let placed = route(sut, "https://github.com/deckit/issues/1", opensFiles: false)
 
         // Then
         let https = try #require(lists.first { list in list.scheme == "https" })
-        #expect(repository == "https://GitHub.com/deckit -> github browser, browser")
-        #expect(issue == "https://github.com/deckit/issues/1 -> issues github browser, browser")
-        #expect(site == "https://github.com -> github browser, browser")
-        #expect(other == "https://example.com/github.com/ -> browser, browser")
+        #expect(repository == "https://GitHub.com/deckit -> github a, browser")
+        #expect(issue == "https://github.com/deckit/issues/1 -> issues github a, browser")
+        #expect(site == "https://github.com -> github a, browser")
+        #expect(other == "https://example.com/github.com/ -> a, browser")
         #expect(https.handlers.map(\.patterns) == [["https://github.com/deckit/issues*"], ["https://github.com/*"], ["https:*"]])
-        #expect(placed == "https://github.com/deckit/issues/1 -> browser github issues, browser")
+        #expect(placed == "https://github.com/deckit/issues/1 -> a github issues, browser")
     }
 
     @Test("the person's order and switches stand over the app's, and stay over a restart")

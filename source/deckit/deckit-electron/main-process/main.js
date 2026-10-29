@@ -27,16 +27,6 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The app quits once the modules of the runs that ended have ended too, each in its limit.
-    function holdQuit() {
-        const { app } = require('electron');
-        app.on('will-quit', (event) => {
-            if (!endings.size) return;
-            event.preventDefault();
-            Promise.allSettled([...endings.values()]).then(() => app.quit());
-        });
-    }
-
     // A mod taken away, `running` whether its run has not ended: what its modules started keeps going until the
     // process ends, unless they end with its run, which is told once that run has ended.
     function removed(modId, { running = false } = {}) {
@@ -96,7 +86,7 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     // until the app restarts. `within` is the limit, in ms, a module has to finish starting, and each dispose.
     function ended(mod, { within }) {
         const keys = keysOf(mod.id);
-        if (!keys.length) return;
+        if (!keys.length) return Promise.resolve();
         const ending = (async () => {
             // Each module as it is by the limit: made, failed, or still starting (null).
             const results = await Promise.all(
@@ -135,6 +125,7 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
         });
         endings.set(mod.id, ending);
         ending.finally(() => endings.get(mod.id) === ending && endings.delete(mod.id));
+        return ending;
     }
 
     // One instance for each mod and file in a run: a module holds state (a token, a watcher), and starting it twice
@@ -345,7 +336,6 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     }
 
     return {
-        holdQuit,
         start: load,
         call,
         launching,
