@@ -9,11 +9,11 @@ const SCHEME = CONTRACT.SCHEME;
 let made = false;
 
 // MARK: - Public
-// The environment Electron gives deckit, made once, before the app is ready, and handed to deckit-shell's connect:
-// `preload` is the file the host app put together around deckit's page bundles, `core` the core's executable as the
-// archive holds it, and `host` answers `openWindow`, as the windows are the app's. Answers what deck is given
-// (deckit-shell/environment: MAIN) and, for the host app alone, `viewOf(page)`, `owns(webContents)`, `window.place` and
-// `guard`.
+// The environment Electron gives deckit, made once, before the app is ready, and handed to deckit-shell's connect and
+// attach: `preload` is the file the host app put together around deckit's page bundles, `core` the core's executable
+// as the archive holds it, and `host` answers `openWindow`, as the windows are the app's. Answers what deck is given
+// (deckit-shell/environment: MAIN), what the shell is (SHELL) and, for the host app alone, `viewOf(page)`,
+// `owns(webContents)`, `window.place` and `guard`.
 function environment({ preload, core, host } = {}) {
     if (made) throw new Error('[deckit] the environment is made once');
     if (typeof host?.openWindow !== 'function') throw new Error('[deckit] the host does not answer openWindow');

@@ -6,8 +6,9 @@ import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as MATCH from '../../deckit/match/match.js';
 
-// `deckit` is what connect answered, `host` the app's answers.
-export function createPanel({ REGION, deckit, host }) {
+// `deckit` is what connect answered, `host` the app's answers, `PAGES` the shell's pages and `makeStage()` a stage
+// to lay them on (environment: SHELL.stage).
+export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const SIDEBAR = 'panel-frame';
@@ -57,7 +58,7 @@ export function createPanel({ REGION, deckit, host }) {
         sidebar = { ...sidebar, ...deckit.state.read(SIDEBAR, {}) };
         pinned = new Set(deckit.state.read(PINNED, []));
         order = deckit.state.read(ORDER, []);
-        stage = deckit.pages.stage();
+        stage = makeStage();
         stage.whenResized(update);
         listen();
         declare();
@@ -155,20 +156,20 @@ export function createPanel({ REGION, deckit, host }) {
     // It lays the frame out off screen too, since the mods are laid by it, and the panel has no frame without it: a
     // page that crashed is loaded again.
     function makeFrame() {
-        const page = deckit.pages.open(PAGE.PAGE_NAME, {
+        const page = PAGES.open(PAGE.PAGE_NAME, {
             keepsDrawing: true,
             reloadsOnCrash: true,
             surfaces: { names: Object.values(PAGE.SURFACE), onOpen: openSurface },
         });
         deckit.keymap.listen(page);
-        deckit.pages.whenFocused(page, focus);
+        PAGES.whenFocused(page, focus);
         shell.page = page;
         layout();
     }
 
     // A document of the frame's page, laid as a page of its own. It runs no code and goes nowhere.
     function openSurface(name, page) {
-        deckit.pages.whenFocused(page, focus);
+        PAGES.whenFocused(page, focus);
         shell.surfaces.set(name, page);
         update();
     }
@@ -179,7 +180,7 @@ export function createPanel({ REGION, deckit, host }) {
         const dropped = replaced ? [] : [...shell.surfaces.values()];
         if (!replaced) shell.surfaces.clear();
         layout();
-        for (const page of dropped) deckit.pages.close(page);
+        for (const page of dropped) PAGES.close(page);
         clearTimeout(shell.settling);
         shell.rects = null;
         shell.moving = null;
@@ -394,7 +395,7 @@ export function createPanel({ REGION, deckit, host }) {
     // Every view where it goes, then every page told whether it is on screen and where it lays out. A page that
     // leaves the screen holding the keyboard would go on taking keystrokes unseen: the mod on screen takes it.
     function update() {
-        const holder = [...sent.onScreen].find((page) => deckit.pages.isAlive(page) && deckit.web.holdsKeyboard(page));
+        const holder = [...sent.onScreen].find((page) => PAGES.isAlive(page) && deckit.web.holdsKeyboard(page));
         layout();
         tellPages();
         if (holder && !sent.onScreen.has(holder)) focus();
@@ -656,7 +657,7 @@ export function createPanel({ REGION, deckit, host }) {
         setShown(false, contents);
         if (contents) await exitOf(PROTOCOL.exit, contents);
         if (mine !== moves || shown) return false;
-        const held = leaving.some((page) => deckit.pages.isAlive(page) && deckit.web.holdsKeyboard(page));
+        const held = leaving.some((page) => PAGES.isAlive(page) && deckit.web.holdsKeyboard(page));
         stage.show(false);
         return held;
     }
@@ -669,7 +670,7 @@ export function createPanel({ REGION, deckit, host }) {
     // The keyboard is the mod's on screen, or the frame's while there is none.
     function focus() {
         const page = (!down && currentContents()) || frameContents();
-        if (page) deckit.pages.focus(page);
+        if (page) PAGES.focus(page);
     }
 
     // A move keeps the panel up the whole way, its exit played as it leaves and its entrance as it arrives.

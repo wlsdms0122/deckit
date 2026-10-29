@@ -37,7 +37,7 @@ if (!app.requestSingleInstanceLock()) {
         host,
     });
     const deckit = DECKIT.connect(environment, { host, config, folders });
-    DECKIT.attach(deckit, { host });
+    DECKIT.attach(deckit, environment, { host });
     // Closing the window leaves the app running; the Dock icon and a second launch bring the panel back.
     app.on('activate', () => host.show());
     app.on('second-instance', () => host.show());

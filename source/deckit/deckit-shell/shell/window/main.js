@@ -2,9 +2,10 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
 
-// `deckit` is what connect answered; `showWindow(control)`, `hideWindow(control)` and `closeWindow(control)` are the
+// `deckit` is what connect answered, `PAGES` the shell's pages and `makeStage()` a stage to lay them on
+// (environment: SHELL.stage); `showWindow(control)`, `hideWindow(control)` and `closeWindow(control)` are the
 // host app's, which puts a mod's window on screen and away, and closes it once the mod is gone.
-export function createWindow({ deckit, showWindow, hideWindow, closeWindow }) {
+export function createWindow({ deckit, PAGES, makeStage, showWindow, hideWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     // mod id -> { control, page, look, stage, unheard, shown }: `page` the mod's page while a run of it that has a
@@ -90,7 +91,7 @@ export function createWindow({ deckit, showWindow, hideWindow, closeWindow }) {
                     },
                 }),
             contains: (page) => !!page && page === held.page,
-            focus: () => held.page && deckit.pages.focus(held.page),
+            focus: () => held.page && PAGES.focus(held.page),
             didResignKey: () => held.shown && PROTOCOL.resignKey.send(held.page, {}),
         });
         windows.set(id, held);
@@ -103,11 +104,11 @@ export function createWindow({ deckit, showWindow, hideWindow, closeWindow }) {
     }
 
     function open(held) {
-        if (!held || held.shown || !deckit.pages.isAlive(held.page)) return;
+        if (!held || held.shown || !PAGES.isAlive(held.page)) return;
         held.shown = true;
         lay(held);
         showWindow(held.control);
-        deckit.pages.focus(held.page);
+        PAGES.focus(held.page);
         PROTOCOL.shown.send(held.page, { on: true });
     }
 
@@ -121,12 +122,12 @@ export function createWindow({ deckit, showWindow, hideWindow, closeWindow }) {
         held.shown = false;
         lay(held);
         if (told) hideWindow(held.control);
-        if (deckit.pages.isAlive(held.page)) PROTOCOL.shown.send(held.page, { on: false });
+        if (PAGES.isAlive(held.page)) PROTOCOL.shown.send(held.page, { on: false });
     }
 
     function stageOf(held) {
         if (!held.stage) {
-            held.stage = deckit.pages.stage();
+            held.stage = makeStage();
             held.unheard = held.stage.whenResized(() => lay(held));
             lay(held);
         }
@@ -146,7 +147,7 @@ export function createWindow({ deckit, showWindow, hideWindow, closeWindow }) {
         const { stage, page } = held;
         if (!stage) return;
         stage.show(held.shown);
-        if (!page || !deckit.pages.isAlive(page)) return stage.lay([]);
+        if (!page || !PAGES.isAlive(page)) return stage.lay([]);
         stage.lay([held.shown ? { page, rect: { x: 0, y: 0, ...stage.size() } } : { page, hidden: true }]);
     }
 

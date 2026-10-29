@@ -1,6 +1,7 @@
 import * as IPC from './deck/ipc/renderer.js';
 import * as LOG from './deck/log/renderer.js';
 import * as ENVIRONMENT from './environment/index.js';
+import * as SETUP from './deckit/setup/renderer.js';
 import * as PAGE from './shell/page/renderer.js';
 import { createRun } from './deck/runner/run.js';
 import { createRunner } from './deck/runner/renderer.js';
@@ -15,6 +16,7 @@ import { createCommand } from './deckit/command/renderer.js';
 import { createConfiguration } from './deckit/configuration/renderer.js';
 import { createMod } from './deckit/mod/renderer.js';
 import { shellOf } from './shell/mod/renderer.js';
+import * as SHELL_LAYER from './shell/mod/model/layer.js';
 
 // MARK: - Public
 // Deckit on every page it makes, a mod's or one the shell made, as the environment boots the page with what it gives
@@ -33,7 +35,7 @@ function start(given) {
 // The page the shell made is drawn; a mod's runs, deck's runner handed deckit's layer with the shell's stacked over it
 // when the shell is on deckit, each part handed what it uses.
 function run(ENV) {
-    const { page, sessions, attached } = PAGE.setup();
+    const { page, sessions, layers } = SETUP.setup();
     if (page) return PAGE.page(page, { channels: IPC.layerChannels });
     const RUN = createRun();
     const RUNNER = createRunner({
@@ -52,7 +54,7 @@ function run(ENV) {
         COMMAND: createCommand(),
         CONFIGURATION: createConfiguration({ RUN }),
     });
-    const shell = attached ? [shellOf({ WEB, channels: IPC.layerChannels })] : [];
+    const shell = layers.includes(SHELL_LAYER.LAYER) ? [shellOf({ WEB, channels: IPC.layerChannels })] : [];
     RUNNER.start({ layers: [MOD.layer, ...shell] });
 }
 
