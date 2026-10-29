@@ -2,10 +2,11 @@ import * as CHANNEL from '../deck/channel/index.js';
 
 // What an environment gives deck, as plain data, on main's side (`MAIN`) and on a page's (`PAGE`): what carries
 // messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files and
-// the log, the pages deck makes and a stage to lay them on, the app starting and quitting, what deckit does through the
-// system for a mod (keys, opening, notifications, the clipboard, a folder chosen, main process modules, the web pages a
-// mod shows), and what only the environment knows: the person's home folder and what runs deckit. An environment gives
-// at least this, and deck is handed this alone (`checked`). Each leaf says what a member is: `function`, `object`,
+// the log, the pages a mod runs in, the app starting and quitting, what deckit does through the system for a mod (keys,
+// opening, notifications, the clipboard, a folder chosen, main process modules, the web pages a mod shows), and what
+// only the environment knows: the person's home folder and what runs deckit. What it gives a UI shell on deckit in
+// main is `SHELL`: the pages the shell draws in and a stage to lay pages on. An environment gives at least this, and
+// each is handed what it is checked against alone (`checked`). Each leaf says what a member is: `function`, `object`,
 // `string`, or `array`, a list read.
 // MARK: - Property
 /**
@@ -34,33 +35,24 @@ const MAIN = Object.freeze({
         tell: 'function', // tell(page, message): dropped when the page is gone
     },
     pages: {
-        // make({ modId }) or make({ name, keepsDrawing }) -> page, made and not loaded, so deck knows whose it is
-        // before it asks anything. The page a mod runs in is at the mod's own origin, with deck's policy for its
-        // document (only its origin's scripts in its own world) and every permission of the web's refused, as what a
-        // mod reaches it reaches through deck; it shows web pages, and runs at full speed off screen. One that runs no
-        // mod, `name` a lower case letter then letters, digits and `-`, is at an origin of its own that is never a
-        // mod's, laid out while hidden too when `keepsDrawing`. Neither opens a window of its own
+        // make({ modId }) -> page, made and not loaded, so deck knows whose it is before it asks anything: the page a
+        // mod runs in, at the mod's own origin, with deck's policy for its document (only its origin's scripts in its
+        // own world) and every permission of the web's refused, as what a mod reaches it reaches through deck; it
+        // shows web pages, runs at full speed off screen, and opens no window of its own
         make: 'function',
         load: 'function', // load(page): a page make() made, loaded at its address, again after its process ended
         close: 'function', // close(page): the page closed, unless it is gone already
-        focus: 'function', // focus(page): the page takes the keyboard
         isGone: 'function', // isGone(page): whether the page can no longer receive messages
-        isClosed: 'function', // isClosed(page): whether the page is gone for good, closed or destroyed
         // watch(page, { failed, ended, gone, destroyed, focused, consoleError, opens, leaves }), each optional:
         // `focused()` each time the page takes the keyboard; `failed(why)`
         // when the page's load did not complete, other than by another load replacing it; `ended()` each time the
         // page's document is replaced, by a main-frame navigation that commits, its first load's included; `gone(why)`
         // each time its process ends, the page living on; `destroyed()` once, as the page goes; `consoleError(message)`
         // for what its console says as an error; `opens(url, { activates, target })` when it asks for a window, which
-        // it is not given, but for a surface `surfaces` lets it open, `activates` whether what opens comes forward and
-        // `target` the name it targets; and, for a mod's page, `leaves(url)` when its main frame asks to go outside the
-        // mod's origin. Answers `off()`, which stops this watch alone
+        // it is not given, but for a surface `SHELL.pages.surfaces` lets it open, `activates` whether what opens comes
+        // forward and `target` the name it targets; and, for a mod's page, `leaves(url)` when its main frame asks to go
+        // outside the mod's origin. Answers `off()`, which stops this watch alone
         watch: 'function',
-        // surfaces(page, { allow(name) -> boolean, opened(name, surface) }): the documents a page that runs no mod may
-        // open with `window.open('', name)`, those `allow` answers true for, each a page of its own (`surface`), laid
-        // as any page is, which runs no code and goes nowhere. What else it asks for is no window, told to what watches
-        // its `opens`
-        surfaces: 'function',
         // serve(folderOf), once the app is ready, before any page loads: deck's pages served, a mod's page with the
         // files of the folder `folderOf(modId)` answers, or none where it answers null
         serve: 'function',
@@ -102,12 +94,12 @@ const MAIN = Object.freeze({
     clipboard: { readText: 'function', writeText: 'function' },
     // chooseFolder({ title, buttonLabel, message }) -> Promise of the folder the person chose, or null
     dialogs: { chooseFolder: 'function' },
-    // stage() -> a stage (`STAGE`): where pages deck made are laid in one of the host app's windows
-    stage: 'function',
     // A mod's main process modules, which the environment runs, deckit saying which mod starts what and when. A mod is
     // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
     mainProcess: {
-        start: 'function', // start(mod, path) -> Promise of { path, methods }: the module, started once in a run
+        // start(mod, path, handed) -> Promise of { path, methods }: the module, started once in a run, handed what
+        // `handed(path)` answers for its path relative to the mod's folder, and what the environment adds of its own
+        start: 'function',
         // call(modId, path, method, args) -> Promise of what the method answered, refused with kind `NOT_STARTED` for
         // a module not started in this run
         call: 'function',
@@ -122,7 +114,6 @@ const MAIN = Object.freeze({
         // stateOf(modId) -> { running, failure }: whether a module of its runs, and why those that did not start did
         // not, or null
         stateOf: 'function',
-        onEvent: 'function', // onEvent(listener(modId, path, name, args)) -> off: what a module emits
         onChange: 'function', // onChange(listener()) -> off: what `stateOf` or `restartPending` answer may have changed
         // restartPending() -> [{ id, why }]: the mods whose modules only a restart of the app finishes, `why` one of
         // `updated` (its code changed while a module stayed), `removed`, `reinstalled` (removed, then installed again)
@@ -178,8 +169,18 @@ const MAIN = Object.freeze({
     folders: {
         user: 'string', // the person's home folder
     },
+    // A file's text, and what changes a person's files without losing one, each refusal an error whose `kind` says what
+    // a person can act on: `name(text)`, a typed name checked, refused with `NAME`; `fresh(folder, base, make,
+    // extension) -> Promise of the path`, something new `make(path)` makes under the first free name; `rename(path,
+    // name)` and `move(path, folder) -> Promise of the new path`, never over another entry (`EXISTS`, `GONE`,
+    // `INTO_ITSELF`, `OTHER_DISK`); `trash(path) -> Promise`, put where the system keeps what a person throws away
     files: {
         readText: 'function', // readText(file) -> Promise of the file's text
+        name: 'function',
+        fresh: 'function',
+        rename: 'function',
+        move: 'function',
+        trash: 'function',
     },
     // The file deck's log is written to: open({ folder, name }) -> { file, write(where, level, parts) }, `file` its
     // path, in `folder` and named for `name`. Writing never throws
@@ -199,6 +200,29 @@ const MAIN = Object.freeze({
         onQuit: 'function',
         quit: 'function', // quit(): the app asked to quit
     },
+});
+
+// What an environment gives a UI shell on deckit, on main's side: the pages it draws in, which run no mod, and a stage
+// to lay pages on. `load`, `close` and `watch` are as `MAIN.pages` says.
+const SHELL = Object.freeze({
+    pages: {
+        // make({ name, keepsDrawing }) -> page, made and not loaded: a page that runs no mod, `name` a lower case
+        // letter then letters, digits and `-`, at an origin of its own that is never a mod's, laid out while hidden
+        // too when `keepsDrawing`. It opens no window of its own
+        make: 'function',
+        load: 'function',
+        close: 'function',
+        focus: 'function', // focus(page): the page takes the keyboard
+        isClosed: 'function', // isClosed(page): whether the page is gone for good, closed or destroyed
+        watch: 'function',
+        // surfaces(page, { allow(name) -> boolean, opened(name, surface) }): the documents a page that runs no mod may
+        // open with `window.open('', name)`, those `allow` answers true for, each a page of its own (`surface`), laid
+        // as any page is, which runs no code and goes nowhere. What else it asks for is no window, told to what watches
+        // its `opens`
+        surfaces: 'function',
+    },
+    // stage() -> a stage (`STAGE`): where pages are laid in one of the host app's windows
+    stage: 'function',
 });
 
 // What deck hands an environment's web (`MAIN.web.listen`). Answered at once: `loading(embedder, page, to, { inPage,
@@ -238,7 +262,7 @@ const WEB_DECK = Object.freeze({
     windowSize: { width: 'number', height: 'number' },
 });
 
-// What `MAIN.stage()` makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
+// What SHELL.stage() makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
 // a time, `bounds` a rect or a function of the window's content size that it follows, `front` over what is in the
 // window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
 // `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one keeps the
@@ -312,4 +336,4 @@ function copyOf(given, table) {
     );
 }
 
-export { MAIN, STAGE, PAGE, WEB_DECK, missingIn, checked };
+export { MAIN, SHELL, STAGE, PAGE, WEB_DECK, missingIn, checked };

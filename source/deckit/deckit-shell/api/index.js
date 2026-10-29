@@ -1,9 +1,8 @@
 import * as MOD_PERMISSION from '../deck/mod/permission.js';
 import * as LIFECYCLE from '../deck/mod/lifecycle.js';
 import * as IPC from '../deck/ipc/main.js';
-import * as ENVIRONMENT from '../environment/index.js';
 
-// What connect answers. `stage` is the environment's (environment: MAIN.stage).
+// What connect answers.
 export function createApi({
     CONFIG,
     CORE,
@@ -18,9 +17,7 @@ export function createApi({
     COMMAND,
     PROVIDER,
     MAIN_PROCESS,
-    PAGE,
     SETUP,
-    stage,
 }) {
     // MARK: - Property
     const NOTIFICATIONS = Object.freeze([...LIFECYCLE.NOTIFICATIONS]);
@@ -30,15 +27,16 @@ export function createApi({
     // MARK: - Initializer
 
     // MARK: - Public
-    // What a host app and the shell's UI on deckit reach of deckit, in main: the mods and their runs, pages that run
-    // no mod, keys, commands, permissions for what the UI adds, their own state, and the log. No more of deckit is
-    // theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how deckit is told what starts with it,
-    // and `restart()` the host app's.
+    // What a host app and the UI shell on deckit reach of deckit, in main: the mods and their runs, the pages, keys,
+    // commands, permissions for what the UI adds, their own state, the log, and the layers stacked over deckit on a
+    // mod's page. No more of deckit is theirs. Every fact it hands out is a frozen copy. `onStart(listener)` is how
+    // deckit is told what starts with it, and `restart()` the host app's.
     function make({ onStart, restart }) {
         return Object.freeze({
             config: Object.freeze({ id: CONFIG.id, name: CONFIG.name }),
             onStart,
-            attach: SETUP.attach,
+            // stack(name): a layer, by its name, stacks over deckit on each mod's page that starts from now on.
+            stack: SETUP.stack,
             // The core that answers nothing more, told once with why, so a person can be asked to restart the app.
             core: Object.freeze({ onDown: CORE.onDown }),
             restart,
@@ -65,13 +63,9 @@ export function createApi({
                 restartPending: () => frozen(MAIN_PROCESS.restartPending()),
             }),
             pages: Object.freeze({
-                open: PAGE.open,
-                // A stage, held to what a stage is as the environment makes it.
-                stage: () => ENVIRONMENT.checked(stage(), ENVIRONMENT.STAGE, 'a stage'),
-                close: PAGE.close,
-                focus: PAGE.focus,
-                isAlive: PAGE.isAlive,
-                whenFocused: PAGE.whenFocused,
+                // add(page, name): a page the host app or its shell made that runs no mod, known as theirs by `name`
+                // from now on, before it loads.
+                add: (page, name) => IDENTITY.add(page, { page: name }),
                 nameOf: IDENTITY.pageNameOf,
                 whenEnds: IDENTITY.whenPageEnds,
                 isPressing: IDENTITY.isPressing,

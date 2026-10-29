@@ -1,10 +1,11 @@
-// What Electron gives deck on main's side (deckit-shell/environment: MAIN): its IPC carries the messages, a page is its
-// webContents, in a view of its own, the core is a child process, and the log a file of its own.
+// What Electron gives deck and the shell in main (deckit-shell/environment: MAIN, SHELL): its IPC carries the messages,
+// a page is its webContents, in a view of its own, the core is a child process, and the log a file of its own.
 import * as LISTENER from '../listener/index.js';
 import * as HANDLER from '../handler/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
 import * as LOG_FILE from '../log/file.js';
+import * as FILES from '../files/index.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
 import { clearStorage, makeView, keepDrawing, serve } from '../sandbox/index.js';
 import { createFolder } from '../mod/folder.js';
@@ -178,13 +179,19 @@ function createEnvironment({ core, preload, openWindow }) {
             removed: MAIN_PROCESS.removed,
             installed: MAIN_PROCESS.installed,
             stateOf: MAIN_PROCESS.stateOf,
-            onEvent: MAIN_PROCESS.onEvent,
             onChange: MAIN_PROCESS.onChange,
             restartPending: MAIN_PROCESS.restartPending,
         }),
         core: Object.freeze({ open: (listeners) => CONNECTION.open(core, listeners) }),
         folders: Object.freeze({ user: require('os').homedir() }),
-        files: Object.freeze({ readText: (file) => require('fs').promises.readFile(file, 'utf8') }),
+        files: Object.freeze({
+            readText: FILES.readText,
+            name: FILES.name,
+            fresh: FILES.fresh,
+            rename: FILES.rename,
+            move: FILES.move,
+            trash: FILES.trash,
+        }),
         log: Object.freeze({ open: ({ folder, name }) => LOG_FILE.open({ folder, name }) }),
         app: Object.freeze({
             whenReady: () => app.whenReady(),

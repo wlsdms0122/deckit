@@ -1,4 +1,4 @@
-import * as FILE from './file.js';
+import * as FILES from '../files/index.js';
 
 // A mod's main process modules, run in Electron's main process as Node runs them (deckit-shell/environment:
 // mainProcess): which mod may start them, and when, is deck's. A mod is `{ id, folder, data, pageOf() }`: its folder,
@@ -23,7 +23,6 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     const windows = new Map(); // mod id -> the keys of the windows its modules opened
     const removing = new Set(); // mod ids taken away whose run has not ended yet
     const listeners = new Set(); // told when what a mod's facts say may have changed
-    const hearing = new Set(); // told what a module emits
 
     // MARK: - Initializer
     // MARK: - Public
@@ -33,12 +32,6 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
         failures.delete(modId);
         if (keysOf(modId).length && running) removing.add(modId);
         else whenEnded(modId).then(() => loaded.has(modId) && setPending(modId, 'removed'));
-    }
-
-    // `listener(modId, path, name, args)` is told what a module emits. Answers its off.
-    function onEvent(listener) {
-        hearing.add(listener);
-        return () => hearing.delete(listener);
     }
 
     // `listener()` is told when what `stateOf` or `restartPending` answer may have changed. Answers its off.
@@ -129,13 +122,14 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     }
 
     // One instance for each mod and file in a run: a module holds state (a token, a watcher), and starting it twice
-    // makes two of everything. Answers { path, methods }, the paths of its functions.
-    async function load(mod, given) {
+    // makes two of everything. `handed(path)` is what deck hands the module at that path, relative to the mod's folder.
+    // Answers { path, methods }, the paths of its functions.
+    async function load(mod, given, handed) {
         await whenEnded(mod.id);
         const { file, relative } = locate(mod.folder, given);
         const key = `${mod.id}\0${relative}`;
         if (!modules.has(key)) {
-            const made = make(mod, file, relative);
+            const made = make(mod, file, relative, handed);
             modules.set(key, made);
             made.catch(() => modules.get(key) === made && modules.delete(key));
         }
@@ -146,7 +140,7 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     // What a module's method answers.
     async function call(modId, given, method, args) {
         const key = `${modId}\0${path.posix.normalize(String(given))}`;
-        if (!modules.has(key)) throw FILE.refuse('NOT_STARTED', `${given} is not started`);
+        if (!modules.has(key)) throw FILES.refuse('NOT_STARTED', `${given} is not started`);
         const { methods } = await modules.get(key);
         const found = methods.get(JSON.stringify(method));
         if (!found) throw new Error(`${given} has no method ${method.join('.')}`);
@@ -186,7 +180,7 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
     }
 
     // Its files are what require() adds to the cache, and require() runs to its end before anything else does.
-    async function make(mod, file, relative) {
+    async function make(mod, file, relative, handed) {
         if (!loaded.has(mod.id))
             loaded.set(mod.id, { folder: mod.folder, root: fs.realpathSync(mod.folder) + path.sep, code: new Map() });
         const { root } = loaded.get(mod.id);
@@ -202,7 +196,7 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
             }
             if (typeof factory !== 'function')
                 throw new Error(`${relative} exports no function; a main process module is (deck) => ({ methods })`);
-            const made = await factory(deckOf(mod, relative));
+            const made = await factory(deckOf(mod, handed(relative)));
             const methods = methodsOf(made, relative);
             failures.get(mod.id)?.delete(relative);
             live.add(mod.id);
@@ -229,15 +223,11 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
         }
     }
 
-    // What a module is handed. The id is part of a window's key, so two mods asking for "log" get two windows
-    // and neither closes the other's.
-    function deckOf(mod, relative) {
+    // What a module is handed: what deck hands it, and the windows of the app's, Electron's own. The id is part of a
+    // window's key, so two mods asking for "log" get two windows and neither closes the other's.
+    function deckOf(mod, handed) {
         return Object.freeze({
-            id: mod.id,
-            data: mod.data,
-            emit(name, ...args) {
-                for (const listener of [...hearing]) listener(mod.id, relative, String(name), args);
-            },
+            ...handed,
             window: Object.freeze({
                 open: (options = {}) => {
                     const key = `${mod.id}:${options.key || 'main'}`;
@@ -252,7 +242,6 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
                     return page ? WINDOW.windowShowing(page) : null;
                 },
             }),
-            files: FILE,
         });
     }
 
@@ -343,7 +332,6 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
         removed,
         installed,
         stateOf,
-        onEvent,
         onChange,
         restartPending,
     };

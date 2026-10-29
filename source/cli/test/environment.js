@@ -1,6 +1,6 @@
-// What an environment gives deckit (deckit-shell/environment): how a given object is held to it, that connect refuses an
-// environment that lacks a member, and what connect answers the UI and the host app. Exits 1 with a line for each check
-// that failed. The packages are ES modules, so they are imported as such.
+// What an environment gives deckit (deckit-shell/environment): how a given object is held to it, that connect and
+// attach refuse an environment that lacks a member, and what connect answers the UI and the host app. Exits 1 with a
+// line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -10,7 +10,7 @@ const url = (...parts) => pathToFileURL(path.join(__dirname, '..', '..', 'deckit
 const USED = {
     config: { name: 'string' },
     onStart: 'function',
-    attach: 'function',
+    stack: 'function',
     core: { onDown: 'function' },
     restart: 'function',
     channels: { bind: 'function' },
@@ -27,16 +27,7 @@ const USED = {
         modOf: 'function',
         managerFrom: 'function',
     },
-    pages: {
-        open: 'function',
-        close: 'function',
-        focus: 'function',
-        isAlive: 'function',
-        whenFocused: 'function',
-        whenEnds: 'function',
-        nameOf: 'function',
-        stage: 'function',
-    },
+    pages: { add: 'function', whenEnds: 'function', nameOf: 'function' },
     keymap: { register: 'function', chordOf: 'function', listen: 'function', delegate: 'function' },
     commands: { register: 'function' },
     state: { read: 'function', write: 'function' },
@@ -109,6 +100,7 @@ async function main() {
             })
         );
     const environment = standIn(ENVIRONMENT.MAIN);
+    const shellEnvironment = standIn(ENVIRONMENT.SHELL);
     const host = { notificationClicked() {}, restart() {} };
     // What the build defines as it bundles.
     globalThis.DECKIT_VERSION = '0.0.0';
@@ -119,14 +111,14 @@ async function main() {
             (name) => [name, () => {}]
         )
     );
-    const early = thrown(() => SHELL.attach({}, { host: uiHost }));
+    const early = thrown(() => SHELL.attach({}, shellEnvironment, { host: uiHost }));
     check('attach before connect is refused, saying so', /attach comes after connect/.test(early), early);
-    const { stage: _stage, ...stageless } = environment;
-    const pageless = { ...stageless, pages: { ...environment.pages, serve: undefined } };
+    const { clipboard: _clipboard, ...clipboardless } = environment;
+    const pageless = { ...clipboardless, pages: { ...environment.pages, serve: undefined } };
     const lacking = thrown(() => SHELL.connect(pageless, { host }));
     check(
         'connect refuses an environment that lacks a member, naming it',
-        /the environment lacks pages\.serve, stage/.test(lacking),
+        /the environment lacks pages\.serve, clipboard/.test(lacking),
         lacking
     );
     const unknown = thrown(() => SHELL.connect(environment, { host, config: { colour: 'red' } }));
@@ -141,21 +133,35 @@ async function main() {
     check("connect's answer has what the UI uses", !lacks.length, lacks);
     check(
         "connect's answer hands out nothing of the environment's for the host app alone",
-        answer.pages.viewOf === undefined && answer.pages.make === undefined && answer.window === undefined,
+        answer.pages.viewOf === undefined &&
+            answer.pages.make === undefined &&
+            answer.pages.stage === undefined &&
+            answer.window === undefined,
         Object.keys(answer.pages)
     );
     check('connect is called once', /once/.test(thrown(() => SHELL.connect(environment, { host }))), '');
-    const other = thrown(() => SHELL.attach({ ...answer }, { host: uiHost }));
+    const other = thrown(() => SHELL.attach({ ...answer }, shellEnvironment, { host: uiHost }));
     check('attach refuses what connect did not answer', /takes what connect answered/.test(other), other);
-    const unanswered = thrown(() => SHELL.attach(answer, { host: { start() {} } }));
+    const { stage: _stage, ...stageless } = shellEnvironment;
+    const unstaged = thrown(() => SHELL.attach(answer, stageless, { host: uiHost }));
+    check(
+        'attach refuses an environment that lacks what the UI is given, naming it',
+        /the environment lacks stage/.test(unstaged),
+        unstaged
+    );
+    const unanswered = thrown(() => SHELL.attach(answer, shellEnvironment, { host: { start() {} } }));
     check(
         'attach refuses a host that does not answer the UI, naming what',
         /does not answer showsPanel/.test(unanswered),
         unanswered
     );
-    const attached = thrown(() => SHELL.attach(answer, { host: uiHost }));
+    const attached = thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }));
     check('attach refused can be called again', attached === '', attached);
-    check('attach is called once', /once/.test(thrown(() => SHELL.attach(answer, { host: uiHost }))), '');
+    check(
+        'attach is called once',
+        /once/.test(thrown(() => SHELL.attach(answer, shellEnvironment, { host: uiHost }))),
+        ''
+    );
 
     for (const line of failed) console.error(line);
     if (failed.length) {

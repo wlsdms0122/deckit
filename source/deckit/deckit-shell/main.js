@@ -36,7 +36,9 @@ import { createConfiguration } from './deckit/configuration/main.js';
 import { createMainProcess } from './deckit/main-process/main.js';
 import { createModFolder } from './deckit/mod-folder/main.js';
 import { createRuntime } from './deckit/runtime/main.js';
-import { createPage, createSetup } from './shell/page/main.js';
+import { createSetup } from './deckit/setup/main.js';
+import { createPage } from './shell/page/main.js';
+import * as SHELL_LAYER from './shell/mod/model/layer.js';
 import { createApi } from './api/index.js';
 import { createRegion } from './shell/region/main.js';
 import { createPanel } from './shell/panel/main.js';
@@ -103,26 +105,33 @@ function connect(environment, { host, config = {}, folders = {} } = {}) {
     return connected;
 }
 
-// How a host app puts deckit's UI on deckit, once, before it is ready: `deckit` is what connect answered, and `host`
-// answers where the UI is shown. The UI starts with deckit, before any mod launches.
-function attach(deckit, { host } = {}) {
+// How a host app puts deckit's UI on deckit, once, before it is ready: `deckit` is what connect answered,
+// `environment` what the environment gives the UI (environment: SHELL), and `host` answers where the UI is shown. The
+// UI starts with deckit, before any mod launches.
+function attach(deckit, environment, { host } = {}) {
     if (attached) throw new Error('[deckit] attach is called once');
     if (!connected) throw new Error('[deckit] attach comes after connect');
     if (deckit !== connected) throw new Error('[deckit] attach takes what connect answered');
+    const ENV = ENVIRONMENT.checked(environment, ENVIRONMENT.SHELL, 'the environment');
     const missing = ATTACH_ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
     attached = true;
-    deckit.attach();
+    deckit.stack(SHELL_LAYER.LAYER);
     for (const model of SHELL_PERMISSIONS)
         for (const permission of model.PERMISSIONS) deckit.permissions.define(permission);
+    const PAGES = createPage({ deckit, pages: ENV.pages });
+    // A stage, held to what a stage is as the environment makes it.
+    const makeStage = () => ENVIRONMENT.checked(ENV.stage(), ENVIRONMENT.STAGE, 'a stage');
     const REGION = createRegion({ deckit });
     const WINDOW = createWindow({
         deckit,
+        PAGES,
+        makeStage,
         showWindow: (control) => host.showWindow(control),
         hideWindow: (control) => host.hideWindow(control),
         closeWindow: (control) => host.closeWindow(control),
     });
-    const PANEL = createPanel({ REGION, deckit, host });
+    const PANEL = createPanel({ REGION, PAGES, makeStage, deckit, host });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
     const FONTS = createFonts({ deckit });
@@ -169,7 +178,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: ENV.pages });
     const COMMAND = createCommand({ LOG, IDENTITY, RUNNER, CORE });
     const PROVIDER = createProvider({ CORE, IDENTITY });
-    const PAGE = createPage({ IDENTITY, LOG, pages: ENV.pages });
     const KEYMAP = createKeymap({
         LOG,
         IDENTITY,
@@ -188,7 +196,13 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         notifications: ENV.notifications,
     });
     const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
-    const MAIN_PROCESS = createMainProcess({ IDENTITY, RUNNER, mainProcess: ENV.mainProcess, app: ENV.app });
+    const MAIN_PROCESS = createMainProcess({
+        IDENTITY,
+        RUNNER,
+        mainProcess: ENV.mainProcess,
+        app: ENV.app,
+        files: ENV.files,
+    });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
     const RUNTIME = createRuntime({
         CONFIG,
@@ -214,9 +228,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         COMMAND,
         PROVIDER,
         MAIN_PROCESS,
-        PAGE,
         SETUP,
-        stage: ENV.stage,
     });
     const starting = []; // what starts with deckit, before any mod launches: the UI on it
     let started = false;

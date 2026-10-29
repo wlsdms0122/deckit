@@ -15,86 +15,86 @@ import * as OPEN_PERMISSION from '../open/model/permission.js';
 import * as COMMAND_PERMISSION from '../command/model/permission.js';
 import * as CONFIGURATION_PERMISSION from '../configuration/model/permission.js';
 
-// What deckit puts on deck for a mod's page: the handle `deckit`, deck's members and deckit's, and the lifecycle
-// deckit calls, start() and stop(), with the one the shell on deckit stacks over it, if one is.
+// What deckit puts on deck for a mod's page: the handle `deckit`, deck's members and deckit's, the lifecycle deckit
+// calls, start() and stop(), and what a layer over deckit stacks a lifecycle of its own with.
 export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: CONFIGURED }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // What is on deck (deckit-shell/deck/runner/renderer.js). It reads the class's `keywords`, which whatever lists the
-    // mods reads in its run's summary, and its `configuration`. `shellOf(context)` is the shell on deckit, if one is,
-    // asked with `{ mod, deliver, fail }`: `read(Entry)`, what it reads of the class; `registrations`, its handle's,
-    // by name, `{ handle, check }`; `blocksKeys()`, whether a key pressed now is dropped; `ended`, what it tells of a
-    // run once its lifecycle has ended; `start(instance, { shell, deckit }, scope)` and `end(instance)`, its
-    // lifecycle; and `join(parts, scope)`, which answers what main is told
-    // of the mod beside deckit's own, `{ summary, contributions }`, and `keyProblem(key)`, why a key would never run,
-    // or ''.
-    function layerOf(shellOf) {
-        return ({ mod, deliver, fail }) => {
-            NOTIFICATION.listen(deliver);
-            const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
-            const shell = shellOf ? shellOf({ mod, deliver, fail }) : null;
-            KEYMAP.hear({ blocksKeys: () => shell?.blocksKeys() ?? false });
-            const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
-            const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
-            const registrations = {
-                keys: { handle: 'deckit', check: table },
-                commands: { handle: 'deckit', check: table },
-                urls: { handle: 'deckit', check: functionProblem },
-            };
-            // What every lifecycle joined so far contributes: deckit's, and the shell's as it last told it.
-            const joined = { keys: [], commands: [], urls: null, answering: false, shell: {} };
-            const handleOf = (deck, scope) =>
-                Object.freeze({ ...deck, ...membersOf(mod, deck, scope, { mainProcess }) });
-            const join = (parts, scope, shown = null) => {
-                if (typeof parts.urls === 'function') {
-                    if (joined.urls) fail('deckit.urls.register() is called under it, so this one is left out');
-                    else {
-                        if (!joined.answering) OPEN.answer((url, options) => joined.urls?.(url, options) ?? false);
-                        joined.answering = true;
-                        joined.urls = parts.urls;
-                        scope.add(() => (joined.urls = null));
-                    }
+    // Deckit as a layer on deck (deckit-shell/deck/runner/renderer.js). It reads the class's `keywords`, which whatever
+    // lists the mods reads in its run's summary, and its `configuration`. `over` is what a layer over it is handed:
+    // `lifecycle({ method, registrations, start, end, join })`, a lifecycle of that layer's with deckit's handle in it,
+    // deckit's registrations beside its own and the handle `deckit` handed its `start` with deckit's members, and
+    // `join(parts, scope)` answering `{ keyProblem }`, `keyProblem(key)` why a key would never run once it has joined,
+    // or '': one registered there that would is left out, and one registered under it is withdrawn while it lasts; and
+    // `blockKeysWhen(blocks)`, a key pressed in the page dropped while `blocks()`, or any other given, answers true.
+    function layer({ mod, deliver, fail }) {
+        NOTIFICATION.listen(deliver);
+        const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
+        const blocking = new Set();
+        KEYMAP.hear({ blocksKeys: () => [...blocking].some((blocks) => blocks()) });
+        const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
+        const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
+        const registrations = {
+            keys: { handle: 'deckit', check: table },
+            commands: { handle: 'deckit', check: table },
+            urls: { handle: 'deckit', check: functionProblem },
+        };
+        // What every lifecycle joined so far registered.
+        const joined = { keys: [], commands: [], urls: null, answering: false };
+        const handleOf = (deck, scope) => Object.freeze({ ...deck, ...membersOf(mod, deck, scope, { mainProcess }) });
+        const join = (parts, scope, keyProblem = () => '') => {
+            if (typeof parts.urls === 'function') {
+                if (joined.urls) fail('deckit.urls.register() is called under it, so this one is left out');
+                else {
+                    if (!joined.answering) OPEN.answer((url, options) => joined.urls?.(url, options) ?? false);
+                    joined.answering = true;
+                    joined.urls = parts.urls;
+                    scope.add(() => (joined.urls = null));
                 }
-                const commands = COMMAND.declare(parts.commands, { invalid: fail });
-                const problemOf = shown ? shown.keyProblem : () => '';
-                const keys = KEYMAP.declare(parts.keys, { invalid: fail, problemOf });
-                joined.commands = [...joined.commands, ...commands.declared];
-                joined.keys = [...joined.keys, ...keys.declared];
-                scope.add(() => {
-                    commands.off();
-                    keys.off();
-                    joined.commands = joined.commands.filter((command) => !commands.declared.includes(command));
-                    joined.keys = joined.keys.filter((key) => !keys.declared.includes(key));
-                });
-                // A key declared under it is judged once the shell has shown what the mod has on screen.
-                if (shown) {
-                    const never = joined.keys.filter((key) => !keys.declared.includes(key) && shown.keyProblem(key));
-                    for (const key of never) fail(`key "${key.name}" never runs: ${shown.keyProblem(key)}`);
-                    KEYMAP.withdraw(never.map(({ name }) => name));
-                    joined.keys = joined.keys.filter((key) => !never.includes(key));
-                    joined.shell = { summary: shown.summary, contributions: shown.contributions };
-                }
-                return report();
-            };
-            // What every lifecycle joined so far comes to, all of it.
-            const report = () => {
-                return {
-                    // What it registered, by name, beside the shell's, for deckit's core to judge it by.
-                    contributions: {
-                        ...joined.shell.contributions,
-                        keys: joined.keys,
-                        commands: joined.commands,
-                        urls: !!joined.urls,
-                    },
-                    summary: {
-                        ...joined.shell.summary,
-                        commands: joined.commands.length > 0,
-                        urls: joined.urls ? mod.urls : [],
-                    },
-                };
-            };
-            const lifecycles = [
+            }
+            const commands = COMMAND.declare(parts.commands, { invalid: fail });
+            const keys = KEYMAP.declare(parts.keys, { invalid: fail, problemOf: keyProblem });
+            joined.commands = [...joined.commands, ...commands.declared];
+            joined.keys = [...joined.keys, ...keys.declared];
+            scope.add(() => {
+                commands.off();
+                keys.off();
+                joined.commands = joined.commands.filter((command) => !commands.declared.includes(command));
+                joined.keys = joined.keys.filter((key) => !keys.declared.includes(key));
+            });
+            return keys.declared;
+        };
+        // A key registered under a lifecycle that would never run once it has joined is withdrawn while it lasts.
+        const judge = (declared, scope, keyProblem) => {
+            const never = joined.keys.filter((key) => !declared.includes(key) && keyProblem(key));
+            if (!never.length) return;
+            for (const key of never) fail(`key "${key.name}" never runs: ${keyProblem(key)}`);
+            const restore = KEYMAP.withdraw(never.map(({ name }) => name));
+            joined.keys = joined.keys.filter((key) => !never.includes(key));
+            scope.add(() => {
+                restore();
+                joined.keys = [...joined.keys, ...never];
+            });
+        };
+        return {
+            handle: 'deckit',
+            read(Entry) {
+                CONFIGURED.declare(Entry.configuration);
+                return { keywords: strings(Entry.keywords) };
+            },
+            report: () => ({
+                // What it registered, by name, for deckit's core to judge it by.
+                contributions: { keys: joined.keys, commands: joined.commands, urls: !!joined.urls },
+                summary: { commands: joined.commands.length > 0, urls: joined.urls ? mod.urls : [] },
+            }),
+            mods: {
+                pick: MOD_FOLDER.pick,
+                reveal: MOD_FOLDER.reveal,
+                restartPending: MAIN_PROCESS.restartPending,
+                restart: RUNTIME.restart,
+            },
+            lifecycles: [
                 {
                     method: 'start',
                     registrations,
@@ -115,37 +115,27 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                             throw new Error(`stop() threw: ${error.message || error}`);
                         }
                     },
-                    join: (parts, scope) => join(parts, scope),
-                },
-            ];
-            if (shell)
-                lifecycles.push({
-                    method: 'attach',
-                    registrations: { ...registrations, ...shell.registrations },
-                    // Once it ends, the run has nothing on screen.
-                    start(instance, handles, scope) {
-                        scope.add(() => (joined.shell = shell.ended));
-                        const given = { shell: handles.shell ?? {}, deckit: handleOf(handles.deckit, scope) };
-                        return shell.start(instance, given, scope);
+                    join: (parts, scope) => {
+                        join(parts, scope);
                     },
-                    end: (instance) => shell.end(instance),
-                    join: (parts, scope) => join(parts, scope, shell.join(parts, scope)),
-                });
-            return {
-                handle: 'deckit',
-                report,
-                read(Entry) {
-                    CONFIGURED.declare(Entry.configuration);
-                    return { ...shell?.read(Entry), keywords: strings(Entry.keywords) };
                 },
-                mods: {
-                    pick: MOD_FOLDER.pick,
-                    reveal: MOD_FOLDER.reveal,
-                    restartPending: MAIN_PROCESS.restartPending,
-                    restart: RUNTIME.restart,
+            ],
+            over: Object.freeze({
+                lifecycle: (over) => ({
+                    method: over.method,
+                    registrations: { ...registrations, ...over.registrations },
+                    start: (instance, handles, scope) =>
+                        over.start(instance, { ...handles, deckit: handleOf(handles.deckit, scope) }, scope),
+                    end: (instance) => over.end(instance),
+                    join(parts, scope) {
+                        const { keyProblem = () => '' } = over.join(parts, scope) ?? {};
+                        judge(join(parts, scope, keyProblem), scope, keyProblem);
+                    },
+                }),
+                blockKeysWhen(blocks) {
+                    blocking.add(blocks);
                 },
-                lifecycles,
-            };
+            }),
         };
     }
 
@@ -227,7 +217,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
         return to == null ? null : to + path.slice(from.length);
     }
 
-    return { layerOf };
+    return { layer };
 }
 
 // MARK: - Private

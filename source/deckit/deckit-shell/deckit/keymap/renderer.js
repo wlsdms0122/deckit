@@ -50,9 +50,13 @@ export function createKeymap() {
         return { declared, off: () => withdraw(declared.map(({ name }) => name)) };
     }
 
-    // The keys named no longer run.
+    // The keys named no longer run. Answers what puts back those it took.
     function withdraw(names) {
-        for (const name of names) declaredKeys.delete(name);
+        const taken = names.filter((name) => declaredKeys.has(name)).map((name) => [name, declaredKeys.get(name)]);
+        for (const [name] of taken) declaredKeys.delete(name);
+        return () => {
+            for (const [name, key] of taken) if (!declaredKeys.has(name)) declaredKeys.set(name, key);
+        };
     }
 
     // A key pressed in the page while `blocksKeys()` is dropped, so it cannot act on what is behind whatever blocks
