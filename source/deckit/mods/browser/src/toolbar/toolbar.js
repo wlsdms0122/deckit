@@ -25,7 +25,7 @@ function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, on
             align-items: center;
             min-width: 0;
             height: 32px;
-            padding: 0 2px;
+            padding: 0 6px;
             border-radius: var(--deckit-radius-round);
             background: var(--deckit-fill);
         }
