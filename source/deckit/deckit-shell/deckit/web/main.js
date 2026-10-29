@@ -84,7 +84,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         PAGES.watch(modPage, { ended: closeWindows, destroyed: closeWindows });
     }
 
-    // The page of deck's a page answers to: a mod's or one the shell made, or the mod's page that shows it as a web
+    // The page of deck's a page answers to: a mod's or one that runs no mod, or the mod's page that shows it as a web
     // page, so a keystroke in the web page is the mod page's.
     function pageFor(page) {
         if (IDENTITY.modOf(page) || IDENTITY.pageNameOf(page)) return page;

@@ -51,8 +51,8 @@ export function createWeb({ sessions, web: WEB }) {
         return Object.freeze({ session });
     }
 
-    // What shows web pages, for a handle of the shell's: pages in the mod's view and in windows, each showing what a
-    // session from `deckit.web.session` loads. `owner` is whoever hands it out ({ deliver, recordFailure }), `opener`
+    // What shows web pages: pages in the mod's page, as elements of it, and in windows, each showing what a session
+    // from `deckit.web.session` loads. `owner` is whoever hands it out ({ deliver, recordFailure }), `opener`
     // what opens an address the page passes on; a page or window made is closed, and nothing more is heard about it,
     // once `scope` is cut.
     function surfacesOf({ owner, opener, scope }) {
