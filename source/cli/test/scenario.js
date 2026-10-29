@@ -460,6 +460,17 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const shownTab = `[...document.querySelectorAll('webview')].find((view) => view.style.visibility === 'visible')?.src`;
         const frontAgain = await until(async () => (await browser?.evaluate(shownTab)) === FRONT_TAB, 3000);
         check('a tab woken before comes back to the front', frontAgain, await browser?.evaluate(shownTab));
+        // What a site is told the browser is, against what the panel's frame, a page shown as nothing else, is told.
+        const agentAsked = `navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion', 'architecture',
+            'bitness', 'formFactors']).then((hints) => JSON.stringify({ ...hints, agent: navigator.userAgent }))`;
+        const site = JSON.parse((await (await page(FRONT_TAB, 'webview'))?.evaluate(agentAsked)) || '{}');
+        const engine = JSON.parse((await frame.evaluate(agentAsked)) || '{}');
+        const hints = ({ agent, ...rest }) => JSON.stringify(rest);
+        check(
+            'a web page is told the Chromium it runs on, with no name the app adds',
+            site.agent && !/Electron|Deckit/.test(site.agent) && hints(site) === hints(engine),
+            `${JSON.stringify(site)} against ${JSON.stringify(engine)}`
+        );
         const toolbar = await browser?.evaluate(`(() => {
             const bar = document.querySelector('.browser-toolbar');
             const shown = [...document.querySelectorAll('webview')].find((view) => view.style.visibility === 'visible');

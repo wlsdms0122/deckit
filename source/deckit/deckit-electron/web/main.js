@@ -21,7 +21,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold }) {
     const PARTITION = createPartition({ CONFIG });
     const DEBUGGER = createDebugger({ LOG });
     const AGENT = createAgent({ CONFIG, DEBUGGER, LOG });
-    const SESSION = createSession({ PARTITION, AGENT, deck: () => deck });
+    const SESSION = createSession({ PARTITION, deck: () => deck });
     const REGISTRY = createRegistry();
     let deck = null; // what deck answers and is told (listen)
     const told =
