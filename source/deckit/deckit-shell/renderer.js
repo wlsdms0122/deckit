@@ -52,8 +52,8 @@ function run(ENV) {
         COMMAND: createCommand(),
         CONFIGURATION: createConfiguration({ RUN }),
     });
-    const shell = attached ? shellOf({ WEB, channels: IPC.layerChannels }) : null;
-    RUNNER.start({ layer: MOD.layerOf(shell) });
+    const shell = attached ? [shellOf({ WEB, channels: IPC.layerChannels })] : [];
+    RUNNER.start({ layers: [MOD.layer, ...shell] });
 }
 
 export { start };

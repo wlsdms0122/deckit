@@ -13,95 +13,112 @@ import { createWindow } from '../window/renderer.js';
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// What the shell on deckit gives a mod's page (deckit-shell/deckit/mod/renderer.js): the lifecycle it calls,
-// attach(shell, deckit) and detach(), and the handle `shell`: the theme, the kit, `show()`, `iconOf(mod)`,
-// `formOf(mod)`, `region(element)`, `children`, `web`, with deckit.fonts `fonts`, with deckit.mods the panel's pins on
-// `mods`, and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme, the kit
-// and the styles from just before attach(). Once attach() has ended, a view is laid where the panel's guide says, or a
-// region's for a child, unless the page is in a window of its own. It reads the class's `icon` and `form` into the
-// run's summary, where whatever lists the mods reads them. `WEB` is deckit's web in the page, whose pages the shell
-// hands the mod; `channels` binds the shell's channels in the page.
+// The shell as a layer on deckit in a mod's page (deckit-shell/deck/runner/renderer.js), stacked with what deckit
+// offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), and the handle `shell`:
+// the theme, the kit, `show()`, `iconOf(mod)`, `formOf(mod)`, `region(element)`, `children`, `web`, with deckit.fonts
+// `fonts`, with deckit.mods the panel's pins on `mods`, and `view.register()`, `window.register()` and, with
+// deckit.styles, `styles.register()`. The page wears the theme, the kit and the styles from just before attach().
+// Once attach() has ended, a view is laid where the panel's guide says, or a region's for a child, unless the page is
+// in a window of its own, and a key that is never in front is left out. It reads the class's `icon` and `form` into
+// the run's summary, where whatever lists the mods reads them. `WEB` is deckit's web in the page, whose pages the
+// shell hands the mod; `channels` binds the shell's channels in the page.
 function shellOf({ WEB, channels }) {
-    return ({ mod: running, deliver, fail }) => {
+    return ({ mod: running, deliver, fail, under: deckit }) => {
         const has = (permission) => running.permissions.some(({ id }) => id === permission);
         const WINDOW = createWindow({ running, fail, deliver, channels });
         const PANEL = createPanel({ channels });
         const REGION = createRegion({ deliver, channels });
+        // What it tells of the run: nothing until its lifecycle has joined, nothing on screen once it has ended.
+        const ENDED = Object.freeze({
+            summary: { view: false, sidebar: false, parent: null, styles: [], window: null },
+            contributions: { styles: {} },
+        });
+        let reported = {};
         let page = null; // the theme and the kit, once the page wears them
         let mounted = { unmount() {}, remove() {} };
+        deckit.blockKeys(() => OVERLAY.layers.count() > 0);
         return {
             read: (Entry) => ({ icon: iconOf(Entry, fail), form: formOf(Entry, fail) }),
-            registrations: {
-                view: { handle: 'shell', check: (value) => viewProblem(value) || parentProblem(value.parent, running) },
-                ...(has(STYLE_PERMISSION.STYLES) ? { styles: { handle: 'shell', check: STYLE.problemOf } } : {}),
-            },
-            blocksKeys: () => OVERLAY.layers.count() > 0,
-            // What it tells of a run whose lifecycle of the shell has ended.
-            ended: Object.freeze({
-                summary: { view: false, sidebar: false, parent: null, styles: [], window: null },
-                contributions: { styles: {} },
-            }),
-            async start(instance, { shell: registered, deckit }, scope) {
-                if (typeof instance.attach !== 'function') return;
-                page ??= wear();
-                const handle = Object.freeze({
-                    ...registered,
-                    theme: themeOf(page.theme, scope),
-                    ui: page.ui,
-                    show: PANEL.show,
-                    iconOf: PANEL.iconOf,
-                    formOf: PANEL.formOf,
-                    ...REGION.forScope(scope),
-                    web: WEB.surfacesOf({ owner: { deliver, recordFailure: fail }, opener: deckit, scope }),
-                    window: Object.freeze({ register: WINDOW.register }),
-                    ...(has(FONTS_PERMISSION.FONTS) ? { fonts: FONTS.tool({ channels }) } : {}),
-                    ...(has(MOD_PERMISSION.MODS) ? { mods: PANEL.pins } : {}),
-                });
-                try {
-                    await instance.attach(handle, deckit);
-                } catch (error) {
-                    throw new Error(`attach() threw: ${error.message || error}`);
-                }
-            },
-            // What is on screen goes first: a view or window there disappears, then detach() runs, and then they are
-            // taken off the page.
-            async end(instance) {
-                mounted.unmount();
-                WINDOW.unmount();
-                try {
-                    if (typeof instance.detach === 'function') await instance.detach();
-                } catch (error) {
-                    throw new Error(`detach() threw: ${error.message || error}`);
-                } finally {
-                    mounted.remove();
-                    WINDOW.remove();
-                }
-            },
-            // A page is laid in one place: one in a window of its own is not in the panel too.
-            join(parts) {
-                const windowed = WINDOW.has();
-                if (parts.view && windowed)
-                    fail('shell.view.register() is for a mod with no window: its page is in its window');
-                const view = (!windowed && parts.view) || null;
-                if (view) {
-                    const tell = (name) => typeof view[name] === 'function' && deliver(`${name}()`, () => view[name]());
-                    mounted = PANEL.mount({ theme: page.theme, view, tell, layers: OVERLAY.layers });
-                }
-                const window = WINDOW.mount();
-                const styles = { ...(parts.styles || {}) };
-                const shown = !!view || windowed;
-                return {
-                    summary: {
-                        view: !!view,
-                        sidebar: !!view?.sidebar,
-                        parent: view?.parent || null,
-                        styles: Object.keys(styles),
-                        window,
+            report: () => reported,
+            lifecycles: [
+                {
+                    method: 'attach',
+                    registrations: {
+                        ...deckit.registrations,
+                        view: {
+                            handle: 'shell',
+                            check: (value) => viewProblem(value) || parentProblem(value.parent, running),
+                        },
+                        ...(has(STYLE_PERMISSION.STYLES)
+                            ? { styles: { handle: 'shell', check: STYLE.problemOf } }
+                            : {}),
                     },
-                    contributions: { styles },
-                    keyProblem: (key) => keyProblem(key, shown),
-                };
-            },
+                    async start(instance, handles, scope) {
+                        scope.add(() => (reported = ENDED));
+                        if (typeof instance.attach !== 'function') return;
+                        page ??= wear();
+                        const opener = deckit.handleOf(handles.deckit, scope);
+                        const handle = Object.freeze({
+                            ...(handles.shell ?? {}),
+                            theme: themeOf(page.theme, scope),
+                            ui: page.ui,
+                            show: PANEL.show,
+                            iconOf: PANEL.iconOf,
+                            formOf: PANEL.formOf,
+                            ...REGION.forScope(scope),
+                            web: WEB.surfacesOf({ owner: { deliver, recordFailure: fail }, opener, scope }),
+                            window: Object.freeze({ register: WINDOW.register }),
+                            ...(has(FONTS_PERMISSION.FONTS) ? { fonts: FONTS.tool({ channels }) } : {}),
+                            ...(has(MOD_PERMISSION.MODS) ? { mods: PANEL.pins } : {}),
+                        });
+                        try {
+                            await instance.attach(handle, opener);
+                        } catch (error) {
+                            throw new Error(`attach() threw: ${error.message || error}`);
+                        }
+                    },
+                    // What is on screen goes first: a view or window there disappears, then detach() runs, and then
+                    // they are taken off the page.
+                    async end(instance) {
+                        mounted.unmount();
+                        WINDOW.unmount();
+                        try {
+                            if (typeof instance.detach === 'function') await instance.detach();
+                        } catch (error) {
+                            throw new Error(`detach() threw: ${error.message || error}`);
+                        } finally {
+                            mounted.remove();
+                            WINDOW.remove();
+                        }
+                    },
+                    // A page is laid in one place: one in a window of its own is not in the panel too.
+                    join(parts, scope) {
+                        const windowed = WINDOW.has();
+                        if (parts.view && windowed)
+                            fail('shell.view.register() is for a mod with no window: its page is in its window');
+                        const view = (!windowed && parts.view) || null;
+                        if (view) {
+                            const tell = (name) =>
+                                typeof view[name] === 'function' && deliver(`${name}()`, () => view[name]());
+                            mounted = PANEL.mount({ theme: page.theme, view, tell, layers: OVERLAY.layers });
+                        }
+                        const window = WINDOW.mount();
+                        const styles = { ...(parts.styles || {}) };
+                        const shown = !!view || windowed;
+                        deckit.join(parts, scope, { keyProblem: (key) => keyProblem(key, shown) });
+                        reported = {
+                            summary: {
+                                view: !!view,
+                                sidebar: !!view?.sidebar,
+                                parent: view?.parent || null,
+                                styles: Object.keys(styles),
+                                window,
+                            },
+                            contributions: { styles },
+                        };
+                    },
+                },
+            ],
         };
 
         // The page wears what the shell draws with.

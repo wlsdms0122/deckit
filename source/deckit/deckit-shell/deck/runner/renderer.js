@@ -13,30 +13,32 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // is the environment's (environment/: PAGE.modules).
 export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: MODULES }) {
     // MARK: - Property
-    // What is on deck when nothing is: no lifecycle, so the run starts once its class is made.
+    // What a layer gives of what it leaves out, and what is on deck when nothing is: no lifecycle, so the run starts
+    // once its class is made.
     const NOTHING = Object.freeze({ handle: 'deck', read: () => ({}), report: () => ({}), mods: {}, lifecycles: [] });
 
     // MARK: - Initializer
     // MARK: - Public
-    // The mod this page runs. `layer(context)` is what is on deck, asked with the mod (`{ mod, run, deliver, fail }`)
-    // before its entry runs, and answers:
-    // `handle`, the name of the handle deck's members are on;
+    // The mod this page runs. `layers` is what is on deck, the lowest first, each `layer(context)` asked with the mod
+    // (`{ mod, run, deliver, fail, under }`, `under` what the layer under it offers a layer over it, null for the
+    // lowest) before its entry runs, and answering:
     // `read(Entry)`, what it reads of the class the entry exports, before any instance is made, as part of the
     // summary;
-    // `report()`, what main is told of the run beside deck's own now, `{ summary, contributions }`, as `join` answers
-    // it, once a lifecycle that did not start has ended;
-    // `mods`, what it adds to `mods` for a mod with deckit.mods;
-    // `lifecycles`, the lifecycles it stacks on the run, the lowest first. A lifecycle is `{ method, registrations,
-    // start(instance, handles, scope), end(instance), join(parts, scope) }`: `method` names it in what a person reads;
-    // `registrations`, by name, `{ handle, check }`, what the handles it hands out register beside deck's own;
-    // `start`, which calls the instance with its handles, by name, each of deck's members and registrations on the
-    // one named `handle`; `end`, which ends what start began; `join`, called with what it registered once start has
-    // ended, which answers what main is told of the run beside deck's own, `{ summary, contributions }`, all of it
-    // so far, which deck carries and does not read.
+    // `report()`, what main is told of the run beside deck's own now, `{ summary, contributions }`, which deck carries
+    // and does not read;
+    // `lifecycles`, the lifecycles it stacks on the run, over those of the layers under it, the lowest first;
+    // `over`, what it offers a layer over it;
+    // and, for the lowest, `handle`, the name of the handle deck's members are on, and `mods`, what it adds to `mods`
+    // for a mod with deckit.mods.
+    // A lifecycle is `{ method, registrations, start(instance, handles, scope), end(instance), join(parts, scope) }`:
+    // `method` names it in what a person reads; `registrations`, by name, `{ handle, check }`, what the handles it
+    // hands out register beside deck's own; `start`, which calls the instance with its handles, by name, each of deck's
+    // members and registrations on the one named `handle`; `end`, which ends what start began; `join`, called with
+    // what it registered once start has ended.
     // Each lifecycle has a `scope`: what its handles made that calls back into the mod's code is cut as it ends.
-    async function start({ layer = null } = {}) {
+    async function start({ layers = [] } = {}) {
         try {
-            await run(layer);
+            await run(layers);
         } catch (error) {
             RUN.fail(`deck could not start it: ${error.message || error}`);
             RUN.notStarted();
@@ -44,7 +46,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     }
 
     // MARK: - Private
-    async function run(layer) {
+    async function run(layers) {
         // The lifecycles whose start was called, the lowest first, each with what its handles made. Asked to stop, the
         // run ends them, the highest first, without waiting on a start still going: a lifecycle not started by then
         // never is. Answered from the first, so a page whose mod never started does not keep main waiting.
@@ -61,7 +63,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         RUN.begin(loaded);
         const mod = RUN.mod;
         const { deliver, fail } = RUN;
-        const given = layer ? { ...NOTHING, ...layer({ mod, run: RUN.number, deliver, fail }) } : NOTHING;
+        const given = stacked(layers, { mod, run: RUN.number, deliver, fail });
         const Entry = evaluate(loaded.source);
         if (!Entry) return RUN.notStarted();
         let described;
@@ -81,7 +83,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         }
         // The lifecycle that opened the run's exports, once one has, as deck joins it.
         const joined = { exportedIn: null };
-        if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined, reported: {} });
+        if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined });
         // A required connection refused once its lifecycle has begun ends that lifecycle and those stacked on it, the
         // highest first.
         CONNECTION.onRefused(async (index, problem) => {
@@ -100,7 +102,6 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             const entry = { index, lifecycle, scope, registry };
             begun.push(entry);
             const { handles } = registry;
-            let reported;
             try {
                 const { dependencies, problems } = await CONNECTION.begin(index, scope);
                 for (const { required, problem } of problems) {
@@ -111,7 +112,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
                 await lifecycle.start(instance, handles, scope);
                 if (stopping) return;
                 const parts = registry.close();
-                reported = lifecycle.join(parts, scope) || {};
+                lifecycle.join(parts, scope);
                 if (parts.exports) {
                     CONNECTION.give(index, parts.exports);
                     joined.exportedIn = index;
@@ -126,12 +127,33 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
                 if (!stopping) tell(PROTOCOL.joined, { described, joined, reported: given.report() });
                 return;
             }
-            tell(first ? PROTOCOL.started : PROTOCOL.joined, { described, joined, reported });
+            tell(first ? PROTOCOL.started : PROTOCOL.joined, { described, joined, reported: given.report() });
         }
     }
 
+    // The layers on deck as one: what each reads and reports, their lifecycles in order, and the lowest's handle.
+    function stacked(layers, context) {
+        const given = [];
+        for (const layer of layers)
+            given.push({ ...NOTHING, ...layer({ ...context, under: given.at(-1)?.over ?? null }) });
+        if (!given.length) return NOTHING;
+        return {
+            handle: given[0].handle,
+            mods: given[0].mods,
+            read: (Entry) => Object.assign({}, ...given.map((one) => one.read(Entry))),
+            report: () => {
+                const reports = given.map((one) => one.report());
+                return {
+                    summary: Object.assign({}, ...reports.map((one) => one.summary)),
+                    contributions: Object.assign({}, ...reports.map((one) => one.contributions)),
+                };
+            },
+            lifecycles: given.flatMap((one) => one.lifecycles),
+        };
+    }
+
     // Main is told what the run contributes now, all of it, and as a person reads it.
-    function tell(channel, { described, joined, reported }) {
+    function tell(channel, { described, joined, reported = {} }) {
         const opened = joined.exportedIn === null ? {} : { exportedIn: joined.exportedIn };
         channel.send({
             run: RUN.number,
