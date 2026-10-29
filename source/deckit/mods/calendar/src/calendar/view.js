@@ -1,19 +1,30 @@
 const { accountEditor } = require('../accounts/account-editor.js');
-const { WEEKDAYS, MONTHS, addDays, startOfDay, startOfWeek, clockText } = require('../date/date.js');
+const { WEEKDAYS, MONTHS, addDays, startOfDay, startOfWeek, clockText, dayOf } = require('../date/date.js');
 const { eventDetail } = require('../event-detail/event-detail.js');
 const { monthView } = require('../views/month-view.js');
 const { paintPastNow } = require('../occurrence/paint.js');
 const { sidebar } = require('../sidebar/sidebar.js');
 const { switcher, inFront } = require('../switcher/switcher.js');
 const { timeGridView } = require('../views/time-grid-view.js');
-const { MODES } = require('./calendar.js');
 
-// Calendar on screen: the view of `calendar` (calendar.js) at its mode and day, the sidebar, its keys, and what it adds
-// to the switcher. `screen` is what `calendar` reaches it by; `end()` stops what it runs on its own.
+const MODES = [
+    ['day', 'Day'],
+    ['week', 'Week'],
+    ['month', 'Month'],
+];
+
+// Calendar on screen: the view of `calendar` (calendar.js) at its mode and day, the sidebar, its keys and commands, and
+// what it adds to the switcher. It tells `calendar` the days it shows by `follow(range)`, so they are read. `screen` is
+// what `calendar` reaches it by; `end()` stops what it runs on its own and closes the questions it asked.
 function calendarView({ calendar, shell, deckit, sendTest }) {
     const { theme, ui } = shell;
     const { values } = deckit.storage;
     const { accounts, feeds, reads, client } = calendar;
+
+    let mode = MODES.some(([key]) => key === values.get('mode', '')) ? values.get('mode') : 'month';
+    let cursor = startOfDay(new Date());
+    // The close() of each dialog prompt() has open.
+    const asking = new Set();
 
     // Drawing waits while the pane is hidden or the popover is up: a redraw takes the popover's anchor away.
     let visible = false;
@@ -38,7 +49,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         onChange: render,
         onRefresh: () => calendar.read(true),
     });
-    const month = monthView({ ui, detail, onOpenDay: (day) => calendar.goTo(day, 'day') });
+    const month = monthView({ ui, detail, onOpenDay: (day) => goTo(day, 'day') });
     const timeGrid = timeGridView({ detail });
     const side = sidebar({ ui, values, accounts, feeds, reads, client, editor, detail, onChange: render });
     const actions = switcher({
@@ -49,11 +60,11 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         show: shell.show,
         does: {
             ...inFront({
-                'show-view': calendar.showView,
-                'go-to-today': calendar.goToToday,
-                'go-to-date': calendar.goToDate,
-                previous: () => calendar.shift(-1),
-                next: () => calendar.shift(1),
+                'show-view': showView,
+                'go-to-today': goToToday,
+                'go-to-date': goToDate,
+                previous: () => shift(-1),
+                next: () => shift(1),
                 'add-account': () => editor.addAccount(),
             }),
             'send-test': sendTest,
@@ -94,8 +105,8 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     });
     const modeBar = ui.segmented({
         items: MODES.map(([key, label]) => ({ key, label, title: label + ' view' })),
-        value: calendar.mode(),
-        onChange: (key) => calendar.setMode(key),
+        value: mode,
+        onChange: (key) => setMode(key),
     });
     const reloadButton = ui.iconButton({ icon: RELOAD, title: 'Refresh', onClick: () => calendar.read(true) });
     let spinning = false;
@@ -103,14 +114,13 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         ui.iconButton({
             icon: ui.icon('chevronLeft', { size: 17 }),
             title: 'Previous',
-            onClick: () => calendar.shift(-1),
+            onClick: () => shift(-1),
         }).element,
-        ui.iconButton({ icon: ui.icon('chevronRight', { size: 17 }), title: 'Next', onClick: () => calendar.shift(1) })
-            .element,
+        ui.iconButton({ icon: ui.icon('chevronRight', { size: 17 }), title: 'Next', onClick: () => shift(1) }).element,
         title,
         status,
         reloadButton.element,
-        ui.button({ label: 'Today', title: 'Jump to today', onClick: () => calendar.goTo(new Date()) }).element,
+        ui.button({ label: 'Today', title: 'Jump to today', onClick: () => goTo(new Date()) }).element,
         modeBar.element
     );
 
@@ -145,13 +155,15 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
     content.append(head, body, firstLoad, empty);
 
     const resizing = new ResizeObserver(() => {
-        if (calendar.mode() === 'month' && !month.fitsAsDrawn()) render();
+        if (mode === 'month' && !month.fitsAsDrawn()) render();
     });
     resizing.observe(body);
 
     // Being past changes with the clock alone, and so does the current-time line: each is moved in place, and only
     // a new day, which changes what today is, draws the view again.
     const ticking = setInterval(tick, 60 * 1000);
+
+    calendar.follow(rangeOf(mode, cursor));
 
     return {
         content,
@@ -160,36 +172,104 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
             visible = true;
             calendar.read();
             render();
-            calendar.follow();
+            calendar.follow(rangeOf(mode, cursor));
         },
         didDisappear() {
             visible = false;
             detail.close();
         },
         keys: {
-            today: { label: 'Go to Today', key: 'mod+t', run: calendar.goToToday },
-            dayView: { label: 'Day view', key: 'mod+1', run: () => calendar.showView({ view: 'day' }) },
-            weekView: { label: 'Week view', key: 'mod+2', run: () => calendar.showView({ view: 'week' }) },
-            monthView: { label: 'Month view', key: 'mod+3', run: () => calendar.showView({ view: 'month' }) },
-            previous: { label: 'Previous', key: 'mod+left', run: () => calendar.shift(-1) },
-            next: { label: 'Next', key: 'mod+right', run: () => calendar.shift(1) },
+            today: { label: 'Go to Today', key: 'mod+t', run: goToToday },
+            dayView: { label: 'Day view', key: 'mod+1', run: () => showView({ view: 'day' }) },
+            weekView: { label: 'Week view', key: 'mod+2', run: () => showView({ view: 'week' }) },
+            monthView: { label: 'Month view', key: 'mod+3', run: () => showView({ view: 'month' }) },
+            previous: { label: 'Previous', key: 'mod+left', run: () => shift(-1) },
+            next: { label: 'Next', key: 'mod+right', run: () => shift(1) },
+        },
+        commands: {
+            'go-to-date': {
+                description: 'Shows a day in the view on screen.',
+                params: {
+                    type: 'object',
+                    properties: { date: { type: 'string', title: 'Date', description: 'A day, as YYYY-MM-DD.' } },
+                    required: ['date'],
+                },
+                run: goToDate,
+            },
+            'show-view': {
+                description: 'Shows the day, the week or the month view.',
+                params: {
+                    type: 'object',
+                    properties: {
+                        view: {
+                            type: 'string',
+                            title: 'View',
+                            oneOf: MODES.map(([key, label]) => ({ const: key, title: label })),
+                        },
+                    },
+                    required: ['view'],
+                },
+                run: showView,
+            },
         },
         actions,
         screen: {
             changed: render,
-            moved() {
-                detail.close();
-                render();
-            },
             reveal: shell.show,
+            showDate,
             prompt,
         },
+        // A sign-in waiting on a question closed here hears `false`, as when the person closes it.
         end() {
             visible = false;
             clearInterval(ticking);
             resizing.disconnect();
+            for (const close of [...asking]) close();
+            calendar.follow(null);
         },
     };
+
+    function shift(by) {
+        if (mode === 'day') cursor = addDays(cursor, by);
+        else if (mode === 'week') cursor = addDays(cursor, 7 * by);
+        else cursor = new Date(cursor.getFullYear(), cursor.getMonth() + by, 1);
+        render();
+        calendar.follow(rangeOf(mode, cursor));
+    }
+
+    function goToToday() {
+        goTo(new Date());
+    }
+
+    function goToDate({ date }) {
+        const day = dayOf(date);
+        if (!day) throw new Error(`${date} is not a day written as YYYY-MM-DD`);
+        goTo(day);
+    }
+
+    function showView({ view }) {
+        if (!MODES.some(([key]) => key === view)) throw new Error(`Calendar has no ${view} view`);
+        setMode(view);
+    }
+
+    // Keeps the mode the person chose; only a click on a day number in the grid asks for the day.
+    function goTo(date, next) {
+        cursor = startOfDay(date);
+        setMode(next || mode);
+    }
+
+    function showDate(date) {
+        shell.show();
+        goTo(date);
+    }
+
+    function setMode(next) {
+        mode = next;
+        values.set('mode', next);
+        detail.close();
+        render();
+        calendar.follow(rangeOf(mode, cursor));
+    }
 
     function tick() {
         if (!visible) return;
@@ -205,8 +285,6 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
             return;
         }
         drawPending = false;
-        const mode = calendar.mode(),
-            cursor = calendar.cursor();
         const loading = reads.isLoading();
         title.textContent = titleOf(mode, cursor);
         modeBar.set(mode);
@@ -232,7 +310,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         head.style.visibility = blank || firstRead ? 'hidden' : '';
         body.style.visibility = blank || firstRead ? 'hidden' : '';
 
-        const [from, to] = calendar.range();
+        const [from, to] = rangeOf(mode, cursor);
         // Only a move to another range fades in, so a background refresh of the same range does not blink.
         const view = mode + '@' + +from;
         const navigated = view !== drawnView;
@@ -289,11 +367,23 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
                 cancelLabel,
                 onConfirm: () => (confirmed = true),
                 // The dialog closes before it confirms.
-                onClose: () => queueMicrotask(() => resolve(confirmed)),
+                onClose: () => {
+                    asking.delete(close);
+                    queueMicrotask(() => resolve(confirmed));
+                },
             }).close;
         });
+        asking.add(close);
         return { answer, close };
     }
+}
+
+// The days the view shows at `mode` and `cursor`, [from, to).
+function rangeOf(mode, cursor) {
+    if (mode === 'day') return [cursor, addDays(cursor, 1)];
+    if (mode === 'week') return [startOfWeek(cursor), addDays(startOfWeek(cursor), 7)];
+    const start = startOfWeek(new Date(cursor.getFullYear(), cursor.getMonth(), 1));
+    return [start, addDays(start, 42)];
 }
 
 function daysOf(from, to) {

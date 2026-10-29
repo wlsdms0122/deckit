@@ -28,7 +28,8 @@ export function createPanel({ REGION, deckit, host }) {
         settling: null,
         animates: null,
     };
-    const PROVIDER = '@shell'; // the name the shell declares its commands and keys under
+    // What the shell declares its commands and keys under.
+    const PROVIDER = Object.freeze({ id: '@shell', name: 'Panel' });
     const NAMED_KEYS = new Set(['back', 'forward']); // the panel's keys a tooltip names
     const history = { list: [], at: -1 };
     let stage = null; // where the pages are laid, which the host app places
@@ -125,7 +126,7 @@ export function createPanel({ REGION, deckit, host }) {
             return { glass: TOKEN.GLASS, look: frameLook(), shown, state: stateOf() };
         });
         PROTOCOL.chord.handle(({ action }, sender) =>
-            fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(PROVIDER, action) : ''
+            fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(PROVIDER.id, action) : ''
         );
         PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));

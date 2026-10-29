@@ -33,6 +33,7 @@ const workflowForm = ({ ui, fields, draft }) => {
                 },
             });
             input = select.element;
+            input.classList.add('bot-select');
             focus = input;
         } else if (field.multiline) {
             input = styled('textarea', {

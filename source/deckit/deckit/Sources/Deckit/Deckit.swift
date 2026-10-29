@@ -18,15 +18,14 @@ public final class Deckit {
     public let configuration: Configuration
 
     // MARK: - Initializer
-    // `name` is the app's, as a person reads it, `schemeHandlers`, by scheme, the mods it asks first to open an
-    // address, `permissions` those the mod contract names that the driver checks, and `given` the ids of those the
-    // layers on this host give; deckit adds those it checks itself.
+    // `schemeHandlers` is, by scheme, the mods the app asks first to open an address, `permissions` those the mod
+    // contract names that the driver checks, and `given` the ids of those the layers on this host give; deckit adds
+    // those it checks itself.
     public init(
         home: URL,
         ship: [URL],
         sources: [URL],
         api: Version,
-        name: String,
         schemeHandlers: [String: [String]],
         permissions: [Permission],
         given: Set<String>
@@ -42,8 +41,8 @@ public final class Deckit {
             given: given.union(own.map(\.id)),
             fields: [urls]
         )
-        let commands = CommandRegistry(deck: deck, hostName: name)
-        let keymap = Keymap(deck: deck, hostName: name)
+        let commands = CommandRegistry(deck: deck)
+        let keymap = Keymap(deck: deck)
         let urlRouter = URLRouter(deck: deck, field: urls, schemeHandlers: schemeHandlers)
         // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
         deck.add(Layer(problems: { [weak commands] run, mod in commands?.problems(of: run, mod: mod) ?? [] }))
@@ -52,11 +51,13 @@ public final class Deckit {
             changes: { [weak keymap] in keymap?.changes() ?? [] }
         ))
         deck.add(Layer(problems: { [weak urlRouter] run, mod in urlRouter?.problems(of: run, mod: mod) ?? [] }))
+        let configuration = try Configuration(deck: deck)
+        deck.add(Layer(closed: { [weak configuration] mod in configuration?.closed(mod) }))
         self.deck = deck
         self.keymap = keymap
         self.commands = commands
         self.urlRouter = urlRouter
-        self.configuration = try Configuration(deck: deck)
+        self.configuration = configuration
     }
 
     // MARK: - Public

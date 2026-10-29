@@ -108,7 +108,9 @@ const MAIN = Object.freeze({
     // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
     mainProcess: {
         start: 'function', // start(mod, path) -> Promise of { path, methods }: the module, started once in a run
-        call: 'function', // call(modId, path, method, args) -> Promise of what the method answered
+        // call(modId, path, method, args) -> Promise of what the method answered, refused with kind `NOT_STARTED` for
+        // a module not started in this run
+        call: 'function',
         launching: 'function', // launching(mod): its run is about to launch
         // ended(mod, { within }) -> Promise, settled once they have: its run ended, and its modules end with it, each
         // given `within` ms to finish starting and to dispose
@@ -183,8 +185,7 @@ const MAIN = Object.freeze({
     // path, in `folder` and named for `name`. Writing never throws
     log: { open: 'function' },
     // The host app, `{ name, version }`, and what runs it, outermost first, each `{ key, name, version }`: `key` is
-    // the engine's name in lower case, which a mod reads its version by in `about()` (MOD.md), and `name` as a person
-    // reads it
+    // the engine's name in lower case, and `name` as a person reads it
     about: { app: { name: 'string', version: 'string' }, engines: 'array' },
     reports: {
         // listen(listener(level, parts)), once: what the environment's own parts say, `level` one of `info`, `warn` and
@@ -214,7 +215,10 @@ const MAIN = Object.freeze({
 // certificate)`; and `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's
 // notification shows. Asked, each a promise of whether it is allowed: `request(embedder, id, { origin, permissions })`
 // and `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks, `permissions` as deck names
-// them (web/model/site-permission.js), none where the environment's name for it is none of deck's.
+// them (web/model/site-permission.js), none where the environment's name for it is none of deck's. Kept as given:
+// `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
+// past which `fetchText` refuses an answer; and `windowSize`, `{ width, height }`, a web page's window where it asks
+// for no size.
 const WEB_DECK = Object.freeze({
     loading: 'function',
     attaching: 'function',
@@ -229,20 +233,25 @@ const WEB_DECK = Object.freeze({
     notified: 'function',
     request: 'function',
     requestApp: 'function',
+    cookieLifetime: 'number',
+    fetchLimit: 'number',
+    windowSize: { width: 'number', height: 'number' },
 });
 
 // What `MAIN.stage()` makes. `place(window, { bounds, front, onClose })`: the stage in one of the host app's windows at
 // a time, `bounds` a rect or a function of the window's content size that it follows, `front` over what is in the
 // window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
 // `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one keeps the
-// place it has, a new one goes in over the layer before it, and a page left out, or gone, is taken off. Where a page
-// laid on it marks itself with `-webkit-app-region: drag`, a press drags the window it is in.
+// place it has, a new one goes in over the layer before it, and a page left out, or gone, is taken off; `close()`, the
+// stage ended, its pages taken off and it out of its window. Where a page laid on it marks itself with
+// `-webkit-app-region: drag`, a press drags the window it is in.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',
     whenResized: 'function',
     show: 'function',
     lay: 'function',
+    close: 'function',
 });
 
 const PAGE = Object.freeze({

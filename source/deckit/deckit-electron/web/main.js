@@ -17,12 +17,11 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold }) {
     // MARK: - Property
     const KEPT_PREFERENCES = new Set(['partition', 'zoomFactor', 'disablePopups', 'plugins', 'javascript']);
     const icons = new Map(); // page id -> the icon it last announced
-    const WINDOW_SIZE = { width: 520, height: 700 };
     const windows = new Map(); // window page id -> { window, embedder }
     const PARTITION = createPartition({ CONFIG });
     const DEBUGGER = createDebugger({ LOG });
     const AGENT = createAgent({ CONFIG, DEBUGGER, LOG });
-    const SESSION = createSession({ PARTITION, AGENT });
+    const SESSION = createSession({ PARTITION, AGENT, deck: () => deck });
     const REGISTRY = createRegistry();
     let deck = null; // what deck answers and is told (listen)
     const told =
@@ -122,7 +121,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold }) {
         );
         const page = pageView.webContents;
         const id = page.id;
-        const window = showInWindow(pageView, { title, size: WINDOW_SIZE });
+        const window = showInWindow(pageView, { title, size: deck.windowSize });
         windows.set(id, { window, embedder: modPage });
         LOG.guard(window, 'closed', () => {
             windows.delete(id);
@@ -292,7 +291,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold }) {
         AGENT.presentAsBrowser(page);
         holdWindowOpen(modPage, page, { inPage: false });
         const size = options.width && options.height ? { width: options.width, height: options.height } : null;
-        const window = showInWindow(pageView, { size: size || WINDOW_SIZE });
+        const window = showInWindow(pageView, { size: size || deck.windowSize });
         const closeWithOpener = LOG.guard(opener, 'destroyed', () => !window.isDestroyed() && window.close());
         page.once('destroyed', () => !opener.isDestroyed() && opener.removeListener('destroyed', closeWithOpener));
         return page;

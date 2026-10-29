@@ -56,7 +56,16 @@ const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process and its windows are its own. And what it answers the UI: where it is
 // shown.
 const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
-const ATTACH_ANSWERS = ['start', 'showsPanel', 'show', 'dismiss', 'panelTitled', 'showWindow', 'hideWindow'];
+const ATTACH_ANSWERS = [
+    'start',
+    'showsPanel',
+    'show',
+    'dismiss',
+    'panelTitled',
+    'showWindow',
+    'hideWindow',
+    'closeWindow',
+];
 // Every permission the mod contract names, in the order a person reads them: deck's, deckit's, and those of deckit's
 // shell. Each layer on a host defines those it gives.
 const DECK_PERMISSIONS = [MOD_PERMISSION];
@@ -115,6 +124,7 @@ function attach(deckit, { host } = {}) {
         deckit,
         showWindow: (control) => host.showWindow(control),
         hideWindow: (control) => host.hideWindow(control),
+        closeWindow: (control) => host.closeWindow(control),
     });
     const PANEL = createPanel({ REGION, deckit, host });
     const STYLE = createStyle({ deckit });
@@ -150,7 +160,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const LOG = createLog({ log: ENV.log, reports: ENV.reports, about: ENV.about, folder: HOME.logs, name: CONFIG.id });
     // The channels are carried before anything crosses.
     IPC.carry(ENV, { report: (label, failure) => LOG.error(`${label} failed`, failure) });
-    const CORE = createCore({ CONFIG, FOLDERS, LOG, core: ENV.core, home: HOME.folder });
+    const CORE = createCore({ FOLDERS, LOG, core: ENV.core, home: HOME.folder });
     const STORAGE = createStorage({ CORE, LOG });
     const PERMISSION = createPermission({ vocabulary: VOCABULARY });
     const CATALOG = createCatalog({ CORE, LOG, files: ENV.files });

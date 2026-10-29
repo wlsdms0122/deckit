@@ -195,8 +195,8 @@ struct KeymapTests {
 
         // When
         let a = try sut.started("a", run: 1, keys: [key("tab1", "mod+1"), unlabeled])
-        let unnamed = Result { try sut.keymap.register(Key(name: "go", label: "Go", spec: "mod+g", scope: .local), provider: "app") }
-        let blank = Result { try sut.keymap.register(Key(name: "go", label: "", spec: "mod+g", scope: .local), provider: "@app") }
+        let unnamed = Result { try sut.keymap.register(Key(name: "go", label: "Go", spec: "mod+g", scope: .local), provider: "app", name: "App") }
+        let blank = Result { try sut.keymap.register(Key(name: "go", label: "", spec: "mod+g", scope: .local), provider: "@app", name: "App") }
 
         // Then
         let keymap = try #require(a.keymapChange)
@@ -239,6 +239,6 @@ struct KeymapTests {
         _ spec: String,
         scope: KeyScope = .local
     ) throws -> ResolvedKeymap {
-        try sut.keymap.register(Key(name: name, label: name.capitalized, spec: spec, scope: scope), provider: "@app")
+        try sut.keymap.register(Key(name: name, label: name.capitalized, spec: spec, scope: scope), provider: "@app", name: "App")
     }
 }

@@ -63,7 +63,11 @@ export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app:
 
     // What a method answers crosses to the mod's page, so it is what can be copied.
     async function call(mod, path, method, args) {
-        const answer = await MODULES.call(mod.id, path, method, args);
+        const answer = await MODULES.call(mod.id, path, method, args).catch((error) => {
+            throw error.kind === 'NOT_STARTED'
+                ? new Error(`${path} is not started; deckit.mainProcess() starts it`)
+                : error;
+        });
         try {
             structuredClone(answer);
         } catch (error) {

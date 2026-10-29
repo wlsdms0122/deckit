@@ -19,6 +19,16 @@ Each forge session is a daemon of its own, with a folder of forge's own (`~/.con
 
 forge hands the token that controls a daemon to the process that starts it, and keeping it is that process's to do. Forge keeps it in the session's folder, `admin.token`, readable only by the person, for each daemon it starts, `default` too. A daemon started elsewhere can be stopped and restarted from here; its operations are reached once its folder holds its token. The daemons Forge starts are the person's and run on after the app quits.
 
+## Commands
+
+What a CLI, the switcher or another mod runs by name, on a host app with no UI too. Each takes an optional `session`, `default` when not given, completed from the sessions there are, each with its state.
+
+| Command | What it does |
+|---|---|
+| `start` | starts the session's daemon |
+| `stop` | stops the session's daemon, with the services it supervises |
+| `restart` | restarts the session's daemon with the services it supervises, or starts it |
+
 ## For other mods
 
 A mod that names `forge` in `[dependencies]` reaches these as `deckit.dependencies.forge`, opened in `start`. A session not given is `default`:

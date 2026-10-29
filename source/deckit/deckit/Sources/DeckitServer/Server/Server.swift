@@ -89,7 +89,6 @@ final class Server {
                 ship: params.ship.map { folder in URL(filePath: folder) },
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
-                name: params.name,
                 schemeHandlers: params.schemeHandlers,
                 permissions: params.permissions,
                 given: Set(params.given)
@@ -250,7 +249,7 @@ final class Server {
 
         case "keymap/register":
             let params = try request.decodeParams(as: RegisterKeyParams.self)
-            return try deckit.keymap.register(params.key, provider: params.provider)
+            return try deckit.keymap.register(params.key, provider: params.provider, name: params.name)
 
         case "keymap/bind":
             let params = try request.decodeParams(as: BindKeyParams.self)
@@ -267,7 +266,7 @@ final class Server {
 
         case "command/define":
             let params = try request.decodeParams(as: DefineCommandsParams.self)
-            try deckit.commands.define(params.commands, provider: params.provider)
+            try deckit.commands.define(params.commands, provider: params.provider, name: params.name)
             return true
 
         case "command/list":

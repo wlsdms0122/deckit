@@ -115,10 +115,9 @@ async function main() {
     globalThis.DECKIT_SOURCE = 'test';
     const SHELL = await import(url('deckit-shell', 'main.js'));
     const uiHost = Object.fromEntries(
-        ['start', 'showsPanel', 'show', 'dismiss', 'panelTitled', 'showWindow', 'hideWindow'].map((name) => [
-            name,
-            () => {},
-        ])
+        ['start', 'showsPanel', 'show', 'dismiss', 'panelTitled', 'showWindow', 'hideWindow', 'closeWindow'].map(
+            (name) => [name, () => {}]
+        )
     );
     const early = thrown(() => SHELL.attach({}, { host: uiHost }));
     check('attach before connect is refused, saying so', /attach comes after connect/.test(early), early);

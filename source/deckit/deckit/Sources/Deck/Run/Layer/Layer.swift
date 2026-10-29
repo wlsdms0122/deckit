@@ -15,11 +15,18 @@ package struct Layer {
     let problems: (Run, Mod) -> [String]
     // What of the layer's own the driver is told has changed, once the runs have moved.
     let changes: () -> [any LayerChange]
+    // The mod's sandbox closed, by its id: what the layer kept of its runs ends with it.
+    let closed: (String) -> Void
 
     // MARK: - Initializer
-    package init(problems: @escaping (Run, Mod) -> [String], changes: @escaping () -> [any LayerChange] = { [] }) {
+    package init(
+        problems: @escaping (Run, Mod) -> [String] = { _, _ in [] },
+        changes: @escaping () -> [any LayerChange] = { [] },
+        closed: @escaping (String) -> Void = { _ in }
+    ) {
         self.problems = problems
         self.changes = changes
+        self.closed = closed
     }
 
     // MARK: - Public

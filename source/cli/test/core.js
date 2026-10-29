@@ -38,9 +38,8 @@ async function main() {
         error: (...parts) => logged.push(['error', ...parts]),
     };
     const answer = (id, result) => listeners.onMessage(JSON.stringify({ jsonrpc: '2.0', id, result }));
-    const CONFIG = { name: 'Test' };
     const FOLDERS = { ship: ['/ship'], sources: [] };
-    const CORE = createCore({ CONFIG, FOLDERS, LOG, core, home: '/home/deckit' });
+    const CORE = createCore({ FOLDERS, LOG, core, home: '/home/deckit' });
 
     CORE.start({ permissions: [{ id: 'a.b' }, { id: 'a.c' }], given: ['a.b'], layers: { handlers: { x: ['a'] } } });
     const early = outcome(CORE.request('catalog/read', {}));

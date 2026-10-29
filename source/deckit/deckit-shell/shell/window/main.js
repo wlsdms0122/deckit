@@ -2,23 +2,25 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
 
-// `deckit` is what connect answered; `showWindow(control)` and `hideWindow(control)` are the host app's, which puts a
-// mod's window on screen and away.
-export function createWindow({ deckit, showWindow, hideWindow }) {
+// `deckit` is what connect answered; `showWindow(control)`, `hideWindow(control)` and `closeWindow(control)` are the
+// host app's, which puts a mod's window on screen and away, and closes it once the mod is gone.
+export function createWindow({ deckit, showWindow, hideWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    // mod id -> { control, page, look, stage, shown }: `page` the mod's page while a run of it that has a window
-    // runs, `look` its window as that run said, `stage` where the page is laid, made as the window is first placed
+    // mod id -> { control, page, look, stage, unheard, shown }: `page` the mod's page while a run of it that has a
+    // window runs, `look` its window as that run said, `stage` where the page is laid, made as the window is first
+    // placed, and `unheard` the off of its resizes
     const windows = new Map();
 
     // MARK: - Initializer
     // MARK: - Public
     // The windows of the mods that said they have one, as the mods run. A mod's page is laid in its window, which the
-    // host app makes and keeps under the same control from run to run.
+    // host app makes and keeps under the same control from run to run, until the mod is gone.
     function start() {
         PROTOCOL.open.on((_payload, sender) => open(heldBy(sender)));
         PROTOCOL.close.on((_payload, sender) => close(heldBy(sender)));
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
+        deckit.mods.onChange(reconcile);
         reconcile();
     }
 
@@ -28,12 +30,15 @@ export function createWindow({ deckit, showWindow, hideWindow }) {
     }
 
     // MARK: - Private
-    // A window open while its mod's page goes is put away: the page in it is gone.
+    // A window open while its mod's page goes is put away: the page in it is gone. The window of a mod gone from the
+    // catalog is ended, though its run may not have ended yet.
     function reconcile() {
+        const found = new Set(deckit.mods.list().map(({ id }) => id));
+        for (const [id, held] of windows) if (!found.has(id)) end(id, held);
         const running = new Map(
             deckit.mods
                 .runs()
-                .filter(({ run }) => run.state === 'running' && run.summary?.window)
+                .filter(({ run }) => found.has(run.mod.id) && run.state === 'running' && run.summary?.window)
                 .map(({ run, page }) => [run.mod.id, { run, page }])
         );
         for (const held of windows.values()) {
@@ -58,7 +63,7 @@ export function createWindow({ deckit, showWindow, hideWindow }) {
     }
 
     function make(id) {
-        const held = { control: null, page: null, look: null, stage: null, shown: false };
+        const held = { control: null, page: null, look: null, stage: null, unheard: null, shown: false };
         // What the host app drives of the window: where it is laid and how it is told the keyboard comes and goes.
         held.control = Object.freeze({
             mod: id,
@@ -122,10 +127,18 @@ export function createWindow({ deckit, showWindow, hideWindow }) {
     function stageOf(held) {
         if (!held.stage) {
             held.stage = deckit.pages.stage();
-            held.stage.whenResized(() => lay(held));
+            held.unheard = held.stage.whenResized(() => lay(held));
             lay(held);
         }
         return held.stage;
+    }
+
+    function end(id, held) {
+        windows.delete(id);
+        putAway(held, { told: false });
+        held.unheard?.();
+        held.stage?.close();
+        closeWindow(held.control);
     }
 
     // Put away, the stage is hidden with the page: a stage shown takes its clicks where it draws nothing too.

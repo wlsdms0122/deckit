@@ -28,7 +28,6 @@ public final class Keymap {
     private let contributionKey = "keys"
     private let overridesKey = "keys"
     private let deck: Deck
-    private let hostName: String
     // In the order they were registered.
     private var hostKeys: [(provider: Provider, key: Key)] = []
     // In the order they were made.
@@ -36,10 +35,8 @@ public final class Keymap {
     private var told = ResolvedKeymap(revision: 0, bindings: [])
 
     // MARK: - Initializer
-    // `hostName` is the app's, as a person reads it.
-    init(deck: Deck, hostName: String) {
+    init(deck: Deck) {
         self.deck = deck
-        self.hostName = hostName
         deck.state.reserve(overridesKey)
         let saved = try? deck.state.read(folder: nil, key: overridesKey)
         self.overrides = saved.flatMap { text in try? JSONDecoder().decode([BindingOverride].self, from: Data(text.utf8)) }
@@ -65,10 +62,10 @@ public final class Keymap {
         hostKeys.map(\.provider)
     }
 
-    // A key of a host's, `provider` its name, which starts with "@", working in its scope, in place of one it registered
-    // by that name. Answers the keymap as it is resolved now.
-    public func register(_ key: Key, provider: String) throws -> ResolvedKeymap {
-        guard let host = Provider(host: provider, name: hostName) else { throw KeymapError.notAHost(provider) }
+    // A key of a host's, `provider` its name, which starts with "@", and `name` the host's as a person reads it,
+    // working in its scope, in place of one it registered by that name. Answers the keymap as it is resolved now.
+    public func register(_ key: Key, provider: String, name: String) throws -> ResolvedKeymap {
+        guard let host = Provider(host: provider, name: name) else { throw KeymapError.notAHost(provider) }
         if key.label.isEmpty { throw KeymapError.noLabel(key.name) }
         hostKeys.removeAll { registered in registered.provider == host && registered.key.name == key.name }
         hostKeys.append((host, key))

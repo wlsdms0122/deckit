@@ -9,14 +9,14 @@ const installContent = (ui) => {
     .bot-content h2 { font: 700 20px var(--deckit-font); }
     .bot-content h3 { font: 600 13px var(--deckit-font); color: var(--deckit-muted); }
     .bot-content section { display: flex; flex-direction: column; gap: 14px; }
-    .bot-content .deckit-select { width: 100%; max-width: none; }
+    .bot-content .bot-select { width: 100%; max-width: none; }
     .bot-content .bot-label { display: flex; flex-direction: column; gap: 6px; font: 600 12px var(--deckit-font); }
     .bot-content [aria-label='Days of week'] button[aria-pressed='true'] { background: var(--deckit-accent); color: var(--deckit-on-accent); }
     .bot-content input, .bot-content textarea { font-weight: 400; }
     .bot-detail { display: flex; flex-direction: column; gap: 28px; }
     .bot-intro { display: flex; flex-direction: column; gap: 8px; }
     .bot-content > [data-catalog-status] { border-top: var(--deckit-border); padding-top: 16px; }
-    .bot-content section > .deckit-text-button { align-self: flex-start; }
+    .bot-content section > .bot-section-button { align-self: flex-start; }
     .bot-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .bot-values { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr); gap: 10px 16px; margin: 0; font: 12px var(--deckit-font); }
     .bot-values dt { color: var(--deckit-muted); } .bot-values dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }

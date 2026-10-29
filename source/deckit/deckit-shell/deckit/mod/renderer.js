@@ -164,7 +164,10 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                 match: MATCH.match,
                 matchFields: MATCH.matchFields,
                 TIER: MATCH.TIER,
-                ranker: RANKER.ranker,
+                ranker: (options) => {
+                    const made = RANKER.ranker(options);
+                    return Object.freeze({ rank: made.rank, close: scope.add(made.close) });
+                },
                 movePath,
                 tildify: tildifyOf(),
             }),

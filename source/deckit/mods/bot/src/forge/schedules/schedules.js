@@ -105,6 +105,7 @@ const schedulesView = ({ shell, deckit, forge, picker }) => {
                 changed(next);
             },
         });
+        made.element.classList.add('bot-select');
         return made.element;
     };
     const field = (label, value, changed, placeholder = '', type = 'text', key = null) => {
@@ -287,6 +288,7 @@ const schedulesView = ({ shell, deckit, forge, picker }) => {
                             }),
                     }),
             });
+            remove.element.classList.add('bot-section-button');
             const intro = styled('div');
             intro.className = 'bot-intro';
             intro.append(header, state, workflow);

@@ -30,7 +30,7 @@ function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, on
             background: var(--deckit-fill);
         }
         .browser-toolbar[data-editing] .browser-address-field { box-shadow: inset 0 0 0 1px var(--deckit-focus); }
-        .browser-address-field .deckit-icon-button { border-radius: var(--deckit-radius-round); }
+        .browser-address-field .browser-address-page { border-radius: var(--deckit-radius-round); }
         .browser-address-site {
             flex: 0 0 auto;
             display: flex;

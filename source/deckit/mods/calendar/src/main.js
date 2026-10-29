@@ -26,7 +26,6 @@ class Calendar {
         this.calendar = calendar({ deckit, screen: () => this.screen });
         this.sendTest = () => sendTest(deckit, () => this.screen?.reveal());
         deckit.commands.register({
-            ...this.calendar.commands,
             'send-test': {
                 description:
                     'Shows a notification now, to see that macOS lets it through. Answers what came of it, as text.',
@@ -49,9 +48,10 @@ class Calendar {
 
     attach(shell, deckit) {
         this.view = calendarView({ calendar: this.calendar, shell, deckit, sendTest: this.sendTest });
-        const { content, sidebar, didAppear, didDisappear, keys, actions } = this.view;
+        const { content, sidebar, didAppear, didDisappear, keys, commands, actions } = this.view;
         shell.view.register({ content, sidebar, didAppear, didDisappear });
         deckit.keys.register(keys);
+        deckit.commands.register(commands);
         deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
         deckit.dependencies.onConnect('settings', (settings) =>
             settings.setButtons({

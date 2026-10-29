@@ -1,9 +1,6 @@
-export function createSession({ PARTITION, AGENT }) {
+// `deck()` is what deck handed the web (deckit-shell/environment: WEB_DECK), once it has.
+export function createSession({ PARTITION, AGENT, deck }) {
     // MARK: - Property
-    // A cookie with no expiry would sign the person out of every site at each launch; a browser restoring its
-    // session keeps them, so here it is given a lifetime.
-    const SESSION_COOKIE_TTL = 60 * 60 * 24 * 14;
-    const FETCH_LIMIT = 4 * 1024 * 1024;
     const made = new Map(); // partition -> { session, mod, name }
     const created = new Set(); // listeners told of every mod session as it is made
 
@@ -32,14 +29,14 @@ export function createSession({ PARTITION, AGENT }) {
         created.add(listener);
     }
 
-    // Read whole as bytes arrive, held to a limit: this is the app's process, and a huge answer would be held
-    // whole first.
+    // Read whole as bytes arrive, held to deck's limit.
     async function fetchText(modId, name, url) {
+        const { fetchLimit } = deck();
         const response = await of(modId, name).fetch(url, { redirect: 'follow' });
         if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
-        if (Number(response.headers.get('content-length')) > FETCH_LIMIT) {
+        if (Number(response.headers.get('content-length')) > fetchLimit) {
             response.body?.cancel();
-            throw tooLarge(response.headers.get('content-length'));
+            throw tooLarge(fetchLimit, response.headers.get('content-length'));
         }
         if (!response.body) return '';
         const reader = response.body.getReader();
@@ -49,9 +46,9 @@ export function createSession({ PARTITION, AGENT }) {
             const { done, value } = await reader.read();
             if (done) break;
             total += value.byteLength;
-            if (total > FETCH_LIMIT) {
+            if (total > fetchLimit) {
                 reader.cancel();
-                throw tooLarge(total);
+                throw tooLarge(fetchLimit, total);
             }
             chunks.push(value);
         }
@@ -76,7 +73,9 @@ export function createSession({ PARTITION, AGENT }) {
                     headers[key] = []
                         .concat(headers[key])
                         .map((cookie) =>
-                            /;\s*(expires|max-age)=/i.test(cookie) ? cookie : cookie + '; Max-Age=' + SESSION_COOKIE_TTL
+                            /;\s*(expires|max-age)=/i.test(cookie)
+                                ? cookie
+                                : cookie + '; Max-Age=' + deck().cookieLifetime
                         );
                 }
             }
@@ -92,8 +91,8 @@ export function createSession({ PARTITION, AGENT }) {
         );
     }
 
-    function tooLarge(bytes) {
-        return new Error(`response too large: more than ${FETCH_LIMIT} bytes (${bytes})`);
+    function tooLarge(limit, bytes) {
+        return new Error(`response too large: more than ${limit} bytes (${bytes})`);
     }
 
     return { of, partitionOf, onCreate, fetchText, clear };
