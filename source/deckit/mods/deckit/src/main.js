@@ -141,8 +141,7 @@ class Deckit {
             return [
                 about.app,
                 `deckit ${about.version} (${about.source})`,
-                'Electron ' + about.electron,
-                'Chrome ' + about.chrome,
+                ...about.engines.map((engine) => `${engine.name} ${engine.version}`),
             ];
         }
     }

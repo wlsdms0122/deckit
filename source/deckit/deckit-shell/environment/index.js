@@ -185,8 +185,7 @@ const MAIN = Object.freeze({
     // path, in `folder` and named for `name`. Writing never throws
     log: { open: 'function' },
     // The host app, `{ name, version }`, and what runs it, outermost first, each `{ key, name, version }`: `key` is
-    // the engine's name in lower case, which a mod reads its version by in `about()` (MOD.md), and `name` as a person
-    // reads it
+    // the engine's name in lower case, and `name` as a person reads it
     about: { app: { name: 'string', version: 'string' }, engines: 'array' },
     reports: {
         // listen(listener(level, parts)), once: what the environment's own parts say, `level` one of `info`, `warn` and

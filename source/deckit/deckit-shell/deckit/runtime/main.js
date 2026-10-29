@@ -21,7 +21,7 @@ export function createRuntime({ CONFIG, CORE, LOG, IDENTITY, restart, about: ABO
                 name: CONFIG.name,
                 home: user,
                 app: `${ABOUT.app.name} ${ABOUT.app.version}`,
-                ...enginesOf(ABOUT.engines),
+                engines: ABOUT.engines,
                 mods: CORE.folders().mods,
                 data: CORE.folders().data,
                 log: LOG.file(),
@@ -32,12 +32,6 @@ export function createRuntime({ CONFIG, CORE, LOG, IDENTITY, restart, about: ABO
             restart();
             return true;
         });
-    }
-
-    // MARK: - Private
-    // Each engine's version under the key the environment names it by, as a mod reads them.
-    function enginesOf(engines) {
-        return Object.fromEntries(engines.map(({ key, version }) => [key, version]));
     }
 
     return { start };

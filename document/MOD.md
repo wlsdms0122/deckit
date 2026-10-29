@@ -292,7 +292,7 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | with `system.file-handlers`: shows a file in the system's Finder |
 | `provider(id)` | with `deckit.command-registry` or `deckit.keymap`: who declares keys or commands as `id`, `{ id, name, host }`: a host by the name it gives, or a mod deck loads; null for neither |
-| `about()` | `{ name, app, version, source, electron, chrome, home, mods, data, log }`: the host app's name and version, deckit's version and the hash of its sources, the version of each engine deckit runs on under its name in lower case (`electron` and `chrome` on Electron), the person's home folder, and the folders of deckit's mods, data and log |
+| `about()` | `{ name, app, version, source, engines, home, mods, data, log }`: the host app's name and version, deckit's version and the hash of its sources, the engines deckit runs on, outermost first, each `{ key, name, version }` with `key` its name in lower case (`electron` and `chrome` on Electron), the person's home folder, and the folders of deckit's mods, data and log |
 | `util` | below |
 | `clipboard.writeText(text)` | with `system.clipboard-write` |
 | `clipboard.readText()` | with `system.clipboard-read` |
