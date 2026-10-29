@@ -13,7 +13,7 @@ function bookmarkEditor({ ui, bookmarks }) {
             align-items: center;
         }
         .browser-bookmark-editor-label { color: var(--deckit-muted); font: var(--deckit-type-small); }
-        .browser-bookmark-editor-fields .deckit-select { justify-self: stretch; }
+        .browser-bookmark-editor-folder { justify-self: stretch; }
         .browser-bookmark-editor-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
     `);
     const popover = ui.popover({ width: '320px' });
@@ -44,6 +44,7 @@ function bookmarkEditor({ ui, bookmarks }) {
                 where.set(next);
             },
         });
+        where.element.classList.add('browser-bookmark-editor-folder');
         const fields = ui.element('div', { className: 'browser-bookmark-editor-fields' });
         fields.append(label('Name'), name.element, label('Folder'), where.element);
         const buttons = ui.element('div', { className: 'browser-bookmark-editor-buttons' });
