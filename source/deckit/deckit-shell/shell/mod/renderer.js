@@ -36,15 +36,14 @@ function shellOf({ WEB, channels }) {
         let reported = {};
         let page = null; // the theme and the kit, once the page wears them
         let mounted = { unmount() {}, remove() {} };
-        deckit.blockKeys(() => OVERLAY.layers.count() > 0);
+        deckit.blockKeysWhen(() => OVERLAY.layers.count() > 0);
         return {
             read: (Entry) => ({ icon: iconOf(Entry, fail), form: formOf(Entry, fail) }),
             report: () => reported,
             lifecycles: [
-                {
+                deckit.lifecycle({
                     method: 'attach',
                     registrations: {
-                        ...deckit.registrations,
                         view: {
                             handle: 'shell',
                             check: (value) => viewProblem(value) || parentProblem(value.parent, running),
@@ -57,7 +56,7 @@ function shellOf({ WEB, channels }) {
                         scope.add(() => (reported = ENDED));
                         if (typeof instance.attach !== 'function') return;
                         page ??= wear();
-                        const opener = deckit.handleOf(handles.deckit, scope);
+                        const opener = handles.deckit;
                         const handle = Object.freeze({
                             ...(handles.shell ?? {}),
                             theme: themeOf(page.theme, scope),
@@ -105,7 +104,6 @@ function shellOf({ WEB, channels }) {
                         const window = WINDOW.mount();
                         const styles = { ...(parts.styles || {}) };
                         const shown = !!view || windowed;
-                        deckit.join(parts, scope, { keyProblem: (key) => keyProblem(key, shown) });
                         reported = {
                             summary: {
                                 view: !!view,
@@ -116,8 +114,9 @@ function shellOf({ WEB, channels }) {
                             },
                             contributions: { styles },
                         };
+                        return { keyProblem: (key) => keyProblem(key, shown) };
                     },
-                },
+                }),
             ],
         };
 

@@ -54,8 +54,14 @@ function run(ENV) {
         COMMAND: createCommand(),
         CONFIGURATION: createConfiguration({ RUN }),
     });
-    const shell = layers.includes(SHELL_LAYER.LAYER) ? [shellOf({ WEB, channels: IPC.layerChannels })] : [];
-    RUNNER.start({ layers: [MOD.layer, ...shell] });
+    // The layers stacked over deckit, in the order they stacked, each by its name.
+    const OVER = { [SHELL_LAYER.LAYER]: () => shellOf({ WEB, channels: IPC.layerChannels }) };
+    const over = layers.flatMap((name) => {
+        if (Object.hasOwn(OVER, name)) return [OVER[name]()];
+        LOG.error(`no layer on a mod's page is named ${name}, so none stacks for it`);
+        return [];
+    });
+    RUNNER.start({ layers: [MOD.layer, ...over] });
 }
 
 export { start };

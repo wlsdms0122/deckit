@@ -1,6 +1,7 @@
 // Deckit as a layer on deck in a mod's page (deckit-shell/deckit/mod/renderer.js), with a layer over it stacking a
-// lifecycle of its own on what deckit offers it: a key registered under that lifecycle that would never run once it
-// has joined is withdrawn while it lasts, and back once it has ended. Exits 1 with a line for each check that failed.
+// lifecycle of its own on what deckit offers it: deckit's registrations are in that lifecycle, a key registered under
+// it that would never run once it has joined is withdrawn while it lasts and back once it has ended, and a key pressed
+// is dropped while any layer over deckit says so. Exits 1 with a line for each check that failed.
 // The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -19,7 +20,8 @@ async function main() {
     };
 
     // The page's key map as deckit keeps it, heard by no page.
-    const KEYMAP = { ...createKeymap(), hear: () => {} };
+    let heard = null;
+    const KEYMAP = { ...createKeymap(), hear: (given) => (heard = given) };
     const MOD = createMod({
         WEB: { forMod: () => ({}) },
         NOTIFICATION: { listen: () => {} },
@@ -44,7 +46,19 @@ async function main() {
 
     const over = makeScope();
     const keyProblem = (key) => (key.scope === 'local' ? 'it is never in front' : '');
-    deckit.over.join({ keys: { late: { run: () => {}, scope: 'local' } } }, over, { keyProblem });
+    const lifecycle = deckit.over.lifecycle({
+        method: 'attach',
+        registrations: { view: { handle: 'shell', check: () => '' } },
+        start: async () => {},
+        end: async () => {},
+        join: () => ({ keyProblem }),
+    });
+    check(
+        "a lifecycle over deckit registers deckit's beside its own",
+        Object.keys(lifecycle.registrations).join() === 'keys,commands,urls,view',
+        Object.keys(lifecycle.registrations)
+    );
+    lifecycle.join({ keys: { late: { run: () => {}, scope: 'local' } } }, over);
     check('a key registered over it that would never run is left out', !keysOf().includes('late'), keysOf());
     check('a key registered under it that would never run is withdrawn', keysOf().join() === 'wide', keysOf());
     check(
@@ -61,6 +75,13 @@ async function main() {
     const taken = [];
     KEYMAP.declare({ front: { run: () => {} } }, { invalid: (why) => taken.push(why), problemOf: () => '' });
     check('a key back runs in the page again', /declared under it/.test(taken[0] || ''), taken);
+
+    let blocked = false;
+    deckit.over.blockKeysWhen(() => false);
+    deckit.over.blockKeysWhen(() => blocked);
+    const before = heard.blocksKeys();
+    blocked = true;
+    check('a key pressed is dropped while any layer over deckit says so', !before && heard.blocksKeys(), before);
 
     under.cut();
     check('the keys of a lifecycle that ended are gone', keysOf().length === 0, keysOf());

@@ -131,7 +131,8 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         }
     }
 
-    // The layers on deck as one: what each reads and reports, their lifecycles in order, and the lowest's handle.
+    // The layers on deck as one: what each reads and reports, a lower one's where two say the same, their lifecycles in
+    // order, and the lowest's handle.
     function stacked(layers, context) {
         const given = [];
         for (const layer of layers)
@@ -140,9 +141,9 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         return {
             handle: given[0].handle,
             mods: given[0].mods,
-            read: (Entry) => Object.assign({}, ...given.map((one) => one.read(Entry))),
+            read: (Entry) => Object.assign({}, ...given.map((one) => one.read(Entry)).reverse()),
             report: () => {
-                const reports = given.map((one) => one.report());
+                const reports = given.map((one) => one.report()).reverse();
                 return {
                     summary: Object.assign({}, ...reports.map((one) => one.summary)),
                     contributions: Object.assign({}, ...reports.map((one) => one.contributions)),

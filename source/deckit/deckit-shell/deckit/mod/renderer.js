@@ -23,17 +23,16 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
     // MARK: - Public
     // Deckit as a layer on deck (deckit-shell/deck/runner/renderer.js). It reads the class's `keywords`, which whatever
     // lists the mods reads in its run's summary, and its `configuration`. `over` is what a layer over it is handed:
-    // `registrations`, what deckit's handle registers in a lifecycle of that layer's; `handleOf(deck, scope)`, deckit's
-    // members on that handle, beside deck's, cut with the lifecycle's `scope`; `join(parts, scope, { keyProblem })`,
-    // what that lifecycle registered on deckit's handle declared, `keyProblem(key)` why a key would never run once
-    // that lifecycle has joined, or '': one registered there that would is left out, and one registered under it is
-    // withdrawn while `scope` lasts; and `blockKeys(blocks)`, `blocks()` whether a key pressed in the page now is
-    // dropped.
+    // `lifecycle({ method, registrations, start, end, join })`, a lifecycle of that layer's with deckit's handle in it,
+    // deckit's registrations beside its own and the handle `deckit` handed its `start` with deckit's members, and
+    // `join(parts, scope)` answering `{ keyProblem }`, `keyProblem(key)` why a key would never run once it has joined,
+    // or '': one registered there that would is left out, and one registered under it is withdrawn while it lasts; and
+    // `blockKeysWhen(blocks)`, a key pressed in the page dropped while `blocks()`, or any other given, answers true.
     function layer({ mod, deliver, fail }) {
         NOTIFICATION.listen(deliver);
         const mainProcess = MAIN_PROCESS.createMainProcess({ deliver });
-        let blocks = () => false;
-        KEYMAP.hear({ blocksKeys: () => blocks() });
+        const blocking = new Set();
+        KEYMAP.hear({ blocksKeys: () => [...blocking].some((blocks) => blocks()) });
         const functionProblem = (value) => (typeof value === 'function' ? '' : 'takes a function');
         const table = (value) => (value && typeof value === 'object' ? '' : 'takes an object');
         const registrations = {
@@ -122,13 +121,19 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                 },
             ],
             over: Object.freeze({
-                registrations,
-                handleOf,
-                join(parts, scope, { keyProblem }) {
-                    judge(join(parts, scope, keyProblem), scope, keyProblem);
-                },
-                blockKeys(given) {
-                    blocks = given;
+                lifecycle: (over) => ({
+                    method: over.method,
+                    registrations: { ...registrations, ...over.registrations },
+                    start: (instance, handles, scope) =>
+                        over.start(instance, { ...handles, deckit: handleOf(handles.deckit, scope) }, scope),
+                    end: (instance) => over.end(instance),
+                    join(parts, scope) {
+                        const { keyProblem = () => '' } = over.join(parts, scope) ?? {};
+                        judge(join(parts, scope, keyProblem), scope, keyProblem);
+                    },
+                }),
+                blockKeysWhen(blocks) {
+                    blocking.add(blocks);
                 },
             }),
         };
