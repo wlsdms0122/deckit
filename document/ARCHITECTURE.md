@@ -84,7 +84,7 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | which mods hear an event | the core, `Deck/Reach/Event`; main carries the events, `deckit-shell/deck/event/main.js` |
 | which page is which mod, or which page runs none, and what a person just did in a page | `deckit-shell/deck/identity`, from what the environment tells of each page (`deckit-electron/environment`) |
 | what a mod's page is: its document and policy, its origin and session, what is served from its folder | `deckit-electron/sandbox/index.js` |
-| a mod's main process modules | which mod starts which and when, `deckit-shell/deckit/main-process/main.js`; running them, the environment's (`mainProcess`, `deckit-electron/main-process/main.js`) |
+| a mod's main process modules | which mod starts which and when, and what a module is handed, `deckit-shell/deckit/main-process/main.js`; running them, and the windows a module opens, the environment's (`mainProcess`, `deckit-electron/main-process/main.js`) |
 | what a keystroke means | the core, `Deckit/Keymap`; main resolves each keystroke against its copy, `deckit-shell/deckit/keymap/main.js`; a page only hears the chords it may act on |
 | who opens an address | the core, `Deckit/Open`: each scheme's handlers whose patterns match it, in the order the app and the person set, and what deckit opens by itself; main offers the address to each in turn and, when none takes it, opens it as the core said, `deckit-shell/deckit/open/main.js`, through the environment (`open`) |
 | the commands there are to run | the core, `Deckit/Command`; main runs a host's command and asks a mod's page to run or complete its own, `deckit-shell/deckit/command/main.js` |

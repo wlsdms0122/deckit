@@ -107,7 +107,9 @@ const MAIN = Object.freeze({
     // A mod's main process modules, which the environment runs, deckit saying which mod starts what and when. A mod is
     // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
     mainProcess: {
-        start: 'function', // start(mod, path) -> Promise of { path, methods }: the module, started once in a run
+        // start(mod, path, handed) -> Promise of { path, methods }: the module, started once in a run, handed what
+        // `handed(path)` answers for its path relative to the mod's folder, and what the environment adds of its own
+        start: 'function',
         // call(modId, path, method, args) -> Promise of what the method answered, refused with kind `NOT_STARTED` for
         // a module not started in this run
         call: 'function',
@@ -122,7 +124,6 @@ const MAIN = Object.freeze({
         // stateOf(modId) -> { running, failure }: whether a module of its runs, and why those that did not start did
         // not, or null
         stateOf: 'function',
-        onEvent: 'function', // onEvent(listener(modId, path, name, args)) -> off: what a module emits
         onChange: 'function', // onChange(listener()) -> off: what `stateOf` or `restartPending` answer may have changed
         // restartPending() -> [{ id, why }]: the mods whose modules only a restart of the app finishes, `why` one of
         // `updated` (its code changed while a module stayed), `removed`, `reinstalled` (removed, then installed again)
@@ -178,8 +179,18 @@ const MAIN = Object.freeze({
     folders: {
         user: 'string', // the person's home folder
     },
+    // A file's text, and what changes a person's files without losing one, each refusal an error whose `kind` says what
+    // a person can act on: `name(text)`, a typed name checked, refused with `NAME`; `fresh(folder, base, make,
+    // extension) -> Promise of the path`, something new `make(path)` makes under the first free name; `rename(path,
+    // name)` and `move(path, folder) -> Promise of the new path`, never over another entry (`EXISTS`, `GONE`,
+    // `INTO_ITSELF`, `OTHER_DISK`); `trash(path) -> Promise`, put where the system keeps what a person throws away
     files: {
         readText: 'function', // readText(file) -> Promise of the file's text
+        name: 'function',
+        fresh: 'function',
+        rename: 'function',
+        move: 'function',
+        trash: 'function',
     },
     // The file deck's log is written to: open({ folder, name }) -> { file, write(where, level, parts) }, `file` its
     // path, in `folder` and named for `name`. Writing never throws

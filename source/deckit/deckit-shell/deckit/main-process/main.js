@@ -9,8 +9,8 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // A mod's main process modules, which the environment runs (`mainProcess`): a mod with system.main-process starts
 // and calls its own, they start anew with each run and end with it, and what they emit goes to the mod's page. The
-// app quits once the modules of the runs that ended have ended too.
-export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app: APP }) {
+// app quits once the modules of the runs that ended have ended too. `files` is the environment's.
+export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app: APP, files: FILES }) {
     // MARK: - Property
     const endings = new Set(); // the ends of modules still to come, each settled in its limit
 
@@ -28,13 +28,10 @@ export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app:
             Promise.all([...endings]).then(() => APP.quit());
             return true;
         });
-        MODULES.onEvent((modId, path, name, args) => {
-            const page = IDENTITY.pageOf(modId);
-            if (page) PROTOCOL.event.send(page, { path, name, args });
+        PROTOCOL.start.handle(({ path }, sender) => {
+            const mod = modOf(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS));
+            return MODULES.start(mod, path, (relative) => handedTo(mod, relative));
         });
-        PROTOCOL.start.handle(({ path }, sender) =>
-            MODULES.start(modOf(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS)), path)
-        );
         PROTOCOL.call.handle(({ path, method, args }, sender) =>
             call(IDENTITY.modFrom(sender, MAIN_PROCESS_PERMISSION.MAIN_PROCESS), path, method, args)
         );
@@ -58,6 +55,27 @@ export function createMainProcess({ IDENTITY, RUNNER, mainProcess: MODULES, app:
             folder: mod.folder,
             data: mod.data,
             pageOf: () => IDENTITY.pageOf(mod.id),
+        });
+    }
+
+    // What a module is handed: the mod's id and data folder, `emit(name, ...args)`, which the mod's page hears from
+    // the module at `path`, and `files`, with `refuse(kind, message)`, a refusal whose `kind` reaches the page.
+    function handedTo(mod, path) {
+        return Object.freeze({
+            id: mod.id,
+            data: mod.data,
+            emit(name, ...args) {
+                const page = IDENTITY.pageOf(mod.id);
+                if (page) PROTOCOL.event.send(page, { path, name: String(name), args });
+            },
+            files: Object.freeze({
+                name: FILES.name,
+                fresh: FILES.fresh,
+                rename: FILES.rename,
+                move: FILES.move,
+                trash: FILES.trash,
+                refuse: (kind, message) => Object.assign(new Error(message), { kind }),
+            }),
         });
     }
 

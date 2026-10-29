@@ -1,3 +1,5 @@
+// The files, as Electron gives deck them (deckit-shell/environment: MAIN.files): a file's text, and what changes a
+// person's files without losing one.
 // MARK: - Property
 const fs = require('fs').promises;
 const path = require('path');
@@ -5,9 +7,13 @@ const { shell } = require('electron');
 
 // MARK: - Initializer
 // MARK: - Public
-// A refusal a person can act on. `kind` reaches the page beside the message (deck/ipc).
+// A refusal a person can act on, `kind` saying which.
 function refuse(kind, message) {
     return Object.assign(new Error(message), { kind });
+}
+
+function readText(file) {
+    return fs.readFile(file, 'utf8');
 }
 
 // The colon is Finder's spelling of a slash, so it is refused with the slash.
@@ -81,4 +87,4 @@ async function put(from, to) {
     return to;
 }
 
-export { refuse, name, fresh, rename, move, trash };
+export { refuse, readText, name, fresh, rename, move, trash };

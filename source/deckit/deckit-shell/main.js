@@ -188,7 +188,13 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         notifications: ENV.notifications,
     });
     const CLIPBOARD = createClipboard({ IDENTITY, clipboard: ENV.clipboard });
-    const MAIN_PROCESS = createMainProcess({ IDENTITY, RUNNER, mainProcess: ENV.mainProcess, app: ENV.app });
+    const MAIN_PROCESS = createMainProcess({
+        IDENTITY,
+        RUNNER,
+        mainProcess: ENV.mainProcess,
+        app: ENV.app,
+        files: ENV.files,
+    });
     const MOD_FOLDER = createModFolder({ IDENTITY, CATALOG, MODS, dialogs: ENV.dialogs, open: ENV.open });
     const RUNTIME = createRuntime({
         CONFIG,
