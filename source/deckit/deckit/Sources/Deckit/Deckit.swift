@@ -51,12 +51,14 @@ public final class Deckit {
             problems: { [weak keymap] run, mod in keymap?.problems(of: run, mod: mod) ?? [] },
             changes: { [weak keymap] in keymap?.changes() ?? [] }
         ))
+        let configuration = try Configuration(deck: deck)
+        deck.add(Layer(closed: { [weak configuration] mod in configuration?.closed(mod) }))
         deck.add(Layer(problems: { [weak urlRouter] run, mod in urlRouter?.problems(of: run, mod: mod) ?? [] }))
         self.deck = deck
         self.keymap = keymap
         self.commands = commands
         self.urlRouter = urlRouter
-        self.configuration = try Configuration(deck: deck)
+        self.configuration = configuration
     }
 
     // MARK: - Public

@@ -25,8 +25,8 @@ public final class Configuration {
     }
 
     // MARK: - Public
-    // A mod's configuration stands from its run's declaring it as it launches until a later run declares it again, and
-    // while the mod loads: one whose start failed can still be configured. What an older run declared, or a run past
+    // A mod's configuration stands from its run's declaring it as it launches until a later run declares it again, or
+    // its sandbox closes: one whose start failed can still be configured. What an older run declared, or a run past
     // launching, is not kept. What deckit does not read is left out, and is a problem of the run, as is a value saved
     // that reads as the default.
     public func declare(_ declared: [JSONValue], mod: String, run number: Int) throws -> [Effect] {
@@ -75,6 +75,11 @@ public final class Configuration {
             }
     }
 
+    // The mod's sandbox closed: what its runs declared ends with it.
+    func closed(_ mod: String) {
+        declarations[mod] = nil
+    }
+
     public func set(mod: String, key: String, value: ConfigurationValue?) throws -> ConfigurationChange {
         guard let declaration = declared(mod).first(where: { declaration in declaration.key == key }) else {
             throw ConfigurationError.undeclared(mod: mod, key: key)
@@ -85,10 +90,8 @@ public final class Configuration {
     }
 
     // MARK: - Private
-    // What a mod that loads, as the catalog was last read, declared.
     private func declared(_ mod: String) -> [ConfigurationDeclaration] {
-        guard deck.catalog.loading.contains(where: { loading in loading.manifest.id == mod }) else { return [] }
-        return declarations[mod] ?? []
+        declarations[mod] ?? []
     }
 
     // A value saved for what the mod does not declare is not handed back.

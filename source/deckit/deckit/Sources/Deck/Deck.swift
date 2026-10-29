@@ -89,7 +89,8 @@ public final class Deck {
         return run.contributions
     }
 
-    // `layer` is asked of each run as it starts, and of what has changed once the runs have moved.
+    // `layer` is asked of each run as it starts, and of what has changed once the runs have moved, and told of each
+    // sandbox that closed.
     package func add(_ layer: Layer) {
         layers.append(layer)
     }
@@ -167,9 +168,14 @@ public final class Deck {
     }
 
     // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, and
-    // what each layer tells has changed of its own.
+    // what each layer tells has changed of its own, once each layer has heard of the sandboxes that closed.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
         events.dropEnded()
+        for case let .close(modId) in effects {
+            for layer in layers {
+                layer.closed(modId)
+            }
+        }
 
         return effects
             + connections.changes()

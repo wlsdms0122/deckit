@@ -225,10 +225,32 @@ struct ConfigurationTests {
 
         // When
         _ = sut.deck.readCatalog()
+        _ = try sut.deck.unload(["a"])
+        _ = try sut.deck.stopped("a", run: 1)
         let wrap = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
 
         // Then
         #expect(sut.configuration.list().map(\.id) == ["b"])
+        #expect(throws: ConfigurationError.undeclared(mod: "a", key: "wrap")) { try wrap.get() }
+    }
+
+    @Test("what a mod's runs declared ends as its sandbox closes, though the mod still loads")
+    func declarationEndsWithItsSandbox() throws {
+        // Given
+        let sut = try deckit(["a"])
+        _ = try sut.configuration.declare([boolean("wrap")], mod: "a", run: 1)
+        try fixture.write("a", permissions: ["deckit.app-keys"])
+        _ = sut.deck.readCatalog()
+
+        // When
+        let before = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
+        _ = try sut.deck.unload(["a"])
+        _ = try sut.deck.stopped("a", run: 1)
+        let wrap = Result { try sut.configuration.set(mod: "a", key: "wrap", value: .bool(true)) }
+
+        // Then
+        #expect(throws: Never.self) { try before.get() }
+        #expect(sut.configuration.values(of: "a").isEmpty)
         #expect(throws: ConfigurationError.undeclared(mod: "a", key: "wrap")) { try wrap.get() }
     }
 
