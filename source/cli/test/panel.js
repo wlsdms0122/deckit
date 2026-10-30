@@ -47,6 +47,7 @@ async function main() {
     check(
         "folded, the content takes the panel and the frame covers only the window's buttons",
         folded.content.x === 0 &&
+            folded.barRoom === 44 &&
             JSON.stringify(folded.obscured) === JSON.stringify({ x: 0, y: 0, width: 80, height: 52 }),
         folded
     );

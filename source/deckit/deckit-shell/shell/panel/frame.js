@@ -3,7 +3,6 @@ import * as GESTURE from '../ui/gesture/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
 import * as WIDTH from './model/width.js';
-import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
@@ -207,7 +206,7 @@ function boot(theme, channels) {
             width: (bar?.controlsWidth || 0) + 'px',
             height: (bar?.height || 0) + 'px',
         });
-        const room = bar ? Math.max(0, bar.height - LAYOUT.INSET) : 0;
+        const room = look.parts?.barRoom || 0;
         sidebar.setTop(room);
         titleBarRoom.style.height = room + 'px';
     }
