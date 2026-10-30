@@ -3,7 +3,7 @@ const { favicon } = require('../favicon/favicon.js');
 
 // The view's title bar, as the Browser's toolbar: Back and Forward, and the field of the tab in front. The field holds
 // the site's icon, which opens its permissions, the site, and Reload and the bookmark star of the page. A press on the
-// site edits the address. `onBookmark(star)` is a press on the star.
+// site edits the address. `onBookmark()` is a press on the star.
 function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
     const ICON_SIZE = 16;
 
@@ -139,7 +139,7 @@ function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, on
 
     function bookmark() {
         if (!shownTab) return;
-        onBookmark(star.element);
+        onBookmark();
         if (!theme.motion.fast) return;
         star.element.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.28)' }, { transform: 'scale(1)' }], {
             duration: 220,

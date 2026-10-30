@@ -129,7 +129,7 @@ function sidebar({
         rowAt: (target) => target.closest('.browser-outline-row'),
         items: (row) => {
             const node = row && tabOutline.nodeAt(row);
-            return node && (isFolder(node) ? tabFolderMenu(node) : tabMenu(node, row));
+            return node && (isFolder(node) ? tabFolderMenu(node) : tabMenu(node));
         },
     });
     ui.contextMenu(bookmarkOutline.element, {
@@ -224,7 +224,7 @@ function sidebar({
         label.title = bookmark.url;
     }
 
-    function tabMenu(tab, row) {
+    function tabMenu(tab) {
         return [
             { label: 'Reload', icon: 'reload', hint: chordOf('reload'), run: () => tab.page?.reload() },
             {
@@ -249,7 +249,7 @@ function sidebar({
             {
                 label: bookmarks.has(tab.url) ? 'Edit Bookmark…' : 'Add Bookmark…',
                 icon: 'bookmark',
-                run: () => onEditBookmark(tab, row),
+                run: () => onEditBookmark(tab),
             },
             '-',
             { label: 'Close Tab', icon: 'x', hint: chordOf('closeTab'), run: () => onCloseTab(tab) },

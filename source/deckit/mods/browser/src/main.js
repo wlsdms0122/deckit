@@ -84,7 +84,7 @@ class Browser {
             onForward: goForward,
             onReload: reload,
             onSitePermissions: () => prompter.editSitePermissions(tabs.front().url),
-            onBookmark: (star) => editor.show(tabs.front(), star),
+            onBookmark: () => editor.show(tabs.front()),
             onSubmit: (text) =>
                 tabs.navigate(
                     tabs.front(),
@@ -137,7 +137,7 @@ class Browser {
             onDeleteTabFolder: (folder) => tabs.deleteFolder(folder),
             onOpenBookmark: (bookmark) => tabs.navigate(tabs.front(), bookmark.url),
             onOpenBookmarks: (node, parent) => tabs.openBookmarks(node, parent),
-            onEditBookmark: (tab, row) => editor.show(tab, row),
+            onEditBookmark: (tab) => editor.show(tab),
         });
 
         area.append(find.element);
@@ -288,7 +288,7 @@ class Browser {
             tabs.close(tabs.front());
         }
 
-        // The bookmark editor stands by the star, which editing hides.
+        // The address is edited with the bookmark editor gone.
         function editAddress() {
             editor.close();
             bar.edit();
