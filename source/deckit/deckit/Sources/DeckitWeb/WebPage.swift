@@ -79,7 +79,8 @@ final class WebPage: NSObject {
             "canGoBack": view.canGoBack,
             "canGoForward": view.canGoForward,
             "camera": view.cameraCaptureState == .active,
-            "microphone": view.microphoneCaptureState == .active
+            "microphone": view.microphoneCaptureState == .active,
+            "store": view.configuration.websiteDataStore.identifier?.uuidString.lowercased()
         ]
     }
 

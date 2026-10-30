@@ -31,6 +31,8 @@ function createViews() {
     function view({ sessions, session, url }, { closing, focused }) {
         const element = document.createElement('div');
         element.tabIndex = -1;
+        // A web page's element, naming the page once main has given it its id.
+        element.dataset.webPage = '';
         // White under the page until it draws, as a browser has.
         Object.assign(element.style, { background: '#fff', outline: 'none' });
         let known = null;
@@ -51,6 +53,7 @@ function createViews() {
                 .then((given) => {
                     if (given === null) return;
                     known = given;
+                    element.dataset.webPage = String(given);
                     if (removed) return ipcRenderer.send(PROTOCOL.remove, { id: given });
                     shown.set(given, { told });
                     resolve(given);
