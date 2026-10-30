@@ -16,8 +16,12 @@ enum Export: Int, CaseIterable {
     case focus
     case isFocused
     case state
+    case run
     case evaluate
+    case find
     case snapshot
+    case fetchText
+    case clear
     case close
     case safariVersion
     case tree

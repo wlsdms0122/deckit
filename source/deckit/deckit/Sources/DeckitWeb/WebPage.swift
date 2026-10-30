@@ -6,31 +6,47 @@
 //
 
 import AppKit
+import CryptoKit
 import WebKit
 import CNodeAPI
 
 // A web page on WebKit, laid where its mod's page shows it, which tells JavaScript what becomes of it and asks it what
-// to do: `emit(event, payload)`. Told: `changed` (its state), `started`, `committed` ({ url }), `stopped`, `failed`
-// ({ code, description, url }), `gone`, `focus`, `close` and `mouse` ({ type }). Asked, answered at once: `navigate` ({ url, followed }),
-// "load" to let it, `open` ({ url, ownWindow }), and `key` ({ type, code, key, meta, control, alt, shift }), true for
-// a key taken. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }).
+// to do: `emit(event, payload)`. Told: `adopted` ({ id }) first, then `changed` (its state), `started`, `committed`
+// ({ url }), `stopped`, `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message`
+// ({ body }), what deckit's own scripts post, and `external` ({ url }), an address of an app's the page asked to go to.
+// Asked, answered at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow, background }), a function
+// to hear the page given for the window, or nothing for none; `key` ({ type, code, key, meta, control, alt, shift }),
+// true for a key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate
+// trusted though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions,
+// reply }).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
+    // The world deckit's own scripts run in, apart from the page's, which sees none of them.
+    static let deckitWorld = WKContentWorld.world(name: "deckit")
+    private static let messages = "deckit"
+    // What a page may go to itself; any other scheme is an app's.
+    private static let webSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
+
     let id: Int
     let view: WebPageView
     let host: WebPageHost
     private let emitter: Emitter
+    private let adopt: @MainActor (WKWebViewConfiguration, Emitter) -> WebPage
     private var observations: [NSKeyValueObservation] = []
     // Whether the next navigation is a load JavaScript asked for, which asked deck before: it is not asked again.
     private var asked = false
 
     // MARK: - Initializer
-    // `store` names the data store the page keeps what sites store in, made on first use; none keeps nothing.
-    init(id: Int, store: UUID?, applicationName: String, emitter: Emitter) {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = store.map { WKWebsiteDataStore(forIdentifier: $0) } ?? .nonPersistent()
-        configuration.applicationNameForUserAgent = applicationName
+    // `configuration` is the page's, WebKit's own for a window a page opened. `adopt` makes the page for such a window.
+    init(
+        id: Int,
+        configuration: WKWebViewConfiguration,
+        emitter: Emitter,
+        adopt: @escaping @MainActor (WKWebViewConfiguration, Emitter) -> WebPage
+    ) {
+        // A window's configuration is its opener's copy, whose scripts and handlers are the opener's.
+        configuration.userContentController = WKUserContentController()
         configuration.preferences.isElementFullscreenEnabled = true
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         let view = WebPageView(frame: .zero, configuration: configuration)
@@ -39,7 +55,13 @@ final class WebPage: NSObject {
         self.view = view
         self.host = WebPageHost(content: view)
         self.emitter = emitter
+        self.adopt = adopt
         super.init()
+        configuration.userContentController.add(
+            MessageRelay(to: self),
+            contentWorld: Self.deckitWorld,
+            name: Self.messages
+        )
         view.navigationDelegate = self
         view.uiDelegate = self
         view.onFocus = { [weak self] in
@@ -67,6 +89,11 @@ final class WebPage: NSObject {
         }
 
         return responder.isDescendant(of: view)
+    }
+
+    // Told once the page is the module's, so JavaScript knows it by its id before anything else.
+    func announce() {
+        emitter.emit("adopted", ["id": id])
     }
 
     func load(_ url: URL) {
@@ -97,6 +124,20 @@ final class WebPage: NSObject {
         view.window?.makeFirstResponder(view)
     }
 
+    // The scripts every document of the page runs as it starts, in place of those it had.
+    func run(_ scripts: [UserScript]) {
+        let controller = view.configuration.userContentController
+        controller.removeAllUserScripts()
+        for script in scripts {
+            controller.addUserScript(WKUserScript(
+                source: script.source,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: script.mainFrameOnly,
+                in: script.world == .page ? .page : Self.deckitWorld
+            ))
+        }
+    }
+
     // Laid in `window`'s view tree, over the view that draws the mod's page, which is at `page` in the window's
     // content with `above` shown pages laid over it at that same rect, at `frame` in that page, both from their top
     // left. Where no view draws the page there, it stays over the one it was over, or else goes over the window's
@@ -113,6 +154,7 @@ final class WebPage: NSObject {
             container.addSubview(host)
         }
         host.frame = container.bounds
+        host.autoresizingMask = [.width, .height]
         let origin = container === content ? CGPoint(x: page.minX + frame.minX, y: page.minY + frame.minY) : frame.origin
         host.lay(CGRect(origin: origin, size: frame.size), holes: holes)
         host.isHidden = false
@@ -142,17 +184,32 @@ final class WebPage: NSObject {
         emitter.emit("mouse", ["type": event.type == .leftMouseDown ? "mouseDown" : "mouseUp"])
     }
 
-    // The value of `source`, a function body that may await, as JSON.
-    func evaluate(_ source: String, done: @escaping @MainActor (Result<String, Error>) -> Void) {
+    // The value of `source`, a function body that may await, as JSON, run in the page's world or deckit's.
+    func evaluate(
+        _ source: String,
+        in world: UserScript.World,
+        done: @escaping @MainActor (Result<String, Error>) -> Void
+    ) {
         view.callAsyncJavaScript(
             "return JSON.stringify(await (async () => { \(source) })()) ?? 'null'",
             arguments: [:],
             in: nil,
-            in: .page
+            in: world == .page ? .page : Self.deckitWorld
         ) { result in
             MainActor.assumeIsolated {
                 done(result.map { ($0 as? String) ?? "null" })
             }
+        }
+    }
+
+    // The next match of `text`, or the one before, selected and shown: whether there is one.
+    func find(_ text: String, backwards: Bool, caseSensitive: Bool, done: @escaping @MainActor (Bool) -> Void) {
+        let configuration = WKFindConfiguration()
+        configuration.backwards = backwards
+        configuration.caseSensitive = caseSensitive
+        configuration.wraps = true
+        view.find(text, configuration: configuration) { result in
+            MainActor.assumeIsolated { done(result.matchFound) }
         }
     }
 
@@ -175,11 +232,18 @@ final class WebPage: NSObject {
         for observation in observations { observation.invalidate() }
         observations = []
         view.stopLoading()
+        view.configuration.userContentController.removeAllScriptMessageHandlers()
         view.navigationDelegate = nil
         view.uiDelegate = nil
         view.onFocus = nil
         host.removeFromSuperview()
         emitter.release()
+    }
+
+    // What deckit's scripts post, as text.
+    func received(_ body: Any) {
+        guard let text = body as? String else { return }
+        emitter.emit("message", ["body": text])
     }
 
     // MARK: - Private
@@ -235,31 +299,66 @@ final class WebPage: NSObject {
             MainActor.assumeIsolated { done(response) }
         }
     }
+
+    private func failed(_ error: Error) {
+        let error = error as NSError
+        emitter.emit("failed", [
+            "code": error.code,
+            "description": error.localizedDescription,
+            "url": (error.userInfo[NSURLErrorFailingURLStringErrorKey] as? String) ?? view.url?.absoluteString ?? ""
+        ])
+        emitter.emit("stopped")
+    }
+
+    // A certificate the Mac does not trust, as the page's tab is told of it.
+    private func refusal(of trust: SecTrust, error: CFError?, host: String) -> [String: Any?] {
+        let chain = (SecTrustCopyCertificateChain(trust) as? [SecCertificate]) ?? []
+        let leaf = chain.first
+        let data = leaf.map { SecCertificateCopyData($0) as Data } ?? Data()
+        let issuer = chain.count > 1 ? SecCertificateCopySubjectSummary(chain[1]) as String? : nil
+
+        return [
+            "url": view.url?.absoluteString ?? "https://\(host)/",
+            "host": host,
+            "error": error.map { CFErrorCopyDescription($0) as String } ?? "the certificate is not trusted",
+            "fingerprint": "sha256/" + Data(SHA256.hash(data: data)).base64EncodedString(),
+            "subject": leaf.flatMap { SecCertificateCopySubjectSummary($0) as String? } ?? host,
+            "issuer": issuer ?? ""
+        ]
+    }
 }
 
 extension WebPage: WKNavigationDelegate {
     // MARK: - Lifecycle
     // A navigation of the page's own, a link or a script, is asked; one JavaScript asked for, history's, and a reload
-    // are not, nor a frame's.
+    // are not, nor a frame's. An app's address goes to the app, as JavaScript lets it, and the page stays.
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
     ) {
-        let url = navigationAction.request.url
         let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
         let own = navigationAction.navigationType == .backForward || navigationAction.navigationType == .reload
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.allow)
+            return
+        }
+        if let scheme = url.scheme?.lowercased(), !Self.webSchemes.contains(scheme) {
+            decisionHandler(.cancel)
+            emitter.emit("external", ["url": url.absoluteString])
+            return
+        }
         if isMainFrame, asked {
             asked = false
             decisionHandler(.allow)
             return
         }
-        guard isMainFrame, !own, let url else {
+        guard isMainFrame, !own else {
             decisionHandler(.allow)
             return
         }
 
-        let verdict: String? = emitter.emit("navigate", ["url": url.absoluteString, "followed": true]) { node, value in
+        let verdict: String? = emitter.emit("navigate", ["url": url.absoluteString]) { node, value in
             try node.string(value)
         }
         decisionHandler(verdict == "load" ? .allow : .cancel)
@@ -293,34 +392,62 @@ extension WebPage: WKNavigationDelegate {
         emitter.emit("gone")
     }
 
-    // MARK: - Private
-    private func failed(_ error: Error) {
-        let error = error as NSError
-        emitter.emit("failed", [
-            "code": error.code,
-            "description": error.localizedDescription,
-            "url": (error.userInfo[NSURLErrorFailingURLStringErrorKey] as? String) ?? view.url?.absoluteString ?? ""
-        ])
-        emitter.emit("stopped")
+    // A server the Mac does not trust is let through only where JavaScript says its certificate was trusted.
+    func webView(
+        _ webView: WKWebView,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping @MainActor @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+            let trust = challenge.protectionSpace.serverTrust
+        else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+
+        var error: CFError?
+        if SecTrustEvaluateWithError(trust, &error) {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        let refusal = refusal(of: trust, error: error, host: challenge.protectionSpace.host)
+        let trusted = emitter.emit("certificate", refusal) { node, value in try node.bool(value) } ?? false
+        if trusted {
+            completionHandler(.useCredential, URLCredential(trust: trust))
+        } else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+        }
     }
 }
 
 extension WebPage: WKUIDelegate {
     // MARK: - Lifecycle
-    // A window the page asks for is JavaScript's to give; WebKit's own is never made.
+    // A window the page asks for is JavaScript's to give, as a page of the module's with WebKit's configuration for
+    // it, which keeps its opener.
     func webView(
         _ webView: WKWebView,
         createWebViewWith configuration: WKWebViewConfiguration,
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        emitter.emit("open", [
+        let payload: [String: Any?] = [
             "url": navigationAction.request.url?.absoluteString ?? "",
             "ownWindow": windowFeatures.width != nil || windowFeatures.height != nil,
-            "background": navigationAction.modifierFlags.contains(.command)
-        ])
+            "background": navigationAction.modifierFlags.contains(.command),
+            "width": windowFeatures.width?.doubleValue,
+            "height": windowFeatures.height?.doubleValue
+        ]
+        let heard: Emitter? = emitter.emit("open", payload) { node, value in
+            var type = napi_undefined
+            napi_typeof(node.environment, value, &type)
 
-        return nil
+            return type == napi_function ? try Emitter(node: node, function: value) : nil
+        }
+        guard let heard else { return nil }
+        let page = adopt(configuration, heard)
+        page.announce()
+
+        return page.view
     }
 
     func webViewDidClose(_ webView: WKWebView) {
