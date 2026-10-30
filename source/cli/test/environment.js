@@ -123,10 +123,10 @@ async function main() {
     );
     const unknown = thrown(() => SHELL.connect(environment, { host, config: { colour: 'red' } }));
     check('connect refuses a configuration it does not read', /config sets colour/.test(unknown), unknown);
-    const answer = SHELL.connect(environment, { host, config: { id: 'test', agent: ['Test'] } });
+    const answer = SHELL.connect(environment, { host, config: { id: 'test' } });
     check(
         'the environment is configured with what names what it keeps',
-        configured.length === 1 && configured[0].id === 'test' && configured[0].agent[0] === 'Test',
+        configured.length === 1 && configured[0].id === 'test',
         configured
     );
     const lacks = ENVIRONMENT.missingIn(answer, USED);

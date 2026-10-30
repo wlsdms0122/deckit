@@ -23,9 +23,8 @@ import * as CHANNEL from '../deck/channel/index.js';
  */
 
 const MAIN = Object.freeze({
-    // configure({ id, agent }), once, before anything else: `id` names what the environment keeps for deckit, apart
-    // from what another host app embedding deckit keeps, and `agent` the names the host app adds to its user agent,
-    // taken out of a web page's
+    // configure({ id }), once, before anything else: `id` names what the environment keeps for deckit, apart from what
+    // another host app embedding deckit keeps
     configure: 'function',
     messages: {
         // listen({ told(page, message), asked(page, message) -> Promise, askedSync(page, message) -> Promise }),
@@ -293,11 +292,12 @@ const PAGE = Object.freeze({
         evaluate: 'function',
     },
     web: {
-        // view({ sessions, session, url }, { closing, focused }) -> { element, id }: a web page shown in this page, in
-        // the mod's session by that name, `sessions` what main told this page its mod's sessions are named by
+        // view({ sessions, session, url }, { closing, focused }) -> { element, id, close }: a web page shown in this
+        // page, in the mod's session by that name, `sessions` what main told this page its mod's sessions are named by
         // (`sessionsOf`, MAIN).
-        // `element` is put where it shows, and `id` a promise of its id once it has one. `closing()` when the web page
-        // asks to close itself, `focused()` when it takes focus
+        // `element` is put where it shows, `id` a promise of its id once it has one, and `close()` ends it, in the
+        // document or never put there; the element leaving the document once in it ends it too. `closing()` when the web page asks to close itself, `focused()` when it takes
+        // focus
         view: 'function',
     },
 });

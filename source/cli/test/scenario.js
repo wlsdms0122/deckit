@@ -77,8 +77,42 @@ function seed({ data, files }) {
     }
 }
 
+// The data store WebKit keeps the session `partition` spells in: a UUID made from its name.
+function storeOf(partition) {
+    const hash = require('crypto').createHash('sha1').update(`deckit-web:${partition}`).digest();
+    hash[6] = (hash[6] & 0x0f) | 0x50;
+    hash[8] = (hash[8] & 0x3f) | 0x80;
+    const hex = hash.subarray(0, 16).toString('hex');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// The web pages WebKit shows in a window, as the module tells its views (a line each, indented under its superview,
+// `Type {{x, y}, {width, height}}`, then whether it is hidden): each shown page's rect in its superview, and the types
+// from it up.
+function webViewsIn(tree) {
+    const lines = String(tree || '').split('\n');
+    const found = [];
+    const above = []; // [{ type, hidden }] by depth
+    for (const line of lines) {
+        const match = /^( *)(\S+) \{\{([-\d.]+), ([-\d.]+)\}, \{([-\d.]+), ([-\d.]+)\}\}(.*)$/.exec(line);
+        if (!match) continue;
+        const depth = match[1].length / 2;
+        above.length = depth;
+        above.push({ type: match[2], hidden: / hidden/.test(match[7]) });
+        if (match[2] !== 'WebPageView' || above.some(({ hidden }) => hidden)) continue;
+        const [x, y, width, height] = match.slice(3, 7).map(Number);
+        found.push({ rect: { x, y, width, height }, chain: above.map(({ type }) => type).reverse() });
+    }
+    return found;
+}
+
+// Whether two rects are the same to a point.
+function near(a, b) {
+    return !!a && !!b && ['x', 'y', 'width', 'height'].every((key) => Math.abs(a[key] - b[key]) <= 1);
+}
+
 // `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder.
-async function run({ page, pages, compose, targets, thrown, endCore, logged, home }) {
+async function run({ page, pages, compose, targets, main, webPage, thrown, endCore, logged, home }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
     // What main says is on screen, as the panel's frame shows it: the selected row of the mods' list.
@@ -443,9 +477,12 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             `${usage} (the disk holds ${JSON.stringify(told)})`
         );
         const browser = await page('deckit://browser.mod');
-        const webview = await browser?.evaluate(`document.querySelector('webview')?.getAttribute('partition')`);
-        check('browser web page is in its own session', /:browser:web$/.test(webview || ''), webview);
-        const pagesShown = `document.querySelectorAll('webview').length`;
+        // A tab's page is reached through its element, which names it once main has given it its id.
+        const shownPage = `[...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible')?.dataset.webPage`;
+        const front = webPage(await until(() => browser?.evaluate(shownPage), 3000));
+        const store = (await front.state())?.store;
+        check('browser web page is in its own session', store === storeOf('persist:deckit:browser:web'), store);
+        const pagesShown = `document.querySelectorAll('[data-web-page]').length`;
         const asleep = await browser?.evaluate(pagesShown);
         check('a tab brought back sleeps until it comes to the front', asleep === 1, asleep);
         // A tab's row is found by its address, which its label carries: its title changes as its page loads.
@@ -457,23 +494,28 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const woken = await until(async () => (await browser?.evaluate(pagesShown)) === 2, 3000);
         check('a tab asleep wakes as it comes to the front', woken, await browser?.evaluate(pagesShown));
         await pressTab(FRONT_TAB);
-        const shownTab = `[...document.querySelectorAll('webview')].find((view) => view.style.visibility === 'visible')?.src`;
-        const frontAgain = await until(async () => (await browser?.evaluate(shownTab)) === FRONT_TAB, 3000);
-        check('a tab woken before comes back to the front', frontAgain, await browser?.evaluate(shownTab));
-        // What a site is told the browser is, against what the panel's frame, a page shown as nothing else, is told.
-        const agentAsked = `navigator.userAgentData.getHighEntropyValues(['fullVersionList', 'platformVersion', 'architecture',
-            'bitness', 'formFactors']).then((hints) => JSON.stringify({ ...hints, agent: navigator.userAgent }))`;
-        const site = JSON.parse((await (await page(FRONT_TAB, 'webview'))?.evaluate(agentAsked)) || '{}');
-        const engine = JSON.parse((await frame.evaluate(agentAsked)) || '{}');
-        const hints = ({ agent, ...rest }) => JSON.stringify(rest);
+        const shownAt = async () => (await webPage(await browser?.evaluate(shownPage)).state())?.url;
+        const frontAgain = await until(async () => (await shownAt()) === FRONT_TAB, 3000);
+        check('a tab woken before comes back to the front', frontAgain, await shownAt());
+        // What a site is told the browser is: the Safari whose WebKit shows it, and nothing of deckit's in its world.
+        const identity = await front.evaluate(
+            `({ agent: navigator.userAgent, hints: 'userAgentData' in navigator, webkit: typeof window.webkit })`
+        );
         check(
-            'a web page is told the Chromium it runs on, with no name the app adds',
-            site.agent && !/Electron|Deckit/.test(site.agent) && hints(site) === hints(engine),
-            `${JSON.stringify(site)} against ${JSON.stringify(engine)}`
+            'a web page is told the Safari it runs on, with no name the app adds',
+            /Version\/[\d.]+ Safari\/605\.1\.15$/.test(identity?.agent || '') &&
+                !/Electron|Deckit|Chrome/.test(identity.agent) &&
+                !identity.hints,
+            JSON.stringify(identity)
+        );
+        check(
+            "a web page's own world has no way to deckit",
+            identity?.webkit === 'undefined',
+            JSON.stringify(identity)
         );
         const toolbar = await browser?.evaluate(`(() => {
             const bar = document.querySelector('.browser-toolbar');
-            const shown = [...document.querySelectorAll('webview')].find((view) => view.style.visibility === 'visible');
+            const shown = [...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible');
             return {
                 bar: Math.round(bar.getBoundingClientRect().bottom),
                 page: Math.round(shown.getBoundingClientRect().top),
@@ -486,6 +528,41 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
             toolbar?.bar > 0 && toolbar.page >= toolbar.bar && toolbar.field && toolbar.region === 'drag',
             JSON.stringify(toolbar)
         );
+        // WebKit's view of the front tab, in the Browser's page's view, where the tab's element is, while the Browser
+        // is on screen.
+        const onScreen = await current();
+        await frame.press('[data-mod-id="browser"]');
+        await until(async () => (await visibility('browser')) === 'visible', 3000);
+        const tabLaidOut = async () => {
+            const element = await browser?.evaluate(`(() => {
+                const shown = [...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible');
+                const { x, y, width, height } = shown.getBoundingClientRect();
+                return { x, y, width, height };
+            })()`);
+            const views = await main(`
+                const { BrowserWindow } = require('electron');
+                return BrowserWindow.getAllWindows().flatMap((window) =>
+                    (${webViewsIn})(webkit.tree(window.getNativeWindowHandle())));
+            `);
+            const zoom = await main(`return require('electron').webContents.getAllWebContents()
+                .find((contents) => contents.getURL().startsWith('deckit://browser.mod'))?.getZoomFactor()`);
+            const at =
+                element && Object.fromEntries(Object.entries(element).map(([key, value]) => [key, value * zoom]));
+            return { at, views };
+        };
+        const tabLaid = await until(async () => {
+            const { at, views } = await tabLaidOut();
+            return (views || []).some(
+                ({ rect, chain }) => chain[1] === 'WebPageHost' && chain[2] === 'WebContentsViewCocoa' && near(rect, at)
+            );
+        }, 3000);
+        check(
+            "a tab's page is laid in the Browser's page, where its element is",
+            tabLaid,
+            JSON.stringify(await tabLaidOut())
+        );
+        await frame.press(`[data-mod-id="${onScreen}"]`);
+        await until(async () => (await visibility(onScreen)) === 'visible', 3000);
         const stolen = await editor.evaluate(`new Promise((resolve) => {
             const page = document.createElement('webview');
             page.setAttribute('partition', 'persist:deckit:browser:web');
@@ -756,6 +833,28 @@ async function run({ page, pages, compose, targets, thrown, endCore, logged, hom
         const fits = await until(async () => whole((await fit()) || undefined), 4000);
         check("a mod's window shows its page whole at the size it gives", fits, JSON.stringify(await fit()));
         await windowed?.evaluate(`document.dispatchEvent(new CustomEvent('test-window-close'))`);
+
+        // A mod's web window: WebKit shows its page over the window's content, and it goes as the mod closes it.
+        const webUser = await page('deckit://web-user.mod');
+        await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-open', { detail: '${FRONT_TAB}' }))`);
+        const webWindow = `
+            const { BrowserWindow } = require('electron');
+            const window = BrowserWindow.getAllWindows().find((each) => each.getTitle() === 'Web User');
+            if (!window) return null;
+            const [width, height] = window.getContentSize();
+            return { width, height, pages: ${webViewsIn}(webkit.tree(window.getNativeWindowHandle())) };
+        `;
+        const webAt = await until(async () => (await mark(webUser, 'at')) === FRONT_TAB, 8000);
+        const shownIn = await main(webWindow);
+        const covers = shownIn?.pages?.some(({ rect }) => rect.width === shownIn.width && rect.height > 0);
+        check(
+            "a mod's web window loads its page on WebKit, over the window's content",
+            webAt && covers,
+            `${await mark(webUser, 'at')} ${JSON.stringify(shownIn)}`
+        );
+        await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-close'))`);
+        const webClosed = await until(async () => (await main(webWindow)) === null, 3000);
+        check("a mod's web window goes as the mod closes it", webClosed, JSON.stringify(await main(webWindow)));
 
         // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.
         await frame.press('[data-mod-id="region-parent"]');

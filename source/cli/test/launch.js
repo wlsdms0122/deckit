@@ -1,7 +1,8 @@
 // Starts an assembled Deckit.app for the test without taking the screen: macOS opens it in the background
 // (`open -g`), and inactive.js, run before the app's own entry, keeps it from ever becoming the active app; host.js, run
-// after it, sets its own handlers on every webContents and session, as a host app may. It is stopped when the test's
-// process exits, and a test still running after `limit` ms is ended as a failure, its app with it.
+// after it, sets its own handlers on every webContents and session, as a host app may. Its pages answer DevTools on
+// `port` and its main process on the port after. It is stopped when the test's process exits, and a test still running
+// after `limit` ms is ended as a failure, its app with it.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync, execSync, spawn } = require('child_process');
@@ -48,6 +49,7 @@ function launch({ app: folder, data, port, log, limit }) {
         log,
         '--args',
         `--remote-debugging-port=${port}`,
+        `--inspect=${port + 1}`,
         folder,
     ]);
     for (let tries = 0; tries < 50 && !pid; tries++) {

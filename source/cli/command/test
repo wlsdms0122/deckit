@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const at = args.indexOf('--port');
 const port = at < 0 ? 9334 : Number(args[at + 1]);
 if (!Number.isInteger(port) || port <= 0) {
-    console.error('usage: deckit test [--port <DevTools port, default 9334>]');
+    console.error("usage: deckit test [--port <DevTools port, default 9334; the main process's is the next>]");
     process.exit(2);
 }
 
@@ -61,7 +61,8 @@ const main = async () => {
     SCENARIO.seed({ data, files: fs.realpathSync(files) });
     const log = path.join(OUT, 'log.txt');
     const app = launch({ app: folder, data, port, log, limit: LIMIT });
-    const devtools = connect({ port, shots: OUT });
+    const module = path.join(fs.realpathSync(folder), 'deckit', 'deckit-web.node');
+    const devtools = connect({ port, shots: OUT, module });
     // The app may name its folder through /private: the core is matched by the end of its path.
     const endCore = () => execSync(`pkill -9 -f -- '${path.basename(folder)}/deckit/deckit$'`);
     const logged = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '');

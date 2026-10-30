@@ -5,15 +5,27 @@ import PackageDescription
 let package = Package(
     name: "Deckit",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v14)
     ],
     products: [
         .library(name: "Deck", targets: ["Deck"]),
         .library(name: "Deckit", targets: ["Deckit"]),
-        .executable(name: "deckit", targets: ["DeckitServer"])
+        .executable(name: "deckit", targets: ["DeckitServer"]),
+        .library(name: "DeckitWeb", type: .dynamic, targets: ["DeckitWeb"])
     ],
     targets: [
         .target(name: "Deck"),
+        // Node-API's headers alone: a module that Node loads finds the functions in the process that loads it.
+        .systemLibrary(name: "CNodeAPI"),
+        .target(
+            name: "DeckitWeb",
+            dependencies: [
+                "CNodeAPI"
+            ],
+            linkerSettings: [
+                .unsafeFlags(["-Xlinker", "-undefined", "-Xlinker", "dynamic_lookup"])
+            ]
+        ),
         .target(
             name: "Deckit",
             dependencies: [

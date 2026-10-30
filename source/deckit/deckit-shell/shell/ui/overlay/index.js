@@ -42,7 +42,10 @@ function start() {
     window.addEventListener('pointerdown', dismissOutside, true);
     window.addEventListener('keydown', route, true);
     window.addEventListener('scroll', dismissScrolledAway, true);
-    window.addEventListener('resize', dismissTransient);
+    window.addEventListener('resize', () => {
+        dismissTransient();
+        placeAgain();
+    });
     window.addEventListener('blur', dismissTransient);
 }
 
@@ -50,7 +53,8 @@ function start() {
 // - A press outside the layer and what it hangs from dismisses it, then the next layer, until one holds the
 //   press. A `modal` layer holds every press.
 // - A key goes to `onKey` first; one it does not take (it returns falsy) that is Escape dismisses the layer.
-// - A `transient` layer is also dismissed by a scroll outside it, a resize and the window losing focus.
+// - A `transient` layer is also dismissed by a scroll outside it, a resize and the window losing focus. One that stays
+//   through a resize is placed again, against what it hangs from where that is now.
 // - Dismissing calls `onDismiss`; `close()` plays the exit and takes the element away.
 function open({
     element = null,
@@ -186,6 +190,10 @@ function dismissScrolledAway(event) {
     for (const layer of [...stack].reverse()) {
         if (layer.transient && !layer.element?.contains(event.target)) layer.dismiss();
     }
+}
+
+function placeAgain() {
+    for (const layer of stack) if (layer.element) layer.place();
 }
 
 function dismissTransient() {

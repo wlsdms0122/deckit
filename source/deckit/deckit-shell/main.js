@@ -49,11 +49,10 @@ import { createWindow } from './shell/window/main.js';
 
 // MARK: - Property
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
-// keeps, `name` is what a person reads, `agent` the names the host app adds to its user agent, taken out of a web
-// page's, and `schemeHandlers`, by scheme, the mods asked first to open an address. `folders`: `home` is deckit's
+// keeps, `name` is what a person reads, and `schemeHandlers`, by scheme, the mods asked first to open an address. `folders`: `home` is deckit's
 // folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships, installed at every start, and
 // `sources` folders of mods read in place, ahead of installed ones.
-const CONFIG = { id: 'deckit', name: 'Deckit', agent: [], schemeHandlers: {} };
+const CONFIG = { id: 'deckit', name: 'Deckit', schemeHandlers: {} };
 const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process and its windows are its own. And what it answers the UI: where it is
 // shown.
@@ -160,7 +159,7 @@ function refuseUnknown(what, given, known) {
 
 // Deckit in main, made of deck's parts and deckit's, each handed what it uses of the environment.
 function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
-    ENV.configure({ id: CONFIG.id, agent: CONFIG.agent });
+    ENV.configure({ id: CONFIG.id });
     const HOME = createHome({ CONFIG, FOLDERS, user: ENV.folders.user });
     const LOG = createLog({ log: ENV.log, reports: ENV.reports, about: ENV.about, folder: HOME.logs, name: CONFIG.id });
     // The channels are carried before anything crosses.
