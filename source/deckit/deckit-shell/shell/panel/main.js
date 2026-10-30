@@ -392,12 +392,13 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         return REGION.laidOut(current, (id) => id !== current && pages.has(id));
     }
 
-    // Every view where it goes, then every page told whether it is on screen and where it lays out. A page that
-    // leaves the screen holding the keyboard would go on taking keystrokes unseen: the mod on screen takes it.
+    // Every page told whether it is on screen and where it lays out, then every view where it goes: a page comes on
+    // screen told where. A page that leaves the screen holding the keyboard would go on taking keystrokes unseen: the
+    // mod on screen takes it.
     function update() {
         const holder = [...sent.onScreen].find((page) => PAGES.isAlive(page) && deckit.web.holdsKeyboard(page));
-        layout();
         tellPages();
+        layout();
         if (holder && !sent.onScreen.has(holder)) focus();
     }
 
@@ -454,7 +455,7 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         for (const page of now)
             if (!sent.onScreen.has(page)) PROTOCOL.visible.send(page, { open: true, animate: false });
         sent.onScreen = now;
-        for (const page of pages.values()) {
+        for (const page of onScreen()) {
             const next = guideOf(page);
             const written = JSON.stringify(next);
             if (sent.guides.get(page) === written) continue;
@@ -498,10 +499,9 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         return width > 0 && height > 0 ? { x: x - outer.x, y: y - outer.y, width, height } : null;
     }
 
-    // Where a mod's page lays out what it shows. Every page in the panel lays out by the frame, the hidden ones
-    // too, so one comes on screen laid out; only the one on screen moves as the frame does. In a region its
-    // rooms are the region's: its sidebar at the start, as wide as the panel's, and what of the frame and the
-    // window's title bar lie over it as it is laid.
+    // Where a mod's page on screen lays out what it shows; a hidden one is told as it comes on screen. Only the mod on
+    // screen moves as the frame does. In a region its rooms are the region's: its sidebar at the start, as wide as the
+    // panel's, and what of the frame and the window's title bar lie over it as it is laid.
     function guideOf(page) {
         const id = deckit.mods.modOf(page);
         const { width, height } = stage.size();
