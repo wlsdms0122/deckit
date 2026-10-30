@@ -110,7 +110,8 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
             page.find(text, { backwards: back, caseSensitive: matchCase }),
         ])
             .then(([matches, found]) => {
-                const last = start ? 0 : entry.found || 0;
+                // A new search going back starts past the first match, at the last.
+                const last = start ? (back ? 1 : 0) : entry.found || 0;
                 const active =
                     !found || !matches ? 0 : back ? ((last - 2 + matches) % matches) + 1 : (last % matches) + 1;
                 entry.found = active;

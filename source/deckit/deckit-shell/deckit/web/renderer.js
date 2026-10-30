@@ -242,7 +242,7 @@ export function createWeb({ sessions, web: WEB }) {
     function page(name, url, owner, opener, session) {
         const { handle, know, receive, isKnown } = handleOf(owner, opener, session, url);
         let closed = false;
-        const { element, id } = WEB.view(
+        const { element, id, close } = WEB.view(
             { sessions, session: name, url },
             { closing: () => !closed && receive('close'), focused: () => receive('press') }
         );
@@ -252,7 +252,7 @@ export function createWeb({ sessions, web: WEB }) {
             focus: () => element.focus(),
             close: () => {
                 closed = true;
-                element.remove();
+                close();
             },
         });
     }

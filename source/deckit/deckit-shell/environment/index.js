@@ -292,11 +292,12 @@ const PAGE = Object.freeze({
         evaluate: 'function',
     },
     web: {
-        // view({ sessions, session, url }, { closing, focused }) -> { element, id }: a web page shown in this page, in
-        // the mod's session by that name, `sessions` what main told this page its mod's sessions are named by
+        // view({ sessions, session, url }, { closing, focused }) -> { element, id, close }: a web page shown in this
+        // page, in the mod's session by that name, `sessions` what main told this page its mod's sessions are named by
         // (`sessionsOf`, MAIN).
-        // `element` is put where it shows, and `id` a promise of its id once it has one. `closing()` when the web page
-        // asks to close itself, `focused()` when it takes focus
+        // `element` is put where it shows, `id` a promise of its id once it has one, and `close()` ends it, in the
+        // document or never put there. `closing()` when the web page asks to close itself, `focused()` when it takes
+        // focus
         view: 'function',
     },
 });

@@ -119,7 +119,8 @@ function createViews() {
         function freeze() {
             if (picture === 'none') {
                 picture = 'taking';
-                ipcRenderer.invoke(PROTOCOL.snapshot, { id: known }).then((image) => {
+                // With no picture the float is shown over the element's white all the same: nothing covers it.
+                const show = (image) => {
                     if (picture !== 'taking') return;
                     // At the size it was taken, from the top left: the element may grow or shrink under it.
                     const { width, height } = element.getBoundingClientRect();
@@ -127,7 +128,8 @@ function createViews() {
                     element.style.backgroundSize = `${width}px ${height}px`;
                     element.style.backgroundRepeat = 'no-repeat';
                     picture = 'shown';
-                });
+                };
+                ipcRenderer.invoke(PROTOCOL.snapshot, { id: known }).then(show, () => show(null));
             }
             return picture === 'shown';
         }
@@ -140,6 +142,7 @@ function createViews() {
         }
 
         function remove() {
+            if (removed) return;
             removed = true;
             document.removeEventListener('focusin', leave, true);
             if (known === null) return;
@@ -147,7 +150,13 @@ function createViews() {
             ipcRenderer.send(PROTOCOL.remove, { id: known });
         }
 
-        return { element, id };
+        // Ended where it is, or before it was ever put in the document.
+        const close = () => {
+            element.remove();
+            remove();
+        };
+
+        return { element, id, close };
     }
 
     return { view };

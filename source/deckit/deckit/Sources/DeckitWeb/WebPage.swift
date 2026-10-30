@@ -34,8 +34,8 @@ final class WebPage: NSObject {
     private let emitter: Emitter
     private let adopt: @MainActor (WKWebViewConfiguration, Emitter) -> WebPage
     private var observations: [NSKeyValueObservation] = []
-    // Whether the next navigation is a load JavaScript asked for, which asked deck before: it is not asked again.
-    private var asked = false
+    // The address JavaScript asked to load, which asked deck before: its navigation is not asked again.
+    private var requested: URL?
 
     // MARK: - Initializer
     // `configuration` is the page's, WebKit's own for a window a page opened. `adopt` makes the page for such a window.
@@ -98,7 +98,7 @@ final class WebPage: NSObject {
     }
 
     func load(_ url: URL) {
-        asked = true
+        requested = url
         view.load(URLRequest(url: url))
     }
 
@@ -334,13 +334,13 @@ final class WebPage: NSObject {
 extension WebPage: WKNavigationDelegate {
     // MARK: - Lifecycle
     // A navigation of the page's own, a link or a script, is asked; one JavaScript asked for, history's, and a reload
-    // are not, nor a frame's. An app's address goes to the app, as JavaScript lets it, and the page stays.
+    // are not, nor a frame's, nor one in a window the page opens, which is asked as the window (`open`). An app's
+    // address goes to the app, as JavaScript lets it, and the page stays.
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
     ) {
-        let isMainFrame = navigationAction.targetFrame?.isMainFrame ?? true
         let own = navigationAction.navigationType == .backForward || navigationAction.navigationType == .reload
         guard let url = navigationAction.request.url else {
             decisionHandler(.allow)
@@ -351,12 +351,16 @@ extension WebPage: WKNavigationDelegate {
             emitter.emit("external", ["url": url.absoluteString])
             return
         }
-        if isMainFrame, asked {
-            asked = false
+        guard let target = navigationAction.targetFrame else {
             decisionHandler(.allow)
             return
         }
-        guard isMainFrame, !own else {
+        if target.isMainFrame, let requested, requested.absoluteString == url.absoluteString {
+            self.requested = nil
+            decisionHandler(.allow)
+            return
+        }
+        guard target.isMainFrame, !own else {
             decisionHandler(.allow)
             return
         }
