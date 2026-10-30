@@ -203,7 +203,7 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         await frame.evaluate(`document.querySelector('.deckit-sidebar-nav').style.height = ''`);
 
         await frame.press('[data-mod-id="finder"]');
-        await sleep(600);
+        await until(async () => (await visibility('finder')) === 'visible', 3000);
         check('picking Finder shows it', (await visibility('finder')) === 'visible', await visibility('finder'));
         check('picking Finder hides Editor', (await visibility('editor')) === 'hidden', await visibility('editor'));
 
