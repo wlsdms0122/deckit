@@ -25,7 +25,7 @@ function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, on
             align-items: center;
             min-width: 0;
             height: 32px;
-            padding: 0 6px;
+            padding: 0 2px;
             border-radius: var(--deckit-radius-round);
             background: var(--deckit-fill);
         }
@@ -48,12 +48,14 @@ function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, on
             flex: 1 1 auto;
             min-width: 0;
             height: 28px;
-            padding: 0 6px;
+            padding: 0 6px 0 10px;
             border: 0;
             background: transparent;
             color: var(--deckit-text);
             font: var(--deckit-type-body);
         }
+        /* Edited, the address reaches the field's round end, its page's buttons hidden: it keeps clear of the curve. */
+        .browser-address-input { padding-right: 14px; }
         .browser-address {
             display: flex;
             align-items: center;
