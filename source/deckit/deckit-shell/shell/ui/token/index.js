@@ -8,6 +8,7 @@ const FALLBACK_THEME = Object.freeze({
     contentColor: '#d1d2d3',
     font: '-apple-system, system-ui, sans-serif',
 });
+// Lengths in ms of what moves, as long as each can take: read as they are where nothing knows the system's settings.
 const LENGTH = Object.freeze({ fast: 110, base: 170, slow: 260 });
 // Lengths in ms, read at each use: 0 while the system asks for reduced motion.
 const MOTION = Object.freeze({
@@ -165,4 +166,4 @@ function deepFreeze(value) {
     return Object.freeze(value);
 }
 
-export { FALLBACK_THEME, MOTION, GLASS, tokenOf, propertiesOf };
+export { FALLBACK_THEME, LENGTH, MOTION, GLASS, tokenOf, propertiesOf };

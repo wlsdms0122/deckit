@@ -16,21 +16,16 @@ export const layout = CHANNEL.pageToMain('deckit-shell:panel-layout', {
 });
 // The chord of one of the panel's keys, `back` or `forward`, as it is bound now, or ''.
 export const chord = CHANNEL.pageToMain('deckit-shell:panel-chord', { action: 'string' }, { reply: true, sync: true });
-// Where the frame's parts are in the panel, each { x, y, width, height }: `obscured`, what the frame's page covers
-// over the mod on screen; `sidebar`, the slot under the list lent to the mod's sidebar; `content`, the room beside
-// the sidebar; `handle`, the width's handle. `animation` { duration, easing }: they move there as the frame does.
-export const rects = CHANNEL.pageToMain('deckit-shell:panel-rects', {
-    obscured: 'object',
-    sidebar: 'object',
-    content: 'object',
-    handle: 'object',
-    animation: 'object?',
-});
+// Where the slot under the list is in the card: `top` px below its inside top, `bottom` px above its bottom.
+export const slot = CHANNEL.pageToMain('deckit-shell:panel-slot', { top: 'number', bottom: 'number' });
+// The sidebar's width as a drag of its handle draws it, until the drag ends and `layout` keeps it.
+export const sizing = CHANNEL.pageToMain('deckit-shell:panel-sizing', { width: 'number' });
 // { mods: [{ id, name, icon }], current, canBack, canForward, sidebar: { width, collapsed, navHeight }, down }: `down`
 // is `{ name, why }` once deckit's core answers nothing more, or null
 export const state = CHANNEL.mainToPage('deckit-shell:panel-state');
-// { floating, titleBar, size }: drawn over something, the window's title bar over the panel's top, and the panel's
-// { width, height }.
+// { floating, titleBar, size, parts, moves }: drawn over something, the window's title bar over the panel's top, the
+// panel's { width, height }, where the frame's parts are (model/layout.js laidOut), or null until the frame told where
+// its slot is, and whether they move there as the person changed the sidebar, played at the page's own motion.
 export const look = CHANNEL.mainToPage('deckit-shell:panel-look');
 // The panel is taken off screen: answered once the frame has played its exit.
 export const exit = CHANNEL.mainToPage('deckit-shell:panel-exit', { reply: true });
@@ -46,10 +41,10 @@ export const play = CHANNEL.mainToPage('deckit-shell:panel-play');
 // A mod's page.
 // Answers { guide, shown } at once.
 export const setup = CHANNEL.pageToMain('deckit-shell:panel-setup', {}, { reply: true, sync: true });
-// Where the page lays out what it shows: { floating, region, content, sidebar, obscured, titleBar, animation }.
+// Where the page lays out what it shows: { floating, region, content, sidebar, obscured, titleBar, moves }.
 // `content` and `sidebar` (or null) are the rooms for the view's parts, `obscured` (or null) what the frame covers,
 // the window's buttons among it, `titleBar` { height } (or null) the window's bar over the page, `region` whether the
-// page is in a region of another mod's, and `animation` { duration, easing } (or null) how the rooms move there.
+// page is in a region of another mod's, and `moves` whether the rooms move there, played at the page's own motion.
 export const guide = CHANNEL.mainToPage('deckit-shell:panel-guide');
 // Escape, taken in main so a web page in the page cannot keep it: answers whether the page took it.
 export const escape = CHANNEL.mainToPage('deckit-shell:panel-escape', { reply: true });

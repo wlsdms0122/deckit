@@ -1,6 +1,7 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as WIDTH from './model/width.js';
+import * as LAYOUT from './model/layout.js';
 import * as PAGE from './model/page-name.js';
 import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
@@ -18,16 +19,17 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
     const pages = new Map(); // mod id -> its page, while the mod has something to show
     const floating = new Map(); // a mod's page with something floating -> its end's off
     const sent = { onScreen: new Set(), guides: new WeakMap(), look: '' }; // what the pages were last told
-    // The frame's page, the surfaces it opened by name, and where it said its parts are. `moving` is where its
-    // page is laid while the frame moves: what it covers before and after.
-    // `animates` is the mod the move was told to.
+    // The frame's page, the surfaces it opened by name, where it said the slot under its list is, and the width a
+    // drag of its handle draws. `moving` is where its page is laid while the frame moves: what it covers before and
+    // after. `moved` is the last move of the sidebar: the mod it was told to and the parts it moved them to.
     const shell = {
         page: null,
         surfaces: new Map(),
-        rects: null,
+        slot: null,
+        sizing: null,
         moving: null,
         settling: null,
-        animates: null,
+        moved: null,
     };
     // What the shell declares its commands and keys under.
     const PROVIDER = Object.freeze({ id: '@shell', name: 'Panel' });
@@ -133,7 +135,8 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
         PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && arrange(ids));
         PROTOCOL.layout.on((change, sender) => fromFrame(sender) && setSidebar(change));
-        PROTOCOL.rects.on((rects, sender) => fromFrame(sender) && setRects(rects));
+        PROTOCOL.slot.on((slot, sender) => fromFrame(sender) && setSlot(slot));
+        PROTOCOL.sizing.on(({ width }, sender) => fromFrame(sender) && setSizing(width));
         // A page's new document is told its guide here, which is then the last it was told.
         PROTOCOL.setup.handle((_payload, sender) => {
             const guide = guideOf(sender);
@@ -187,24 +190,53 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         layout();
         for (const page of dropped) PAGES.close(page);
         clearTimeout(shell.settling);
-        shell.rects = null;
+        shell.slot = null;
+        shell.sizing = null;
         shell.moving = null;
         update();
     }
 
-    // While the frame moves, its page covers both where it was and where it goes, until it has gone there.
-    function setRects(next) {
-        const before = shell.rects?.obscured;
-        shell.rects = next;
-        shell.animates = next.animation ? current : null;
-        clearTimeout(shell.settling);
-        shell.moving = next.animation && before ? union(before, next.obscured) : null;
-        if (shell.moving)
-            shell.settling = setTimeout(() => {
-                shell.moving = null;
-                layout();
-            }, next.animation.duration);
+    function setSlot(next) {
+        shell.slot = next;
         update();
+    }
+
+    function setSizing(width) {
+        shell.sizing = width;
+        update();
+    }
+
+    // Where the frame's parts are, for the panel's size and the sidebar as it is drawn; none until the frame told
+    // where its slot is.
+    function partsOf() {
+        if (!shell.slot) return null;
+        const { width, height } = stage.size();
+        return LAYOUT.laidOut({
+            size: { width, height },
+            titleBar: look.titleBar,
+            width: shell.sizing ?? sidebar.width,
+            collapsed: sidebar.collapsed,
+            slot: shell.slot,
+        });
+    }
+
+    // The sidebar moved from `before`: it plays the move while the parts stay where it put them, and the frame's page
+    // covers both where it was and where it goes, until it has gone there.
+    function move(before) {
+        const after = partsOf();
+        if (!before || !after || (before.collapsed === after.collapsed && before.drawn === after.drawn)) return;
+        shell.moved = { id: current, parts: JSON.stringify(after) };
+        clearTimeout(shell.settling);
+        shell.moving = union(before.obscured, after.obscured);
+        shell.settling = setTimeout(() => {
+            shell.moving = null;
+            layout();
+        }, TOKEN.LENGTH.base);
+    }
+
+    // Whether the parts are still where the last move of the sidebar put them.
+    function sidebarMoves() {
+        return !!shell.moved && shell.moved.parts === JSON.stringify(partsOf());
     }
 
     // A child unpinned while on screen leaves the panel for its parent.
@@ -427,14 +459,15 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         const floats = floating.has(currentContents());
         const hidden = [...pages].filter(([id]) => id !== current && !children.has(id));
         const shownCurrent = pages.has(current) ? [{ page: pages.get(current), rect: full }] : [];
+        const parts = partsOf();
         stage.lay(
             [
                 at(shell.surfaces.get(PAGE.SURFACE.BACKDROP), full),
                 ...hidden.map(([, page]) => ({ page, hidden: true })),
                 ...(floats ? [] : shownCurrent),
                 ...[...children].map(([id, rect]) => ({ page: pages.get(id), rect: clip(rect, width, height) })),
-                at(shell.page, shell.moving || shell.rects?.obscured),
-                at(shell.surfaces.get(PAGE.SURFACE.HANDLE), shell.rects?.handle),
+                at(shell.page, shell.moving || parts?.obscured),
+                at(shell.surfaces.get(PAGE.SURFACE.HANDLE), parts?.handle),
                 ...(floats ? shownCurrent : []),
             ].filter(Boolean)
         );
@@ -522,27 +555,33 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
                 region: true,
                 content: { x: side, y: 0, width: laid.width - side, height: laid.height },
                 sidebar: lends ? { x: 0, y: 0, width: side, height: laid.height } : null,
-                obscured: within(shell.rects?.obscured, laid),
+                obscured: within(partsOf()?.obscured, laid),
                 titleBar: over ? { height: over } : null,
-                animation: null,
+                moves: false,
             };
         }
-        const rects = shell.rects;
+        const parts = partsOf();
         return {
             floating: look.floating,
             region: false,
-            content: rects?.content || { x: 0, y: 0, width, height },
-            sidebar: lends ? rects?.sidebar || null : null,
-            obscured: rects?.obscured || null,
+            content: parts?.content || { x: 0, y: 0, width, height },
+            sidebar: lends ? parts?.sidebar || null : null,
+            obscured: parts?.obscured || null,
             titleBar: look.titleBar && { height: look.titleBar.height },
-            animation: id === shell.animates && id === current ? rects?.animation || null : null,
+            moves: id === current && shell.moved?.id === id && sidebarMoves(),
         };
     }
 
-    // The frame lays out across the whole stage.
+    // The frame lays out across the whole stage, its parts where main lays its views.
     function frameLook() {
         const { width, height } = stage.size();
-        return { floating: look.floating, titleBar: look.titleBar, size: { width, height } };
+        return {
+            floating: look.floating,
+            titleBar: look.titleBar,
+            size: { width, height },
+            parts: partsOf(),
+            moves: sidebarMoves(),
+        };
     }
 
     // A mod listed stays listed while it launches again, in this page or a new one (a replace), until its new run
@@ -570,12 +609,16 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         if (title !== titled) host.panelTitled((titled = title));
     }
 
+    // A width kept ends the drag that drew it.
     function setSidebar(change) {
+        const before = partsOf();
         sidebar = {
             ...sidebar,
             ...Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined && value !== null)),
         };
+        if (typeof change.width === 'number') shell.sizing = null;
         deckit.state.write(SIDEBAR, sidebar);
+        move(before);
         update();
         broadcast();
     }
