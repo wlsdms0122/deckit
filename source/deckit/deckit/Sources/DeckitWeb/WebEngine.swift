@@ -177,7 +177,11 @@ final class WebEngine {
     // A page of the module's, on `configuration`: a new one, or WebKit's for a window a page opened.
     private func adopt(_ configuration: WKWebViewConfiguration, _ emitter: Emitter) -> WebPage {
         lastID += 1
-        let page = WebPage(id: lastID, configuration: configuration, emitter: emitter) { [weak self] configuration, emitter in
+        let page = WebPage(
+            id: lastID,
+            configuration: configuration,
+            emitter: emitter
+        ) { [weak self] configuration, emitter in
             guard let self else { fatalError("a web page outlived the module") }
 
             return adopt(configuration, emitter)
@@ -205,7 +209,10 @@ final class WebEngine {
         let above = try node.member(layout, "above").map { Int(try node.number($0)) } ?? 0
         let holes = try node.member(layout, "holes").map { list in
             try node.array(list).map { hole in
-                Hole(rect: try node.rect(hole), radius: try node.member(hole, "radius").map { try node.number($0) } ?? 0)
+                Hole(
+                    rect: try node.rect(hole),
+                    radius: try node.member(hole, "radius").map { try node.number($0) } ?? 0
+                )
             }
         } ?? []
         page.place(

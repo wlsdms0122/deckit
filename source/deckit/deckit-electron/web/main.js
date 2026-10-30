@@ -9,8 +9,8 @@ import * as PROTOCOL from './protocol.js';
 
 // The web pages a mod's page shows, as the Electron environment shows them (deckit-shell/environment: MAIN.web), on
 // WebKit: over the element that holds a page's place in the mod's page, or over a view in a window of the app's, each
-// in a session of the mod's, kept in a data store of its own. `webkit` is the module that makes them, and `viewOf(page)`
-// the view a page of deckit's is in.
+// in a session of the mod's, kept in a data store of its own. `webkit` is the module that makes them, and
+// `viewOf(page)` the view a page of deckit's is in.
 export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
     // MARK: - Property
     const windows = new Map(); // window page id -> { window, embedder }

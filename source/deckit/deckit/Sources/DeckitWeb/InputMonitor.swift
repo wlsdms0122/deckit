@@ -23,7 +23,8 @@ final class InputMonitor {
     // MARK: - Public
     func start() {
         guard monitor == nil else { return }
-        monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .leftMouseDown, .leftMouseUp]) { event in
+        let events: NSEvent.EventTypeMask = [.keyDown, .keyUp, .leftMouseDown, .leftMouseUp]
+        monitor = NSEvent.addLocalMonitorForEvents(matching: events) { event in
             var passed: NSEvent? = event
             MainActor.assumeIsolated {
                 if self.took(event) { passed = nil }

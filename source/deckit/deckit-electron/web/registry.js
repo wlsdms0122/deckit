@@ -1,8 +1,8 @@
 export function createRegistry() {
     // MARK: - Property
-    // page id -> { page, embedder, tab, inPage }. page: the webContents, or WebKit's page. embedder: the mod's page it is shown in. tab: the id of the
-    // page whose delegate answers for it, itself or the page that opened it. inPage: an element of the mod's page
-    // rather than a window.
+    // page id -> { page, embedder, tab, inPage }. page: WebKit's page. embedder: the mod's page it is shown in. tab:
+    // the id of the page whose delegate answers for it, itself or the page that opened it. inPage: an element of the
+    // mod's page rather than a window.
     const pages = new Map();
 
     // MARK: - Initializer

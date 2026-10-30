@@ -5,7 +5,9 @@ const path = require('path');
 
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
-// What carries deck's messages over Electron's IPC, the only files that reach it.
+// The only files that reach Electron's IPC: what carries deck's messages over it, and the two sides of the
+// environment's web pages, a mod's page holding a page's place and main laying WebKit's view over it, which speak on
+// channels of their own (deckit-electron/web/protocol.js).
 const IPC = [
     'deckit-electron/messages/main.js',
     'deckit-electron/messages/renderer.js',

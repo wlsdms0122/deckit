@@ -21,7 +21,10 @@ struct Node {
 
     // MARK: - Public
     // What a call was handed, `count` of them, undefined past what it was given.
-    func arguments(_ info: napi_callback_info, count: Int) throws -> (values: [napi_value], data: UnsafeMutableRawPointer?) {
+    func arguments(
+        _ info: napi_callback_info,
+        count: Int
+    ) throws -> (values: [napi_value], data: UnsafeMutableRawPointer?) {
         var count = count
         var values = [napi_value?](repeating: nil, count: count)
         var data: UnsafeMutableRawPointer?

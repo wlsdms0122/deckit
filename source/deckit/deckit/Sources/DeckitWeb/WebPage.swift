@@ -156,7 +156,9 @@ final class WebPage: NSObject {
         }
         host.frame = container.bounds
         host.autoresizingMask = [.width, .height]
-        let origin = container === content ? CGPoint(x: page.minX + frame.minX, y: page.minY + frame.minY) : frame.origin
+        let origin = container === content
+            ? CGPoint(x: page.minX + frame.minX, y: page.minY + frame.minY)
+            : frame.origin
         host.lay(CGRect(origin: origin, size: frame.size), holes: holes)
         host.isHidden = false
     }
