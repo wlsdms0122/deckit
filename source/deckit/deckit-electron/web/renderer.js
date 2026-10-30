@@ -4,8 +4,10 @@ import * as PROTOCOL from './protocol.js';
 // MARK: - Property
 // How far apart the points are where the page is asked what it draws over a web page.
 const PROBE_STEP = 32;
-// Every how many frames that is asked again: what draws over a web page moves without the page changing.
+// Every how many frames that is asked again, and for how many frames after the page changed, scrolled or was resized:
+// what draws over a web page moves as it settles.
 const PROBE_EVERY = 4;
+const SETTLING = 30;
 
 // MARK: - Initializer
 // MARK: - Public
@@ -19,6 +21,11 @@ function createViews() {
     const { ipcRenderer } = require('electron');
     const shown = new Map(); // id -> what main tells of it, `told(event)`
     ipcRenderer.on(PROTOCOL.told, (_event, { id, event }) => shown.get(id)?.told(event));
+    let changed = 0; // a count of the page's changes, which a web page probes again after
+    const change = () => changed++;
+    new MutationObserver(change).observe(document, { subtree: true, childList: true, attributes: true });
+    window.addEventListener('scroll', change, true);
+    window.addEventListener('resize', change);
 
     // `sessions` is the prefix main told the page its mod's sessions are spelled under.
     function view({ sessions, session, url }, { closing, focused }) {
@@ -32,6 +39,8 @@ function createViews() {
         let sent = '';
         let over = { holes: [], floating: false };
         let frames = 0;
+        let seen = -1; // the count of changes the last probe saw
+        let settling = 0;
         let picture = 'none'; // 'none', 'taking', or 'shown'
         let hasKeyboard = false;
         let focusing = false;
@@ -88,7 +97,12 @@ function createViews() {
         function place() {
             const rect = element.getBoundingClientRect();
             const visible = rect.width > 0 && rect.height > 0 && element.checkVisibility({ visibilityProperty: true });
-            if (visible && frames++ % PROBE_EVERY === 0) over = overOf(element, rect);
+            if (seen !== changed) {
+                seen = changed;
+                settling = SETTLING;
+            }
+            if (visible && settling > 0 && frames++ % PROBE_EVERY === 0) over = overOf(element, rect);
+            if (settling > 0) settling--;
             const frozen = visible && over.floating && freeze();
             if (!over.floating) thaw();
             const layout = { id: known, frame: plain(rect), visible, frozen, holes: visible ? over.holes : [] };

@@ -25,8 +25,9 @@ final class WebPageHost: NSView {
         self.content = content
         super.init(frame: .zero)
         wantsLayer = true
-        autoresizesSubviews = false
         mask.fillRule = .evenOdd
+        // Sized with the mod's page in the same pass, the page keeps its margins until the mod's page tells its place.
+        content.autoresizingMask = [.width, .height]
         addSubview(content)
     }
 
