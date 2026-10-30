@@ -13,6 +13,8 @@ deckit: a library a host app embeds to take mods, the way a game does
   test             the core's tests, then Deckit.app, from the archive the last build made, through its scenario
   install          Deckit.app into /Applications, as deckit app last made it
   engine <mod>     build a mod's editing engine again (editor, note)
+  resize start|stop <port>
+                   what a window resize a person makes draws, in a Deckit.app run with --inspect=<port>
 
 TEXT
 }
