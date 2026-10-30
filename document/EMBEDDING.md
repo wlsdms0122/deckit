@@ -9,7 +9,8 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 | In the archive | |
 |---|---|
 | `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the Swift that built the core (`swift`), the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a renderer's, the global it leaves, the core's executable (`core`), the mods |
-| `deckit` | the core: deckit's own process, an executable for Macs of either kind (macOS 13 or later). Deckit starts it as the host app is ready and it ends with the host app's process |
+| `deckit` | the core: deckit's own process, an executable for Macs of either kind (macOS 14 or later). Deckit starts it as the host app is ready and it ends with the host app's process |
+| `deckit-web.node` | the web pages a mod shows, on the Mac's WebKit: a module Node loads in main, for Macs of either kind (macOS 14 or later), which deckit finds beside `deckit` |
 | `main.js` | the environment deckit runs on in main, Electron's, a CommonJS module: `{ SCHEME, environment }` |
 | `shell-main.js` | deckit in main: deck, deckit and its shell, a CommonJS module: `{ connect, attach }` |
 | `renderer.js` | what Electron gives every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitRenderer`: `{ boot }` |
@@ -36,7 +37,6 @@ if (environment) DeckitShellRenderer.start(environment);
 |---|---|---|
 | `id` | what everything deckit keeps is named from: its folder, its sessions and its state | `deckit` |
 | `name` | what a person reads | `Deckit` |
-| `agent` | names the host app adds to its user agent, taken out of the agent of a page a mod shows | none |
 | `schemeHandlers` | by scheme, the mods the host app places in that scheme's handler list, in order, until the person orders them (MOD.md, `urls`) | none |
 
 `folders`, deck's:
@@ -66,7 +66,7 @@ const deckit = DECKIT.connect(environment, { host, config, folders });
 DECKIT.attach(deckit, environment, { host });
 ```
 
-`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1), and `core` the archive's `deckit` where the host app unpacked it, executable. A host app that signs what it ships signs `deckit` with it, as any executable of its own; one in the App Sandbox gives it the two keys of a child, `com.apple.security.app-sandbox` and `com.apple.security.inherit`. Under the hardened runtime it needs no entitlement. Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
+`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1), and `core` the archive's `deckit` where the host app unpacked it, executable. A host app that signs what it ships signs `deckit` with it, as any executable of its own; one in the App Sandbox gives it the two keys of a child, `com.apple.security.app-sandbox` and `com.apple.security.inherit`. Under the hardened runtime it needs no entitlement. It signs `deckit-web.node` beside it with the same identity, as a library its main process loads. A site's passkeys work in the web pages only in a host app that has the entitlement `com.apple.developer.web-browser.public-key-credential`, which Apple grants a browser on request; without it a site signs the person in another way. Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
 
 `environment` is called once, with `preload`, `core` and the host app's answer for a window; `connect`, once, with what `environment` answered, the host app's answers about what of deckit is its own and its configuration (section 2), which it hands the environment what it needs of; `attach`, once, with what connect answered, the environment again and the host app's answers about where the shell is shown. One object may answer all three. Each throws and names what is missing: `connect` holds what it is handed to what deck and deckit need of an environment, and `attach` to what the shell needs of one (`deckit-shell/environment`: `MAIN`, `SHELL`).
 
@@ -140,7 +140,7 @@ What the environment answers beside what deckit is handed, for a host app alone:
 | | |
 |---|---|
 | `viewOf(page)` | the Electron view a page of deck's, or a surface, is in: `viewOf(run.page)` for a mod's page from `mods.runs()`, and `viewOf(page)` for a page that runs no mod the host app made. Deck sets nothing of how the view looks: whoever puts it in a window sets its background and whether it is visible |
-| `owns(webContents)` | whether a webContents is one of deckit's: a page of deck's, a surface, or a web page a mod shows and the ones it opens |
+| `owns(webContents)` | whether a webContents is one of deckit's: a page of deck's, a surface, or one they opened |
 | `window.place(view, window, { bounds, front, onClose })` | puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
 | `guard(emitter, event, listener)` | an Electron emitter's listener whose throw is logged |
 
