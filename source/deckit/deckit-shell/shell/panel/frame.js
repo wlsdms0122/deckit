@@ -206,7 +206,7 @@ function boot(theme, channels) {
             width: (bar?.controlsWidth || 0) + 'px',
             height: (bar?.height || 0) + 'px',
         });
-        const room = look.parts?.barRoom || 0;
+        const room = look.barRoom;
         sidebar.setTop(room);
         titleBarRoom.style.height = room + 'px';
     }

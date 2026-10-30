@@ -577,6 +577,7 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         return {
             floating: look.floating,
             titleBar: look.titleBar,
+            barRoom: LAYOUT.barRoom(look.titleBar),
             size: { width, height },
             parts,
             moves: !!shell.moved,

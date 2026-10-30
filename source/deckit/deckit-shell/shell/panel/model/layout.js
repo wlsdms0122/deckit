@@ -12,10 +12,9 @@ const HANDLE_FOLDED = 3;
 // MARK: - Public
 // Where the frame's parts are in a panel of `size`, with the window's `titleBar` over its top, the sidebar `width`
 // wide or `collapsed`, and the slot under the list `slot.top` below the card's inside top and `slot.bottom` above its
-// bottom. `card` is the sidebar's card, `drawn` its width open, which what it holds keeps while it folds, and
-// `barRoom` how far down the card holds what it lists, under the window's title bar; the rest, rounded: `sidebar`, the
-// slot lent to the mod's sidebar; `content`, the room beside the sidebar; `handle`, the width's handle; `obscured`,
-// what the frame's page covers over the mod on screen, the window's buttons among it.
+// bottom. `card` is the sidebar's card and `drawn` its width open, which what it holds keeps while it folds; the rest,
+// rounded: `sidebar`, the slot lent to the mod's sidebar; `content`, the room beside the sidebar; `handle`, the width's
+// handle; `obscured`, what the frame's page covers over the mod on screen, the window's buttons among it.
 function laidOut({ size, titleBar, width, collapsed, slot }) {
     const drawn = WIDTH.fitted(width, size.width);
     const inset = collapsed ? 0 : INSET;
@@ -44,7 +43,6 @@ function laidOut({ size, titleBar, width, collapsed, slot }) {
         collapsed,
         drawn,
         card,
-        barRoom: titleBar ? Math.max(0, titleBar.height - INSET) : 0,
         sidebar: rounded(sidebar),
         content: rounded(content),
         handle: rounded(handle),
@@ -52,9 +50,14 @@ function laidOut({ size, titleBar, width, collapsed, slot }) {
     };
 }
 
+// How far down the card holds what it lists, under the window's `titleBar`.
+function barRoom(titleBar) {
+    return titleBar ? Math.max(0, titleBar.height - INSET) : 0;
+}
+
 // MARK: - Private
 function rounded({ x, y, width, height }) {
     return { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) };
 }
 
-export { laidOut };
+export { barRoom, laidOut };

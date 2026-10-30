@@ -23,9 +23,10 @@ export const sizing = CHANNEL.pageToMain('deckit-shell:panel-sizing', { width: '
 // { mods: [{ id, name, icon }], current, canBack, canForward, sidebar: { width, collapsed, navHeight }, down }: `down`
 // is `{ name, why }` once deckit's core answers nothing more, or null
 export const state = CHANNEL.mainToPage('deckit-shell:panel-state');
-// { floating, titleBar, size, parts, moves }: drawn over something, the window's title bar over the panel's top, the
-// panel's { width, height }, where the frame's parts are (model/layout.js laidOut), or null until the frame told where
-// its slot is, and whether they move there as the person changed the sidebar, played at the page's own motion.
+// { floating, titleBar, barRoom, size, parts, moves }: drawn over something, the window's title bar over the panel's
+// top, how far down the card holds what it lists under it, the panel's { width, height }, where the frame's parts are
+// (model/layout.js laidOut), or null until the frame told where its slot is, and whether they move there as the
+// person changed the sidebar, played at the page's own motion.
 export const look = CHANNEL.mainToPage('deckit-shell:panel-look');
 // The panel is taken off screen: answered once the frame has played its exit.
 export const exit = CHANNEL.mainToPage('deckit-shell:panel-exit', { reply: true });
