@@ -40,10 +40,11 @@ function hoverIntent(element, listener) {
 }
 
 // A transparent cover over the page while a drag lasts: over an iframe or a webview the pointer's events would
-// go to that document and the drag would end with the button still down. Its overlay is covered too, for the cursor,
-// as the overlay is over the page while what a drag carries is in it. Returns the release.
+// go to that document and the drag would end with the button still down. An overlay that shows anything, what a drag
+// carries among it, is over the page, so it is covered too, for the cursor. Returns the release.
 function capture(cursor) {
-    const covers = tracked.map((each) => {
+    const shown = tracked.filter((each) => each === window || each.document.body.childElementCount);
+    const covers = shown.map((each) => {
         const cover = each.document.createElement('div');
         Object.assign(cover.style, { position: 'fixed', inset: '0', zIndex: TOPMOST, cursor });
         cover.dataset.deckitCapture = '';

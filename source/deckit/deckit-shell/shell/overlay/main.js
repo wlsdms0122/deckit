@@ -4,9 +4,9 @@ import * as SURFACE from './model/surface.js';
 
 // The overlay over each page the shell draws in, a mod's or its own: a document the page opens beside itself, where
 // the kit draws what floats over the page, so it is over everything laid with the page, web pages too. Whatever lays
-// the page lays its overlay at the same rect, over all it lays, while the overlay shows anything (`over`). While a
-// layer is open the keyboard the page has, or is given, is the overlay's, and the page has it back once the last
-// layer closes. `deckit` is what connect answered, and `PAGES` the shell's pages.
+// the page lays its overlay at the same rect, over all it lays, while the overlay shows anything (`over`). While it
+// shows a layer the keyboard the page has, or is given, is the overlay's, and the page has it back once it no longer
+// does. `deckit` is what connect answered, and `PAGES` the shell's pages.
 export function createOverlay({ deckit, PAGES }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -58,7 +58,7 @@ export function createOverlay({ deckit, PAGES }) {
         if (!held) {
             held = { surface: null, shows: false, layered: false };
             overlays.set(page, held);
-            PAGES.whenFocused(page, () => held.layered && overlays.get(page) === held && focusOverlay(held));
+            PAGES.whenFocused(page, () => holdsLayer(held) && overlays.get(page) === held && focusOverlay(held));
         }
         setState(page, { shows: false, layered: false });
         PAGES.allowSurface(page, SURFACE.NAME, (surface) => {
@@ -82,8 +82,13 @@ export function createOverlay({ deckit, PAGES }) {
         held.shows = shows;
         held.layered = on;
         if (was.shows !== shows) tell(page);
-        if (on && !was.layered && deckit.web.holdsKeyboard(page)) focusOverlay(held);
-        if (!on && was.layered && holdsKeyboard(page)) PAGES.focus(page);
+        if (holdsLayer(held) && !holdsLayer(was) && deckit.web.holdsKeyboard(page)) focusOverlay(held);
+        if (!holdsLayer(held) && holdsLayer(was) && holdsKeyboard(page)) PAGES.focus(page);
+    }
+
+    // Whether the overlay is laid with a layer open in it, which then has the keys.
+    function holdsLayer({ shows, layered }) {
+        return shows && layered;
     }
 
     function focusOverlay(held) {

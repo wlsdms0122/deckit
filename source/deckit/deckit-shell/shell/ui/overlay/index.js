@@ -243,9 +243,9 @@ function dismissUnfocused() {
     if (!document.hasFocus() && !overlay.document.hasFocus()) dismissTransient();
 }
 
-// Told only when it changed: what the overlay shows, and whether a layer is open.
+// Told only when it changed: whether the overlay draws anything, and whether a layer is open.
 function report() {
-    const state = { shows: stack.length > 0 || overlay.document.body.childElementCount > 0, layered: stack.length > 0 };
+    const state = { shows: overlay.document.body.childElementCount > 0, layered: stack.length > 0 };
     const written = JSON.stringify(state);
     if (written === told) return;
     told = written;
