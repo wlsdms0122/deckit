@@ -1,5 +1,5 @@
 // `deck()` is what deck handed the web (deckit-shell/environment: WEB_DECK), once it has.
-export function createSession({ PARTITION, AGENT, deck }) {
+export function createSession({ PARTITION, deck }) {
     // MARK: - Property
     const made = new Map(); // partition -> { session, mod, name }
     const created = new Set(); // listeners told of every mod session as it is made
@@ -14,7 +14,6 @@ export function createSession({ PARTITION, AGENT, deck }) {
         const session = require('electron').session.fromPartition(spelled);
         made.set(spelled, { session, mod: modId, name });
         keepSessionCookies(session);
-        sendSiteAgents(session);
         for (const listener of created) listener(session, modId);
         return session;
     }
@@ -81,14 +80,6 @@ export function createSession({ PARTITION, AGENT, deck }) {
             }
             callback({ responseHeaders: headers });
         });
-    }
-
-    // Set on a session deckit made, as it is made: a request to a site with an agent of its own goes with it from the
-    // first, before its page could be told.
-    function sendSiteAgents(session) {
-        session.webRequest.onBeforeSendHeaders({ urls: AGENT.SITE_URLS }, (details, callback) =>
-            callback({ requestHeaders: AGENT.requestHeaders(details.url, details.requestHeaders) })
-        );
     }
 
     function tooLarge(limit, bytes) {

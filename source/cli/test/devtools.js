@@ -33,10 +33,11 @@ function connect({ port, shots }) {
         }
     }
 
-    // The session of the first page whose address starts with `match`, or null.
-    async function page(match) {
+    // The session of the first page whose address starts with `match`, or null. `type` is the kind of target it is: a
+    // web page a mod shows in its view is a 'webview'.
+    async function page(match, type = 'page') {
         const target = (await targets()).find(
-            (candidate) => candidate.type === 'page' && candidate.url.startsWith(match)
+            (candidate) => candidate.type === type && candidate.url.startsWith(match)
         );
         return target ? sessionOf(target) : null;
     }
