@@ -104,8 +104,11 @@ function createViews() {
                 picture = 'taking';
                 ipcRenderer.invoke(PROTOCOL.snapshot, { id: known }).then((image) => {
                     if (picture !== 'taking') return;
+                    // At the size it was taken, from the top left: the element may grow or shrink under it.
+                    const { width, height } = element.getBoundingClientRect();
                     element.style.backgroundImage = image ? `url("${image}")` : 'none';
-                    element.style.backgroundSize = '100% 100%';
+                    element.style.backgroundSize = `${width}px ${height}px`;
+                    element.style.backgroundRepeat = 'no-repeat';
                     picture = 'shown';
                 });
             }
