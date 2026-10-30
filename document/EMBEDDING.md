@@ -9,7 +9,7 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 | In the archive | |
 |---|---|
 | `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the Swift that built the core (`swift`), the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a renderer's, the global it leaves, the core's executable (`core`), the mods |
-| `deckit` | the core: deckit's own process, an executable for Macs of either kind (macOS 14 or later). Deckit starts it as the host app is ready and it ends with the host app's process |
+| `deckit` | the core: deckit's own process, an executable for Macs of either kind (macOS 13 or later). Deckit starts it as the host app is ready and it ends with the host app's process |
 | `deckit-web.node` | the web pages a mod shows, on the Mac's WebKit: a module Node loads in main, for Macs of either kind (macOS 14 or later), which deckit finds beside `deckit` |
 | `main.js` | the environment deckit runs on in main, Electron's, a CommonJS module: `{ SCHEME, environment }` |
 | `shell-main.js` | deckit in main: deck, deckit and its shell, a CommonJS module: `{ connect, attach }` |
