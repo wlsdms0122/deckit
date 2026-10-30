@@ -203,7 +203,7 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         await frame.evaluate(`document.querySelector('.deckit-sidebar-nav').style.height = ''`);
 
         await frame.press('[data-mod-id="finder"]');
-        await sleep(600);
+        await until(async () => (await visibility('finder')) === 'visible', 3000);
         check('picking Finder shows it', (await visibility('finder')) === 'visible', await visibility('finder'));
         check('picking Finder hides Editor', (await visibility('editor')) === 'hidden', await visibility('editor'));
 
@@ -387,7 +387,7 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         await sleep(400);
         check('Escape puts a menu away', !(await settings.evaluate(menus)), '');
         const settled = await stackNow();
-        check('a main process module finds the window its page is shown in, in the panel', settled.found, settled);
+        check("a hidden mod's main process module finds no window its page is shown in", !settled.found, settled);
         check(
             'the backdrop is at the bottom, and the frame and its handle on top',
             urlsOf(settled)[0] === 'about:blank' &&
@@ -923,6 +923,12 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         await frame.evaluate(`document.querySelector('[data-mod-id="window-probe"]').click()`);
         await until(async () => (await visibility('window-probe')) === 'visible', 3000);
         const probe = await page('deckit://window-probe.mod');
+        const shownStack = await stackNow();
+        check(
+            'a main process module finds the window its page is shown in, in the panel',
+            shownStack.found,
+            shownStack
+        );
         const was = await child.evaluate(started);
         const next = JSON.stringify(path.join(home, '..', NEXT_CHILD));
         await probe.evaluate(`document.dispatchEvent(new CustomEvent('test-install-from', { detail: ${next} }))`);

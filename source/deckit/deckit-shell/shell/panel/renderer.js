@@ -125,10 +125,10 @@ function createPanel({ channels }) {
         // content, from past what the panel covers at its start, the window's buttons. Floating, the panel's rounding
         // needs the page clear at the corners.
         function lay() {
-            const { content: area, titleBar: bar, animation } = guide;
-            const transition = animation
+            const { content: area, titleBar: bar, moves } = guide;
+            const transition = moves
                 ? ['left', 'top', 'width', 'height', 'opacity']
-                      .map((property) => `${property} ${animation.duration}ms ${animation.easing}`)
+                      .map((property) => `${property} ${MOTION.base}ms ${MOTION.easing}`)
                       .join(', ')
                 : 'none';
             place(content, area, transition);

@@ -32,6 +32,7 @@ module.exports = ({ emit, window, files }) => {
     const QUICK_LOOK_LIMIT = 5000; // milliseconds
     const watched = new Map(); // folder -> { watcher, timer }
     const drawing = new Set(); // the Quick Look processes drawing a thumbnail
+    let previewing = null; // the window showing a preview, where it is closed, its page shown or not
 
     return {
         async places() {
@@ -135,10 +136,11 @@ module.exports = ({ emit, window, files }) => {
             const showing = window.ofPage();
             if (!showing) return false;
             showing.previewFile(absolute(file), name || path.basename(file));
+            previewing = showing;
             return true;
         },
         closeQuickLook() {
-            window.ofPage()?.closeFilePreview();
+            closePreview();
             return true;
         },
 
@@ -146,9 +148,14 @@ module.exports = ({ emit, window, files }) => {
         dispose() {
             for (const folder of [...watched.keys()]) stopWatching(folder);
             for (const child of drawing) child.kill();
-            window.ofPage()?.closeFilePreview();
+            closePreview();
         },
     };
+
+    function closePreview() {
+        if (previewing && !previewing.isDestroyed()) previewing.closeFilePreview();
+        previewing = null;
+    }
 
     function absolute(given) {
         const file = String(given || '');

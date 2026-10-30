@@ -105,7 +105,7 @@ async function main() {
     check('a new stage lifts nothing', lifts === 0, lifts);
     check('the same layers move nothing', lay(['backdrop', 'a', 'frame', 'handle']) === 0, orderOf());
     lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']);
-    check('a new hidden page goes in over the layer before it', orderOf() === 'backdrop b a frame handle', orderOf());
+    check('a hidden page is out of the window', orderOf() === 'backdrop a frame handle', orderOf());
     check(
         'showing either of two hidden pages lifts nothing',
         lay(['backdrop', { hidden: 'a' }, 'b', 'frame', 'handle']) === 0 &&
@@ -114,18 +114,18 @@ async function main() {
     );
     check(
         'a page put over the frame is lifted alone',
-        lay(['backdrop', { hidden: 'b' }, 'frame', 'handle', 'a']) === 1 && orderOf() === 'backdrop b frame handle a',
+        lay(['backdrop', { hidden: 'b' }, 'frame', 'handle', 'a']) === 1 && orderOf() === 'backdrop frame handle a',
         orderOf()
     );
     check(
         'back under the frame, what goes over it is lifted, not the page',
-        lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']) === 2 && orderOf() === 'backdrop b a frame handle',
+        lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']) === 2 && orderOf() === 'backdrop a frame handle',
         orderOf()
     );
     check(
         'a new page laid goes in over the one before it, lifting nothing',
         lay(['backdrop', { hidden: 'b' }, 'a', 'c', 'frame', 'handle']) === 0 &&
-            orderOf() === 'backdrop b a c frame handle',
+            orderOf() === 'backdrop a c frame handle',
         orderOf()
     );
     lay(['backdrop', 'a', 'frame', 'handle']);
@@ -136,11 +136,11 @@ async function main() {
         { page: 'frame', rect: { x: 1, y: 2, width: 3, height: 4 } },
     ]);
     check(
-        'a hidden page keeps its place and its bounds, unseen',
-        orderOf() === 'backdrop a frame' && !views.get('a').visible && views.get('a').bounds.width === 1,
+        'a hidden page keeps its bounds, out of the window',
+        orderOf() === 'backdrop frame' && views.get('a').bounds.width === 1,
         orderOf()
     );
-    check('a laid page is where it is laid, seen', views.get('frame').visible && views.get('frame').bounds.y === 2, '');
+    check('a laid page is where it is laid', views.get('frame').bounds.y === 2, '');
     views.get('a').gone = true;
     check(
         'a page whose page is gone is taken off',

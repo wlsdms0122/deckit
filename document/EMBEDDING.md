@@ -154,7 +154,7 @@ A stage, made by the environment's `stage()`, is where the shell lays pages in a
 | `size()` | `{ width, height }`, as it is laid in its window |
 | `whenResized(listener)` | heard each time its size changes, answering its off |
 | `show(on)` | whether it is on screen |
-| `lay(layers)` | the pages on it, each `{ page, rect }`, laid at `rect` (`{ x, y, width, height }` on the stage), or `{ page, hidden: true }`, unseen. The pages laid are in the order given, bottom to top; a hidden one keeps the place it has, and a new one goes in over the layer before it. A page left out, or whose page is gone, is taken off; each is clear where it draws nothing. A layer with both a rect and `hidden`, or neither, and a page that is not one of deck's, are refused |
+| `lay(layers)` | the pages on it, each `{ page, rect }`, laid at `rect` (`{ x, y, width, height }` on the stage), or `{ page, hidden: true }`, kept on the stage out of the window, where it would slow the window's resizing. The pages laid are in the order given, bottom to top. A page left out, or whose page is gone, is taken off; each is clear where it draws nothing. A layer with both a rect and `hidden`, or neither, and a page that is not one of deck's, are refused |
 
 On a page, deckit's shell is part of deckit: `shell-renderer.js` draws the pages the shell made, reads each mod's `icon` and `form`, and stacks its screen lifecycle on deckit's, calling `attach` with the handle `shell` (MOD.md, shell); a view is laid in its page where the panel's frame leaves it room. What deckit gives a mod is never replaced by what the shell gives. Once deckit's core answers nothing more (`core.onDown`), the shell covers the panel and asks the person to restart the app.
 

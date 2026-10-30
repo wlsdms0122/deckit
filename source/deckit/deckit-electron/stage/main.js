@@ -42,10 +42,9 @@ export function createStage({ LOG, WINDOW, viewOf }) {
             WINDOW.unplace(container);
         }
 
-        // What is on the stage: each layer `{ page, rect }`, laid there, or `{ page, hidden: true }`, unseen. The
-        // pages laid are in the order given, bottom to top; a hidden one keeps the place it has, and a new one goes in
-        // over the layer before it. A page left out, or whose page is gone, is taken off. Each is clear where it draws
-        // nothing.
+        // What is on the stage: each layer `{ page, rect }`, laid there, or `{ page, hidden: true }`, kept on the stage
+        // out of the window: a page in a window slows its resizing, seen or not. The pages laid are in the order given,
+        // bottom to top. A page left out, or whose page is gone, is taken off. Each is clear where it draws nothing.
         function lay(layers) {
             const wanted = [];
             for (const layer of layers) {
@@ -60,41 +59,22 @@ export function createStage({ LOG, WINDOW, viewOf }) {
                 }
                 wanted.push({ page, view, rect: hidden ? null : rect });
             }
-            const views = new Set(wanted.map(({ view }) => view));
-            for (const [page, view] of laid) {
-                if (views.has(view)) continue;
-                laid.delete(page);
-                container.removeChildView(view);
-            }
-            for (const [index, { page, view, rect }] of wanted.entries()) {
-                if (!laid.has(page)) {
-                    view.setBackgroundColor('#00000000');
-                    view.setVisible(false);
-                    if (!rect) container.addChildView(view, overOf(wanted.slice(0, index)));
-                }
+            const shown = new Set(wanted.filter(({ rect }) => rect).map(({ view }) => view));
+            const kept = new Set(wanted.map(({ view }) => view));
+            for (const [page, view] of laid) if (!kept.has(view)) laid.delete(page);
+            for (const view of container.children) if (!shown.has(view)) container.removeChildView(view);
+            for (const { page, view } of wanted) {
+                if (!laid.has(page)) view.setBackgroundColor('#00000000');
                 laid.set(page, view);
             }
-            order(wanted.filter(({ rect }) => rect).map(({ view }) => view));
-            for (const { view, rect } of wanted) {
-                if (rect) view.setBounds(rect);
-                view.setVisible(!!rect);
-            }
+            order([...shown]);
+            for (const { view, rect } of wanted) if (rect) view.setBounds(rect);
         }
 
         // MARK: - Private
-        // Where a view goes in just over the nearest of `below` already on the stage, or at the bottom.
-        function overOf(below) {
-            const children = container.children;
-            for (const { view } of [...below].reverse()) {
-                const at = children.indexOf(view);
-                if (at >= 0) return at + 1;
-            }
-            return 0;
-        }
-
         // Electron lays a view added last on top, and adding one again lifts it there. So the views laid that are
         // already in the order given stay, a new one goes in just over the one before it, and from the first out of
-        // order on, each is lifted, in order. The pages hidden between them do not count.
+        // order on, each is lifted, in order.
         function order(views) {
             const children = [...container.children];
             let at = 0;
