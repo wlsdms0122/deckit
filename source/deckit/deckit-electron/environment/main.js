@@ -86,7 +86,17 @@ function createEnvironment({ core, preload, openWindow }) {
     const mods = new WeakSet(); // the pages mods run in
     const openings = new WeakMap(); // a page -> { surfaces, opens }, what its window.open becomes (openingOf)
     let making = 0; // how many of deckit's webContents are being made now
-    const WEB = createWeb({ CONFIG, LOG, WINDOW, made, claim, hold });
+    // WebKit's module is the core's neighbour in the archive.
+    const WEB = createWeb({
+        CONFIG,
+        LOG,
+        WINDOW,
+        made,
+        claim,
+        hold,
+        webkit: require('path').join(require('path').dirname(core), 'deckit-web.node'),
+        viewOf: (page) => views.get(page) || null,
+    });
     const FOLDER = createFolder();
     // A mod's page shows the web in <webview>; one that runs no mod is named as a host is, with no dot, so its origin
     // is never a mod's.

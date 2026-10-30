@@ -1,44 +1,104 @@
 import * as PARTITION from './model/partition.js';
+import * as PROTOCOL from './protocol.js';
 
 // MARK: - Property
+// How far apart the points are where the page is asked what it draws over a web page.
+const PROBE_STEP = 32;
+// Every how many frames that is asked again: what draws over a web page moves without the page changing.
+const PROBE_EVERY = 4;
+
 // MARK: - Initializer
 // MARK: - Public
-// A web page shown in a mod's page, as Electron shows one (deckit-shell/environment: PAGE.web): a <webview>, not a
-// frame, since a framed page knows it is framed and the cookies it writes are third-party.
+// A web page shown in a mod's page, as the Electron environment shows one (deckit-shell/environment: PAGE.web): WebKit
+// draws it in a view of its own over this page, so the element only holds its place. Each frame its place is told to
+// main, with where this page draws over it, so that is cut out of the web page and shows. The keyboard goes to one of
+// the two: the element is focused while the web page has it.
 function createViews() {
-    // Unique across reloads of this document, since main may still be closing the last one's pages.
-    const boot = Date.now().toString(36);
-    let sequence = 0;
+    const { ipcRenderer } = require('electron');
+    const shown = new Map(); // id -> what main tells of it, `told(event)`
+    ipcRenderer.on(PROTOCOL.told, (_event, { id, event }) => shown.get(id)?.told(event));
 
-    // `partition` has to be on the element before `src` is. `sessions` is the prefix main told the page its mod's
-    // sessions are spelled under.
+    // `sessions` is the prefix main told the page its mod's sessions are spelled under.
     function view({ sessions, session, url }, { closing, focused }) {
-        const key = boot + '-' + ++sequence;
-        const element = document.createElement('webview');
-        element.dataset.deckitPage = key;
-        element.setAttribute('partition', PARTITION.spellIn(sessions, session));
-        element.setAttribute('src', url || 'about:blank');
-        // Without it a <webview> refuses every window.open before main is asked.
-        element.setAttribute('allowpopups', '');
-        // White under the page, as a browser has: a <webview> is see-through, and a site that leaves its own
-        // background unset would show what is under it through its text.
-        element.style.background = '#fff';
-        // The <webview>'s methods exist only in the document's main world, not this one, so its id is read from there,
-        // once it has one.
+        const element = document.createElement('div');
+        element.tabIndex = -1;
+        // White under the page until it draws, as a browser has.
+        Object.assign(element.style, { background: '#fff', outline: 'none' });
+        let known = null;
+        let connected = false;
+        let removed = false;
+        let sent = '';
+        let holes = [];
+        let frames = 0;
+        let hasKeyboard = false;
+        let focusing = false;
+
         const id = new Promise((resolve) => {
-            const read = async () => {
-                const found = await require('electron').webFrame.executeJavaScript(
-                    `document.querySelector('webview[data-deckit-page="${key}"]')?.getWebContentsId() ?? null`
-                );
-                if (found === null) return;
-                element.removeEventListener('dom-ready', read);
-                resolve(found);
-            };
-            element.addEventListener('dom-ready', read);
+            ipcRenderer
+                .invoke(PROTOCOL.show, { partition: PARTITION.spellIn(sessions, session), url: url || 'about:blank' })
+                .then((given) => {
+                    if (given === null) return;
+                    known = given;
+                    if (removed) return ipcRenderer.send(PROTOCOL.remove, { id: given });
+                    shown.set(given, { told });
+                    resolve(given);
+                });
         });
-        element.addEventListener('close', () => closing());
-        // Focus is the only sign of a click in the page this document gets.
-        element.addEventListener('focus', () => focused());
+
+        function told(event) {
+            if (event === 'close') closing();
+            if (event !== 'focus') return;
+            hasKeyboard = true;
+            focusing = true;
+            element.focus({ preventScroll: true });
+            focusing = false;
+            focused();
+        }
+
+        // Focusing the element hands the web page the keyboard; focusing anything else of this page takes it back.
+        element.addEventListener('focus', () => {
+            if (!focusing && known !== null) ipcRenderer.send(PROTOCOL.focus, { id: known });
+        });
+        const leave = () => {
+            if (!hasKeyboard || document.activeElement === element) return;
+            hasKeyboard = false;
+            ipcRenderer.send(PROTOCOL.unfocus, { id: known });
+        };
+        document.addEventListener('focusin', leave, true);
+
+        // Gone from the document once it was in it, the web page goes.
+        const frame = () => {
+            if (removed) return;
+            if (!element.isConnected) {
+                if (connected) return remove();
+                return requestAnimationFrame(frame);
+            }
+            connected = true;
+            if (known !== null) place();
+            leave();
+            requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+
+        function place() {
+            const rect = element.getBoundingClientRect();
+            const visible = rect.width > 0 && rect.height > 0 && element.checkVisibility({ visibilityProperty: true });
+            if (visible && frames++ % PROBE_EVERY === 0) holes = holesOver(element, rect);
+            const layout = { id: known, frame: plain(rect), visible, holes: visible ? holes : [] };
+            const said = JSON.stringify(layout);
+            if (said === sent) return;
+            sent = said;
+            ipcRenderer.send(PROTOCOL.place, layout);
+        }
+
+        function remove() {
+            removed = true;
+            document.removeEventListener('focusin', leave, true);
+            if (known === null) return;
+            shown.delete(known);
+            ipcRenderer.send(PROTOCOL.remove, { id: known });
+        }
+
         return { element, id };
     }
 
@@ -46,5 +106,33 @@ function createViews() {
 }
 
 // MARK: - Private
+// What this page draws over `element` at `rect`, in its space: each thing a probe finds on top, taken whole, from
+// the outermost of its own that does not hold the element.
+function holesOver(element, rect) {
+    const over = new Set();
+    for (let y = rect.top + 1; y < rect.bottom; y += PROBE_STEP) {
+        for (let x = rect.left + 1; x < rect.right; x += PROBE_STEP) {
+            const hit = document.elementFromPoint(x, Math.min(y, rect.bottom - 1));
+            if (!hit || hit === element || element.contains(hit) || hit.contains(element)) continue;
+            let outermost = hit;
+            while (outermost.parentElement && !outermost.parentElement.contains(element))
+                outermost = outermost.parentElement;
+            over.add(outermost);
+        }
+    }
+    return [...over]
+        .map((node) => node.getBoundingClientRect())
+        .map((box) => ({
+            x: Math.max(box.left, rect.left) - rect.left,
+            y: Math.max(box.top, rect.top) - rect.top,
+            width: Math.min(box.right, rect.right) - Math.max(box.left, rect.left),
+            height: Math.min(box.bottom, rect.bottom) - Math.max(box.top, rect.top),
+        }))
+        .filter((hole) => hole.width > 0 && hole.height > 0);
+}
+
+function plain(rect) {
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+}
 
 export { createViews };
