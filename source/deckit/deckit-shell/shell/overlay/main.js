@@ -31,7 +31,7 @@ export function createOverlay({ deckit, PAGES }) {
         return [...laid, ...over];
     }
 
-    // Whether a layer is open over `page`.
+    // Whether a layer is open in `page`, drawn in its overlay or not (a drag carrying nothing drawn).
     function layered(page) {
         return !!overlays.get(page)?.layered;
     }

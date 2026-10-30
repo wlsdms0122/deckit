@@ -27,7 +27,7 @@ function page(name, { channels }) {
 function start({ channels, tell }) {
     KIT.addStyle(PAGE_STYLE);
     const overlay = OVERLAY_SURFACE.open({ channels });
-    POINTER.start([window, overlay.window]);
+    POINTER.start([window, overlay.window], { isShown: (each) => each === window || OVERLAY.draws() });
     OVERLAY.start(overlay);
     const theme = THEME.start({ channels, tell });
     theme.onChange(() => OVERLAY.dress({ again: true }));

@@ -243,9 +243,14 @@ function dismissUnfocused() {
     if (!document.hasFocus() && !overlay.document.hasFocus()) dismissTransient();
 }
 
+// Whether the overlay draws anything, so it is laid over the page.
+function draws() {
+    return overlay.document.body.childElementCount > 0;
+}
+
 // Told only when it changed: whether the overlay draws anything, and whether a layer is open.
 function report() {
-    const state = { shows: overlay.document.body.childElementCount > 0, layered: stack.length > 0 };
+    const state = { shows: draws(), layered: stack.length > 0 };
     const written = JSON.stringify(state);
     if (written === told) return;
     told = written;
@@ -266,4 +271,4 @@ function clamp(value, low, high) {
     return Math.max(low, Math.min(value, high));
 }
 
-export { Z, STYLE, start, append, dress, windows, open, place, layers };
+export { Z, STYLE, start, append, dress, windows, draws, open, place, layers };

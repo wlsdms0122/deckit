@@ -89,6 +89,7 @@ function press(area, down, pick, begin, cursor) {
                 return finished();
             }
             phase = 'held';
+            // After `begin`, which puts what the drag carries in the overlay: the overlay is covered with the page.
             release = POINTER.capture(cursor);
             layer = OVERLAY.open({ modal: true, onDismiss: callOff });
             for (const each of OVERLAY.windows())

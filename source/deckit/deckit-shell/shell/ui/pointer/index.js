@@ -4,14 +4,16 @@ let before = null; // { x, y } of the move before the last, in the window
 let now = null;
 let waiting = [];
 let tracked = []; // the windows the pointer is tracked in
+let shown = () => true; // whether one of them is on screen now
 
 // MARK: - Initializer
 // MARK: - Public
-// The page's one pointer tracker, over the page and its overlay (`windows`). Forgotten when a window stops seeing the
-// pointer: a page hidden while the pointer is over it gets no mouseout, and the first move afterwards is a position,
-// not a move.
-function start(windows) {
+// The page's one pointer tracker, over the page and its overlay (`windows`), `isShown(window)` whether one is on screen
+// now. Forgotten when a window stops seeing the pointer: a page hidden while the pointer is over it gets no mouseout,
+// and the first move afterwards is a position, not a move.
+function start(windows, { isShown = () => true } = {}) {
     tracked = windows;
+    shown = isShown;
     for (const each of windows) {
         each.addEventListener('mousemove', track, { capture: true, passive: true });
         each.addEventListener('mouseout', (event) => !event.relatedTarget && forget(), { capture: true });
@@ -40,11 +42,10 @@ function hoverIntent(element, listener) {
 }
 
 // A transparent cover over the page while a drag lasts: over an iframe or a webview the pointer's events would
-// go to that document and the drag would end with the button still down. An overlay that shows anything, what a drag
-// carries among it, is over the page, so it is covered too, for the cursor. Returns the release.
+// go to that document and the drag would end with the button still down. Each window on screen is covered, for the
+// cursor: an overlay is over the page while it draws anything, what a drag carries among it. Returns the release.
 function capture(cursor) {
-    const shown = tracked.filter((each) => each === window || each.document.body.childElementCount);
-    const covers = shown.map((each) => {
+    const covers = tracked.filter(shown).map((each) => {
         const cover = each.document.createElement('div');
         Object.assign(cover.style, { position: 'fixed', inset: '0', zIndex: TOPMOST, cursor });
         cover.dataset.deckitCapture = '';
