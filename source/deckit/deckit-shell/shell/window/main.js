@@ -93,7 +93,7 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
                         onClose?.(view);
                     },
                 }),
-            contains: (page) => !!page && (OVERLAY.pageOf(page) || page) === held.page,
+            contains: (page) => !!page && OVERLAY.ownerOf(page) === held.page,
             focus: () => held.page && PAGES.focus(held.page),
             didResignKey: () => held.shown && PROTOCOL.resignKey.send(held.page, {}),
         });
@@ -153,9 +153,7 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
         stage.show(held.shown);
         if (!page || !PAGES.isAlive(page)) return stage.lay([]);
         if (!held.shown) return stage.lay([{ page, hidden: true }]);
-        const rect = { x: 0, y: 0, ...stage.size() };
-        const overlay = OVERLAY.over(page);
-        stage.lay([{ page, rect }, ...(overlay ? [{ page: overlay, rect }] : [])]);
+        stage.lay(OVERLAY.withOverlays([{ page, rect: { x: 0, y: 0, ...stage.size() } }]));
     }
 
     return { start, isActive };

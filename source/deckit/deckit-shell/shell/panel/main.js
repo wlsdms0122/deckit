@@ -97,7 +97,8 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
             if (last) host.dismiss();
             return last;
         }
-        if (!OVERLAY.layered(page) && !last) return false;
+        const layered = OVERLAY.layered(page) && [...pages.values()].includes(page);
+        if (!layered && !last) return false;
         PROTOCOL.escape
             .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
             .then((taken) => !taken && last && dismisses(page) && host.dismiss())
@@ -413,7 +414,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     // mod on screen takes it. The frame's parts are found once for all of it; once they move again, the sidebar's move
     // is over.
     function update() {
-        const holder = [...sent.onScreen].find((page) => PAGES.isAlive(page) && holdsKeyboard(page));
+        const holder = [...sent.onScreen].find((page) => PAGES.isAlive(page) && OVERLAY.holdsKeyboard(page));
         const parts = partsOf();
         if (shell.moved && shell.moved.parts !== JSON.stringify(parts)) shell.moved = null;
         tellPages(parts);
@@ -430,7 +431,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         const full = { x: 0, y: 0, width, height };
         if (down) {
             stage.lay(
-                withOverlays([
+                OVERLAY.withOverlays([
                     ...[...pages.values(), shell.surfaces.get(PAGE.SURFACE.HANDLE)]
                         .filter(Boolean)
                         .map((page) => ({ page, hidden: true })),
@@ -442,7 +443,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         const children = childrenOnScreen();
         const hidden = [...pages].filter(([id]) => id !== current && !children.has(id));
         stage.lay(
-            withOverlays(
+            OVERLAY.withOverlays(
                 [
                     at(shell.surfaces.get(PAGE.SURFACE.BACKDROP), full),
                     ...hidden.map(([, page]) => ({ page, hidden: true })),
@@ -460,20 +461,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
             const laid = rect && clip(rect, width, height);
             return laid && laid.width > 0 && laid.height > 0 ? { page, rect: laid } : { page, hidden: true };
         }
-    }
-
-    // What is laid, and over it the overlay of each page laid that shows anything, at the page's rect.
-    function withOverlays(laid) {
-        const overlays = laid
-            .filter(({ rect }) => rect)
-            .map(({ page, rect }) => ({ page: OVERLAY.over(page), rect }))
-            .filter(({ page }) => page);
-        return [...laid, ...overlays];
-    }
-
-    // Whether a page has the keyboard, in itself, a web page in it or its overlay.
-    function holdsKeyboard(page) {
-        return deckit.web.holdsKeyboard(page) || OVERLAY.holdsKeyboard(page);
     }
 
     function tellPages(parts) {
@@ -657,7 +644,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     // Whether a keystroke or a request in this page is the panel's: its frame, a surface the frame opened, one of its
     // mods' pages, or a web page in one, or the overlay of one of them.
     function contains(page) {
-        const owner = OVERLAY.pageOf(page) || page;
+        const owner = OVERLAY.ownerOf(page);
         if (owner === frameContents()) return true;
         if ([...shell.surfaces.values()].includes(owner)) return true;
         return [...pages.values()].includes(deckit.web.pageFor(owner));
@@ -703,7 +690,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         setShown(false, contents);
         if (contents) await exitOf(PROTOCOL.exit, contents);
         if (mine !== moves || shown) return false;
-        const held = leaving.some((page) => PAGES.isAlive(page) && holdsKeyboard(page));
+        const held = leaving.some((page) => PAGES.isAlive(page) && OVERLAY.holdsKeyboard(page));
         stage.show(false);
         return held;
     }
