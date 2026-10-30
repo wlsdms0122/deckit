@@ -13,33 +13,52 @@ export function createWebKit({ path, LOG }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A page in the data store named after `partition`, a mod's session as Electron spells it. `delegate` answers what
-    // the page asks: `navigate(url) -> 'load' | 'refuse' | 'leave'`, `open({ url, ownWindow, background })` and
-    // `permission({ origin, permissions }) -> Promise of a boolean`.
-    function make({ partition, delegate }) {
+    // A page in the data store named after `partition`, a mod's session as Electron spells it, whose session cookies
+    // last `cookieLifetime` seconds. `delegate` answers what the page asks (pageOf).
+    function make({ partition, cookieLifetime, delegate }) {
+        const { page, listener } = pageOf({ partition, delegate });
+        const store = storeOf(partition);
+        page.adopted(loaded().make({ store, applicationName: agentName(), cookieLifetime }, listener));
+        return page;
+    }
+
+    // The listener of a page WebKit makes for a window a page opened, in its opener's data store: `opened(page)`
+    // once the module has it.
+    function listenerFor({ partition, delegate, opened }) {
+        const { page, listener } = pageOf({ partition, delegate, opened });
+        return (event, payload) => (event === 'adopted' ? page.adopted(payload.id) : listener(event, payload));
+    }
+
+    // The text at `url` with the cookies of the session `partition` spells, refused past `limit` bytes.
+    function fetchText(partition, url, limit) {
+        return loaded().fetchText(storeOf(partition), String(url), limit);
+    }
+
+    // What the session `partition` spells stored, taken.
+    function clear(partition) {
+        return loaded().clear(storeOf(partition));
+    }
+
+    // MARK: - Private
+    // A page and the listener the module tells it through, before the module has given it its id. `delegate`:
+    // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height })`, the
+    // listener of the page given for the window, or nothing; `permission({ origin, permissions }) -> Promise of a
+    // boolean`; `certificate(info) -> boolean`, whether it is trusted; `external(url)`; and `message(body)`.
+    function pageOf({ partition, delegate, opened = null }) {
         const WEBKIT = loaded();
         const { EventEmitter } = require('events');
         const page = new EventEmitter();
+        let native = null;
         let state = { url: '', title: '', loading: false, canGoBack: false, canGoForward: false };
         let destroyed = false;
         let crashed = false;
-        let muted = false;
-        const native = WEBKIT.make({ store: storeOf(partition), applicationName: agentName() }, (event, payload) => {
-            if (destroyed) return undefined;
-            try {
-                return heard(event, payload);
-            } catch (error) {
-                LOG.error(`a web page's ${event} failed`, error);
-                return undefined;
-            }
-        });
+        const can = () => !destroyed && native !== null;
 
         function heard(event, payload) {
             switch (event) {
                 case 'changed':
                     state = payload;
-                    page.emit('state-changed');
-                    return undefined;
+                    return void page.emit('state-changed');
                 case 'started':
                     return void page.emit('did-start-loading');
                 case 'stopped':
@@ -71,11 +90,16 @@ export function createWebKit({ path, LOG }) {
                     page.emit('before-input-event', told, payload);
                     return taken;
                 }
+                case 'message':
+                    return void delegate.message(payload.body);
+                case 'external':
+                    return void delegate.external(payload.url);
                 case 'navigate':
                     return delegate.navigate(payload.url);
                 case 'open':
-                    delegate.open(payload);
-                    return undefined;
+                    return delegate.open(payload) || undefined;
+                case 'certificate':
+                    return !!delegate.certificate(payload);
                 case 'permission':
                     delegate.permission(payload).then(
                         (granted) => payload.reply(!!granted),
@@ -87,50 +111,61 @@ export function createWebKit({ path, LOG }) {
             }
         }
 
-        const id = FIRST_ID + native;
-        return Object.assign(page, {
-            id,
+        const listener = (event, payload) => {
+            if (destroyed) return undefined;
+            try {
+                return heard(event, payload);
+            } catch (error) {
+                LOG.error(`a web page's ${event} failed`, error);
+                return undefined;
+            }
+        };
+        Object.assign(page, {
+            id: null,
             partition,
-            isWebKit: true,
+            delegate,
+            adopted: (id) => {
+                native = id;
+                page.id = FIRST_ID + id;
+                opened?.(page);
+            },
             isDestroyed: () => destroyed,
             isCrashed: () => crashed,
             getURL: () => state.url,
             getTitle: () => state.title,
             isLoading: () => state.loading,
-            isFocused: () => !destroyed && WEBKIT.isFocused(native),
-            isCurrentlyAudible: () => false,
-            isAudioMuted: () => muted,
-            setAudioMuted: (on) => (muted = !!on),
+            isFocused: () => can() && WEBKIT.isFocused(native),
             capture: () => ({ microphone: !!state.microphone, camera: !!state.camera, screen: false }),
             navigationHistory: Object.freeze({
                 canGoBack: () => state.canGoBack,
                 canGoForward: () => state.canGoForward,
-                goBack: () => WEBKIT.go(native, 'back'),
-                goForward: () => WEBKIT.go(native, 'forward'),
+                goBack: () => can() && WEBKIT.go(native, 'back'),
+                goForward: () => can() && WEBKIT.go(native, 'forward'),
             }),
             loadURL: (url) => {
-                if (!destroyed) WEBKIT.load(native, String(url));
+                if (can()) WEBKIT.load(native, String(url));
                 return Promise.resolve();
             },
-            reload: () => WEBKIT.go(native, 'reload'),
-            stop: () => WEBKIT.go(native, 'stop'),
-            focus: () => !destroyed && WEBKIT.focus(native),
-            place: (layout) => !destroyed && WEBKIT.place(native, layout),
-            evaluate: (source) => WEBKIT.evaluate(native, source).then((json) => JSON.parse(json)),
-            snapshot: () => WEBKIT.snapshot(native),
-            findInPage: () => {},
-            stopFindInPage: () => {},
+            reload: () => can() && WEBKIT.go(native, 'reload'),
+            stop: () => can() && WEBKIT.go(native, 'stop'),
+            focus: () => can() && WEBKIT.focus(native),
+            place: (layout) => can() && WEBKIT.place(native, layout),
+            run: (scripts) => can() && WEBKIT.run(native, scripts),
+            evaluate: (source, world = 'page') =>
+                can() ? WEBKIT.evaluate(native, source, world).then((json) => JSON.parse(json)) : Promise.resolve(null),
+            find: (text, options) => (can() ? WEBKIT.find(native, String(text), options) : Promise.resolve(false)),
+            snapshot: () => (can() ? WEBKIT.snapshot(native) : Promise.resolve(null)),
             close: () => {
                 if (destroyed) return;
                 destroyed = true;
-                WEBKIT.close(native);
+                if (native !== null) WEBKIT.close(native);
                 page.emit('destroyed');
                 page.removeAllListeners();
             },
         });
+        return { page, listener };
     }
 
-    // MARK: - Private
     function loaded() {
         if (!module) {
             const holder = { exports: {} };
@@ -158,5 +193,5 @@ export function createWebKit({ path, LOG }) {
         return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
     }
 
-    return { make };
+    return { make, listenerFor, fetchText, clear };
 }

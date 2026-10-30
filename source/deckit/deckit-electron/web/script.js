@@ -1,148 +1,127 @@
 import * as SITE from '../../deckit-shell/deckit/web/model/site.js';
 
-// What a web page's Notification shows, and what it asks, are told to deck: `notified(embedder, id, { origin,
-// notification, title, body, silent })`, and `request(embedder, id, { origin, permissions })`, a promise of whether it
-// is allowed. `permits(session, origin, name)` and `permitted(session, name)` are what deck says a site in a session may
-// have, and `sessionOf(page)` the session a page is in.
-export function createScript({ LOG, DEBUGGER, sessionOf, permits, permitted, notified, request }) {
+// What deckit runs in a web page: in the page's own world, the page's Notification, which deckit shows, and in
+// deckit's, which the page does not see, what tells deckit the page's icon and whether it plays sound, mutes it, and
+// counts what find finds. What the page's Notification shows, and what it asks, are told to deck: `notified(embedder,
+// id, { origin, notification, title, body, silent })`, and `request(embedder, id, { origin, permissions })`, a promise
+// of whether it is allowed. `permits(session, origin, name)` and `permitted(session, name)` are what deck says a site
+// in a session may have, and `sessionOf(page)` the session a page is in.
+export function createScript({ LOG, sessionOf, permits, permitted, notified, request }) {
     // MARK: - Property
-    // Electron's own notification knows nothing of the page, so the page's Notification is replaced by a content
-    // script, which reports through a binding only the DevTools session hears. Chromium does not tell an
-    // embedder what a page captures, so its capture calls are watched there too. Neither covers a service
-    // worker or a frame inside the page.
-    const BINDING = '__deckitPage';
-    const NOT_CAPTURING = { microphone: false, camera: false, screen: false };
-    const scripts = new Map(); // page id -> installs the script again with the grants now
-    const capturing = new Map(); // page id -> { microphone, camera, screen }, as the page reports
+    const pages = new Map(); // page id -> { install, icon, audible, muted }
 
     // MARK: - Initializer
     // MARK: - Public
-    // What deck lets sites have changed: each page's script is installed again with what they have now.
+    // What deck lets sites have changed: each page's scripts are installed again with what they have now.
     function permissionsChanged() {
-        for (const install of scripts.values()) install();
+        for (const { install } of pages.values()) install();
     }
 
+    // `changed()` when the page's icon or sound changes.
     function attach(embedder, page, changed) {
         const session = sessionOf(page);
-        const allowed = (origin) => !!permits(session, origin, 'notifications');
-        const evaluate = (expression) =>
-            DEBUGGER.send(page, 'Runtime.evaluate', { expression, userGesture: true }).catch(() => {});
-        let script = null;
-        // Also run in the document already there: it is usually under way before the session is. The script
-        // does nothing the second time.
-        const install = () => {
+        // A name of the page's own, so a page cannot easily tell deckit is listening.
+        const channel = `deckit-${require('crypto').randomUUID()}`;
+        const entry = { icon: '', audible: false, muted: false, install };
+        pages.set(page.id, entry);
+        page.once('destroyed', () => pages.delete(page.id));
+        // Also run in the document already there: the page may be under way before its scripts are. The scripts do
+        // nothing the second time.
+        function install() {
             const granted = Object.fromEntries(
                 permitted(session, 'notifications').map((origin) => [origin, 'granted'])
             );
-            const source = `(${inPage})(${JSON.stringify(BINDING)}, ${JSON.stringify(granted)})`;
-            const dropped = script
-                ? DEBUGGER.send(page, 'Page.removeScriptToEvaluateOnNewDocument', { identifier: script })
-                : Promise.resolve();
-            return dropped
-                .then(() => DEBUGGER.send(page, 'Page.addScriptToEvaluateOnNewDocument', { source }))
-                .then((added) => (script = added.identifier))
-                .then(() => evaluate(source))
-                .catch(() => {});
-        };
-        scripts.set(page.id, () => {
-            install();
-            if (allowed(SITE.originOf(page.getURL())))
-                evaluate('window.__deckitNotification?.permission(0, "granted")');
+            const notifications = `(${inPage})(${JSON.stringify(channel)}, ${JSON.stringify(granted)})`;
+            const own = `(${inDeckit})(${JSON.stringify(channel)}, ${entry.muted})`;
+            page.run([
+                { source: notifications, world: 'page', mainFrameOnly: true },
+                { source: own, world: 'deckit', mainFrameOnly: true },
+            ]);
+            page.evaluate(notifications, 'page').catch(() => {});
+            page.evaluate(own, 'deckit').catch(() => {});
+            if (permits(session, SITE.originOf(page.getURL()), 'notifications'))
+                page.evaluate('window.__deckitNotification?.permission(0, "granted")', 'page').catch(() => {});
+        }
+        install();
+        // A new document starts without the last one's icon or sound; it tells its own.
+        page.on('did-navigate', () => {
+            entry.icon = '';
+            entry.audible = false;
         });
-        page.once('destroyed', () => {
-            scripts.delete(page.id);
-            capturing.delete(page.id);
-        });
-
-        DEBUGGER.on(page, (method, params, sessionId) => {
-            if (method !== 'Runtime.bindingCalled' || sessionId || params?.name !== BINDING) return;
-            const message = JSON.parse(params.payload);
-            const id = Number(message.id) || 0;
-            const origin = SITE.originOf(page.getURL());
-            if (message.op === 'capture') {
-                capturing.set(page.id, {
-                    microphone: !!message.microphone,
-                    camera: !!message.camera,
-                    screen: !!message.screen,
-                });
-                changed();
-            } else if (message.op === 'show') {
-                notified(embedder, page.id, {
-                    origin,
-                    notification: id,
-                    title: String(message.title),
-                    body: String(message.body),
-                    silent: !!message.silent,
-                });
-            } else if (message.op === 'request') {
-                request(embedder, page.id, { origin, permissions: ['notifications'] }).then((ok) =>
-                    evaluate(`window.__deckitNotification?.permission(${id}, "${ok ? 'granted' : 'denied'}")`)
-                );
-            }
-        });
-
-        // A binding reaches later documents only while Runtime is enabled, which a page can detect (sign-in and
-        // bot checks look for it), so Runtime stays off and each new document is bound.
-        const bind = () =>
-            DEBUGGER.send(page, 'Runtime.removeBinding', { name: BINDING })
-                .catch(() => {})
-                .then(() => DEBUGGER.send(page, 'Runtime.addBinding', { name: BINDING }));
-        page.on('did-navigate', () => bind().catch(() => {}));
-        // A page that has not started loading has no document to talk to yet.
-        const arm = () =>
-            DEBUGGER.send(page, 'Page.enable')
-                .then(bind)
-                .then(install)
-                .catch((error) => LOG.error("a page's notifications and capture stay the page's own", error));
-        if (page.getURL() || page.isLoading()) arm();
-        else page.once('did-start-loading', arm);
+        return (body) => heard(embedder, page, entry, body, changed);
     }
 
     function clickNotification(page, id) {
-        DEBUGGER.send(page, 'Runtime.evaluate', {
-            expression: `window.__deckitNotification?.click(${Number(id) || 0})`,
-            userGesture: true,
-        }).catch(() => {});
+        page.evaluate(`window.__deckitNotification?.click(${Number(id) || 0})`, 'page').catch(() => {});
     }
 
-    function captureOf(id) {
-        return { ...(capturing.get(id) || NOT_CAPTURING) };
+    // Muted stays with the page, its next documents included.
+    function setMuted(page, on) {
+        const entry = pages.get(page.id);
+        if (!entry || entry.muted === !!on) return;
+        entry.muted = !!on;
+        entry.install();
+        page.evaluate(`window.__deckit?.mute(${entry.muted})`, 'deckit').catch(() => {});
     }
 
-    function forget(id) {
-        capturing.delete(id);
+    // How many times `text` is in the page's text.
+    function count(page, text, matchCase) {
+        return page
+            .evaluate(`return window.__deckit?.count(${JSON.stringify(String(text))}, ${!!matchCase}) ?? 0`, 'deckit')
+            .then(
+                (found) => Number(found) || 0,
+                () => 0
+            );
+    }
+
+    function stateOf(page) {
+        const entry = pages.get(page.id);
+        return { icon: entry?.icon || '', audible: !!entry?.audible, muted: !!entry?.muted };
     }
 
     // MARK: - Private
-    // Runs in the page, as source. Everything it needs is in its arguments.
-    function inPage(binding, table) {
+    function heard(embedder, page, entry, body, changed) {
+        let message;
+        try {
+            message = JSON.parse(body);
+        } catch {
+            return;
+        }
+        const id = Number(message.id) || 0;
+        const origin = SITE.originOf(page.getURL());
+        if (message.op === 'icon') {
+            entry.icon = String(message.url || '');
+            changed();
+        } else if (message.op === 'audible') {
+            entry.audible = !!message.on;
+            changed();
+        } else if (message.op === 'show') {
+            notified(embedder, page.id, {
+                origin,
+                notification: id,
+                title: String(message.title),
+                body: String(message.body),
+                silent: !!message.silent,
+            });
+        } else if (message.op === 'request') {
+            request(embedder, page.id, { origin, permissions: ['notifications'] }).then(
+                (ok) =>
+                    page
+                        .evaluate(
+                            `window.__deckitNotification?.permission(${id}, "${ok ? 'granted' : 'denied'}")`,
+                            'page'
+                        )
+                        .catch(() => {}),
+                (error) => LOG.error("a site's notifications were not asked", error)
+            );
+        }
+    }
+
+    // Runs in the page's world, as source, with only its arguments: what it says crosses to deckit's world as an
+    // event under `channel`.
+    function inPage(channel, table) {
         if (window.__deckitNotification) return;
-        // The binding may arrive after the page's first script, so messages wait for it.
-        let call = null,
-            retry = 0;
-        const outbox = [];
-        const flush = () => {
-            if (!call && typeof window[binding] === 'function') {
-                call = window[binding];
-                try {
-                    delete window[binding];
-                } catch {}
-            }
-            if (!call) {
-                if (outbox.length && !retry)
-                    retry = setTimeout(() => {
-                        retry = 0;
-                        flush();
-                    }, 100);
-                return;
-            }
-            while (outbox.length) call(outbox.shift());
-        };
-        const say = (msg) => {
-            outbox.push(JSON.stringify(msg));
-            flush();
-        };
-        flush();
+        const say = (msg) => document.dispatchEvent(new CustomEvent(channel, { detail: JSON.stringify(msg) }));
         let permission = table[location.origin] || 'default';
         let seq = 0;
         const ids = new WeakMap(),
@@ -237,59 +216,6 @@ export function createScript({ LOG, DEBUGGER, sessionOf, permits, permitted, not
                       )
                     : query(desc);
         }
-        const tracks = new Map(); // track -> "microphone" | "camera" | "screen"
-        let reported = '';
-        const reportCapture = () => {
-            const on = { microphone: false, camera: false, screen: false };
-            for (const [track, kind] of tracks) {
-                if (track.readyState === 'live') on[kind] = true;
-                else tracks.delete(track);
-            }
-            const sig = JSON.stringify(on);
-            if (sig === reported) return;
-            reported = sig;
-            say({ op: 'capture', ...on });
-        };
-        const watch = (track, kind) => {
-            tracks.set(track, kind);
-            track.addEventListener('ended', reportCapture);
-        };
-        const devices = navigator.mediaDevices && Object.getPrototypeOf(navigator.mediaDevices);
-        for (const [name, screen] of [
-            ['getUserMedia', false],
-            ['getDisplayMedia', true],
-        ]) {
-            const original = devices && devices[name];
-            if (typeof original !== 'function') continue;
-            Object.defineProperty(devices, name, {
-                configurable: true,
-                writable: true,
-                value: function (...args) {
-                    return original.apply(this, args).then((stream) => {
-                        for (const t of stream.getTracks())
-                            watch(t, screen ? 'screen' : t.kind === 'audio' ? 'microphone' : 'camera');
-                        reportCapture();
-                        return stream;
-                    });
-                },
-            });
-        }
-        const track = window.MediaStreamTrack && MediaStreamTrack.prototype;
-        if (track) {
-            const stop = track.stop,
-                clone = track.clone;
-            track.stop = function () {
-                const r = stop.apply(this, arguments);
-                if (tracks.delete(this)) reportCapture();
-                return r;
-            };
-            track.clone = function () {
-                const copy = clone.apply(this, arguments);
-                const kind = tracks.get(this);
-                if (kind) watch(copy, kind);
-                return copy;
-            };
-        }
         Object.defineProperty(window, '__deckitNotification', {
             value: {
                 click(id) {
@@ -310,5 +236,86 @@ export function createScript({ LOG, DEBUGGER, sessionOf, permits, permitted, not
         });
     }
 
-    return { permissionsChanged, attach, clickNotification, captureOf, forget };
+    // Runs in deckit's world, as source, with only its arguments: what the page's world says under `channel` goes on
+    // to deckit, with the page's icon, whether it plays sound, and its media muted while `muted`. Only what deckit
+    // muted is let speak again.
+    function inDeckit(channel, muted) {
+        if (window.__deckit) return;
+        const post = (msg) => window.webkit.messageHandlers.deckit.postMessage(JSON.stringify(msg));
+        document.addEventListener(
+            channel,
+            (event) => typeof event.detail === 'string' && post(JSON.parse(event.detail))
+        );
+        let mute = muted;
+        let audible = false;
+        let icon = null;
+        const silenced = new WeakSet();
+        const media = () => document.querySelectorAll('audio, video');
+        const quiet = (el) => {
+            if (!mute || el.muted) return;
+            el.muted = true;
+            silenced.add(el);
+        };
+        const report = () => {
+            const on = [...media()].some((el) => !el.paused && !el.muted && el.volume > 0 && el.readyState > 2);
+            if (on === audible) return;
+            audible = on;
+            post({ op: 'audible', on });
+        };
+        for (const type of ['play', 'playing', 'pause', 'ended', 'volumechange', 'emptied'])
+            document.addEventListener(
+                type,
+                (event) => {
+                    if (!(event.target instanceof HTMLMediaElement)) return;
+                    quiet(event.target);
+                    report();
+                },
+                true
+            );
+        const tellIcon = () => {
+            const link = [...document.querySelectorAll('link[rel][href]')].find((each) =>
+                /(^|\s)icon(\s|$)/i.test(each.rel)
+            );
+            const url = link ? link.href : /^https?:$/.test(location.protocol) ? location.origin + '/favicon.ico' : '';
+            if (url === icon) return;
+            icon = url;
+            post({ op: 'icon', url });
+        };
+        const watchIcon = () => {
+            tellIcon();
+            new MutationObserver(tellIcon).observe(document.head || document.documentElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['href', 'rel'],
+            });
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchIcon);
+        else watchIcon();
+        Object.defineProperty(window, '__deckit', {
+            value: {
+                mute(on) {
+                    mute = on;
+                    for (const el of media()) {
+                        if (on) quiet(el);
+                        else if (silenced.delete(el)) el.muted = false;
+                    }
+                    report();
+                },
+                count(text, matchCase) {
+                    if (!text) return 0;
+                    const haystack = matchCase
+                        ? document.body?.innerText || ''
+                        : (document.body?.innerText || '').toLowerCase();
+                    const needle = matchCase ? text : text.toLowerCase();
+                    let found = 0;
+                    for (let at = haystack.indexOf(needle); at >= 0; at = haystack.indexOf(needle, at + needle.length))
+                        found++;
+                    return found;
+                },
+            },
+        });
+    }
+
+    return { permissionsChanged, attach, clickNotification, setMuted, count, stateOf };
 }

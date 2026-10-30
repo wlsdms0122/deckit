@@ -58,13 +58,10 @@ const ACCELERATOR_KEYS = Object.freeze({
 function createEnvironment({ core, preload, openWindow }) {
     const { app } = require('electron');
     const REPORTS = createReports();
-    let configured = null; // { id, agent }, as deck configures it
+    let configured = null; // { id }, as deck configures it
     const CONFIG = Object.freeze({
         get id() {
             return settled().id;
-        },
-        get agent() {
-            return settled().agent;
         },
     });
     const guard = LISTENER.createGuard((label, error) => REPORTS.report('error', `${label} failed`, error));
@@ -91,20 +88,14 @@ function createEnvironment({ core, preload, openWindow }) {
         CONFIG,
         LOG,
         WINDOW,
-        made,
-        claim,
-        hold,
         webkit: require('path').join(require('path').dirname(core), 'deckit-web.node'),
         viewOf: (page) => views.get(page) || null,
     });
     const FOLDER = createFolder();
-    // A mod's page shows the web in <webview>; one that runs no mod is named as a host is, with no dot, so its origin
-    // is never a mod's.
+    // A page that runs no mod is named as a host is, with no dot, so its origin is never a mod's.
     const make = ({ modId = null, name = null, keepsDrawing = false } = {}) => {
         const owned = modId !== null;
-        const view = made(() =>
-            makeView({ id: CONFIG.id, preload, webPreferences: owned ? { webviewTag: true } : {} })
-        );
+        const view = made(() => makeView({ id: CONFIG.id, preload }));
         const page = view.webContents;
         views.set(page, view);
         origins.set(page, owned ? ORIGIN.originOf(modId) : ORIGIN.pageOriginOf(name));
@@ -115,11 +106,11 @@ function createEnvironment({ core, preload, openWindow }) {
     };
     const load = (page) => page.loadURL(ORIGIN.addressOf(origins.get(page)));
     const viewOf = (page) => views.get(page) || null;
-    // A page deck made, a web page a mod shows, and what one of those opened: their handlers and guards are deckit's.
-    // Told from the moment Electron tells of the webContents, before deckit has set anything on it: one made while
-    // deckit makes or claims one, one shown in a page of deckit's, or one a page of deckit's opened.
+    // A page deck made, and what one opened: their handlers and guards are deckit's. Told from the moment Electron
+    // tells of the webContents, before deckit has set anything on it: one made while deckit makes or claims one, one
+    // shown in a page of deckit's, or one a page of deckit's opened.
     const owns = (page) => {
-        if (making > 0 || views.has(page) || WEB.has(page)) return true;
+        if (making > 0 || views.has(page)) return true;
         const { webContents } = require('electron');
         const by = page.hostWebContents || (page.opener && webContents.fromFrame(page.opener));
         return !!by && by !== page && owns(by);
@@ -269,9 +260,9 @@ function createEnvironment({ core, preload, openWindow }) {
         }
     }
 
-    function configure({ id, agent }) {
+    function configure({ id }) {
         if (configured) throw new Error('[deckit] the environment is configured once');
-        configured = Object.freeze({ id, agent: Object.freeze([...agent]) });
+        configured = Object.freeze({ id });
     }
 
     function settled() {

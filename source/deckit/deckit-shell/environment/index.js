@@ -23,9 +23,8 @@ import * as CHANNEL from '../deck/channel/index.js';
  */
 
 const MAIN = Object.freeze({
-    // configure({ id, agent }), once, before anything else: `id` names what the environment keeps for deckit, apart
-    // from what another host app embedding deckit keeps, and `agent` the names the host app adds to its user agent,
-    // taken out of a web page's
+    // configure({ id }), once, before anything else: `id` names what the environment keeps for deckit, apart from what
+    // another host app embedding deckit keeps
     configure: 'function',
     messages: {
         // listen({ told(page, message), asked(page, message) -> Promise, askedSync(page, message) -> Promise }),

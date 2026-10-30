@@ -1,50 +1,31 @@
 // `refused(embedder, id, certificate)` tells deck what was refused in a web page it shows.
-export function createCertificate({ LOG, SESSION, REGISTRY, refused: tell }) {
+export function createCertificate({ refused: tell }) {
     // MARK: - Property
     // partition|host|fingerprint
     const TRUSTED = new Set();
-    const refused = new Map(); // the same key -> Map(page id -> the address it was loading)
+    const refused = new Map(); // the same key -> Map(page -> the address it was loading)
 
     // MARK: - Initializer
     // MARK: - Public
-    // Electron shows no interstitial, only a failed load. A certificate the Mac cannot verify is refused, the
-    // page's tab is told, and the mod hands back what it accepts. The event is the app's, and deckit answers
-    // it only for its own pages.
-    function start() {
-        LOG.guard(require('electron').app, 'certificate-error', (event, page, url, error, certificate, callback) => {
-            const at = REGISTRY.tabOf(page);
-            if (!at) return;
-            const partition = SESSION.partitionOf(page);
-            const host = hostOf(url);
-            const key = keyOf(partition, host, certificate.fingerprint);
-            event.preventDefault();
-            if (TRUSTED.has(key)) {
-                callback(true);
-                return;
-            }
-            callback(false);
-            remember(key, page, url);
-            tell(at.embedder, at.tab.id, {
-                url,
-                host,
-                error,
-                fingerprint: certificate.fingerprint,
-                subject: certificate.subjectName,
-                issuer: certificate.issuerName,
-            });
-        });
+    // A certificate the Mac cannot verify: let through where the mod handed it back as trusted, or else refused, and
+    // the page's tab told, `at` being `{ embedder, tab }`. `info` is `{ url, host, error, fingerprint, subject,
+    // issuer }`.
+    function decide(page, at, partition, info) {
+        const key = keyOf(partition, info.host, info.fingerprint);
+        if (TRUSTED.has(key)) return true;
+        remember(key, page, info.url);
+        if (at) tell(at.embedder, at.tab.id, info);
+        return false;
     }
 
     // What was refused under a certificate now trusted is loaded again: the page, or a window it opened.
     function trust(partition, entries) {
-        const { webContents } = require('electron');
         for (const { host, fingerprint } of entries) {
             if (!host || !fingerprint) continue;
             const key = keyOf(partition, host, fingerprint);
             TRUSTED.add(key);
-            for (const [id, url] of refused.get(key) || []) {
-                const page = webContents.fromId(id);
-                if (!page) continue;
+            for (const [page, url] of refused.get(key) || []) {
+                if (page.isDestroyed()) continue;
                 // A page that never got past the refusal has nothing to reload.
                 const at = page.getURL();
                 if (!at || at === 'about:blank') page.loadURL(url);
@@ -60,22 +41,15 @@ export function createCertificate({ LOG, SESSION, REGISTRY, refused: tell }) {
         return `${partition}|${host}|${fingerprint}`;
     }
 
-    function hostOf(url) {
-        try {
-            return new URL(url).hostname;
-        } catch {
-            return '';
-        }
-    }
-
     function remember(key, page, url) {
         if (!refused.has(key)) refused.set(key, new Map());
-        refused.get(key).set(page.id, url);
+        if (refused.get(key).has(page)) return refused.get(key).set(page, url);
+        refused.get(key).set(page, url);
         page.once('destroyed', () => {
-            refused.get(key)?.delete(page.id);
+            refused.get(key)?.delete(page);
             if (!refused.get(key)?.size) refused.delete(key);
         });
     }
 
-    return { start, trust };
+    return { decide, trust };
 }
