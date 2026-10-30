@@ -134,7 +134,12 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && arrange(ids));
         PROTOCOL.layout.on((change, sender) => fromFrame(sender) && setSidebar(change));
         PROTOCOL.rects.on((rects, sender) => fromFrame(sender) && setRects(rects));
-        PROTOCOL.setup.handle((_payload, sender) => ({ guide: guideOf(sender), shown: sent.onScreen.has(sender) }));
+        // A page's new document is told its guide here, which is then the last it was told.
+        PROTOCOL.setup.handle((_payload, sender) => {
+            const guide = guideOf(sender);
+            sent.guides.set(sender, JSON.stringify(guide));
+            return { guide, shown: sent.onScreen.has(sender) };
+        });
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
         PROTOCOL.icon.handle(({ mod }) => deckit.mods.listingOf(mod)?.icon || '');
         PROTOCOL.form.handle(({ mod }) => deckit.mods.listingOf(mod)?.form || {});
