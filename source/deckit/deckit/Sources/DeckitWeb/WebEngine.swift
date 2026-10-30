@@ -11,7 +11,8 @@ import CNodeAPI
 
 // The web pages the module made, by id, and what JavaScript does to them (Export): `make({ store, applicationName },
 // emit) -> id`, `place(id, { window, page, above, frame, visible, holes })`, `load(id, url)`, `go(id, to)`, `focus(id)`,
-// `isFocused(id)`, `state(id)`, `evaluate(id, source) -> Promise of JSON`, `close(id)`, `safariVersion()` and
+// `isFocused(id)`, `state(id)`, `evaluate(id, source) -> Promise of JSON`, `snapshot(id) -> Promise of a PNG's data
+// URL`, `close(id)`, `safariVersion()` and
 // `tree(window)`, the window's views as text.
 @MainActor
 final class WebEngine {
@@ -62,7 +63,11 @@ final class WebEngine {
                 throw NodeError(message: "a layout needs a window, a page and a frame")
             }
             let above = try node.member(layout, "above").map { Int(try node.number($0)) } ?? 0
-            let holes = try node.member(layout, "holes").map { try node.array($0).map { try node.rect($0) } } ?? []
+            let holes = try node.member(layout, "holes").map { list in
+                try node.array(list).map { hole in
+                    Hole(rect: try node.rect(hole), radius: try node.member(hole, "radius").map { try node.number($0) } ?? 0)
+                }
+            } ?? []
             let view = Unmanaged<NSView>.fromOpaque(try node.pointer(window)).takeUnretainedValue()
             try page().place(
                 in: view,
@@ -90,7 +95,16 @@ final class WebEngine {
             return try node.make(try page().state)
 
         case .evaluate:
-            return try evaluate(try page(), try node.string(try argument(1)))
+            let (promise, settle) = try promised()
+            try page().evaluate(try node.string(try argument(1))) { result in settle(result.map { $0 }) }
+            return promise
+
+        case .snapshot:
+            let (promise, settle) = try promised()
+            try page().snapshot { result in
+                settle(result.map { "data:image/png;base64," + $0.base64EncodedString() })
+            }
+            return promise
 
         case .close:
             let closed = try page()
@@ -131,13 +145,14 @@ final class WebEngine {
         pages.values.first { view.isDescendant(of: $0.view) }
     }
 
-    // A promise settled as a callback settles one, so what waits on it runs then.
-    private func evaluate(_ page: WebPage, _ source: String) throws -> napi_value? {
+    // A promise, and what settles it with a string or an error, as a callback settles one, so what waits on it runs
+    // then.
+    private func promised() throws -> (napi_value?, @MainActor (Result<String, Error>) -> Void) {
         var deferred: napi_deferred?
         var promise: napi_value?
         try node.check(napi_create_promise(node.environment, &deferred, &promise))
         let node = node
-        page.evaluate(source) { result in
+        let settle: @MainActor (Result<String, Error>) -> Void = { result in
             var handles: napi_handle_scope?
             napi_open_handle_scope(node.environment, &handles)
             defer { napi_close_handle_scope(node.environment, handles) }
@@ -150,13 +165,13 @@ final class WebEngine {
             napi_async_init(node.environment, resource, name, &context)
             napi_open_callback_scope(node.environment, resource, context, &scope)
             switch result {
-            case let .success(json):
-                napi_resolve_deferred(node.environment, deferred, try? node.make(json))
+            case let .success(value):
+                napi_resolve_deferred(node.environment, deferred, try? node.make(value))
 
             case let .failure(error):
                 var message: napi_value?
                 var thrown: napi_value?
-                let text = error.localizedDescription
+                let text = (error as? NodeError)?.message ?? error.localizedDescription
                 napi_create_string_utf8(node.environment, text, text.utf8.count, &message)
                 napi_create_error(node.environment, nil, message, &thrown)
                 napi_reject_deferred(node.environment, deferred, thrown)
@@ -165,7 +180,7 @@ final class WebEngine {
             napi_async_destroy(node.environment, context)
         }
 
-        return promise
+        return (promise, settle)
     }
 
     private func tree(of view: NSView, depth: Int = 0) -> String {

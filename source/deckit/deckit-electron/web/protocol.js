@@ -5,4 +5,5 @@ export const place = 'deckit-electron:web-place';
 export const focus = 'deckit-electron:web-focus';
 export const unfocus = 'deckit-electron:web-unfocus';
 export const remove = 'deckit-electron:web-remove';
+export const snapshot = 'deckit-electron:web-snapshot';
 export const told = 'deckit-electron:web-told';

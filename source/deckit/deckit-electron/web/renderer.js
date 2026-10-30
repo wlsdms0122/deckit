@@ -11,8 +11,10 @@ const PROBE_EVERY = 4;
 // MARK: - Public
 // A web page shown in a mod's page, as the Electron environment shows one (deckit-shell/environment: PAGE.web): WebKit
 // draws it in a view of its own over this page, so the element only holds its place. Each frame its place is told to
-// main, with where this page draws over it, so that is cut out of the web page and shows. The keyboard goes to one of
-// the two: the element is focused while the web page has it.
+// main, with where this page draws over it: what is placed in the page is cut out of the web page and shows, and while
+// what floats over the window covers it, a menu, a popover or a dialog, the web page is shown as a picture of itself
+// under it. The keyboard goes to one of the two: the element is focused while the web page has it, and a press in
+// the web page is a press on the element.
 function createViews() {
     const { ipcRenderer } = require('electron');
     const shown = new Map(); // id -> what main tells of it, `told(event)`
@@ -28,8 +30,9 @@ function createViews() {
         let connected = false;
         let removed = false;
         let sent = '';
-        let holes = [];
+        let over = { holes: [], floating: false };
         let frames = 0;
+        let picture = 'none'; // 'none', 'taking', or 'shown'
         let hasKeyboard = false;
         let focusing = false;
 
@@ -47,6 +50,8 @@ function createViews() {
 
         function told(event) {
             if (event === 'close') closing();
+            if (event === 'press')
+                element.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
             if (event !== 'focus') return;
             hasKeyboard = true;
             focusing = true;
@@ -83,12 +88,35 @@ function createViews() {
         function place() {
             const rect = element.getBoundingClientRect();
             const visible = rect.width > 0 && rect.height > 0 && element.checkVisibility({ visibilityProperty: true });
-            if (visible && frames++ % PROBE_EVERY === 0) holes = holesOver(element, rect);
-            const layout = { id: known, frame: plain(rect), visible, holes: visible ? holes : [] };
+            if (visible && frames++ % PROBE_EVERY === 0) over = overOf(element, rect);
+            const frozen = visible && over.floating && freeze();
+            if (!over.floating) thaw();
+            const layout = { id: known, frame: plain(rect), visible, frozen, holes: visible ? over.holes : [] };
             const said = JSON.stringify(layout);
             if (said === sent) return;
             sent = said;
             ipcRenderer.send(PROTOCOL.place, layout);
+        }
+
+        // Taken first, then shown under what floats, and only then the web page goes: true once it has.
+        function freeze() {
+            if (picture === 'none') {
+                picture = 'taking';
+                ipcRenderer.invoke(PROTOCOL.snapshot, { id: known }).then((image) => {
+                    if (picture !== 'taking') return;
+                    element.style.backgroundImage = image ? `url("${image}")` : 'none';
+                    element.style.backgroundSize = '100% 100%';
+                    picture = 'shown';
+                });
+            }
+            return picture === 'shown';
+        }
+
+        // The web page is back over the picture before it goes.
+        function thaw() {
+            if (picture === 'none') return;
+            picture = 'none';
+            requestAnimationFrame(() => picture === 'none' && (element.style.backgroundImage = 'none'));
         }
 
         function remove() {
@@ -106,29 +134,45 @@ function createViews() {
 }
 
 // MARK: - Private
-// What this page draws over `element` at `rect`, in its space: each thing a probe finds on top, taken whole, from
-// the outermost of its own that does not hold the element.
-function holesOver(element, rect) {
-    const over = new Set();
+// What this page draws over `element` at `rect`, found where probes find it on top: whether any of it floats over the
+// window, and the holes the rest cuts, each the outermost of its own that does not hold the element, in its space,
+// with its corners.
+function overOf(element, rect) {
+    const found = new Set();
     for (let y = rect.top + 1; y < rect.bottom; y += PROBE_STEP) {
         for (let x = rect.left + 1; x < rect.right; x += PROBE_STEP) {
             const hit = document.elementFromPoint(x, Math.min(y, rect.bottom - 1));
             if (!hit || hit === element || element.contains(hit) || hit.contains(element)) continue;
-            let outermost = hit;
-            while (outermost.parentElement && !outermost.parentElement.contains(element))
-                outermost = outermost.parentElement;
-            over.add(outermost);
+            found.add(hit);
         }
     }
-    return [...over]
-        .map((node) => node.getBoundingClientRect())
-        .map((box) => ({
+    const floats = (node) => {
+        for (let at = node; at && !at.contains(element); at = at.parentElement)
+            if (getComputedStyle(at).position === 'fixed') return true;
+        return false;
+    };
+    if ([...found].some(floats)) return { holes: [], floating: true };
+    const outermost = new Set(
+        [...found].map((hit) => {
+            let node = hit;
+            while (node.parentElement && !node.parentElement.contains(element)) node = node.parentElement;
+            return node;
+        })
+    );
+    const holes = [...outermost]
+        .map((node) => ({
+            box: node.getBoundingClientRect(),
+            radius: parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0,
+        }))
+        .map(({ box, radius }) => ({
             x: Math.max(box.left, rect.left) - rect.left,
             y: Math.max(box.top, rect.top) - rect.top,
             width: Math.min(box.right, rect.right) - Math.max(box.left, rect.left),
             height: Math.min(box.bottom, rect.bottom) - Math.max(box.top, rect.top),
+            radius,
         }))
         .filter((hole) => hole.width > 0 && hole.height > 0);
+    return { holes, floating: false };
 }
 
 function plain(rect) {

@@ -210,9 +210,17 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold, webkit, view
             layouts.set(page.id, layout);
             place(event.sender, page);
         });
+        ipcMain.handle(PROTOCOL.snapshot, (event, { id }) => ownPage(event, id)?.snapshot() ?? null);
         LOG.guard(ipcMain, PROTOCOL.focus, (event, { id }) => ownPage(event, id)?.focus());
         LOG.guard(ipcMain, PROTOCOL.unfocus, (event) => event.sender.focus());
-        LOG.guard(ipcMain, PROTOCOL.remove, (event, { id }) => ownPage(event, id)?.close());
+        // A page that goes with the keyboard hands it to its mod's page, which would otherwise have nowhere to go.
+        LOG.guard(ipcMain, PROTOCOL.remove, (event, { id }) => {
+            const page = ownPage(event, id);
+            if (!page) return;
+            const focused = page.isFocused();
+            page.close();
+            if (focused) event.sender.focus();
+        });
     }
 
     // A web page an element of `modPage` shows, in the session `partition` spells, loaded at `url` as deck lets it:
@@ -281,10 +289,14 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold, webkit, view
     }
 
     // Where a web page shows: `frame`, the element's rect in the mod's page, which is laid at `page` in its window.
+    // One not shown, or drawn as a picture while the mod's page draws over it, hands the keyboard to its mod's page.
     function place(modPage, page) {
-        const { frame, visible, holes } = layouts.get(page.id) || {};
-        const laid = frame && laidOf(modPage);
-        if (!laid) return page.place({ visible: false });
+        const { frame, visible, frozen, holes } = layouts.get(page.id) || {};
+        const laid = visible && !frozen && frame && laidOf(modPage);
+        if (!laid) {
+            if (page.isFocused()) modPage.focus();
+            return page.place({ visible: false });
+        }
         const zoom = modPage.getZoomFactor();
         const scaled = (rect) => ({
             x: rect.x * zoom,
@@ -429,6 +441,9 @@ export function createWeb({ CONFIG, LOG, WINDOW, made, claim, hold, webkit, view
         });
         LOG.guard(page, 'focus', () => modPage.send(PROTOCOL.told, { id, event: 'focus' }));
         LOG.guard(page, 'close', () => modPage.send(PROTOCOL.told, { id, event: 'close' }));
+        LOG.guard(page, 'input-event', (_event, { type }) => {
+            if (type === 'mouseDown') modPage.send(PROTOCOL.told, { id, event: 'press' });
+        });
         page.once('destroyed', () => icons.delete(id));
         const loadURL = page.loadURL;
         page.loadURL = (url) => {

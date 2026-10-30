@@ -15,7 +15,7 @@ import QuartzCore
 final class WebPageHost: NSView {
     // MARK: - Property
     private let content: NSView
-    private var holes: [CGRect] = []
+    private var holes: [Hole] = []
     private let mask = CAShapeLayer()
 
     override var isFlipped: Bool { true }
@@ -43,14 +43,14 @@ final class WebPageHost: NSView {
     // `point` is in the superview's space.
     override func hitTest(_ point: NSPoint) -> NSView? {
         let local = convert(point, from: superview)
-        guard content.frame.contains(local), !holes.contains(where: { $0.contains(local) }) else { return nil }
+        guard content.frame.contains(local), !holes.contains(where: { $0.rect.contains(local) }) else { return nil }
 
         return super.hitTest(point)
     }
 
     // MARK: - Public
     // `frame` and `holes` are in this view's space, from its top left.
-    func lay(_ frame: CGRect, holes: [CGRect]) {
+    func lay(_ frame: CGRect, holes: [Hole]) {
         let holes = holes.map { $0.offsetBy(dx: frame.minX, dy: frame.minY) }
         guard frame != content.frame || holes != self.holes else { return }
         content.frame = frame
@@ -63,13 +63,15 @@ final class WebPageHost: NSView {
         guard let layer else { return }
 
         let path = CGMutablePath()
-        for rect in [content.frame] + holes {
-            path.addRect(layer.isGeometryFlipped ? rect : CGRect(
-                x: rect.minX,
-                y: layer.bounds.height - rect.maxY,
-                width: rect.width,
-                height: rect.height
-            ))
+        for hole in [Hole(rect: content.frame, radius: 0)] + holes {
+            let rect = layer.isGeometryFlipped ? hole.rect : CGRect(
+                x: hole.rect.minX,
+                y: layer.bounds.height - hole.rect.maxY,
+                width: hole.rect.width,
+                height: hole.rect.height
+            )
+            let radius = min(hole.radius, rect.width / 2, rect.height / 2)
+            path.addRoundedRect(in: rect, cornerWidth: radius, cornerHeight: radius)
         }
         CATransaction.begin()
         CATransaction.setDisableActions(true)

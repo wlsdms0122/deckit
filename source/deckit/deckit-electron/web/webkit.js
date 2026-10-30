@@ -117,6 +117,7 @@ export function createWebKit({ path, LOG }) {
             focus: () => !destroyed && WEBKIT.focus(native),
             place: (layout) => !destroyed && WEBKIT.place(native, layout),
             evaluate: (source) => WEBKIT.evaluate(native, source).then((json) => JSON.parse(json)),
+            snapshot: () => WEBKIT.snapshot(native),
             findInPage: () => {},
             stopFindInPage: () => {},
             close: () => {

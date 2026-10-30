@@ -101,7 +101,7 @@ final class WebPage: NSObject {
     // content with `above` shown pages laid over it at that same rect, at `frame` in that page, both from their top
     // left. Where no view draws the page there, it stays over the one it was over, or else goes over the window's
     // content.
-    func place(in window: NSView, page: CGRect, above: Int, frame: CGRect, holes: [CGRect]) {
+    func place(in window: NSView, page: CGRect, above: Int, frame: CGRect, holes: [Hole]) {
         guard let content = window.window?.contentView else {
             hide()
             return
@@ -152,6 +152,21 @@ final class WebPage: NSObject {
         ) { result in
             MainActor.assumeIsolated {
                 done(result.map { ($0 as? String) ?? "null" })
+            }
+        }
+    }
+
+    // What the page shows now, as a PNG.
+    func snapshot(done: @escaping @MainActor (Result<Data, Error>) -> Void) {
+        view.takeSnapshot(with: nil) { image, error in
+            MainActor.assumeIsolated {
+                guard let image, let tiff = image.tiffRepresentation,
+                    let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:])
+                else {
+                    done(.failure(error ?? NodeError(message: "the page drew nothing")))
+                    return
+                }
+                done(.success(png))
             }
         }
     }
