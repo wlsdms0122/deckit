@@ -142,8 +142,9 @@ export function createWebKit({ path, LOG }) {
                 goBack: () => can() && WEBKIT.go(native, 'back'),
                 goForward: () => can() && WEBKIT.go(native, 'forward'),
             }),
+            // Spelled as WebKit spells what it loads, so the module knows the load it asked for.
             loadURL: (url) => {
-                if (can()) WEBKIT.load(native, String(url));
+                if (can()) WEBKIT.load(native, spelled(url));
                 return Promise.resolve();
             },
             reload: () => can() && WEBKIT.go(native, 'reload'),
@@ -164,6 +165,14 @@ export function createWebKit({ path, LOG }) {
             },
         });
         return { page, listener };
+    }
+
+    function spelled(url) {
+        try {
+            return new URL(String(url)).href;
+        } catch {
+            return String(url);
+        }
     }
 
     function loaded() {

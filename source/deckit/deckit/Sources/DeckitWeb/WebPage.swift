@@ -452,6 +452,8 @@ extension WebPage: WKUIDelegate {
         }
         guard let heard else { return nil }
         let page = adopt(configuration, heard)
+        // Its first load is the window deck was asked for.
+        page.requested = navigationAction.request.url
         page.announce()
 
         return page.view

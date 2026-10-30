@@ -296,7 +296,7 @@ const PAGE = Object.freeze({
         // page, in the mod's session by that name, `sessions` what main told this page its mod's sessions are named by
         // (`sessionsOf`, MAIN).
         // `element` is put where it shows, `id` a promise of its id once it has one, and `close()` ends it, in the
-        // document or never put there. `closing()` when the web page asks to close itself, `focused()` when it takes
+        // document or never put there; the element leaving the document once in it ends it too. `closing()` when the web page asks to close itself, `focused()` when it takes
         // focus
         view: 'function',
     },
