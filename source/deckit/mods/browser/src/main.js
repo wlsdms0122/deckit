@@ -39,23 +39,6 @@ class Browser {
 
         let shown = false;
 
-        // What floats over the page. The fill is translucent over a blur of the page: the element's opacity would let
-        // the page's text show through.
-        ui.addStyle(`
-            .browser-floating {
-                position: absolute;
-                box-sizing: border-box;
-                height: 36px;
-                border: var(--deckit-border);
-                border-radius: var(--deckit-radius-round);
-                background: color-mix(in srgb, var(--deckit-background) 94%, transparent);
-                backdrop-filter: blur(12px) saturate(1.4);
-                box-shadow: var(--deckit-shadow-lifted);
-                color: var(--deckit-text);
-                font: var(--deckit-type-body);
-            }
-        `);
-
         // Files get a session of their own (system.files), so a file page never holds the web's cookies.
         const webSession = deckit.web.session('web');
         const filesSession = deckit.web.session('files');
@@ -91,7 +74,7 @@ class Browser {
                     parseAddress(text) || configuration.get('searchEngine') + encodeURIComponent(text)
                 ),
         });
-        const find = findInPage({ theme, ui, frontTab: () => tabs.front() });
+        const find = findInPage({ ui, frontTab: () => tabs.front() });
         const tabs = tabList({
             web: shell.web,
             records,
@@ -140,8 +123,7 @@ class Browser {
             onEditBookmark: (tab) => editor.show(tab),
         });
 
-        area.append(find.element);
-        content.append(bar.element, area);
+        content.append(bar.element, find.element, area);
         webSession.trust(certificates.all());
         webSession.allow(sitePermissions.all());
         tabs.restore();

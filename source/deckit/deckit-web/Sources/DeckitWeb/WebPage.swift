@@ -143,7 +143,7 @@ final class WebPage: NSObject {
     // content with `above` shown pages laid over it at that same rect, at `frame` in that page, both from their top
     // left. Where no view draws the page there, it stays over the one it was over, or else goes over the window's
     // content.
-    func place(in window: NSView, page: CGRect, above: Int, frame: CGRect, holes: [Hole]) {
+    func place(in window: NSView, page: CGRect, above: Int, frame: CGRect) {
         guard let content = window.window?.contentView else {
             hide()
             return
@@ -159,7 +159,7 @@ final class WebPage: NSObject {
         let origin = container === content
             ? CGPoint(x: page.minX + frame.minX, y: page.minY + frame.minY)
             : frame.origin
-        host.lay(CGRect(origin: origin, size: frame.size), holes: holes)
+        host.lay(CGRect(origin: origin, size: frame.size))
         host.isHidden = false
     }
 
@@ -213,21 +213,6 @@ final class WebPage: NSObject {
         configuration.wraps = true
         view.find(text, configuration: configuration) { result in
             MainActor.assumeIsolated { done(result.matchFound) }
-        }
-    }
-
-    // What the page shows now, as a PNG.
-    func snapshot(done: @escaping @MainActor (Result<Data, Error>) -> Void) {
-        view.takeSnapshot(with: nil) { image, error in
-            MainActor.assumeIsolated {
-                guard let image, let tiff = image.tiffRepresentation,
-                    let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:])
-                else {
-                    done(.failure(error ?? NodeError(message: "the page drew nothing")))
-                    return
-                }
-                done(.success(png))
-            }
         }
     }
 

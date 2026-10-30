@@ -19,7 +19,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
     const WEBKIT = createWebKit({ path: webkit, LOG });
     const embedders = new WeakSet(); // the mods' pages that show web pages
     const pages = new Map(); // id -> a web page deck holds
-    const layouts = new Map(); // id -> where its mod's page last said it shows, { frame, visible, frozen, holes }
+    const layouts = new Map(); // id -> where its mod's page last said it shows, { frame, visible }
     const following = new WeakSet(); // the mods' pages whose view their web pages follow
     let deck = null; // what deck answers and is told (listen)
     const told =
@@ -164,7 +164,6 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
             return page && REGISTRY.get(id)?.embedder === event.sender ? page : null;
         };
         ipcMain.handle(PROTOCOL.show, (event, { partition, url }) => show(event.sender, { partition, url }));
-        ipcMain.handle(PROTOCOL.snapshot, (event, { id }) => ownPage(event, id)?.snapshot() ?? null);
         LOG.guard(ipcMain, PROTOCOL.place, (event, layout) => {
             const page = ownPage(event, layout.id);
             if (!page) return;
@@ -346,12 +345,12 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
         LOG.guard(view, 'bounds-changed', () => setImmediate(placeAll));
     }
 
-    // Where a web page shows: `frame`, the element's rect in the mod's page. One not shown, or drawn as a picture
-    // while the mod's page draws over it, hands the keyboard to its mod's page.
+    // Where a web page shows: `frame`, the element's rect in the mod's page. One not shown hands the keyboard to its
+    // mod's page.
     function place(modPage, page) {
-        const { frame, visible, frozen, holes } = layouts.get(page.id) || {};
+        const { frame, visible } = layouts.get(page.id) || {};
         const view = viewOf(modPage);
-        const laid = visible && !frozen && frame && view && laidOf(view);
+        const laid = visible && frame && view && laidOf(view);
         if (!laid) {
             if (page.isFocused()) modPage.focus();
             return page.place({ visible: false });
@@ -364,7 +363,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
             width: rect.width * zoom,
             height: rect.height * zoom,
         });
-        page.place({ ...laid, frame: scaled(frame), visible: true, holes: holes.map(scaled) });
+        page.place({ ...laid, frame: scaled(frame), visible: true });
     }
 
     // Where a view of deckit's is shown: the window, its rect in the window's content, and how many shown pages are

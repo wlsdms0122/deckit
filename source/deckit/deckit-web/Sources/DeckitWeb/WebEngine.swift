@@ -10,11 +10,10 @@ import WebKit
 import CNodeAPI
 
 // The web pages the module made, by id, and what JavaScript does to them and to their data stores (Export):
-// `make({ store, applicationName, cookieLifetime }, emit) -> id`; `place(id, { window, page, above, frame, visible,
-// holes })`; `load(id, url)`; `go(id, to)`; `focus(id)`; `isFocused(id)`; `state(id)`; `run(id, [{ source, world,
+// `make({ store, applicationName, cookieLifetime }, emit) -> id`; `place(id, { window, page, above, frame, visible
+// })`; `load(id, url)`; `go(id, to)`; `focus(id)`; `isFocused(id)`; `state(id)`; `run(id, [{ source, world,
 // mainFrameOnly }])`; `evaluate(id, source, world) -> Promise of JSON`; `find(id, text, { backwards, caseSensitive })
-// -> Promise of whether it found it`; `snapshot(id) -> Promise of a PNG's data URL`; `fetchText(store, url, limit) ->
-// Promise of the text`; `clear(store) -> Promise`; `close(id)`; `safariVersion()`; and `tree(window)`, the window's
+// -> Promise of whether it found it`; `fetchText(store, url, limit) -> Promise of the text`; `clear(store) -> Promise`; `close(id)`; `safariVersion()`; and `tree(window)`, the window's
 // views as text. A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -106,13 +105,6 @@ final class WebEngine {
             }
             return promise
 
-        case .snapshot:
-            let (promise, settle) = try promised()
-            try page().snapshot { result in
-                settle(result.map { "data:image/png;base64," + $0.base64EncodedString() })
-            }
-            return promise
-
         case .fetchText:
             let store = try storeOf(try string(0))
             let address = try string(1)
@@ -192,7 +184,7 @@ final class WebEngine {
         return page
     }
 
-    // `{ window, page, above, frame, visible, holes }` (WebPage.place), or a page not shown.
+    // `{ window, page, above, frame, visible }` (WebPage.place), or a page not shown.
     private func place(_ page: WebPage, _ layout: napi_value) throws {
         let visible = try node.member(layout, "visible").map { try node.bool($0) } ?? true
         guard visible else {
@@ -207,20 +199,11 @@ final class WebEngine {
         }
 
         let above = try node.member(layout, "above").map { Int(try node.number($0)) } ?? 0
-        let holes = try node.member(layout, "holes").map { list in
-            try node.array(list).map { hole in
-                Hole(
-                    rect: try node.rect(hole),
-                    radius: try node.member(hole, "radius").map { try node.number($0) } ?? 0
-                )
-            }
-        } ?? []
         page.place(
             in: Unmanaged<NSView>.fromOpaque(try node.pointer(window)).takeUnretainedValue(),
             page: try node.rect(laid),
             above: above,
-            frame: try node.rect(frame),
-            holes: holes
+            frame: try node.rect(frame)
         )
     }
 

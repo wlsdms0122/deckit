@@ -155,7 +155,6 @@ export function createWebKit({ path, LOG }) {
             evaluate: (source, world = 'page') =>
                 can() ? WEBKIT.evaluate(native, source, world).then((json) => JSON.parse(json)) : Promise.resolve(null),
             find: (text, options) => (can() ? WEBKIT.find(native, String(text), options) : Promise.resolve(false)),
-            snapshot: () => (can() ? WEBKIT.snapshot(native) : Promise.resolve(null)),
             close: () => {
                 if (destroyed) return;
                 destroyed = true;
