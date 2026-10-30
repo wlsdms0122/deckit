@@ -28,9 +28,13 @@ source/cli/deckit dev              Deckit.app from the sources, its data in .dev
 source/cli/deckit test             the core's tests, then Deckit.app, from the archive the last build made, through its scenario
 source/cli/deckit install          Deckit.app into /Applications, as the last app command made it
 source/cli/deckit engine <mod>     build the Editor's or the Notes' editing engine again, from its src/engine/
+source/cli/deckit resize start|stop <port>
+                                   what a window resize a person makes draws, in a Deckit.app run with --inspect=<port>
 ```
 
 `test` runs the app in the background, with data of its own that it throws away, so it never takes the screen or touches `~/.config/deckit`. It leaves screenshots and the app's log in `.build/test/`; `--port` picks the DevTools port when another test is running.
+
+`resize` is for a person's drag: `deckit dev --inspect=9445`, then `deckit resize start 9445`, drag the window's edge, and `deckit resize stop 9445` tells how often the window was resized, how often each page drew, and how far each page as wide as the window trailed it. A resize made in code does not wait on the pages the way a drag does.
 
 `manifest.toml` lists the same commands for open-package.
 

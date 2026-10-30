@@ -1,0 +1,151 @@
+#!/usr/bin/env node
+// What a window resize a person makes draws, in a Deckit.app whose main process inspector is at `port` (deckit dev
+// --inspect=<port>). `start` records, on one clock, each resize of the window in front, as its content's width, and
+// each frame every page draws, as its width; the person drags the window's edge; `stop` ends it and reports how often
+// the window was resized, and for each page how often it drew and, for one as wide as the window, how far what it
+// drew trailed the window and how long it took to draw a width the window had.
+const [mode, port] = process.argv.slice(2);
+// A page whose width is this close to the window's at the start draws across it.
+const ACROSS = 60;
+// After the last resize, how long the pages are given to catch up.
+const SETTLE_MS = 300;
+// How long a page is waited on: one that is gone or stuck answers nothing.
+const PAGE_LIMIT_MS = 500;
+
+if (!['start', 'stop'].includes(mode) || !port) {
+    console.error('usage: deckit resize start|stop <port> (the inspector port deckit dev --inspect=<port> opened)');
+    process.exit(1);
+}
+
+(async () => {
+    const ask = await connect(port);
+    if (mode === 'start') {
+        console.log(await ask(start()));
+        process.exit(0);
+    }
+    const recorded = await ask(stop());
+    if (typeof recorded === 'string') {
+        console.error(recorded);
+        process.exit(1);
+    }
+    console.log(report(recorded));
+    process.exit(0);
+})().catch((error) => {
+    console.error('[resize] ' + error.message);
+    process.exit(1);
+});
+
+// Evaluates a body in the app's main process, with `electron` and `within(promise)` in scope: answers its value, or
+// the description of what it threw.
+async function connect(at) {
+    const list = await (await fetch(`http://127.0.0.1:${at}/json/list`)).json();
+    const socket = new WebSocket(list[0].webSocketDebuggerUrl);
+    await new Promise((resolve, reject) => {
+        socket.onopen = resolve;
+        socket.onerror = () => reject(new Error(`no inspector at ${at}`));
+    });
+    let next = 0;
+    return (body) =>
+        new Promise((resolve) => {
+            const id = ++next;
+            socket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.id !== id) return;
+                const { result, exceptionDetails } = message.result || {};
+                resolve(exceptionDetails ? exceptionDetails.exception?.description : result?.value);
+            };
+            const expression = `(async () => {
+                const electron = process.getBuiltinModule('module').createRequire('/')('electron');
+                const within = (promise) => Promise.race([
+                    promise.catch(() => null),
+                    new Promise((resolve) => setTimeout(() => resolve(null), ${PAGE_LIMIT_MS})),
+                ]);
+                ${body}
+            })()`;
+            socket.send(
+                JSON.stringify({
+                    id,
+                    method: 'Runtime.evaluate',
+                    params: { expression, awaitPromise: true, returnByValue: true },
+                })
+            );
+        });
+}
+
+function start() {
+    return `
+        const window = electron.BaseWindow.getAllWindows().find((each) => each.isVisible());
+        if (!window) return 'no window is shown';
+        const resizes = [[Date.now(), window.getContentSize()[0]]];
+        const heard = () => resizes.push([Date.now(), window.getContentSize()[0]]);
+        window.on('resize', heard);
+        globalThis.deckitResize = { window, resizes, heard };
+        const probe = \`window.deckitFrames = [];
+            window.deckitDrawing = true;
+            (function frame() {
+                if (!window.deckitDrawing) return;
+                window.deckitFrames.push([Date.now(), innerWidth]);
+                requestAnimationFrame(frame);
+            })();
+            true\`;
+        for (const page of electron.webContents.getAllWebContents())
+            if (!page.isDestroyed()) await within(page.executeJavaScript(probe));
+        return 'recording ' + window.getTitle() + ': resize it, then deckit resize stop ${port}';
+    `;
+}
+
+function stop() {
+    return `
+        const recording = globalThis.deckitResize;
+        if (!recording) return 'nothing is recording: deckit resize start ${port} first';
+        delete globalThis.deckitResize;
+        if (!recording.window.isDestroyed()) recording.window.removeListener('resize', recording.heard);
+        const pages = [];
+        for (const page of electron.webContents.getAllWebContents()) {
+            if (page.isDestroyed()) continue;
+            const frames = await within(page.executeJavaScript('window.deckitDrawing = false; window.deckitFrames'));
+            if (frames) pages.push({ url: page.getURL(), frames });
+        }
+        return { resizes: recording.resizes, pages };
+    `;
+}
+
+// `resizes` [time, width], the first the width before any; `pages` { url, frames: [time, width] }.
+function report({ resizes, pages }) {
+    const moved = resizes.slice(1);
+    if (!moved.length) return 'no resize recorded';
+    const first = moved[0][0];
+    const last = moved[moved.length - 1][0];
+    const widthAt = (time) => resizes.filter(([at]) => at <= time).at(-1)?.[1] ?? resizes[0][1];
+    const lines = [
+        `resizing ${last - first}ms, ${moved.length} resizes, apart ${spread(apart(moved.map(([at]) => at)))}`,
+    ];
+    for (const { url, frames } of pages) {
+        const during = frames.filter(([at]) => at >= first && at <= last + SETTLE_MS);
+        if (!during.length) continue;
+        const name = (url.startsWith('data:') ? 'data:' : url).slice(0, 32).padEnd(32);
+        const drawn = apart(during.map(([at]) => at));
+        let line = `${name} ${String(during.length).padStart(5)} frames, apart ${spread(drawn)}`;
+        if (Math.abs(during[0][1] - widthAt(during[0][0])) < ACROSS) {
+            const trails = during.map(([at, width]) => Math.abs(widthAt(at) - width));
+            const caught = moved
+                .map(([at, width]) => frames.find(([drawn, drew]) => drawn >= at && drew === width)?.[0] - at)
+                .filter((lag) => !Number.isNaN(lag));
+            line += ` | trails ${spread(trails, 'px')}`;
+            line += ` | drew ${caught.length} of ${moved.length} widths, after ${spread(caught)}`;
+        }
+        lines.push(line);
+    }
+    return lines.join('\n');
+}
+
+function apart(times) {
+    return times.slice(1).map((time, index) => time - times[index]);
+}
+
+// avg and max of `values`, in `unit`.
+function spread(values, unit = 'ms') {
+    if (!values.length) return '-';
+    const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+    return `avg ${average.toFixed(1)}${unit} max ${Math.max(...values)}${unit}`;
+}
