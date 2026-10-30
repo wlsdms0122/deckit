@@ -214,10 +214,10 @@ const SHELL = Object.freeze({
         focus: 'function', // focus(page): the page takes the keyboard
         isClosed: 'function', // isClosed(page): whether the page is gone for good, closed or destroyed
         watch: 'function',
-        // surfaces(page, { allow(name) -> boolean, opened(name, surface) }): the documents a page that runs no mod may
-        // open with `window.open('', name)`, those `allow` answers true for, each a page of its own (`surface`), laid
-        // as any page is, which runs no code and goes nowhere. What else it asks for is no window, told to what watches
-        // its `opens`
+        // surfaces(page, { allow(name) -> boolean, opened(name, surface) }): the documents a page of deck's, a mod's or
+        // one that runs none, may open with `window.open('', name)`, those `allow` answers true for, each a page of its
+        // own (`surface`), laid as any page is, which runs no code and goes nowhere. What else it asks for is no
+        // window, told to what watches its `opens`
         surfaces: 'function',
     },
     // stage() -> a stage (`STAGE`): where pages are laid in one of the host app's windows

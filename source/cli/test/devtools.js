@@ -74,6 +74,20 @@ function connect({ port, shots, module }) {
         if (typeof png === 'string') fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(png, 'base64'));
     }
 
+    // The session of the overlay `opener`'s page opened beside it (deckit-shell/shell/overlay), or null.
+    async function overlayOf(opener) {
+        if (!opener) return null;
+        const blank = (await targets()).filter(
+            (candidate) => candidate.type === 'page' && candidate.url === 'about:blank'
+        );
+        for (const target of blank) {
+            const session = await sessionOf(target);
+            const of = await session.evaluate(`window.name === 'deckit-overlay' && window.opener?.location.href`);
+            if (typeof of === 'string' && of.startsWith(opener.url)) return session;
+        }
+        return null;
+    }
+
     // What `body`, an async function's, returns in the main process, by value, `require` and `webkit`, WebKit's
     // module, in its scope; what it threw as `{ error }`.
     async function main(body) {
@@ -214,7 +228,7 @@ function connect({ port, shots, module }) {
         );
     };
 
-    return { targets, page, pages, compose, main, webPage, thrown, close };
+    return { targets, page, pages, overlayOf, compose, main, webPage, thrown, close };
 }
 
 // A connection to a DevTools protocol target at `url`: `send(method, params)` resolves to the answer, or to an error

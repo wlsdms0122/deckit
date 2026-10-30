@@ -123,7 +123,7 @@ function shellOf({ WEB, channels }) {
         // The page wears what the shell draws with.
         function wear() {
             const theme = PAGE.start({ channels, tell: (listener) => deliver('theme.onChange()', listener) });
-            STYLE.wear({ channels });
+            STYLE.wear({ channels, onChange: () => OVERLAY.dress() });
             return { theme, ui: KIT.make(theme) };
         }
     };

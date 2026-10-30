@@ -58,7 +58,7 @@ function press(area, down, pick, begin, cursor) {
         release = null;
         layer?.close();
         layer = null;
-        window.removeEventListener('wheel', onWheel, { capture: true });
+        for (const each of OVERLAY.windows()) each.removeEventListener('wheel', onWheel, { capture: true });
         cancelAnimationFrame(frame);
     };
     const finished = () => {
@@ -91,7 +91,8 @@ function press(area, down, pick, begin, cursor) {
             phase = 'held';
             release = POINTER.capture(cursor);
             layer = OVERLAY.open({ modal: true, onDismiss: callOff });
-            window.addEventListener('wheel', onWheel, { capture: true, passive: false });
+            for (const each of OVERLAY.windows())
+                each.addEventListener('wheel', onWheel, { capture: true, passive: false });
             frame = requestAnimationFrame(scrollAtEdge);
         }
         if (phase === 'held') held.follow(x, y);

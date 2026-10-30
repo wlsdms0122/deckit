@@ -78,7 +78,7 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     const MOTION = TOKEN.MOTION;
     const label = labelOf(text, icon);
     const face = label.firstChild;
-    document.body.append(label);
+    OVERLAY.append(label);
     // Measured to the fraction and rounded up: a box half a pixel narrower than its name ellipsizes its end.
     const measured = label.getBoundingClientRect();
     const chip = {

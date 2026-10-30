@@ -77,7 +77,8 @@ function inlineEdit(label, { selectStem = false, onCommit }) {
         refusal.className = 'deckit-menu deckit-refusal';
         refusal.style.zIndex = String(OVERLAY.Z.float);
         refusal.textContent = why;
-        document.body.append(refusal);
+        // In the document of what it is about: an edit in a layer is in the overlay.
+        under.ownerDocument.body.append(refusal);
         OVERLAY.place(refusal, { anchor: under, gap: 6 });
         if (!length) return;
         const shown = refusal;

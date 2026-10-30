@@ -46,6 +46,7 @@ import { createStyle } from './shell/style/main.js';
 import { createTheme } from './shell/theme/main.js';
 import { createFonts } from './shell/fonts/main.js';
 import { createWindow } from './shell/window/main.js';
+import { createOverlay } from './shell/overlay/main.js';
 
 // MARK: - Property
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
@@ -119,18 +120,20 @@ function attach(deckit, environment, { host } = {}) {
     for (const model of SHELL_PERMISSIONS)
         for (const permission of model.PERMISSIONS) deckit.permissions.define(permission);
     const PAGES = createPage({ deckit, pages: ENV.pages });
+    const OVERLAY = createOverlay({ deckit, PAGES });
     // A stage, held to what a stage is as the environment makes it.
     const makeStage = () => ENVIRONMENT.checked(ENV.stage(), ENVIRONMENT.STAGE, 'a stage');
     const REGION = createRegion({ deckit });
     const WINDOW = createWindow({
         deckit,
         PAGES,
+        OVERLAY,
         makeStage,
         showWindow: (control) => host.showWindow(control),
         hideWindow: (control) => host.hideWindow(control),
         closeWindow: (control) => host.closeWindow(control),
     });
-    const PANEL = createPanel({ REGION, PAGES, makeStage, deckit, host });
+    const PANEL = createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
     const FONTS = createFonts({ deckit });
@@ -138,6 +141,7 @@ function attach(deckit, environment, { host } = {}) {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         FONTS.start({ onChange: THEME.setFonts });
         STYLE.start();
+        OVERLAY.start();
         REGION.start();
         PANEL.start();
         WINDOW.start();

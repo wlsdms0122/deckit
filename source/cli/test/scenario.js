@@ -112,7 +112,7 @@ function near(a, b) {
 }
 
 // `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder.
-async function run({ page, pages, compose, targets, main, webPage, thrown, endCore, logged, home }) {
+async function run({ page, pages, overlayOf, compose, targets, main, webPage, thrown, endCore, logged, home }) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
     // What main says is on screen, as the panel's frame shows it: the selected row of the mods' list.
@@ -122,7 +122,7 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         );
     const visibility = async (id) => ((await current()) === id ? 'visible' : 'hidden');
     // The pages laid with the panel's frame, bottom to top, as a main process module of the window probe's finds
-    // them: { url, shown, width } each; whether it finds the window its own page is shown in; and the stages in the
+    // them: { url, name, opener, shown, width } each, `name` a surface's and `opener` the page that opened it; whether it finds the window its own page is shown in; and the stages in the
     // frame's window, { shown, pages } each.
     const stackNow = async () => {
         const probe = await page('deckit://window-probe.mod');
@@ -145,7 +145,7 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
     const panelShot = async (name, id) => {
         const backdrop = await until(async () => {
             for (const surface of await pages('about:blank'))
-                if ((await surface.evaluate('innerWidth')) > 100) return surface;
+                if ((await surface.evaluate('window.name')) === 'backdrop') return surface;
         }, 2000);
         const layers = [await page('data:'), backdrop, await page(`deckit://${id}.mod`), await page('deckit://panel')];
         if (layers.every(Boolean))
@@ -213,7 +213,9 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         check('back key returns to Editor', (await visibility('editor')) === 'visible', await visibility('editor'));
 
         await editor.key(' ', 'Space', ALT, 32);
-        const switcher = await until(() => page('deckit://switcher.mod'));
+        const switcherPage = await until(() => page('deckit://switcher.mod'));
+        // The switcher is a quick pick, a layer: drawn in its page's overlay, which has the keys while it is open.
+        const switcher = switcherPage && (await until(() => overlayOf(switcherPage)));
         await until(async () => /Notes/.test((await switcher?.evaluate('document.body.innerText')) || ''));
         check('switcher opens on its chord', switcher);
         if (switcher) {
@@ -289,12 +291,11 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         const erased = await until(() => !left().length && uncleared() === '[]', 4000);
         check('what a mod removed with its data left is erased at start', erased, `${left()} ${uncleared()}`);
         await note?.shot('note');
+        const noteOverlay = note && (await overlayOf(note));
         check(
             'nothing is left floating in a view',
-            !(await note?.evaluate(`document.querySelectorAll('.deckit-surface').length`)),
-            await note?.evaluate(
-                `[...document.querySelectorAll('body > *')].map((element) => element.className + ':' + getComputedStyle(element).backgroundColor).join(' | ')`
-            )
+            noteOverlay && !(await noteOverlay.evaluate(`document.body.childElementCount`)),
+            await noteOverlay?.evaluate(`[...document.body.children].map((element) => element.className).join(' | ')`)
         );
         await frame.press('[data-mod-id="settings"]');
         await sleep(1200);
@@ -315,6 +316,8 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
             text.slice(text.indexOf(BROKEN) - 100, text.indexOf(BROKEN) + 200)
         );
         await settings?.shot('settings');
+        // A menu is a layer, drawn in the page's overlay, which has the keys while it is open.
+        const settingsOverlay = settings && (await overlayOf(settings));
         const menus = `document.querySelectorAll('.deckit-menu[data-state="open"]').length`;
         // The size picked in the Fonts section is the Editor's, which leaves its own to the fonts, and is kept.
         const sizeSelect = `document.querySelectorAll('.settings-font .deckit-select')[2]`;
@@ -324,11 +327,11 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         await sleep(200);
         await settings?.shot('settings-fonts');
         await settings?.evaluate(`${sizeSelect}.click()`);
-        await until(() => settings.evaluate(menus), 2000);
-        await settings?.key('ArrowDown', 'ArrowDown', 0, 40);
-        await settings?.key('ArrowDown', 'ArrowDown', 0, 40);
-        await settings?.key('Enter', 'Enter', 0, 13);
-        await until(async () => !(await settings.evaluate(menus)), 2000);
+        await until(() => settingsOverlay.evaluate(menus), 2000);
+        await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
+        await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
+        await settingsOverlay?.key('Enter', 'Enter', 0, 13);
+        await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
         const sized = await until(async () => (await editor.evaluate(codeSize)) === '12px', 3000);
         check(
             "the fonts' size picked in Settings is the Editor's text size",
@@ -354,19 +357,19 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         await settings?.evaluate(`${firstSelect}.scrollIntoView()`);
         await sleep(200);
         await settings?.evaluate(`${firstSelect}.click()`);
-        const opened = await until(() => settings.evaluate(menus), 2000);
+        const opened = await until(() => settingsOverlay.evaluate(menus), 2000);
         check(
             'a select opens its menu',
             opened === 1,
-            `${before} ${opened} ${await settings.evaluate(`[...document.querySelectorAll('.deckit-menu')].map((m) => m.dataset.state + m.className).join()`)}`
+            `${before} ${opened} ${await settingsOverlay.evaluate(`[...document.querySelectorAll('.deckit-menu')].map((m) => m.dataset.state + m.className).join()`)}`
         );
-        await settings?.key('ArrowDown', 'ArrowDown', 0, 40);
-        await settings?.key('Enter', 'Enter', 0, 13);
+        await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
+        await settingsOverlay?.key('Enter', 'Enter', 0, 13);
         await sleep(400);
         const after = await settings?.evaluate(`${firstSelect}?.textContent`);
         check(
             'the keys pick from it and close it',
-            after !== before && !(await settings.evaluate(menus)),
+            after !== before && !(await settingsOverlay.evaluate(menus)),
             `${before} -> ${after}`
         );
         const configurationFolder = path.join(home, 'mod-state', 'configuration');
@@ -376,16 +379,20 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         );
         check("a mod's configuration set is kept by the core", configurationKept, '');
         await settings?.evaluate(`${firstSelect}.click()`);
-        await until(() => settings.evaluate(menus), 2000);
+        await until(() => settingsOverlay.evaluate(menus), 2000);
         const floated = await stackNow();
+        const top = floated.at(-1);
         check(
-            "a mod's menu draws over the frame and its handle",
-            urlsOf(floated).at(-1) === 'deckit://settings.mod' && floated.at(-1).shown !== false,
-            urlsOf(floated)
+            "a mod's menu is in its overlay, over the frame and its handle, and the mod's page stays under the frame",
+            top?.name === 'deckit-overlay' &&
+                top.opener.startsWith('deckit://settings.mod') &&
+                top.shown !== false &&
+                urlsOf(floated).indexOf('deckit://settings.mod') < urlsOf(floated).indexOf('deckit://panel'),
+            JSON.stringify(floated.map(({ url, name }) => name || url))
         );
-        await settings?.key('Escape', 'Escape', 0, 27);
+        await settingsOverlay?.key('Escape', 'Escape', 0, 27);
         await sleep(400);
-        check('Escape puts a menu away', !(await settings.evaluate(menus)), '');
+        check('Escape puts a menu away', !(await settingsOverlay.evaluate(menus)), '');
         const settled = await stackNow();
         check("a hidden mod's main process module finds no window its page is shown in", !settled.found, settled);
         check(
@@ -395,12 +402,12 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
             urlsOf(settled)
         );
         await settings?.evaluate(`${firstSelect}.click()`);
-        await until(() => settings.evaluate(menus), 2000);
-        await settings?.evaluate(
+        await until(() => settingsOverlay.evaluate(menus), 2000);
+        await settingsOverlay?.evaluate(
             `document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))`
         );
         await sleep(400);
-        check('a press outside puts a menu away', !(await settings.evaluate(menus)), '');
+        check('a press outside puts a menu away', !(await settingsOverlay.evaluate(menus)), '');
         // Dragging the provider below the mod that requires it changes the rows only; applied, deck refuses it, and
         // the order it keeps stays.
         const rowOf = (name) =>
@@ -561,6 +568,29 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
             tabLaid,
             JSON.stringify(await tabLaidOut())
         );
+        // A menu over the Browser is in its overlay, over the web page, which stays shown under it as it is.
+        const browserOverlay = await overlayOf(browser);
+        await browser?.evaluate(`(() => {
+            const row = document.querySelector('.browser-row-label');
+            const { x, y } = row.getBoundingClientRect();
+            row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x + 4, clientY: y + 4 }));
+        })()`);
+        const menuShown = await until(
+            () => browserOverlay?.evaluate(`!!document.querySelector('.deckit-menu[data-state="open"]')`),
+            3000
+        );
+        const overPage = await stackNow();
+        const underMenu = await tabLaidOut();
+        check(
+            "a menu over a web page is in the mod's overlay, and the web page stays shown under it",
+            menuShown &&
+                overPage.at(-1)?.name === 'deckit-overlay' &&
+                overPage.at(-1).opener.startsWith('deckit://browser.mod') &&
+                (underMenu.views || []).some(({ rect }) => near(rect, underMenu.at)),
+            JSON.stringify({ menuShown, top: overPage.at(-1), views: underMenu.views })
+        );
+        await browserOverlay?.key('Escape', 'Escape', 0, 27);
+        await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);
         await frame.press(`[data-mod-id="${onScreen}"]`);
         await until(async () => (await visibility(onScreen)) === 'visible', 3000);
         const stolen = await editor.evaluate(`new Promise((resolve) => {
@@ -599,7 +629,7 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         const stayed = (await targets()).filter((target) => target.url.startsWith('deckit://finder.mod')).length;
         check("a mod's view cannot move to another mod's origin", stayed === 1, stayed + ' finder pages');
         await editor.key(' ', 'Space', ALT, 32);
-        const again = await page('deckit://switcher.mod');
+        const again = await overlayOf(await page('deckit://switcher.mod'));
         const listed = await until(
             async () => /Open Folder/.test((await again?.evaluate('document.body.innerText')) || ''),
             5000
@@ -623,12 +653,16 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         const activeLine = `document.querySelector('.cm-focused .cm-activeLine')?.textContent`;
         await until(async () => (await editor.evaluate(activeLine)) === 'line 1', 4000);
         await editor.key('l', 'KeyL', META, 76);
-        const lineField = await until(() => editor.evaluate(`!!document.querySelector('.deckit-quick-pick-field')`));
+        // A quick pick is a layer, drawn in the page's overlay, which has the keys while it is open.
+        const editorOverlay = await overlayOf(editor);
+        const lineField = await until(() =>
+            editorOverlay?.evaluate(`!!document.querySelector('.deckit-quick-pick-field')`)
+        );
         check('Go to Line opens as a panel', lineField, '');
-        await editor.type('12');
+        await editorOverlay?.type('12');
         await sleep(200);
-        await editor.shot('go-to-line');
-        await editor.key('Enter', 'Enter', 0, 13);
+        await editorOverlay?.shot('go-to-line');
+        await editorOverlay?.key('Enter', 'Enter', 0, 13);
         await until(async () => (await editor.evaluate(activeLine)) === 'line 12', 2000);
         check(
             'Go to Line moves the cursor',
@@ -636,17 +670,20 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
             await editor.evaluate(activeLine)
         );
         await editor.key('p', 'KeyP', META, 80);
-        await until(() => editor.evaluate(`!!document.querySelector('.deckit-quick-pick-field')`));
-        await editor.type('target');
+        await until(() => editorOverlay?.evaluate(`!!document.querySelector('.deckit-quick-pick-field')`));
+        await editorOverlay?.type('target');
         const names = `[...document.querySelectorAll('.editor-quick-open-name')].map((name) => name.textContent).join()`;
-        const found = await until(async () => /quick-open-target\.js/.test((await editor.evaluate(names)) || ''), 4000);
-        await editor.shot('open-quickly');
+        const found = await until(
+            async () => /quick-open-target\.js/.test((await editorOverlay?.evaluate(names)) || ''),
+            4000
+        );
+        await editorOverlay?.shot('open-quickly');
         check(
             'Open Quickly finds a file by part of its name',
             found,
-            await editor.evaluate(`document.querySelector('.deckit-quick-pick-message')?.textContent`)
+            await editorOverlay?.evaluate(`document.querySelector('.deckit-quick-pick-message')?.textContent`)
         );
-        await editor.key('Escape', 'Escape', 0, 27);
+        await editorOverlay?.key('Escape', 'Escape', 0, 27);
         // Every mod's screen, drawn: what the test does not drive is still seen.
         for (const id of ['editor', 'finder', 'browser', 'note', 'bot']) {
             await frame.press(`[data-mod-id="${id}"]`);
@@ -801,7 +838,7 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
             `${await mark(pathOpener, 'opened')} ${await mark(opener, 'opened')}`
         );
         await editor.key(' ', 'Space', ALT, 32);
-        const query = await until(() => page('deckit://switcher.mod'));
+        const query = await until(async () => overlayOf(await page('deckit://switcher.mod')));
         await until(async () => /Notes/.test((await query?.evaluate('document.body.innerText')) || ''));
         await query?.type('probe open user');
         const resolved = await until(
@@ -963,7 +1000,8 @@ async function run({ page, pages, compose, targets, main, webPage, thrown, endCo
         // Its backdrop is opened again, once: the crashed page's is closed.
         const backdrops = async () => {
             let found = 0;
-            for (const surface of await pages('about:blank')) if ((await surface.evaluate('innerWidth')) > 100) found++;
+            for (const surface of await pages('about:blank'))
+                if ((await surface.evaluate('window.name')) === 'backdrop') found++;
             return found;
         };
         const reopened = await until(async () => (await backdrops()) === 1, 4000);

@@ -1,8 +1,9 @@
 import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
-// Above the page's own fixed things. A float (a toolbar, an autocomplete) is placed by its caller and answers
-// nothing; a layer is above every float, by its place in the stack; what a drag carries is above them all.
+// A float (a toolbar, an autocomplete) is in the page, above its own fixed things, placed by its caller and answering
+// nothing. In the overlay a layer is above the layers under it, by its place in the stack, and what a drag carries is
+// above them all.
 const Z = Object.freeze({ float: 1150, layer: 1200, drag: 2147483646 });
 // How far inside the window a placed box stays.
 const MARGIN = 8;
@@ -25,36 +26,68 @@ const STYLE = `
 `;
 // What floats and is dismissed, bottom first.
 const stack = [];
-let onChange = () => {};
 const layers = Object.freeze({
     top: () => stack.at(-1) || null,
     count: () => stack.length,
-    onChange: (listener) => {
-        onChange = listener;
-    },
 });
+// The page's overlay: `{ window, document, tell({ shows, layered }) }`, a document beside the page's own, laid over the
+// page while it shows anything, where what floats is drawn. Elements made in the page are drawn there as they are,
+// with the page's rules copied in.
+let overlay = null;
+const copies = new WeakMap(); // a sheet of the page -> { count, text }, its rules as last copied
+let style = null; // what wears the copies in the overlay
+let told = '';
 
 // MARK: - Initializer
 // MARK: - Public
-// On pointerdown, so a control that cancels the mouse events after it (a resize handle) still dismisses what is
-// open. Keys are the top layer's first, in the capture phase, before the page sees them.
-function start() {
-    window.addEventListener('pointerdown', dismissOutside, true);
-    window.addEventListener('keydown', route, true);
+// Presses and keys are heard in the page and in its overlay. On pointerdown, so a control that cancels the mouse
+// events after it (a resize handle) still dismisses what is open. Keys are the top layer's first, in the capture
+// phase, before the page sees them. The keyboard moving between the page and its overlay is no blur.
+function start(given) {
+    overlay = given;
+    style = overlay.document.createElement('style');
+    overlay.document.head.replaceChildren(style);
+    overlay.document.body.replaceChildren();
+    for (const each of [window, overlay.window]) {
+        each.addEventListener('pointerdown', dismissOutside, true);
+        each.addEventListener('keydown', route, true);
+        each.addEventListener('blur', () => requestAnimationFrame(() => setTimeout(dismissUnfocused)));
+    }
     window.addEventListener('scroll', dismissScrolledAway, true);
+    overlay.window.addEventListener('wheel', dismissWheeledOutside, true);
     window.addEventListener('resize', () => {
         dismissTransient();
         placeAgain();
     });
-    window.addEventListener('blur', dismissTransient);
+    new MutationObserver(report).observe(overlay.document.body, { childList: true });
 }
 
-// Opens a layer: `element` (optional) goes on the page, placed by `anchor`, `rect`, `point` or `beside`.
+// What floats over the page goes into its overlay, which wears the page's rules first.
+function append(element) {
+    if (!overlay.document.body.childElementCount) dress();
+    overlay.document.body.append(element);
+}
+
+// The page and its overlay, where what floats hears the pointer and the keys.
+function windows() {
+    return [window, overlay.window];
+}
+
+// The overlay wears the page's rules as they are now; `again`, every sheet read anew, as one whose rules were replaced
+// in place (the theme's) keeps their count.
+function dress({ again = false } = {}) {
+    if (!overlay) return;
+    const text = document.adoptedStyleSheets.map((sheet) => textOf(sheet, again)).join('\n');
+    if (style.textContent !== text) style.textContent = text;
+    overlay.document.documentElement.style.colorScheme = document.documentElement.style.colorScheme;
+}
+
+// Opens a layer: `element` (optional) goes in the page's overlay, placed by `anchor`, `rect`, `point` or `beside`.
 // - A press outside the layer and what it hangs from dismisses it, then the next layer, until one holds the
 //   press. A `modal` layer holds every press.
 // - A key goes to `onKey` first; one it does not take (it returns falsy) that is Escape dismisses the layer.
-// - A `transient` layer is also dismissed by a scroll outside it, a resize and the window losing focus. One that stays
-//   through a resize is placed again, against what it hangs from where that is now.
+// - A `transient` layer is also dismissed by a scroll outside it, a resize and the keyboard leaving the page and its
+//   overlay. One that stays through a resize is placed again, against what it hangs from where that is now.
 // - Dismissing calls `onDismiss`; `close()` plays the exit and takes the element away.
 function open({
     element = null,
@@ -84,8 +117,8 @@ function open({
         close: () => close(layer, speed),
     };
     stack.push(layer);
-    onChange(true);
     if (element) show(element, layer);
+    report();
     return layer;
 }
 
@@ -146,7 +179,7 @@ function show(element, layer) {
     element.dataset.state = 'closed';
     element.style.zIndex = String(layer.z);
     element.style.webkitAppRegion = 'no-drag';
-    document.body.append(element);
+    append(element);
     layer.place();
     void element.offsetHeight;
     element.dataset.state = 'open';
@@ -156,7 +189,7 @@ function close(layer, speed) {
     const index = stack.indexOf(layer);
     if (index < 0) return;
     stack.splice(index, 1);
-    onChange(stack.length > 0);
+    report();
     const { element } = layer;
     if (!element) return;
     element.dataset.state = 'closed';
@@ -192,6 +225,11 @@ function dismissScrolledAway(event) {
     }
 }
 
+// The wheel turned over the overlay outside what floats would scroll the page under it.
+function dismissWheeledOutside(event) {
+    if (!stack.some((layer) => layer.element?.contains(event.target))) dismissTransient();
+}
+
 function placeAgain() {
     for (const layer of stack) if (layer.element) layer.place();
 }
@@ -200,8 +238,32 @@ function dismissTransient() {
     for (const layer of [...stack].reverse()) if (layer.transient) layer.dismiss();
 }
 
+// Once neither the page nor its overlay has the keyboard: it went to another page or another app.
+function dismissUnfocused() {
+    if (!document.hasFocus() && !overlay.document.hasFocus()) dismissTransient();
+}
+
+// Told only when it changed: what the overlay shows, and whether a layer is open.
+function report() {
+    const state = { shows: stack.length > 0 || overlay.document.body.childElementCount > 0, layered: stack.length > 0 };
+    const written = JSON.stringify(state);
+    if (written === told) return;
+    told = written;
+    overlay.tell(state);
+}
+
+// A sheet's rules as text, read again only once their count changed.
+function textOf(sheet, again) {
+    const count = sheet.cssRules.length;
+    const copy = copies.get(sheet);
+    if (!again && copy?.count === count) return copy.text;
+    const text = [...sheet.cssRules].map((rule) => rule.cssText).join('\n');
+    copies.set(sheet, { count, text });
+    return text;
+}
+
 function clamp(value, low, high) {
     return Math.max(low, Math.min(value, high));
 }
 
-export { Z, STYLE, start, open, place, layers };
+export { Z, STYLE, start, append, dress, windows, open, place, layers };

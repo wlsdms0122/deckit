@@ -70,7 +70,6 @@ function createPanel({ channels }) {
         lay();
         appear();
 
-        layers.onChange((on) => mounted && PROTOCOL.floating.send({ on }));
         // Main took this Escape, so the field never saw it: it is played again as a keydown. A field that handles
         // it keeps the caret; one that does not is left, as a browser would, so the next Escape reaches the page.
         PROTOCOL.escape.handle(() => {
@@ -109,7 +108,6 @@ function createPanel({ channels }) {
             unmount() {
                 if (appeared) tell('didDisappear');
                 mounted = false;
-                PROTOCOL.floating.send({ on: false });
             },
             remove: () => root.remove(),
         };

@@ -1,6 +1,7 @@
 // What a main process module finds: whether the window the mod's page is shown in is found, the pages laid with the
-// panel's frame, bottom to top, each by its address, whether it is shown and how wide it is laid, and the stages in the
-// frame's window, each whether it is shown and the addresses of the pages shown on it.
+// panel's frame, bottom to top, each by its address, a surface's name and the address of the page that opened it,
+// whether it is shown and how wide it is laid, and the stages in the frame's window, each whether it is shown and the
+// addresses of the pages shown on it.
 module.exports = ({ window }) => ({
     found: () => !!window.ofPage(),
     stack() {
@@ -13,6 +14,8 @@ module.exports = ({ window }) => ({
             .find(Boolean);
         return (stage?.children || []).map((view) => ({
             url: view.webContents?.getURL() || '',
+            name: view.webContents?.mainFrame?.name || '',
+            opener: view.webContents?.opener?.url || '',
             shown: view.getVisible ? view.getVisible() : null,
             width: view.getBounds().width,
         }));

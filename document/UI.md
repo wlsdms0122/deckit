@@ -6,7 +6,7 @@ The kit's parts are of five kinds:
 
 - A maker takes one options object and returns `{ element, ...its controls }`. Put `element` where it goes; call the controls to change it.
 - A layer takes one options object, floats on the page's one stack and returns `{ close }`: `modal`, `dialog`, `confirmTrash`, `colorPicker`. `menu`, `popover` and `quickPick` are layers too, with more controls.
-- A float its caller places stays out of the stack, so the keyboard stays with the text it acts on: `floatingToolbar`, `autocomplete`.
+- A float its caller places stays out of the stack and in the page, so the keyboard stays with the text it acts on: `floatingToolbar`, `autocomplete`.
 - A decorator takes `(element, options)` and returns its dispose. `listbox` decorates an element and returns its controls with `dispose` among them; `inlineEdit` is one edit and resolves when it ends.
 - A helper returns a value: markup, an element, a colour, a boolean, a function or a list.
 
@@ -52,7 +52,7 @@ For CSS, the token is also custom properties on the page's root: each colour by 
 
 ## What floats
 
-What floats is one stack. The top layer has the keys first; Escape and a press outside put it away, then the next, until one holds the press.
+What floats is one stack, drawn in the page's overlay: a document beside the page, laid over it while it shows anything, over everything else on screen with the page, its web pages too. The top layer has the keys first; Escape and a press outside put it away, then the next, until one holds the press. While a layer is open the overlay covers the page: a press outside the layers is theirs and goes no further, and the keyboard is the overlay's until the last one closes. What a drag carries is drawn there too.
 
 - `menu({ items, anchor | point, onClose })` returns `{ element, close(), isOpen() }`, or null when a second press on its anchor closed it. An item is `'-'` (a separator) or `{ label, icon, hint, checked, disabled, items, font, run }`; `items` makes a submenu. Arrow keys move, Enter or Space takes, Tab and Escape close.
 - `select({ options, value, onChange })` returns `{ element, set(value), setOptions(options) }`: a pop-up button. `options` are `{ value, label, font, icon, hint }`, drawn as a menu's items are; the chosen one's icon stands before its label on the button.
@@ -64,7 +64,7 @@ What floats is one stack. The top layer has the keys first; Escape and a press o
 - `colorPicker({ title, value, onPick })`.
 - `quickPick({ placeholder, value, fills, drags, glass, width, key, create, update, optionOf, onInput, onPick, onEnter, onKey, onActive, onCommandKey, onClose })` returns `{ text(), setText(text), setPlaceholder(text), setScope({ icon, label } | null), focus(), set(items, { active, message, note, loading, alert }), move(by), active(), close() }`: a field over a list to pick from, at the top of the page, on a modal, or with `fills` on one that fills the page (`align: 'fill'`), and with `drags` it drags the window from anywhere but its list, the field too, which keeps the keyboard all the same; `glass` is the modal's. A quick pick that fills an overlay window's page drags it and is drawn at `glass: theme.glass`. Items are drawn by `key(item)`, `create` and `update`, as a keyed list draws them; `optionOf(item)` is null for an item that is no option (a heading) or `{ disabled }`. The arrows move the active option, which `onActive(item, index, { pointer })` hears, and Enter picks it, which `onPick(item, index)` hears, or `onEnter({ item, text })` hears both. `onKey(event)` has a key first and answers true when it took it, or the arrows, Enter and Escape act on it too; `onCommandKey(held)` hears Command held down or let go. The field keeps the focus. `setScope` shows what the field searches in, before it.
 
-Two floats are placed by their caller and are not layers: the keyboard stays with the text they act on.
+Two floats are placed by their caller and are not layers: they are in the page, and the keyboard stays with the text they act on.
 
 - `floatingToolbar()` returns `{ element, show(rect), hide() }`: centred above the rect, below when only that fits.
 - `autocomplete({ onPick })` returns `{ show(items, rect), place(rect), move(by), pick(), close(), isOpen() }`. An item is `{ label, icon, hint }`, and `onPick(item)` gets it. The caller moves through it with its own keys.
