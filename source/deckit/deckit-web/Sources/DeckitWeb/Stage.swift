@@ -15,7 +15,8 @@ final class Stage {
     // MARK: - Property
     let id: Int
     let view: NSView = StageView()
-    private var laid: [WebPage] = []
+    private var laid: [WebPage] = [] // the pages it put on screen, in its view or a clip of its own
+    private var clips: [ObjectIdentifier: NSView] = [:] // a page -> the clip it is drawn in
 
     // MARK: - Initializer
     init(id: Int) {
@@ -51,32 +52,79 @@ final class Stage {
     }
 
     // The pages on the stage, bottom to top, each at its frame, or hidden: kept out of the window, which a page in it
-    // would slow as it resizes. A page left out is taken off.
-    func lay(_ layers: [(page: WebPage, frame: CGRect?)]) {
-        let shown = layers.compactMap { layer in layer.frame.map { (layer.page, $0) } }
+    // would slow as it resizes. A page with a clip is drawn only inside it, cut there and never resized. A page left
+    // out is taken off, from this stage alone: one another stage shows since stays where it is.
+    func lay(_ layers: [(page: WebPage, frame: CGRect?, clip: CGRect?)]) {
+        let shown = layers.compactMap { layer in layer.frame.map { (layer.page, $0, layer.clip) } }
         let kept = Set(shown.map { ObjectIdentifier($0.0) })
         for page in laid where !kept.contains(ObjectIdentifier(page)) {
-            page.view.removeFromSuperview()
+            takeOff(page)
         }
         var below: NSView?
-        for (page, frame) in shown {
-            if page.view.superview !== view {
-                view.addSubview(page.view, positioned: .above, relativeTo: below)
-            } else if let index = view.subviews.firstIndex(of: page.view),
+        for (page, frame, clip) in shown {
+            let item = holder(of: page, frame: frame, clip: clip)
+            if item.superview !== view {
+                view.addSubview(item, positioned: .above, relativeTo: below)
+            } else if let index = view.subviews.firstIndex(of: item),
                 index != (below.flatMap { view.subviews.firstIndex(of: $0) }.map { $0 + 1 } ?? 0)
             {
-                view.addSubview(page.view, positioned: .above, relativeTo: below)
+                view.addSubview(item, positioned: .above, relativeTo: below)
             }
-            if page.view.frame != frame { page.view.frame = frame }
-            below = page.view
+            below = item
         }
-        laid = layers.map(\.page)
+        laid = shown.map(\.0)
     }
 
     // MARK: - Private
+    // The view laid on the stage for `page`: the page's own, or the clip it is drawn in, each at its frame.
+    private func holder(of page: WebPage, frame: CGRect, clip: CGRect?) -> NSView {
+        let key = ObjectIdentifier(page)
+        guard let clip else {
+            dropClip(of: page)
+            if page.view.frame != frame { page.view.frame = frame }
+            return page.view
+        }
+        let cut = clips[key] ?? ClipView()
+        clips[key] = cut
+        if page.view.superview !== cut { cut.addSubview(page.view) }
+        if cut.frame != clip { cut.frame = clip }
+        let inside = frame.offsetBy(dx: -clip.minX, dy: -clip.minY)
+        if page.view.frame != inside { page.view.frame = inside }
+        return cut
+    }
+
+    private func takeOff(_ page: WebPage) {
+        if !dropClip(of: page), page.view.superview === view { page.view.removeFromSuperview() }
+    }
+
+    // The clip `page` is drawn in taken off, the page out of it. Answers whether it had one.
+    @discardableResult
+    private func dropClip(of page: WebPage) -> Bool {
+        guard let cut = clips.removeValue(forKey: ObjectIdentifier(page)) else { return false }
+        if page.view.superview === cut { page.view.removeFromSuperview() }
+        cut.removeFromSuperview()
+        return true
+    }
 }
 
 // A stage's view: flipped, so its pages' frames are from its top left.
 private final class StageView: NSView {
     override var isFlipped: Bool { true }
+}
+
+// What a page is cut to: flipped like the stage, drawing nothing, and taking no clicks where its page is not.
+private final class ClipView: NSView {
+    override var isFlipped: Bool { true }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        clipsToBounds = true
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        return hit === self ? nil : hit
+    }
 }

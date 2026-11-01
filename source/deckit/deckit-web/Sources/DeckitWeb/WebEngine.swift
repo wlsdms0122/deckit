@@ -31,9 +31,9 @@ import CNodeAPI
 //   `dragged` or `up`, at a point from the page's top left. `snapshot(id) -> Promise of a PNG in base64`;
 //   `killProcess(id)`, its content's process ended as a crash ends it; `pages()` and `windows()`, the ids of those
 //   open.
-// - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame } |
-//   { page, hidden: true }])`; `showStage(id, on)`; `removeStage(id)`; and `tree(window)`, a window's views as text,
-//   a page's view with its id.
+// - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
+//   clip } | { page, hidden: true }])`, `clip` a rect on the stage the page is cut to; `showStage(id, on)`;
+//   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -324,12 +324,12 @@ final class WebEngine {
                 guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
                 let page = Int(try node.number(id))
                 guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
-                if try node.member(layer, "hidden").map({ try node.bool($0) }) == true { return (laid, nil) }
+                if try node.member(layer, "hidden").map({ try node.bool($0) }) == true { return (laid, nil, nil) }
                 guard let frame = try node.member(layer, "frame") else {
-                    throw NodeError(message: "a layer is { page, frame } or { page, hidden: true }")
+                    throw NodeError(message: "a layer is { page, frame, clip } or { page, hidden: true }")
                 }
 
-                return (laid, try node.rect(frame))
+                return (laid, try node.rect(frame), try node.member(layer, "clip").map { try node.rect($0) })
             })
 
         case .showStage:
