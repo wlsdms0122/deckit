@@ -1,10 +1,12 @@
 import * as FILES from '../files/index.js';
+import { createWindow } from './window.js';
 
 // A mod's main process modules, run in Electron's main process as Node runs them (deckit-shell/environment:
 // mainProcess): which mod may start them, and when, is deck's. A mod is `{ id, folder, data, pageOf() }`: its folder,
 // its data folder, and the page it runs in now, or null.
-export function createMainProcess({ WINDOW, LOG, FOLDER }) {
+export function createMainProcess({ LOG, FOLDER }) {
     // MARK: - Property
+    const WINDOW = createWindow({ LOG });
     const fs = require('fs');
     const path = require('path');
     const crypto = require('crypto');
@@ -223,8 +225,9 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
         }
     }
 
-    // What a module is handed: what deck hands it, and the windows of the app's, Electron's own. The id is part of a
-    // window's key, so two mods asking for "log" get two windows and neither closes the other's.
+    // What a module is handed: what deck hands it, and windows of Electron's own. The id is part of a window's key, so
+    // two mods asking for "log" get two windows and neither closes the other's. The mod's page is in none of them:
+    // `ofPage()` answers null.
     function deckOf(mod, handed) {
         return Object.freeze({
             ...handed,
@@ -237,10 +240,7 @@ export function createMainProcess({ WINDOW, LOG, FOLDER }) {
                 },
                 get: (key) => WINDOW.get(`${mod.id}:${key || 'main'}`),
                 close: (key) => WINDOW.close(`${mod.id}:${key || 'main'}`),
-                ofPage: () => {
-                    const page = mod.pageOf();
-                    return page ? WINDOW.windowShowing(page) : null;
-                },
+                ofPage: () => null,
             }),
         });
     }

@@ -1,6 +1,7 @@
-// What Electron gives deck on a page's side (deckit-shell/environment: PAGE): its IPC carries the messages, what runs
-// a mod's code runs in the preload's isolated world, which the page's policy on scripts leaves alone, and a web page
-// shown in the page is WebKit's, over an element that holds its place (web/renderer.js).
+// What Electron gives deck on a page's side (deckit-shell/environment: PAGE): the page is WebKit's, through the module
+// in main, which carries the messages; what runs a mod's code runs in deckit's world, which the page's policy on
+// scripts leaves alone; and a web page shown in the page is laid over an element that holds its place
+// (web/renderer.js).
 import * as ORIGIN from '../sandbox/model/origin.js';
 import { messages } from '../messages/renderer.js';
 import { createViews } from '../web/renderer.js';
@@ -18,7 +19,7 @@ const environment = Object.freeze({
 // Named by its file at the mod's address, as a stack reads it.
 function evaluate(source, { mod, file }) {
     const module = { exports: {} };
-    new Function('module', 'exports', `${source}\n//# sourceURL=${ORIGIN.SCHEME.scheme}://${mod}/${file}`)(
+    new Function('module', 'exports', `${source}\n//# sourceURL=${ORIGIN.SCHEME}://${mod}/${file}`)(
         module,
         module.exports
     );

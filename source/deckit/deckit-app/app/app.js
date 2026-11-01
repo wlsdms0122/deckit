@@ -11,7 +11,7 @@ function createApp({ WINDOW, THEME }) {
         let controls = null; // what the host drives of the shell, handed as it starts
 
         function live(window) {
-            return window && !window.isDestroyed() ? window : null;
+            return window && !window.isClosed() ? window : null;
         }
 
         // The Dock can ask before the shell has started, which shows the panel itself as it starts. The
@@ -53,16 +53,7 @@ function createApp({ WINDOW, THEME }) {
         }
 
         function raise(window) {
-            if (window.isMinimized()) window.restore();
-            window.show();
-            window.focus();
-        }
-
-        // The panel's views are in the panel's window and a mod's window is its own, which only this host knows.
-        function windowOf(webContents) {
-            if (controls.panel.contains(webContents)) return live(state.window);
-            for (const [control, window] of state.windows) if (control.contains(webContents)) return live(window);
-            return require('electron').BrowserWindow.fromWebContents(webContents);
+            window.show({ focus: true });
         }
 
         // An overlay opens floating over whichever app is in front, on the screen the pointer is on, and tells the mod
@@ -109,10 +100,8 @@ function createApp({ WINDOW, THEME }) {
                 });
                 show();
             },
-            showsPanel: (webContents) => {
-                const window = windowOf(webContents);
-                return !!window && window === live(state.window);
-            },
+            // The panel's pages are in the panel's window, while it is open.
+            showsPanel: (page) => !!live(state.window) && controls.panel.contains(page),
             show: () => void show(),
             // The panel is always presented as not dismissible here, so Escape never asks this.
             dismiss: () => {},

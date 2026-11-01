@@ -25,7 +25,7 @@ const TABS_STYLE = `
         white-space: nowrap;
         cursor: pointer;
         opacity: 0.65;
-        -webkit-app-region: no-drag;
+        --app-region: no-drag;
         transition: background-color var(--deckit-fast) var(--deckit-easing);
     }
     .editor-tab:hover { background: var(--deckit-hover); }

@@ -4,23 +4,22 @@ import { createPartition } from './model/partition.js';
 import { createRegistry } from './registry.js';
 import { createCertificate } from './certificate.js';
 import { createScript } from './script.js';
-import { createWebKit } from './webkit.js';
-import * as PROTOCOL from './protocol.js';
+import { storeOf } from '../webkit/index.js';
+import { CHANNEL } from '../messages/main.js';
 
 // The web pages a mod's page shows, as the Electron environment shows them (deckit-shell/environment: MAIN.web), on
-// WebKit: over the element that holds a page's place in the mod's page, or over a view in a window of the app's, each
-// in a session of the mod's, kept in a data store of its own. `webkit` is the module that makes them, and
-// `viewOf(page)` the view a page of deckit's is in.
-export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
+// WebKit: laid just over the mod's page, over the element that holds a web page's place in it, or alone in a window of
+// the app's, each in a session of the mod's, kept in a data store of its own. `MESSAGES` carries what the mod's page
+// says of them, `relayOf(page)` lays a page's web pages again where it is shown, and `WINDOWS.openForStage` asks the
+// host app for a window.
+export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
     // MARK: - Property
     const windows = new Map(); // window page id -> { window, embedder }
     const PARTITION = createPartition({ CONFIG });
     const REGISTRY = createRegistry();
-    const WEBKIT = createWebKit({ path: webkit, LOG });
     const embedders = new WeakSet(); // the mods' pages that show web pages
     const pages = new Map(); // id -> a web page deck holds
     const layouts = new Map(); // id -> where its mod's page last said it shows, { frame, visible }
-    const following = new WeakSet(); // the mods' pages whose view their web pages follow
     let deck = null; // what deck answers and is told (listen)
     const told =
         (name) =>
@@ -54,7 +53,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
                 if (entry?.embedder === modPage && entry.inPage) page.close();
             }
         };
-        LOG.guard(modPage, 'did-navigate', closeShown);
+        LOG.guard(modPage, 'committed', closeShown);
         LOG.guard(modPage, 'destroyed', closeShown, { once: true });
     }
 
@@ -74,8 +73,7 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
     }
 
     function openWindow(modPage, { mod, session, url, title }) {
-        const partition = PARTITION.spell(mod, session);
-        const page = WEBKIT.make({ partition, cookieLifetime: deck.cookieLifetime, delegate: delegateOf(modPage) });
+        const page = makePage(PARTITION.spell(mod, session), modPage);
         pages.set(page.id, page);
         adopt(modPage, page, { inPage: false, tab: page.id });
         showInWindow(modPage, page, { title, size: deck.windowSize });
@@ -148,37 +146,38 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
     }
 
     function fetchText(mod, session, url) {
-        return WEBKIT.fetchText(PARTITION.spell(mod, session), url, deck.fetchLimit);
+        return WEBKIT.fetchText(storeOf(PARTITION.spell(mod, session)), url, deck.fetchLimit);
     }
 
     function clear(mod, session) {
-        return WEBKIT.clear(PARTITION.spell(mod, session));
+        return WEBKIT.clear(storeOf(PARTITION.spell(mod, session)));
     }
 
     // MARK: - Private
     // What a mod's page asks and tells of the web pages it shows, each from that page alone.
     function hear() {
-        const { ipcMain } = require('electron');
-        const ownPage = (event, id) => {
+        const ownPage = (sender, id) => {
             const page = pageOf(id);
-            return page && REGISTRY.get(id)?.embedder === event.sender ? page : null;
+            return page && REGISTRY.get(id)?.embedder === sender ? page : null;
         };
-        ipcMain.handle(PROTOCOL.show, (event, { partition, url }) => show(event.sender, { partition, url }));
-        LOG.guard(ipcMain, PROTOCOL.place, (event, layout) => {
-            const page = ownPage(event, layout.id);
+        MESSAGES.on(CHANNEL.webShow, (sender, { partition, url }) => show(sender, { partition, url }));
+        // One not shown hands the keyboard to its mod's page.
+        MESSAGES.on(CHANNEL.webPlace, (sender, layout) => {
+            const page = ownPage(sender, layout.id);
             if (!page) return;
             layouts.set(page.id, layout);
-            place(event.sender, page);
+            if (!layout.visible && page.isFocused()) sender.focus();
+            STAGES.relayOf(sender);
         });
-        LOG.guard(ipcMain, PROTOCOL.focus, (event, { id }) => ownPage(event, id)?.focus());
-        LOG.guard(ipcMain, PROTOCOL.unfocus, (event) => event.sender.focus());
+        MESSAGES.on(CHANNEL.webFocus, (sender, { id }) => ownPage(sender, id)?.focus());
+        MESSAGES.on(CHANNEL.webUnfocus, (sender) => sender.focus());
         // A page that goes with the keyboard hands it to its mod's page, which would otherwise have nowhere to go.
-        LOG.guard(ipcMain, PROTOCOL.remove, (event, { id }) => {
-            const page = ownPage(event, id);
+        MESSAGES.on(CHANNEL.webRemove, (sender, { id }) => {
+            const page = ownPage(sender, id);
             if (!page) return;
             const focused = page.isFocused();
             page.close();
-            if (focused) event.sender.focus();
+            if (focused) sender.focus();
         });
     }
 
@@ -189,14 +188,9 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
             if (!embedders.has(modPage)) throw new Error('the page shows no web pages');
             const session = PARTITION.read(partition);
             if (!session || !deck.attaching(modPage, session)) throw new Error("its session is not the mod's");
-            const page = WEBKIT.make({
-                partition: PARTITION.spell(session.mod, session.name),
-                cookieLifetime: deck.cookieLifetime,
-                delegate: delegateOf(modPage),
-            });
+            const page = makePage(PARTITION.spell(session.mod, session.name), modPage);
             pages.set(page.id, page);
             adopt(modPage, page, { inPage: true, tab: page.id });
-            follow(modPage);
             if (url && url !== 'about:blank') page.loadURL(url);
             return page.id;
         } catch (error) {
@@ -260,18 +254,16 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
             const state = stateOf(page);
             if (state) deck.changed(modPage, id, state);
         };
-        for (const event of ['state-changed', 'did-start-loading', 'did-stop-loading', 'did-fail-load', 'did-navigate'])
-            LOG.guard(page, event, changed);
+        for (const event of ['changed', 'started', 'stopped', 'failed', 'committed']) LOG.guard(page, event, changed);
         if (inPage) {
-            LOG.guard(page, 'focus', () => modPage.send(PROTOCOL.told, { id, event: 'focus' }));
-            LOG.guard(page, 'close', () => modPage.send(PROTOCOL.told, { id, event: 'close' }));
-            LOG.guard(page, 'input-event', (_event, { type }) => {
-                if (type === 'mouseDown') modPage.send(PROTOCOL.told, { id, event: 'press' });
-            });
+            const tell = (event) => MESSAGES.tell(modPage, CHANNEL.webTold, { id, event });
+            LOG.guard(page, 'focus', () => tell('focus'));
+            LOG.guard(page, 'close', () => tell('close'));
+            LOG.guard(page, 'mouse', (type) => type === 'mouseDown' && tell('press'));
         }
         page.once('destroyed', () => {
             pages.delete(id);
-            layouts.delete(id);
+            if (layouts.delete(id)) STAGES.relayOf(modPage);
         });
         const loadURL = page.loadURL;
         page.loadURL = (url) => {
@@ -287,14 +279,14 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
         const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
         const delegate = delegateOf(modPage);
         return WEBKIT.listenerFor({
-            partition: opener.partition,
+            fields: { partition: opener.partition },
             delegate,
             opened: (page) => {
                 pages.set(page.id, page);
                 adopt(modPage, page, { inPage: false, tab });
                 const size = width && height ? { width, height } : deck.windowSize;
                 const window = showInWindow(modPage, page, { size });
-                const closeWithOpener = () => !window.isDestroyed() && window.close();
+                const closeWithOpener = () => window.close();
                 opener.once('destroyed', closeWithOpener);
                 page.once('destroyed', () => opener.removeListener('destroyed', closeWithOpener));
             },
@@ -302,117 +294,50 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
     }
 
     // A page in a window of the app's, the two going together: the page closes with the window, and a page that
-    // closes itself takes its window. The window holds a view of its own, which the page covers.
+    // closes itself takes its window. The window is titled by the page, and a site's page says which site it is, so a
+    // page cannot pass for another.
     function showInWindow(modPage, page, { title = '', size }) {
-        const { View } = require('electron');
-        const view = new View();
-        view.setBackgroundColor('#ffffff');
         let closing = false;
-        const window = WINDOW.open({
-            view,
+        const stage = STAGES.stage();
+        const fill = () => stage.lay([{ page, rect: { x: 0, y: 0, ...stage.size() } }]);
+        stage.whenResized(fill);
+        const window = WINDOWS.openForStage({
             title,
             size,
+            stage,
             onClose: () => {
                 closing = true;
+                stage.close();
                 page.close();
             },
         });
+        fill();
         windows.set(page.id, { window, embedder: modPage });
-        const cover = () => {
-            const laid = laidIn(window, view);
-            if (laid) page.place({ ...laid, frame: { x: 0, y: 0, width: laid.page.width, height: laid.page.height } });
-        };
-        LOG.guard(window, 'resize', () => setImmediate(cover));
-        setImmediate(cover);
-        LOG.guard(page, 'close', () => !closing && !window.isDestroyed() && window.close());
-        LOG.guard(window, 'closed', () => {
+        LOG.guard(page, 'changed', () => window.setTitle(labelOf(page)));
+        LOG.guard(page, 'close', () => !closing && window.close());
+        window.on('close', () => {
             windows.delete(page.id);
             deck.closed(modPage, page.id);
         });
         return window;
     }
 
-    // A mod's page moved or shown elsewhere moves its web pages with it. The stage shows a view after it sizes it, in
-    // the same turn, so they move at the next.
-    function follow(modPage) {
-        const view = viewOf(modPage);
-        if (!view || following.has(modPage)) return;
-        following.add(modPage);
-        const placeAll = () => {
-            for (const page of pages.values())
-                if (REGISTRY.get(page.id)?.embedder === modPage && layouts.has(page.id)) place(modPage, page);
-        };
-        LOG.guard(view, 'bounds-changed', () => setImmediate(placeAll));
-    }
-
-    // Where a web page shows: `frame`, the element's rect in the mod's page. One not shown hands the keyboard to its
-    // mod's page.
-    function place(modPage, page) {
-        const { frame, visible } = layouts.get(page.id) || {};
-        const view = viewOf(modPage);
-        const laid = visible && frame && view && laidOf(view);
-        if (!laid) {
-            if (page.isFocused()) modPage.focus();
-            return page.place({ visible: false });
-        }
-        const zoom = modPage.getZoomFactor();
-        const scaled = (rect) => ({
-            ...rect,
-            x: rect.x * zoom,
-            y: rect.y * zoom,
-            width: rect.width * zoom,
-            height: rect.height * zoom,
+    // A page of a mod's session, in its data store, answering to `modPage`.
+    function makePage(partition, modPage) {
+        return WEBKIT.make({
+            store: storeOf(partition),
+            cookieLifetime: deck.cookieLifetime,
+            delegate: delegateOf(modPage),
+            fields: { partition },
         });
-        page.place({ ...laid, frame: scaled(frame), visible: true });
     }
 
-    // Where a view of deckit's is shown: the window, its rect in the window's content, and how many shown pages are
-    // laid over it at the same rect, which WebKit's module tells it from by that. None while it is not shown.
-    function laidOf(view) {
-        const { BaseWindow } = require('electron');
-        for (const window of BaseWindow.getAllWindows()) {
-            const laid = laidIn(window, view);
-            if (laid) return laid;
-        }
-        return null;
-    }
-
-    function laidIn(window, view) {
-        if (window.isDestroyed()) return null;
-        const path = pathTo(window.contentView, view);
-        if (!path || path.some((node) => !node.getVisible())) return null;
-        const rect = rectOf(path);
-        const same = (other) => ['x', 'y', 'width', 'height'].every((key) => Math.abs(other[key] - rect[key]) < 1);
-        const shown = shownIn(window.contentView);
-        const above = shown.slice(shown.findIndex((laid) => laid.view === view) + 1).filter((laid) => same(laid.rect));
-        return { window: window.getNativeWindowHandle(), page: rect, above: above.length };
-    }
-
-    function pathTo(from, view) {
-        if (from === view) return [from];
-        for (const child of from.children || []) {
-            const path = pathTo(child, view);
-            if (path) return [from, ...path];
-        }
-        return null;
-    }
-
-    // The rect of the last of `path`, a line of views from a window's content down, in the window's content.
-    function rectOf(path) {
-        return path.slice(1).reduce(
-            (at, node) => {
-                const bounds = node.getBounds();
-                return { x: at.x + bounds.x, y: at.y + bounds.y, width: bounds.width, height: bounds.height };
-            },
-            { x: 0, y: 0, width: 0, height: 0 }
-        );
-    }
-
-    // The pages shown under `root`, bottom to top, each with its view and its rect in the window's content.
-    function shownIn(root, path = [root]) {
-        if (!root.getVisible()) return [];
-        const own = root.webContents && path.length > 1 ? [{ view: root, rect: rectOf(path) }] : [];
-        return [...own, ...(root.children || []).flatMap((child) => shownIn(child, [...path, child]))];
+    // Where a mod's page shows its web pages: each shown one, at its element's rect in the page.
+    function webPagesIn(modPage) {
+        return REGISTRY.pagesIn(modPage).flatMap((page) => {
+            const { frame, visible } = layouts.get(page.id) || {};
+            return visible && frame ? [{ page, frame }] : [];
+        });
     }
 
     return {
@@ -436,11 +361,16 @@ export function createWeb({ CONFIG, LOG, WINDOW, webkit, viewOf }) {
         clear,
         trust: (mod, session, entries) => CERTIFICATE.trust(PARTITION.spell(mod, session), entries),
         sessionsOf: (mod) => PARTITION.prefixOf(mod),
+        webPagesIn,
     };
 }
 
-// What a page's window.open asked for, in the words a mod's delegate reads: whether what opens comes forward, and the
-// name it targets.
-export function windowOptions({ disposition, frameName } = {}) {
-    return { activates: disposition !== 'background-tab', target: String(frameName || '') };
+function labelOf(page) {
+    const title = page.getTitle();
+    let site = '';
+    try {
+        const url = new URL(page.getURL());
+        if (url.protocol === 'http:' || url.protocol === 'https:') site = url.host;
+    } catch {}
+    return site && title !== site ? `${title} (${site})` : title;
 }

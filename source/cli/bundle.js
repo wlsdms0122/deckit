@@ -39,11 +39,10 @@ for (const [name, options] of Object.entries(LIBRARY.BUNDLES)) {
     bundles[name] = { file: name + '.js', ...(options.global ? { global: options.global } : {}) };
 }
 
-// The contract it speaks and the scheme its pages load from, read from deckit-electron's entry for them. The scheme is
-// here as data for a host app that registers schemes before it loads a bundle.
+// The contract it speaks, read from deckit-electron's entry for it.
 const facts = path.join(folder, '.facts.cjs');
 esbuild('deckit-electron/contract/index.js', facts, { format: 'cjs', platform: 'node', target: 'node22' });
-const { API: api, SCHEME: scheme } = require(facts);
+const { API: api } = require(facts);
 fs.rmSync(facts);
 
 const mods = fs
@@ -53,5 +52,5 @@ const mods = fs
 // The core's executable, which the build put at the root.
 const core = 'deckit';
 if (!fs.existsSync(path.join(folder, core))) throw new Error('the library has no core');
-const described = { name: 'deckit', version, api, source, swift, scheme, bundles, core, mods };
+const described = { name: 'deckit', version, api, source, swift, bundles, core, mods };
 fs.writeFileSync(path.join(folder, 'deckit.json'), JSON.stringify(described, null, 2) + '\n');

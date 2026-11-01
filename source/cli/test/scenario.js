@@ -527,7 +527,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
                 bar: Math.round(bar.getBoundingClientRect().bottom),
                 page: Math.round(shown.getBoundingClientRect().top),
                 field: !!bar.querySelector('.browser-address-field'),
-                region: getComputedStyle(bar).getPropertyValue('-webkit-app-region'),
+                region: getComputedStyle(bar).getPropertyValue('--app-region'),
             };
         })()`);
         check(

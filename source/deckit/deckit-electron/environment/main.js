@@ -1,28 +1,25 @@
-// What Electron gives deck and the shell in main (deckit-shell/environment: MAIN, SHELL): its IPC carries the messages,
-// a page is its webContents, in a view of its own, the core is a child process, and the log a file of its own.
+// What Electron gives deck and the shell in main (deckit-shell/environment: MAIN, SHELL): every page is WebKit's,
+// through the module beside the core, laid in the module's windows, and carries the messages; Electron runs the app,
+// its keys, menus and the system's services, the core is a child process, and the log a file of its own.
 import * as LISTENER from '../listener/index.js';
-import * as HANDLER from '../handler/index.js';
 import { createReports } from './reports.js';
 import * as CONNECTION from '../core/connection.js';
 import * as LOG_FILE from '../log/file.js';
 import * as FILES from '../files/index.js';
 import * as ORIGIN from '../sandbox/model/origin.js';
-import { clearStorage, makeView, keepDrawing, serve } from '../sandbox/index.js';
+import { clearStorage, serve, storeFor } from '../sandbox/index.js';
 import { createFolder } from '../mod/folder.js';
-import { createWindow } from '../window/index.js';
-import { createStage } from '../stage/main.js';
+import { createWebKit } from '../webkit/index.js';
+import { createMessages, CHANNEL } from '../messages/main.js';
+import { createWindows } from '../window/index.js';
+import { createStages } from '../stage/main.js';
 import { createNotifications } from '../notification/main.js';
 import { createMainProcess } from '../main-process/main.js';
-import { createWeb, windowOptions } from '../web/main.js';
-import { messages } from '../messages/main.js';
+import { createWeb } from '../web/main.js';
 
 // MARK: - Property
-// UI Events' names for the input deck is told of, by Electron's.
+// UI Events' names for the input deck is told of, by the module's.
 const INPUT = { keyDown: 'keydown', keyUp: 'keyup', mouseDown: 'mousedown', mouseUp: 'mouseup' };
-// Chromium's code for a load that another load replaced.
-const ERR_ABORTED = -3;
-// Chromium's own schemes: its pages, its extensions' and its tools'.
-const CHROMIUM_SCHEMES = Object.freeze(['chrome', 'chrome-extension', 'devtools', 'view-source']);
 // Electron's accelerator key for each key code a spec names that is not a letter, a digit or a function key.
 const ACCELERATOR_KEYS = Object.freeze({
     ArrowLeft: 'Left',
@@ -51,10 +48,9 @@ const ACCELERATOR_KEYS = Object.freeze({
 // MARK: - Initializer
 // MARK: - Public
 // What Electron gives deck for the host app: `core` is the core's executable, `preload` the file every page of deck's
-// loads with, and `openWindow` the host app's answer for a window. Beside what deck is given, Electron's own, for the
-// host app alone: `viewOf(page)`, the view a page of deck's, or a surface, is in, `owns(webContents)`, whether a
-// webContents is one of deckit's, `window.place`, how a view is put in one of the host app's windows, and `guard`, how a
-// listener on Electron's emitters is added, reported as what Electron's parts say is.
+// runs in deckit's world as each of its documents starts, and `openWindow` the host app's answer for a window of the
+// app's. Beside what deck is given, for the host app alone: `windows`, the windows it opens and frames, which pages are
+// laid in.
 function createEnvironment({ core, preload, openWindow }) {
     const { app } = require('electron');
     const REPORTS = createReports();
@@ -71,59 +67,51 @@ function createEnvironment({ core, preload, openWindow }) {
         error: (...parts) => REPORTS.report('error', ...parts),
         guard,
     });
-    const hold = HANDLER.createHold((setter) =>
-        REPORTS.report('warn', `${setter} on deckit's webContents and sessions: left as deckit set it, on every one`)
-    );
-    const WINDOW = createWindow({ LOG, openWindow });
-    const MAIN_PROCESS = createMainProcess({ WINDOW, LOG, FOLDER: createFolder() });
+    const FOLDER = createFolder();
+    // WebKit's module is the core's neighbour in the archive.
+    const WEBKIT = createWebKit({ path: require('path').join(require('path').dirname(core), 'deckit-web.node'), LOG });
+    const MESSAGES = createMessages();
+    const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
+    const STAGES = createStages({ LOG, WEBKIT, idOf: WINDOWS.idOf, webPagesIn: (page) => WEB.webPagesIn(page) });
+    const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS });
+    const MAIN_PROCESS = createMainProcess({ LOG, FOLDER });
     const NOTIFICATIONS = createNotifications({ guard });
-    // A page deck made, or a surface one opened -> the view it is in, kept while the page is.
-    const views = new WeakMap();
     const origins = new WeakMap(); // a page deck made -> its origin
     const mods = new WeakSet(); // the pages mods run in
-    const openings = new WeakMap(); // a page -> { surfaces, opens }, what its window.open becomes (openingOf)
-    let making = 0; // how many of deckit's webContents are being made now
-    // WebKit's module is the core's neighbour in the archive.
-    const WEB = createWeb({
-        CONFIG,
-        LOG,
-        WINDOW,
-        webkit: require('path').join(require('path').dirname(core), 'deckit-web.node'),
-        viewOf: (page) => views.get(page) || null,
-    });
-    const FOLDER = createFolder();
-    // A page that runs no mod is named as a host is, with no dot, so its origin is never a mod's.
+    const openings = new WeakMap(); // a page -> { surfaces, opens, name }, what its window.open becomes (openingOf)
+    const pins = new WeakMap(); // a pinned page -> { address }, the address its first load committed
+    let answer = null; // how a load of deck's scheme is answered, once deck serves (serve)
+    let script = null; // the preload's source
+    hear();
+    // A page that runs no mod is named as a host is, with no dot, so its origin is never a mod's. It is clear where it
+    // draws nothing, as the windows it opens are.
     const make = ({ modId = null, name = null, keepsDrawing = false } = {}) => {
         const owned = modId !== null;
-        const view = made(() => makeView({ id: CONFIG.id, preload }));
-        const page = view.webContents;
-        views.set(page, view);
-        origins.set(page, owned ? ORIGIN.originOf(modId) : ORIGIN.pageOriginOf(name));
+        const origin = owned ? ORIGIN.originOf(modId) : ORIGIN.pageOriginOf(name);
+        const asked = { page: null };
+        const page = WEBKIT.make({
+            store: storeFor(CONFIG.id, origin),
+            scheme: ORIGIN.SCHEME,
+            clear: true,
+            fullSpeed: owned || keepsDrawing,
+            delegate: delegateOf(asked),
+        });
+        asked.page = page;
+        origins.set(page, origin);
         if (owned) mods.add(page);
-        openingOf(page);
-        if (owned || keepsDrawing) keepDrawing(page, guard);
+        page.run([{ source: (script ??= require('fs').readFileSync(preload, 'utf8')), world: 'deckit' }]);
+        page.once('destroyed', () => {
+            for (const surface of openingOf(page).opened) surface.close();
+        });
         return page;
     };
     const load = (page) => page.loadURL(ORIGIN.addressOf(origins.get(page)));
-    const viewOf = (page) => views.get(page) || null;
-    // A page deck made, and what one opened: their handlers and guards are deckit's. Told from the moment Electron
-    // tells of the webContents, before deckit has set anything on it: one made while deckit makes or claims one, one
-    // shown in a page of deckit's, or one a page of deckit's opened.
-    const owns = (page) => {
-        if (making > 0 || views.has(page)) return true;
-        const { webContents } = require('electron');
-        const by = page.hostWebContents || (page.opener && webContents.fromFrame(page.opener));
-        return !!by && by !== page && owns(by);
-    };
-    const STAGE = createStage({ LOG, WINDOW, viewOf });
+    const STAGE = STAGES.stage;
     return Object.freeze({
-        viewOf,
-        owns,
-        window: Object.freeze({ place: WINDOW.place }),
-        guard,
+        windows: WINDOWS.windows,
         configure,
         reports: Object.freeze({ listen: REPORTS.listen }),
-        messages,
+        messages: MESSAGES.messages,
         pages: Object.freeze({
             make,
             load,
@@ -131,17 +119,22 @@ function createEnvironment({ core, preload, openWindow }) {
             focus: (page) => page.focus(),
             isGone,
             isClosed: (page) => page.isDestroyed(),
-            watch: (page, watchers) =>
-                watch(guard, page, watchers, { origin: mods.has(page) ? origins.get(page) : null, openingOf }),
+            watch: (page, watchers) => watch(guard, page, watchers, { openingOf }),
             surfaces: (page, given) => {
                 openingOf(page).surfaces = given;
             },
-            serve: (folderOf) => serve({ id: CONFIG.id, folderOf, FOLDER, hold }),
-            pin: (page) => pin(guard, page),
+            serve: (folderOf) => {
+                answer = serve({ folderOf, FOLDER });
+            },
+            pin: (page) => pin(guard, page, pins),
             watchInput: (page, listener) => watchInput(guard, page, listener),
-            clearStorage: (modId) => clearStorage(CONFIG.id, modId),
+            clearStorage: (modId) => clearStorage(WEBKIT, CONFIG.id, modId),
         }),
-        keys: Object.freeze({ capture: (page, handler) => capture(guard, page, handler), hotkey, focused }),
+        keys: Object.freeze({
+            capture: (page, handler) => capture(guard, page, handler),
+            hotkey,
+            focused: () => WEBKIT.focusedPage(),
+        }),
         open: Object.freeze({ url: openURL, file: openFile, reveal, appFor }),
         notifications: Object.freeze({ show: NOTIFICATIONS.show }),
         clipboard: Object.freeze({
@@ -149,7 +142,7 @@ function createEnvironment({ core, preload, openWindow }) {
             writeText: (text) => require('electron').clipboard.writeText(text),
         }),
         dialogs: Object.freeze({ chooseFolder }),
-        stage: STAGE.stage,
+        stage: STAGE,
         web: Object.freeze({
             listen: WEB.listen,
             embed: WEB.embed,
@@ -205,59 +198,86 @@ function createEnvironment({ core, preload, openWindow }) {
             app: Object.freeze({ name: app.getName(), version: app.getVersion() }),
             engines: Object.freeze([
                 Object.freeze({ key: 'electron', name: 'Electron', version: process.versions.electron }),
-                Object.freeze({ key: 'chrome', name: 'Chrome', version: process.versions.chrome }),
+                Object.freeze({ key: 'webkit', name: 'WebKit', version: WEBKIT.native().safariVersion() || '' }),
             ]),
         }),
     });
 
-    // What a page's window.open becomes, decided in one place a page has: a surface it may open (`pages.surfaces`), or
-    // none, what it asked told to each watch hearing `opens`.
-    function openingOf(page) {
-        if (openings.has(page)) return openings.get(page);
-        const opening = { surfaces: null, opens: new Set() };
-        openings.set(page, opening);
-        hold(page, 'setWindowOpenHandler', (details) => {
-            const name = details.frameName;
-            if (opening.surfaces?.allow(name))
-                return {
-                    action: 'allow',
-                    createWindow: (options) => openSurface(name, options.webContents, opening.surfaces.opened),
-                };
-            for (const opens of opening.opens) opens(details.url, windowOptions(details));
-            return { action: 'deny' };
-        });
-        return opening;
-    }
-
-    // A surface a page opened: in a view of its own, it runs no code and goes nowhere.
-    function openSurface(name, surface, opened) {
-        const { WebContentsView } = require('electron');
-        views.set(surface, new WebContentsView({ webContents: surface }));
-        hold(surface, 'setWindowOpenHandler', () => ({ action: 'deny' }));
-        guard(surface, 'will-frame-navigate', (details) => details.preventDefault());
-        opened(name, surface);
-        return surface;
-    }
-
-    // What Electron makes from now until `release()` is called is deckit's, as Electron tells of it then.
-    function claim() {
-        making += 1;
-        let held = true;
-        return () => {
-            if (!held) return;
-            held = false;
-            making -= 1;
+    // What a page of deck's asks of main: a load of its scheme, its own files or a question, what it posts, where it
+    // goes, and the window it opens. `asked.page` is the page, known once it is made. It is given no permission of the
+    // web's and trusts no certificate the Mac does not: what a mod reaches it reaches through deck.
+    function delegateOf(asked) {
+        return {
+            request: (request) => {
+                if (request.method === 'POST') return MESSAGES.requested(asked.page, request);
+                if (answer) return answer(request);
+                return request.reply({ status: 404, body: '' });
+            },
+            message: (body) => MESSAGES.posted(asked.page, body),
+            navigate: (url) => navigating(asked.page, url),
+            external: (url) => leaving(asked.page, url),
+            open: (opened) => opening(asked.page, opened),
+            permission: () => false,
+            certificate: () => false,
         };
     }
 
-    // What `make()` answers, made as one of deckit's webContents.
-    function made(make) {
-        const release = claim();
-        try {
-            return make();
-        } finally {
-            release();
-        }
+    // A mod's page asked to go outside its origin is told to what watches it leave. A pinned page stays at the address
+    // its first load committed.
+    function navigating(page, url) {
+        if (!String(url).startsWith(origins.get(page) + '/')) leaving(page, url);
+        const address = pins.get(page)?.address;
+        return address && withoutFragment(url) !== address ? 'refuse' : 'load';
+    }
+
+    function leaving(page, url) {
+        if (mods.has(page)) page.emit('leaves', String(url));
+    }
+
+    // What a page's window.open becomes, decided in one place a page has: a blank surface it may open by the name its
+    // window.open targeted (`pages.surfaces`), or none, what it asked told to each watch hearing `opens`.
+    function opening(page, { url, background }) {
+        const held = openingOf(page);
+        const name = held.name;
+        held.name = null;
+        if (name !== null && (url === '' || url === 'about:blank') && held.surfaces?.allow(name))
+            return WEBKIT.listenerFor({
+                delegate: SURFACE,
+                opened: (surface) => {
+                    held.opened.add(surface);
+                    surface.once('destroyed', () => held.opened.delete(surface));
+                    held.surfaces.opened(name, surface);
+                },
+            });
+        for (const opens of held.opens) opens(String(url), { activates: !background, target: name ?? '' });
+        return undefined;
+    }
+
+    function openingOf(page) {
+        if (!openings.has(page))
+            openings.set(page, { surfaces: null, opens: new Set(), name: null, opened: new Set() });
+        return openings.get(page);
+    }
+
+    // What the pages of deck's tell main of themselves.
+    function hear() {
+        MESSAGES.on(CHANNEL.opening, (page, { name }) => {
+            openingOf(page).name = String(name);
+            return null;
+        });
+        MESSAGES.on(CHANNEL.opened, (page) => {
+            openingOf(page).name = null;
+        });
+        MESSAGES.on(CHANNEL.consoleError, (page, { message }) => page.emit('console-error', String(message)));
+        const windowOf = (page) => WINDOWS.idOf(STAGES.windowShowing(page));
+        MESSAGES.on(CHANNEL.drag, (page) => {
+            const id = windowOf(page);
+            if (id !== null) WEBKIT.native().drag(id);
+        });
+        MESSAGES.on(CHANNEL.titleBar, (page) => {
+            const id = windowOf(page);
+            if (id !== null) WEBKIT.native().doubleClickTitleBar(id);
+        });
     }
 
     function configure({ id }) {
@@ -271,17 +291,22 @@ function createEnvironment({ core, preload, openWindow }) {
     }
 }
 
+// A surface: it runs no code of its own and goes nowhere.
+const SURFACE = Object.freeze({
+    request: ({ reply }) => reply({ status: 404, body: '' }),
+    navigate: () => 'refuse',
+});
+
 function close(page) {
-    if (!page.isDestroyed()) page.close();
+    page.close();
 }
 
-// A destroyed page, or one whose renderer is gone, receives nothing.
+// A closed page, or one whose process is gone, receives nothing.
 function isGone(page) {
     return page.isDestroyed() || page.isCrashed();
 }
 
-// `origin` is the page's own, a mod's, for what leaves it, and `openingOf(page)` what its window.open becomes. Answers
-// what stops this watch, and only it.
+// `openingOf(page)` is what its window.open becomes. Answers what stops this watch, and only it.
 function watch(
     guard,
     page,
@@ -295,26 +320,20 @@ function watch(
         opens = null,
         leaves = null,
     } = {},
-    { origin, openingOf }
+    { openingOf }
 ) {
     const added = []; // [event, listener]
     const on = (event, listener, options) => added.push([event, guard(page, event, listener, options)]);
-    if (failed)
-        on('did-fail-load', (_event, code, description, _url, isMainFrame) => {
-            if (isMainFrame && code !== ERR_ABORTED) failed(description);
-        });
+    if (failed) on('failed', (_code, description) => failed(description));
     // A main-frame navigation that commits replaces the document, the first load's included; one refused before it
     // commits leaves it be.
-    if (ended) on('did-navigate', () => ended());
-    if (gone) on('render-process-gone', (_event, { reason }) => gone(reason));
+    if (ended) on('committed', () => ended());
+    if (gone) on('gone', () => gone('crashed'));
     if (destroyed) on('destroyed', () => destroyed(), { once: true });
     if (focused) on('focus', () => focused());
-    if (consoleError) on('console-message', ({ level, message }) => level === 'error' && consoleError(message));
+    if (consoleError) on('console-error', (message) => consoleError(message));
     if (opens) openingOf(page).opens.add(opens);
-    if (leaves && origin)
-        on('will-frame-navigate', (details) => {
-            if (details.isMainFrame && !details.url.startsWith(origin + '/')) leaves(details.url);
-        });
+    if (leaves) on('leaves', (url) => leaves(url));
     return () => {
         for (const [event, listener] of added.splice(0)) page.removeListener(event, listener);
         if (opens) openingOf(page).opens.delete(opens);
@@ -323,31 +342,26 @@ function watch(
 
 // A navigation keeps the page, so a page that left its address would still be taken for what it first loaded while it
 // ran another's page with that one's storage, or ran its own again beside itself. So it stays at the address its
-// first load commits. Main's own loadURL and reload pass without these events.
-function pin(guard, page) {
-    let address = null;
-    guard(page, 'did-navigate', (_event, url) => (address ??= withoutFragment(url)), { once: true });
-    const leaves = (details) => details.isMainFrame && withoutFragment(details.url) !== address;
-    guard(page, 'will-frame-navigate', (details) => leaves(details) && details.preventDefault());
-    guard(page, 'will-redirect', (details) => leaves(details) && details.preventDefault());
+// first load commits. Main's own load and reload pass without being asked.
+function pin(guard, page, pins) {
+    const pinned = { address: null };
+    pins.set(page, pinned);
+    guard(page, 'committed', (url) => (pinned.address ??= withoutFragment(url)), { once: true });
 }
 
-// A key is told before it reaches the page, so before anything watching after this may take it; a click after it
-// reached the page.
+// A key is told before it reaches the page, so before anything watching after this may take it; a click as it
+// reaches the page.
 function watchInput(guard, page, listener) {
-    guard(page, 'before-input-event', (_event, input) => input.type === 'keyDown' && listener({ type: INPUT.keyDown }));
-    guard(page, 'input-event', (_event, input) => {
-        if (input.type === 'mouseDown' || input.type === 'mouseUp') listener({ type: INPUT[input.type] });
-    });
+    guard(page, 'key', (pressed) => pressed.type === 'keyDown' && listener({ type: INPUT.keyDown }));
+    guard(page, 'mouse', (type) => listener({ type: INPUT[type] }));
 }
 
 // A key, told before it reaches the page, taken from it when `handler` answers true. Told after what watchInput
 // watches, when that watch began first.
 function capture(guard, page, handler) {
-    guard(page, 'before-input-event', (event, { type, code, meta, control, alt, shift }) => {
-        const kind = INPUT[type] || String(type).toLowerCase();
-        const pressed = { type: kind, code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
-        if (handler(Object.freeze(pressed))) event.preventDefault();
+    guard(page, 'key', ({ type, code, meta, control, alt, shift }, take) => {
+        const pressed = { type: INPUT[type], code, meta: !!meta, control: !!control, alt: !!alt, shift: !!shift };
+        if (handler(Object.freeze(pressed))) take();
     });
 }
 
@@ -364,13 +378,6 @@ function hotkey(keystroke, handler) {
         held = false;
         globalShortcut.unregister(accelerator);
     };
-}
-
-// The page with the keyboard, in the window that has it: a view keeps its focus in a window gone to the back, and
-// while another app has the keyboard no window of the app's does.
-function focused() {
-    const { BrowserWindow, webContents } = require('electron');
-    return BrowserWindow.getFocusedWindow() ? webContents.getFocusedWebContents() : null;
 }
 
 // A key as Electron's accelerator names it, or null for a key it has no name for.
@@ -405,10 +412,8 @@ function reveal(file) {
     return !!found;
 }
 
-// An app's name as a person reads it. Chromium's own schemes open in no app.
+// An app's name as a person reads it.
 function appFor(url) {
-    const scheme = String(url).split(':')[0].toLowerCase();
-    if (CHROMIUM_SCHEMES.includes(scheme)) return '';
     return require('electron')
         .app.getApplicationNameForProtocol(String(url))
         .replace(/\.app$/i, '');

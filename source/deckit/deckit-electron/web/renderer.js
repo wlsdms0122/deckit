@@ -1,18 +1,17 @@
 import * as PARTITION from './model/partition.js';
-import * as PROTOCOL from './protocol.js';
+import { post, request, on, CHANNEL } from '../messages/renderer.js';
 
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
 // A web page shown in a mod's page, as the Electron environment shows one (deckit-shell/environment: PAGE.web): WebKit
-// draws it in a view of its own over this page, so the element only holds its place, and each frame its place is
-// told to main. What this page draws where it is lies under it; what floats over the page is in its overlay, over
+// draws it in a view of its own laid just over this page, so the element only holds its place, and each frame its place
+// is told to main. What this page draws where it is lies under it; what floats over the page is in its overlay, over
 // both. The keyboard goes to one of the two: the element is focused while the web page has it, and a press in the web
 // page is a press on the element.
 function createViews() {
-    const { ipcRenderer } = require('electron');
     const shown = new Map(); // id -> what main tells of it, `told(event)`
-    ipcRenderer.on(PROTOCOL.told, (_event, { id, event }) => shown.get(id)?.told(event));
+    on(CHANNEL.webTold, ({ id, event }) => shown.get(id)?.told(event));
 
     // `sessions` is the prefix main told the page its mod's sessions are spelled under.
     function view({ sessions, session, url }, { closing, focused }) {
@@ -30,16 +29,17 @@ function createViews() {
         let focusing = false;
 
         const id = new Promise((resolve) => {
-            ipcRenderer
-                .invoke(PROTOCOL.show, { partition: PARTITION.spellIn(sessions, session), url: url || 'about:blank' })
-                .then((given) => {
-                    if (given === null) return;
-                    known = given;
-                    element.dataset.webPage = String(given);
-                    if (removed) return ipcRenderer.send(PROTOCOL.remove, { id: given });
-                    shown.set(given, { told });
-                    resolve(given);
-                });
+            request(CHANNEL.webShow, {
+                partition: PARTITION.spellIn(sessions, session),
+                url: url || 'about:blank',
+            }).then((given) => {
+                if (given === null) return;
+                known = given;
+                element.dataset.webPage = String(given);
+                if (removed) return post(CHANNEL.webRemove, { id: given });
+                shown.set(given, { told });
+                resolve(given);
+            });
         });
 
         function told(event) {
@@ -56,12 +56,12 @@ function createViews() {
 
         // Focusing the element hands the web page the keyboard; focusing anything else of this page takes it back.
         element.addEventListener('focus', () => {
-            if (!focusing && known !== null) ipcRenderer.send(PROTOCOL.focus, { id: known });
+            if (!focusing && known !== null) post(CHANNEL.webFocus, { id: known });
         });
         const leave = () => {
             if (!hasKeyboard || document.activeElement === element) return;
             hasKeyboard = false;
-            ipcRenderer.send(PROTOCOL.unfocus, { id: known });
+            post(CHANNEL.webUnfocus, { id: known });
         };
         document.addEventListener('focusin', leave, true);
 
@@ -86,7 +86,7 @@ function createViews() {
             const said = JSON.stringify(layout);
             if (said === sent) return;
             sent = said;
-            ipcRenderer.send(PROTOCOL.place, layout);
+            post(CHANNEL.webPlace, layout);
         }
 
         function remove() {
@@ -95,7 +95,7 @@ function createViews() {
             document.removeEventListener('focusin', leave, true);
             if (known === null) return;
             shown.delete(known);
-            ipcRenderer.send(PROTOCOL.remove, { id: known });
+            post(CHANNEL.webRemove, { id: known });
         }
 
         // Ended where it is, or before it was ever put in the document.

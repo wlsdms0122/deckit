@@ -19,14 +19,14 @@ const BUNDLES = {
         entry: 'deckit-electron/renderer.js',
         format: 'iife',
         platform: 'browser',
-        target: 'chrome120',
+        target: 'safari17',
         global: 'DeckitRenderer',
     },
     'shell-renderer': {
         entry: 'deckit-shell/renderer.js',
         format: 'iife',
         platform: 'browser',
-        target: 'chrome120',
+        target: 'safari17',
         global: 'DeckitShellRenderer',
     },
 };

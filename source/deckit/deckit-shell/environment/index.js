@@ -266,8 +266,9 @@ const WEB_DECK = Object.freeze({
 // window already, `onClose()` once it is out of a closing window; `size() -> { width, height }`;
 // `whenResized(listener) -> off`; `show(on)`; `lay(laid)`, the pages on it, Laid, bottom to top: a hidden one is kept
 // out of the window, and a page left out, or gone, is taken off; `close()`, the stage ended, its pages taken off and it
-// out of its window. Where a page laid on it marks itself with `-webkit-app-region: drag`, a press drags the window it
-// is in.
+// out of its window. Where a page laid on it, or a surface it opened, marks itself with `--app-region: drag`, a press
+// drags the window it is in and a double click does what the person set a title bar's to do; `--app-region: no-drag`
+// marks what inside it takes presses itself.
 const STAGE = Object.freeze({
     place: 'function',
     size: 'function',
