@@ -1,4 +1,4 @@
-import * as OVERLAY from '../overlay/index.js';
+import * as LAYER from '../layer/index.js';
 
 // MARK: - Property
 const STYLE = `
@@ -138,7 +138,7 @@ function modal(
         actions.append(...[cancel, extra, confirm].filter(Boolean));
         card.append(actions);
     }
-    const layer = OVERLAY.open({
+    const layer = LAYER.open({
         element: scrim,
         modal: true,
         speed: align === 'fill' ? null : 'base',

@@ -1,7 +1,7 @@
 import * as COLOR from '../color/index.js';
 import * as ICON from '../icon/index.js';
 import * as POINTER from '../pointer/index.js';
-import * as OVERLAY from '../overlay/index.js';
+import * as LAYER from '../layer/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as LISTBOX from '../list/listbox.js';
 import * as TREE from '../list/tree.js';
@@ -92,7 +92,7 @@ function addStyle(rules) {
 function install() {
     if (installed) return;
     installed = true;
-    const rules = [OVERLAY, PART, ...components].map((part) => part.STYLE);
+    const rules = [LAYER, PART, ...components].map((part) => part.STYLE);
     addStyle(rules.join('\n'));
 }
 

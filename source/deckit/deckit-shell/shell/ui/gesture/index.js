@@ -1,5 +1,5 @@
 import * as POINTER from '../pointer/index.js';
-import * as OVERLAY from '../overlay/index.js';
+import * as LAYER from '../layer/index.js';
 
 // MARK: - Property
 // A pointer that has not travelled this far since the press is a click, not a drag.
@@ -58,7 +58,7 @@ function press(area, down, pick, begin, cursor) {
         release = null;
         layer?.close();
         layer = null;
-        for (const each of OVERLAY.windows()) each.removeEventListener('wheel', onWheel, { capture: true });
+        for (const each of LAYER.windows()) each.removeEventListener('wheel', onWheel, { capture: true });
         cancelAnimationFrame(frame);
     };
     const finished = () => {
@@ -91,8 +91,8 @@ function press(area, down, pick, begin, cursor) {
             phase = 'held';
             // After `begin`, which puts what the drag carries in the overlay: the overlay is covered with the page.
             release = POINTER.capture(cursor);
-            layer = OVERLAY.open({ modal: true, onDismiss: callOff });
-            for (const each of OVERLAY.windows())
+            layer = LAYER.open({ modal: true, onDismiss: callOff });
+            for (const each of LAYER.windows())
                 each.addEventListener('wheel', onWheel, { capture: true, passive: false });
             frame = requestAnimationFrame(scrollAtEdge);
         }

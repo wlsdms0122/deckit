@@ -1,6 +1,6 @@
 import * as POINTER from '../ui/pointer/index.js';
-import * as OVERLAY from '../ui/overlay/index.js';
-import * as OVERLAY_SURFACE from '../overlay/renderer.js';
+import * as LAYER from '../ui/layer/index.js';
+import * as OVERLAY from '../overlay/renderer.js';
 import * as KIT from '../ui/kit/index.js';
 import * as FRAME from '../panel/frame.js';
 import * as FRAME_PAGE from '../panel/model/page-name.js';
@@ -26,11 +26,11 @@ function page(name, { channels }) {
 // page through the mod's own record of what throws, and `channels` binds the theme's channels in the page.
 function start({ channels, tell }) {
     KIT.addStyle(PAGE_STYLE);
-    const overlay = OVERLAY_SURFACE.open({ channels });
-    POINTER.start([window, overlay.window], { isShown: (each) => each === window || OVERLAY.draws() });
-    OVERLAY.start(overlay);
+    const overlay = OVERLAY.open({ channels });
+    POINTER.start([window, overlay.window], { isShown: (each) => each === window || LAYER.draws() });
+    LAYER.start(overlay);
     const theme = THEME.start({ channels, tell });
-    theme.onChange(() => OVERLAY.dress({ again: true }));
+    theme.onChange(() => LAYER.dress({ again: true }));
     return theme;
 }
 

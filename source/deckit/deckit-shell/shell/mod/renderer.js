@@ -1,4 +1,4 @@
-import * as OVERLAY from '../ui/overlay/index.js';
+import * as LAYER from '../ui/layer/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as STYLE from '../style/renderer.js';
 import * as STYLE_PERMISSION from '../style/model/permission.js';
@@ -36,7 +36,7 @@ function shellOf({ WEB, channels }) {
         let reported = {};
         let page = null; // the theme and the kit, once the page wears them
         let mounted = { unmount() {}, remove() {} };
-        deckit.blockKeysWhen(() => OVERLAY.layers.count() > 0);
+        deckit.blockKeysWhen(() => LAYER.layers.count() > 0);
         return {
             read: (Entry) => ({ icon: iconOf(Entry, fail), form: formOf(Entry, fail) }),
             report: () => reported,
@@ -99,7 +99,7 @@ function shellOf({ WEB, channels }) {
                         if (view) {
                             const tell = (name) =>
                                 typeof view[name] === 'function' && deliver(`${name}()`, () => view[name]());
-                            mounted = PANEL.mount({ theme: page.theme, view, tell, layers: OVERLAY.layers });
+                            mounted = PANEL.mount({ theme: page.theme, view, tell, layers: LAYER.layers });
                         }
                         const window = WINDOW.mount();
                         const styles = { ...(parts.styles || {}) };
@@ -123,7 +123,7 @@ function shellOf({ WEB, channels }) {
         // The page wears what the shell draws with.
         function wear() {
             const theme = PAGE.start({ channels, tell: (listener) => deliver('theme.onChange()', listener) });
-            STYLE.wear({ channels, onChange: () => OVERLAY.dress() });
+            STYLE.wear({ channels, onChange: () => LAYER.dress() });
             return { theme, ui: KIT.make(theme) };
         }
     };
