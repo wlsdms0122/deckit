@@ -734,7 +734,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         // What the host drives of it.
         control: {
             glass: TOKEN.GLASS,
-            // Into one of the host app's windows, as deckit places a view (`bounds`, `onClose`).
+            // Into one of the host app's windows, as a stage is placed (`bounds`, `onClose`).
             place: (window, options) => stage.place(window, options),
             contains,
             show,

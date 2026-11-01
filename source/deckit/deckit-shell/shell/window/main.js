@@ -83,14 +83,14 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
             get overlay() {
                 return held.look.overlay;
             },
-            // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`): the mod's
+            // Into one of the host app's windows, as a stage is placed (`front`, `bounds`, `onClose`): the mod's
             // page fills it. A window the host app closes puts the mod's away.
             place: (window, { onClose = null, ...options } = {}) =>
                 stageOf(held).place(window, {
                     ...options,
-                    onClose: (view) => {
+                    onClose: () => {
                         putAway(held, { told: false });
-                        onClose?.(view);
+                        onClose?.();
                     },
                 }),
             contains: (page) => !!page && OVERLAY.ownerOf(page) === held.page,
