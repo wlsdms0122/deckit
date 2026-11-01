@@ -57,6 +57,18 @@ export function createWindows({ LOG, WEBKIT, openWindow }) {
             setSize: live((size) => native.setWindowSize(id, size)),
             setTitle: live((text) => native.setTitle(id, String(text))),
             setColor: live((given) => native.setColor(id, given)),
+            // Quick Look's panel showing `file`, titled `title`, over the window, and closed.
+            previewFile: live((file, title) => native.previewFile(id, String(file), String(title))),
+            closeFilePreview: live(() => native.closeFilePreview(id)),
+            // Electron's dialogs as a sheet on the window, with the options and answers of Electron's `dialog`.
+            showOpenDialog: async (options = {}) => {
+                const filePaths = closed ? [] : await native.showOpenDialog(id, openPanel(options));
+                return { canceled: !filePaths.length, filePaths };
+            },
+            showSaveDialog: async (options = {}) => {
+                const filePath = closed ? null : await native.showSaveDialog(id, savePanel(options));
+                return { canceled: !filePath, filePath: filePath || '' };
+            },
             // `listener` hears `event` until the off this answers is called, or the window closes.
             on: (event, heard) => {
                 events.on(event, heard);
@@ -90,6 +102,43 @@ export function createWindows({ LOG, WEBKIT, openWindow }) {
     }
 
     // MARK: - Private
+    // Of Electron's options, `title`, `message`, `buttonLabel`, `defaultPath` and `properties`, as NSOpenPanel takes
+    // them; Electron opens files when no property says what.
+    function openPanel({ properties = ['openFile'], ...options }) {
+        return {
+            ...savePanel({ properties, ...options }),
+            canChooseFiles: properties.includes('openFile'),
+            canChooseDirectories: properties.includes('openDirectory'),
+            allowsMultipleSelection: properties.includes('multiSelections'),
+        };
+    }
+
+    // `defaultPath` opens in the folder it names, or names a file in the folder it is in.
+    function savePanel({ title, message, buttonLabel, defaultPath, properties = [] }) {
+        const path = require('path');
+        const at = defaultPath ? String(defaultPath) : '';
+        const where = !at
+            ? {}
+            : isFolder(at)
+              ? { directory: at }
+              : { directory: path.isAbsolute(at) ? path.dirname(at) : undefined, name: path.basename(at) };
+        return {
+            title,
+            message,
+            prompt: buttonLabel,
+            ...where,
+            canCreateDirectories: properties.includes('createDirectory'),
+            showsHiddenFiles: properties.includes('showHiddenFiles'),
+        };
+    }
+
+    function isFolder(at) {
+        try {
+            return require('fs').statSync(at).isDirectory();
+        } catch {
+            return false;
+        }
+    }
 
     return { windows: Object.freeze({ open, focused }), idOf, openForStage };
 }

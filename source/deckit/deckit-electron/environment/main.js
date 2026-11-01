@@ -74,7 +74,7 @@ function createEnvironment({ core, preload, openWindow }) {
     const WINDOWS = createWindows({ LOG, WEBKIT, openWindow });
     const STAGES = createStages({ LOG, WEBKIT, idOf: WINDOWS.idOf, webPagesIn: (page) => WEB.webPagesIn(page) });
     const WEB = createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS });
-    const MAIN_PROCESS = createMainProcess({ LOG, FOLDER });
+    const MAIN_PROCESS = createMainProcess({ LOG, FOLDER, windowShowing: STAGES.windowShowing });
     const NOTIFICATIONS = createNotifications({ guard });
     const origins = new WeakMap(); // a page deck made -> its origin
     const mods = new WeakSet(); // the pages mods run in

@@ -153,7 +153,7 @@ module.exports = ({ emit, window, files }) => {
     };
 
     function closePreview() {
-        if (previewing && !previewing.isDestroyed()) previewing.closeFilePreview();
+        if (previewing && !previewing.isClosed()) previewing.closeFilePreview();
         previewing = null;
     }
 
