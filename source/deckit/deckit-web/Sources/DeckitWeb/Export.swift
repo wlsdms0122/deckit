@@ -28,6 +28,7 @@ enum Export: Int, CaseIterable {
     case hideWindow
     case closeWindow
     case windowFrame
+    case windowState
     case setWindowFrame
     case windowSize
     case setWindowSize

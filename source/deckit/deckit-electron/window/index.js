@@ -52,6 +52,9 @@ export function createWindows({ LOG, WEBKIT, openWindow }) {
             isClosed: () => closed,
             isKey: () => !closed && native.keyWindow() === id,
             frame: () => (closed ? null : native.windowFrame(id)),
+            // Whether it fills the screen as macOS's full screen, or is zoomed to fill it.
+            isFullScreen: () => !closed && native.windowState(id).fullScreen,
+            isZoomed: () => !closed && native.windowState(id).zoomed,
             setFrame: live((rect) => native.setWindowFrame(id, rect)),
             size: () => (closed ? { width: 0, height: 0 } : native.windowSize(id)),
             setSize: live((size) => native.setWindowSize(id, size)),

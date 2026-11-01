@@ -21,10 +21,11 @@ import CNodeAPI
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
 //   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
 //   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
-//   `windowSize(id)`, `setWindowSize(id, size)`, its content's; `setTitle(id, title)`; `setColor(id, color)`;
-//   `keyWindow()`, the window with the keyboard, or null; `doubleClickTitleBar(id)`; `drag(id)`, moved by the press of
-//   the mouse under way, false where none is; `previewFile(id, file, title)` and `closeFilePreview(id)`, Quick Look's
-//   panel over the window; `showOpenDialog(id, options) -> Promise of the paths chosen, none when cancelled` and
+//   `windowState(id) -> { fullScreen, zoomed }`; `windowSize(id)`, `setWindowSize(id, size)`, its content's;
+//   `setTitle(id, title)`; `setColor(id, color)`; `keyWindow()`, the window with the keyboard, or null;
+//   `doubleClickTitleBar(id)`; `drag(id)`, moved by the press of the mouse under way, false where none is;
+//   `previewFile(id, file, title)` and `closeFilePreview(id)`, Quick Look's panel over the window;
+//   `showOpenDialog(id, options) -> Promise of the paths chosen, none when cancelled` and
 //   `showSaveDialog(id, options) -> Promise of the path, or null`, as a sheet on it, `options` NSOpenPanel's (dress).
 // - Input as a person's would come, through the app's watch on its events (WebPage+Input): `sendKey(id, { code, key,
 //   alt, ctrl, meta, shift })`, `code` and `key` as the web names them; `sendMouse(id, { type, x, y })`, `type` `down`,
@@ -192,6 +193,13 @@ final class WebEngine {
 
         case .windowFrame:
             return try node.make(Self.plain(try window(0).frame))
+
+        case .windowState:
+            let shown = try window(0).window
+            return try node.make([
+                "fullScreen": shown.styleMask.contains(.fullScreen),
+                "zoomed": shown.isZoomed
+            ] as [String: Any?])
 
         case .setWindowFrame:
             try window(0).setFrame(try node.rect(try argument(1)))

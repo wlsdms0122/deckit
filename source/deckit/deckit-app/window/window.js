@@ -36,7 +36,7 @@ function createWindow({ CONFIG, THEME, windows }) {
         const window = windows().open({
             kind: 'titled',
             size: windowSize,
-            frame: (key && savedFrame(key, windowSize)) || overFront(windowSize),
+            frame: (key && savedFrame(key)) || overFront(windowSize),
             title: title || CONFIG.name,
             showsTitle: !fullSize,
             ...(glass !== null ? { material: 'hud' } : { color: colourOf(THEME.now().bar.background) }),
@@ -127,12 +127,14 @@ function createWindow({ CONFIG, THEME, windows }) {
         });
     }
 
-    // Kept as it moves, and as it closes in case that came first.
+    // Kept as it moves, and as it closes in case that came first: where it was left as the person placed it, never
+    // full screen or zoomed.
     function remember(window, key) {
         let timer = null;
         let frame = window.frame();
         const save = () => write({ ...read(), [key]: frame });
         const later = () => {
+            if (window.isFullScreen() || window.isZoomed()) return;
             frame = window.frame();
             clearTimeout(timer);
             timer = setTimeout(save, SAVE_DELAY);
@@ -145,9 +147,9 @@ function createWindow({ CONFIG, THEME, windows }) {
         });
     }
 
-    // Where the window was left, or its size over the window in front when that place is on a display no longer
-    // attached.
-    function savedFrame(key, size) {
+    // Where the window was left, or its size over the window in front, or else centred on the main display, when that
+    // place is on a display no longer attached.
+    function savedFrame(key) {
         const frame = read()[key];
         if (!frame) return null;
         const { screen } = require('electron');
@@ -159,7 +161,16 @@ function createWindow({ CONFIG, THEME, windows }) {
                 frame.y < area.y + area.height
             );
         });
-        return onScreen ? frame : overFront({ width: frame.width, height: frame.height });
+        if (onScreen) return frame;
+        const size = { width: frame.width, height: frame.height };
+        const area = screen.getPrimaryDisplay().workArea;
+        return (
+            overFront(size) || {
+                x: Math.round(area.x + (area.width - size.width) / 2),
+                y: Math.round(area.y + Math.max(0, (area.height - size.height) / 2)),
+                ...size,
+            }
+        );
     }
 
     // Centred over the window in front, where the person was when it was asked for.
