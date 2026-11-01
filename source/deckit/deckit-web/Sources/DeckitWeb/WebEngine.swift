@@ -9,17 +9,30 @@ import AppKit
 import WebKit
 import CNodeAPI
 
-// The web pages the module made, by id, and what JavaScript does to them and to their data stores (Export):
-// `make({ store, applicationName, cookieLifetime }, emit) -> id`; `place(id, { window, page, above, frame, visible
-// })`; `load(id, url)`; `go(id, to)`; `focus(id)`; `isFocused(id)`; `state(id)`; `run(id, [{ source, world,
-// mainFrameOnly }])`; `evaluate(id, source, world) -> Promise of JSON`; `find(id, text, { backwards, caseSensitive })
-// -> Promise of whether it found it`; `fetchText(store, url, limit) -> Promise of the text`; `clear(store) -> Promise`; `close(id)`; `safariVersion()`; and `tree(window)`, the window's
-// views as text. A store is a UUID, as WebKit names a data store; none keeps nothing.
+// The pages, windows and stages the module made, each by an id of its own, and what JavaScript does to them and to
+// the pages' data stores (Export).
+// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, fullSpeed }, emit) -> id` (WebPage),
+//   `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document does not, `fullSpeed`
+//   running off screen as on it; `load(id, url)`; `go(id, to)`; `focus(id)`; `isFocused(id)`; `focusedPage()`, the
+//   page with the keyboard, or null; `state(id)`; `run(id, [{ source, world, mainFrameOnly }])`; `evaluate(id, source,
+//   world) -> Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
+//   `fetchText(store, url, limit) -> Promise of the text`; `clear(store) -> Promise`; `close(id)`; `safariVersion()`.
+// - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
+//   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
+//   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
+//   `windowSize(id)`, `setWindowSize(id, size)`, its content's; `setTitle(id, title)`; `setColor(id, color)`;
+//   `keyWindow()`, the window with the keyboard, or null; `doubleClickTitleBar(id)`; `drag(id)`, moved by the press of
+//   the mouse under way, false where none is.
+// - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame } |
+//   { page, hidden: true }])`; `removeStage(id)`; and `tree(window)`, a window's views as text.
+// A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
     // MARK: - Property
     private let node: Node
     private var pages: [Int: WebPage] = [:]
+    private var windows: [Int: Window] = [:]
+    private var stages: [Int: Stage] = [:]
     private var keepers: [UUID: CookieKeeper] = [:]
     private var lastID = 0
     private lazy var input = InputMonitor { [weak self] view in
@@ -47,13 +60,22 @@ final class WebEngine {
             return page
         }
         let string = { (index: Int) throws -> String in try self.node.string(try argument(index)) }
+        let window = { (index: Int) throws -> Window in
+            let id = Int(try self.node.number(try argument(index)))
+            guard let window = self.windows[id] else { throw NodeError(message: "no window \(id)") }
+
+            return window
+        }
+        let stage = { () throws -> Stage in
+            let id = Int(try self.node.number(try argument(0)))
+            guard let stage = self.stages[id] else { throw NodeError(message: "no stage \(id)") }
+
+            return stage
+        }
 
         switch export {
         case .make:
             return try node.make(try make(try argument(0), emit: try argument(1)))
-
-        case .place:
-            try place(try page(), try argument(1))
 
         case .load:
             let address = try string(1)
@@ -68,6 +90,10 @@ final class WebEngine {
 
         case .isFocused:
             return try node.make(try page().isFocused)
+
+        case .focusedPage:
+            let responder = NSApp.keyWindow?.firstResponder as? NSView
+            return try node.make(responder.flatMap { self.page(holding: $0) }?.id)
 
         case .state:
             return try node.make(try page().state)
@@ -141,9 +167,89 @@ final class WebEngine {
                 .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
             return try node.make(version)
 
+        case .openWindow:
+            return try node.make(try openWindow(try argument(0), emit: try argument(1)))
+
+        case .showWindow:
+            let options = arguments.count > 1 && !node.isNothing(arguments[1]) ? arguments[1] : nil
+            let focus = try options.flatMap { try node.member($0, "focus") }.map { try node.bool($0) }
+            try window(0).show(focus: focus ?? true)
+
+        case .hideWindow:
+            try window(0).hide()
+
+        case .closeWindow:
+            try window(0).close()
+
+        case .windowFrame:
+            return try node.make(Self.plain(try window(0).frame))
+
+        case .setWindowFrame:
+            try window(0).setFrame(try node.rect(try argument(1)))
+
+        case .windowSize:
+            let size = try window(0).contentSize
+            return try node.make(["width": Double(size.width), "height": Double(size.height)] as [String: Any?])
+
+        case .setWindowSize:
+            try window(0).setContentSize(try size(try argument(1)))
+
+        case .setTitle:
+            try window(0).setTitle(try string(1))
+
+        case .setColor:
+            try window(0).setColor(try color(arguments.count > 1 ? arguments[1] : nil))
+
+        case .keyWindow:
+            return try node.make(windows.values.first { $0.window.isKeyWindow }?.id)
+
+        case .doubleClickTitleBar:
+            try window(0).doubleClickTitleBar()
+
+        case .drag:
+            let window = try window(0)
+            guard let press = input.press, press.window === window.window, NSEvent.pressedMouseButtons & 1 != 0 else {
+                return try node.make(false)
+            }
+            window.drag(from: press)
+            return try node.make(true)
+
+        case .makeStage:
+            lastID += 1
+            stages[lastID] = Stage(id: lastID)
+            return try node.make(lastID)
+
+        case .placeStage:
+            let options = try argument(1)
+            guard let id = try node.member(options, "window"), let frame = try node.member(options, "frame") else {
+                throw NodeError(message: "a stage is placed in a window, at a frame")
+            }
+            try stage().place(
+                in: try self.window(at: id),
+                frame: try node.rect(frame),
+                front: try node.member(options, "front").map { try node.bool($0) } ?? false
+            )
+
+        case .layStage:
+            try stage().lay(try node.array(try argument(1)).map { layer in
+                guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
+                let page = Int(try node.number(id))
+                guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
+                if try node.member(layer, "hidden").map({ try node.bool($0) }) == true { return (laid, nil) }
+                guard let frame = try node.member(layer, "frame") else {
+                    throw NodeError(message: "a layer is { page, frame } or { page, hidden: true }")
+                }
+
+                return (laid, try node.rect(frame))
+            })
+
+        case .removeStage:
+            let removed = try stage()
+            removed.remove()
+            stages[removed.id] = nil
+
         case .tree:
-            let view = Unmanaged<NSView>.fromOpaque(try node.pointer(try argument(0))).takeUnretainedValue()
-            return try node.make(tree(of: view.window?.contentView ?? view))
+            return try node.make(tree(of: try window(0).window.contentView ?? NSView()))
         }
 
         return node.undefined()
@@ -161,7 +267,17 @@ final class WebEngine {
         {
             keepers[store] = CookieKeeper(store: configuration.websiteDataStore.httpCookieStore, lifetime: lifetime)
         }
-        let page = adopt(configuration, try Emitter(node: node, function: emit))
+        let emitter = try Emitter(node: node, function: emit)
+        if let scheme = try node.member(options, "scheme").map({ try node.string($0) }) {
+            configuration.setURLSchemeHandler(SchemeHandler(emitter: emitter), forURLScheme: scheme)
+        }
+        if try node.member(options, "fullSpeed").map({ try node.bool($0) }) == true {
+            Self.runOffScreen(configuration.preferences)
+        }
+        let page = adopt(configuration, emitter)
+        if try node.member(options, "clear").map({ try node.bool($0) }) == true {
+            Self.drawNoBackground(page.view)
+        }
 
         return page.id
     }
@@ -184,27 +300,94 @@ final class WebEngine {
         return page
     }
 
-    // `{ window, page, above, frame, visible }` (WebPage.place), or a page not shown.
-    private func place(_ page: WebPage, _ layout: napi_value) throws {
-        let visible = try node.member(layout, "visible").map { try node.bool($0) } ?? true
-        guard visible else {
-            page.hide()
-            return
-        }
-        guard let window = try node.member(layout, "window"),
-            let laid = try node.member(layout, "page"),
-            let frame = try node.member(layout, "frame")
-        else {
-            throw NodeError(message: "a layout needs a window, a page and a frame")
+    private func openWindow(_ options: napi_value, emit: napi_value) throws -> Int {
+        let member = { (name: String) throws -> napi_value? in try self.node.member(options, name) }
+        let size = try member("size").map { try self.size($0) } ?? CGSize(width: 800, height: 600)
+        let buttons = try member("buttons").map { try point($0) }
+        lastID += 1
+        let window = Window(
+            id: lastID,
+            kind: try member("kind").map { Window.Kind(rawValue: try node.string($0)) ?? .titled } ?? .titled,
+            size: size,
+            title: try member("title").map { try node.string($0) } ?? "",
+            showsTitle: try member("showsTitle").map { try node.bool($0) } ?? true,
+            color: try color(try member("color")),
+            material: try member("material").map { Self.materials[try node.string($0)] ?? .hudWindow },
+            buttons: buttons,
+            emitter: try Emitter(node: node, function: emit)
+        )
+        windows[window.id] = window
+        let id = window.id
+        window.ended = { [weak self] in
+            self?.windows[id] = nil
         }
 
-        let above = try node.member(layout, "above").map { Int(try node.number($0)) } ?? 0
-        page.place(
-            in: Unmanaged<NSView>.fromOpaque(try node.pointer(window)).takeUnretainedValue(),
-            page: try node.rect(laid),
-            above: above,
-            frame: try node.rect(frame)
-        )
+        return id
+    }
+
+    private func window(at value: napi_value) throws -> Window {
+        let id = Int(try node.number(value))
+        guard let window = windows[id] else { throw NodeError(message: "no window \(id)") }
+
+        return window
+    }
+
+    private func size(_ value: napi_value) throws -> CGSize {
+        guard let width = try node.member(value, "width"), let height = try node.member(value, "height") else {
+            throw NodeError(message: "a size needs width and height")
+        }
+
+        return CGSize(width: try node.number(width), height: try node.number(height))
+    }
+
+    private func point(_ value: napi_value) throws -> CGPoint {
+        guard let x = try node.member(value, "x"), let y = try node.member(value, "y") else {
+            throw NodeError(message: "a point needs x and y")
+        }
+
+        return CGPoint(x: try node.number(x), y: try node.number(y))
+    }
+
+    // `{ red, green, blue }`, each 0 to 255, or none.
+    private func color(_ value: napi_value?) throws -> NSColor? {
+        guard let value, !node.isNothing(value) else { return nil }
+        let part = { (name: String) throws -> CGFloat in
+            guard let part = try self.node.member(value, name) else {
+                throw NodeError(message: "a colour needs \(name)")
+            }
+
+            return CGFloat(try self.node.number(part)) / 255
+        }
+
+        return NSColor(srgbRed: try part("red"), green: try part("green"), blue: try part("blue"), alpha: 1)
+    }
+
+    private static let materials: [String: NSVisualEffectView.Material] = [
+        "hud": .hudWindow,
+        "sidebar": .sidebar,
+        "menu": .menu,
+        "popover": .popover
+    ]
+
+    private static func plain(_ rect: CGRect) -> [String: Any?] {
+        ["x": Double(rect.minX), "y": Double(rect.minY), "width": Double(rect.width), "height": Double(rect.height)]
+    }
+
+    // WebKit's settings that keep a page's timers and process at full speed while it is not seen, where it has them.
+    private static func runOffScreen(_ preferences: WKPreferences) {
+        preferences.inactiveSchedulingPolicy = .none
+        typealias Setter = @convention(c) (AnyObject, Selector, Bool) -> Void
+        for name in ["_setHiddenPageDOMTimerThrottlingEnabled:", "_setPageVisibilityBasedProcessSuppressionEnabled:"] {
+            let selector = NSSelectorFromString(name)
+            guard preferences.responds(to: selector) else { continue }
+            unsafeBitCast(preferences.method(for: selector), to: Setter.self)(preferences, selector, false)
+        }
+    }
+
+    // Clear where the document draws nothing, where WebKit lets a page be.
+    private static func drawNoBackground(_ view: WKWebView) {
+        guard view.responds(to: NSSelectorFromString("setDrawsBackground:")) else { return }
+        view.setValue(false, forKey: "drawsBackground")
     }
 
     private func storeOf(_ text: String) throws -> UUID {

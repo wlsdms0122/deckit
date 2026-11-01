@@ -14,6 +14,8 @@ final class InputMonitor {
     // MARK: - Property
     private let pageOf: @MainActor (NSView) -> WebPage?
     private var monitor: Any?
+    // The latest press of the mouse's button, in any window.
+    private(set) var press: NSEvent?
 
     // MARK: - Initializer
     init(pageOf: @escaping @MainActor (NSView) -> WebPage?) {
@@ -36,6 +38,7 @@ final class InputMonitor {
 
     // MARK: - Private
     private func took(_ event: NSEvent) -> Bool {
+        if event.type == .leftMouseDown { press = event }
         switch event.type {
         case .keyDown, .keyUp:
             guard let responder = event.window?.firstResponder as? NSView, let page = pageOf(responder) else {

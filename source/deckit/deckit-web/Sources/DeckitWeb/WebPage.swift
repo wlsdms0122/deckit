@@ -10,27 +10,26 @@ import CryptoKit
 import WebKit
 import CNodeAPI
 
-// A web page on WebKit, laid where its mod's page shows it, which tells JavaScript what becomes of it and asks it what
-// to do: `emit(event, payload)`. Told: `adopted` ({ id }) first, then `changed` (its state), `started`, `committed`
-// ({ url }), `stopped`, `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message`
-// ({ body }), what deckit's own scripts post, and `external` ({ url }), an address of an app's the page asked to go to.
-// Asked, answered at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow, background }), a function
-// to hear the page given for the window, or nothing for none; `key` ({ type, code, key, meta, control, alt, shift }),
-// true for a key taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate
-// trusted though the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions,
-// reply }).
+// A page on WebKit, laid on a stage, which tells JavaScript what becomes of it and asks it what to do: `emit(event,
+// payload)`. Told: `adopted` ({ id }) first, then `changed` (its state), `started`, `committed` ({ url }), `stopped`,
+// `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body }), what
+// deckit's own scripts post, and `external` ({ url }), an address of an app's the page asked to go to. Asked, answered
+// at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow, background }), a function to hear the page
+// given for the window, or nothing for none; `key` ({ type, code, key, meta, control, alt, shift }), true for a key
+// taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted though
+// the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }), and, for a
+// page made with a scheme of its own, `request` (SchemeHandler).
 @MainActor
 final class WebPage: NSObject {
     // MARK: - Property
     // The world deckit's own scripts run in, apart from the page's, which sees none of them.
     static let deckitWorld = WKContentWorld.world(name: "deckit")
     private static let messages = "deckit"
-    // What a page may go to itself; any other scheme is an app's.
+    // What a page may go to itself, beside a scheme of its own; any other scheme is an app's.
     private static let webSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
 
     let id: Int
     let view: WebPageView
-    let host: WebPageHost
     private let emitter: Emitter
     private let adopt: @MainActor (WKWebViewConfiguration, Emitter) -> WebPage
     private var observations: [NSKeyValueObservation] = []
@@ -53,7 +52,6 @@ final class WebPage: NSObject {
         view.isInspectable = true
         self.id = id
         self.view = view
-        self.host = WebPageHost(content: view)
         self.emitter = emitter
         self.adopt = adopt
         super.init()
@@ -139,34 +137,6 @@ final class WebPage: NSObject {
         }
     }
 
-    // Laid in `window`'s view tree, over the view that draws the mod's page, which is at `page` in the window's
-    // content with `above` shown pages laid over it at that same rect, at `frame` in that page, both from their top
-    // left. Where no view draws the page there, it stays over the one it was over, or else goes over the window's
-    // content.
-    func place(in window: NSView, page: CGRect, above: Int, frame: CGRect) {
-        guard let content = window.window?.contentView else {
-            hide()
-            return
-        }
-
-        let container = pageView(in: content, at: page, above: above) ?? host.superview ?? content
-        if host.superview !== container {
-            host.removeFromSuperview()
-            container.addSubview(host)
-        }
-        host.frame = container.bounds
-        host.autoresizingMask = [.width, .height]
-        let origin = container === content
-            ? CGPoint(x: page.minX + frame.minX, y: page.minY + frame.minY)
-            : frame.origin
-        host.lay(CGRect(origin: origin, size: frame.size))
-        host.isHidden = false
-    }
-
-    func hide() {
-        host.isHidden = true
-    }
-
     // What a key does, asked of JavaScript before the page has it.
     func pressed(_ event: NSEvent) -> Bool {
         let flags = event.modifierFlags
@@ -224,7 +194,7 @@ final class WebPage: NSObject {
         view.navigationDelegate = nil
         view.uiDelegate = nil
         view.onFocus = nil
-        host.removeFromSuperview()
+        view.removeFromSuperview()
         emitter.release()
     }
 
@@ -249,33 +219,6 @@ final class WebPage: NSObject {
             view.observe(\.cameraCaptureState) { _, _ in MainActor.assumeIsolated { told() } },
             view.observe(\.microphoneCaptureState) { _, _ in MainActor.assumeIsolated { told() } }
         ]
-    }
-
-    // The view of Chromium's that draws a web contents at `rect` in the window's content, under `above` shown ones at
-    // that rect: views are drawn in the order they are laid, so that is the mod's page.
-    private func pageView(in content: NSView, at rect: CGRect, above: Int) -> NSView? {
-        var found: [NSView] = []
-        func search(_ view: NSView) {
-            guard view !== host else { return }
-            if String(describing: type(of: view)).contains("WebContentsViewCocoa") {
-                let frame = view.convert(view.bounds, to: content)
-                let top = content.isFlipped ? frame.minY : content.bounds.height - frame.maxY
-                let placed = CGRect(x: frame.minX, y: top, width: frame.width, height: frame.height)
-                if abs(placed.minX - rect.minX) < 1, abs(placed.minY - rect.minY) < 1,
-                    abs(placed.width - rect.width) < 1, abs(placed.height - rect.height) < 1
-                {
-                    found.append(view)
-                    return
-                }
-            }
-            for subview in view.subviews { search(subview) }
-        }
-        search(content)
-
-        let shown = found.filter { !$0.isHiddenOrHasHiddenAncestor }
-        let index = shown.count - 1 - above
-
-        return shown.indices.contains(index) ? shown[index] : nil
     }
 
     private func dialog(_ alert: NSAlert, done: @escaping @MainActor (NSApplication.ModalResponse) -> Void) {
@@ -331,7 +274,9 @@ extension WebPage: WKNavigationDelegate {
             decisionHandler(.allow)
             return
         }
-        if let scheme = url.scheme?.lowercased(), !Self.webSchemes.contains(scheme) {
+        if let scheme = url.scheme?.lowercased(), !Self.webSchemes.contains(scheme),
+            webView.configuration.urlSchemeHandler(forURLScheme: scheme) == nil
+        {
             decisionHandler(.cancel)
             emitter.emit("external", ["url": url.absoluteString])
             return
