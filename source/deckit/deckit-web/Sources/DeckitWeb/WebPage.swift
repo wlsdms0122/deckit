@@ -201,11 +201,15 @@ final class WebPage: NSObject {
         }
     }
 
-    // The process the page's content runs in ended, as a crash ends it, where WebKit lets it be.
+    // The process the page's content runs in ended, as a crash ends it, where WebKit says which process it is.
     func killProcess() {
-        let selector = NSSelectorFromString("_killWebContentProcess")
-        guard view.responds(to: selector) else { return }
-        view.perform(selector)
+        let selector = NSSelectorFromString("_webProcessIdentifier")
+        guard view.responds(to: selector), let process = view.value(forKey: "_webProcessIdentifier") as? Int32,
+              process > 0 else {
+            return
+        }
+
+        kill(process, SIGKILL)
     }
 
     func close() {

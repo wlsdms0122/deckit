@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import ObjectiveC
 
 // Input made for the page as a person's would come: each event is handed to `input` as the app hands it one, and goes
 // on to the page unless a page took it there. It reaches the page whether or not the app is the active one.
@@ -55,12 +56,14 @@ extension WebPage {
         }
         switch type {
         case .leftMouseDown:
+            HeldButton.hold(true)
             view.mouseDown(with: event)
 
         case .leftMouseDragged:
             view.mouseDragged(with: event)
 
         default:
+            HeldButton.hold(false)
             view.mouseUp(with: event)
         }
     }
@@ -84,8 +87,32 @@ extension WebPage {
     ]
 
     private func shownWindow() throws -> NSWindow {
-        guard let window = view.window else { throw NodeError(message: "a page off screen takes no input") }
+        guard let window = view.window, !view.isHiddenOrHasHiddenAncestor else {
+            throw NodeError(message: "a page off screen takes no input")
+        }
 
         return window
+    }
+}
+
+// The mouse's left button held in the input made here, which WebKit reads with the system's buttons
+// (`NSEvent.pressedMouseButtons`) as it makes a page's pointer events.
+private enum HeldButton {
+    // MARK: - Property
+    nonisolated(unsafe) private static var held = false
+    private static let answered: Void = {
+        let selector = #selector(getter: NSEvent.pressedMouseButtons)
+        guard let method = class_getClassMethod(NSEvent.self, selector) else { return }
+
+        typealias Getter = @convention(c) (AnyClass, Selector) -> Int
+        let system = unsafeBitCast(method_getImplementation(method), to: Getter.self)
+        let pressed: @convention(block) (AnyClass) -> Int = { type in system(type, selector) | (held ? 1 : 0) }
+        method_setImplementation(method, imp_implementationWithBlock(pressed))
+    }()
+
+    // MARK: - Public
+    static func hold(_ on: Bool) {
+        _ = answered
+        held = on
     }
 }
