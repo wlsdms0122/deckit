@@ -36,6 +36,10 @@ enum Export: Int, CaseIterable {
     case keyWindow
     case doubleClickTitleBar
     case drag
+    case previewFile
+    case closeFilePreview
+    case showOpenDialog
+    case showSaveDialog
     case makeStage
     case placeStage
     case layStage

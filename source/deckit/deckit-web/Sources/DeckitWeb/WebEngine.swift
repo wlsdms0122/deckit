@@ -23,7 +23,9 @@ import CNodeAPI
 //   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
 //   `windowSize(id)`, `setWindowSize(id, size)`, its content's; `setTitle(id, title)`; `setColor(id, color)`;
 //   `keyWindow()`, the window with the keyboard, or null; `doubleClickTitleBar(id)`; `drag(id)`, moved by the press of
-//   the mouse under way, false where none is.
+//   the mouse under way, false where none is; `previewFile(id, file, title)` and `closeFilePreview(id)`, Quick Look's
+//   panel over the window; `showOpenDialog(id, options) -> Promise of the paths chosen, none when cancelled` and
+//   `showSaveDialog(id, options) -> Promise of the path, or null`, as a sheet on it, `options` NSOpenPanel's (dress).
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame } |
 //   { page, hidden: true }])`; `showStage(id, on)`; `removeStage(id)`; and `tree(window)`, a window's views as text.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
@@ -215,6 +217,41 @@ final class WebEngine {
             window.drag(from: press)
             return try node.make(true)
 
+        case .previewFile:
+            try window(0).previewFile(URL(fileURLWithPath: try string(1)), title: try string(2))
+
+        case .closeFilePreview:
+            try window(0).closeFilePreview()
+
+        case .showOpenDialog:
+            let shown = try window(0)
+            let panel = NSOpenPanel()
+            let options = arguments.count > 1 && !node.isNothing(arguments[1]) ? arguments[1] : nil
+            try dress(panel, options)
+            let flag = { (name: String) throws -> Bool? in
+                try options.flatMap { try self.node.member($0, name) }.map { try self.node.bool($0) }
+            }
+            panel.canChooseFiles = try flag("canChooseFiles") ?? true
+            panel.canChooseDirectories = try flag("canChooseDirectories") ?? false
+            panel.allowsMultipleSelection = try flag("allowsMultipleSelection") ?? false
+            let (promise, settle) = try promised()
+            Task { @MainActor in
+                let response = await shown.runSheet(panel)
+                settle(.success(response == .OK ? panel.urls.map(\.path) : []))
+            }
+            return promise
+
+        case .showSaveDialog:
+            let shown = try window(0)
+            let panel = NSSavePanel()
+            try dress(panel, arguments.count > 1 && !node.isNothing(arguments[1]) ? arguments[1] : nil)
+            let (promise, settle) = try promised()
+            Task { @MainActor in
+                let response = await shown.runSheet(panel)
+                settle(.success(response == .OK ? panel.url?.path : nil))
+            }
+            return promise
+
         case .makeStage:
             lastID += 1
             stages[lastID] = Stage(id: lastID)
@@ -326,6 +363,27 @@ final class WebEngine {
         }
 
         return id
+    }
+
+    // A dialog's `title`, `message`, `prompt`, `directory` it opens in, `name` in its name field, and whether it
+    // `canCreateDirectories` and `showsHiddenFiles`, as `options` give them.
+    private func dress(_ panel: NSSavePanel, _ options: napi_value?) throws {
+        guard let options else { return }
+        let text = { (name: String) throws -> String? in
+            try self.node.member(options, name).map { try self.node.string($0) }
+        }
+        let flag = { (name: String) throws -> Bool? in
+            try self.node.member(options, name).map { try self.node.bool($0) }
+        }
+        if let title = try text("title") { panel.title = title }
+        if let message = try text("message") { panel.message = message }
+        if let prompt = try text("prompt") { panel.prompt = prompt }
+        if let directory = try text("directory") {
+            panel.directoryURL = URL(fileURLWithPath: directory, isDirectory: true)
+        }
+        if let name = try text("name") { panel.nameFieldStringValue = name }
+        if let create = try flag("canCreateDirectories") { panel.canCreateDirectories = create }
+        if let hidden = try flag("showsHiddenFiles") { panel.showsHiddenFiles = hidden }
     }
 
     private func window(at value: napi_value) throws -> Window {

@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Quartz
 
 // A window of the module's, which tells JavaScript what becomes of it: `resize` ({ width, height }, its content's
 // size), `moving`, before the person moves it, `moved`, `key` and `resign`, as it takes and loses the keyboard, and
@@ -29,6 +30,8 @@ final class Window: NSObject {
     // Where the close button's top left is, from the window's top left.
     private let buttons: CGPoint?
     private var closed = false
+    // What Quick Look's panel shows while the window controls it.
+    private var preview: FilePreview?
 
     // MARK: - Initializer
     // `color` is laid under what the window shows; `material` blurs what is behind it instead. `showsTitle` draws the
@@ -87,6 +90,24 @@ final class Window: NSObject {
         layButtons()
     }
 
+    // MARK: - Lifecycle
+    // Quick Look's panel is controlled by the window in front that accepts it, which hands it what it previews. AppKit
+    // asks on the main thread.
+    override nonisolated func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        MainActor.assumeIsolated { preview != nil }
+    }
+
+    override nonisolated func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        MainActor.assumeIsolated { panel.dataSource = preview }
+    }
+
+    override nonisolated func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        MainActor.assumeIsolated {
+            panel.dataSource = nil
+            preview = nil
+        }
+    }
+
     // MARK: - Public
     var frame: CGRect {
         Self.flipped(window.frame)
@@ -136,6 +157,29 @@ final class Window: NSObject {
         guard !(window.contentView is NSVisualEffectView) else { return }
         window.isOpaque = color != nil
         window.backgroundColor = color ?? .clear
+    }
+
+    // `file` in Quick Look's panel, titled `title`, over the window.
+    func previewFile(_ file: URL, title: String) {
+        preview = FilePreview(file: file, title: title)
+        guard let panel = QLPreviewPanel.shared() else { return }
+        if panel.isVisible, panel.currentController as AnyObject? === self {
+            panel.dataSource = preview
+            panel.reloadData()
+            return
+        }
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    // Quick Look's panel closed, where it shows what the window handed it.
+    func closeFilePreview() {
+        guard QLPreviewPanel.sharedPreviewPanelExists(), let panel = QLPreviewPanel.shared() else { return }
+        if panel.currentController as AnyObject? === self { panel.close() }
+    }
+
+    // `panel` as a sheet on the window, answered once the person closes it.
+    func runSheet(_ panel: NSSavePanel) async -> NSApplication.ModalResponse {
+        await panel.beginSheetModal(for: window)
     }
 
     // What the person set a double click on a title bar to do.
