@@ -305,6 +305,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
             title,
             size,
             stage,
+            focus: () => page.focus(),
             onClose: () => {
                 closing = true;
                 stage.close();

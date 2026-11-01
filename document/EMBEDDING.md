@@ -73,7 +73,7 @@ What the host app answers the environment:
 
 | | |
 |---|---|
-| `openWindow({ title, size, place })` | a window deckit needs for a web page it shows on its own: one a mod opens in a window, or a site's popup. The host app opens it with `windows.open`, frames it, puts the page in it by calling `place(window, { bounds })`, and returns it at once. `size` is the page's |
+| `openWindow({ title, size, place, focus })` | a window deckit needs for a web page it shows on its own: one a mod opens in a window, or a site's popup. The host app opens it with `windows.open`, frames it, puts the page in it by calling `place(window, { bounds })`, calls `focus()` each time the window takes the keyboard, and returns it at once. `size` is the page's |
 
 What the host app answers deckit:
 
@@ -99,7 +99,7 @@ A mod's window control is the same object from run to run, until the mod is gone
 
 When the host app quits, once every window has closed, deck holds the quit at `will-quit` until every mod's run has ended, `detach()` and `stop()` two seconds at most each, and deckit until the main process modules of those runs have ended (`dispose`, two seconds at most each), and then asks for the quit again: it goes on as any quit does, `quit` and all. The host app's `before-quit` and `will-quit` listeners hear both. While a mod runs, the first `will-quit` is deck's hold, and while a main process module is still ending, the next one is deckit's: the host app calls the quit off at the first `before-quit` or at a later pass, and with nothing running there is one pass. A quit the host app calls off leaves the mods that stopped for it stopped, and the next quit stops the runs that started since. A core that has ended holds no quit. A restart the host app makes is a quit too, `app.relaunch()` and then `app.quit()`; `app.exit()` skips every end. The process ends with code 0; a host app that ends it with another calls `app.exit(code)` from its `quit` listener. `openWindow` can be asked as mods load, and `panelTitled` before `start`.
 
-The keyboard in a window is the host app's to give. macOS hands it to the window each time the window comes forward, not to a page in it, so the host app gives it to the page as the window takes it (the window's `key`): `controls.panel.focus()` for the panel, `control.focus()` for a mod's window, and the page for a window it opened.
+The keyboard in a window is the host app's to give. macOS hands it to the window each time the window comes forward, not to a page in it, so the host app gives it to the page as the window takes it (the window's `key`): `controls.panel.focus()` for the panel, `control.focus()` for a mod's window, and `focus()` for a window `openWindow` asked for.
 
 What `controls` holds, `{ setTheme, panel }`:
 

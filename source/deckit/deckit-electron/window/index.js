@@ -95,12 +95,14 @@ export function createWindows({ LOG, WEBKIT, openWindow }) {
     }
 
     // A window of the app's for what deckit shows on its own, a web page's, of `size`, titled `title`: the host app
-    // opens and frames it, and puts the stage where it says (`place`).
-    function openForStage({ title = '', size = null, stage, onClose = null }) {
+    // opens and frames it, puts the stage where it says (`place`), and hands the keyboard on (`focus`) as the window
+    // takes it.
+    function openForStage({ title = '', size = null, stage, onClose = null, focus }) {
         return openWindow({
             title,
             size,
             place: (window, { bounds = null } = {}) => stage.place(window, { bounds, onClose }),
+            focus,
         });
     }
 
