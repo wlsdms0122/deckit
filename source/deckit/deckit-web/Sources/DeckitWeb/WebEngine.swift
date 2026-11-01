@@ -389,7 +389,7 @@ final class WebEngine {
 
     // Clear where the document draws nothing, where WebKit lets a page be.
     private static func drawNoBackground(_ view: WKWebView) {
-        guard view.responds(to: NSSelectorFromString("setDrawsBackground:")) else { return }
+        guard view.responds(to: NSSelectorFromString("_setDrawsBackground:")) else { return }
         view.setValue(false, forKey: "drawsBackground")
     }
 
