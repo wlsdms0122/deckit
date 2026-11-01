@@ -120,12 +120,13 @@ final class Window: NSObject {
     // Brought forward and given the keyboard: a titled window brings the app forward, a floating one does not.
     func show(focus: Bool) {
         if window.isMiniaturized { window.deminiaturize(nil) }
-        guard focus else {
+        if focus {
+            if !(window is NSPanel) { NSApp.activate() }
+            window.makeKeyAndOrderFront(nil)
+        } else {
             window.orderFront(nil)
-            return
         }
-        if !(window is NSPanel) { NSApp.activate() }
-        window.makeKeyAndOrderFront(nil)
+        layButtons()
     }
 
     func hide() {
@@ -150,6 +151,7 @@ final class Window: NSObject {
 
     func setTitle(_ title: String) {
         window.title = title
+        layButtons()
     }
 
     // A colour under what the window shows, or none; a window that blurs keeps its blur.
@@ -220,7 +222,8 @@ final class Window: NSObject {
     }
 
     // The buttons where they were asked for: the bar they sit in is as tall as their top's distance, both above and
-    // below them, so they stay centred on it. AppKit lays the bar again as the window changes, so this follows.
+    // below them, so they stay centred on it. AppKit lays the bar again as the window is shown, retitled or resized, so
+    // this follows each.
     private func layButtons() {
         guard let buttons,
             let close = window.standardWindowButton(.closeButton),
