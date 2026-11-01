@@ -88,7 +88,8 @@ function dress({ again = false } = {}) {
 // - A key goes to `onKey` first; one it does not take (it returns falsy) that is Escape dismisses the layer.
 // - A `transient` layer is also dismissed by a scroll outside it, a resize and the keyboard leaving the page and its
 //   overlay. One that stays through a resize is placed again, against what it hangs from where that is now.
-// - Dismissing calls `onDismiss`; `close()` plays the exit and takes the element away.
+// - Dismissing calls `onDismiss`; `close()` plays the exit, `fast` or `base` long by `speed`, or none for null, and
+//   takes the element away.
 function open({
     element = null,
     anchor = null,
