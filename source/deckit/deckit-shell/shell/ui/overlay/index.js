@@ -133,7 +133,7 @@ function place(
     element,
     { anchor = null, rect = null, point = null, beside = null, gap = 4, align = 'start', prefer = 'bottom' }
 ) {
-    element.style.webkitAppRegion = 'no-drag';
+    element.style.setProperty('--app-region', 'no-drag');
     const width = element.offsetWidth;
     const height = element.offsetHeight;
     let x;
@@ -179,7 +179,7 @@ function show(element, layer) {
     element.classList.add('deckit-surface');
     element.dataset.state = 'closed';
     element.style.zIndex = String(layer.z);
-    element.style.webkitAppRegion = 'no-drag';
+    element.style.setProperty('--app-region', 'no-drag');
     append(element);
     layer.place();
     void element.offsetHeight;
