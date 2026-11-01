@@ -13,7 +13,7 @@ import CNodeAPI
 // the pages' data stores (Export).
 // - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, fullSpeed }, emit) -> id` (WebPage),
 //   `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document does not, as do the
-//   windows it opens, `fullSpeed` running off screen as on it; `load(id, url)`; `go(id, to)`; `focus(id)`;
+//   windows it opens, `fullSpeed` running off screen or covered as on it; `load(id, url)`; `go(id, to)`; `focus(id)`;
 //   `isFocused(id)`; `focusedPage()`, the page with the keyboard, or null; `state(id)`; `run(id, [{ source, world,
 //   mainFrameOnly }])`; `evaluate(id, source, world) -> Promise of JSON`; `find(id, text, { backwards, caseSensitive
 //   }) -> Promise of whether it found it`; `fetchText(store, url, limit) -> Promise of the text`; `clear(store) ->
@@ -363,17 +363,21 @@ final class WebEngine {
         if let scheme = try node.member(options, "scheme").map({ try node.string($0) }) {
             configuration.setURLSchemeHandler(SchemeHandler(emitter: emitter), forURLScheme: scheme)
         }
-        if try node.member(options, "fullSpeed").map({ try node.bool($0) }) == true {
-            Self.runOffScreen(configuration.preferences)
-        }
+        let fullSpeed = try node.member(options, "fullSpeed").map { try node.bool($0) } ?? false
+        if fullSpeed { Self.runOffScreen(configuration.preferences) }
         let clear = try node.member(options, "clear").map { try node.bool($0) } ?? false
 
-        return adopt(configuration, emitter, clear: clear).id
+        return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed).id
     }
 
-    // A page of the module's, on `configuration`: a new one, or WebKit's for a window a page opened, clear as the page
-    // that opened it is.
-    private func adopt(_ configuration: WKWebViewConfiguration, _ emitter: Emitter, clear: Bool) -> WebPage {
+    // A page of the module's, on `configuration`: a new one, or WebKit's for a window a page opened, clear and at full
+    // speed as the page that opened it is.
+    private func adopt(
+        _ configuration: WKWebViewConfiguration,
+        _ emitter: Emitter,
+        clear: Bool,
+        fullSpeed: Bool
+    ) -> WebPage {
         lastID += 1
         let page = WebPage(
             id: lastID,
@@ -382,9 +386,10 @@ final class WebEngine {
         ) { [weak self] configuration, emitter in
             guard let self else { fatalError("a web page outlived the module") }
 
-            return adopt(configuration, emitter, clear: clear)
+            return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed)
         }
         if clear { Self.drawNoBackground(page.view) }
+        if fullSpeed { Self.runWhileCovered(page.view) }
         pages[page.id] = page
         input.start()
 
@@ -500,6 +505,15 @@ final class WebEngine {
             guard preferences.responds(to: selector) else { continue }
             unsafeBitCast(preferences.method(for: selector), to: Setter.self)(preferences, selector, false)
         }
+    }
+
+    // WebKit's setting that keeps a page seen, its animation frames running, while other windows cover its window,
+    // where it has it.
+    private static func runWhileCovered(_ view: WKWebView) {
+        let selector = NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")
+        guard view.responds(to: selector) else { return }
+        typealias Setter = @convention(c) (AnyObject, Selector, Bool) -> Void
+        unsafeBitCast(view.method(for: selector), to: Setter.self)(view, selector, false)
     }
 
     // Clear where the document draws nothing, where WebKit lets a page be.
