@@ -129,7 +129,7 @@ async function main() {
     check("main refuses what is not the channel's fields", refused.kind === 'REFUSED', refused);
     const atOnce = A.environment.messages.askSync({ channel: 'deckit-shell:setup', payload: {} });
     check('a page asking sync waits for a promise to settle', atOnce.returnValue === undefined, atOnce.returnValue);
-    await later(20);
+    for (let waited = 0; atOnce.returnValue === undefined && waited < 1000; waited += 10) await later(10);
     check('a page asks main sync', atOnce.returnValue?.value?.from === 'A', atOnce.returnValue);
     const notAtOnce = A.environment.messages.askSync({
         channel: 'deckit-shell:ask',

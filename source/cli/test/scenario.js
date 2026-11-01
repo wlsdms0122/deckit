@@ -86,24 +86,14 @@ function storeOf(partition) {
     return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-// The web pages WebKit shows in a window, as the module tells its views (a line each, indented under its superview,
-// `Type {{x, y}, {width, height}}`, then whether it is hidden): each shown page's rect in its superview, and the types
-// from it up.
-function webViewsIn(tree) {
-    const lines = String(tree || '').split('\n');
-    const found = [];
-    const above = []; // [{ type, hidden }] by depth
-    for (const line of lines) {
-        const match = /^( *)(\S+) \{\{([-\d.]+), ([-\d.]+)\}, \{([-\d.]+), ([-\d.]+)\}\}(.*)$/.exec(line);
-        if (!match) continue;
-        const depth = match[1].length / 2;
-        above.length = depth;
-        above.push({ type: match[2], hidden: / hidden/.test(match[7]) });
-        if (match[2] !== 'WebPageView' || above.some(({ hidden }) => hidden)) continue;
-        const [x, y, width, height] = match.slice(3, 7).map(Number);
-        found.push({ rect: { x, y, width, height }, chain: above.map(({ type }) => type).reverse() });
-    }
-    return found;
+// A line of WebKit's module's `tree`, a view indented under its superview: its type, its frame in its superview,
+// whether it is hidden, and the page it shows, if one.
+function viewOf(line) {
+    const match = /^ *(\S+) \{\{([-\d.]+), ([-\d.]+)\}, \{([-\d.]+), ([-\d.]+)\}\}(.*)$/.exec(line);
+    if (!match) return null;
+    const [x, y, width, height] = match.slice(2, 6).map(Number);
+    const page = Number(/ page (\d+)/.exec(match[6])?.[1]) || null;
+    return { type: match[1], rect: { x, y, width, height }, hidden: / hidden/.test(match[6]), page };
 }
 
 // Whether two rects are the same to a point.
@@ -120,34 +110,77 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         (await page('deckit://panel'))?.evaluate(
             `document.querySelector('[data-mod-id][aria-selected="true"]')?.dataset.modId`
         );
-    const visibility = async (id) => ((await current()) === id ? 'visible' : 'hidden');
-    // The pages laid with the panel's frame, bottom to top, as a main process module of the window probe's finds
-    // them: { url, name, opener, shown, width } each, `name` a surface's and `opener` the page that opened it; whether it finds the window its own page is shown in; and the stages in the
-    // frame's window, { shown, pages } each.
+    // A mod is visible once it is on screen as the frame says and its page is laid shown.
+    const visibility = async (id) => ((await current()) === id && (await laidShown(id)) ? 'visible' : 'hidden');
+    const laidShown = async (id) =>
+        (await laidNow()).some(({ stages }) =>
+            stages.some(
+                ({ shown, pages }) =>
+                    shown && pages.some(({ url, hidden }) => !hidden && url.startsWith(`deckit://${id}.mod`))
+            )
+        );
+    // Every window of WebKit's module: its content's size, and its stages from the bottom, each whether it is shown
+    // and the pages on it, bottom to top, `{ id, width, height, stages: [{ shown, rect, pages: [{ id, url, rect,
+    // hidden }] }] }`.
+    const laidNow = async () => {
+        const found = await main(`return {
+            windows: webkit.windows().map((id) => ({ id, tree: webkit.tree(id) })),
+            urls: Object.fromEntries(webkit.pages().map((id) => [id, webkit.state(id).url])),
+        }`);
+        return (found?.windows || []).map(({ id, tree }) => {
+            const views = tree.split('\n').map(viewOf).filter(Boolean);
+            const stages = [];
+            for (const view of views) {
+                if (view.type === 'StageView') stages.push({ shown: !view.hidden, rect: view.rect, pages: [] });
+                else if (view.page && stages.length)
+                    stages.at(-1).pages.push({
+                        id: view.page,
+                        url: found.urls[view.page] || '',
+                        rect: view.rect,
+                        hidden: view.hidden,
+                    });
+            }
+            return { id, width: views[0]?.rect.width, height: views[0]?.rect.height, stages };
+        });
+    };
+    // The pages laid with the panel's frame, bottom to top: { url, name, opener, shown, width } each, `name` a
+    // surface's and `opener` the page that opened it; whether the window probe's main process module finds the window
+    // its own page is shown in; and the stages in the frame's window, { shown, pages } each.
     const stackNow = async () => {
         const probe = await page('deckit://window-probe.mod');
         await probe?.evaluate(
-            `delete document.documentElement.dataset.stack; document.dispatchEvent(new CustomEvent('test-stack'))`
+            `delete document.documentElement.dataset.found; document.dispatchEvent(new CustomEvent('test-stack'))`
         );
-        const read = async () => {
-            const written = await probe?.evaluate('document.documentElement.dataset.stack');
-            return typeof written === 'string' ? JSON.parse(written) : undefined;
-        };
-        const stack = (await until(async () => (await read()) || false, 4000)) || [];
-        stack.found = (await probe?.evaluate('document.documentElement.dataset.found')) === 'true';
-        stack.stages = JSON.parse((await probe?.evaluate('document.documentElement.dataset.stages')) || '[]');
+        const found = await until(
+            async () => (await probe?.evaluate('document.documentElement.dataset.found')) || false,
+            4000
+        );
+        const panel = (await targets()).find(({ url }) => url.startsWith('deckit://panel'));
+        const holds = ({ pages }) => pages.some(({ id }) => id === panel?.id);
+        const window = (await laidNow()).find(({ stages }) => stages.some(holds));
+        const stack = [];
+        for (const { id, url, rect } of window?.stages.find(holds)?.pages || []) {
+            const [name, opener] =
+                (await webPage(id).evaluate(`[window.name, window.opener?.location.href ?? '']`)) || [];
+            stack.push({ url, name, opener, shown: true, width: rect.width });
+        }
+        stack.found = found === 'true';
+        stack.stages = (window?.stages || []).map(({ shown, pages }) => ({
+            shown,
+            pages: pages.map(({ url }) => url),
+        }));
         return stack;
     };
     const urlsOf = (stack) => (Array.isArray(stack) ? stack.map(({ url }) => url.replace(/\/$/, '')) : []);
 
-    // The panel's window as a person sees it, its pages laid one over another from the bottom: the window's own page,
-    // the backdrop, the mod on screen and the frame. The width's handle is left out.
+    // The panel's window as a person sees it, its pages laid one over another from the bottom: the backdrop, the mod
+    // on screen and the frame. The width's handle is left out.
     const panelShot = async (name, id) => {
         const backdrop = await until(async () => {
             for (const surface of await pages('about:blank'))
                 if ((await surface.evaluate('window.name')) === 'backdrop') return surface;
         }, 2000);
-        const layers = [await page('data:'), backdrop, await page(`deckit://${id}.mod`), await page('deckit://panel')];
+        const layers = [backdrop, await page(`deckit://${id}.mod`), await page('deckit://panel')];
         if (layers.every(Boolean))
             await compose(
                 name,
@@ -160,6 +193,13 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
     try {
         const editor = await page('deckit://editor.mod');
         const frame = await page('deckit://panel');
+        // The mod `id` brought on screen, picked in the list as a person picks it: only a page on screen has keys.
+        const show = async (id) => {
+            const row = `document.querySelector('[data-mod-id="${id}"]').getBoundingClientRect()`;
+            await until(() => frame.evaluate(`${row}.bottom <= innerHeight`), 3000);
+            await frame.press(`[data-mod-id="${id}"]`);
+            await until(async () => (await visibility(id)) === 'visible', 3000);
+        };
         check('editor view up', editor);
         check('editor visible first', (await visibility('editor')) === 'visible', await visibility('editor'));
         const rows = await frame.evaluate(
@@ -183,14 +223,13 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
             ''
         );
 
-        // The list is one, so where it is scrolled stays as the mod on screen changes.
+        // The list is one, so where it is scrolled stays as the mod on screen changes. Back by its key: the row of a
+        // mod scrolled out of sight is not pressed.
         const list = `document.querySelector('.deckit-sidebar-nav .deckit-section-body')`;
+        await show('note');
         await frame.evaluate(`document.querySelector('.deckit-sidebar-nav').style.height = '90px'`);
         await frame.evaluate(`${list}.scrollTop = 30`);
         const scrolled = await frame.evaluate(`${list}.scrollTop`);
-        // Back by its key: the row of a mod scrolled out of sight is not pressed.
-        await frame.press('[data-mod-id="note"]');
-        await until(async () => (await visibility('note')) === 'visible', 3000);
         await (await page('deckit://note.mod')).key('[', 'BracketLeft', CTRL | META, 219);
         await until(async () => (await visibility('editor')) === 'visible', 3000);
         const kept = await frame.evaluate(`${list}.scrollTop`);
@@ -202,8 +241,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         );
         await frame.evaluate(`document.querySelector('.deckit-sidebar-nav').style.height = ''`);
 
-        await frame.press('[data-mod-id="finder"]');
-        await until(async () => (await visibility('finder')) === 'visible', 3000);
+        await show('finder');
         check('picking Finder shows it', (await visibility('finder')) === 'visible', await visibility('finder'));
         check('picking Finder hides Editor', (await visibility('editor')) === 'hidden', await visibility('editor'));
 
@@ -229,22 +267,29 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
             const second = await switcher.evaluate(activeLabel);
             await switcher.key('ArrowUp', 'ArrowUp', 0, 38);
             await sleep(200);
+            const third = await switcher.evaluate(activeLabel);
             check(
                 'arrows move the active row',
-                first && second && first !== second && (await switcher.evaluate(activeLabel)) === first,
-                `${first} -> ${second}`
+                first && second && first !== second && third === first,
+                `${first} -> ${second} -> ${third}`
             );
             await switcher.type('Show Notes');
             await sleep(1200);
             await switcher.shot('switcher-typed');
+            const picked = await switcher.evaluate(activeLabel);
             await switcher.key('Enter', 'Enter', 0, 13);
             await until(async () => (await visibility('note')) === 'visible', 4000);
-            check('switcher shows Notes', (await visibility('note')) === 'visible', await visibility('note'));
+            check(
+                'switcher shows Notes',
+                (await visibility('note')) === 'visible',
+                `${picked}: ${await current()} shown`
+            );
             const rows = `document.querySelectorAll('.switcher-row').length`;
             const gone = await until(async () => (await switcher.evaluate(rows)) === 0, 3000);
             check('the switcher goes as the mod it showed takes the keyboard', gone, await switcher.evaluate(rows));
         }
 
+        await show('note');
         const note = await page('deckit://note.mod');
         const room = `(() => { const box = (part) => Math.round(document.querySelector(part).getBoundingClientRect()[part === '.deckit-view-content' ? 'x' : 'width']); return box('.deckit-view-content') + ',' + box('.deckit-view-slot'); })()`;
         const open = await note?.evaluate(room);
@@ -297,8 +342,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
             noteOverlay && !(await noteOverlay.evaluate(`document.body.childElementCount`)),
             await noteOverlay?.evaluate(`[...document.body.children].map((element) => element.className).join(' | ')`)
         );
-        await frame.press('[data-mod-id="settings"]');
-        await sleep(1200);
+        await show('settings');
         const settings = await page('deckit://settings.mod');
         // The rows come after the sections, once the list of mods is read.
         const versions = /Editor[\s\S]*1\.0\.0/;
@@ -538,30 +582,21 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         // WebKit's view of the front tab, in the Browser's page's view, where the tab's element is, while the Browser
         // is on screen.
         const onScreen = await current();
-        await frame.press('[data-mod-id="browser"]');
-        await until(async () => (await visibility('browser')) === 'visible', 3000);
+        await show('browser');
         const tabLaidOut = async () => {
             const element = await browser?.evaluate(`(() => {
                 const shown = [...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible');
                 const { x, y, width, height } = shown.getBoundingClientRect();
                 return { x, y, width, height };
             })()`);
-            const views = await main(`
-                const { BrowserWindow } = require('electron');
-                return BrowserWindow.getAllWindows().flatMap((window) =>
-                    (${webViewsIn})(webkit.tree(window.getNativeWindowHandle())));
-            `);
-            const zoom = await main(`return require('electron').webContents.getAllWebContents()
-                .find((contents) => contents.getURL().startsWith('deckit://browser.mod'))?.getZoomFactor()`);
-            const at =
-                element && Object.fromEntries(Object.entries(element).map(([key, value]) => [key, value * zoom]));
-            return { at, views };
+            const views = (await laidNow())
+                .flatMap(({ stages }) => stages.flatMap(({ pages }) => pages))
+                .filter(({ url }) => !url.startsWith('deckit://') && url !== 'about:blank');
+            return { at: element, views };
         };
         const tabLaid = await until(async () => {
             const { at, views } = await tabLaidOut();
-            return (views || []).some(
-                ({ rect, chain }) => chain[1] === 'WebPageHost' && chain[2] === 'WebContentsViewCocoa' && near(rect, at)
-            );
+            return (views || []).some(({ rect }) => near(rect, at));
         }, 3000);
         check(
             "a tab's page is laid in the Browser's page, where its element is",
@@ -591,17 +626,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         );
         await browserOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);
-        await frame.press(`[data-mod-id="${onScreen}"]`);
-        await until(async () => (await visibility(onScreen)) === 'visible', 3000);
-        const stolen = await editor.evaluate(`new Promise((resolve) => {
-            const page = document.createElement('webview');
-            page.setAttribute('partition', 'persist:deckit:browser:web');
-            page.src = 'https://example.com';
-            page.addEventListener('dom-ready', () => resolve('attached'));
-            setTimeout(() => resolve(document.contains(page) && page.getWebContentsId ? 'element only' : 'refused'), 2500);
-            document.body.appendChild(page);
-        })`);
-        check("a mod cannot open another mod's session", stolen !== 'attached', stolen);
+        await show(onScreen);
         const drawn = await frame.evaluate(
             `[...document.querySelectorAll('[data-mod-id] svg')].filter((svg) => svg.children.length).length`
         );
@@ -620,14 +645,13 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
             }, 1500);
         })`);
         check("nothing runs in a view's page world", ran === false, ran);
-        const notices = await editor.evaluate(
-            `navigator.permissions.query({ name: 'notifications' }).then((status) => status.state)`
-        );
+        const notices = await editor.evaluate(`Notification.requestPermission()`);
         check("a mod's page gets no web permission", notices === 'denied', notices);
         await editor.evaluate(`location.href = 'deckit://finder.mod/'`);
         await sleep(1500);
         const stayed = (await targets()).filter((target) => target.url.startsWith('deckit://finder.mod')).length;
         check("a mod's view cannot move to another mod's origin", stayed === 1, stayed + ' finder pages');
+        await show('editor');
         await editor.key(' ', 'Space', ALT, 32);
         const again = await overlayOf(await page('deckit://switcher.mod'));
         const listed = await until(
@@ -648,9 +672,10 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
             putAway && !putAway.some(({ shown, pages }) => shown && !pages.length),
             JSON.stringify(putAway || (await stagesNow()))
         );
-        await frame.press('[data-mod-id="editor"]');
-        await until(async () => (await visibility('editor')) === 'visible', 3000);
-        const activeLine = `document.querySelector('.cm-focused .cm-activeLine')?.textContent`;
+        await show('editor');
+        // The cursor's line in the editor that has the page's keyboard. The app under test is never the active one, so
+        // no page has the system's focus and CodeMirror never marks itself focused.
+        const activeLine = `document.activeElement?.closest('.cm-editor')?.querySelector('.cm-activeLine')?.textContent`;
         await until(async () => (await editor.evaluate(activeLine)) === 'line 1', 4000);
         await editor.key('l', 'KeyL', META, 76);
         // A quick pick is a layer, drawn in the page's overlay, which has the keys while it is open.
@@ -686,8 +711,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         await editorOverlay?.key('Escape', 'Escape', 0, 27);
         // Every mod's screen, drawn: what the test does not drive is still seen.
         for (const id of ['editor', 'finder', 'browser', 'note', 'bot']) {
-            await frame.press(`[data-mod-id="${id}"]`);
-            await until(async () => (await visibility(id)) === 'visible', 3000);
+            await show(id);
             await sleep(800);
             await (await page(`deckit://${id}.mod`))?.shot('screen-' + id);
             await panelShot('panel-' + id, id);
@@ -790,6 +814,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         // Keys, as the core resolves them: a mod's key that works anywhere in the app, bound again, and a chord
         // recorded.
         const keys = await page('deckit://keys-user.mod');
+        await show('editor');
         await editor.key('9', 'Digit9', META | SHIFT, 57);
         const pressed = await until(async () => (await mark(keys, 'pressed')) === '1', 3000);
         check("a mod's key that reaches the app runs from another mod's page", pressed, await mark(keys, 'pressed'));
@@ -859,11 +884,17 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         await query?.key('Escape', 'Escape', 0, 27);
         await until(async () => (await rowsOf()) === 0, 3000);
         await windowed?.evaluate(`document.dispatchEvent(new CustomEvent('test-window-open'))`);
+        // The mod's page's rect in the window's content, and the content's size, or null while it is in none.
         const fit = async () => {
-            await windowed?.evaluate(
-                `delete document.documentElement.dataset.fit; document.dispatchEvent(new CustomEvent('test-fit'))`
-            );
-            return JSON.parse((await until(() => mark(windowed, 'fit'), 3000)) || 'null');
+            for (const window of await laidNow())
+                for (const stage of window.stages.filter(({ shown }) => shown))
+                    for (const { url, rect } of stage.pages)
+                        if (url.startsWith('deckit://window-user'))
+                            return {
+                                page: { ...rect, x: stage.rect.x + rect.x, y: stage.rect.y + rect.y },
+                                window: { width: window.width, height: window.height },
+                            };
+            return null;
         };
         const whole = ({ page, window } = {}) =>
             page?.width === 420 && page.height === 300 && page.y + page.height <= window.height;
@@ -874,15 +905,17 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         // A mod's web window: WebKit shows its page over the window's content, and it goes as the mod closes it.
         const webUser = await page('deckit://web-user.mod');
         await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-open', { detail: '${FRONT_TAB}' }))`);
-        const webWindow = `
-            const { BrowserWindow } = require('electron');
-            const window = BrowserWindow.getAllWindows().find((each) => each.getTitle() === 'Web User');
+        // The window that shows web pages alone.
+        const webWindow = async () => {
+            const window = (await laidNow()).find(({ stages }) => {
+                const urls = stages.flatMap(({ pages }) => pages.map(({ url }) => url));
+                return urls.length && !urls.some((url) => url.startsWith('deckit://'));
+            });
             if (!window) return null;
-            const [width, height] = window.getContentSize();
-            return { width, height, pages: ${webViewsIn}(webkit.tree(window.getNativeWindowHandle())) };
-        `;
+            return { width: window.width, height: window.height, pages: window.stages.flatMap(({ pages }) => pages) };
+        };
         const webAt = await until(async () => (await mark(webUser, 'at')) === FRONT_TAB, 8000);
-        const shownIn = await main(webWindow);
+        const shownIn = await webWindow();
         const covers = shownIn?.pages?.some(({ rect }) => rect.width === shownIn.width && rect.height > 0);
         check(
             "a mod's web window loads its page on WebKit, over the window's content",
@@ -890,18 +923,21 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
             `${await mark(webUser, 'at')} ${JSON.stringify(shownIn)}`
         );
         await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-close'))`);
-        const webClosed = await until(async () => (await main(webWindow)) === null, 3000);
-        check("a mod's web window goes as the mod closes it", webClosed, JSON.stringify(await main(webWindow)));
+        const webClosed = await until(async () => (await webWindow()) === null, 3000);
+        check("a mod's web window goes as the mod closes it", webClosed, JSON.stringify(await webWindow()));
 
         // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.
-        await frame.press('[data-mod-id="region-parent"]');
-        await until(async () => (await visibility('region-parent')) === 'visible', 3000);
+        await show('region-parent');
         const parent = await page('deckit://region-parent.mod');
         const child = await page('deckit://region-child.mod');
         const slot = `(() => { const r = document.getElementById('region-slot').getBoundingClientRect(); return [r.width, r.height].map(Math.round).join('x'); })()`;
         const seen = `document.documentElement.dataset.shown === 'yes' ? innerWidth + 'x' + innerHeight : 'hidden'`;
         const laid = await until(async () => (await child.evaluate(seen)) === (await parent.evaluate(slot)), 3000);
-        check('a region in the sidebar lays its child over it', laid, await child.evaluate(seen));
+        check(
+            'a region in the sidebar lays its child over it',
+            laid,
+            `${await child.evaluate(seen)} in ${await parent.evaluate(slot)}, ${await current()} shown`
+        );
         const regions = urlsOf(await stackNow());
         check(
             "a child shown in a region is over its parent's page",
@@ -991,7 +1027,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         // logged under its name.
         const frameNow = `performance.timeOrigin + ':' + document.querySelectorAll('[data-mod-id]').length`;
         const crashed = await frame.evaluate(frameNow);
-        await frame.send('Page.crash');
+        await frame.crash();
         const reloaded = await until(async () => {
             const now = await (await page('deckit://panel'))?.evaluate(frameNow);
             return typeof now === 'string' && now !== crashed && now.endsWith(':' + (VIEWS + TEST_VIEWS));
@@ -1020,7 +1056,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         };
         const drawnBefore = await backdropDrawn();
         const beforeReload = await (await page('deckit://panel'))?.evaluate(frameNow);
-        await (await page('deckit://panel'))?.send('Page.reload');
+        await (await page('deckit://panel'))?.reload();
         const reloadedAgain = await until(async () => {
             const now = await (await page('deckit://panel'))?.evaluate(frameNow);
             return typeof now === 'string' && now !== beforeReload && now.endsWith(':' + (VIEWS + TEST_VIEWS));
@@ -1033,22 +1069,9 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
             drawnAgain,
             `${drawnBefore} -> ${await backdropDrawn()}`
         );
-        await (await page('deckit://panel'))?.evaluate(`console.error('frame-probe')`);
+        await (await page('deckit://panel'))?.evaluate(`console.error('frame-probe')`, 'deckit');
         const named = await until(() => /panel: frame-probe/.test(logged()), 3000);
         check("a shell page's console errors are logged under its name", named, '');
-        const leftOut = (setter) =>
-            logged().match(new RegExp(`${setter} on deckit's webContents and sessions: left as deckit set it`, 'g'))
-                ?.length ?? 0;
-        check(
-            "a host app's window open handler set on deckit's webContents later leaves deckit's, logged once",
-            leftOut('setWindowOpenHandler') === 1,
-            String(leftOut('setWindowOpenHandler'))
-        );
-        check(
-            "a host app's permission handlers set on deckit's sessions later leave deckit's, logged once",
-            leftOut('setPermissionRequestHandler') === 1 && leftOut('setPermissionCheckHandler') === 1,
-            `${leftOut('setPermissionRequestHandler')}, ${leftOut('setPermissionCheckHandler')}`
-        );
         check(
             'the log says which deckit runs, and that its core started',
             /deckit \d+\.\d+\.\d+ \(sources [0-9a-f]+\)/.test(logged()) && /core: started, pid \d+/.test(logged()),

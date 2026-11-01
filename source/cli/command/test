@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const at = args.indexOf('--port');
 const port = at < 0 ? 9334 : Number(args[at + 1]);
 if (!Number.isInteger(port) || port <= 0) {
-    console.error("usage: deckit test [--port <DevTools port, default 9334; the main process's is the next>]");
+    console.error("usage: deckit test [--port <the main process's inspector port, default 9334>]");
     process.exit(2);
 }
 

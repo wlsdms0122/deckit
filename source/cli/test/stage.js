@@ -1,97 +1,82 @@
-// The stage pages are laid on (deckit-electron/stage), checked over a stand-in for Electron's views: what ends up
-// in what order, shown or not, and how few views are lifted to get there. Exits 1 with a line for each check that
-// failed. The packages are ES modules, so they are imported as such.
+// The stage pages are laid on (deckit-electron/stage), checked over a stand-in for WebKit's module: what it is asked
+// to lay, in what order, where and shown or not, each page's web pages over it, and where it is placed in its window.
+// Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
 const STAGE = pathToFileURL(path.join(__dirname, '..', '..', 'deckit', 'deckit-electron', 'stage', 'main.js')).href;
 
-// Electron's View, as the stage uses it: a child added again is lifted to the top whatever index it is given, and a
-// new one goes in at its index.
-let lifts = 0;
-class View {
-    constructor(name = 'stage') {
-        this.name = name;
-        this.children = [];
-        this.bounds = { x: 0, y: 0, width: 0, height: 0 };
-        this.visible = true;
-        this.gone = false;
-        this.webContents = { isDestroyed: () => this.gone };
-    }
-    addChildView(view, index) {
-        const at = this.children.indexOf(view);
-        if (at >= 0) {
-            lifts++;
-            this.children.splice(at, 1);
-            this.children.push(view);
-        } else if (index === undefined) this.children.push(view);
-        else this.children.splice(index, 0, view);
-    }
-    removeChildView(view) {
-        this.children = this.children.filter((child) => child !== view);
-    }
-    setBounds(bounds) {
-        this.bounds = bounds;
-    }
-    getBounds() {
-        return this.bounds;
-    }
-    setVisible(on) {
-        this.visible = on;
-    }
-    setBackgroundColor() {}
-    on() {}
-    removeListener() {}
+// WebKit's module, as the stage uses it: what it was last asked of each stage.
+function moduleOf() {
+    const stages = new Map(); // id -> { placed, laid, shown, removed }
+    let last = 0;
+    return {
+        stages,
+        makeStage: () => {
+            stages.set(++last, { placed: null, laid: [], shown: true, removed: false });
+            return last;
+        },
+        placeStage: (id, options) => (stages.get(id).placed = options),
+        layStage: (id, layers) => (stages.get(id).laid = layers),
+        showStage: (id, on) => (stages.get(id).shown = on),
+        removeStage: (id) => (stages.get(id).removed = true),
+    };
+}
+
+// A page as the environment makes one: its module id, and whether it closed.
+function pageOf(id) {
+    return {
+        id,
+        gone: false,
+        isDestroyed() {
+            return this.gone;
+        },
+    };
+}
+
+// A window of the module's, as the stage hears it: `resized(size)` tells it its content's new size, `closed()` that
+// it closed.
+function windowOf(id, size) {
+    const heard = new Map();
+    let closed = false;
+    const tell = (event) => [...(heard.get(event) || [])].forEach((listener) => listener());
+    return {
+        id,
+        size: () => size,
+        isClosed: () => closed,
+        on: (event, listener) => {
+            if (!heard.has(event)) heard.set(event, new Set());
+            heard.get(event).add(listener);
+            return () => heard.get(event).delete(listener);
+        },
+        resized: (to) => {
+            size = to;
+            tell('resize');
+        },
+        closed: () => {
+            closed = true;
+            tell('close');
+        },
+    };
 }
 
 async function main() {
-    // The view the stage holds its pages in is the one it makes.
-    const made = [];
-    globalThis.require = () => ({
-        View: class extends View {
-            constructor() {
-                super('stage');
-                made.push(this);
-            }
-        },
+    const { createStages } = await import(STAGE);
+    const native = moduleOf();
+    const webPages = new Map(); // page -> [{ page, frame }]
+    const STAGES = createStages({
+        LOG: { error: () => {} },
+        WEBKIT: { native: () => native },
+        idOf: (window) => window.id,
+        webPagesIn: (page) => webPages.get(page) || [],
     });
-    const { createStage } = await import(STAGE);
-    const views = new Map();
-    const page = (name) => {
-        if (!views.has(name)) views.set(name, new View(name));
-        return name;
-    };
-    const unplaced = [];
-    const stage = createStage({
-        LOG: { guard: () => () => {}, info: () => {} },
-        WINDOW: { place: () => {}, unplace: (view) => unplaced.push(view) },
-        viewOf: (name) => views.get(name) || null,
-    }).stage();
     const failed = [];
     let count = 0;
     const check = (name, ok, seen) => {
         count++;
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
-    const orderOf = () => made[0].children.map(({ name }) => name).join(' ');
-    const laid = (names) => {
-        const before = lifts;
-        stage.lay(names.map((name) => ({ page: page(name), rect: { x: 0, y: 0, width: 1, height: 1 } })));
-        return lifts - before;
-    };
-
-    const lay = (layers) => {
-        const before = lifts;
-        stage.lay(
-            layers.map((layer) =>
-                typeof layer === 'string'
-                    ? { page: page(layer), rect: { x: 0, y: 0, width: 1, height: 1 } }
-                    : { page: page(layer.hidden), hidden: true }
-            )
-        );
-        return lifts - before;
-    };
-    const refusal = (layers) => {
+    const refusal = (stage, layers) => {
         try {
             stage.lay(layers);
             return '';
@@ -99,83 +84,96 @@ async function main() {
             return error.message;
         }
     };
+    const rect = (x, y, width, height) => ({ x, y, width, height });
 
-    lay(['backdrop', 'a', 'frame', 'handle']);
-    check('pages go on the stage bottom to top', orderOf() === 'backdrop a frame handle', orderOf());
-    check('a new stage lifts nothing', lifts === 0, lifts);
-    check('the same layers move nothing', lay(['backdrop', 'a', 'frame', 'handle']) === 0, orderOf());
-    lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']);
-    check('a hidden page is out of the window', orderOf() === 'backdrop a frame handle', orderOf());
-    check(
-        'showing either of two hidden pages lifts nothing',
-        lay(['backdrop', { hidden: 'a' }, 'b', 'frame', 'handle']) === 0 &&
-            lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']) === 0,
-        orderOf()
-    );
-    check(
-        'a page put over the frame is lifted alone',
-        lay(['backdrop', { hidden: 'b' }, 'frame', 'handle', 'a']) === 1 && orderOf() === 'backdrop frame handle a',
-        orderOf()
-    );
-    check(
-        'back under the frame, what goes over it is lifted, not the page',
-        lay(['backdrop', { hidden: 'b' }, 'a', 'frame', 'handle']) === 2 && orderOf() === 'backdrop a frame handle',
-        orderOf()
-    );
-    check(
-        'a new page laid goes in over the one before it, lifting nothing',
-        lay(['backdrop', { hidden: 'b' }, 'a', 'c', 'frame', 'handle']) === 0 &&
-            orderOf() === 'backdrop a c frame handle',
-        orderOf()
-    );
-    lay(['backdrop', 'a', 'frame', 'handle']);
-    check('a page left out is taken off', orderOf() === 'backdrop a frame handle', orderOf());
+    const stage = STAGES.stage();
+    const asked = native.stages.get(1);
+    const [backdrop, a, b, frame, web] = [1, 2, 3, 4, 5].map(pageOf);
     stage.lay([
-        { page: 'backdrop', rect: { x: 0, y: 0, width: 5, height: 5 } },
-        { page: 'a', hidden: true },
-        { page: 'frame', rect: { x: 1, y: 2, width: 3, height: 4 } },
+        { page: backdrop, rect: rect(0, 0, 10, 10) },
+        { page: a, rect: rect(0, 0, 10, 10) },
+        { page: b, hidden: true },
+        { page: frame, rect: rect(0, 0, 3, 10) },
     ]);
     check(
-        'a hidden page keeps its bounds, out of the window',
-        orderOf() === 'backdrop frame' && views.get('a').bounds.width === 1,
-        orderOf()
+        'pages are laid bottom to top, a hidden one hidden',
+        JSON.stringify(asked.laid) ===
+            JSON.stringify([
+                { page: 1, frame: rect(0, 0, 10, 10) },
+                { page: 2, frame: rect(0, 0, 10, 10) },
+                { page: 3, hidden: true },
+                { page: 4, frame: rect(0, 0, 3, 10) },
+            ]),
+        asked.laid
     );
-    check('a laid page is where it is laid', views.get('frame').bounds.y === 2, '');
-    views.get('a').gone = true;
+
+    webPages.set(a, [{ page: web, frame: rect(2, 3, 4, 5) }]);
+    stage.lay([
+        { page: backdrop, rect: rect(0, 0, 10, 10) },
+        { page: a, rect: rect(1, 1, 9, 9) },
+        { page: frame, rect: rect(0, 0, 3, 10) },
+    ]);
     check(
-        'a page whose page is gone is taken off',
-        refusal([
-            { page: 'backdrop', rect: { x: 0, y: 0, width: 1, height: 1 } },
-            { page: 'a', hidden: true },
-        ]) === '' && orderOf() === 'backdrop',
-        orderOf()
+        "a page's web pages are laid just over it, where their elements are in it",
+        JSON.stringify(asked.laid.map(({ page }) => page)) === '[1,2,5,4]' &&
+            JSON.stringify(asked.laid[2].frame) === JSON.stringify(rect(3, 4, 4, 5)),
+        asked.laid
     );
-    page('emptied');
-    lay(['backdrop', 'emptied']);
-    views.get('emptied').webContents = null;
+    webPages.set(a, []);
+    STAGES.relayOf(web);
+    STAGES.relayOf(a);
     check(
-        'a page whose view has nothing left in it is taken off',
-        refusal([
-            { page: 'backdrop', rect: { x: 0, y: 0, width: 1, height: 1 } },
-            { page: 'emptied', hidden: true },
-        ]) === '' && orderOf() === 'backdrop',
-        orderOf()
+        'web pages gone from a page are taken off as it is laid again',
+        JSON.stringify(asked.laid.map(({ page }) => page)) === '[1,2,4]',
+        asked.laid
     );
-    const unknown = refusal([{ page: 'nowhere', rect: { x: 0, y: 0, width: 1, height: 1 } }]);
-    check("a stage lays only pages of deck's", /a stage lays/.test(unknown), unknown);
-    const both = refusal([{ page: 'backdrop', rect: { x: 0, y: 0, width: 1, height: 1 }, hidden: true }]);
-    const neither = refusal([{ page: 'backdrop' }]);
+
+    b.gone = true;
+    stage.lay([
+        { page: backdrop, rect: rect(0, 0, 10, 10) },
+        { page: b, hidden: true },
+    ]);
+    check(
+        'a page that closed is taken off',
+        JSON.stringify(asked.laid) === JSON.stringify([{ page: 1, frame: rect(0, 0, 10, 10) }]),
+        asked.laid
+    );
+    const both = refusal(stage, [{ page: backdrop, rect: rect(0, 0, 1, 1), hidden: true }]);
+    const neither = refusal(stage, [{ page: backdrop }]);
     check('a layer is laid or hidden, one of the two', /a layer is/.test(both) && /a layer is/.test(neither), [
         both,
         neither,
     ]);
-    lay(['backdrop', 'a']);
-    stage.close();
+
+    const window = windowOf(7, { width: 100, height: 80 });
+    let resized = 0;
+    stage.whenResized(() => resized++);
+    stage.place(window, { bounds: ({ width, height }) => rect(0, 20, width, height - 20) });
     check(
-        'a closed stage takes its pages off and leaves its window',
-        orderOf() === '' && unplaced.length === 1 && unplaced[0] === made[0],
-        orderOf()
+        'a stage is placed in its window where its bounds say',
+        asked.placed?.window === 7 && JSON.stringify(asked.placed.frame) === JSON.stringify(rect(0, 20, 100, 60)),
+        asked.placed
     );
+    window.resized({ width: 120, height: 90 });
+    check(
+        'a stage fits its window again as it resizes, and says it changed size',
+        JSON.stringify(stage.size()) === JSON.stringify({ width: 120, height: 70 }) && resized === 2,
+        { size: stage.size(), resized }
+    );
+    stage.lay([{ page: a, rect: rect(0, 0, 10, 10) }]);
+    check('the window a page is shown in is found', STAGES.windowShowing(a) === window, '');
+    check('a page hidden on a stage is shown in no window', STAGES.windowShowing(frame) === null, '');
+    stage.show(false);
+    check('a stage is hidden as asked', asked.shown === false, asked.shown);
+
+    window.closed();
+    check(
+        "a closing window takes the stage's pages off",
+        asked.laid.length === 0 && STAGES.windowShowing(a) === null,
+        asked.laid
+    );
+    stage.close();
+    check('a closed stage leaves the module', asked.removed, asked);
 
     for (const line of failed) console.error(line);
     if (failed.length) {
