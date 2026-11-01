@@ -40,6 +40,11 @@ final class Stage {
         view.autoresizingMask = [.width, .height]
     }
 
+    // Hidden, the stage and every page on it are out of sight, and take no clicks.
+    func show(_ on: Bool) {
+        view.isHidden = !on
+    }
+
     func remove() {
         lay([])
         view.removeFromSuperview()

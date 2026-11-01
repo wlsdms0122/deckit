@@ -12,11 +12,12 @@ import CNodeAPI
 // The pages, windows and stages the module made, each by an id of its own, and what JavaScript does to them and to
 // the pages' data stores (Export).
 // - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, fullSpeed }, emit) -> id` (WebPage),
-//   `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document does not, `fullSpeed`
-//   running off screen as on it; `load(id, url)`; `go(id, to)`; `focus(id)`; `isFocused(id)`; `focusedPage()`, the
-//   page with the keyboard, or null; `state(id)`; `run(id, [{ source, world, mainFrameOnly }])`; `evaluate(id, source,
-//   world) -> Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
-//   `fetchText(store, url, limit) -> Promise of the text`; `clear(store) -> Promise`; `close(id)`; `safariVersion()`.
+//   `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document does not, as do the
+//   windows it opens, `fullSpeed` running off screen as on it; `load(id, url)`; `go(id, to)`; `focus(id)`;
+//   `isFocused(id)`; `focusedPage()`, the page with the keyboard, or null; `state(id)`; `run(id, [{ source, world,
+//   mainFrameOnly }])`; `evaluate(id, source, world) -> Promise of JSON`; `find(id, text, { backwards, caseSensitive
+//   }) -> Promise of whether it found it`; `fetchText(store, url, limit) -> Promise of the text`; `clear(store) ->
+//   Promise`; `close(id)`; `safariVersion()`.
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
 //   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
 //   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
@@ -24,7 +25,7 @@ import CNodeAPI
 //   `keyWindow()`, the window with the keyboard, or null; `doubleClickTitleBar(id)`; `drag(id)`, moved by the press of
 //   the mouse under way, false where none is.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame } |
-//   { page, hidden: true }])`; `removeStage(id)`; and `tree(window)`, a window's views as text.
+//   { page, hidden: true }])`; `showStage(id, on)`; `removeStage(id)`; and `tree(window)`, a window's views as text.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -243,6 +244,9 @@ final class WebEngine {
                 return (laid, try node.rect(frame))
             })
 
+        case .showStage:
+            try stage().show(try node.bool(try argument(1)))
+
         case .removeStage:
             let removed = try stage()
             removed.remove()
@@ -274,16 +278,14 @@ final class WebEngine {
         if try node.member(options, "fullSpeed").map({ try node.bool($0) }) == true {
             Self.runOffScreen(configuration.preferences)
         }
-        let page = adopt(configuration, emitter)
-        if try node.member(options, "clear").map({ try node.bool($0) }) == true {
-            Self.drawNoBackground(page.view)
-        }
+        let clear = try node.member(options, "clear").map { try node.bool($0) } ?? false
 
-        return page.id
+        return adopt(configuration, emitter, clear: clear).id
     }
 
-    // A page of the module's, on `configuration`: a new one, or WebKit's for a window a page opened.
-    private func adopt(_ configuration: WKWebViewConfiguration, _ emitter: Emitter) -> WebPage {
+    // A page of the module's, on `configuration`: a new one, or WebKit's for a window a page opened, clear as the page
+    // that opened it is.
+    private func adopt(_ configuration: WKWebViewConfiguration, _ emitter: Emitter, clear: Bool) -> WebPage {
         lastID += 1
         let page = WebPage(
             id: lastID,
@@ -292,8 +294,9 @@ final class WebEngine {
         ) { [weak self] configuration, emitter in
             guard let self else { fatalError("a web page outlived the module") }
 
-            return adopt(configuration, emitter)
+            return adopt(configuration, emitter, clear: clear)
         }
+        if clear { Self.drawNoBackground(page.view) }
         pages[page.id] = page
         input.start()
 

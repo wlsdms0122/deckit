@@ -39,6 +39,7 @@ enum Export: Int, CaseIterable {
     case makeStage
     case placeStage
     case layStage
+    case showStage
     case removeStage
     case tree
 }

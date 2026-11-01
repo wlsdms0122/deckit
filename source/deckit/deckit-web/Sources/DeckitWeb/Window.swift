@@ -82,6 +82,7 @@ final class Window: NSObject {
         window.tabbingMode = .disallowed
         window.contentView = Self.content(material: material)
         setColor(material == nil ? color : nil)
+        window.center()
         window.delegate = self
         layButtons()
     }
