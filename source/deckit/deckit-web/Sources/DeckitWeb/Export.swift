@@ -40,6 +40,12 @@ enum Export: Int, CaseIterable {
     case closeFilePreview
     case showOpenDialog
     case showSaveDialog
+    case sendKey
+    case sendMouse
+    case snapshot
+    case killProcess
+    case pages
+    case windows
     case makeStage
     case placeStage
     case layStage

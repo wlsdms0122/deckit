@@ -26,8 +26,14 @@ import CNodeAPI
 //   the mouse under way, false where none is; `previewFile(id, file, title)` and `closeFilePreview(id)`, Quick Look's
 //   panel over the window; `showOpenDialog(id, options) -> Promise of the paths chosen, none when cancelled` and
 //   `showSaveDialog(id, options) -> Promise of the path, or null`, as a sheet on it, `options` NSOpenPanel's (dress).
+// - Input as a person's would come, through the app's watch on its events (WebPage+Input): `sendKey(id, { code, key,
+//   alt, ctrl, meta, shift })`, `code` and `key` as the web names them; `sendMouse(id, { type, x, y })`, `type` `down`,
+//   `dragged` or `up`, at a point from the page's top left. `snapshot(id) -> Promise of a PNG in base64`;
+//   `killProcess(id)`, its content's process ended as a crash ends it; `pages()` and `windows()`, the ids of those
+//   open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame } |
-//   { page, hidden: true }])`; `showStage(id, on)`; `removeStage(id)`; and `tree(window)`, a window's views as text.
+//   { page, hidden: true }])`; `showStage(id, on)`; `removeStage(id)`; and `tree(window)`, a window's views as text,
+//   a page's view with its id.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -216,6 +222,51 @@ final class WebEngine {
             }
             window.drag(from: press)
             return try node.make(true)
+
+        case .sendKey:
+            let options = try argument(1)
+            let text = { (name: String) throws -> String? in
+                try self.node.member(options, name).map { try self.node.string($0) }
+            }
+            let held = { (name: String) throws -> Bool in
+                try self.node.member(options, name).map { try self.node.bool($0) } ?? false
+            }
+            guard let code = try text("code").flatMap(KeyCode.init(name:)) else {
+                throw NodeError(message: "a key is named by its code")
+            }
+            var modifiers: NSEvent.ModifierFlags = []
+            if try held("alt") { modifiers.insert(.option) }
+            if try held("ctrl") { modifiers.insert(.control) }
+            if try held("meta") { modifiers.insert(.command) }
+            if try held("shift") { modifiers.insert(.shift) }
+            try page().sendKey(code, key: try text("key") ?? "", modifiers: modifiers, through: input)
+
+        case .sendMouse:
+            let options = try argument(1)
+            guard let name = try node.member(options, "type").map({ try node.string($0) }),
+                let type = Self.mouseEvents[name],
+                let x = try node.member(options, "x"),
+                let y = try node.member(options, "y")
+            else {
+                throw NodeError(message: "a mouse event is { type, x, y }, its type down, dragged or up")
+            }
+            try page().sendMouse(type, at: CGPoint(x: try node.number(x), y: try node.number(y)), through: input)
+
+        case .snapshot:
+            let (promise, settle) = try promised()
+            try page().snapshot { result in
+                settle(result.map { $0.base64EncodedString() })
+            }
+            return promise
+
+        case .killProcess:
+            try page().killProcess()
+
+        case .pages:
+            return try node.make(pages.keys.sorted())
+
+        case .windows:
+            return try node.make(windows.keys.sorted())
 
         case .previewFile:
             try window(0).previewFile(URL(fileURLWithPath: try string(1)), title: try string(2))
@@ -423,6 +474,12 @@ final class WebEngine {
         return NSColor(srgbRed: try part("red"), green: try part("green"), blue: try part("blue"), alpha: 1)
     }
 
+    private static let mouseEvents: [String: NSEvent.EventType] = [
+        "down": .leftMouseDown,
+        "dragged": .leftMouseDragged,
+        "up": .leftMouseUp
+    ]
+
     private static let materials: [String: NSVisualEffectView.Material] = [
         "hud": .hudWindow,
         "sidebar": .sidebar,
@@ -503,6 +560,7 @@ final class WebEngine {
         let line = String(repeating: "  ", count: depth)
             + "\(type(of: view)) \(NSStringFromRect(view.frame))\(view.isHidden ? " hidden" : "")"
             + "\(view.isFlipped ? " flipped" : "")"
+            + (pages.values.first { $0.view === view }.map { " page \($0.id)" } ?? "")
 
         return ([line] + view.subviews.map { tree(of: $0, depth: depth + 1) }).joined(separator: "\n")
     }

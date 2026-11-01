@@ -186,6 +186,28 @@ final class WebPage: NSObject {
         }
     }
 
+    // What the page draws now, as PNG, clear where it draws nothing.
+    func snapshot(done: @escaping @MainActor (Result<Data, Error>) -> Void) {
+        view.takeSnapshot(with: nil) { image, error in
+            MainActor.assumeIsolated {
+                guard let image,
+                    let picture = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+                    let png = NSBitmapImageRep(cgImage: picture).representation(using: .png, properties: [:])
+                else {
+                    return done(.failure(error ?? NodeError(message: "the page drew nothing to take")))
+                }
+                done(.success(png))
+            }
+        }
+    }
+
+    // The process the page's content runs in ended, as a crash ends it, where WebKit lets it be.
+    func killProcess() {
+        let selector = NSSelectorFromString("_killWebContentProcess")
+        guard view.responds(to: selector) else { return }
+        view.perform(selector)
+    }
+
     func close() {
         for observation in observations { observation.invalidate() }
         observations = []

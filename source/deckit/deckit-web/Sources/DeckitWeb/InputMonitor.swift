@@ -36,8 +36,8 @@ final class InputMonitor {
         }
     }
 
-    // MARK: - Private
-    private func took(_ event: NSEvent) -> Bool {
+    // `event` handed to the page it is for, as the app gets it: whether the page took it, so it goes no further.
+    func took(_ event: NSEvent) -> Bool {
         if event.type == .leftMouseDown { press = event }
         switch event.type {
         case .keyDown, .keyUp:
@@ -59,4 +59,6 @@ final class InputMonitor {
             return false
         }
     }
+
+    // MARK: - Private
 }
