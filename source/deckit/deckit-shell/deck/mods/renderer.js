@@ -20,6 +20,7 @@ export function createMods({ RUN }) {
             ...added,
             onChange: (listener) => scope.add(onChange(listener)),
             list: () => PROTOCOL.mods.invoke(),
+            planInstall: (from) => PROTOCOL.planInstall.invoke({ from: String(from) }),
             install: (from) => PROTOCOL.install.invoke({ from: String(from) }),
             remove: (id, data) => PROTOCOL.remove.invoke({ id: String(id), data: !!data }),
             relaunch: (id) => PROTOCOL.relaunch.invoke({ id: String(id) }),

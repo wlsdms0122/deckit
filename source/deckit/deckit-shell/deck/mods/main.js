@@ -40,6 +40,10 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return describe();
         });
+        PROTOCOL.planInstall.handle(({ from }, sender) => {
+            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
+            return planInstall(from);
+        });
         PROTOCOL.install.handle(({ from }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return install(from);

@@ -2,6 +2,7 @@
 import * as CHANNEL from '../channel/index.js';
 
 export const mods = CHANNEL.pageToMain('deckit-shell:mods', {}, { reply: true, sync: true });
+export const planInstall = CHANNEL.pageToMain('deckit-shell:mods-plan-install', { from: 'string' }, { reply: true });
 export const install = CHANNEL.pageToMain('deckit-shell:mods-install', { from: 'string' }, { reply: true });
 export const remove = CHANNEL.pageToMain(
     'deckit-shell:mods-remove',
