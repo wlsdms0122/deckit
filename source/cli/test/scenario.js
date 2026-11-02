@@ -664,6 +664,21 @@ async function run({
         );
         await browserOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);
+        // What a tab downloaded is listed from the toolbar's button, which shows once there is any.
+        await browser?.evaluate(`(() => {
+            const button = document.querySelector('.browser-downloads-button');
+            if (!button.hidden) button.click();
+        })()`);
+        const listedDownloads = await until(
+            () =>
+                browserOverlay?.evaluate(
+                    `[...document.querySelectorAll('.browser-download')].map((row) => row.dataset.state + ' ' + row.querySelector('.browser-download-name').textContent).join()`
+                ),
+            3000
+        );
+        check('the Browser lists what its tabs downloaded', listedDownloads === 'finished report.csv', listedDownloads);
+        await browserOverlay?.key('Escape', 'Escape', 0, 27);
+        await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);
         await show(onScreen);
         const drawn = await frame.evaluate(
             `[...document.querySelectorAll('[data-mod-id] svg')].filter((svg) => svg.children.length).length`
