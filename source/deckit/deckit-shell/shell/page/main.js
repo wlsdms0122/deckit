@@ -85,5 +85,10 @@ export function createPage({ deckit, pages }) {
         throw new Error("[deckit] it takes a page of deck's: a mod's, one that runs none, or a surface one opened");
     }
 
-    return { open, allowSurface, isAlive, focus, close, whenFocused };
+    // The paths of the files last dropped on the page from outside the app.
+    function droppedFiles(page) {
+        return isAlive(page) ? pages.droppedFiles(page) : [];
+    }
+
+    return { open, allowSurface, isAlive, focus, close, whenFocused, droppedFiles };
 }

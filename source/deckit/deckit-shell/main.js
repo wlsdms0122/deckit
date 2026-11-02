@@ -37,6 +37,7 @@ import { createMainProcess } from './deckit/main-process/main.js';
 import { createModFolder } from './deckit/mod-folder/main.js';
 import { createRuntime } from './deckit/runtime/main.js';
 import { createSetup } from './deckit/setup/main.js';
+import { createDrop } from './shell/drop/main.js';
 import { createPage } from './shell/page/main.js';
 import * as SHELL_LAYER from './shell/mod/model/layer.js';
 import { createApi } from './api/index.js';
@@ -124,6 +125,7 @@ function attach(deckit, environment, { host } = {}) {
     // A stage, held to what a stage is as the environment makes it.
     const makeStage = () => ENVIRONMENT.checked(ENV.stage(), ENVIRONMENT.STAGE, 'a stage');
     const REGION = createRegion({ deckit });
+    const DROP = createDrop({ deckit, PAGES });
     const WINDOW = createWindow({
         deckit,
         PAGES,
@@ -143,6 +145,7 @@ function attach(deckit, environment, { host } = {}) {
         STYLE.start();
         OVERLAY.start();
         REGION.start();
+        DROP.start();
         PANEL.start();
         WINDOW.start();
         // A page is in front in the panel, or in a window of its own on screen.
