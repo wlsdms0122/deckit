@@ -101,8 +101,22 @@ function near(a, b) {
     return !!a && !!b && ['x', 'y', 'width', 'height'].every((key) => Math.abs(a[key] - b[key]) <= 1);
 }
 
-// `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder.
-async function run({ page, pages, overlayOf, compose, targets, main, webPage, thrown, endCore, logged, home }) {
+// `endCore()` kills the app's core, as a crash would; `logged()` is the app's log so far; `home` the app's folder; `id`
+// the id it runs under.
+async function run({
+    page,
+    pages,
+    overlayOf,
+    compose,
+    targets,
+    main,
+    webPage,
+    thrown,
+    endCore,
+    logged,
+    home,
+    id: appId,
+}) {
     const report = [];
     const check = (name, ok, detail = '') => report.push({ name, ok: !!ok, detail: String(detail ?? '') });
     // What main says is on screen, as the panel's frame shows it: the selected row of the mods' list.
@@ -534,7 +548,7 @@ async function run({ page, pages, overlayOf, compose, targets, main, webPage, th
         const shownPage = `[...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible')?.dataset.webPage`;
         const front = webPage(await until(() => browser?.evaluate(shownPage), 3000));
         const store = (await front.state())?.store;
-        check('browser web page is in its own session', store === storeOf('persist:deckit:browser:web'), store);
+        check('browser web page is in its own session', store === storeOf(`persist:${appId}:browser:web`), store);
         const pagesShown = `document.querySelectorAll('[data-web-page]').length`;
         const asleep = await browser?.evaluate(pagesShown);
         check('a tab brought back sleeps until it comes to the front', asleep === 1, asleep);

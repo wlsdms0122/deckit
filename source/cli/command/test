@@ -12,6 +12,7 @@ const root = path.join(__dirname, '..', '..', '..');
 const APP = require(path.join(root, 'source', 'cli', 'app.js'));
 const { execFileSync, execSync } = require('child_process');
 const { launch } = require(path.join(root, 'source', 'cli', 'test', 'launch.js'));
+const { electronApp } = require(path.join(root, 'source', 'cli', 'electron.js'));
 const { connect, sleep } = require(path.join(root, 'source', 'cli', 'test', 'devtools.js'));
 const SCENARIO = require(path.join(root, 'source', 'cli', 'test', 'scenario.js'));
 const OUT = path.join(root, '.build', 'test');
@@ -23,6 +24,16 @@ const port = at < 0 ? 9334 : Number(args[at + 1]);
 if (!Number.isInteger(port) || port <= 0) {
     console.error("usage: deckit test [--port <the main process's inspector port, default 9334>]");
     process.exit(2);
+}
+
+// An app's bundle identifier.
+function bundleOf(app) {
+    const plist = path.join(app, 'Contents', 'Info.plist');
+    return execFileSync('plutil', ['-extract', 'CFBundleIdentifier', 'raw', plist], { encoding: 'utf8' }).trim();
+}
+
+function listing(folder) {
+    return fs.existsSync(folder) ? fs.readdirSync(folder) : [];
 }
 
 const main = async () => {
@@ -54,8 +65,14 @@ const main = async () => {
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-app-'));
     const data = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-data-'));
     const files = fs.mkdtempSync(path.join(os.tmpdir(), 'deckit-test-files-'));
+    // WebKit keeps what the app's pages store for the app that runs it, Electron's, under an id the data folder's own:
+    // the stores that came while the test ran are its, and go with its folders.
+    const stores = path.join(os.homedir(), 'Library', 'WebKit', bundleOf(electronApp()), 'WebsiteDataStore');
+    const before = new Set(listing(stores));
     process.on('exit', () => {
         for (const made of [folder, data, files]) fs.rmSync(made, { recursive: true, force: true });
+        for (const store of listing(stores))
+            if (!before.has(store)) fs.rmSync(path.join(stores, store), { recursive: true, force: true });
     });
     APP.assemble(archive, folder);
     SCENARIO.seed({ data, files: fs.realpathSync(files) });
@@ -66,7 +83,10 @@ const main = async () => {
     // The app may name its folder through /private: the core is matched by the end of its path.
     const endCore = () => execSync(`pkill -9 -f -- '${path.basename(folder)}/deckit/deckit$'`);
     const logged = () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '');
-    const report = await SCENARIO.run({ ...devtools, endCore, logged, home: path.join(data, 'deckit') });
+    // The id the app runs under, as its configuration makes it of the data folder.
+    process.env.DECKIT_DATA = data;
+    const { id } = require(path.join(folder, 'config', 'config.js')).config;
+    const report = await SCENARIO.run({ ...devtools, endCore, logged, home: path.join(data, 'deckit'), id });
     devtools.close();
     app.stop();
     await sleep(1000);
