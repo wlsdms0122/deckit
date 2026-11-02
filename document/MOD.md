@@ -369,7 +369,7 @@ A mod's view is shown in another's when that one gives a place in its view (`she
 
 ### dropDestination(element, { onDrop, onTargeted })
 
-`shell.dropDestination(element, { onDrop, onTargeted })` takes files the person drags from outside the app, from Finder or another app, onto `element`. `onTargeted(on)`, optional, hears a drag of files come over the element (`true`) and leave it (`false`), to show that it takes them. `onDrop(paths, { x, y })` hears the files dropped, by their absolute paths in the order they came, folders too, and the point they landed, from the element's top left. A drag that carries no files is left to the page. Of destinations one inside another, the innermost takes the drop. It answers its off, and ends with the screen lifecycle. A page reads no file's path from the web's own drop events: this is where a mod gets them.
+`shell.dropDestination(element, { onDrop, onTargeted })` takes files the person drags from outside the app, from Finder or another app, onto `element`. `onTargeted(on)`, optional, hears a drag of files come over the element (`true`) and leave it (`false`), to show that it takes them. `onDrop(paths, { x, y })` hears the files dropped, by their absolute paths in the order they came, folders too, and the point they landed, from the element's top left. A drag that carries no files is left to the page. Of destinations one inside another, the innermost takes the drop. It answers its off, and ends with the screen lifecycle. A page reads no file's path from the web's own drop events: this is where a mod gets them. A drag within the page, of the kit's things, is the kit's `dragSource` and `dropTarget` ([UI.md](UI.md)).
 
 ### web
 

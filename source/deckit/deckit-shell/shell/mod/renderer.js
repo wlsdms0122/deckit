@@ -18,7 +18,8 @@ import { createWindow } from '../window/renderer.js';
 // offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), and the handle `shell`:
 // the theme, the kit, `show()`, `iconOf(mod)`, `formOf(mod)`, `region(element)`, `children`,
 // `dropDestination(element, options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the panel's pins on `mods`,
-// and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme, the kit and the styles from just before attach().
+// and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme,
+// the kit and the styles from just before attach().
 // Once attach() has ended, a view is laid where the panel's guide says, or a region's for a child, unless the page is
 // in a window of its own, and a key that is never in front is left out. It reads the class's `icon` and `form` into
 // the run's summary, where whatever lists the mods reads them. `WEB` is deckit's web in the page, whose pages the

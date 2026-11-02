@@ -28,9 +28,11 @@ export function createDrop({ deliver, channels }) {
 
     // MARK: - Private
     // A drag over a child of the element enters the child before it leaves the element, so the element is over while
-    // it has entered more than it has left. A drop ends the drag wherever it lands.
+    // it has entered more than it has left. A drop ends the drag wherever it lands. Once off, the destination tells
+    // nothing more, a drop it took before included.
     function make(element, { onDrop, onTargeted }, scope) {
         let entered = 0;
+        let live = true;
         const target = (on) => onTargeted && deliver('dropDestination() onTargeted()', onTargeted, on);
         const end = () => {
             if (!entered) return;
@@ -52,20 +54,23 @@ export function createDrop({ deliver, channels }) {
                 if (!carriesFiles(event) || !entered) return;
                 if (--entered === 0) target(false);
             },
-            drop: async (event) => {
-                if (!carriesFiles(event)) return;
+            drop: (event) => {
+                if (!carriesFiles(event) || !event.isTrusted) return;
                 event.preventDefault();
                 event.stopPropagation();
                 const box = element.getBoundingClientRect();
                 const at = { x: event.clientX - box.left, y: event.clientY - box.top };
                 end();
-                const paths = await PROTOCOL.files.invoke();
-                if (paths.length) deliver('dropDestination() onDrop()', onDrop, paths, at);
+                deliver('dropDestination() onDrop()', async () => {
+                    const paths = await PROTOCOL.files.invoke();
+                    if (live && paths.length) await onDrop(paths, at);
+                });
             },
         };
         for (const [type, listener] of Object.entries(listeners)) element.addEventListener(type, listener);
         window.addEventListener('drop', end, true);
         return scope.add(() => {
+            live = false;
             for (const [type, listener] of Object.entries(listeners)) element.removeEventListener(type, listener);
             window.removeEventListener('drop', end, true);
             end();
