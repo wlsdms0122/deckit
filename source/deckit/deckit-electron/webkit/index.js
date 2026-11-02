@@ -101,8 +101,8 @@ export function createWebKit({ path, LOG }) {
                 case 'message':
                     return void delegate.message?.(payload.body);
                 case 'request':
-                    // A request whose answer throws is answered as failed, so nothing waits on it; a second reply
-                    // is dropped.
+                    // A request the delegate throws on at once is answered as failed, so nothing waits on it; a
+                    // second reply is dropped.
                     try {
                         return void delegate.request(payload);
                     } catch (error) {

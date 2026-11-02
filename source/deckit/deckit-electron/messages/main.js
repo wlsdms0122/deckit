@@ -42,10 +42,8 @@ export function createMessages() {
         const ask = () =>
             Promise.resolve()
                 .then(() => (handler ? handler(page, sent.body) : Promise.reject(new Error(`no ${sent.channel}`))))
-                .then(
-                    (value) => answer(200, { value }),
-                    (error) => answer(500, { error: String(error?.message || error) })
-                );
+                .then((value) => answer(200, { value }))
+                .catch((error) => answer(500, { error: String(error?.message || error) }));
         const order = orderOf(page, sent.document);
         if (order && order.heard < sent.after) order.waiting.push({ after: sent.after, ask });
         else ask();
