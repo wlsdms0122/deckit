@@ -104,6 +104,8 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         .settings-order[hidden] { display: none; }
         .settings-order-text { flex: 1 1 auto; opacity: 0.7; }
         .settings-order-text[data-refused] { color: var(--deckit-alert); opacity: 1; }
+        .settings-install-mod { margin: 12px 0 6px; font: 600 var(--deckit-type-body); }
+        .settings-install-mod:first-child { margin-top: 0; }
         .settings-install-note { margin-top: 10px; font: var(--deckit-type-small); line-height: 1.5; opacity: 0.5; }
     `);
     ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE);
@@ -302,45 +304,73 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         }
     }
 
+    // The folders picked install one after another once the person agrees to what they replace and ask for. A folder
+    // refused is told, and the others install.
     async function pickAndInstall() {
         let picked;
         try {
-            picked = await mods.pick();
+            picked = await mods.pick({ multiple: true });
         } catch (error) {
             return showNotice('Could not install: ' + error.message);
         }
-        if (!picked) return;
-        const asks = picked.permissions.length > 0;
-        if (!asks && !picked.replaces) return installPicked(picked);
-        const verb = picked.replaces ? 'Replace' : 'Install';
+        const refused = picked.filter((entry) => entry.problem);
+        const plans = picked.filter((entry) => !entry.problem);
+        if (!plans.length) {
+            if (refused.length) showNotice(refusalText(refused));
+            return;
+        }
+        const asking = plans.filter((plan) => plan.permissions.length > 0);
+        const replacing = plans.filter((plan) => plan.replaces);
+        if (!asking.length && !replacing.length) return installPicked(plans, refused);
+        const one = plans.length === 1;
+        const verb = one && replacing.length ? 'Replace' : 'Install';
+        const replaced = listText(replacing.map((plan) => plan.name));
         ui.dialog({
-            title: `${verb} ${picked.name}?`,
+            title: one ? `${verb} ${plans[0].name}?` : `Install ${plans.length} mods?`,
             message: [
-                picked.replaces ? `It replaces the installed ${picked.name}. What it stored is kept.` : '',
-                asks ? `${nameAndVersion(picked)} asks for:` : '',
+                replacing.length
+                    ? `${one ? 'It' : 'Installing them'} replaces the installed ${replaced}. ` +
+                      `What ${replacing.length === 1 ? 'it' : 'they'} stored is kept.`
+                    : '',
+                one && asking.length ? `${nameAndVersion(plans[0])} asks for:` : '',
             ],
-            content: asks ? permissionRequest(picked.permissions) : null,
+            content: asking.length ? permissionRequest(asking, { named: !one }) : null,
             confirmLabel: verb,
             cancelLabel: 'Cancel',
-            onConfirm: () => installPicked(picked),
+            onConfirm: () => installPicked(plans, refused),
         });
     }
 
-    async function installPicked(picked) {
-        let installed;
-        try {
-            installed = await mods.install(picked.from);
-        } catch (error) {
-            return showNotice('Could not install: ' + error.message);
+    async function installPicked(plans, refused) {
+        const done = [];
+        const failed = [];
+        for (const plan of plans) {
+            try {
+                const installed = await mods.install(plan.from);
+                done.push(`${plan.replaces ? 'Replaced' : 'Installed'} ${nameAndVersion(installed)}.`);
+            } catch (error) {
+                failed.push(`Could not install ${plan.name}: ${error.message}`);
+            }
         }
-        showNotice(`${picked.replaces ? 'Replaced' : 'Installed'} ${nameAndVersion(installed)}.`);
-        onChange();
+        showNotice([...done, ...failed, refused.length ? refusalText(refused) : ''].filter(Boolean).join(' '));
+        if (done.length) onChange();
     }
 
-    function permissionRequest(permissions) {
+    function refusalText(refused) {
+        return refused.map(({ from, problem }) => `Could not install ${from.split('/').pop()}: ${problem}`).join(' ');
+    }
+
+    // `named`: each mod's list is headed by its name, as one dialog asks for several.
+    function permissionRequest(plans, { named }) {
         const element = ui.element('div');
+        for (const plan of plans) {
+            if (named)
+                element.append(
+                    ui.element('div', { className: 'settings-install-mod', text: `${nameAndVersion(plan)} asks for:` })
+                );
+            element.append(permissionList({ ui, permissions: plan.permissions }).element);
+        }
         element.append(
-            permissionList({ ui, permissions }).element,
             ui.element('div', {
                 className: 'settings-install-note',
                 text:
