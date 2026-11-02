@@ -3,8 +3,10 @@ const path = require('path');
 const { app } = require('electron');
 
 // Run unpackaged, Electron's default app loads this folder; Deckit.app has none. Not app.isPackaged: Electron reads
-// that off the executable's name, which Deckit.app keeps as Electron's. Unpackaged, it keeps all its data in the
-// folder DECKIT_DATA names, never the person's, and a restart is asked of whoever started it, by exiting with RESTART.
+// that off the executable's name, which Deckit.app keeps as Electron's. Unpackaged, it keeps its folder and Electron's
+// data in the folder DECKIT_DATA names, never the person's; what its pages store is WebKit's for the app that runs it,
+// Electron's, shared by every unpackaged run and apart from Deckit.app's. A restart is asked of whoever started it, by
+// exiting with RESTART.
 const UNPACKAGED = !!process.defaultApp;
 const RESTART = 75;
 if (UNPACKAGED) {
