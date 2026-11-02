@@ -9,6 +9,7 @@ import * as POINTER from '../pointer/index.js';
 function listbox(element, { onPick, onActivate = () => {} }) {
     let options = [];
     let active = -1;
+    let pointed = false; // whether the pointer made the active option active, so it is where the pointer is
     const stopHover = POINTER.hoverIntent(element, (event) => {
         const index = indexAt(event.target);
         if (index >= 0 && !options[index].disabled) activate(index, { pointer: true });
@@ -25,15 +26,17 @@ function listbox(element, { onPick, onActivate = () => {} }) {
         return options.findIndex((option) => option.element.contains(target));
     }
 
-    // The option active before stays where it is in view: only another one is brought into it.
+    // The option the pointer made active stays where it is in view; any other is brought into it.
     function set(next, { active: wanted = active } = {}) {
-        const shown = options[active]?.element;
+        const shown = pointed ? options[active]?.element : null;
         options = next;
         active = -1;
         paint();
         if (wanted < 0 || !options.length) return;
         const index = Math.min(wanted, options.length - 1);
-        activate(index, { reveal: options[index].element !== shown });
+        const kept = !!shown && options[index].element === shown;
+        activate(index, { reveal: !kept });
+        pointed = kept;
     }
 
     // Brought into view unless the pointer moved to it, where it already is.
@@ -41,6 +44,7 @@ function listbox(element, { onPick, onActivate = () => {} }) {
         if (options[index]?.disabled) return;
         const changed = index !== active;
         active = index;
+        pointed = pointer;
         paint();
         if (reveal) options[active]?.element.scrollIntoView({ block: 'nearest' });
         if (changed) onActivate(active, { pointer });
