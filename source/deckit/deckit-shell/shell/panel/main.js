@@ -409,16 +409,18 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         return REGION.laidOut(current, (id) => id !== current && pages.has(id));
     }
 
-    // Every page told whether it is on screen and where it lays out, then every view where it goes: a page comes on
-    // screen told where. A page that leaves the screen holding the keyboard would go on taking keystrokes unseen: the
-    // mod on screen takes it. The frame's parts are found once for all of it; once they move again, the sidebar's move
-    // is over.
+    // Every page told where it lays out, then every view where it goes, then every page whether it is on screen: a
+    // page comes on screen told where, and hears it is up once it is laid, since laying a page waits on the page and a
+    // page asking main as it appears would wait on main. A page that leaves the screen holding the keyboard would go on
+    // taking keystrokes unseen: the mod on screen takes it. The frame's parts are found once for all of it; once they
+    // move again, the sidebar's move is over.
     function update() {
         const holder = [...sent.onScreen].find((page) => PAGES.isAlive(page) && OVERLAY.holdsKeyboard(page));
         const parts = partsOf();
         if (shell.moved && shell.moved.parts !== JSON.stringify(parts)) shell.moved = null;
         tellPages(parts);
         layout(parts);
+        tellShown();
         if (holder && !sent.onScreen.has(holder)) focus();
     }
 
@@ -471,12 +473,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
             sent.look = written;
             PROTOCOL.look.send(contents, framed);
         }
-        const now = new Set(shown ? onScreen() : []);
-        for (const page of sent.onScreen)
-            if (!now.has(page)) PROTOCOL.visible.send(page, { open: false, animate: false });
-        for (const page of now)
-            if (!sent.onScreen.has(page)) PROTOCOL.visible.send(page, { open: true, animate: false });
-        sent.onScreen = now;
         for (const page of onScreen()) {
             const next = guideOf(page, parts);
             const written = JSON.stringify(next);
@@ -484,6 +480,15 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
             sent.guides.set(page, written);
             PROTOCOL.guide.send(page, next);
         }
+    }
+
+    function tellShown() {
+        const now = new Set(shown ? onScreen() : []);
+        for (const page of sent.onScreen)
+            if (!now.has(page)) PROTOCOL.visible.send(page, { open: false, animate: false });
+        for (const page of now)
+            if (!sent.onScreen.has(page)) PROTOCOL.visible.send(page, { open: true, animate: false });
+        sent.onScreen = now;
     }
 
     function clip({ x, y, width, height }, outerWidth, outerHeight) {
