@@ -10,8 +10,8 @@ const MOD_DETAILS_STYLE = `
         opacity: 0;
         cursor: default;
         transition:
-            grid-template-rows var(--deckit-base) var(--deckit-easing),
-            opacity var(--deckit-base) var(--deckit-easing);
+            grid-template-rows var(--deckit-slow) var(--deckit-easing),
+            opacity var(--deckit-slow) var(--deckit-easing);
     }
     .settings-details[data-open] { grid-template-rows: 1fr; opacity: 1; }
     .settings-details-clip { min-height: 0; overflow: hidden; }
@@ -65,8 +65,8 @@ const MOD_DETAILS_STYLE = `
 
 // What an opened mod row shows: the mods it depends on, where its view is shown, its permissions, the addresses
 // it opens, its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it.
-// It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the base
-// duration.
+// It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the slow
+// duration, as content entering the row.
 function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
     let mod = null;
     let open = false;

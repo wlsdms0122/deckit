@@ -47,14 +47,21 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
             opacity: 0.35;
         }
         .settings-mod { cursor: pointer; }
-        .settings-mod-row { min-height: 34px; padding-block: 6px; font: inherit; white-space: normal; }
-        .settings-mod-name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
+        /* The cells stand at the top, on a first line as tall as a row action (22px): chips that wrap go below it. */
+        .settings-mod-row {
+            align-items: start;
+            min-height: 34px;
+            padding-block: 6px;
+            font: inherit;
+            white-space: normal;
+        }
+        .settings-mod-name-cell { display: flex; align-items: center; gap: 4px; min-width: 0; height: 22px; }
         .settings-caret {
             display: flex;
             flex: 0 0 auto;
             margin-left: -4px;
             opacity: 0.45;
-            transition: transform var(--deckit-fast) var(--deckit-easing);
+            transition: transform var(--deckit-slow) var(--deckit-easing);
         }
         .settings-mod[data-open] .settings-caret { transform: rotate(90deg); }
         .settings-mod-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -66,12 +73,12 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font: 11.5px var(--deckit-font);
+            font: 11.5px/22px var(--deckit-font);
             font-variant-numeric: tabular-nums;
             opacity: 0.5;
         }
         .settings-mod-version[data-missing] { opacity: 0.25; }
-        .settings-mod-contributions { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+        .settings-mod-contributions { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; padding-block: 2.5px; }
         .settings-mod-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; }
         .settings-mod-actions > [hidden] { display: none; }
         .settings-mod-failure,
