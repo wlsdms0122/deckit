@@ -47,9 +47,11 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
             opacity: 0.35;
         }
         .settings-mod { cursor: pointer; }
-        /* The cells stand at the top, on a first line as tall as a row action (22px): chips that wrap go below it. */
+        /* The cells stand at the top, on a first line as tall as a row action (22px): chips that wrap go below it.
+           What is wrong with the mod goes under them, across the row. */
         .settings-mod-row {
             align-items: start;
+            row-gap: 2px;
             min-height: 34px;
             padding-block: 6px;
             font: inherit;
@@ -83,8 +85,8 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         .settings-mod-actions > [hidden] { display: none; }
         .settings-mod-failure,
         .settings-mod-note {
-            margin-top: -6px;
-            padding: 0 8px 8px 21px;
+            grid-column: 1 / -1;
+            padding-left: 13px;
             font: var(--deckit-type-small);
             line-height: 1.5;
             white-space: pre-line;
@@ -256,12 +258,14 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         busy.append(ui.spinner({ size: 11 }).element);
         nameCell.append(caret, name, busy);
         actions.append(relaunchAction.element, revealAction.element, removeAction.element, source.element);
-        row.element.append(nameCell, version, contributions, actions);
+        row.element.append(nameCell, version, contributions, actions, failure, note);
         // Selectable: this is what gets pasted into a bug report.
         ui.selectable(failure);
         ui.selectable(note);
-        element.append(row.element, failure, note, details.element);
-        row.element.addEventListener('click', () => {
+        element.append(row.element, details.element);
+        // The clicks after the first of a double or triple click select words, not open or close the row.
+        row.element.addEventListener('click', (event) => {
+            if (event.detail > 1) return;
             open = !open;
             showOpen(true);
         });
