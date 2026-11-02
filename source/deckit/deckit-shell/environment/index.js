@@ -91,8 +91,9 @@ const MAIN = Object.freeze({
     },
     // The clipboard's text: readText() -> string, writeText(text)
     clipboard: { readText: 'function', writeText: 'function' },
-    // chooseFolder({ title, buttonLabel, message }) -> Promise of the folder the person chose, or null
-    dialogs: { chooseFolder: 'function' },
+    // chooseFolders({ title, buttonLabel, message, multiple }) -> Promise of the folders the person chose, one unless
+    // `multiple`, none when they chose none
+    dialogs: { chooseFolders: 'function' },
     // A mod's main process modules, which the environment runs, deckit saying which mod starts what and when. A mod is
     // `{ id, folder, data, pageOf() }`: its folder, its data folder, and the page it runs in now, or null.
     mainProcess: {
