@@ -16,8 +16,9 @@ import CNodeAPI
 //   windows it opens, `fullSpeed` running off screen or covered as on it; `load(id, url)`; `go(id, to)`; `focus(id)`;
 //   `isFocused(id)`; `focusedPage()`, the page with the keyboard, or null; `state(id)`; `run(id, [{ source, world,
 //   mainFrameOnly }])`; `evaluate(id, source, world) -> Promise of JSON`; `find(id, text, { backwards, caseSensitive
-//   }) -> Promise of whether it found it`; `fetchText(store, url, limit) -> Promise of the text`; `clear(store) ->
-//   Promise`; `close(id)`; `safariVersion()`.
+//   }) -> Promise of whether it found it`; `fetchText(store, url, { limit, applicationName }) -> Promise of the
+//   text`, asked as the store's pages made with `applicationName` ask; `clear(store) -> Promise`; `close(id)`;
+//   `safariVersion()`.
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
 //   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
 //   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
@@ -145,11 +146,16 @@ final class WebEngine {
             let store = try storeOf(try string(0))
             let address = try string(1)
             guard let url = URL(string: address) else { throw NodeError(message: "not an address: \(address)") }
-            let limit = Int(try node.number(try argument(2)))
+            let options = try argument(2)
+            guard let limit = try node.member(options, "limit").map({ Int(try node.number($0)) }) else {
+                throw NodeError(message: "fetchText takes { limit, applicationName }")
+            }
+            let applicationName = try node.member(options, "applicationName").map { try node.string($0) } ?? ""
+            let fetcher = TextFetcher(store: store, applicationName: applicationName)
             let (promise, settle) = try promised()
             Task { @MainActor in
                 do {
-                    settle(.success(try await TextFetcher(store: store).text(at: url, limit: limit)))
+                    settle(.success(try await fetcher.text(at: url, limit: limit)))
                 } catch {
                     settle(.failure(error))
                 }
