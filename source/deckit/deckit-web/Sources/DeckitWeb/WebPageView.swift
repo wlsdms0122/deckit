@@ -25,10 +25,11 @@ final class WebPageView: WKWebView {
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        droppedFiles = sender.draggingPasteboard.readObjects(
+        let files = sender.draggingPasteboard.readObjects(
             forClasses: [NSURL.self],
             options: [.urlReadingFileURLsOnly: true]
-        ) as? [URL] ?? []
+        ) as? [NSURL] ?? []
+        droppedFiles = files.map { ($0.filePathURL ?? $0 as URL) }
 
         return super.performDragOperation(sender)
     }
