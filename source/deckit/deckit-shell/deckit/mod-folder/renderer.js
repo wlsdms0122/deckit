@@ -6,9 +6,10 @@ import * as DECLARED from './protocol.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // MARK: - Initializer
 // MARK: - Public
-// A folder the person picks to install, as it would install, or null when they did not pick one.
-function pick() {
-    return PROTOCOL.pick.invoke();
+// A folder the person picks to install, as it would install, or null when they did not pick one. With `multiple`, the
+// folders they pick, each as it would install or, refused, `{ from, problem }`, none when they picked none.
+function pick({ multiple = false } = {}) {
+    return PROTOCOL.pick.invoke({ multiple: !!multiple });
 }
 
 // The mod's folder, shown in Finder.

@@ -141,7 +141,7 @@ function createEnvironment({ core, preload, openWindow }) {
             readText: () => require('electron').clipboard.readText(),
             writeText: (text) => require('electron').clipboard.writeText(text),
         }),
-        dialogs: Object.freeze({ chooseFolder }),
+        dialogs: Object.freeze({ chooseFolders }),
         stage: STAGE,
         web: Object.freeze({
             listen: WEB.listen,
@@ -419,10 +419,11 @@ function appFor(url) {
         .replace(/\.app$/i, '');
 }
 
-async function chooseFolder({ title, buttonLabel, message }) {
+async function chooseFolders({ title, buttonLabel, message, multiple = false }) {
     const { dialog } = require('electron');
-    const result = await dialog.showOpenDialog({ title, buttonLabel, message, properties: ['openDirectory'] });
-    return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
+    const properties = multiple ? ['openDirectory', 'multiSelections'] : ['openDirectory'];
+    const result = await dialog.showOpenDialog({ title, buttonLabel, message, properties });
+    return result.canceled ? [] : result.filePaths;
 }
 
 // MARK: - Private
