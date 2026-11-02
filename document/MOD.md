@@ -88,7 +88,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
 | `system.clipboard-read` | reading what was copied, from any app | `deckit.clipboard.readText` |
 | `system.clipboard-write` | replacing what was copied with text of its own, which the person then pastes in any app | `deckit.clipboard.writeText` |
-| `system.file-handlers` | handing files on this Mac to whatever opens them, a mod or the app for them, which can start programs, and showing them in Finder | `deckit.urls.open` of a `file://` address, `deckit.reveal` |
+| `system.file-handlers` | handing files on this Mac to whatever opens them, a mod or the app for them, which can start programs, and showing them in Finder | `deckit.urls.open` of a `file://` address, `deckit.reveal`, `web.downloads.open` and `reveal` |
 | `system.overlay-windows` | a window of its own over every app's, on every desktop, whichever app is in front | `overlay` on `shell.window.register` |
 | `system.notifications` | notifications in the corner of the screen | `deckit.notify` |
 | `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `scope: 'global'` on a key |
@@ -317,9 +317,9 @@ What the mod's web pages download goes to the Downloads folder, under the name t
 - `list()` resolves to the downloads.
 - `onChange(listener)` hears a download each time it changes, a new one first, and returns its off.
 - `cancel(id)` stops one under way.
-- `reveal(id)` shows its file in Finder and resolves to whether it was there.
-- `open(id)` opens a finished one's file in its app, only during a person's click or key, and resolves to whether it opened.
 - `remove(id)` forgets one, stopping it first if it is under way, and resolves to whether there was one. The file stays.
+- `reveal(id)`, with `system.file-handlers`, shows its file in Finder and resolves to whether it was there.
+- `open(id)`, with `system.file-handlers`, opens a finished one's file in its app and resolves to whether it opened.
 
 ### mods
 

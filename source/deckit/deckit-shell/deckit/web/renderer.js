@@ -3,6 +3,7 @@ import * as IPC from '../../deck/ipc/renderer.js';
 import * as LISTENER from '../../deck/listener/index.js';
 import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
+import * as OPEN_PERMISSION from '../open/model/permission.js';
 import * as SESSION from './model/session.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
@@ -56,9 +57,13 @@ export function createWeb({ sessions, web: WEB }) {
             list: () => PROTOCOL.downloads.invoke({}),
             onChange: scoped(onDownload),
             cancel: (id) => PROTOCOL.cancelDownload.send({ id: String(id) }),
-            reveal: (id) => PROTOCOL.revealDownload.invoke({ id: String(id) }),
-            open: (id) => PROTOCOL.openDownload.invoke({ id: String(id) }),
             remove: (id) => PROTOCOL.removeDownload.invoke({ id: String(id) }),
+            ...(has(OPEN_PERMISSION.FILE_HANDLERS)
+                ? {
+                      reveal: (id) => PROTOCOL.revealDownload.invoke({ id: String(id) }),
+                      open: (id) => PROTOCOL.openDownload.invoke({ id: String(id) }),
+                  }
+                : {}),
         });
         return Object.freeze({ session, downloads });
     }

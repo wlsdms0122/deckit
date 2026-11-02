@@ -29,7 +29,10 @@ async function main() {
     IPC.carry({ messages, pages: { isGone: () => false } }, { report: () => {} });
     const toldOn = (channel) => tells.filter(([, message]) => message.channel === channel);
 
-    const files = { id: 'files', permissions: [{ id: 'system.files' }, { id: 'system.site-permissions' }] };
+    const files = {
+        id: 'files',
+        permissions: [{ id: 'system.files' }, { id: 'system.site-permissions' }, { id: 'system.file-handlers' }],
+    };
     const plain = { id: 'plain', permissions: [] };
     const filesPage = { name: 'files page' };
     const plainPage = { name: 'plain page' };
@@ -41,7 +44,11 @@ async function main() {
     const IDENTITY = {
         modOf: (page) => mods.get(page) || null,
         pageNameOf: () => null,
-        modFrom: (page) => mods.get(page),
+        modFrom: (page, permission = null) => {
+            const mod = mods.get(page);
+            if (permission && !mod.permissions.some(({ id }) => id === permission)) throw new Error('refused');
+            return mod;
+        },
         consumeUserActivation: (page) => activated.delete(page),
         watchPresses: () => {},
         pageOf: (modId) => [...mods].find(([, mod]) => mod.id === modId)?.[0] || null,
@@ -392,16 +399,39 @@ async function main() {
         state['web-downloads'].files[0].state === 'finished' && state['web-downloads'].files[0].received === 10,
         state['web-downloads']
     );
-    check('a finished one opens only as a person asks', (await openIt()) === false, opened);
-    activated.add(filesPage);
     check(
-        'a finished one opens in its app as a person asks',
+        'a finished one opens in its app',
         (await openIt()) === true && JSON.stringify(opened.at(-1)) === '["file","/D/a.zip"]',
         opened
     );
     const revealed = (await heard.asked(filesPage, { channel: 'deckit-shell:web-download-reveal', payload: { id } }))
         .value;
     check('a download is shown in Finder', revealed === true && opened.at(-1)[0] === 'reveal', opened);
+    const openedBefore = opened.length;
+    const plainOpen = await heard.asked(plainPage, {
+        channel: 'deckit-shell:web-download-open',
+        payload: { id: 'quit' },
+    });
+    const plainReveal = await heard.asked(plainPage, {
+        channel: 'deckit-shell:web-download-reveal',
+        payload: { id: 'quit' },
+    });
+    check(
+        'a download opens and shows in Finder only for a mod with system.file-handlers',
+        !plainOpen?.value && !plainReveal?.value && opened.length === openedBefore,
+        [plainOpen, plainReveal, opened]
+    );
+
+    // One whose mod's page is gone as it ends is still the mod's.
+    deck.downloaded(filesPage, { ...downloading, id: 60, path: '/D/c.zip', name: 'c.zip' });
+    mods.delete(filesPage);
+    deck.downloaded(filesPage, { ...downloading, id: 60, path: '/D/c.zip', name: 'c.zip', state: 'finished' });
+    mods.set(filesPage, files);
+    check(
+        "a download ending after its mod's page is gone is kept as finished",
+        state['web-downloads'].files[0].name === 'c.zip' && state['web-downloads'].files[0].state === 'finished',
+        state['web-downloads'].files[0]
+    );
 
     deck.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip' });
     const forgotten = state['web-downloads'].files[0].id;
@@ -414,11 +444,17 @@ async function main() {
         removed === true &&
             done.at(-1)[0] === 'cancelDownload' &&
             done.at(-1)[1] === 51 &&
-            state['web-downloads'].files.length === 1,
+            state['web-downloads'].files.length === 2,
         [done.at(-1), state['web-downloads']]
     );
+    deck.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip' });
     await WEB.erase('files');
-    check("a mod's downloads go with its data", !('files' in state['web-downloads']), state['web-downloads']);
+    deck.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip', state: 'cancelled' });
+    check(
+        "a mod's downloads go with its data, one under way stopped",
+        !('files' in state['web-downloads']) && done.some(([what, under]) => what === 'cancelDownload' && under === 70),
+        [state['web-downloads'], done]
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);
