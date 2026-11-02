@@ -166,6 +166,7 @@ export function createWebKit({ path, LOG }) {
             reload: () => can() && WEBKIT.go(page.id, 'reload'),
             stop: () => can() && WEBKIT.go(page.id, 'stop'),
             focus: () => can() && WEBKIT.focus(page.id),
+            droppedFiles: () => (can() ? WEBKIT.droppedFiles(page.id) : []),
             run: (scripts) => can() && WEBKIT.run(page.id, scripts),
             evaluate: (source, world = 'page') =>
                 can()

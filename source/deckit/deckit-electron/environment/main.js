@@ -117,6 +117,7 @@ function createEnvironment({ core, preload, openWindow }) {
             load,
             close,
             focus: (page) => page.focus(),
+            droppedFiles: (page) => page.droppedFiles(),
             isGone,
             isClosed: (page) => page.isDestroyed(),
             watch: (page, watchers) => watch(guard, page, watchers, { openingOf }),

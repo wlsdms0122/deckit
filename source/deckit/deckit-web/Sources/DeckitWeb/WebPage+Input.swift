@@ -68,6 +68,22 @@ extension WebPage {
         }
     }
 
+    // `files` dragged in from outside the app and dropped at `point`, from the page's top left, each by reference as
+    // Finder drags it: dragged over the page first, and dropped once the page has had `settle` to answer the drag.
+    func sendDrop(_ files: [URL], at point: CGPoint, settle: Duration = .milliseconds(300)) async throws {
+        let window = try shownWindow()
+        let pasteboard = NSPasteboard.withUniqueName()
+        pasteboard.writeObjects(files.map { ($0 as NSURL).fileReferenceURL() as NSURL? ?? $0 as NSURL })
+        let drag = Drag(window: window, location: view.convert(point, to: nil), pasteboard: pasteboard)
+        _ = view.draggingEntered(drag)
+        _ = view.draggingUpdated(drag)
+        try await Task.sleep(for: settle)
+        _ = view.draggingUpdated(drag)
+        try await Task.sleep(for: settle)
+        if view.prepareForDragOperation(drag) { _ = view.performDragOperation(drag) }
+        view.concludeDragOperation(drag)
+    }
+
     // MARK: - Private
     // What a key the web names by a word types, as AppKit's events carry it.
     private static let characters: [String: String] = [
@@ -115,4 +131,41 @@ private enum HeldButton {
         _ = answered
         held = on
     }
+}
+
+// A drag of files from outside the app over a window, as AppKit hands a destination one.
+nonisolated private final class Drag: NSObject, NSDraggingInfo {
+    // MARK: - Property
+    let draggingDestinationWindow: NSWindow?
+    let draggingLocation: NSPoint
+    let draggingPasteboard: NSPasteboard
+    var draggingSourceOperationMask: NSDragOperation { .copy }
+    var draggedImageLocation: NSPoint { draggingLocation }
+    var draggedImage: NSImage? { nil }
+    var draggingSource: Any? { nil }
+    var draggingSequenceNumber: Int { 1 }
+    var draggingFormation: NSDraggingFormation = .default
+    var animatesToDestination = false
+    var numberOfValidItemsForDrop = 0
+    var springLoadingHighlight: NSSpringLoadingHighlight { .none }
+
+    // MARK: - Initializer
+    init(window: NSWindow, location: NSPoint, pasteboard: NSPasteboard) {
+        draggingDestinationWindow = window
+        draggingLocation = location
+        draggingPasteboard = pasteboard
+    }
+
+    // MARK: - Public
+    func slideDraggedImage(to screenPoint: NSPoint) {}
+
+    func enumerateDraggingItems(
+        options enumOpts: NSDraggingItemEnumerationOptions = [],
+        for view: NSView?,
+        classes classArray: [AnyClass],
+        searchOptions: [NSPasteboard.ReadingOptionKey: Any] = [:],
+        using block: (NSDraggingItem, Int, UnsafeMutablePointer<ObjCBool>) -> Void
+    ) {}
+
+    func resetSpringLoading() {}
 }

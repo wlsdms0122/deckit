@@ -14,10 +14,10 @@ import CNodeAPI
 // - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, fullSpeed }, emit) -> id` (WebPage),
 //   `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document does not, as do the
 //   windows it opens, `fullSpeed` running off screen or covered as on it; `load(id, url)`; `go(id, to)`; `focus(id)`;
-//   `isFocused(id)`; `focusedPage()`, the page with the keyboard, or null; `state(id)`; `run(id, [{ source, world,
-//   mainFrameOnly }])`; `evaluate(id, source, world) -> Promise of JSON`; `find(id, text, { backwards, caseSensitive
-//   }) -> Promise of whether it found it`; `fetchText(store, url, limit) -> Promise of the text`; `clear(store) ->
-//   Promise`; `close(id)`; `safariVersion()`.
+//   `isFocused(id)`; `focusedPage()`, the page with the keyboard, or null; `state(id)`; `droppedFiles(id)`, the paths
+//   of the files dropped on it last; `run(id, [{ source, world, mainFrameOnly }])`; `evaluate(id, source, world) ->
+//   Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
+//   `fetchText(store, url, limit) -> Promise of the text`; `clear(store) -> Promise`; `close(id)`; `safariVersion()`.
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
 //   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
 //   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
@@ -29,9 +29,9 @@ import CNodeAPI
 //   `showSaveDialog(id, options) -> Promise of the path, or null`, as a sheet on it, `options` NSOpenPanel's (dress).
 // - Input as a person's would come, through the app's watch on its events (WebPage+Input): `sendKey(id, { code, key,
 //   alt, ctrl, meta, shift })`, `code` and `key` as the web names them; `sendMouse(id, { type, x, y })`, `type` `down`,
-//   `dragged` or `up`, at a point from the page's top left. `snapshot(id) -> Promise of a PNG in base64`;
-//   `killProcess(id)`, its content's process ended as a crash ends it; `pages()` and `windows()`, the ids of those
-//   open.
+//   `dragged` or `up`, at a point from the page's top left; `sendDrop(id, { files, x, y }) -> Promise`, files from
+//   outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
+//   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
 //   clip } | { page, hidden: true }])`, `clip` a rect on the stage the page is cut to; `showStage(id, on)`;
 //   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id.
@@ -107,6 +107,9 @@ final class WebEngine {
 
         case .state:
             return try node.make(try page().state)
+
+        case .droppedFiles:
+            return try node.make(try page().droppedFiles)
 
         case .run:
             try page().run(try node.array(try argument(1)).map { script in
@@ -259,6 +262,27 @@ final class WebEngine {
                 throw NodeError(message: "a mouse event is { type, x, y }, its type down, dragged or up")
             }
             try page().sendMouse(type, at: CGPoint(x: try node.number(x), y: try node.number(y)), through: input)
+
+        case .sendDrop:
+            let options = try argument(1)
+            guard let files = try node.member(options, "files").map({ try node.array($0).map(node.string) }),
+                let x = try node.member(options, "x"),
+                let y = try node.member(options, "y")
+            else {
+                throw NodeError(message: "a drop is { files, x, y }, `files` their paths")
+            }
+            let page = try page()
+            let point = CGPoint(x: try node.number(x), y: try node.number(y))
+            let (promise, settle) = try promised()
+            Task { @MainActor in
+                do {
+                    try await page.sendDrop(files.map { URL(fileURLWithPath: $0) }, at: point)
+                    settle(.success(nil))
+                } catch {
+                    settle(.failure(error))
+                }
+            }
+            return promise
 
         case .snapshot:
             let (promise, settle) = try promised()

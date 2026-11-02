@@ -20,6 +20,7 @@ enum Export: Int, CaseIterable {
     case evaluate
     case find
     case fetchText
+    case droppedFiles
     case clear
     case close
     case safariVersion
@@ -43,6 +44,7 @@ enum Export: Int, CaseIterable {
     case showSaveDialog
     case sendKey
     case sendMouse
+    case sendDrop
     case snapshot
     case killProcess
     case pages

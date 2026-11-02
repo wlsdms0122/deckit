@@ -8,6 +8,7 @@ import * as MOD_PERMISSION from '../../deck/mod/permission.js';
 import { createPanel, viewProblem, keyProblem } from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
 import { createRegion, parentProblem } from '../region/renderer.js';
+import { createDrop } from '../drop/renderer.js';
 import { createWindow } from '../window/renderer.js';
 
 // MARK: - Property
@@ -15,9 +16,10 @@ import { createWindow } from '../window/renderer.js';
 // MARK: - Public
 // The shell as a layer on deckit in a mod's page (deckit-shell/deck/runner/renderer.js), stacked with what deckit
 // offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), and the handle `shell`:
-// the theme, the kit, `show()`, `iconOf(mod)`, `formOf(mod)`, `region(element)`, `children`, `web`, with deckit.fonts
-// `fonts`, with deckit.mods the panel's pins on `mods`, and `view.register()`, `window.register()` and, with
-// deckit.styles, `styles.register()`. The page wears the theme, the kit and the styles from just before attach().
+// the theme, the kit, `show()`, `iconOf(mod)`, `formOf(mod)`, `region(element)`, `children`,
+// `dropDestination(element, options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the panel's pins on `mods`,
+// and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme,
+// the kit and the styles from just before attach().
 // Once attach() has ended, a view is laid where the panel's guide says, or a region's for a child, unless the page is
 // in a window of its own, and a key that is never in front is left out. It reads the class's `icon` and `form` into
 // the run's summary, where whatever lists the mods reads them. `WEB` is deckit's web in the page, whose pages the
@@ -28,6 +30,7 @@ function shellOf({ WEB, channels }) {
         const WINDOW = createWindow({ running, fail, deliver, channels });
         const PANEL = createPanel({ channels });
         const REGION = createRegion({ deliver, channels });
+        const DROP = createDrop({ deliver, channels });
         // What it tells of the run: nothing until its lifecycle has joined, nothing on screen once it has ended.
         const ENDED = Object.freeze({
             summary: { view: false, sidebar: false, parent: null, styles: [], window: null },
@@ -65,6 +68,7 @@ function shellOf({ WEB, channels }) {
                             iconOf: PANEL.iconOf,
                             formOf: PANEL.formOf,
                             ...REGION.forScope(scope),
+                            ...DROP.forScope(scope),
                             web: WEB.surfacesOf({ owner: { deliver, recordFailure: fail }, opener, scope }),
                             window: Object.freeze({ register: WINDOW.register }),
                             ...(has(FONTS_PERMISSION.FONTS) ? { fonts: FONTS.tool({ channels }) } : {}),
