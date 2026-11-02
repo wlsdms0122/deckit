@@ -44,9 +44,15 @@ async function main() {
         modFrom: (page) => mods.get(page),
         consumeUserActivation: (page) => activated.delete(page),
         watchPresses: () => {},
+        pageOf: (modId) => [...mods].find(([, mod]) => mod.id === modId)?.[0] || null,
     };
     const KEYMAP = { listen: () => {} };
-    const state = {};
+    // A download still under way as Deckit quit, kept from the run before.
+    const state = {
+        'web-downloads': {
+            plain: [{ id: 'quit', url: 'https://a.com/q.zip', name: 'q.zip', path: '/D/q.zip', state: 'downloading' }],
+        },
+    };
     const STORAGE = {
         // Kept as text, as the core keeps it: each read is a copy of its own.
         state: {
@@ -86,6 +92,7 @@ async function main() {
             clearing();
         },
         stateOf: () => null,
+        cancelDownload: (id) => done.push(['cancelDownload', id]),
     };
     const pages = {
         isGone: () => false,
@@ -98,6 +105,8 @@ async function main() {
     const open = {
         appFor: (address) => (address.startsWith('zoommtg:') ? 'zoom.us' : ''),
         url: (address) => opened.push(address),
+        reveal: (file) => opened.push(['reveal', file]) > 0,
+        file: async (file) => opened.push(['file', file]) > 0,
     };
     const WEB = createWeb({ LOG: { info: () => {} }, IDENTITY, KEYMAP, STORAGE, web, pages, open });
     WEB.start();
@@ -137,7 +146,7 @@ async function main() {
     check("a mod never attaches another's session", !deck.attaching(plainPage, { mod: 'files', name: 'web' }), '');
     check("a session that is no mod's never attaches", !deck.attaching(plainPage, null), '');
     clearing = () => deck.attaching(plainPage, { mod: 'plain', name: 'web' });
-    await WEB.clearSessions('files');
+    await WEB.erase('files');
     check(
         "a mod's sessions are cleared and forgotten, and another's used meanwhile kept",
         JSON.stringify(done.at(-1)) === '["clear","files","web"]' &&
@@ -331,6 +340,85 @@ async function main() {
     await tick();
     const loads = done.filter(([what]) => what === 'load');
     check("a mod never loads another's tab", loads.length === 1 && loads[0][2] === 'https://c.com', loads);
+
+    // Downloads, kept for the mod showing the page that started each.
+    check(
+        'a download under way as Deckit quit failed',
+        state['web-downloads'].plain[0].state === 'failed' && !!state['web-downloads'].plain[0].error,
+        state['web-downloads']
+    );
+    const downloading = {
+        id: 50,
+        url: 'https://a.com/a.zip',
+        name: 'a.zip',
+        path: '/D/a.zip',
+        state: 'downloading',
+        received: 0,
+        expected: 10,
+        error: '',
+    };
+    deck.downloaded(filesPage, downloading);
+    deck.downloaded(filesPage, { ...downloading, received: 4 });
+    const toldDownloads = toldOn('deckit-shell:web-downloaded');
+    const kept = state['web-downloads'].files;
+    const id = kept?.[0]?.id;
+    check(
+        'a download is kept once, and its mod told of each change',
+        kept?.length === 1 &&
+            kept[0].state === 'downloading' &&
+            toldDownloads.length === 2 &&
+            toldDownloads.every(([page, message]) => page === filesPage && message.payload.id === id) &&
+            toldDownloads[1][1].payload.received === 4,
+        [kept, toldDownloads]
+    );
+    const listed = (await heard.asked(filesPage, { channel: 'deckit-shell:web-downloads', payload: {} })).value;
+    const plainListed = (await heard.asked(plainPage, { channel: 'deckit-shell:web-downloads', payload: {} })).value;
+    check(
+        "a mod lists its own downloads, never another's",
+        listed?.length === 1 && listed[0].id === id && plainListed?.length === 1 && plainListed[0].id === 'quit',
+        [listed, plainListed]
+    );
+    heard.told(plainPage, { channel: 'deckit-shell:web-download-cancel', payload: { id } });
+    heard.told(filesPage, { channel: 'deckit-shell:web-download-cancel', payload: { id } });
+    await tick();
+    const cancels = done.filter(([what]) => what === 'cancelDownload');
+    check("a mod stops its own download, never another's", cancels.length === 1 && cancels[0][1] === 50, cancels);
+    const openIt = async () =>
+        (await heard.asked(filesPage, { channel: 'deckit-shell:web-download-open', payload: { id } })).value;
+    check('one under way does not open', (await openIt()) === false, '');
+    deck.downloaded(filesPage, { ...downloading, received: 10, state: 'finished' });
+    check(
+        'a finished download is kept as finished',
+        state['web-downloads'].files[0].state === 'finished' && state['web-downloads'].files[0].received === 10,
+        state['web-downloads']
+    );
+    check('a finished one opens only as a person asks', (await openIt()) === false, opened);
+    activated.add(filesPage);
+    check(
+        'a finished one opens in its app as a person asks',
+        (await openIt()) === true && JSON.stringify(opened.at(-1)) === '["file","/D/a.zip"]',
+        opened
+    );
+    const revealed = (await heard.asked(filesPage, { channel: 'deckit-shell:web-download-reveal', payload: { id } }))
+        .value;
+    check('a download is shown in Finder', revealed === true && opened.at(-1)[0] === 'reveal', opened);
+
+    deck.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip' });
+    const forgotten = state['web-downloads'].files[0].id;
+    const removed = (
+        await heard.asked(filesPage, { channel: 'deckit-shell:web-download-remove', payload: { id: forgotten } })
+    ).value;
+    deck.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip', state: 'cancelled' });
+    check(
+        'one forgotten under way is stopped, and not kept again as it ends',
+        removed === true &&
+            done.at(-1)[0] === 'cancelDownload' &&
+            done.at(-1)[1] === 51 &&
+            state['web-downloads'].files.length === 1,
+        [done.at(-1), state['web-downloads']]
+    );
+    await WEB.erase('files');
+    check("a mod's downloads go with its data", !('files' in state['web-downloads']), state['web-downloads']);
 
     if (failed.length) {
         for (const line of failed) console.error(line);

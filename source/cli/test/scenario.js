@@ -580,6 +580,28 @@ async function run({
             identity?.webkit === 'undefined',
             JSON.stringify(identity)
         );
+        // What a site hands over as a file to keep is written to the Downloads folder under its name, and the tab stays
+        // on its page.
+        const server = require('http').createServer((_request, response) => {
+            response.writeHead(200, {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': 'attachment; filename="report.csv"',
+            });
+            response.end('a,b\n1,2\n');
+        });
+        await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+        await main(
+            `return webkit.load(${await browser?.evaluate(shownPage)}, 'http://127.0.0.1:${server.address().port}/')`
+        );
+        const downloaded = await until(
+            () =>
+                main(`const file = require('path').join(require('electron').app.getPath('downloads'), 'report.csv');
+                    return require('fs').existsSync(file) && require('fs').readFileSync(file, 'utf8')`),
+            5000
+        );
+        server.close();
+        check('a file a site hands over is downloaded under its name', downloaded === 'a,b\n1,2\n', downloaded);
+        check('the tab that downloaded stays on its page', (await shownAt()) === FRONT_TAB, await shownAt());
         const toolbar = await browser?.evaluate(`(() => {
             const bar = document.querySelector('.browser-toolbar');
             const shown = [...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible');
