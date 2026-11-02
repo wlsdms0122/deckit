@@ -135,6 +135,20 @@ export function createWeb({ sessions, web: WEB }) {
                 },
             });
         });
+        PROTOCOL.saving.on(({ id, ask, url, name, mimeType, expected }) => {
+            let answered = false;
+            deliver(id, 'download', {
+                url,
+                name,
+                mimeType,
+                expected,
+                answer(save) {
+                    if (answered) return;
+                    answered = true;
+                    PROTOCOL.save.send({ ask, save: save === true });
+                },
+            });
+        });
         PROTOCOL.notified.on(({ id, notification, title, body, silent }) => {
             deliver(id, 'notification', {
                 title,
@@ -217,6 +231,10 @@ export function createWeb({ sessions, web: WEB }) {
                 case 'permission': {
                     const { answer, ...request } = payload;
                     return ask('decidePermission', false, request).then((allow) => answer(allow === true));
+                }
+                case 'download': {
+                    const { answer, ...download } = payload;
+                    return ask('shouldDownload', true, download).then((save) => answer(save !== false));
                 }
                 case 'leave':
                     return otherwiseOpen('shouldLeave', payload.url);

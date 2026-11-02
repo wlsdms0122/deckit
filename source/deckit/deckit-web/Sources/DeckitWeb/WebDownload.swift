@@ -9,9 +9,9 @@ import Foundation
 import WebKit
 
 // A download a page started, which tells JavaScript what becomes of it: `adopted` ({ id }) first, then asks
-// `destination` ({ url, suggestedFilename, mimeType, expectedLength }), answered at once with the path of the file to
-// write, or nothing to cancel it; then `progress` ({ received, expected }), `expected` -1 while it is not known, and
-// once, `finished` or `failed` ({ description, cancelled }).
+// `destination` ({ url, suggestedFilename, mimeType, expectedLength, reply }), answered later through `reply` with the
+// path of the file to write, or "" to cancel it; then `progress` ({ received, expected }), `expected` -1 while it is
+// not known, and once, `finished` or `failed` ({ description, cancelled }).
 @MainActor
 final class WebDownload: NSObject {
     // MARK: - Property
@@ -23,6 +23,8 @@ final class WebDownload: NSObject {
     private let emitter: Emitter
     private let ended: @MainActor (WebDownload) -> Void
     private var timer: Timer?
+    // WebKit's handler of the destination, while JavaScript has not answered it.
+    private var deciding: (@MainActor @Sendable (URL?) -> Void)?
     private var told: (received: Int64, expected: Int64)?
 
     // MARK: - Initializer
@@ -61,7 +63,21 @@ final class WebDownload: NSObject {
         emitter.emit("progress", ["received": Double(now.received), "expected": Double(now.expected)])
     }
 
+    // The destination answered once: a path starts the download, "" cancels it.
+    private func decide(_ path: String) {
+        guard let deciding else { return }
+        self.deciding = nil
+        guard !path.isEmpty else {
+            deciding(nil)
+            return
+        }
+
+        watchProgress()
+        deciding(URL(fileURLWithPath: path))
+    }
+
     private func end(_ event: String, _ payload: [String: Any?] = [:]) {
+        decide("")
         timer?.invalidate()
         timer = nil
         tellProgress()
@@ -79,20 +95,18 @@ extension WebDownload: WKDownloadDelegate {
         suggestedFilename: String,
         completionHandler: @escaping @MainActor @Sendable (URL?) -> Void
     ) {
-        let payload: [String: Any?] = [
+        deciding = completionHandler
+        let reply = Reply { [weak self] node, arguments in
+            let path = try arguments.first.map { try node.string($0) } ?? ""
+            self?.decide(path)
+        }
+        emitter.emit("destination", [
             "url": download.originalRequest?.url?.absoluteString ?? response.url?.absoluteString ?? "",
             "suggestedFilename": suggestedFilename,
             "mimeType": response.mimeType ?? "",
-            "expectedLength": Double(response.expectedContentLength)
-        ]
-        let path: String? = emitter.emit("destination", payload) { node, value in try node.string(value) }
-        guard let path, !path.isEmpty else {
-            completionHandler(nil)
-            return
-        }
-
-        watchProgress()
-        completionHandler(URL(fileURLWithPath: path))
+            "expectedLength": Double(response.expectedContentLength),
+            "reply": reply
+        ])
     }
 
     func downloadDidFinish(_ download: WKDownload) {

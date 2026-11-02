@@ -456,6 +456,38 @@ async function main() {
         [state['web-downloads'], done]
     );
 
+    // A download is saved as the mod's page showing its tab answers.
+    const file = { url: 'https://a.com/e.zip', name: 'e.zip', mimeType: 'application/zip', expected: 3 };
+    const answerSave = (page, save) =>
+        heard.told(page, {
+            channel: 'deckit-shell:web-save',
+            payload: { ask: toldOn('deckit-shell:web-saving').at(-1)[1].payload.ask, save },
+        });
+    const saved = deck.shouldDownload(filesPage, 7, file);
+    answerSave(plainPage, false);
+    answerSave(filesPage, true);
+    const saving = toldOn('deckit-shell:web-saving');
+    check(
+        "the mod's page showing a download is asked whether it is saved, and only its answer counts",
+        saving.length === 1 &&
+            saving[0][0] === filesPage &&
+            saving[0][1].payload.id === 7 &&
+            saving[0][1].payload.name === 'e.zip' &&
+            (await saved) === true,
+        saving
+    );
+    const unsaved = deck.shouldDownload(filesPage, 7, file);
+    answerSave(filesPage, false);
+    check('a download the mod refuses is not saved', (await unsaved) === false, '');
+    const orphaned = deck.shouldDownload(filesPage, 7, file);
+    watching.get(tab).destroyed();
+    check('a download whose tab goes before it is answered is not saved', (await orphaned) === false, '');
+    check(
+        'a download from a tab not there is not saved',
+        (await deck.shouldDownload(filesPage, 99, file)) === false,
+        ''
+    );
+
     if (failed.length) {
         for (const line of failed) console.error(line);
         process.exit(1);

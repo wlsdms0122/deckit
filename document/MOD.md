@@ -312,7 +312,7 @@ A web session of the mod's own, kept across restarts: `{ name, clear() }`, and w
 
 ### web.downloads
 
-What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on. Deckit keeps the mod's last 100 downloads across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
+What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on, once the page's delegate lets it (`shouldDownload`); one it does not is not listed. Deckit keeps the mod's last 100 downloads across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
 
 - `list()` resolves to the downloads.
 - `onChange(listener)` hears a download each time it changes, a new one first, and returns its off.
@@ -405,10 +405,11 @@ page.delegate = {
     decidePermission(request) {},    // { origin, permissions, app, url }: true allows it
     shouldLeave(url) {},             // a file page's link to the web
     shouldOpenWindow(url, options) {}, // { activates, target }
+    shouldDownload(download) {},     // { url, name, mimeType, expected }: false does not save it
 };
 ```
 
-A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers. Answer `false` when the mod opened it itself. A page opens a window only during a person's click or key in it, as a browser blocks a popup otherwise; one it opens at any other time is refused before the delegate hears of it.
+A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers, and a download is saved. Answer `false` when the mod opened it itself, or for a download not to save. A page opens a window only during a person's click or key in it, as a browser blocks a popup otherwise; one it opens at any other time is refused before the delegate hears of it.
 
 A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notifications, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. Anything else a site asks for is refused.
 

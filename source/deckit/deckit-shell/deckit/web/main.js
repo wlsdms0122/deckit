@@ -42,7 +42,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // hands it back through allow(); a refusal is not kept, so a page refused by mistake can ask again once reloaded.
     const granted = new Set();
     let sequence = 0;
-    const DOWNLOAD = createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, open: SYSTEM });
+    const DOWNLOAD = createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: PAGES, open: SYSTEM });
 
     // MARK: - Initializer
     // MARK: - Public
@@ -62,6 +62,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             refused: (embedder, id, certificate) => PROTOCOL.refused.send(embedder, { id, certificate }),
             notified,
             downloaded: DOWNLOAD.downloaded,
+            shouldDownload: DOWNLOAD.shouldDownload,
             permits,
             permitted,
             request,

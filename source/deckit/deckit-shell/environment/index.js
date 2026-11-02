@@ -242,8 +242,10 @@ const SHELL = Object.freeze({
 // certificate)`; `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's
 // notification shows; and `downloaded(embedder, { id, url, name, path, state, received, expected, error })`, a download
 // a web page it shows started, as it changes, written to the Downloads folder: `state` is `downloading`, `finished`,
-// `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise of whether it is allowed: `request(embedder, id, { origin, permissions })`
-// and `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks, `permissions` as deck names
+// `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise of whether it is allowed:
+// `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download a web page in the tab of that
+// id started is saved, `name` the file's as the site gives it; `request(embedder, id, { origin, permissions })` and
+// `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks, `permissions` as deck names
 // them (web/model/site-permission.js), none where the environment's name for it is none of deck's. Kept as given:
 // `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
 // past which `fetchText` refuses an answer; and `windowSize`, `{ width, height }`, a web page's window where it asks
@@ -261,6 +263,7 @@ const WEB_DECK = Object.freeze({
     refused: 'function',
     notified: 'function',
     downloaded: 'function',
+    shouldDownload: 'function',
     request: 'function',
     requestApp: 'function',
     cookieLifetime: 'number',

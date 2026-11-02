@@ -239,7 +239,12 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
             certificate: (info) => CERTIFICATE.decide(page, REGISTRY.tabOf(page), page.partition, info),
             download: ({ url }) => {
                 const at = REGISTRY.tabOf(page);
-                return at ? DOWNLOAD.listenerFor(url, (download) => deck.downloaded(at.embedder, download)) : null;
+                if (!at) return null;
+                return DOWNLOAD.listenerFor(
+                    url,
+                    (download) => deck.downloaded(at.embedder, download),
+                    (asked) => deck.shouldDownload(at.embedder, at.tab.id, asked)
+                );
             },
             external: (url) => {
                 const at = REGISTRY.tabOf(page);

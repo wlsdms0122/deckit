@@ -3,9 +3,10 @@ import * as OPEN_PERMISSION from '../open/model/permission.js';
 // The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's. The
 // mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id deck gives it, for its list and
 // for one to be stopped or forgotten, and, with system.file-handlers as for any file, shown in Finder or opened in its
-// app. A download stays the mod's it started for, whatever becomes of its page. `web` and `open` are the
-// environment's: what stops a download, and what shows and opens a file.
-export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, open: SYSTEM }) {
+// app. A download stays the mod's it started for, whatever becomes of its page. Before it is saved, the mod's page is
+// asked whether to save it (`saving`). `web` and `open` are the environment's: what stops a download, and what shows
+// and opens a file.
+export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: PAGES, open: SYSTEM }) {
     // MARK: - Property
     const KEY = 'web-downloads'; // the state's key: mod id -> its downloads, newest first
     const LIMIT = 100;
@@ -14,7 +15,9 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, open: SY
     // The environment's id of a download under way -> { mod, id, forgotten }, `forgotten` once it is stopped as it is
     // forgotten.
     const live = new Map();
+    const questions = new Map(); // ask id -> { embedder, offs, resolve }
     let sequence = 0;
+    let asked = 0;
 
     // MARK: - Initializer
     // MARK: - Public
@@ -40,6 +43,26 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, open: SY
             return download?.state === 'finished' && !!(await SYSTEM.file(download.path));
         });
         PROTOCOL.removeDownload.handle(({ id }, sender) => remove(IDENTITY.modFrom(sender).id, id));
+        PROTOCOL.save.on(({ ask, save }, sender) => {
+            if (questions.get(ask)?.embedder === sender) settle(ask, save);
+        });
+    }
+
+    // Whether a download a web page in the tab of id `tabId` started is saved, `name` the file's as the site gives it:
+    // as the page of `embedder` answers, and not once the tab or that page is gone.
+    function shouldDownload(embedder, tabId, { url, name, mimeType, expected }) {
+        return new Promise((resolve) => {
+            const tab = WEB.pageOf(tabId);
+            if (!tab) return resolve(false);
+            const id = ++asked;
+            const gone = () => settle(id, false);
+            const offs = [
+                PAGES.watch(tab, { destroyed: gone }),
+                PAGES.watch(embedder, { ended: gone, gone, destroyed: gone }),
+            ];
+            questions.set(id, { embedder, offs, resolve });
+            PROTOCOL.saving.send(embedder, { id: tabId, ask: id, url, name, mimeType, expected });
+        });
     }
 
     // A download a web page `embedder` shows started, as the environment tells it (WEB_DECK).
@@ -103,6 +126,14 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, open: SY
         WEB.cancelDownload(under);
     }
 
+    function settle(id, save) {
+        const question = questions.get(id);
+        if (!question) return;
+        questions.delete(id);
+        for (const off of question.offs) off?.();
+        question.resolve(save === true);
+    }
+
     function save() {
         STORAGE.state.write(KEY, kept);
     }
@@ -111,5 +142,5 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, open: SY
         return { ...download };
     }
 
-    return { start, downloaded, forget };
+    return { start, shouldDownload, downloaded, forget };
 }
