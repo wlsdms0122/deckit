@@ -23,7 +23,7 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
 
     // A refused load reports on every retry, so each certificate is asked once per attempt.
     const askedCertificates = new Set();
-    const pending = new WeakMap(); // tab -> permission requests waiting for the Browser to be on screen
+    const pending = new WeakMap(); // tab -> questions waiting for the Browser to be on screen: { answer, ask }
     const refused = new WeakMap(); // tab -> the keys of the site permissions refused, for as long as the tab lasts
 
     return {
@@ -66,19 +66,19 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
 
     // Whether the file the page of `tab` is downloading, `download` ({ url, name }), is saved.
     function askDownload(tab, download) {
-        return new Promise((answer) => decide(tab, { download, answer }));
+        return new Promise((answer) => offerSave(tab, download, answer));
     }
 
     function askPending(tab) {
         if (!isShown()) return;
-        const requests = pending.get(tab) || [];
+        const questions = pending.get(tab) || [];
         pending.delete(tab);
-        for (const request of requests) decide(tab, request);
+        for (const { ask } of questions) ask();
     }
 
     // The page of `tab` is gone: what it still waits on is refused.
     function release(tab) {
-        for (const request of pending.get(tab) || []) request.answer(false);
+        for (const { answer } of pending.get(tab) || []) answer(false);
         pending.delete(tab);
     }
 
@@ -117,7 +117,6 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
     }
 
     function decide(tab, request) {
-        if (request.download) return void (shown(tab, request) && askSave(tab, request));
         const wanted = request.permissions.filter((permission) => PERMISSION_WORDS[permission] || opensApp(permission));
         const refusals = refusalsOf(tab);
         if (
@@ -125,7 +124,7 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
             wanted.some((permission) => refusals.has(sitePermissionKey({ origin: request.origin, permission })))
         )
             return request.answer(false);
-        if (!shown(tab, request)) return;
+        if (!shown(tab, request.answer, () => decide(tab, request))) return;
         if (wanted.some(opensApp)) return askOpen(tab, request, wanted);
         let allowed = false;
         ui.dialog({
@@ -155,17 +154,18 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
         });
     }
 
-    // On screen, `tab` brought to the front for `request`; hidden, `request` waits for it.
-    function shown(tab, request) {
+    // On screen, `tab` brought to the front for a question; hidden, the question waits for it, `ask` asking it again.
+    function shown(tab, answer, ask) {
         if (!isShown()) {
-            pending.set(tab, [...(pending.get(tab) || []), request]);
+            pending.set(tab, [...(pending.get(tab) || []), { answer, ask }]);
             return false;
         }
         onAsk(tab);
         return true;
     }
 
-    function askSave(tab, { download, answer }) {
+    function offerSave(tab, download, answer) {
+        if (!shown(tab, answer, () => offerSave(tab, download, answer))) return;
         const site = hostOf(tab.url) || hostOf(download.url);
         let saved = false;
         ui.dialog({
