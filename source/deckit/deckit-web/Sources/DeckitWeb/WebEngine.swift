@@ -30,8 +30,8 @@ import CNodeAPI
 //   `showSaveDialog(id, options) -> Promise of the path, or null`, as a sheet on it, `options` NSOpenPanel's (dress).
 // - Input as a person's would come, through the app's watch on its events (WebPage+Input): `sendKey(id, { code, key,
 //   alt, ctrl, meta, shift })`, `code` and `key` as the web names them; `sendMouse(id, { type, x, y })`, `type` `down`,
-//   `dragged` or `up`, at a point from the page's top left; `sendDrop(id, { files, x, y }) -> Promise`, files from
-//   outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
+//   `dragged`, `up` or `moved`, at a point from the page's top left; `sendDrop(id, { files, x, y }) -> Promise`, files
+//   from outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
 //   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
 //   clip } | { page, hidden: true }])`, `clip` a rect on the stage the page is cut to; `showStage(id, on)`;
@@ -265,7 +265,7 @@ final class WebEngine {
                 let x = try node.member(options, "x"),
                 let y = try node.member(options, "y")
             else {
-                throw NodeError(message: "a mouse event is { type, x, y }, its type down, dragged or up")
+                throw NodeError(message: "a mouse event is { type, x, y }, its type down, dragged, up or moved")
             }
             try page().sendMouse(type, at: CGPoint(x: try node.number(x), y: try node.number(y)), through: input)
 
@@ -520,7 +520,8 @@ final class WebEngine {
     private static let mouseEvents: [String: NSEvent.EventType] = [
         "down": .leftMouseDown,
         "dragged": .leftMouseDragged,
-        "up": .leftMouseUp
+        "up": .leftMouseUp,
+        "moved": .mouseMoved
     ]
 
     private static let materials: [String: NSVisualEffectView.Material] = [
