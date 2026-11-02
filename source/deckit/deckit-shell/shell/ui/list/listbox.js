@@ -25,19 +25,24 @@ function listbox(element, { onPick, onActivate = () => {} }) {
         return options.findIndex((option) => option.element.contains(target));
     }
 
+    // The option active before stays where it is in view: only another one is brought into it.
     function set(next, { active: wanted = active } = {}) {
+        const shown = options[active]?.element;
         options = next;
         active = -1;
         paint();
-        if (wanted >= 0 && options.length) activate(Math.min(wanted, options.length - 1));
+        if (wanted < 0 || !options.length) return;
+        const index = Math.min(wanted, options.length - 1);
+        activate(index, { reveal: options[index].element !== shown });
     }
 
-    function activate(index, { pointer = false } = {}) {
+    // Brought into view unless the pointer moved to it, where it already is.
+    function activate(index, { pointer = false, reveal = !pointer } = {}) {
         if (options[index]?.disabled) return;
         const changed = index !== active;
         active = index;
         paint();
-        if (!pointer) options[active]?.element.scrollIntoView({ block: 'nearest' });
+        if (reveal) options[active]?.element.scrollIntoView({ block: 'nearest' });
         if (changed) onActivate(active, { pointer });
     }
 
