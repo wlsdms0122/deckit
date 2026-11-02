@@ -213,6 +213,8 @@ const SHELL = Object.freeze({
         load: 'function',
         close: 'function',
         focus: 'function', // focus(page): the page takes the keyboard
+        // droppedFiles(page) -> the paths of the files last dropped on the page from outside the app, as dropped
+        droppedFiles: 'function',
         isClosed: 'function', // isClosed(page): whether the page is gone for good, closed or destroyed
         watch: 'function',
         // surfaces(page, { allow(name) -> boolean, opened(name, surface) }): the documents a page of deck's, a mod's or

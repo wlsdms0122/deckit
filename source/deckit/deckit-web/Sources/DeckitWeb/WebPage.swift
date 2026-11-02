@@ -69,6 +69,9 @@ final class WebPage: NSObject {
     }
 
     // MARK: - Public
+    // The paths of the files dropped on the page last.
+    var droppedFiles: [String] { view.droppedFiles.map(\.path) }
+
     var state: [String: Any?] {
         [
             "url": view.url?.absoluteString ?? "",
