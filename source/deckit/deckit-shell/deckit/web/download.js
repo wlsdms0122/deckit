@@ -1,11 +1,11 @@
 import * as OPEN_PERMISSION from '../open/model/permission.js';
 
-// The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's. The
-// mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id deck gives it, for its list and
-// for one to be stopped or forgotten, and, with system.file-handlers as for any file, shown in Finder or opened in its
-// app. A download stays the mod's it started for, whatever becomes of its page. Before it is saved, the mod's page is
-// asked whether to save it (`saving`). `web` and `open` are the environment's: what stops a download, and what shows
-// and opens a file.
+// The downloads each mod's web pages started, kept across restarts, newest first, the last LIMIT of each mod's and any
+// older one still under way. The mod's page is told of one at each change (PROTOCOL.downloaded) and asks, by the id
+// deck gives it, for its list and for one to be stopped or forgotten, and, with system.file-handlers as for any file,
+// shown in Finder or opened in its app. A download stays the mod's it started for, whatever becomes of its page. Before
+// it is saved, the mod's page is asked whether to save it (`saving`). `web` and `open` are the environment's: what
+// stops a download, and what shows and opens a file.
 export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: PAGES, open: SYSTEM }) {
     // MARK: - Property
     const KEY = 'web-downloads'; // the state's key: mod id -> its downloads, newest first
@@ -75,8 +75,10 @@ export function createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, pages: P
         let entry = known && find(modId, known.id);
         if (!entry) {
             entry = { id: `${Date.now().toString(36)}-${++sequence}`, started: Date.now() };
-            kept[modId] = [entry, ...listOf(modId)];
-            for (const dropped of kept[modId].splice(LIMIT)) stop(modId, dropped.id);
+            // A record past the last LIMIT goes once it ended: the limit is on what is kept, not on what downloads.
+            kept[modId] = [entry, ...listOf(modId)].filter(
+                (download, index) => index < LIMIT || download.state === 'downloading'
+            );
             live.set(download.id, { mod: modId, id: entry.id });
         }
         const changed = entry.state !== download.state;

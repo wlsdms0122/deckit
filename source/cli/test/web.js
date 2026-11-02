@@ -456,6 +456,28 @@ async function main() {
         [state['web-downloads'], done]
     );
 
+    // The last 100 records are kept, and an older one still under way stays until it ends.
+    const record = (id, state) =>
+        deck.downloaded(plainPage, { ...downloading, id, path: `/D/${id}.zip`, name: `${id}.zip`, state });
+    record(200, 'downloading');
+    for (let id = 201; id <= 300; id++) {
+        record(id, 'downloading');
+        record(id, 'finished');
+    }
+    const longKept = state['web-downloads'].plain;
+    record(200, 'finished');
+    record(301, 'downloading');
+    const trimmed = state['web-downloads'].plain;
+    check(
+        'a download under way past the last 100 is kept, not stopped, and goes once it ended',
+        longKept.length === 101 &&
+            longKept.at(-1).name === '200.zip' &&
+            !done.some(([what, under]) => what === 'cancelDownload' && under === 200) &&
+            trimmed.length === 100 &&
+            !trimmed.some(({ name }) => name === '200.zip'),
+        [longKept.length, longKept.at(-1)?.name, trimmed.length]
+    );
+
     // A download is saved as the mod's page showing its tab answers.
     const file = { url: 'https://a.com/e.zip', name: 'e.zip', mimeType: 'application/zip', expected: 3 };
     const answerSave = (page, save) =>

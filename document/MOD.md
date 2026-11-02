@@ -312,7 +312,7 @@ A web session of the mod's own, kept across restarts: `{ name, clear() }`, and w
 
 ### web.downloads
 
-What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on, once the page's delegate lets it (`shouldDownload`); one it does not is not listed. Deckit keeps the mod's last 100 downloads across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
+What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on, once the page's delegate lets it (`shouldDownload`); one it does not is not listed. Deckit keeps the mod's last 100 downloads, and any older one still under way, across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
 
 - `list()` resolves to the downloads.
 - `onChange(listener)` hears a download each time it changes, a new one first, and returns its off.

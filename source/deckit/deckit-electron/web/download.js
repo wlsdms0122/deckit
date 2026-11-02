@@ -25,11 +25,10 @@ export function createDownload({ folder }) {
         };
         const told = () => download.path && tell({ ...download });
         // The path it is written to, picked as it is answered, so two answered together never pick one file.
-        const write = (name) => {
+        const pick = (name) => {
             download.path = freePath(name);
             download.name = path.basename(download.path);
             writing.add(download.path);
-            told();
             return download.path;
         };
         return (event, payload) => {
@@ -46,13 +45,16 @@ export function createDownload({ folder }) {
                         mimeType: payload.mimeType,
                         expected: payload.expectedLength,
                     };
-                    // One that failed while it was asked is not written.
+                    // Answered once whatever fails, as WebKit waits on it; one that failed while it was asked is not
+                    // written.
                     Promise.resolve()
                         .then(() => ask(asked))
-                        .catch(() => false)
-                        .then((save) =>
-                            payload.reply(save === true && download.state === 'downloading' ? write(asked.name) : '')
-                        );
+                        .then((save) => (save === true && download.state === 'downloading' ? pick(asked.name) : ''))
+                        .catch(() => '')
+                        .then((to) => {
+                            payload.reply(to);
+                            if (to) told();
+                        });
                     return undefined;
                 }
                 case 'progress':
