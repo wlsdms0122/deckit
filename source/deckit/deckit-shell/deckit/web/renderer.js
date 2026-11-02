@@ -1,5 +1,6 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as IPC from '../../deck/ipc/renderer.js';
+import * as LISTENER from '../../deck/listener/index.js';
 import * as DECLARED from './protocol.js';
 import * as WEB_PERMISSION from './model/permission.js';
 import * as SESSION from './model/session.js';
@@ -17,13 +18,16 @@ export function createWeb({ sessions, web: WEB }) {
     const made = new Map(); // a session's name -> its handle
     // A session is named only by a handle the mod was given, so it cannot name one it was not.
     const names = new WeakMap(); // session handle -> its name
+    const downloadListeners = new Set();
     let listening = false;
+    let hearingDownloads = false;
 
     // MARK: - Initializer
     // MARK: - Public
-    // `deckit.web`: the mod's sessions by name, one handle for each. `permissions` decides which of a session's tools
-    // exist.
-    function forMod({ permissions }) {
+    // `deckit.web`: the mod's sessions by name, one handle for each, and the downloads its web pages started, written
+    // to the Downloads folder. `permissions` decides which of a session's tools exist; `scoped(subscribe)` cuts what a
+    // listener added with the handle's scope.
+    function forMod({ permissions, scoped }) {
         const has = (permission) => permissions.includes(permission);
         const session = (name) => {
             if (made.has(name)) return made.get(name);
@@ -48,7 +52,15 @@ export function createWeb({ sessions, web: WEB }) {
             made.set(name, handle);
             return handle;
         };
-        return Object.freeze({ session });
+        const downloads = Object.freeze({
+            list: () => PROTOCOL.downloads.invoke({}),
+            onChange: scoped(onDownload),
+            cancel: (id) => PROTOCOL.cancelDownload.send({ id: String(id) }),
+            reveal: (id) => PROTOCOL.revealDownload.invoke({ id: String(id) }),
+            open: (id) => PROTOCOL.openDownload.invoke({ id: String(id) }),
+            remove: (id) => PROTOCOL.removeDownload.invoke({ id: String(id) }),
+        });
+        return Object.freeze({ session, downloads });
     }
 
     // What shows web pages: pages in the mod's page, as elements of it, and in windows, each showing what a session
@@ -83,6 +95,18 @@ export function createWeb({ sessions, web: WEB }) {
     }
 
     // MARK: - Private
+    function onDownload(listener) {
+        if (!hearingDownloads) {
+            hearingDownloads = true;
+            PROTOCOL.downloaded.on((download) => {
+                for (const heard of downloadListeners) heard({ ...download });
+            });
+        }
+        const heard = LISTENER.wrap(listener, 'a downloads listener');
+        downloadListeners.add(heard);
+        return () => downloadListeners.delete(heard);
+    }
+
     function listen() {
         listening = true;
         PROTOCOL.changed.on(({ id, state }) => deliver(id, 'change', state));

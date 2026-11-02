@@ -149,7 +149,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
             (...args) =>
                 scope.add(subscribe(...args));
         return {
-            web: WEB.forMod({ permissions: mod.permissions.map(({ id }) => id) }),
+            web: WEB.forMod({ permissions: mod.permissions.map(({ id }) => id), scoped }),
             util: Object.freeze({
                 match: MATCH.match,
                 matchFields: MATCH.matchFields,

@@ -15,7 +15,8 @@ import CNodeAPI
 // `failed` ({ code, description, url }), `gone`, `focus`, `close`, `mouse` ({ type }), `message` ({ body }), what
 // deckit's own scripts post, and `external` ({ url }), an address of an app's the page asked to go to. Asked, answered
 // at once: `navigate` ({ url }), "load" to let it; `open` ({ url, ownWindow, background }), a function to hear the page
-// given for the window, or nothing for none; `key` ({ type, code, key, meta, control, alt, shift }), true for a key
+// given for the window, or nothing for none; `download` ({ url }), a function to hear the download (WebDownload), or
+// nothing to cancel it; `key` ({ type, code, key, meta, control, alt, shift }), true for a key
 // taken; and `certificate` ({ url, host, error, fingerprint, subject, issuer }), true for a certificate trusted though
 // the Mac does not. Asked, answered later through `reply`: `permission` ({ origin, permissions, reply }), and, for a
 // page made with a scheme of its own, `request` (SchemeHandler).
@@ -27,22 +28,27 @@ final class WebPage: NSObject {
     private static let messages = "deckit"
     // What a page may go to itself, beside a scheme of its own; any other scheme is an app's.
     private static let webSchemes: Set<String> = ["http", "https", "about", "data", "blob", "file", "javascript"]
+    // WebKit's code for a load its navigation's policy turned into something else, a download.
+    private static let interruptedByPolicy = (domain: "WebKitErrorDomain", code: 102)
 
     let id: Int
     let view: WebPageView
     private let emitter: Emitter
     private let adopt: @MainActor (WKWebViewConfiguration, Emitter) -> WebPage
+    private let keep: @MainActor (WKDownload, Emitter) -> Void
     private var observations: [NSKeyValueObservation] = []
     // The address JavaScript asked to load, which asked deck before: its navigation is not asked again.
     private var requested: URL?
 
     // MARK: - Initializer
-    // `configuration` is the page's, WebKit's own for a window a page opened. `adopt` makes the page for such a window.
+    // `configuration` is the page's, WebKit's own for a window a page opened. `adopt` makes the page for such a window,
+    // and `keep` keeps a download the page started, heard by the emitter JavaScript gave for it.
     init(
         id: Int,
         configuration: WKWebViewConfiguration,
         emitter: Emitter,
-        adopt: @escaping @MainActor (WKWebViewConfiguration, Emitter) -> WebPage
+        adopt: @escaping @MainActor (WKWebViewConfiguration, Emitter) -> WebPage,
+        keep: @escaping @MainActor (WKDownload, Emitter) -> Void
     ) {
         // A window's configuration is its opener's copy, whose scripts and handlers are the opener's.
         configuration.userContentController = WKUserContentController()
@@ -54,6 +60,7 @@ final class WebPage: NSObject {
         self.view = view
         self.emitter = emitter
         self.adopt = adopt
+        self.keep = keep
         super.init()
         configuration.userContentController.add(
             MessageRelay(to: self),
@@ -260,14 +267,39 @@ final class WebPage: NSObject {
         }
     }
 
+    // A load that became a download stops; it did not fail.
     private func failed(_ error: Error) {
         let error = error as NSError
+        if error.domain == Self.interruptedByPolicy.domain, error.code == Self.interruptedByPolicy.code {
+            emitter.emit("stopped")
+            return
+        }
         emitter.emit("failed", [
             "code": error.code,
             "description": error.localizedDescription,
             "url": (error.userInfo[NSURLErrorFailingURLStringErrorKey] as? String) ?? view.url?.absoluteString ?? ""
         ])
         emitter.emit("stopped")
+    }
+
+    // A function JavaScript answered with, to hear what it was given, or nil for anything else.
+    private static func listener(_ node: Node, _ value: napi_value) throws -> Emitter? {
+        var type = napi_undefined
+        napi_typeof(node.environment, value, &type)
+
+        return type == napi_function ? try Emitter(node: node, function: value) : nil
+    }
+
+    // A download is JavaScript's to hear, or cancelled.
+    private func started(_ download: WKDownload) {
+        let url = download.originalRequest?.url?.absoluteString ?? ""
+        let heard: Emitter? = emitter.emit("download", ["url": url], read: Self.listener)
+        guard let heard else {
+            download.cancel { _ in }
+            return
+        }
+
+        keep(download, heard)
     }
 
     // A certificate the Mac does not trust, as the page's tab is told of it.
@@ -292,7 +324,7 @@ extension WebPage: WKNavigationDelegate {
     // MARK: - Lifecycle
     // A navigation of the page's own, a link or a script, is asked; one JavaScript asked for, history's, and a reload
     // are not, nor a frame's, nor one in a window the page opens, which is asked as the window (`open`). An app's
-    // address goes to the app, as JavaScript lets it, and the page stays.
+    // address goes to the app, as JavaScript lets it, and the page stays. A link to download downloads.
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
@@ -308,6 +340,10 @@ extension WebPage: WKNavigationDelegate {
         {
             decisionHandler(.cancel)
             emitter.emit("external", ["url": url.absoluteString])
+            return
+        }
+        if navigationAction.shouldPerformDownload {
+            decisionHandler(.download)
             return
         }
         guard let target = navigationAction.targetFrame else {
@@ -328,6 +364,28 @@ extension WebPage: WKNavigationDelegate {
             try node.string(value)
         }
         decisionHandler(verdict == "load" ? .allow : .cancel)
+    }
+
+    // What the page cannot show, or what the server says is a file to keep, is downloaded.
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationResponse: WKNavigationResponse,
+        decisionHandler: @escaping @MainActor @Sendable (WKNavigationResponsePolicy) -> Void
+    ) {
+        let disposition = (navigationResponse.response as? HTTPURLResponse)?
+            .value(forHTTPHeaderField: "Content-Disposition")?
+            .trimmingCharacters(in: .whitespaces)
+            .lowercased()
+        let attachment = disposition?.hasPrefix("attachment") ?? false
+        decisionHandler(attachment || !navigationResponse.canShowMIMEType ? .download : .allow)
+    }
+
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        started(download)
+    }
+
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        started(download)
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
@@ -403,12 +461,7 @@ extension WebPage: WKUIDelegate {
             "width": windowFeatures.width?.doubleValue,
             "height": windowFeatures.height?.doubleValue
         ]
-        let heard: Emitter? = emitter.emit("open", payload) { node, value in
-            var type = napi_undefined
-            napi_typeof(node.environment, value, &type)
-
-            return type == napi_function ? try Emitter(node: node, function: value) : nil
-        }
+        let heard: Emitter? = emitter.emit("open", payload, read: Self.listener)
         guard let heard else { return nil }
         let page = adopt(configuration, heard)
         // Its first load is the window deck was asked for.

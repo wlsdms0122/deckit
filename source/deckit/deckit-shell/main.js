@@ -295,7 +295,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             onFactsChange: MAIN_PROCESS.onChange,
             installed: MAIN_PROCESS.installed,
             removed: MAIN_PROCESS.removed,
-            erase: WEB.clearSessions,
+            erase: WEB.erase,
         });
         RUNNER.start({ preparePage });
     }

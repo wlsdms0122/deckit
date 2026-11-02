@@ -154,6 +154,7 @@ const MAIN = Object.freeze({
         permissionsChanged: 'function',
         fetchText: 'function', // fetchText(mod, session, url) -> Promise of the text at a web address
         clear: 'function', // clear(mod, session) -> Promise: what the session stored, taken
+        cancelDownload: 'function', // cancelDownload(id): a download under way, stopped
         // trust(mod, session, entries) -> how many are trusted: `[{ host, fingerprint }]`, certificates trusted
         trust: 'function',
         // sessionsOf(mod) -> what a mod's page is told its mod's sessions are named by, a string it hands `view` (PAGE)
@@ -238,8 +239,10 @@ const SHELL = Object.freeze({
 // may have `name` in `session`, as the environment checks it, and `permitted(session, name)`, the origins that may.
 // Told: `adopted(embedder, page)`, a web page now shown, in its page or in a window; `changed(embedder, id, state)`;
 // `found(embedder, id, { matches, active, final })`; `closed(embedder, id)`, a window gone; `refused(embedder, id,
-// certificate)`; and `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's
-// notification shows. Asked, each a promise of whether it is allowed: `request(embedder, id, { origin, permissions })`
+// certificate)`; `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's
+// notification shows; and `downloaded(embedder, { id, url, name, path, state, received, expected, error })`, a download
+// a web page it shows started, as it changes, written to the Downloads folder: `state` is `downloading`, `finished`,
+// `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise of whether it is allowed: `request(embedder, id, { origin, permissions })`
 // and `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks, `permissions` as deck names
 // them (web/model/site-permission.js), none where the environment's name for it is none of deck's. Kept as given:
 // `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
@@ -257,6 +260,7 @@ const WEB_DECK = Object.freeze({
     closed: 'function',
     refused: 'function',
     notified: 'function',
+    downloaded: 'function',
     request: 'function',
     requestApp: 'function',
     cookieLifetime: 'number',

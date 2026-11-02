@@ -282,7 +282,7 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `id`, `name` | the mod's |
 | `configuration` | above |
 | `storage` | below |
-| `web` | `web.session(name)`, below |
+| `web` | `web.session(name)` and `web.downloads`, below |
 | `commands` | `register(commands)`; with `deckit.command-registry`: `list()`, `[{ provider, command, description, params }]`, the app's commands first, then the mods' in the load order, `provider` the id of what declared and runs one: a mod's, or a host's `@` name; `run({ provider, command }, args)`, which resolves to the command's result or null and rejects with why it did not run; `complete({ provider, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
 | `keys` | `register(keys)`; `chordOf(name, { provider })`, the chord one of the mod's keys is bound to now, or `''`, and with `provider`, a key of that mod or host; with `deckit.keymap`: `list`, `bind`, `reset`, `record`, `onChange`, where `bind` gives a key the chord a person chose, as Settings does; `list` answers at once, `onChange` returns the unsubscribe |
 | `urls` | `register(handler)`; `open(url, { activates, usesDefaultApp, target })`, which offers an address to the handlers its patterns match in turn, then deckit's own answer (`urls`, above), and resolves to whether anything opened it. A `file://` address goes anywhere only with `system.file-handlers`, and otherwise resolves `false`; a web address goes to the default browser with no permission. With `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once, a handler `{ id, name, patterns, on }`; `set(scheme, { order, off })`; `everyScheme`, the name of the list for every scheme |
@@ -309,6 +309,17 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 ### web.session(name)
 
 A web session of the mod's own, kept across restarts: `{ name, clear() }`, and with permissions `fetchText(url)`, `trust([{ host, fingerprint }])`, `allow([{ origin, permission }])` and `revoke(entries)`. Its pages share its cookies and nobody else's. A session does its work with no UI; its pages are shown by `shell.web`.
+
+### web.downloads
+
+What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on. Deckit keeps the mod's last 100 downloads across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
+
+- `list()` resolves to the downloads.
+- `onChange(listener)` hears a download each time it changes, a new one first, and returns its off.
+- `cancel(id)` stops one under way.
+- `reveal(id)` shows its file in Finder and resolves to whether it was there.
+- `open(id)` opens a finished one's file in its app, only during a person's click or key, and resolves to whether it opened.
+- `remove(id)` forgets one, stopping it first if it is under way, and resolves to whether there was one. The file stays.
 
 ### mods
 

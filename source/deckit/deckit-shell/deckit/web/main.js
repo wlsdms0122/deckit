@@ -5,6 +5,7 @@ import * as WEB_PERMISSION from './model/permission.js';
 import * as SESSION from './model/session.js';
 import * as SITE from './model/site.js';
 import * as SITE_PERMISSION from './model/site-permission.js';
+import { createDownload } from './download.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -41,6 +42,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // hands it back through allow(); a refusal is not kept, so a page refused by mistake can ask again once reloaded.
     const granted = new Set();
     let sequence = 0;
+    const DOWNLOAD = createDownload({ IDENTITY, STORAGE, PROTOCOL, web: WEB, open: SYSTEM });
 
     // MARK: - Initializer
     // MARK: - Public
@@ -59,6 +61,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             },
             refused: (embedder, id, certificate) => PROTOCOL.refused.send(embedder, { id, certificate }),
             notified,
+            downloaded: DOWNLOAD.downloaded,
             permits,
             permitted,
             request,
@@ -68,6 +71,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             windowSize: WINDOW_SIZE,
         });
         listen();
+        DOWNLOAD.start();
     }
 
     // A mod's page that shows web pages: only that mod's sessions attach there, and only the web, or a file for a mod
@@ -96,9 +100,10 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         return WEB.holdsKeyboard(modPage);
     }
 
-    // What a mod kept in the web sessions it used. The record is read again once they are cleared, so what another mod
-    // used meanwhile stays.
-    async function clearSessions(modId) {
+    // What a mod kept of the web: its downloads, and what the sessions it used stored. The record of its sessions is
+    // read again once they are cleared, so what another mod used meanwhile stays.
+    async function erase(modId) {
+        DOWNLOAD.forget(modId);
         for (const name of STORAGE.state.read(SESSIONS, {})[modId] || []) await WEB.clear(modId, name);
         const sessions = STORAGE.state.read(SESSIONS, {});
         delete sessions[modId];
@@ -365,5 +370,5 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         for (const resolve of question.waiting) resolve(!!allowed);
     }
 
-    return { start, prepare, pageFor, holdsKeyboard, clearSessions };
+    return { start, prepare, pageFor, holdsKeyboard, erase };
 }
