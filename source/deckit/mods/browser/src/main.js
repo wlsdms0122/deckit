@@ -1,6 +1,7 @@
 const { parseAddress, hostOf, placeOf } = require('./address/address.js');
 const { bookmarkEditor } = require('./bookmark-editor/bookmark-editor.js');
 const { candidatesOf, itemOf } = require('./candidates/candidates.js');
+const { downloadList } = require('./downloads/downloads.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
@@ -63,6 +64,7 @@ class Browser {
         const bar = toolbar({
             theme,
             ui,
+            trailing: downloadList({ theme, ui, downloads: deckit.web.downloads }).element,
             onBack: goBack,
             onForward: goForward,
             onReload: reload,
@@ -98,6 +100,7 @@ class Browser {
             },
             onCertificateRefused: (info) => prompter.askCertificate(info),
             decidePermission: (tab, request) => prompter.askPermission(tab, request),
+            shouldDownload: (tab, download) => prompter.askDownload(tab, download),
             onNotification: notify,
             onFound: (tab, result) => find.showCount(tab, result),
         });

@@ -599,6 +599,60 @@ async function run({
         // is on screen.
         const onScreen = await current();
         await show('browser');
+        // What a site hands over as a file to keep is written to the Downloads folder under its name once the Browser's
+        // question is answered, and the tab stays on its page. One refused is not written and not listed.
+        const server = require('http').createServer((_request, response) => {
+            response.writeHead(200, {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': 'attachment; filename="report.csv"',
+            });
+            response.end('a,b\n1,2\n');
+        });
+        await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+        const shownPageId = await browser?.evaluate(shownPage);
+        const download = () => main(`return webkit.load(${shownPageId}, 'http://127.0.0.1:${server.address().port}/')`);
+        const answerDownload = (label) =>
+            until(async () => {
+                const overlay = await overlayOf(browser);
+                return overlay?.evaluate(`(() => {
+                    const title = document.querySelector('.deckit-modal-title');
+                    const button = [...document.querySelectorAll('.deckit-modal-actions button')].find(
+                        (button) => button.textContent === ${JSON.stringify(label)}
+                    );
+                    if (!title || !button) return '';
+                    button.click();
+                    return title.textContent;
+                })()`);
+            }, 5000);
+        await download();
+        const refusedTitle = await answerDownload('Cancel');
+        await until(
+            async () => !(await (await overlayOf(browser))?.evaluate(`!!document.querySelector('.deckit-modal')`)),
+            2000
+        );
+        await download();
+        const askedTitle = await answerDownload('Download');
+        check(
+            'the Browser asks before a download is saved',
+            refusedTitle === 'Download “report.csv”?' && askedTitle === refusedTitle,
+            [refusedTitle, askedTitle]
+        );
+        const downloaded = await until(
+            () =>
+                main(`const file = require('path').join(require('electron').app.getPath('downloads'), 'report.csv');
+                    return require('fs').existsSync(file) && require('fs').readFileSync(file, 'utf8')`),
+            5000
+        );
+        server.close();
+        const refusedWritten = await main(
+            `return require('fs').existsSync(require('path').join(require('electron').app.getPath('downloads'), 'report (2).csv'))`
+        );
+        check(
+            'a file a site hands over is downloaded under its name, and one refused is not',
+            downloaded === 'a,b\n1,2\n' && refusedWritten === false,
+            [downloaded, refusedWritten]
+        );
+        check('the tab that downloaded stays on its page', (await shownAt()) === FRONT_TAB, await shownAt());
         const tabLaidOut = async () => {
             const element = await browser?.evaluate(`(() => {
                 const shown = [...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible');
@@ -640,6 +694,21 @@ async function run({
                 (underMenu.views || []).some(({ rect }) => near(rect, underMenu.at)),
             JSON.stringify({ menuShown, top: overPage.at(-1), views: underMenu.views })
         );
+        await browserOverlay?.key('Escape', 'Escape', 0, 27);
+        await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);
+        // What a tab downloaded is listed from the toolbar's button, which shows once there is any.
+        await browser?.evaluate(`(() => {
+            const button = document.querySelector('.browser-downloads-button');
+            if (!button.hidden) button.click();
+        })()`);
+        const listedDownloads = await until(
+            () =>
+                browserOverlay?.evaluate(
+                    `[...document.querySelectorAll('.browser-download')].map((row) => row.dataset.state + ' ' + row.querySelector('.browser-download-name').textContent).join()`
+                ),
+            3000
+        );
+        check('the Browser lists what its tabs downloaded', listedDownloads === 'finished report.csv', listedDownloads);
         await browserOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);
         await show(onScreen);

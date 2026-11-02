@@ -1,6 +1,6 @@
 # Browser
 
-Web pages in tabs, in folders, with bookmarks, an address bar in its title bar, and find in page. What a site asks for (the camera, notifications, a certificate this Mac cannot verify) is asked of you. The Browser opens the `http` and `https` addresses other mods ask to open.
+Web pages in tabs, in folders, with bookmarks, an address bar in its title bar, and find in page. What a site asks for (the camera, notifications, a certificate this Mac cannot verify) is asked of you. The Browser opens the `http` and `https` addresses other mods ask to open. What a site hands over as a file goes to the Downloads folder once you say to download it, and the download button at the toolbar's end lists what was downloaded: press a finished one to open it.
 
 ## Records
 

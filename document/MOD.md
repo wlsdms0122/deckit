@@ -88,7 +88,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
 | `system.clipboard-read` | reading what was copied, from any app | `deckit.clipboard.readText` |
 | `system.clipboard-write` | replacing what was copied with text of its own, which the person then pastes in any app | `deckit.clipboard.writeText` |
-| `system.file-handlers` | handing files on this Mac to whatever opens them, a mod or the app for them, which can start programs, and showing them in Finder | `deckit.urls.open` of a `file://` address, `deckit.reveal` |
+| `system.file-handlers` | handing files on this Mac to whatever opens them, a mod or the app for them, which can start programs, and showing them in Finder | `deckit.urls.open` of a `file://` address, `deckit.reveal`, `web.downloads.open` and `reveal` |
 | `system.overlay-windows` | a window of its own over every app's, on every desktop, whichever app is in front | `overlay` on `shell.window.register` |
 | `system.notifications` | notifications in the corner of the screen | `deckit.notify` |
 | `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `scope: 'global'` on a key |
@@ -282,7 +282,7 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `id`, `name` | the mod's |
 | `configuration` | above |
 | `storage` | below |
-| `web` | `web.session(name)`, below |
+| `web` | `web.session(name)` and `web.downloads`, below |
 | `commands` | `register(commands)`; with `deckit.command-registry`: `list()`, `[{ provider, command, description, params }]`, the app's commands first, then the mods' in the load order, `provider` the id of what declared and runs one: a mod's, or a host's `@` name; `run({ provider, command }, args)`, which resolves to the command's result or null and rejects with why it did not run; `complete({ provider, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
 | `keys` | `register(keys)`; `chordOf(name, { provider })`, the chord one of the mod's keys is bound to now, or `''`, and with `provider`, a key of that mod or host; with `deckit.keymap`: `list`, `bind`, `reset`, `record`, `onChange`, where `bind` gives a key the chord a person chose, as Settings does; `list` answers at once, `onChange` returns the unsubscribe |
 | `urls` | `register(handler)`; `open(url, { activates, usesDefaultApp, target })`, which offers an address to the handlers its patterns match in turn, then deckit's own answer (`urls`, above), and resolves to whether anything opened it. A `file://` address goes anywhere only with `system.file-handlers`, and otherwise resolves `false`; a web address goes to the default browser with no permission. With `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, handlers }` at once, a handler `{ id, name, patterns, on }`; `set(scheme, { order, off })`; `everyScheme`, the name of the list for every scheme |
@@ -309,6 +309,17 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 ### web.session(name)
 
 A web session of the mod's own, kept across restarts: `{ name, clear() }`, and with permissions `fetchText(url)`, `trust([{ host, fingerprint }])`, `allow([{ origin, permission }])` and `revoke(entries)`. Its pages share its cookies and nobody else's. A session does its work with no UI; its pages are shown by `shell.web`.
+
+### web.downloads
+
+What the mod's web pages download goes to the Downloads folder, under the name the site gives it, made unique there with ` (2)`, ` (3)` and on, once the page's delegate lets it (`shouldDownload`); one it does not is not listed. Deckit keeps the mod's last 100 downloads, and any older one still under way, across restarts, newest first, and forgets them with the mod's data. A download is `{ id, url, name, path, state, received, expected, error, started }`: `state` is `downloading`, `finished`, `failed` or `cancelled`, `received` and `expected` are bytes, `expected` -1 while it is not known, and `started` is when it started, in milliseconds since 1970. One still downloading when Deckit quit is `failed`.
+
+- `list()` resolves to the downloads.
+- `onChange(listener)` hears a download each time it changes, a new one first, and returns its off.
+- `cancel(id)` stops one under way.
+- `remove(id)` forgets one, stopping it first if it is under way, and resolves to whether there was one. The file stays.
+- `reveal(id)`, with `system.file-handlers`, shows its file in Finder and resolves to whether it was there.
+- `open(id)`, with `system.file-handlers`, opens a finished one's file in its app and resolves to whether it opened.
 
 ### mods
 
@@ -394,10 +405,11 @@ page.delegate = {
     decidePermission(request) {},    // { origin, permissions, app, url }: true allows it
     shouldLeave(url) {},             // a file page's link to the web
     shouldOpenWindow(url, options) {}, // { activates, target }
+    shouldDownload(download) {},     // { url, name, mimeType, expected }: false does not save it
 };
 ```
 
-A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers. Answer `false` when the mod opened it itself. A page opens a window only during a person's click or key in it, as a browser blocks a popup otherwise; one it opens at any other time is refused before the delegate hears of it.
+A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers, and a download is saved. Answer `false` when the mod opened it itself, or for a download not to save. A page opens a window only during a person's click or key in it, as a browser blocks a popup otherwise; one it opens at any other time is refused before the delegate hears of it.
 
 A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notifications, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. Anything else a site asks for is refused.
 

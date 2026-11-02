@@ -19,6 +19,7 @@ import CNodeAPI
 //   Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
 //   `fetchText(store, url, { limit, applicationName }) -> Promise of the text`, asked as the store's pages made with
 //   `applicationName` ask; `clear(store) -> Promise`; `close(id)`; `safariVersion()`.
+// - Downloads a page started (WebDownload): `cancelDownload(id)`, nothing for one that ended.
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
 //   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
 //   `hideWindow(id)`; `closeWindow(id)`; `windowFrame(id)`, `setWindowFrame(id, rect)`, in the screen's space;
@@ -44,6 +45,7 @@ final class WebEngine {
     private var pages: [Int: WebPage] = [:]
     private var windows: [Int: Window] = [:]
     private var stages: [Int: Stage] = [:]
+    private var downloads: [Int: WebDownload] = [:]
     private var keepers: [UUID: CookieKeeper] = [:]
     private var lastID = 0
     private lazy var input = InputMonitor { [weak self] view in
@@ -180,6 +182,9 @@ final class WebEngine {
             let closed = try page()
             closed.close()
             pages[closed.id] = nil
+
+        case .cancelDownload:
+            downloads[Int(try node.number(try argument(0)))]?.cancel()
 
         case .safariVersion:
             let version = Bundle(path: "/Applications/Safari.app")?
@@ -408,6 +413,16 @@ final class WebEngine {
         return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed).id
     }
 
+    // A download a page started, kept by its id until it ends.
+    private func keep(_ download: WKDownload, _ emitter: Emitter) {
+        lastID += 1
+        let kept = WebDownload(id: lastID, download: download, emitter: emitter) { [weak self] ended in
+            self?.downloads[ended.id] = nil
+        }
+        downloads[kept.id] = kept
+        kept.announce()
+    }
+
     // A page of the module's, on `configuration`: a new one, or WebKit's for a window a page opened, clear and at full
     // speed as the page that opened it is.
     private func adopt(
@@ -420,12 +435,16 @@ final class WebEngine {
         let page = WebPage(
             id: lastID,
             configuration: configuration,
-            emitter: emitter
-        ) { [weak self] configuration, emitter in
-            guard let self else { fatalError("a web page outlived the module") }
+            emitter: emitter,
+            adopt: { [weak self] configuration, emitter in
+                guard let self else { fatalError("a web page outlived the module") }
 
-            return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed)
-        }
+                return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed)
+            },
+            keep: { [weak self] download, emitter in
+                self?.keep(download, emitter)
+            }
+        )
         if clear { Self.drawNoBackground(page.view) }
         if fullSpeed { Self.runWhileCovered(page.view) }
         pages[page.id] = page

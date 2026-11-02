@@ -163,6 +163,7 @@ function createEnvironment({ core, preload, openWindow }) {
             permissionsChanged: WEB.permissionsChanged,
             fetchText: WEB.fetchText,
             clear: WEB.clear,
+            cancelDownload: WEB.cancelDownload,
             trust: WEB.trust,
             sessionsOf: WEB.sessionsOf,
         }),

@@ -1,10 +1,10 @@
 const { isWeb, placeOf } = require('../address/address.js');
 const { favicon } = require('../favicon/favicon.js');
 
-// The view's title bar, as the Browser's toolbar: Back and Forward, and the field of the tab in front. The field holds
-// the site's icon, which opens its permissions, the site, and Reload and the bookmark star of the page. A press on the
-// site edits the address. `onBookmark()` is a press on the star.
-function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
+// The view's title bar, as the Browser's toolbar: Back and Forward, the field of the tab in front, and `trailing` at its
+// end. The field holds the site's icon, which opens its permissions, the site, and Reload and the bookmark star of the
+// page. A press on the site edits the address. `onBookmark()` is a press on the star.
+function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermissions, onBookmark, onSubmit }) {
     const ICON_SIZE = 16;
 
     let shownTab = null;
@@ -20,6 +20,7 @@ function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, on
             padding: 6px 10px;
         }
         .browser-toolbar-side { display: flex; align-items: center; gap: 2px; }
+        .browser-toolbar-side[data-trailing] { justify-content: flex-end; }
         .browser-address-field {
             display: flex;
             align-items: center;
@@ -102,7 +103,10 @@ function toolbar({ theme, ui, onBack, onForward, onReload, onSitePermissions, on
     const star = ui.iconButton({ icon: starIcon(false), title: 'Bookmark', onClick: bookmark });
     for (const button of [reload, star]) button.element.classList.add('browser-address-page');
     field.append(site, address, input, reload.element, star.element);
-    element.append(leading, field, ui.element('div'));
+    const end = ui.element('div', { className: 'browser-toolbar-side' });
+    end.toggleAttribute('data-trailing', true);
+    end.append(trailing);
+    element.append(leading, field, end);
 
     address.addEventListener('click', edit);
     input.addEventListener('blur', stopEditing);

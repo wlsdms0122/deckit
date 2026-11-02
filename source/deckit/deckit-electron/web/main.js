@@ -3,6 +3,7 @@ import * as SITE from '../../deckit-shell/deckit/web/model/site.js';
 import { createPartition } from './model/partition.js';
 import { createRegistry } from './registry.js';
 import { createCertificate } from './certificate.js';
+import { createDownload } from './download.js';
 import { createScript } from './script.js';
 import { storeOf } from '../webkit/index.js';
 import { CHANNEL } from '../messages/main.js';
@@ -27,6 +28,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
             deck[name](...args);
     const sessionOf = (page) => PARTITION.read(page.partition);
     const CERTIFICATE = createCertificate({ refused: told('refused') });
+    const DOWNLOAD = createDownload({ folder: () => require('electron').app.getPath('downloads') });
     const SCRIPT = createScript({
         LOG,
         sessionOf,
@@ -200,7 +202,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
     }
 
     // What a page asks, put to deck: a link it follows, a window it opens, what it asks to have, a certificate the Mac
-    // does not trust, and an app's address. `page` is the page asking, known once it is adopted.
+    // does not trust, and an app's address. A download it starts is written to the Downloads folder, and deck is told
+    // of it for the mod showing the page. `page` is the page asking, known once it is adopted.
     function delegateOf(modPage) {
         let page = null;
         let hear = () => {};
@@ -234,6 +237,15 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
                 return at ? deck.request(at.embedder, at.tab.id, { origin, permissions }) : Promise.resolve(false);
             },
             certificate: (info) => CERTIFICATE.decide(page, REGISTRY.tabOf(page), page.partition, info),
+            download: ({ url }) => {
+                const at = REGISTRY.tabOf(page);
+                if (!at) return null;
+                return DOWNLOAD.listenerFor(
+                    url,
+                    (download) => deck.downloaded(at.embedder, download),
+                    (asked) => deck.shouldDownload(at.embedder, at.tab.id, asked)
+                );
+            },
             external: (url) => {
                 const at = REGISTRY.tabOf(page);
                 if (!at) return;
@@ -360,6 +372,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         permissionsChanged: () => SCRIPT.permissionsChanged(),
         fetchText,
         clear,
+        cancelDownload: (id) => WEBKIT.cancelDownload(id),
         trust: (mod, session, entries) => CERTIFICATE.trust(PARTITION.spell(mod, session), entries),
         sessionsOf: (mod) => PARTITION.prefixOf(mod),
         webPagesIn,

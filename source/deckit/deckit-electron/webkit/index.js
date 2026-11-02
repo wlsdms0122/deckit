@@ -47,6 +47,11 @@ export function createWebKit({ path, LOG }) {
         return loaded().fetchText(store, String(url), { limit, applicationName: agentName() });
     }
 
+    // A download a page started, stopped where it is still under way.
+    function cancelDownload(id) {
+        loaded().cancelDownload(id);
+    }
+
     // What `store` kept, taken.
     function clear(store) {
         return loaded().clear(store);
@@ -60,7 +65,8 @@ export function createWebKit({ path, LOG }) {
     // MARK: - Private
     // A page and the listener the module tells it through, before the module has given it its id. `delegate`:
     // `navigate(url) -> 'load' | 'refuse' | 'leave'`; `open({ url, ownWindow, background, width, height })`, the
-    // listener of the page given for the window, or nothing; `permission({ origin, permissions }) -> Promise of a
+    // listener of the page given for the window, or nothing; `download({ url })`, the listener of the download
+    // (deckit-web WebDownload), or nothing to cancel it; `permission({ origin, permissions }) -> Promise of a
     // boolean`; `certificate(info) -> boolean`, whether it is trusted; `external(url)`; `message(body)`; and, for a
     // page with a scheme of its own, `request({ url, method, body, reply })`.
     function pageOf({ delegate, fields, opened = null }) {
@@ -115,6 +121,8 @@ export function createWebKit({ path, LOG }) {
                     return delegate.navigate?.(payload.url) ?? 'load';
                 case 'open':
                     return delegate.open?.(payload) || undefined;
+                case 'download':
+                    return delegate.download?.(payload) || undefined;
                 case 'certificate':
                     return !!delegate.certificate?.(payload);
                 case 'permission':
@@ -213,7 +221,7 @@ export function createWebKit({ path, LOG }) {
         return applicationName;
     }
 
-    return { make, listenerFor, pageById, focusedPage, fetchText, clear, native };
+    return { make, listenerFor, pageById, focusedPage, fetchText, cancelDownload, clear, native };
 }
 
 // A UUID made from `name`, the same each run, as WebKit names a data store.

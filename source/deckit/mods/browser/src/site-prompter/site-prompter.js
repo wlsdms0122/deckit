@@ -1,10 +1,10 @@
 const { hostOf, originOf, isWeb } = require('../address/address.js');
 const { sitePermissionKey } = require('../store/store.js');
 
-// The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open. And
-// the site permissions the person reviews. A certificate is asked at once. A permission or an app waits while the
-// Browser is hidden, until its tab is next in front; a background tab that asks one while the Browser is on screen is
-// brought to the front.
+// The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open, a
+// file to download. And the site permissions the person reviews. A certificate is asked at once. The others wait while
+// the Browser is hidden, until its tab is next in front; a background tab that asks one while the Browser is on screen
+// is brought to the front.
 function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, listTabs, onAsk }) {
     const PERMISSION_WORDS = {
         microphone: 'your microphone',
@@ -23,12 +23,13 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
 
     // A refused load reports on every retry, so each certificate is asked once per attempt.
     const askedCertificates = new Set();
-    const pending = new WeakMap(); // tab -> permission requests waiting for the Browser to be on screen
+    const pending = new WeakMap(); // tab -> questions waiting for the Browser to be on screen: { answer, ask }
     const refused = new WeakMap(); // tab -> the keys of the site permissions refused, for as long as the tab lasts
 
     return {
         askCertificate,
         askPermission,
+        askDownload,
         askPending,
         release,
         editSitePermissions,
@@ -63,16 +64,21 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
         return new Promise((answer) => decide(tab, { ...request, answer }));
     }
 
+    // Whether the file the page of `tab` is downloading, `download` ({ url, name }), is saved.
+    function askDownload(tab, download) {
+        return new Promise((answer) => offerSave(tab, download, answer));
+    }
+
     function askPending(tab) {
         if (!isShown()) return;
-        const requests = pending.get(tab) || [];
+        const questions = pending.get(tab) || [];
         pending.delete(tab);
-        for (const request of requests) decide(tab, request);
+        for (const { ask } of questions) ask();
     }
 
     // The page of `tab` is gone: what it still waits on is refused.
     function release(tab) {
-        for (const request of pending.get(tab) || []) request.answer(false);
+        for (const { answer } of pending.get(tab) || []) answer(false);
         pending.delete(tab);
     }
 
@@ -118,11 +124,7 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
             wanted.some((permission) => refusals.has(sitePermissionKey({ origin: request.origin, permission })))
         )
             return request.answer(false);
-        if (!isShown()) {
-            pending.set(tab, [...(pending.get(tab) || []), request]);
-            return;
-        }
-        onAsk(tab);
+        if (!shown(tab, request.answer, () => decide(tab, request))) return;
         if (wanted.some(opensApp)) return askOpen(tab, request, wanted);
         let allowed = false;
         ui.dialog({
@@ -149,6 +151,36 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
                         refusals.add(sitePermissionKey({ origin: request.origin, permission }));
                     request.answer(false);
                 }),
+        });
+    }
+
+    // On screen, `tab` brought to the front for a question; hidden, the question waits for it, `ask` asking it again.
+    function shown(tab, answer, ask) {
+        if (!isShown()) {
+            pending.set(tab, [...(pending.get(tab) || []), { answer, ask }]);
+            return false;
+        }
+        onAsk(tab);
+        return true;
+    }
+
+    function offerSave(tab, download, answer) {
+        if (!shown(tab, answer, () => offerSave(tab, download, answer))) return;
+        const site = hostOf(tab.url) || hostOf(download.url);
+        let saved = false;
+        ui.dialog({
+            title: `Download “${download.name}”?`,
+            message: site
+                ? `${site} wants to save it in your Downloads folder.`
+                : 'It is saved in your Downloads folder.',
+            confirmLabel: 'Download',
+            cancelLabel: 'Cancel',
+            onConfirm: () => {
+                saved = true;
+                answer(true);
+            },
+            // Runs before onConfirm, so the answer waits a turn to see whether it was a yes.
+            onClose: () => queueMicrotask(() => saved || answer(false)),
         });
     }
 

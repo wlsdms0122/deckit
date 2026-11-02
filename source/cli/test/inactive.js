@@ -5,6 +5,10 @@
 if (process.type === 'browser') {
     const { app } = require('electron');
     const keepOut = () => app.setActivationPolicy('accessory');
+    // What its web pages download goes to the test's own folder, never the person's Downloads.
+    const downloads = require('path').join(process.env.DECKIT_DATA, 'downloads');
+    require('fs').mkdirSync(downloads, { recursive: true });
+    app.setPath('downloads', downloads);
     if (app.isReady()) keepOut();
     else app.once('ready', keepOut);
     app.focus = () => {};

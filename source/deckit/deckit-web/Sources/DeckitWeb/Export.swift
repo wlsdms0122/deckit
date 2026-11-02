@@ -23,6 +23,7 @@ enum Export: Int, CaseIterable {
     case droppedFiles
     case clear
     case close
+    case cancelDownload
     case safariVersion
     case openWindow
     case showWindow

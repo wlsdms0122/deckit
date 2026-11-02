@@ -52,6 +52,15 @@ export const clickNotification = CHANNEL.pageToMain('deckit-shell:web-click-noti
 });
 // Answers the `asking` of that number.
 export const permit = CHANNEL.pageToMain('deckit-shell:web-permit', { ask: 'number', allow: 'boolean' });
+// Answers the `saving` of that number.
+export const save = CHANNEL.pageToMain('deckit-shell:web-save', { ask: 'number', save: 'boolean' });
+
+// The mod's downloads, by the id deck gives each: { id, url, name, path, state, received, expected, error, started }.
+export const downloads = CHANNEL.pageToMain('deckit-shell:web-downloads', {}, { reply: true });
+export const cancelDownload = CHANNEL.pageToMain('deckit-shell:web-download-cancel', { id: 'string' });
+export const revealDownload = CHANNEL.pageToMain('deckit-shell:web-download-reveal', { id: 'string' }, { reply: true });
+export const openDownload = CHANNEL.pageToMain('deckit-shell:web-download-open', { id: 'string' }, { reply: true });
+export const removeDownload = CHANNEL.pageToMain('deckit-shell:web-download-remove', { id: 'string' }, { reply: true });
 
 export const changed = CHANNEL.mainToPage('deckit-shell:web-changed');
 // certificate: { url, host, error, fingerprint, subject, issuer }
@@ -64,3 +73,7 @@ export const opening = CHANNEL.mainToPage('deckit-shell:web-opening');
 export const asking = CHANNEL.mainToPage('deckit-shell:web-asking');
 export const notified = CHANNEL.mainToPage('deckit-shell:web-notified');
 export const closed = CHANNEL.mainToPage('deckit-shell:web-closed');
+// A download a web page started, to be saved or not (`url`, `name`, `mimeType`, `expected`); answered with save.
+export const saving = CHANNEL.mainToPage('deckit-shell:web-saving');
+// One of the mod's downloads, as it changes.
+export const downloaded = CHANNEL.mainToPage('deckit-shell:web-downloaded');

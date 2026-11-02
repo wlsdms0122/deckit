@@ -29,7 +29,10 @@ async function main() {
     IPC.carry({ messages, pages: { isGone: () => false } }, { report: () => {} });
     const toldOn = (channel) => tells.filter(([, message]) => message.channel === channel);
 
-    const files = { id: 'files', permissions: [{ id: 'system.files' }, { id: 'system.site-permissions' }] };
+    const files = {
+        id: 'files',
+        permissions: [{ id: 'system.files' }, { id: 'system.site-permissions' }, { id: 'system.file-handlers' }],
+    };
     const plain = { id: 'plain', permissions: [] };
     const filesPage = { name: 'files page' };
     const plainPage = { name: 'plain page' };
@@ -41,12 +44,22 @@ async function main() {
     const IDENTITY = {
         modOf: (page) => mods.get(page) || null,
         pageNameOf: () => null,
-        modFrom: (page) => mods.get(page),
+        modFrom: (page, permission = null) => {
+            const mod = mods.get(page);
+            if (permission && !mod.permissions.some(({ id }) => id === permission)) throw new Error('refused');
+            return mod;
+        },
         consumeUserActivation: (page) => activated.delete(page),
         watchPresses: () => {},
+        pageOf: (modId) => [...mods].find(([, mod]) => mod.id === modId)?.[0] || null,
     };
     const KEYMAP = { listen: () => {} };
-    const state = {};
+    // A download still under way as Deckit quit, kept from the run before.
+    const state = {
+        'web-downloads': {
+            plain: [{ id: 'quit', url: 'https://a.com/q.zip', name: 'q.zip', path: '/D/q.zip', state: 'downloading' }],
+        },
+    };
     const STORAGE = {
         // Kept as text, as the core keeps it: each read is a copy of its own.
         state: {
@@ -86,6 +99,7 @@ async function main() {
             clearing();
         },
         stateOf: () => null,
+        cancelDownload: (id) => done.push(['cancelDownload', id]),
     };
     const pages = {
         isGone: () => false,
@@ -98,6 +112,8 @@ async function main() {
     const open = {
         appFor: (address) => (address.startsWith('zoommtg:') ? 'zoom.us' : ''),
         url: (address) => opened.push(address),
+        reveal: (file) => opened.push(['reveal', file]) > 0,
+        file: async (file) => opened.push(['file', file]) > 0,
     };
     const WEB = createWeb({ LOG: { info: () => {} }, IDENTITY, KEYMAP, STORAGE, web, pages, open });
     WEB.start();
@@ -137,7 +153,7 @@ async function main() {
     check("a mod never attaches another's session", !deck.attaching(plainPage, { mod: 'files', name: 'web' }), '');
     check("a session that is no mod's never attaches", !deck.attaching(plainPage, null), '');
     clearing = () => deck.attaching(plainPage, { mod: 'plain', name: 'web' });
-    await WEB.clearSessions('files');
+    await WEB.erase('files');
     check(
         "a mod's sessions are cleared and forgotten, and another's used meanwhile kept",
         JSON.stringify(done.at(-1)) === '["clear","files","web"]' &&
@@ -331,6 +347,168 @@ async function main() {
     await tick();
     const loads = done.filter(([what]) => what === 'load');
     check("a mod never loads another's tab", loads.length === 1 && loads[0][2] === 'https://c.com', loads);
+
+    // Downloads, kept for the mod showing the page that started each.
+    check(
+        'a download under way as Deckit quit failed',
+        state['web-downloads'].plain[0].state === 'failed' && !!state['web-downloads'].plain[0].error,
+        state['web-downloads']
+    );
+    const downloading = {
+        id: 50,
+        url: 'https://a.com/a.zip',
+        name: 'a.zip',
+        path: '/D/a.zip',
+        state: 'downloading',
+        received: 0,
+        expected: 10,
+        error: '',
+    };
+    deck.downloaded(filesPage, downloading);
+    deck.downloaded(filesPage, { ...downloading, received: 4 });
+    const toldDownloads = toldOn('deckit-shell:web-downloaded');
+    const kept = state['web-downloads'].files;
+    const id = kept?.[0]?.id;
+    check(
+        'a download is kept once, and its mod told of each change',
+        kept?.length === 1 &&
+            kept[0].state === 'downloading' &&
+            toldDownloads.length === 2 &&
+            toldDownloads.every(([page, message]) => page === filesPage && message.payload.id === id) &&
+            toldDownloads[1][1].payload.received === 4,
+        [kept, toldDownloads]
+    );
+    const listed = (await heard.asked(filesPage, { channel: 'deckit-shell:web-downloads', payload: {} })).value;
+    const plainListed = (await heard.asked(plainPage, { channel: 'deckit-shell:web-downloads', payload: {} })).value;
+    check(
+        "a mod lists its own downloads, never another's",
+        listed?.length === 1 && listed[0].id === id && plainListed?.length === 1 && plainListed[0].id === 'quit',
+        [listed, plainListed]
+    );
+    heard.told(plainPage, { channel: 'deckit-shell:web-download-cancel', payload: { id } });
+    heard.told(filesPage, { channel: 'deckit-shell:web-download-cancel', payload: { id } });
+    await tick();
+    const cancels = done.filter(([what]) => what === 'cancelDownload');
+    check("a mod stops its own download, never another's", cancels.length === 1 && cancels[0][1] === 50, cancels);
+    const openIt = async () =>
+        (await heard.asked(filesPage, { channel: 'deckit-shell:web-download-open', payload: { id } })).value;
+    check('one under way does not open', (await openIt()) === false, '');
+    deck.downloaded(filesPage, { ...downloading, received: 10, state: 'finished' });
+    check(
+        'a finished download is kept as finished',
+        state['web-downloads'].files[0].state === 'finished' && state['web-downloads'].files[0].received === 10,
+        state['web-downloads']
+    );
+    check(
+        'a finished one opens in its app',
+        (await openIt()) === true && JSON.stringify(opened.at(-1)) === '["file","/D/a.zip"]',
+        opened
+    );
+    const revealed = (await heard.asked(filesPage, { channel: 'deckit-shell:web-download-reveal', payload: { id } }))
+        .value;
+    check('a download is shown in Finder', revealed === true && opened.at(-1)[0] === 'reveal', opened);
+    const openedBefore = opened.length;
+    const plainOpen = await heard.asked(plainPage, {
+        channel: 'deckit-shell:web-download-open',
+        payload: { id: 'quit' },
+    });
+    const plainReveal = await heard.asked(plainPage, {
+        channel: 'deckit-shell:web-download-reveal',
+        payload: { id: 'quit' },
+    });
+    check(
+        'a download opens and shows in Finder only for a mod with system.file-handlers',
+        !plainOpen?.value && !plainReveal?.value && opened.length === openedBefore,
+        [plainOpen, plainReveal, opened]
+    );
+
+    // One whose mod's page is gone as it ends is still the mod's.
+    deck.downloaded(filesPage, { ...downloading, id: 60, path: '/D/c.zip', name: 'c.zip' });
+    mods.delete(filesPage);
+    deck.downloaded(filesPage, { ...downloading, id: 60, path: '/D/c.zip', name: 'c.zip', state: 'finished' });
+    mods.set(filesPage, files);
+    check(
+        "a download ending after its mod's page is gone is kept as finished",
+        state['web-downloads'].files[0].name === 'c.zip' && state['web-downloads'].files[0].state === 'finished',
+        state['web-downloads'].files[0]
+    );
+
+    deck.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip' });
+    const forgotten = state['web-downloads'].files[0].id;
+    const removed = (
+        await heard.asked(filesPage, { channel: 'deckit-shell:web-download-remove', payload: { id: forgotten } })
+    ).value;
+    deck.downloaded(filesPage, { ...downloading, id: 51, path: '/D/b.zip', name: 'b.zip', state: 'cancelled' });
+    check(
+        'one forgotten under way is stopped, and not kept again as it ends',
+        removed === true &&
+            done.at(-1)[0] === 'cancelDownload' &&
+            done.at(-1)[1] === 51 &&
+            state['web-downloads'].files.length === 2,
+        [done.at(-1), state['web-downloads']]
+    );
+    deck.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip' });
+    await WEB.erase('files');
+    deck.downloaded(filesPage, { ...downloading, id: 70, path: '/D/d.zip', name: 'd.zip', state: 'cancelled' });
+    check(
+        "a mod's downloads go with its data, one under way stopped",
+        !('files' in state['web-downloads']) && done.some(([what, under]) => what === 'cancelDownload' && under === 70),
+        [state['web-downloads'], done]
+    );
+
+    // The last 100 records are kept, and an older one still under way stays until it ends.
+    const record = (id, state) =>
+        deck.downloaded(plainPage, { ...downloading, id, path: `/D/${id}.zip`, name: `${id}.zip`, state });
+    record(200, 'downloading');
+    for (let id = 201; id <= 300; id++) {
+        record(id, 'downloading');
+        record(id, 'finished');
+    }
+    const longKept = state['web-downloads'].plain;
+    record(200, 'finished');
+    record(301, 'downloading');
+    const trimmed = state['web-downloads'].plain;
+    check(
+        'a download under way past the last 100 is kept, not stopped, and goes once it ended',
+        longKept.length === 101 &&
+            longKept.at(-1).name === '200.zip' &&
+            !done.some(([what, under]) => what === 'cancelDownload' && under === 200) &&
+            trimmed.length === 100 &&
+            !trimmed.some(({ name }) => name === '200.zip'),
+        [longKept.length, longKept.at(-1)?.name, trimmed.length]
+    );
+
+    // A download is saved as the mod's page showing its tab answers.
+    const file = { url: 'https://a.com/e.zip', name: 'e.zip', mimeType: 'application/zip', expected: 3 };
+    const answerSave = (page, save) =>
+        heard.told(page, {
+            channel: 'deckit-shell:web-save',
+            payload: { ask: toldOn('deckit-shell:web-saving').at(-1)[1].payload.ask, save },
+        });
+    const saved = deck.shouldDownload(filesPage, 7, file);
+    answerSave(plainPage, false);
+    answerSave(filesPage, true);
+    const saving = toldOn('deckit-shell:web-saving');
+    check(
+        "the mod's page showing a download is asked whether it is saved, and only its answer counts",
+        saving.length === 1 &&
+            saving[0][0] === filesPage &&
+            saving[0][1].payload.id === 7 &&
+            saving[0][1].payload.name === 'e.zip' &&
+            (await saved) === true,
+        saving
+    );
+    const unsaved = deck.shouldDownload(filesPage, 7, file);
+    answerSave(filesPage, false);
+    check('a download the mod refuses is not saved', (await unsaved) === false, '');
+    const orphaned = deck.shouldDownload(filesPage, 7, file);
+    watching.get(tab).destroyed();
+    check('a download whose tab goes before it is answered is not saved', (await orphaned) === false, '');
+    check(
+        'a download from a tab not there is not saved',
+        (await deck.shouldDownload(filesPage, 99, file)) === false,
+        ''
+    );
 
     if (failed.length) {
         for (const line of failed) console.error(line);

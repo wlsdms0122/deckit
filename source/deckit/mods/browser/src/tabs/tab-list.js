@@ -19,6 +19,7 @@ function tabList({
     onFocus,
     onCertificateRefused,
     decidePermission,
+    shouldDownload,
     onNotification,
     onFound,
 }) {
@@ -234,6 +235,7 @@ function tabList({
             didFocus: () => onFocus(),
             didRefuseCertificate: (info) => onCertificateRefused(info),
             decidePermission: (request) => (nodes.items().includes(tab) ? decidePermission(tab, request) : false),
+            shouldDownload: (download) => (nodes.items().includes(tab) ? shouldDownload(tab, download) : false),
             didReceiveNotification: (notification) => onNotification(tab, notification),
             didFind: (result) => {
                 if (tab.page === page) onFound(tab, result);
