@@ -58,8 +58,16 @@ const STYLE =
     .switcher-row[data-active],
     .switcher-row[data-lead][data-active] { background: var(--deckit-selected); }
     .switcher-row[data-attention] { overflow: hidden; }
-    .switcher-glyph { display: flex; flex: 0 0 auto; justify-content: center; width: 18px; opacity: 0.8; }
-    .switcher-row[data-lead] .switcher-glyph { width: 22px; opacity: 0.75; }
+    .switcher-glyph {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        opacity: 0.8;
+    }
+    .switcher-row[data-lead] .switcher-glyph { width: 22px; height: 22px; opacity: 0.75; }
     .switcher-mark {
         flex: 0 0 auto;
         align-self: stretch;

@@ -38,7 +38,7 @@ extension WebPage {
     }
 
     // The mouse's button pressed (`leftMouseDown`), moved held (`leftMouseDragged`) or let go (`leftMouseUp`) at
-    // `point`, from the page's top left.
+    // `point`, from the page's top left, or the mouse moved there (`mouseMoved`), which its window hands on.
     func sendMouse(_ type: NSEvent.EventType, at point: CGPoint, through input: InputMonitor) throws {
         let window = try shownWindow()
         guard let event = NSEvent.mouseEvent(
@@ -50,7 +50,7 @@ extension WebPage {
             context: nil,
             eventNumber: 0,
             clickCount: 1,
-            pressure: type == .leftMouseUp ? 0 : 1
+            pressure: type == .leftMouseDown || type == .leftMouseDragged ? 1 : 0
         ), !input.took(event) else {
             return
         }
@@ -61,6 +61,9 @@ extension WebPage {
 
         case .leftMouseDragged:
             view.mouseDragged(with: event)
+
+        case .mouseMoved:
+            window.sendEvent(event)
 
         default:
             HeldButton.hold(false)

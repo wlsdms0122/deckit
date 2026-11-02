@@ -121,7 +121,7 @@ final class Window: NSObject {
     func show(focus: Bool) {
         if window.isMiniaturized { window.deminiaturize(nil) }
         if focus {
-            if !(window is NSPanel) { NSApp.activate() }
+            if !(window is NSPanel) { NSApp.activate(ignoringOtherApps: true) }
             window.makeKeyAndOrderFront(nil)
         } else {
             window.orderFront(nil)
