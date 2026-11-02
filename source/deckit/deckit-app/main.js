@@ -1,10 +1,11 @@
 // Deckit.app's Electron entry: deckit's main bundles, the app's own files, then the environment, connect and attach.
 const path = require('path');
-const { app, protocol } = require('electron');
+const { app } = require('electron');
 
 // Run unpackaged, Electron's default app loads this folder; Deckit.app has none. Not app.isPackaged: Electron reads
-// that off the executable's name, which Deckit.app keeps as Electron's. Unpackaged, it keeps all its data in the
-// folder DECKIT_DATA names, never the person's, and a restart is asked of whoever started it, by exiting with RESTART.
+// that off the executable's name, which Deckit.app keeps as Electron's. Unpackaged, it keeps its data in the folder
+// DECKIT_DATA names, and what WebKit keeps of its pages under an id that folder's own (config/config.js), so it never
+// reads the person's; a restart is asked of whoever started it, by exiting with RESTART.
 const UNPACKAGED = !!process.defaultApp;
 const RESTART = 75;
 if (UNPACKAGED) {
@@ -22,7 +23,6 @@ if (!app.requestSingleInstanceLock()) {
     const { createWindow } = require('./window/window.js');
     const { createApp } = require('./app/app.js');
     const { createTheme } = require('./theme/theme.js');
-    protocol.registerSchemesAsPrivileged([ELECTRON.SCHEME]);
     // A restart is a quit, so every mod stops first. relaunch() only queues the new instance.
     const restart = () => {
         if (UNPACKAGED) app.once('quit', () => app.exit(RESTART));
@@ -30,7 +30,9 @@ if (!app.requestSingleInstanceLock()) {
         app.quit();
     };
     const THEME = createTheme();
-    const host = createApp({ WINDOW: createWindow({ CONFIG: config, THEME }), THEME }).make({ restart });
+    // The app's windows are the ones the environment opens, asked for once the app shows one.
+    const WINDOW = createWindow({ CONFIG: config, THEME, windows: () => environment.windows });
+    const host = createApp({ WINDOW, THEME }).make({ restart });
     const environment = ELECTRON.environment({
         preload: path.join(__dirname, 'preload.js'),
         core: path.join(__dirname, 'deckit', require('./deckit/deckit.json').core),

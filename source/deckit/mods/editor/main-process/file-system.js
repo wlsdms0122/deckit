@@ -67,9 +67,10 @@ module.exports = ({ emit, window, files }) => {
         },
 
         async pick(what = 'file', suggested = '') {
-            const parent = window.ofPage() || undefined;
+            // A sheet on the window the page is shown in, or a dialog of its own while it is hidden.
+            const opener = window.ofPage() || dialog;
             if (what === 'save') {
-                const picked = await dialog.showSaveDialog(parent, {
+                const picked = await opener.showSaveDialog({
                     defaultPath: suggested || undefined,
                     properties: ['createDirectory', 'showHiddenFiles'],
                 });
@@ -79,7 +80,7 @@ module.exports = ({ emit, window, files }) => {
                 what === 'folder'
                     ? ['openDirectory', 'createDirectory', 'showHiddenFiles']
                     : ['openFile', 'multiSelections', 'showHiddenFiles'];
-            const picked = await dialog.showOpenDialog(parent, { properties });
+            const picked = await opener.showOpenDialog({ properties });
             return picked.canceled ? [] : picked.filePaths;
         },
 

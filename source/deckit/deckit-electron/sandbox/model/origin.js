@@ -1,9 +1,6 @@
 // MARK: - Property
-// The scheme the pages deck makes load from, as Electron's registerSchemesAsPrivileged takes it.
-const SCHEME = Object.freeze({
-    scheme: 'deckit',
-    privileges: Object.freeze({ standard: true, secure: true, supportFetchAPI: true }),
-});
+// The scheme the pages deck makes load from, which each page serves itself.
+const SCHEME = 'deckit';
 // Every mod host ends in .mod, so a page that runs no mod never shares an origin with one.
 const MOD_HOST_SUFFIX = '.mod';
 
@@ -11,12 +8,12 @@ const MOD_HOST_SUFFIX = '.mod';
 // MARK: - Public
 // Where a mod's page loads from: an origin of its own, so its page storage is no one else's.
 function originOf(modId) {
-    return `${SCHEME.scheme}://${modId}${MOD_HOST_SUFFIX}`;
+    return `${SCHEME}://${modId}${MOD_HOST_SUFFIX}`;
 }
 
 // Where a page that runs no mod loads from, by its name, which has no dot in it.
 function pageOriginOf(name) {
-    return `${SCHEME.scheme}://${name}`;
+    return `${SCHEME}://${name}`;
 }
 
 // The mod whose origin a host is, or null.

@@ -16,7 +16,7 @@ writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the bundles of 
 source/cli/deckit app
 ```
 
-then makes `.build/Deckit.app` from that archive, the way any host app embeds it. Deckit keeps its folder in `~/.config/deckit`; Electron's own data (window places, web storage) is in `~/Library/Application Support/Deckit`.
+then makes `.build/Deckit.app` from that archive, the way any host app embeds it. Deckit keeps its folder in `~/.config/deckit`; where its windows were left is in `~/Library/Application Support/Deckit`, and what its pages and the sites they show store is WebKit's, in `~/Library/WebKit/dev.deckit.app`.
 
 ## Commands
 

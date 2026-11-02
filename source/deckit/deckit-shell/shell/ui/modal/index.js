@@ -1,4 +1,4 @@
-import * as OVERLAY from '../overlay/index.js';
+import * as LAYER from '../layer/index.js';
 
 // MARK: - Property
 const STYLE = `
@@ -29,6 +29,8 @@ const STYLE = `
     }
     .deckit-modal[data-bare] .deckit-modal-card { padding: 8px; }
     .deckit-modal[data-state='closed'] .deckit-modal-card { transform: translateY(6px) scale(.99); }
+    .deckit-modal[data-align='fill'],
+    .deckit-modal[data-align='fill'] .deckit-modal-card { transition: none; }
     .deckit-modal[data-align='fill'] .deckit-modal-card {
         display: flex;
         flex-direction: column;
@@ -38,8 +40,8 @@ const STYLE = `
         border-radius: 0;
         box-shadow: none;
     }
-    .deckit-modal[data-drags] .deckit-modal-card { -webkit-app-region: drag; }
-    .deckit-modal[data-drags] :is(input, textarea, select, button, a) { -webkit-app-region: no-drag; }
+    .deckit-modal[data-drags] .deckit-modal-card { --app-region: drag; }
+    .deckit-modal[data-drags] :is(input, textarea, select, button, a) { --app-region: no-drag; }
     .deckit-modal-title { font: 700 var(--deckit-type-heading); margin-bottom: 12px; }
     .deckit-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 `;
@@ -54,8 +56,9 @@ function make(theme, ui) {
 // A card over the page that holds every press. `fill(card)` puts the content in and returns what takes the
 // focus. With `chrome`, a title and Cancel and confirm buttons, a label of null leaving its button out; Enter in a
 // text field confirms. `onKey` has a key first and returns whether it took it. `align` is `center`, `top`, or
-// `fill`, the card all the page draws, filling it, its edge the page's. With `drags` the card drags the window it is
-// in where nothing in it is pressed. With `glass` its colour is laid at that strength, for a page over what blurs.
+// `fill`, the card all the page draws, filling it, its edge the page's, which comes and goes at once, as its window
+// does. With `drags` the card drags the window it is in where nothing in it is pressed. With `glass` its colour is
+// laid at that strength, for a page over what blurs.
 function modal(
     ui,
     {
@@ -135,7 +138,13 @@ function modal(
         actions.append(...[cancel, extra, confirm].filter(Boolean));
         card.append(actions);
     }
-    const layer = OVERLAY.open({ element: scrim, modal: true, speed: 'base', onKey, onDismiss: close });
+    const layer = LAYER.open({
+        element: scrim,
+        modal: true,
+        speed: align === 'fill' ? null : 'base',
+        onKey,
+        onDismiss: close,
+    });
     (focus || confirm || card).focus();
     focus?.select?.();
     return { close };

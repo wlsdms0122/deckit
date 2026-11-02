@@ -1,4 +1,4 @@
-import * as OVERLAY from '../overlay/index.js';
+import * as LAYER from '../layer/index.js';
 
 // MARK: - Property
 const STYLE = `
@@ -38,7 +38,7 @@ function popover({ width = '', onClose } = {}) {
     };
     const show = (anchor) => {
         layer?.close();
-        layer = OVERLAY.open({ element, anchor, gap: 6, onDismiss: close });
+        layer = LAYER.open({ element, anchor, gap: 6, onDismiss: close });
     };
     return { element, show, close, isOpen: () => !!layer };
 }

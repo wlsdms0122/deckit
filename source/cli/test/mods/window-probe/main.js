@@ -1,4 +1,4 @@
-// A mod with a view, which asks a main process module of its own what it finds of the window the panel is in, and
+// A mod with a view, which asks a main process module of its own whether it finds the window its page is shown in, and
 // installs the folder the test hands it as a person would, by a press in its page.
 class WindowProbe {
     attach(shell, deckit) {
@@ -20,8 +20,6 @@ class WindowProbe {
         document.addEventListener('test-stack', async () => {
             const probe = await deckit.mainProcess('main-process/stack.js');
             marks.found = String(await probe.found());
-            marks.stages = JSON.stringify(await probe.stages());
-            marks.stack = JSON.stringify(await probe.stack());
         });
     }
 }

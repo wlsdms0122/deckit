@@ -37,8 +37,8 @@ const STYLE = `
     .deckit-quick-pick-rule { margin: 2px 0 4px; border-top: var(--deckit-border); }
     .deckit-quick-pick-list { max-height: 44vh; overflow-y: auto; }
     .deckit-modal[data-align='fill'] .deckit-quick-pick-list { flex: 1 1 auto; min-height: 0; max-height: none; }
-    .deckit-modal[data-drags] .deckit-quick-pick-field { -webkit-app-region: drag; }
-    .deckit-modal[data-drags] .deckit-quick-pick-list { -webkit-app-region: no-drag; }
+    .deckit-modal[data-drags] .deckit-quick-pick-field { --app-region: drag; }
+    .deckit-modal[data-drags] .deckit-quick-pick-list { --app-region: no-drag; }
     .deckit-quick-pick-message { display: flex; align-items: center; gap: 8px; padding: 10px 12px; opacity: 0.45; }
     .deckit-quick-pick-message:empty { display: none; }
     .deckit-quick-pick-message[data-alert] { opacity: 1; color: var(--deckit-alert); }

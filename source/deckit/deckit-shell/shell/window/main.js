@@ -2,10 +2,10 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as WINDOW_PERMISSION from './model/permission.js';
 
-// `deckit` is what connect answered, `PAGES` the shell's pages and `makeStage()` a stage to lay them on
-// (environment: SHELL.stage); `showWindow(control)`, `hideWindow(control)` and `closeWindow(control)` are the
+// `deckit` is what connect answered, `PAGES` the shell's pages, `OVERLAY` their overlays and `makeStage()` a stage to
+// lay them on (environment: SHELL.stage); `showWindow(control)`, `hideWindow(control)` and `closeWindow(control)` are the
 // host app's, which puts a mod's window on screen and away, and closes it once the mod is gone.
-export function createWindow({ deckit, PAGES, makeStage, showWindow, hideWindow, closeWindow }) {
+export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hideWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     // mod id -> { control, page, look, stage, unheard, shown }: `page` the mod's page while a run of it that has a
@@ -22,6 +22,9 @@ export function createWindow({ deckit, PAGES, makeStage, showWindow, hideWindow,
         PROTOCOL.close.on((_payload, sender) => close(heldBy(sender)));
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
         deckit.mods.onChange(reconcile);
+        OVERLAY.onChange((page) => {
+            for (const held of windows.values()) if (held.page === page) lay(held);
+        });
         reconcile();
     }
 
@@ -80,17 +83,17 @@ export function createWindow({ deckit, PAGES, makeStage, showWindow, hideWindow,
             get overlay() {
                 return held.look.overlay;
             },
-            // Into one of the host app's windows, as deckit places a view (`front`, `bounds`, `onClose`): the mod's
+            // Into one of the host app's windows, as a stage is placed (`front`, `bounds`, `onClose`): the mod's
             // page fills it. A window the host app closes puts the mod's away.
             place: (window, { onClose = null, ...options } = {}) =>
                 stageOf(held).place(window, {
                     ...options,
-                    onClose: (view) => {
+                    onClose: () => {
                         putAway(held, { told: false });
-                        onClose?.(view);
+                        onClose?.();
                     },
                 }),
-            contains: (page) => !!page && page === held.page,
+            contains: (page) => !!page && OVERLAY.ownerOf(page) === held.page,
             focus: () => held.page && PAGES.focus(held.page),
             didResignKey: () => held.shown && PROTOCOL.resignKey.send(held.page, {}),
         });
@@ -142,13 +145,15 @@ export function createWindow({ deckit, PAGES, makeStage, showWindow, hideWindow,
         closeWindow(held.control);
     }
 
-    // Put away, the stage is hidden with the page: a stage shown takes its clicks where it draws nothing too.
+    // Put away, the stage is hidden with the page: a stage shown takes its clicks where it draws nothing too. The
+    // page's overlay is over it while it shows anything.
     function lay(held) {
         const { stage, page } = held;
         if (!stage) return;
         stage.show(held.shown);
         if (!page || !PAGES.isAlive(page)) return stage.lay([]);
-        stage.lay([held.shown ? { page, rect: { x: 0, y: 0, ...stage.size() } } : { page, hidden: true }]);
+        if (!held.shown) return stage.lay([{ page, hidden: true }]);
+        stage.lay(OVERLAY.withOverlays([{ page, rect: { x: 0, y: 0, ...stage.size() } }]));
     }
 
     return { start, isActive };

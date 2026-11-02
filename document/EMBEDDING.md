@@ -8,17 +8,17 @@ A host app embeds one archive, `deckit-<version>.tgz`, with its sha256 beside it
 
 | In the archive | |
 |---|---|
-| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the Swift that built the core (`swift`), the scheme deckit's pages load from (`scheme`, as `SCHEME` of `main.js` is), each bundle's file and, for a renderer's, the global it leaves, the core's executable (`core`), the mods |
+| `deckit.json` | the version, the mod contract it speaks (`api`), the hash of its sources, the Swift that built the core (`swift`), each bundle's file and, for a renderer's, the global it leaves, the core's executable (`core`), the mods |
 | `deckit` | the core: deckit's own process, an executable for Macs of either kind (macOS 13 or later). Deckit starts it as the host app is ready and it ends with the host app's process |
-| `deckit-web.node` | the web pages a mod shows, on the Mac's WebKit: a module Node loads in main, for Macs of either kind (macOS 14 or later), which deckit finds beside `deckit` |
-| `main.js` | the environment deckit runs on in main, Electron's, a CommonJS module: `{ SCHEME, environment }` |
+| `deckit-web.node` | every page deckit shows, on the Mac's WebKit, and the windows they are laid in: a module Node loads in main, for Macs of either kind (macOS 14 or later), which deckit finds beside `deckit` |
+| `main.js` | the environment deckit runs on in main, Electron's, a CommonJS module: `{ API, environment }`, `API` the version of the mod contract |
 | `shell-main.js` | deckit in main: deck, deckit and its shell, a CommonJS module: `{ connect, attach }` |
-| `renderer.js` | what Electron gives every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitRenderer`: `{ boot }` |
+| `renderer.js` | what the environment gives every deckit page, each mod's and each that runs no mod. It leaves one global, `DeckitRenderer`: `{ boot }` |
 | `shell-renderer.js` | deckit on a page: deck and deckit, and the shell's pages and what it gives a mod. It leaves one global, `DeckitShellRenderer`: `{ start }` |
 | `mods/<id>/` | deckit's own mods, each with its entry bundled, a catalog the host app picks from |
 | `document/` | this, MOD.md, UI.md and GUIDELINES.md |
 
-In main the host app requires `main.js`, the environment, and `shell-main.js`, deckit. A deckit page loads, as its preload, a file the host app puts together:
+In main the host app requires `main.js`, the environment, and `shell-main.js`, deckit. Every deckit page runs a file the host app puts together, its preload, in a world of its own as each of its documents starts, before any code of the page's:
 
 ```js
 const before = new Set(Object.keys(globalThis));
@@ -27,7 +27,7 @@ const environment = DeckitRenderer.boot({ before });
 if (environment) DeckitShellRenderer.start(environment);
 ```
 
-`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. `boot` answers what Electron gives the page, or null on a page off deckit's scheme, and `start` runs deckit on the page with it.
+`before` is the Set of the names the page's global object had before the bundles ran, so boot takes away every global they added. `boot` answers what the environment gives the page, or null on a page off deckit's scheme, and `start` runs deckit on the page with it.
 
 ## 2. The configuration
 
@@ -53,20 +53,19 @@ A key deckit does not read stops `connect` with its name. A page holds none of i
 
 Deck runs mods; deckit's shell makes the views they are seen in. Where those are shown is the host app's, the way a browser decides whether a page goes in a tab or a window while the page stays the same. There is one panel, wherever the host app puts it. Mods live in it: the host app is there before the panel.
 
-Every window is the host app's: its frame, its bar, where it opens. Deckit makes none; a window it needs is asked of the host app. The panel is drawn as glass, clear where nothing is drawn, so the host app puts it over something that blurs: a window with vibrancy, or a surface of its own. A mod's window is the host app's too, shown, put away and closed through the shell's `showWindow`, `hideWindow` and `closeWindow`; its page may draw as glass; an overlay window then blurs what is behind it.
+Every window is the host app's: its frame, its bar, where it opens. The host app opens them with the environment's `windows` (section 4), the module's, the only windows deckit's pages are laid in, and a window deckit needs is asked of it. The one exception is a window of Electron's own that a mod's main process module opens for a view of Electron's it made (MOD.md, `window`), which the environment opens. The panel is drawn as glass, clear where nothing is drawn, so the host app puts it over something that blurs: a window with a `material`, or a surface of its own. A mod's window is the host app's too, shown, put away and closed through the shell's `showWindow`, `hideWindow` and `closeWindow`; its page may draw as glass; an overlay window then blurs what is behind it.
 
 In main, before the host app is ready:
 
 ```js
 const ELECTRON = require('<deckit>/main.js');
 const DECKIT = require('<deckit>/shell-main.js');
-protocol.registerSchemesAsPrivileged([ELECTRON.SCHEME, ...theAppsOwn]);
 const environment = ELECTRON.environment({ preload, core, host });
 const deckit = DECKIT.connect(environment, { host, config, folders });
 DECKIT.attach(deckit, environment, { host });
 ```
 
-`SCHEME` is the entry for the scheme deckit's pages load from, with its privileges. Electron takes privileged schemes in one call to `registerSchemesAsPrivileged`, and a later call replaces an earlier one, so deckit's scheme is in the host app's call, beside its own; a host app that registers before it loads deckit's bundles reads the scheme from `deckit.json`. `preload` is the file the host app put together for deckit's pages (section 1), and `core` the archive's `deckit` where the host app unpacked it, executable. A host app that signs what it ships signs `deckit` with it, as any executable of its own; one in the App Sandbox gives it the two keys of a child, `com.apple.security.app-sandbox` and `com.apple.security.inherit`. Under the hardened runtime it needs no entitlement. It signs `deckit-web.node` beside it with the same identity, as a library its main process loads. A site's passkeys work in the web pages only in a host app that has the entitlement `com.apple.developer.web-browser.public-key-credential`, which Apple grants a browser on request; without it a site signs the person in another way. Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
+`preload` is the file the host app put together for deckit's pages (section 1), and `core` the archive's `deckit` where the host app unpacked it, executable. A host app that signs what it ships signs `deckit` with it, as any executable of its own; one in the App Sandbox gives it the two keys of a child, `com.apple.security.app-sandbox` and `com.apple.security.inherit`. Under the hardened runtime it needs no entitlement. It signs `deckit-web.node` beside it with the same identity, as a library its main process loads. A site's passkeys work in the web pages only in a host app that has the entitlement `com.apple.developer.web-browser.public-key-credential`, which Apple grants a browser on request; without it a site signs the person in another way. Deckit's bundles hold all they read: they may be loaded from anywhere, joined to the host app's own code or not.
 
 `environment` is called once, with `preload`, `core` and the host app's answer for a window; `connect`, once, with what `environment` answered, the host app's answers about what of deckit is its own and its configuration (section 2), which it hands the environment what it needs of; `attach`, once, with what connect answered, the environment again and the host app's answers about where the shell is shown. One object may answer all three. Each throws and names what is missing: `connect` holds what it is handed to what deck and deckit need of an environment, and `attach` to what the shell needs of one (`deckit-shell/environment`: `MAIN`, `SHELL`).
 
@@ -74,7 +73,7 @@ What the host app answers the environment:
 
 | | |
 |---|---|
-| `openWindow({ view, title, size, key, place })` | a window deckit needs for a view: a mod's window, a web page in a window, a page's popup. The host app makes it, frames it, puts `view` in it by calling `place(window, { bounds })`, and returns it at once. `size` is the view's. `key` names a window that is the same one each time it opens (a mod's), so the host app can open it where it was left |
+| `openWindow({ title, size, place, focus })` | a window deckit needs for a web page it shows on its own: one a mod opens in a window, or a site's popup. The host app opens it with `windows.open`, frames it, puts the page in it by calling `place(window, { bounds })`, calls `focus()` each time the window takes the keyboard, and returns it at once. `size` is the page's |
 
 What the host app answers deckit:
 
@@ -83,7 +82,7 @@ What the host app answers deckit:
 | `notificationClicked()` | a notification a mod raised was clicked |
 | `restart()` | the host app restarts: the process is its own |
 
-What the host app answers deckit's shell. A page is a page token, which the environment hands out and the host app hands back: in Electron's, a webContents.
+What the host app answers deckit's shell. A page is a page token, which the environment hands out and the host app hands back: in Electron's, the module's page.
 
 | | |
 |---|---|
@@ -96,17 +95,17 @@ What the host app answers deckit's shell. A page is a page token, which the envi
 | `hideWindow(control)` | a mod's window goes away |
 | `closeWindow(control)` | the mod is gone: its window closes, and the control is not handed again |
 
-A mod's window control is the same object from run to run, until the mod is gone: `{ mod, name, width, height, overlay, place(window, { front, bounds, onClose }), contains(page), focus(), didResignKey() }`. `overlay` asks for a window over every app's; `didResignKey()` is the host app telling the mod the keyboard left the window. A window the host app closes puts the mod's away.
+A mod's window control is the same object from run to run, until the mod is gone: `{ mod, name, width, height, overlay, place(window, { front, bounds, onClose }), contains(page), focus(), didResignKey() }`, `place` putting the mod's page in a window as a stage's `place` does. `overlay` asks for a window over every app's; `didResignKey()` is the host app telling the mod the keyboard left the window. A window the host app closes puts the mod's away.
 
 When the host app quits, once every window has closed, deck holds the quit at `will-quit` until every mod's run has ended, `detach()` and `stop()` two seconds at most each, and deckit until the main process modules of those runs have ended (`dispose`, two seconds at most each), and then asks for the quit again: it goes on as any quit does, `quit` and all. The host app's `before-quit` and `will-quit` listeners hear both. While a mod runs, the first `will-quit` is deck's hold, and while a main process module is still ending, the next one is deckit's: the host app calls the quit off at the first `before-quit` or at a later pass, and with nothing running there is one pass. A quit the host app calls off leaves the mods that stopped for it stopped, and the next quit stops the runs that started since. A core that has ended holds no quit. A restart the host app makes is a quit too, `app.relaunch()` and then `app.quit()`; `app.exit()` skips every end. The process ends with code 0; a host app that ends it with another calls `app.exit(code)` from its `quit` listener. `openWindow` can be asked as mods load, and `panelTitled` before `start`.
 
-The keyboard in a window is the host app's to give. macOS hands it to a window's own page each time the window comes forward, so a host app whose views are not that page gives it to the view: `controls.panel.focus()` for the panel, `control.focus()` for a mod's window, and the view's page for a window it opened.
+The keyboard in a window is the host app's to give. macOS hands it to the window each time the window comes forward, not to a page in it, so the host app gives it to the page as the window takes it (the window's `key`): `controls.panel.focus()` for the panel, `control.focus()` for a mod's window, and `focus()` for a window `openWindow` asked for.
 
 What `controls` holds, `{ setTheme, panel }`:
 
 | | |
 |---|---|
-| `controls.panel` | `glass`, the strength the panel lays its colour over the blur at, for a surface beside it to match, and the panel lays it under itself too, so a page of the host app's under it lays none; `place(window, { bounds, onClose })`, which puts it in one of the host app's windows as the environment's `window.place` does (so a mod's main process module can find the window its view is in); `contains(page)`, whether a page is one the panel shows or a web page in one; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the host app makes; `present({ floating, dismissible, titleBar })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
+| `controls.panel` | `glass`, the strength the panel lays its colour over the blur at, for a surface beside it to match, and the panel lays it under itself too, so a page of the host app's under it lays none; `place(window, { bounds, onClose })`, which puts it in one of the host app's windows as a stage's `place` does (so a mod's main process module can find the window its page is shown in); `contains(page)`, whether a page is one the panel shows, a web page in one or the overlay over one; `show()`, `hide()`, `shown()`, `focus()`; `leave()` and `arrive()`, the exit and the entrance around a move the host app makes; `present({ floating, dismissible, titleBar })`. `hide()` resolves whether the panel had the keyboard, `leave()` false when the move was given up: the panel was put away on the way, or a newer move replaced it |
 | `controls.setTheme(theme)` | the host app's colours, for every page the shell draws. Each page takes a new one in place: no mod launches again |
 
 Moving the panel is a re-parent: mods keep their sandboxes and what they hold, and none is told where the panel is. `present` is all the panel learns of where it is: whether it floats over something (rounded and ringed) or fills a window, whether Escape with nothing else to close puts it away, and, filling a window whose title bar lies over the panel's top, `titleBar: { height, controlsWidth }`: the bar's height and the width the window's buttons take at its start. The sidebar and the content then reach up under the bar: the sidebar's top drags the window, and the content's is the mod's title bar area (MOD.md, `shell.view.register`).
@@ -115,7 +114,7 @@ Moving the panel is a re-parent: mods keep their sandboxes and what they hold, a
 
 ## 4. What connect answers
 
-What connect answers is all a host app, or the shell on deckit, reaches of deckit in main; deckit's shell is built with nothing else. Every fact it hands out (a manifest, a run, its summary) is a frozen copy. Nothing of Electron's is in it: what hands out or takes Electron's views and objects is the environment's, for a host app alone (below).
+What connect answers is all a host app, or the shell on deckit, reaches of deckit in main; deckit's shell is built with nothing else. Every fact it hands out (a manifest, a run, its summary) is a frozen copy. Nothing of Electron's is in it: what hands out the windows pages are laid in is the environment's, for a host app alone (below).
 
 | | |
 |---|---|
@@ -135,22 +134,20 @@ What connect answers is all a host app, or the shell on deckit, reaches of decki
 | `log` | `info`, `warn`, `error` |
 | `channels` | `bind(declared)`: a channel of the shell's own between main and its pages. `declared` is `{ channel, to, fields, reply, sync }`: `channel` its name; `to`, `main` for what a page asks or tells main, `page` for what main asks or tells a page; for `main`, `fields`, what a page may send, each `string`, `number`, `boolean`, `object`, `array` or `any`, ending in `?` when it may be absent; `reply`, whether it is answered; `sync`, for `main` with `reply`, whether the page waits for the answer at once. In main it answers `handle(answer)` or `on(listener)` for what a page asks or tells, and `invoke(page, payload, { timeout })` or `send(page, payload)` for what main asks or tells a page; main holds what a page sends to `fields`. A channel is declared once: binding the same declaration again binds the same channel, and one deckit binds as its own, or another declaration of a name bound already, is refused; each is answered once. A question main asks a page is heard from the page's start and waits for its answer for as long as main waits; what main tells a page before it listens is not kept. What a listener throws goes to deckit's log, in main and on a page |
 
-What the environment answers beside what deckit is handed, for a host app alone:
+What the environment answers beside what deckit is handed, for a host app alone, `windows`:
 
 | | |
 |---|---|
-| `viewOf(page)` | the Electron view a page of deck's, or a surface, is in: `viewOf(run.page)` for a mod's page from `mods.runs()`, and `viewOf(page)` for a page that runs no mod the host app made. Deck sets nothing of how the view looks: whoever puts it in a window sets its background and whether it is visible |
-| `owns(webContents)` | whether a webContents is one of deckit's: a page of deck's, a surface, or one they opened |
-| `window.place(view, window, { bounds, front, onClose })` | puts a view in one window at a time and takes it out alive before the window closes; `bounds` is a rect, or a function of the window's content size that the view follows |
-| `guard(emitter, event, listener)` | an Electron emitter's listener whose throw is logged |
+| `windows.open({ kind, size, frame, title, showsTitle, color, material, buttons })` | a window of the module's, hidden until shown. `kind` is `titled`, with macOS's title bar, its buttons where `buttons` (`{ x, y }`) puts the first one's top left and its title shown with `showsTitle`, or `floating`, with no bar, over every app and on every Space, taking the keyboard without bringing the app forward. `size` is its content's; `frame`, `{ x, y, width, height }` from the top left of the main display, where it is on screen; `color`, `{ red, green, blue }`, what it draws under its pages, or `material` (`hud`, `sidebar`, `menu`, `popover`), what behind it it blurs instead |
+| `windows.focused()` | the window with the keyboard, or null while none of the app's has it |
 
-What Electron lets one set per webContents, deckit sets on its own and keeps: what a `window.open` becomes (`setWindowOpenHandler`), and what its sessions grant (`setPermissionRequestHandler`, `setPermissionCheckHandler`). A host app that sets these on every webContents or session it is told of needs no exception for deckit's: what it set before deckit is replaced, and a call after is left out, and the first of each logged as a warning. Where they may navigate deckit guards with listeners of its own, beside any of the host app's. Its webContents are its to load as well: a host app that reloads every webContents, as a watcher may in development, leaves out those `owns` answers true for, since a mod whose page anyone but deckit loads again has ended, its page gone. `owns` answers from the moment Electron tells of a webContents (`app`'s `web-contents-created`), in that event too.
+A window answers `show({ focus })`, `hide()`, `close()`, `isClosed()`, `isKey()`, `isFullScreen()`, `isZoomed()`, `frame()`, `setFrame(rect)`, `size()`, `setSize(size)`, `setTitle(text)`, `setColor(color)`, Quick Look's panel over it (`previewFile(file, title)`, `closeFilePreview()`), a dialog as a sheet on it, taking and answering as Electron's `dialog` does (`showOpenDialog(options)`, `showSaveDialog(options)`), and `on(event, listener)`, answering its off, for `resize` (its content's size), `moving` (before the person moves it), `moved`, `key` and `resign` (as it takes and loses the keyboard) and `close` (once, as it closes). Pages are laid in it on a stage (below), which the host app places through the `place` it is handed.
 
 A stage, made by the environment's `stage()`, is where the shell lays pages in a host app's window, each a page of deck's or a surface one opened:
 
 | | |
 |---|---|
-| `place(window, { bounds, front, onClose })` | puts the stage in one of the host app's windows, one window at a time: `bounds` a rect, or a function of the window's content size that it follows; `front`, over what is in the window already; `onClose()`, called once it is out of a closing window |
+| `place(window, { bounds, front, onClose })` | puts the stage in one of the host app's windows, `windows.open`'s, one window at a time: `bounds` a rect, or a function of the window's content size that it follows; `front`, over what is in the window already; `onClose()`, called once it is out of a closing window |
 | `size()` | `{ width, height }`, as it is laid in its window |
 | `whenResized(listener)` | heard each time its size changes, answering its off |
 | `show(on)` | whether it is on screen |
@@ -162,4 +159,4 @@ The host app and its shell reach deckit through these, and nothing else of decki
 
 ## 5. Deckit.app
 
-Deckit.app is deckit embedded by itself, the way any host app embeds it: its own configuration, answers that keep the panel in one window of its own and each mod's window in one of its own, and an Electron entry that makes the environment, `ELECTRON.environment({ preload, core, host })`, calls `connect` with it and puts deckit's shell on deckit. It ships deckit's own mods. The switcher is the Switcher mod, in an overlay window over every app, kept where it was moved to and opened from any app by its own global key (`alt+space`) or by its command `show`. Its page draws as glass, in an overlay window with vibrancy `hud` (`openFloating`), so the window blurs what is behind it. Its windows carry a bar that is always there: the window's own page, across the top and under the views, in the panel's colour at the panel's `glass` so the two read as one surface. To macOS it is the title bar, so it drags, snaps and answers a double click as the person set. The panel's window is the exception: the panel fills it, the bar's height included, so the page under it is clear and the panel's glass the window's only colour, and the panel drags the window from the top of its sidebar, from where the window's buttons stand, and from the bars mods lay there. Run unpackaged, from a folder Electron's default app loads, it keeps all its data in the folder `DECKIT_DATA` names and asks for a restart by exiting with 75, for whoever started it to start it again.
+Deckit.app is deckit embedded by itself, the way any host app embeds it: its own configuration, answers that keep the panel in one window of its own and each mod's window in one of its own, and an Electron entry that makes the environment, `ELECTRON.environment({ preload, core, host })`, calls `connect` with it and puts deckit's shell on deckit. It ships deckit's own mods. The switcher is the Switcher mod, in an overlay window over every app, kept where it was moved to and opened from any app by its own global key (`alt+space`) or by its command `show`. Its page draws as glass, in a `floating` window with the material `hud` (`openFloating`), so the window blurs what is behind it. Its other windows are `titled`, with macOS's title bar across the top, the window drawn in the bar's colour under its page, a light or a dark one as the system's appearance is. The bar is the window's own, so it drags, snaps and answers a double click as the person set. The panel's window is the exception: the panel fills it, the bar's height included, over the material `hud`, so the panel's glass is the window's only colour, the title is not drawn, and the panel drags the window from the top of its sidebar, from where the window's buttons stand, and from the bars mods lay there. Run unpackaged, from a folder Electron's default app loads, it keeps its data in the folder `DECKIT_DATA` names, and what WebKit keeps of its pages, where WebKit keeps it for the app that runs it, under an id that folder's own, so one run never reads another's or the person's; it asks for a restart by exiting with 75, for whoever started it to start it again.

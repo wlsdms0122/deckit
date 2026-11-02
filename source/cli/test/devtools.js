@@ -1,5 +1,6 @@
-// A client of the DevTools protocol for the app under test: its pages, each a session that evaluates, presses, types
-// and takes screenshots, what any page threw while it was watched, its main process, and the web pages WebKit shows.
+// A client of the app under test through its main process's inspector, the DevTools protocol's, and WebKit's module
+// in it: its pages, each a session that evaluates, presses, types and takes snapshots, what any page threw while it
+// was watched, its main process, and the web pages it shows.
 const fs = require('fs');
 const path = require('path');
 
@@ -8,6 +9,10 @@ const ALT = 1;
 const CTRL = 2;
 const META = 4;
 const SHIFT = 8;
+// How often what the watched pages threw is gathered.
+const GATHER = 500;
+// Where a watched page keeps what it threw until it is gathered.
+const THROWN = "Symbol.for('deckit-test:thrown')";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -21,38 +26,32 @@ async function until(probe, ms = 6000) {
     }
 }
 
-// `port` is the pages', the main process's the one after, and `module` the path of WebKit's module (deckit-web.node).
+// `port` is the main process's inspector's, and `module` the path of WebKit's module (deckit-web.node).
 function connect({ port, shots, module }) {
-    const sessions = new Map();
+    const sessions = new Map(); // page id -> session
     const thrown = [];
     let inMain = null;
+    const gathering = setInterval(gather, GATHER);
 
+    // Every page open: { id, url }.
     async function targets() {
-        try {
-            return await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-        } catch {
-            return [];
-        }
+        const found = await main(`return webkit.pages().map((id) => ({ id, url: webkit.state(id).url }))`);
+        return Array.isArray(found) ? found : [];
     }
 
     // The session of the first page whose address starts with `match`, or null.
     async function page(match) {
-        const target = (await targets()).find(
-            (candidate) => candidate.type === 'page' && candidate.url.startsWith(match)
-        );
+        const target = (await targets()).find((candidate) => candidate.url.startsWith(match));
         return target ? sessionOf(target) : null;
     }
 
     // The sessions of every page whose address starts with `match`.
     async function pages(match) {
-        const found = (await targets()).filter(
-            (candidate) => candidate.type === 'page' && candidate.url.startsWith(match)
-        );
-        return Promise.all(found.map(sessionOf));
+        return Promise.all((await targets()).filter((candidate) => candidate.url.startsWith(match)).map(sessionOf));
     }
 
-    // Pages laid one over another, as views are in a window, drawn into one screenshot: `layers` from the bottom,
-    // each { session, x, y }, its place in the window. Each is taken clear where it draws nothing.
+    // Pages laid one over another, as they are in a window, drawn into one image: `layers` from the bottom, each {
+    // session, x, y }, its place in the window. Each is taken clear where it draws nothing.
     async function compose(name, layers) {
         const images = [];
         for (const { session, x = 0, y = 0 } of layers) images.push({ data: await session.capture(), x, y });
@@ -74,11 +73,22 @@ function connect({ port, shots, module }) {
         if (typeof png === 'string') fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(png, 'base64'));
     }
 
+    // The session of the overlay `opener`'s page opened beside it (deckit-shell/shell/overlay), or null.
+    async function overlayOf(opener) {
+        if (!opener) return null;
+        for (const target of (await targets()).filter((candidate) => candidate.url === 'about:blank')) {
+            const session = await sessionOf(target);
+            const of = await session.evaluate(`window.name === 'deckit-overlay' && window.opener?.location.href`);
+            if (typeof of === 'string' && of.startsWith(opener.url)) return session;
+        }
+        return null;
+    }
+
     // What `body`, an async function's, returns in the main process, by value, `require` and `webkit`, WebKit's
     // module, in its scope; what it threw as `{ error }`.
     async function main(body) {
         inMain ??= (async () => {
-            const [target] = await (await fetch(`http://127.0.0.1:${port + 1}/json/list`)).json();
+            const [target] = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
             const connection = await open(target.webSocketDebuggerUrl);
             // The module the app loaded: loaded again, it answers for the same pages.
             await evaluate(
@@ -100,65 +110,57 @@ function connect({ port, shots, module }) {
         );
     }
 
+    // What `expression` comes to in page `id`'s `world`, its own (`page`) or deckit's (`deckit`), awaited, by value;
+    // what it threw as `{ error }`. Statements that are no expression are run, and come to nothing.
+    async function evaluateIn(id, expression, world = 'page') {
+        const returned = `return (\n${expression}\n)`;
+        const source = parses(returned) ? returned : expression;
+        const json = await main(`return webkit.evaluate(${id}, ${JSON.stringify(source)}, ${JSON.stringify(world)})`);
+        return typeof json === 'string' ? JSON.parse(json) : json;
+    }
+
     // The web page WebKit shows by the id deck knows it by, its element's `data-web-page`: `evaluate(expression)` in
     // the page's own world, and `state()`, what the module says of it.
     function webPage(id) {
-        // deckit-electron/web/webkit.js: deck's id of a page is the module's past 1 << 30.
-        const native = Number(id) - (1 << 30);
         return {
-            evaluate: async (expression) => {
-                const json = await main(
-                    `return webkit.evaluate(${native}, ${JSON.stringify(`return (${expression})`)})`
-                );
-                return typeof json === 'string' ? JSON.parse(json) : json;
-            },
-            state: () => main(`return webkit.state(${native})`),
+            evaluate: (expression) => evaluateIn(Number(id), expression),
+            state: () => main(`return webkit.state(${Number(id)})`),
         };
     }
 
-    async function sessionOf(target) {
-        if (sessions.has(target.id)) return sessions.get(target.id);
-        // A page whose renderer went away is asked again through a new session.
-        const { send, close } = await open(
-            target.webSocketDebuggerUrl,
-            (message) => {
-                if (message.method !== 'Runtime.exceptionThrown') return;
-                const details = message.params.exceptionDetails;
-                thrown.push(`${target.url} ${details.exception?.description || details.text}`.slice(0, 400));
-            },
-            () => sessions.get(target.id) === session && sessions.delete(target.id)
-        );
+    async function sessionOf({ id, url }) {
+        if (sessions.has(id)) return sessions.get(id);
+        // Input the module refuses, as for a page off screen, is said and goes nowhere.
+        const send = async (type, options) => {
+            const answer = await main(`return webkit.${type}(${id}, ${JSON.stringify(options)})`);
+            if (answer?.error) console.error(`[test] ${type} in ${url}: ${answer.error}`);
+            return answer;
+        };
+        const mouse = (type, { x, y }) => send('sendMouse', { type, x, y });
         const session = {
-            url: target.url,
-            send,
-            evaluate: (expression) => evaluate(send, expression),
-            async key(key, code, modifiers = 0, keyCode = 0) {
-                for (const type of ['rawKeyDown', 'keyUp'])
-                    await send('Input.dispatchKeyEvent', {
-                        type,
-                        key,
-                        code,
-                        modifiers,
-                        windowsVirtualKeyCode: keyCode,
-                        nativeVirtualKeyCode: keyCode,
-                    });
+            url,
+            evaluate: (expression, world) => evaluateIn(id, expression, world),
+            async key(key, code, modifiers = 0) {
+                await send('sendKey', {
+                    code,
+                    key,
+                    alt: !!(modifiers & ALT),
+                    ctrl: !!(modifiers & CTRL),
+                    meta: !!(modifiers & META),
+                    shift: !!(modifiers & SHIFT),
+                });
             },
+            // Typed into what has the keyboard in the page, as an input method enters text.
             async type(text) {
-                await send('Input.insertText', { text });
+                await this.evaluate(`document.execCommand('insertText', false, ${JSON.stringify(text)})`);
             },
-            // A click as a person makes it, through the input pipeline, at the middle of what `selector` finds.
+            // A click as a person makes it, through the app's events, at the middle of what `selector` finds.
             async press(selector) {
-                const rect = await this.evaluate(
+                const at = await this.evaluate(
                     `(() => { const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`
                 );
-                for (const type of ['mousePressed', 'mouseReleased'])
-                    await send('Input.dispatchMouseEvent', {
-                        type,
-                        x: rect.x,
-                        y: rect.y,
-                        button: 'left',
-                        clickCount: 1,
-                    });
+                await mouse('down', at);
+                await mouse('up', at);
             },
             // A drag as a person makes it, from the middle of what `from` evaluates to, an element, past the middle of
             // what `to` does, in small steps.
@@ -169,66 +171,74 @@ function connect({ port, shots, module }) {
                     );
                 const start = await middle(from);
                 const end = await middle(to);
-                const mouse = (type, x, y) =>
-                    send('Input.dispatchMouseEvent', {
-                        type,
-                        x,
-                        y,
-                        button: 'left',
-                        buttons: type === 'mouseReleased' ? 0 : 1,
-                        clickCount: 1,
-                    });
-                await mouse('mousePressed', start.x, start.y);
+                await mouse('down', start);
                 const steps = 12;
                 const y = end.y + end.height / 3;
                 for (let step = 1; step <= steps; step++) {
-                    await mouse('mouseMoved', start.x, start.y + ((y - start.y) * step) / steps);
-                    await new Promise((resolve) => setTimeout(resolve, 16));
+                    await mouse('dragged', { x: start.x, y: start.y + ((y - start.y) * step) / steps });
+                    await sleep(16);
                 }
-                await mouse('mouseReleased', start.x, y);
+                await mouse('up', { x: start.x, y });
             },
-            // The page as a screenshot, clear where it draws nothing, in base64.
+            // The page's content process ended, as a crash ends it.
+            crash: () => main(`return webkit.killProcess(${id})`),
+            reload: () => main(`return webkit.go(${id}, 'reload')`),
+            // What the page draws, clear where it draws nothing, a PNG in base64.
             async capture() {
-                await send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 0, g: 0, b: 0, a: 0 } });
-                const shot = await send('Page.captureScreenshot', { format: 'png' });
-                await send('Emulation.setDefaultBackgroundColorOverride');
-                return shot.result?.data || '';
+                const png = await main(`return webkit.snapshot(${id})`);
+                return typeof png === 'string' ? png : '';
             },
             async shot(name) {
-                const shot = await send('Page.captureScreenshot', { format: 'png' });
-                if (shot.result?.data)
-                    fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(shot.result.data, 'base64'));
+                const png = await this.capture();
+                if (png) fs.writeFileSync(path.join(shots, name + '.png'), Buffer.from(png, 'base64'));
             },
-            close,
         };
-        sessions.set(target.id, session);
-        await send('Runtime.enable');
+        sessions.set(id, session);
+        await watch(session);
         return session;
     }
 
+    // What the page throws from now on, kept in it until it is gathered; again after it loads anew.
+    function watch(session) {
+        return session.evaluate(`(() => {
+            const kept = globalThis[${THROWN}] ??= [];
+            if (kept.watched) return true;
+            kept.watched = true;
+            addEventListener('error', (event) => kept.push(String(event.error?.stack || event.message)));
+            addEventListener('unhandledrejection', (event) => kept.push(String(event.reason?.stack || event.reason)));
+            return true;
+        })()`);
+    }
+
+    async function gather() {
+        for (const session of sessions.values()) {
+            const taken = await session.evaluate(`globalThis[${THROWN}]?.splice(0) ?? null`);
+            if (Array.isArray(taken)) for (const text of taken) thrown.push(`${session.url} ${text}`.slice(0, 400));
+            if (taken === null) await watch(session);
+        }
+    }
+
     const close = () => {
-        for (const session of sessions.values()) session.close();
+        clearInterval(gathering);
         inMain?.then(
             (connection) => connection.close(),
             () => {}
         );
     };
 
-    return { targets, page, pages, compose, main, webPage, thrown, close };
+    return { targets, page, pages, overlayOf, compose, main, webPage, thrown, close };
 }
 
 // A connection to a DevTools protocol target at `url`: `send(method, params)` resolves to the answer, or to an error
-// after 5 seconds; `heard(message)` gets what the target says unasked, and `closed()` is called once it is gone.
-async function open(url, heard = () => {}, closed = () => {}) {
+// after 5 seconds.
+async function open(url) {
     const socket = new WebSocket(url);
     await new Promise((resolve, reject) => ((socket.onopen = resolve), (socket.onerror = reject)));
-    socket.onclose = closed;
     let id = 0;
     const waiting = new Map();
     socket.onmessage = (event) => {
         const message = JSON.parse(event.data);
-        if (!waiting.has(message.id)) return heard(message);
-        waiting.get(message.id)(message);
+        waiting.get(message.id)?.(message);
         waiting.delete(message.id);
     };
     const send = (method, params = {}) =>
@@ -239,6 +249,16 @@ async function open(url, heard = () => {}, closed = () => {}) {
             socket.send(JSON.stringify({ id: n, method, params }));
         });
     return { send, close: () => socket.close() };
+}
+
+// Whether `body` is an async function's body, as the module runs what it evaluates.
+function parses(body) {
+    try {
+        new (async () => {}).constructor(body);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 // What `expression` comes to, awaited, by value; what it threw as `{ error }`.

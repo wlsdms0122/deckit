@@ -40,6 +40,12 @@ struct KeyCode {
         self.value = value
     }
 
+    // The key the web names `name`, or none.
+    init?(name: String) {
+        guard let value = Self.names.first(where: { $0.value == name })?.key else { return nil }
+        self.value = value
+    }
+
     // MARK: - Public
     // "Unidentified" for a key the web has no name for, as a browser says it.
     var name: String {

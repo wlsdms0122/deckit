@@ -44,7 +44,7 @@ export function createScript({ LOG, sessionOf, permits, permitted, notified, req
         }
         install();
         // A new document starts without the last one's icon or sound; it tells its own.
-        page.on('did-navigate', () => {
+        page.on('committed', () => {
             entry.icon = '';
             entry.audible = false;
         });

@@ -1,112 +1,149 @@
-// `openWindow` is the host app's: the window, its bar and where in it the view goes are the app's.
-export function createWindow({ LOG, openWindow }) {
+// The windows pages are laid in, the module's, which the host app opens and frames (`windows`, the host app's), and a
+// window of the app's for a page of deckit's own, which the host app is asked for (`openWindow`).
+export function createWindows({ LOG, WEBKIT, openWindow }) {
     // MARK: - Property
-    const windows = new Map(); // key -> window
-    const placed = new WeakMap(); // view -> { window, bounds, onClose }
-    const inWindow = new WeakMap(); // window -> Set of the views placed in it
-    const roots = new Set(); // every view placed in a window
+    const ids = new WeakMap(); // window -> its id in the module
+    const byId = new Map(); // id -> window, while it is open
 
     // MARK: - Initializer
     // MARK: - Public
-    // A window of the app's holding `view`, of `size`, made by the host app, which puts the view in it with the
-    // `place` it is handed. One open under `key` is brought forward instead. `onClose` runs once the view is out
-    // of the window.
-    function open({ key = null, view, title = '', size = null, onClose = null } = {}) {
-        const already = key && get(key);
-        if (already) {
-            if (already.isMinimized()) already.restore();
-            already.show();
-            already.focus();
-            return already;
-        }
-        const window = openWindow({
-            view,
-            title,
-            size,
-            key,
-            place: (into, { bounds = null } = {}) => place(view, into, { bounds, onClose }),
+    // A window, hidden until shown: `kind` `titled`, with macOS's title bar, its buttons where `buttons` puts the
+    // first's top left and its title shown with `showsTitle`, or `floating`, with no bar, over every app and on every
+    // Space, taking the keyboard without bringing the app forward; `size` its content's; `frame` where it is on screen,
+    // `{ x, y, width, height }` from the top left of the main display as Electron's screen gives it; `color` `{ red,
+    // green, blue }` under what it shows, or `material` (`hud`, `sidebar`, `menu`, `popover`) blurring what is behind
+    // it instead. It tells `resize` ({ width, height }, its content's size), `moving`, before the person moves it,
+    // `moved`, `key` and `resign`, as it takes and loses the keyboard, and `close`, once, as it closes.
+    function open({
+        kind = 'titled',
+        size,
+        frame = null,
+        title = '',
+        showsTitle = true,
+        color = null,
+        material = null,
+        buttons = null,
+    }) {
+        const { EventEmitter } = require('events');
+        const events = new EventEmitter();
+        let closed = false;
+        const listener = (event, payload) => {
+            if (event === 'close') {
+                closed = true;
+                byId.delete(id);
+            }
+            try {
+                events.emit(event, payload);
+            } catch (error) {
+                LOG.error(`a window's ${event} failed`, error);
+            }
+            if (event === 'close') events.removeAllListeners();
+        };
+        const native = WEBKIT.native();
+        const id = native.openWindow({ kind, size, title, showsTitle, color, material, buttons }, listener);
+        const live =
+            (act) =>
+            (...args) =>
+                closed ? undefined : act(...args);
+        const window = Object.freeze({
+            show: live(({ focus = true } = {}) => native.showWindow(id, { focus })),
+            hide: live(() => native.hideWindow(id)),
+            close: live(() => native.closeWindow(id)),
+            isClosed: () => closed,
+            isKey: () => !closed && native.keyWindow() === id,
+            frame: () => (closed ? null : native.windowFrame(id)),
+            // Whether it fills the screen as macOS's full screen, or is zoomed to fill it.
+            isFullScreen: () => !closed && native.windowState(id).fullScreen,
+            isZoomed: () => !closed && native.windowState(id).zoomed,
+            setFrame: live((rect) => native.setWindowFrame(id, rect)),
+            size: () => (closed ? { width: 0, height: 0 } : native.windowSize(id)),
+            setSize: live((size) => native.setWindowSize(id, size)),
+            setTitle: live((text) => native.setTitle(id, String(text))),
+            setColor: live((given) => native.setColor(id, given)),
+            // Quick Look's panel showing `file`, titled `title`, over the window, and closed.
+            previewFile: live((file, title) => native.previewFile(id, String(file), String(title))),
+            closeFilePreview: live(() => native.closeFilePreview(id)),
+            // Electron's dialogs as a sheet on the window, with the options and answers of Electron's `dialog`.
+            showOpenDialog: async (options = {}) => {
+                const filePaths = closed ? [] : await native.showOpenDialog(id, openPanel(options));
+                return { canceled: !filePaths.length, filePaths };
+            },
+            showSaveDialog: async (options = {}) => {
+                const filePath = closed ? null : await native.showSaveDialog(id, savePanel(options));
+                return { canceled: !filePath, filePath: filePath || '' };
+            },
+            // `listener` hears `event` until the off this answers is called, or the window closes.
+            on: (event, heard) => {
+                events.on(event, heard);
+                return () => events.removeListener(event, heard);
+            },
         });
-        if (key) {
-            windows.set(key, window);
-            LOG.guard(window, 'closed', () => windows.get(key) === window && windows.delete(key));
-        }
+        ids.set(window, id);
+        byId.set(id, window);
+        if (frame) window.setFrame(frame);
         return window;
     }
 
-    function get(key) {
-        const window = windows.get(key);
-        return window && !window.isDestroyed() ? window : null;
+    // The window with the keyboard, or null while none of the app's has it.
+    function focused() {
+        const id = WEBKIT.native().keyWindow();
+        return id === null || id === undefined ? null : byId.get(id) || null;
     }
 
-    function close(key) {
-        const window = get(key);
-        window?.close();
-        return !!window;
+    function idOf(window) {
+        return ids.get(window) ?? null;
     }
 
-    // A view in any window, sized to it or to `bounds`, and taken out alive before the window closes. `bounds` is
-    // a rect, or a function of the window's content size for a rect that follows it. Without `front`, a view
-    // already there is not added again, which would lift it over what was added after it.
-    function place(view, window, { bounds = null, front = false, onClose = null } = {}) {
-        const was = placed.get(view)?.window;
-        if (was && was !== window) unplace(view);
-        if (front || !window.contentView.children.includes(view)) window.contentView.addChildView(view);
-        placed.set(view, { window, bounds, onClose });
-        roots.add(view);
-        follow(window);
-        inWindow.get(window).add(view);
-        size(view);
-    }
-
-    function windowOf(view) {
-        return placed.get(view)?.window || null;
-    }
-
-    // The window a page is in, through whichever placed view holds it, the page's own or one it is inside.
-    function windowShowing(webContents) {
-        for (const view of roots) if (holds(view, webContents)) return placed.get(view).window;
-        return null;
-    }
-
-    // A view taken out of the window it is in, unheard as that window closes.
-    function unplace(view) {
-        const at = placed.get(view);
-        if (!at) return;
-        placed.delete(view);
-        roots.delete(view);
-        inWindow.get(at.window)?.delete(view);
-        if (!at.window.isDestroyed()) at.window.contentView.removeChildView(view);
+    // A window of the app's for what deckit shows on its own, a web page's, of `size`, titled `title`: the host app
+    // opens and frames it, puts the stage where it says (`place`), and hands the keyboard on (`focus`) as the window
+    // takes it.
+    function openForStage({ title = '', size = null, stage, onClose = null, focus }) {
+        return openWindow({
+            title,
+            size,
+            place: (window, { bounds = null } = {}) => stage.place(window, { bounds, onClose }),
+            focus,
+        });
     }
 
     // MARK: - Private
-    function size(view) {
-        const at = placed.get(view);
-        if (!at || at.window.isDestroyed()) return;
-        const [width, height] = at.window.getContentSize();
-        const bounds = typeof at.bounds === 'function' ? at.bounds({ width, height }) : at.bounds;
-        view.setBounds(bounds || { x: 0, y: 0, width, height });
+    // Of Electron's options, `title`, `message`, `buttonLabel`, `defaultPath` and `properties`, as NSOpenPanel takes
+    // them; Electron opens files when no property says what.
+    function openPanel({ properties = ['openFile'], ...options }) {
+        return {
+            ...savePanel({ properties, ...options }),
+            canChooseFiles: properties.includes('openFile'),
+            canChooseDirectories: properties.includes('openDirectory'),
+            allowsMultipleSelection: properties.includes('multiSelections'),
+        };
     }
 
-    function holds(view, webContents) {
-        return view.webContents === webContents || (view.children || []).some((child) => holds(child, webContents));
+    // `defaultPath` opens in the folder it names, or names a file in the folder it is in.
+    function savePanel({ title, message, buttonLabel, defaultPath, properties = [] }) {
+        const path = require('path');
+        const at = defaultPath ? String(defaultPath) : '';
+        const where = !at
+            ? {}
+            : isFolder(at)
+              ? { directory: at }
+              : { directory: path.isAbsolute(at) ? path.dirname(at) : undefined, name: path.basename(at) };
+        return {
+            title,
+            message,
+            prompt: buttonLabel,
+            ...where,
+            canCreateDirectories: properties.includes('createDirectory'),
+            showsHiddenFiles: properties.includes('showHiddenFiles'),
+        };
     }
 
-    // A closing window destroys every view still in it, and touching a destroyed webContents in main throws. So
-    // views are taken out on `close`, not `closed`.
-    function follow(window) {
-        if (inWindow.has(window)) return;
-        inWindow.set(window, new Set());
-        LOG.guard(window, 'resize', () => {
-            for (const view of inWindow.get(window)) size(view);
-        });
-        LOG.guard(window, 'close', () => {
-            for (const view of [...inWindow.get(window)]) {
-                const { onClose } = placed.get(view);
-                unplace(view);
-                onClose?.(view);
-            }
-        });
+    function isFolder(at) {
+        try {
+            return require('fs').statSync(at).isDirectory();
+        } catch {
+            return false;
+        }
     }
 
-    return { open, get, close, place, unplace, windowOf, windowShowing };
+    return { windows: Object.freeze({ open, focused }), idOf, openForStage };
 }

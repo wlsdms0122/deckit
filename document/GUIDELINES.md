@@ -81,7 +81,7 @@ Every list answers the same keys and presses. `ui.tree` gives most of them; give
 ## What floats
 
 - `ui.menu` for a choice of actions, `ui.popover` for a small view or form about one thing opened from it (an event's details from its block), `ui.modal` for a form that is a task of its own (adding an account), `ui.quickPick` for finding one of many by typing.
-- A float over a web page shows the page under it as a picture of itself while it is open: the page stands still until it closes. A form about what a web page shows (the Browser's bookmark) is a `ui.dialog`, which the person finishes before going back to the page.
+- Nothing of a view is drawn over a web page it shows: what floats is drawn over it, and a bar about the page (the Browser's find) stands beside it, as the toolbar does.
 - Ask before what is hard to undo: a folder going to the Trash with more in it, what is deleted for good. Closing a tab or leaving a form does not ask.
 - A float opens from a press or a key, never on its own.
 

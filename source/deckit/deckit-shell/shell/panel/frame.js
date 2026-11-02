@@ -20,7 +20,7 @@ const CARD = `:root {
 const STYLE = `
     .deckit-panel { position: fixed; left: 0; top: 0; overflow: hidden; color: var(--deckit-text); font: 15px var(--deckit-font); }
     .deckit-panel-backdrop { inset: 0; box-sizing: border-box; }
-    .deckit-panel-buttons { position: absolute; top: 0; left: 0; -webkit-app-region: drag; }
+    .deckit-panel-buttons { position: absolute; top: 0; left: 0; --app-region: drag; }
     .deckit-panel-down { position: absolute; inset: 0; display: flex; background: var(--deckit-background); }
     .deckit-panel-down[hidden] { display: none; }
     .deckit-sidebar {
@@ -35,7 +35,7 @@ const STYLE = `
         background: linear-gradient(180deg, var(--deckit-sidebar-top), var(--deckit-sidebar-bottom));
         box-shadow: var(--deckit-sidebar-shadow);
     }
-    .deckit-sidebar-title-bar { position: absolute; top: 0; left: 0; right: 0; -webkit-app-region: drag; }
+    .deckit-sidebar-title-bar { position: absolute; top: 0; left: 0; right: 0; --app-region: drag; }
     .deckit-sidebar-handle {
         position: fixed;
         inset: 0;

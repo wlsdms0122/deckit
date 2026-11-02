@@ -1,30 +1,22 @@
-// Find in the page of the tab in front, in a bar floating over the top of the page.
-function findInPage({ theme, ui, frontTab }) {
+// Find in the page of the tab in front, in a bar between the toolbar and the page: nothing is drawn over a web page.
+function findInPage({ ui, frontTab }) {
     let searchedTab = null;
     let state = { query: '', caseSensitive: false };
-    // Apart from the style, which mid-fade still says open while the bar is already invisible.
     let open = false;
-    let hiding = null;
 
     ui.addStyle(`
         .browser-find {
-            z-index: 3;
-            top: 8px;
-            right: 10px;
+            flex: 0 0 auto;
             display: none;
             align-items: center;
+            justify-content: flex-end;
             gap: 2px;
-            padding: 0 4px 0 2px;
-            opacity: 0;
-            transform: translateY(-6px) scale(0.98);
-            transition:
-                opacity var(--deckit-fast) var(--deckit-easing),
-                transform var(--deckit-fast) var(--deckit-easing);
+            padding: 0 10px 6px;
         }
-        .browser-find[data-open] { opacity: 1; transform: none; }
-        .browser-find-field { flex: 0 0 auto; width: 330px; margin: 0 2px; }
+        .browser-find[data-open] { display: flex; }
+        .browser-find-field { flex: 0 1 auto; width: 330px; min-width: 0; margin: 0 2px; }
     `);
-    const element = ui.element('div', { className: 'browser-floating browser-find' });
+    const element = ui.element('div', { className: 'browser-find' });
     const field = ui.findBar({
         placeholder: 'Find in page',
         options: ['caseSensitive'],
@@ -46,14 +38,8 @@ function findInPage({ theme, ui, frontTab }) {
     return { element, show, hide, showCount, release };
 
     function show() {
-        if (!open) {
-            open = true;
-            clearTimeout(hiding);
-            element.style.display = 'flex';
-            // Laid out at the start position first, or there is nothing to animate.
-            void element.offsetWidth;
-            element.toggleAttribute('data-open', true);
-        }
+        open = true;
+        element.toggleAttribute('data-open', true);
         field.focus();
         if (state.query) step(false);
     }
@@ -62,8 +48,6 @@ function findInPage({ theme, ui, frontTab }) {
         if (!open) return;
         open = false;
         element.removeAttribute('data-open');
-        clearTimeout(hiding);
-        hiding = setTimeout(() => (element.style.display = ''), theme.motion.fast);
         searchedTab?.page.stopFind({ keepSelection });
         searchedTab = null;
         field.setCount(0, 0);

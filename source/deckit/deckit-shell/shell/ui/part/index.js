@@ -11,9 +11,9 @@ const STYLE = `
         margin-left: var(--deckit-title-bar-area-x, 0px);
         transition: margin-left var(--deckit-base) var(--deckit-easing);
     }
-    [data-deckit-title-bar] .deckit-title-bar { -webkit-app-region: drag; }
+    [data-deckit-title-bar] .deckit-title-bar { --app-region: drag; }
     .deckit-title-bar :is(button, input, textarea, select, a[href], [role='button'], [tabindex], [contenteditable]) {
-        -webkit-app-region: no-drag;
+        --app-region: no-drag;
     }
 `;
 
@@ -42,7 +42,7 @@ function selectable(element) {
 
 // A bar along the top of the view, where the window's title bar may lie over it: at least as tall as the
 // bar, clear of the window's buttons, and dragging the window wherever nothing in it is pressed. A control the
-// kit does not know as one marks itself `-webkit-app-region: no-drag`.
+// kit does not know as one marks itself `--app-region: no-drag`.
 function titleBar(element) {
     element.classList.add('deckit-title-bar');
     return () => element.classList.remove('deckit-title-bar');

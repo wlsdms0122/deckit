@@ -13,29 +13,25 @@ const NOW_WAIT_MS = 150;
 // The list of a Show item for each mod the shell can show and the actions mods set, `given`, by the connection of
 // each, in `window`, the mod's own: `show()` opens it, and `toggle()` opens it or puts it away when it is
 // open. Each open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod
-// coming on screen, another app. `end()` drops the list and its timer.
+// coming on screen, another app. `end()` drops the list.
 function switcher(shell, deckit, window, given) {
     const registry = deckit.commands;
     const records = deckit.storage.records;
     const drawing = { ui: shell.ui, theme: shell.theme, util: deckit.util }; // what the list is drawn and ranked with
-    let open = null; // the list on screen: { list, left, about, submenus }, `left` once its exit has started
-    let leaving = null; // the timer that puts the window away once the list's exit has played
+    let open = null; // the list on screen, or on its way: { list, about, submenus }
 
     return { show, toggle, putAway, closed, end };
 
     function toggle() {
-        if (open && !open.left) return open.list ? open.list.close() : putAway();
+        if (open) return putAway();
         show();
     }
 
-    // Opened again during its exit, the window stays up with a new list.
+    // The window comes once the list is drawn in it, and goes with it: the two are one thing on screen.
     async function show() {
-        clearTimeout(leaving);
-        leaving = null;
-        if (open && !open.left) return;
-        const current = { list: null, left: false, about: null, submenus: new Map() };
+        if (open) return;
+        const current = { list: null, about: null, submenus: new Map() };
         open = current;
-        window.open();
         let supplied;
         try {
             supplied = await supply(current);
@@ -49,30 +45,17 @@ function switcher(shell, deckit, window, given) {
             items: supplied.items,
             now: supplied.now,
             onQuery: (raw, submenu) => search(current, raw, submenu),
-            onClose: () => leave(current),
+            onClose: () => open === current && putAway(),
         });
+        window.open();
         supplied.later.then((items) => open === current && current.list.model.setNow(items));
     }
 
-    // The window goes once the list's exit has played.
-    function leave(current) {
-        if (open !== current) return;
-        current.left = true;
-        clearTimeout(leaving);
-        leaving = setTimeout(() => {
-            leaving = null;
-            putAway();
-        }, shell.theme.motion.base);
-    }
-
-    // Away at once, as the keyboard goes elsewhere.
     function putAway() {
         if (!open) return;
         const current = open;
         open = null;
-        clearTimeout(leaving);
-        leaving = null;
-        if (!current.left) current.list?.close();
+        current.list?.close();
         window.close();
     }
 
@@ -82,8 +65,6 @@ function switcher(shell, deckit, window, given) {
     }
 
     function end() {
-        clearTimeout(leaving);
-        leaving = null;
         open = null;
     }
 
@@ -169,7 +150,7 @@ function switcher(shell, deckit, window, given) {
         } catch (error) {
             said = { text: error?.message || String(error), alert: true };
         }
-        if (open !== current || current.left) {
+        if (open !== current) {
             if (said?.alert) notify(item, said.text);
             return;
         }

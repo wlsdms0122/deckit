@@ -7,9 +7,9 @@ import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as MATCH from '../../deckit/match/match.js';
 
-// `deckit` is what connect answered, `host` the app's answers, `PAGES` the shell's pages and `makeStage()` a stage
-// to lay them on (environment: SHELL.stage).
-export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
+// `deckit` is what connect answered, `host` the app's answers, `PAGES` the shell's pages, `OVERLAY` their overlays and
+// `makeStage()` a stage to lay them on (environment: SHELL.stage).
+export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const SIDEBAR = 'panel-frame';
@@ -17,7 +17,6 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
     const ORDER = 'panel-order';
     const HISTORY_LIMIT = 50;
     const pages = new Map(); // mod id -> its page, while the mod has something to show
-    const floating = new Map(); // a mod's page with something floating -> its end's off
     const sent = { onScreen: new Set(), guides: new WeakMap(), look: '' }; // what the pages were last told
     // The frame's page, the surfaces it opened by name, where it said the slot under its list is, and the width a
     // drag of its handle draws. `moving` is where its page is laid while the frame moves: what it covers before and
@@ -68,6 +67,8 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         deckit.mods.onChange(reconcile);
         // Who is whose child changes with the runs, which reconcile hears too: a region's change is only layout.
         REGION.onChange(update);
+        // An overlay laid or taken off is only layout.
+        OVERLAY.onChange(() => layout());
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
         reconcile();
         // With the core down nothing on deckit works, so the frame covers the panel and asks for a restart.
@@ -86,7 +87,7 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         return !!host.showsPanel(page);
     }
 
-    // Escape is the page's while something floats in it, and else puts the panel away where the panel floats over
+    // Escape is the page's while a layer is open over it, and else puts the panel away where the panel floats over
     // something; in its own window Escape is the window's. A mod's page plays it out and answers whether it took
     // it.
     function monitor(page, keystroke) {
@@ -96,7 +97,8 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
             if (last) host.dismiss();
             return last;
         }
-        if (!floating.has(page) && !last) return false;
+        const layered = OVERLAY.layered(page) && [...pages.values()].includes(page);
+        if (!layered && !last) return false;
         PROTOCOL.escape
             .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
             .then((taken) => !taken && last && dismisses(page) && host.dismiss())
@@ -147,7 +149,6 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
         PROTOCOL.icon.handle(({ mod }) => deckit.mods.listingOf(mod)?.icon || '');
         PROTOCOL.form.handle(({ mod }) => deckit.mods.listingOf(mod)?.form || {});
-        PROTOCOL.floating.on(({ on }, sender) => modOf(sender) && setFloating(sender, on));
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);
             return [...pinned];
@@ -160,7 +161,7 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
     }
 
     // The frame's page is the shell's own, made once, over every mod's view where it draws.
-    // It opens its backdrop and its handle, and nothing else. A press there is the person's on the panel, so the
+    // It opens its backdrop and its handle, and its overlay as every page the shell draws in does. A press there is the person's on the panel, so the
     // keyboard goes back to the mod on screen.
     // It lays the frame out off screen too, since the mods are laid by it, and the panel has no frame without it: a
     // page that crashed is loaded again.
@@ -253,24 +254,6 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
     function frontOf(id) {
         const parent = REGION.parentOf(id);
         return parent && !listed(id) ? parent : id;
-    }
-
-    function setFloating(page, on) {
-        if (on === floating.has(page)) return;
-        if (!on) {
-            floating.get(page)();
-            floating.delete(page);
-            layout();
-            return;
-        }
-        floating.set(
-            page,
-            deckit.pages.whenEnds(page, () => {
-                floating.delete(page);
-                layout();
-            })
-        );
-        layout();
     }
 
     function isEscape(input) {
@@ -431,7 +414,7 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
     // mod on screen takes it. The frame's parts are found once for all of it; once they move again, the sidebar's move
     // is over.
     function update() {
-        const holder = [...sent.onScreen].find((page) => PAGES.isAlive(page) && deckit.web.holdsKeyboard(page));
+        const holder = [...sent.onScreen].find((page) => PAGES.isAlive(page) && OVERLAY.holdsKeyboard(page));
         const parts = partsOf();
         if (shell.moved && shell.moved.parts !== JSON.stringify(parts)) shell.moved = null;
         tellPages(parts);
@@ -440,35 +423,36 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
     }
 
     // From the bottom: the backdrop over the whole stage, the mod on screen, the children it shows over their
-    // regions, then the frame's page and its handle where they draw; the mods' other pages are hidden. A dialog or a
-    // menu of the mod on screen comes over the frame and its handle, as it did over the page's own. With deckit's
-    // core down the frame alone covers the panel.
+    // regions, then the frame's page and its handle where they draw; the mods' other pages are hidden. Over all of it,
+    // the overlay of each page laid that shows anything, at its page's rect. With deckit's core down the frame alone
+    // covers the panel.
     function layout(parts = partsOf()) {
         const { width, height } = stage.size();
         const full = { x: 0, y: 0, width, height };
         if (down) {
-            stage.lay([
-                ...[...pages.values(), shell.surfaces.get(PAGE.SURFACE.HANDLE)]
-                    .filter(Boolean)
-                    .map((page) => ({ page, hidden: true })),
-                { page: shell.page, rect: full },
-            ]);
+            stage.lay(
+                OVERLAY.withOverlays([
+                    ...[...pages.values(), shell.surfaces.get(PAGE.SURFACE.HANDLE)]
+                        .filter(Boolean)
+                        .map((page) => ({ page, hidden: true })),
+                    { page: shell.page, rect: full },
+                ])
+            );
             return;
         }
         const children = childrenOnScreen();
-        const floats = floating.has(currentContents());
         const hidden = [...pages].filter(([id]) => id !== current && !children.has(id));
-        const shownCurrent = pages.has(current) ? [{ page: pages.get(current), rect: full }] : [];
         stage.lay(
-            [
-                at(shell.surfaces.get(PAGE.SURFACE.BACKDROP), full),
-                ...hidden.map(([, page]) => ({ page, hidden: true })),
-                ...(floats ? [] : shownCurrent),
-                ...[...children].map(([id, rect]) => ({ page: pages.get(id), rect: clip(rect, width, height) })),
-                at(shell.page, shell.moving || parts?.obscured),
-                at(shell.surfaces.get(PAGE.SURFACE.HANDLE), parts?.handle),
-                ...(floats ? shownCurrent : []),
-            ].filter(Boolean)
+            OVERLAY.withOverlays(
+                [
+                    at(shell.surfaces.get(PAGE.SURFACE.BACKDROP), full),
+                    ...hidden.map(([, page]) => ({ page, hidden: true })),
+                    pages.has(current) ? { page: pages.get(current), rect: full } : null,
+                    ...[...children].map(([id, rect]) => ({ page: pages.get(id), rect: clip(rect, width, height) })),
+                    at(shell.page, shell.moving || parts?.obscured),
+                    at(shell.surfaces.get(PAGE.SURFACE.HANDLE), parts?.handle),
+                ].filter(Boolean)
+            )
         );
 
         // A page laid where `rect` is, clipped to the stage, or hidden when nothing of it is left.
@@ -658,11 +642,12 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
     }
 
     // Whether a keystroke or a request in this page is the panel's: its frame, a surface the frame opened, one of its
-    // mods' pages, or a web page in one.
+    // mods' pages, or a web page in one, or the overlay of one of them.
     function contains(page) {
-        if (page === frameContents()) return true;
-        if ([...shell.surfaces.values()].includes(page)) return true;
-        return [...pages.values()].includes(deckit.web.pageFor(page));
+        const owner = OVERLAY.ownerOf(page);
+        if (owner === frameContents()) return true;
+        if ([...shell.surfaces.values()].includes(owner)) return true;
+        return [...pages.values()].includes(deckit.web.pageFor(owner));
     }
 
     function currentContents() {
@@ -705,7 +690,7 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         setShown(false, contents);
         if (contents) await exitOf(PROTOCOL.exit, contents);
         if (mine !== moves || shown) return false;
-        const held = leaving.some((page) => PAGES.isAlive(page) && deckit.web.holdsKeyboard(page));
+        const held = leaving.some((page) => PAGES.isAlive(page) && OVERLAY.holdsKeyboard(page));
         stage.show(false);
         return held;
     }
@@ -749,7 +734,7 @@ export function createPanel({ REGION, PAGES, makeStage, deckit, host }) {
         // What the host drives of it.
         control: {
             glass: TOKEN.GLASS,
-            // Into one of the host app's windows, as deckit places a view (`bounds`, `onClose`).
+            // Into one of the host app's windows, as a stage is placed (`bounds`, `onClose`).
             place: (window, options) => stage.place(window, options),
             contains,
             show,

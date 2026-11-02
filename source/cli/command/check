@@ -5,15 +5,6 @@ const path = require('path');
 
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
-// The only files that reach Electron's IPC: what carries deck's messages over it, and the two sides of the
-// environment's web pages, a mod's page holding a page's place and main laying WebKit's view over it, which speak on
-// channels of their own (deckit-electron/web/protocol.js).
-const IPC = [
-    'deckit-electron/messages/main.js',
-    'deckit-electron/messages/renderer.js',
-    'deckit-electron/web/main.js',
-    'deckit-electron/web/renderer.js',
-];
 // The packages each may depend on. An environment stands on the shell, which declares what it provides, and the shell
 // knows no environment.
 const MAY_DEPEND = {
@@ -125,8 +116,8 @@ function checkFile(file) {
             say(file, `requires ${spec}, a package of npm: a package requires only Electron and Node`);
     if (/\bimport\s*\(/.test(plain))
         say(file, 'imports while it runs; import statically, so the check and the bundle see it');
-    if (!IPC.includes(file) && /\bipc(Main|Renderer)\b/.test(plain))
-        say(file, `reaches Electron's IPC; say what crosses in a protocol.js`);
+    // Every page of deckit's is WebKit's, so Electron's IPC carries nothing of deckit's.
+    if (/\bipc(Main|Renderer)\b/.test(plain)) say(file, `reaches Electron's IPC, which no page of deckit's is on`);
     if (SHARED.has(file)) checkPure(file, plain);
     if (packageOf(file) === SHELL) checkShell(file, plain);
     const protocol = file.endsWith('/protocol.js');
