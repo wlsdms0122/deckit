@@ -1032,6 +1032,30 @@ async function run({
             return typeof now === 'number' && now !== was;
         }, 8000);
         check("a shown mod's next revision loads in a page of its own", loaded, '');
+
+        // A folder and a file dragged in from outside the app and dropped on the probe's destination: it hears the drag
+        // come and go, then the files by their paths at the point they landed.
+        const droppedFiles = [path.join(home, '..', NEXT_CHILD), path.join(home, '..', NEXT_CHILD, 'main.js')].map(
+            (file) => fs.realpathSync(file)
+        );
+        const probeId = await main(
+            `return webkit.pages().find((id) => webkit.state(id).url.startsWith('deckit://window-probe.mod'))`
+        );
+        const zone = await probe.evaluate(
+            `(() => { const box = document.getElementById('drop').getBoundingClientRect(); return { x: box.left + 10, y: box.top + 10 }; })()`
+        );
+        await main(`return webkit.sendDrop(${probeId}, ${JSON.stringify({ files: droppedFiles, ...zone })})`);
+        const drop = await until(
+            async () => (await probe.evaluate('document.documentElement.dataset.dropped')) || false,
+            4000
+        );
+        check(
+            'files dropped from outside the app reach a drop destination by their paths',
+            drop === JSON.stringify({ paths: droppedFiles, at: { x: 10, y: 10 } }),
+            drop
+        );
+        const targeted = await probe.evaluate('document.documentElement.dataset.targeted');
+        check('a drop destination hears a drag of files come over it and go', targeted === 'on off ', targeted);
         await frame.evaluate(`document.querySelector('[data-mod-id="region-parent"]').click()`);
         const relaid = await until(async () => {
             const fresh = await page('deckit://region-child.mod');
