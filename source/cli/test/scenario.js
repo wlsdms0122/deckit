@@ -881,6 +881,17 @@ async function run({
             refusedRow && !(await mark(refusedPage, 'started')),
             await settings.evaluate(refusedFailure)
         );
+        const failureBoxes = `(() => {
+            const row = ${rowOf('Broker Refused')};
+            const box = (selector) => row?.querySelector(selector)?.getBoundingClientRect().toJSON();
+            return { failure: box('.settings-mod-failure'), row: box('.settings-mod-row') };
+        })()`;
+        const { failure, row } = await settings.evaluate(failureBoxes);
+        check(
+            'what is wrong with a mod is said inside its row, which the pointer washes and a press opens',
+            failure?.height > 0 && failure.top >= row.top && failure.bottom <= row.bottom,
+            JSON.stringify({ failure, row })
+        );
 
         const screenNote = `${rowOf('Broker Screen')}?.querySelector('.settings-mod-note')?.textContent || ''`;
         const mismatched = await until(
