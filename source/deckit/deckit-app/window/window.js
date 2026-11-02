@@ -163,23 +163,26 @@ function createWindow({ CONFIG, THEME, windows }) {
         });
         if (onScreen) return frame;
         const size = { width: frame.width, height: frame.height };
-        const area = screen.getPrimaryDisplay().workArea;
-        return (
-            overFront(size) || {
-                x: Math.round(area.x + (area.width - size.width) / 2),
-                y: Math.round(area.y + Math.max(0, (area.height - size.height) / 2)),
-                ...size,
-            }
-        );
+        return overFront(size) || centred(screen.getPrimaryDisplay().workArea, size);
     }
 
-    // Centred over the window in front, where the person was when it was asked for.
-    function overFront({ width, height }) {
+    // Centred over the window in front, where the person was when it was asked for, on its display.
+    function overFront(size) {
         const at = windows().focused()?.frame();
         if (!at) return null;
+        return centred(require('electron').screen.getDisplayMatching(at).workArea, size, at);
+    }
+
+    // `size` centred over `over`, the whole of `area` where none is given, and kept inside `area`: cut to it, and
+    // moved in where it would lie past an edge.
+    function centred(area, size, over = area) {
+        const width = Math.min(size.width, area.width);
+        const height = Math.min(size.height, area.height);
+        const x = Math.round(over.x + (over.width - width) / 2);
+        const y = Math.round(over.y + Math.max(0, (over.height - height) / 2));
         return {
-            x: Math.round(at.x + (at.width - width) / 2),
-            y: Math.round(at.y + Math.max(0, (at.height - height) / 2)),
+            x: Math.min(Math.max(x, area.x), area.x + area.width - width),
+            y: Math.min(Math.max(y, area.y), area.y + area.height - height),
             width,
             height,
         };
