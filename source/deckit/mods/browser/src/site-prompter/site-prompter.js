@@ -1,10 +1,10 @@
 const { hostOf, originOf, isWeb } = require('../address/address.js');
 const { sitePermissionKey } = require('../store/store.js');
 
-// The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open. And
-// the site permissions the person reviews. A certificate is asked at once. A permission or an app waits while the
-// Browser is hidden, until its tab is next in front; a background tab that asks one while the Browser is on screen is
-// brought to the front.
+// The questions a site makes the Browser ask: a certificate this Mac cannot verify, a permission, an app to open, a
+// file to download. And the site permissions the person reviews. A certificate is asked at once. The others wait while
+// the Browser is hidden, until its tab is next in front; a background tab that asks one while the Browser is on screen
+// is brought to the front.
 function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, listTabs, onAsk }) {
     const PERMISSION_WORDS = {
         microphone: 'your microphone',
@@ -29,6 +29,7 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
     return {
         askCertificate,
         askPermission,
+        askDownload,
         askPending,
         release,
         editSitePermissions,
@@ -61,6 +62,11 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
     // Whether the page of `tab` may have what `request` asks for.
     function askPermission(tab, request) {
         return new Promise((answer) => decide(tab, { ...request, answer }));
+    }
+
+    // Whether the file the page of `tab` is downloading, `download` ({ url, name }), is saved.
+    function askDownload(tab, download) {
+        return new Promise((answer) => decide(tab, { download, answer }));
     }
 
     function askPending(tab) {
@@ -111,6 +117,7 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
     }
 
     function decide(tab, request) {
+        if (request.download) return void (shown(tab, request) && askSave(tab, request));
         const wanted = request.permissions.filter((permission) => PERMISSION_WORDS[permission] || opensApp(permission));
         const refusals = refusalsOf(tab);
         if (
@@ -118,11 +125,7 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
             wanted.some((permission) => refusals.has(sitePermissionKey({ origin: request.origin, permission })))
         )
             return request.answer(false);
-        if (!isShown()) {
-            pending.set(tab, [...(pending.get(tab) || []), request]);
-            return;
-        }
-        onAsk(tab);
+        if (!shown(tab, request)) return;
         if (wanted.some(opensApp)) return askOpen(tab, request, wanted);
         let allowed = false;
         ui.dialog({
@@ -149,6 +152,35 @@ function sitePrompter({ ui, webSession, certificates, sitePermissions, isShown, 
                         refusals.add(sitePermissionKey({ origin: request.origin, permission }));
                     request.answer(false);
                 }),
+        });
+    }
+
+    // On screen, `tab` brought to the front for `request`; hidden, `request` waits for it.
+    function shown(tab, request) {
+        if (!isShown()) {
+            pending.set(tab, [...(pending.get(tab) || []), request]);
+            return false;
+        }
+        onAsk(tab);
+        return true;
+    }
+
+    function askSave(tab, { download, answer }) {
+        const site = hostOf(tab.url) || hostOf(download.url);
+        let saved = false;
+        ui.dialog({
+            title: `Download “${download.name}”?`,
+            message: site
+                ? `${site} wants to save it in your Downloads folder.`
+                : 'It is saved in your Downloads folder.',
+            confirmLabel: 'Download',
+            cancelLabel: 'Cancel',
+            onConfirm: () => {
+                saved = true;
+                answer(true);
+            },
+            // Runs before onConfirm, so the answer waits a turn to see whether it was a yes.
+            onClose: () => queueMicrotask(() => saved || answer(false)),
         });
     }
 

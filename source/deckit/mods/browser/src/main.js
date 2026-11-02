@@ -100,6 +100,7 @@ class Browser {
             },
             onCertificateRefused: (info) => prompter.askCertificate(info),
             decidePermission: (tab, request) => prompter.askPermission(tab, request),
+            shouldDownload: (tab, download) => prompter.askDownload(tab, download),
             onNotification: notify,
             onFound: (tab, result) => find.showCount(tab, result),
         });
