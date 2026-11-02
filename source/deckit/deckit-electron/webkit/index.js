@@ -42,9 +42,9 @@ export function createWebKit({ path, LOG }) {
         return id === null || id === undefined ? null : pageById(id);
     }
 
-    // The text at `url` with the cookies of `store`, refused past `limit` bytes.
+    // The text at `url`, asked as the pages of `store` ask, refused past `limit` bytes.
     function fetchText(store, url, limit) {
-        return loaded().fetchText(store, String(url), limit);
+        return loaded().fetchText(store, String(url), { limit, applicationName: agentName() });
     }
 
     // What `store` kept, taken.
