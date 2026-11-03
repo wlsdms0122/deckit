@@ -457,17 +457,25 @@ async function run({
             `document.querySelectorAll('.deckit-menu [role^="menuitem"]').length`
         );
         check('the General font offers every family installed', families > 40, families);
-        // A row wears its face once near the menu's view, so a long list of faces opens without reading them all in.
-        const faced = await until(
-            () =>
-                settingsOverlay?.evaluate(`(() => {
-                    const labels = [...document.querySelectorAll('.deckit-menu .deckit-menu-label')];
-                    const worn = labels.filter((label) => label.style.fontFamily).length;
-                    return worn && { worn, rows: labels.length };
-                })()`),
-            2000
+        // A row wears its face as it nears the menu's view and the others a few each frame after, so a long list of
+        // faces opens without reading them all in at once.
+        const facedNow = () =>
+            settingsOverlay?.evaluate(`(() => {
+                const labels = [...document.querySelectorAll('.deckit-menu .deckit-menu-label')];
+                const worn = labels.filter((label) => label.style.fontFamily).length;
+                return worn && { worn, rows: labels.length };
+            })()`);
+        const faced = await until(facedNow, 2000);
+        // A page off screen has its timers slowed after a while, so the rest are seen going on, not ending.
+        const later = await until(async () => {
+            const now = await facedNow();
+            return now && now.worn >= faced.worn + 40 && now;
+        }, 3000);
+        check(
+            'a long list of faces wears those in view first, and the rest after',
+            faced && faced.worn < faced.rows / 2 && !!later,
+            JSON.stringify({ faced, later })
         );
-        check('a long list of faces wears only those in view', faced && faced.worn < faced.rows / 2, faced);
         await settingsOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
         // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away. The
