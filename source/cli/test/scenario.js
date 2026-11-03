@@ -827,6 +827,37 @@ async function run({
             await main(`return webkit.load(${linkPageId}, '${FRONT_TAB}')`);
             await until(async () => (await shownAt()) === FRONT_TAB, 5000);
         }
+        // A site that focuses a field of its own as it loads does not take the keyboard from the address being edited;
+        // an address typed and gone to gives the page the keyboard.
+        {
+            const site = require('http').createServer((_request, response) => {
+                response.writeHead(200, { 'Content-Type': 'text/html' });
+                response.end('<input autofocus>');
+            });
+            await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+            const focusing = `http://127.0.0.1:${site.address().port}/`;
+            const tabId = await browser?.evaluate(shownPage);
+            const holder = `(() => {
+                const held = document.activeElement;
+                return held?.dataset.webPage ? 'page ' + held.dataset.webPage : held?.className || '';
+            })()`;
+            await browser?.key('l', 'KeyL', META, 76);
+            await main(`return webkit.load(${tabId}, '${focusing}')`);
+            await until(async () => (await shownAt()) === focusing && !(await webPage(tabId).state())?.loading, 5000);
+            await sleep(600);
+            const kept = await browser?.evaluate(holder);
+            check(
+                'a site focusing its own field leaves the address being edited the keyboard',
+                kept === 'browser-address-input',
+                kept
+            );
+            await browser?.type(FRONT_TAB);
+            await browser?.key('Enter', 'Enter', 0, 13);
+            await until(async () => (await shownAt()) === FRONT_TAB, 5000);
+            const given = await browser?.evaluate(holder);
+            check('an address gone to gives the page the keyboard', given === `page ${tabId}`, given);
+            site.close();
+        }
         const tabLaidOut = async () => {
             const element = await browser?.evaluate(`(() => {
                 const shown = [...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible');
