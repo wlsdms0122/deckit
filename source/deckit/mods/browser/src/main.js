@@ -18,7 +18,7 @@ class Browser {
         homepage: {
             type: 'string',
             title: 'Homepage',
-            description: 'What a new tab opens: the start page, the bookmarks as tiles, when empty.',
+            description: 'The address a new tab opens. Empty, it opens the start page, the bookmarks as tiles.',
             default: '',
         },
         searchEngine: {
@@ -33,6 +33,8 @@ class Browser {
             ],
         },
     };
+
+    static form = { homepage: { placeholder: 'Start page' } };
 
     attach(shell, deckit) {
         const { theme, ui } = shell;
