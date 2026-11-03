@@ -274,6 +274,7 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     let open = true;
     let submenu = null; // { index, menu }
     let timer = 0;
+    let stopFaces = () => {};
     const closeSubmenu = () => {
         clearTimeout(timer);
         const closing = submenu;
@@ -306,6 +307,7 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
         if (!open) return;
         open = false;
         closeSubmenu();
+        stopFaces();
         layer.close();
         onClose?.();
     };
@@ -346,7 +348,32 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
         onDismiss: close,
     });
     list.set(options, { active: options[active]?.disabled ? -1 : active });
+    stopFaces = wearFaces(box, options);
     return { element: box, close, isOpen: () => open };
+}
+
+// Each row of `options` whose item has a `font` wears it once it nears the menu's view: a face is read in as it is
+// first drawn, and many at once hold the page up. Answers its stop.
+function wearFaces(box, options) {
+    const labels = new Map();
+    for (const { element, item } of options) {
+        if (item.font) labels.set(element, [element.querySelector('.deckit-menu-label'), item.font]);
+    }
+    if (!labels.size) return () => {};
+    const Observer = box.ownerDocument.defaultView.IntersectionObserver;
+    const seen = new Observer(
+        (entries) => {
+            for (const { target, isIntersecting } of entries) {
+                if (!isIntersecting) continue;
+                const [label, font] = labels.get(target);
+                label.style.fontFamily = font;
+                seen.unobserve(target);
+            }
+        },
+        { root: box, rootMargin: '120px 0px' }
+    );
+    for (const row of labels.keys()) seen.observe(row);
+    return () => seen.disconnect();
 }
 
 function rowOf(item, ticks) {
@@ -367,7 +394,6 @@ function rowOf(item, ticks) {
     }
     const label = tag('span', 'deckit-menu-label');
     label.textContent = item.label;
-    if (item.font) label.style.fontFamily = item.font;
     row.append(label);
     if (item.items) {
         const more = tag('span', 'deckit-menu-more');
