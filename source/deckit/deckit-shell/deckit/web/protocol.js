@@ -8,9 +8,11 @@ export const window = CHANNEL.pageToMain(
     { name: 'string', url: 'string', title: 'string' },
     { reply: true }
 );
-export const fetchText = CHANNEL.pageToMain(
-    'deckit-shell:web-fetch-text',
-    { name: 'string', url: 'string' },
+// headers: [[name, value]]; body: bytes in base64, or null; redirect: follow, error or manual. Answers `{ url,
+// status, headers, body, redirected }`.
+export const fetch = CHANNEL.pageToMain(
+    'deckit-shell:web-fetch',
+    { name: 'string', url: 'string', method: 'string', headers: 'array', body: 'string?', redirect: 'string' },
     { reply: true }
 );
 export const clear = CHANNEL.pageToMain('deckit-shell:web-clear', { name: 'string' }, { reply: true });

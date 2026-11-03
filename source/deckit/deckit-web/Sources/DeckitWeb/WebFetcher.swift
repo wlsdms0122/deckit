@@ -8,8 +8,8 @@
 import Foundation
 import WebKit
 
-// The text at a web address, asked as a data store's pages would ask: with the cookies it holds and the user agent its
-// pages send, the cookies the answer sets kept in it; read as it arrives, past `limit` bytes refused.
+// A request sent as a data store's pages send one: with the cookies it holds and the user agent its pages send, the
+// cookies the answers set kept in it. The answer is read as it arrives, past `limit` bytes refused.
 @MainActor
 struct WebFetcher {
     // MARK: - Property
@@ -23,7 +23,7 @@ struct WebFetcher {
     }
 
     // MARK: - Public
-    func text(at url: URL, limit: Int) async throws -> String {
+    func answer(to request: WebRequest, limit: Int) async throws -> WebAnswer {
         let cookies = WKWebsiteDataStore(forIdentifier: store).httpCookieStore
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpAdditionalHeaders = ["User-Agent": await Self.userAgent(applicationName)]
@@ -36,10 +36,10 @@ struct WebFetcher {
         defer { session.finishTasksAndInvalidate() }
 
         do {
-            let text = try await read(url, limit: limit, in: session)
+            let answer = try await read(request, limit: limit, in: session)
             await keep(jar.cookies ?? [], over: sent, in: cookies)
 
-            return text
+            return answer
         } catch {
             await keep(jar.cookies ?? [], over: sent, in: cookies)
             throw error
@@ -62,12 +62,11 @@ struct WebFetcher {
         return agent
     }
 
-    private func read(_ url: URL, limit: Int, in session: URLSession) async throws -> String {
-        let (bytes, response) = try await session.bytes(from: url)
-        if let response = response as? HTTPURLResponse, !(200..<300).contains(response.statusCode) {
-            let reason = HTTPURLResponse.localizedString(forStatusCode: response.statusCode)
-            throw NodeError(message: "HTTP \(response.statusCode) \(reason)")
-        }
+    private func read(_ request: WebRequest, limit: Int, in session: URLSession) async throws -> WebAnswer {
+        let gate = RedirectGate(request.redirect)
+        let (bytes, response) = try await session.bytes(for: request.urlRequest, delegate: gate)
+        if gate.refused { throw NodeError(message: "redirected, and the request's redirect is error") }
+        guard let response = response as? HTTPURLResponse else { throw NodeError(message: "not answered over HTTP") }
         if response.expectedContentLength > limit {
             throw tooLarge(limit, Int(response.expectedContentLength))
         }
@@ -77,7 +76,7 @@ struct WebFetcher {
             if data.count > limit { throw tooLarge(limit, data.count) }
         }
 
-        return String(decoding: data, as: UTF8.self)
+        return try WebAnswer(response, body: data, redirected: gate.redirected)
     }
 
     // What the answers set, changed or removed of the cookies `sent`, done in the store too.

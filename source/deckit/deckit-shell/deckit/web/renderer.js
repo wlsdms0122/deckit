@@ -22,6 +22,8 @@ export function createWeb({ sessions, web: WEB }) {
     const downloadListeners = new Set();
     let listening = false;
     let hearingDownloads = false;
+    // The statuses a `Response` is made with no body for.
+    const NO_BODY = new Set([101, 103, 204, 205, 304]);
 
     // MARK: - Initializer
     // MARK: - Public
@@ -36,9 +38,7 @@ export function createWeb({ sessions, web: WEB }) {
             const handle = Object.freeze({
                 name,
                 clear: () => PROTOCOL.clear.invoke({ name }),
-                ...(has(WEB_PERMISSION.NETWORK)
-                    ? { fetchText: (url) => PROTOCOL.fetchText.invoke({ name, url: String(url) }) }
-                    : {}),
+                ...(has(WEB_PERMISSION.NETWORK) ? { fetch: (input, init) => fetchIn(name, input, init) } : {}),
                 ...(has(WEB_PERMISSION.CERTIFICATES)
                     ? { trust: (entries) => PROTOCOL.trust.invoke({ name, entries: [].concat(entries) }) }
                     : {}),
@@ -100,6 +100,29 @@ export function createWeb({ sessions, web: WEB }) {
     }
 
     // MARK: - Private
+    // What a page's `fetch(input, init)` takes and answers, sent as the session's pages send it: with its cookies
+    // whatever `credentials` says, `redirect` and `signal` heeded. An answer is a `Response` with its `url` and
+    // `redirected`.
+    async function fetchIn(name, input, init) {
+        const request = new Request(input, init);
+        request.signal.throwIfAborted();
+        const body = request.body ? new Uint8Array(await request.arrayBuffer()).toBase64() : null;
+        const { url, method, redirect } = request;
+        const asked = PROTOCOL.fetch.invoke({ name, url, method, headers: [...request.headers], body, redirect });
+        const answer = await new Promise((resolve, reject) => {
+            request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true });
+            asked.then(resolve, reject);
+        });
+        const response = new Response(NO_BODY.has(answer.status) ? null : Uint8Array.fromBase64(answer.body), {
+            status: answer.status,
+            headers: answer.headers,
+        });
+        return Object.defineProperties(response, {
+            url: { value: answer.url },
+            redirected: { value: answer.redirected },
+        });
+    }
+
     function onDownload(listener) {
         if (!hearingDownloads) {
             hearingDownloads = true;

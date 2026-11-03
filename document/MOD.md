@@ -83,7 +83,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 |---|---|---|
 | `system.main-process` | the app's main process, where the mod's modules run and can read and write files, reach the network and start programs | `deckit.mainProcess` |
 | `system.files` | files on this Mac, opened in its own pages | `file://` addresses in its web pages |
-| `system.network` | any address, past the rules that keep one site from reading another | `fetchText(url)` on a web session |
+| `system.network` | any address, past the rules that keep one site from reading another | `fetch(input, init)` on a web session |
 | `system.certificates` | trusting a certificate this Mac cannot verify, in one of its sessions | `trust` on a web session |
 | `system.site-permissions` | what a site's pages may use (the camera, the microphone, notifications, what was copied, the location, an app for a link), in one of its sessions | `decidePermission` on a page's delegate, `allow`, `revoke` on a web session |
 | `system.clipboard-read` | reading what was copied, from any app | `deckit.clipboard.readText` |
@@ -308,7 +308,9 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 
 ### web.session(name)
 
-A web session of the mod's own, kept across restarts: `{ name, clear() }`, and with permissions `fetchText(url)`, `trust([{ host, fingerprint }])`, `allow([{ origin, permission }])` and `revoke(entries)`. Its pages share its cookies and nobody else's. A session does its work with no UI; its pages are shown by `shell.web`.
+A web session of the mod's own, kept across restarts: `{ name, clear() }`, and with permissions `fetch(input, init)`, `trust([{ host, fingerprint }])`, `allow([{ origin, permission }])` and `revoke(entries)`. Its pages share its cookies and nobody else's. A session does its work with no UI; its pages are shown by `shell.web`.
+
+`fetch` takes what a page's `fetch` takes and resolves to a `Response`, with its `url` and `redirected`, sent as the session's pages send it: with the session's cookies, whatever `credentials` says, and its pages' user agent, the cookies the answers set kept in the session. It heeds `redirect` and `signal`, sends only to `http` and `https` addresses, and rejects an answer over 4 MB. It runs no script of what it is answered: a page that goes on only once its scripts run stops it there.
 
 ### web.downloads
 

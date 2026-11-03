@@ -152,7 +152,10 @@ const MAIN = Object.freeze({
         sessionOf: 'function', // sessionOf(page) -> the session a web page is in, `{ mod, name }`, or null
         // permissionsChanged(): what deck lets sites have changed, so what a page read of it is read again
         permissionsChanged: 'function',
-        fetchText: 'function', // fetchText(mod, session, url) -> Promise of the text at a web address
+        // fetch(mod, session, { url, method, headers, body, redirect }) -> Promise of `{ url, status, headers, body,
+        // redirected }`, the request sent as the session's pages send one: `headers` `[[name, value]]`, `body` bytes
+        // in base64 or null, `redirect` `follow`, `error` or `manual`, and `url` the address that answered
+        fetch: 'function',
         clear: 'function', // clear(mod, session) -> Promise: what the session stored, taken
         cancelDownload: 'function', // cancelDownload(id): a download under way, stopped
         // trust(mod, session, entries) -> how many are trusted: `[{ host, fingerprint }]`, certificates trusted
@@ -248,7 +251,7 @@ const SHELL = Object.freeze({
 // `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks, `permissions` as deck names
 // them (web/model/site-permission.js), none where the environment's name for it is none of deck's. Kept as given:
 // `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
-// past which `fetchText` refuses an answer; and `windowSize`, `{ width, height }`, a web page's window where it asks
+// past which `fetch` refuses an answer; and `windowSize`, `{ width, height }`, a web page's window where it asks
 // for no size.
 const WEB_DECK = Object.freeze({
     loading: 'function',
