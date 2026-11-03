@@ -21,6 +21,8 @@ import CNodeAPI
 //   Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
 //   `fetch(store, request, { limit, applicationName }) -> Promise of the answer` (WebRequest, WebAnswer), sent as the
 //   store's pages made with `applicationName` send it; `clear(store) -> Promise`; `close(id)`; `safariVersion()`.
+// - Fonts: `fonts() -> { families, fixedPitch }`, the font families installed, by name, and those of them whose faces
+//   are fixed-width.
 // - Downloads a page started (WebDownload): `cancelDownload(id)`, nothing for one that ended.
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
 //   `{ red, green, blue }` and `material` one of `hud`, `sidebar`, `menu`, `popover`; `showWindow(id, { focus })`;
@@ -196,6 +198,9 @@ final class WebEngine {
             let version = Bundle(path: "/Applications/Safari.app")?
                 .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
             return try node.make(version)
+
+        case .fonts:
+            return try node.make(fonts())
 
         case .openWindow:
             return try node.make(try openWindow(try argument(0), emit: try argument(1)))
@@ -611,6 +616,18 @@ final class WebEngine {
     private static func drawNoBackground(_ view: WKWebView) {
         guard view.responds(to: NSSelectorFromString("_setDrawsBackground:")) else { return }
         view.setValue(false, forKey: "drawsBackground")
+    }
+
+    private func fonts() -> [String: Any?] {
+        let manager = NSFontManager.shared
+        let fixedPitch = Set(
+            (manager.availableFontNames(with: .fixedPitchFontMask) ?? []).compactMap { name in
+                NSFont(name: name, size: 0)?.familyName
+            }
+        )
+        let families = manager.availableFontFamilies
+
+        return ["families": families, "fixedPitch": families.filter(fixedPitch.contains)]
     }
 
     private func dataStore(_ id: UUID) -> WKWebsiteDataStore {

@@ -25,6 +25,7 @@ enum Export: Int, CaseIterable {
     case close
     case cancelDownload
     case safariVersion
+    case fonts
     case openWindow
     case showWindow
     case hideWindow

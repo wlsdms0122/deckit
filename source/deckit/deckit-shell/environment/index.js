@@ -4,10 +4,10 @@ import * as CHANNEL from '../deck/channel/index.js';
 // messages between main and a page and what it tells of a page, and in main how deck reaches the core, the files and
 // the log, the pages a mod runs in, the app starting and quitting, what deckit does through the system for a mod (keys,
 // opening, notifications, the clipboard, a folder chosen, main process modules, the web pages a mod shows), and what
-// only the environment knows: the person's home folder and what runs deckit. What it gives a UI shell on deckit in
-// main is `SHELL`: the pages the shell draws in and a stage to lay pages on. An environment gives at least this, and
-// each is handed what it is checked against alone (`checked`). Each leaf says what a member is: `function`, `object`,
-// `string`, or `array`, a list read.
+// only the environment knows: the person's home folder and what runs deckit. What it gives a UI shell on deckit in main
+// is `SHELL`: the pages the shell draws in, a stage to lay pages on and the fonts installed. An environment gives at
+// least this, and each is handed what it is checked against alone (`checked`). Each leaf says what a member is:
+// `function`, `object`, `string`, or `array`, a list read.
 // MARK: - Property
 /**
  * A page: a token deck keeps, compares, keys by and hands back, and never reads. The environment hands the same
@@ -209,8 +209,8 @@ const MAIN = Object.freeze({
     },
 });
 
-// What an environment gives a UI shell on deckit, on main's side: the pages it draws in, which run no mod, and a stage
-// to lay pages on. `load`, `close` and `watch` are as `MAIN.pages` says.
+// What an environment gives a UI shell on deckit, on main's side: the pages it draws in, which run no mod, a stage to
+// lay pages on, and the fonts installed. `load`, `close` and `watch` are as `MAIN.pages` says.
 const SHELL = Object.freeze({
     pages: {
         // make({ name, keepsDrawing }) -> page, made and not loaded: a page that runs no mod, `name` a lower case
@@ -232,6 +232,9 @@ const SHELL = Object.freeze({
     },
     // stage() -> a stage (`STAGE`): where pages are laid in one of the host app's windows
     stage: 'function',
+    // fonts() -> { families, fixedPitch }: the font families installed, by name, and those of them whose faces are
+    // fixed-width, as read at each call
+    fonts: 'function',
 });
 
 // What deck hands an environment's web (`MAIN.web.listen`). Answered at once: `loading(embedder, page, to, { inPage,
