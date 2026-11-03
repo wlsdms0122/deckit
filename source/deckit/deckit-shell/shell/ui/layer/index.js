@@ -59,8 +59,8 @@ function start(given) {
         dismissTransient();
         placeAgain();
     });
-    // Where it draws and what holds the focus are told again as they change, and after a press, once the focus moved,
-    // so main hears where the keyboard belongs.
+    // Where it draws and what holds the focus are told again as they change, where it draws once what moves in it
+    // stops, and after a press, once the focus moved, so main hears where the keyboard belongs.
     const resized = new ResizeObserver(() => report());
     new MutationObserver(() => {
         resized.disconnect();
@@ -73,6 +73,7 @@ function start(given) {
         attributeFilter: ['style', 'class', 'data-state', 'hidden'],
     });
     overlay.window.addEventListener('resize', () => report());
+    overlay.document.addEventListener('transitionend', () => report());
     for (const type of ['focusin', 'focusout']) overlay.document.addEventListener(type, () => setTimeout(report));
     for (const type of ['focus', 'blur']) overlay.window.addEventListener(type, () => setTimeout(report));
     overlay.window.addEventListener('pointerdown', () => setTimeout(() => report({ again: true })), true);

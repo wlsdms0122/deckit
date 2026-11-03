@@ -5,7 +5,15 @@ function findInPage({ ui, area, frontTab }) {
     let state = { query: '', caseSensitive: false };
 
     ui.addStyle(`
-        .browser-find { display: flex; align-items: center; gap: 2px; padding: 4px; right: 12px; }
+        .browser-find {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 4px;
+            right: 12px;
+            border-radius: var(--deckit-radius-round);
+            transform-origin: top right;
+        }
         .browser-find-field { flex: 0 1 auto; width: 300px; min-width: 0; margin: 0 2px; }
     `);
     const panel = ui.floatingPanel();
