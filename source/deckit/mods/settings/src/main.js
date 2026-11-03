@@ -67,7 +67,7 @@ class Settings {
         const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
         const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts, onFailure: mods.showNotice });
         const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
-        const sections = [general, mods, modSettings, urlSchemes, keyboard];
+        const sections = [mods, general, modSettings, urlSchemes, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
