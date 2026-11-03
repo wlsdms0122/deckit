@@ -72,6 +72,10 @@ const STYLE = `
 const SUBMENU_OPEN_MS = 120;
 const SUBMENU_CLOSE_MS = 200;
 const WIDTH_MIN = 160;
+// While the menu is open, rows out of view wear their faces a few at a time, a frame's length apart: a face takes a
+// few ms to read in.
+const FACES_PER_TURN = 2;
+const TURN_MS = 16;
 const openUnder = new WeakMap(); // anchor -> the menu open under it
 
 // MARK: - Initializer
@@ -352,28 +356,35 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
     return { element: box, close, isOpen: () => open };
 }
 
-// Each row of `options` whose item has a `font` wears it once it nears the menu's view: a face is read in as it is
-// first drawn, and many at once hold the page up. Answers its stop.
+// Each row of `options` whose item has a `font` wears it as it nears the menu's view, and the others a few at a time
+// after: a face is read in as it is first drawn, and many at once hold the page up. Answers its stop.
 function wearFaces(box, options) {
-    const labels = new Map();
+    const unworn = new Map(); // row -> [its label, the face it wears]
     for (const { element, item } of options) {
-        if (item.font) labels.set(element, [element.querySelector('.deckit-menu-label'), item.font]);
+        if (item.font) unworn.set(element, [element.querySelector('.deckit-menu-label'), item.font]);
     }
-    if (!labels.size) return () => {};
-    const Observer = box.ownerDocument.defaultView.IntersectionObserver;
-    const seen = new Observer(
+    if (!unworn.size) return () => {};
+    const wear = (row) => {
+        const [label, font] = unworn.get(row);
+        label.style.fontFamily = font;
+        unworn.delete(row);
+        seen.unobserve(row);
+    };
+    const seen = new box.ownerDocument.defaultView.IntersectionObserver(
         (entries) => {
-            for (const { target, isIntersecting } of entries) {
-                if (!isIntersecting) continue;
-                const [label, font] = labels.get(target);
-                label.style.fontFamily = font;
-                seen.unobserve(target);
-            }
+            for (const { target, isIntersecting } of entries) if (isIntersecting && unworn.has(target)) wear(target);
         },
         { root: box, rootMargin: '120px 0px' }
     );
-    for (const row of labels.keys()) seen.observe(row);
-    return () => seen.disconnect();
+    for (const row of unworn.keys()) seen.observe(row);
+    let timer = setTimeout(function warm() {
+        for (const row of [...unworn.keys()].slice(0, FACES_PER_TURN)) wear(row);
+        timer = unworn.size ? setTimeout(warm, TURN_MS) : 0;
+    }, TURN_MS);
+    return () => {
+        seen.disconnect();
+        clearTimeout(timer);
+    };
 }
 
 function rowOf(item, ticks) {
