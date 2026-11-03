@@ -111,7 +111,7 @@ A mod's settings (`static configuration` in its class) are shown in Settings und
 
 - The title is what it is about (the event, the site), and the body is the rest.
 - `onClick` brings the mod to the front at what it is about.
-- The result of what the person just did where they are looking is shown there, in the view or on the switcher's row.
+- The result of what the person just did where they are looking is shown there, in the view or on the switcher's row. What has no place of its own in the view to stay (a mod removed, a change that did not apply) is a `ui.toast`.
 
 ## Keys
 

@@ -68,6 +68,10 @@ What is presented over the page is on layers, in one stack. The top one has the 
 - `colorPicker({ title, value, onPick })`.
 - `quickPick({ placeholder, value, fills, drags, glass, width, key, create, update, optionOf, onInput, onPick, onEnter, onKey, onActive, onCommandKey, onClose })` returns `{ text(), setText(text), setPlaceholder(text), setScope({ icon, label } | null), focus(), set(items, { active, message, note, loading, alert }), move(by), active(), close() }`: a field over a list to pick from, at the top of the page, on a modal, or with `fills` on one that fills the page (`align: 'fill'`), and with `drags` it drags the window from anywhere but its list, the field too, which keeps the keyboard all the same; `glass` is the modal's. A quick pick that fills an overlay window's page drags it and is drawn at `glass: theme.glass`. Items are drawn by `key(item)`, `create` and `update`, as a keyed list draws them; `optionOf(item)` is null for an item that is no option (a heading) or `{ disabled }`. The arrows move the active option, which `onActive(item, index, { pointer })` hears, and Enter picks it, which `onPick(item, index)` hears, or `onEnter({ item, text })` hears both. `onKey(event)` has a key first and answers true when it took it, or the arrows, Enter and Escape act on it too; `onCommandKey(held)` hears Command held down or let go. The field keeps the focus. `setScope` shows what the field searches in, before it.
 
+A toast tells what was just done, or that it failed, where it was done, and goes by itself.
+
+- `toast(text)` returns `{ close() }`: `text` at the bottom of the page for a few seconds, longer for more words, on a layer over the page that takes no presses. A new toast takes the place of the one shown.
+
 Floats are placed by their caller and stay in the page, where the keyboard stays with the text they act on.
 
 - `floatingToolbar()` returns `{ element, show(rect), hide() }`: centred above the rect, below when only that fits.
