@@ -235,7 +235,14 @@ function tabList({
             didFocus: () => onFocus(),
             didRefuseCertificate: (info) => onCertificateRefused(info),
             decidePermission: (request) => (nodes.items().includes(tab) ? decidePermission(tab, request) : false),
-            shouldDownload: (download) => (nodes.items().includes(tab) ? shouldDownload(tab, download) : false),
+            // A tab a page opened that has shown no page was opened for the file alone, so it goes once its question
+            // is answered: after the answer is on its way, as a tab gone before its answer refuses the download.
+            shouldDownload: async (download) => {
+                if (!nodes.items().includes(tab)) return false;
+                const save = await shouldDownload(tab, download);
+                if (tab.opener && page.state.blank) setTimeout(() => close(tab));
+                return save;
+            },
             didReceiveNotification: (notification) => onNotification(tab, notification),
             didFind: (result) => {
                 if (tab.page === page) onFound(tab, result);
@@ -257,7 +264,8 @@ function tabList({
 
     function retire(tab) {
         const { parent, index } = nodes.remove(tab);
-        if (tab.url !== 'about:blank') {
+        // One whose page has shown no page has nothing to come back to.
+        if (tab.url !== 'about:blank' && !tab.page?.state.blank) {
             const { url, title, icon } = tab;
             closed.push({ url, title, icon, parent: parent === nodes.root ? null : parent.id, index });
             closed.splice(0, Math.max(0, closed.length - KEPT_CLOSED));

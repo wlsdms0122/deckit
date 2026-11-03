@@ -141,6 +141,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
             loading: page.isLoading(),
             canGoBack: history.canGoBack(),
             canGoForward: history.canGoForward(),
+            blank: page.isBlank(),
             audible,
             muted,
             capture: page.capture(),

@@ -86,6 +86,7 @@ final class WebPage: NSObject {
             "loading": view.isLoading,
             "canGoBack": view.canGoBack,
             "canGoForward": view.canGoForward,
+            "blank": view.backForwardList.currentItem == nil,
             "camera": view.cameraCaptureState == .active,
             "microphone": view.microphoneCaptureState == .active,
             "store": view.configuration.websiteDataStore.identifier?.uuidString.lowercased()
