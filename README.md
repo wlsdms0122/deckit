@@ -13,10 +13,10 @@ source/cli/deckit build
 writes `.build/deckit-<version>.tgz`, with its sha256 beside it: the bundles of deck and deckit and of the shell, the core (built with Swift 6.3 or later), `deckit.json`, the documents a host app reads, and deckit's own mods, each with its entry bundled. It is what a host app embeds ([document/EMBEDDING.md](document/EMBEDDING.md)). The same sources, built with the same Swift, make the same archive, byte for byte.
 
 ```
-source/cli/deckit app
+source/cli/deckit build app
 ```
 
-then makes `.build/Deckit.app` from that archive, the way any host app embeds it. Deckit keeps its folder in `~/.config/deckit`; where its windows were left is in `~/Library/Application Support/Deckit`, and what its pages and the sites they show store is WebKit's, in `~/Library/WebKit/dev.deckit.app`.
+makes `.build/Deckit.app` from it too, the way any host app embeds it. Deckit keeps its folder in `~/.config/deckit`; where its windows were left is in `~/Library/Application Support/Deckit`, and what its pages and the sites they show store is WebKit's, in `~/Library/WebKit/dev.deckit.app`.
 
 ## Commands
 
@@ -26,7 +26,7 @@ then makes `.build/Deckit.app` from that archive, the way any host app embeds it
 
 `resize` is for a person's drag: `deckit dev --inspect=9445`, then `deckit resize start 9445`, drag the window's edge, and `deckit resize stop 9445` tells how often the window was resized, how often each page drew, and how far each page as wide as the window trailed it. A resize made in code does not wait on the pages the way a drag does.
 
-`manifest.toml` lists the same commands for open-package.
+`manifest.toml` lists them for open-package, but for `engine` and `resize`, which are for work on deckit itself.
 
 ## Documents
 

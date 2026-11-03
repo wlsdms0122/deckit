@@ -1,7 +1,8 @@
-// Deckit.app's folder, put together from a deckit archive the way any app that embeds deckit loads it.
+// Deckit.app, put together from a deckit archive the way any app that embeds deckit loads it.
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const { execFileSync, spawnSync } = require('child_process');
+const ELECTRON = require('./electron.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 const APP = path.join(__dirname, '..', 'deckit', 'deckit-app');
@@ -49,4 +50,76 @@ function assemble(archive, to) {
     return to;
 }
 
-module.exports = { builtArchive, assemble };
+// Deckit.app in .build/, from the archive the last build made: Electron's app named and drawn as Deckit, the archive
+// put together inside it, signed ad hoc. The app made before stays until the new one verifies. Answers what it made.
+function make() {
+    const archive = builtArchive();
+    const electron = ELECTRON.electronApp();
+    const app = path.join(ROOT, '.build', 'Deckit.app');
+    const made = app + '.new';
+    const resources = path.join(made, 'Contents', 'Resources');
+    const refuse = (message) => {
+        fs.rmSync(made, { recursive: true, force: true });
+        throw new Error(message);
+    };
+    fs.rmSync(made, { recursive: true, force: true });
+    // -c clones on APFS; a plain copy where the disk cannot.
+    if (spawnSync('cp', ['-Rc', electron, made], { stdio: 'ignore' }).status !== 0) {
+        fs.rmSync(made, { recursive: true, force: true });
+        execFileSync('cp', ['-R', electron, made]);
+    }
+    for (const file of ['default_app.asar', 'electron.icns']) fs.rmSync(path.join(resources, file), { force: true });
+    // The icon as the system draws it now (Assets.car), and as an older one does (Deckit.icns).
+    const icon = made + '.icon.plist';
+    execFileSync(
+        'xcrun',
+        [
+            'actool',
+            path.join(APP, 'Deckit.icon'),
+            '--compile',
+            resources,
+            '--platform',
+            'macosx',
+            '--minimum-deployment-target',
+            '12.0',
+            '--app-icon',
+            'Deckit',
+            '--output-partial-info-plist',
+            icon,
+        ],
+        { stdio: ['ignore', 'ignore', 'inherit'] }
+    );
+    fs.rmSync(icon, { force: true });
+    const { version } = JSON.parse(
+        fs.readFileSync(path.join(assemble(archive, path.join(resources, 'app')), 'package.json'), 'utf8')
+    );
+    const plist = path.join(made, 'Contents', 'Info.plist');
+    const keys = {
+        CFBundleName: 'Deckit',
+        CFBundleDisplayName: 'Deckit',
+        CFBundleIdentifier: 'dev.deckit.app',
+        CFBundleIconFile: 'Deckit',
+        CFBundleIconName: 'Deckit',
+        CFBundleShortVersionString: version,
+        CFBundleVersion: version,
+    };
+    for (const [key, value] of Object.entries(keys)) execFileSync('plutil', ['-replace', key, '-string', value, plist]);
+    // codesign says it replaces Electron's signature each time: what it says is shown only when it fails.
+    const signed = spawnSync('codesign', ['--force', '--deep', '--sign', '-', made], { encoding: 'utf8' });
+    if (signed.status !== 0) refuse(`${signed.stderr.trim()}\nDeckit.app could not be signed: the last one stays`);
+    if (spawnSync('codesign', ['--verify', '--deep', made], { stdio: 'inherit' }).status !== 0)
+        refuse('Deckit.app does not verify: the last one stays');
+    fs.rmSync(app, { recursive: true, force: true });
+    fs.renameSync(made, app);
+    return `made .build/Deckit.app (deckit ${version}, Electron ${ELECTRON.VERSION}, dev.deckit.app, signed ad hoc)`;
+}
+
+module.exports = { builtArchive, assemble, make };
+if (require.main === module) {
+    try {
+        console.log(make());
+    } catch (e) {
+        console.error(e.message);
+        process.exit(1);
+    }
+}
