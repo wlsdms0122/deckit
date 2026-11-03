@@ -954,18 +954,22 @@ async function run({
             const responderIs = async (id) => (await laidPages()).some((laid) => laid.id === id && laid.responder);
             await browser?.key('f', 'KeyF', META, 70);
             const overlay = await until(() => overlayOf(browser), 3000);
-            const panel = await until(
-                () =>
-                    overlay?.evaluate(`(() => {
-                        const found = document.querySelector('.browser-find')?.getBoundingClientRect();
-                        return found && { x: found.x, y: found.y, width: found.width, height: found.height };
-                    })()`),
-                3000
-            );
-            const laid = await until(overlaid, 3000);
+            // Once it has shown: as it fades in, it grows to its size.
+            const panelNow = () =>
+                overlay?.evaluate(`(() => {
+                    const found = document.querySelector('.browser-find')?.getBoundingClientRect();
+                    return found && { x: found.x, y: found.y, width: found.width, height: found.height };
+                })()`);
+            let panel = null;
+            let laid = null;
+            const matched = await until(async () => {
+                panel = await panelNow();
+                laid = await overlaid();
+                return !!panel && laid?.input.length === 1 && near(laid.input[0], panel);
+            }, 3000);
             check(
                 'the find panel floats over the page, and its overlay takes the pointer only where it lies',
-                !!panel && laid?.input.length === 1 && near(laid.input[0], panel),
+                matched,
                 JSON.stringify({ panel, input: laid?.input })
             );
             // The keyboard the page has goes to the overlay only in a key window, which this app, never active, lacks.
