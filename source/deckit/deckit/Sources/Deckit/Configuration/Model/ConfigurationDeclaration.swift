@@ -85,8 +85,8 @@ public struct ConfigurationDeclaration: Decodable, Equatable, Sendable {
     }
 
     // What it is set to for `value`: a number is held within its bounds.
-    func value(for value: ConfigurationValue?) throws(ConfigurationError) -> ConfigurationValue {
-        guard let value, isOfType(value) else { throw .notOfType(key: key, type: type) }
+    func value(for value: ConfigurationValue) throws(ConfigurationError) -> ConfigurationValue {
+        guard isOfType(value) else { throw .notOfType(key: key, type: type) }
 
         let held = if case let .number(number) = value {
             ConfigurationValue.number(Swift.min(maximum ?? .infinity, Swift.max(minimum ?? -.infinity, number)))

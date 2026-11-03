@@ -255,7 +255,7 @@ static configuration = {
 |---|---|
 | `type` | `boolean`, `number` or `string` |
 | `title`, `description` | what a person reads |
-| `default` | what it reads as while nothing it takes is saved |
+| `default` | what it reads as while nothing it takes is saved; without one it reads as nothing then |
 | `oneOf` | `[{ const, title }]`: the values it takes, each of its `type` |
 | `minimum`, `maximum` | for a number: the values it takes, and what a number set is held within |
 
@@ -267,8 +267,8 @@ How Settings draws each key: `{ <key>: { placeholder, unit, step, choices } }`, 
 
 ### deckit.configuration
 
-- `get(key)`: what it reads as: the value saved, when its declaration takes it, or `default`.
-- `set(key, value)`: checked against the declaration, a number held within `minimum` and `maximum`; a value of another type, or not one of the choices, rejects. Resolves to the value as kept.
+- `get(key)`: what it reads as: the value saved, when its declaration takes it, or `default`, undefined where it has none.
+- `set(key, value)`: checked against the declaration, a number held within `minimum` and `maximum`; a value of another type, or not one of the choices, rejects. Null unsets it, so it reads as its default again. Resolves to what it reads as now, null for none.
 - `on(listener)`: `listener(key, value)` on every change, from Settings or from the mod. Returns the unsubscribe.
 
 ## deckit

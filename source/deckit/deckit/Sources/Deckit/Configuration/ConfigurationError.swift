@@ -12,7 +12,7 @@ import Deck
 public enum ConfigurationError: Refusal, Equatable {
     case undeclared(mod: String, key: String)
     case notOfType(key: String, type: ConfigurationType)
-    case notAChoice(key: String, value: ConfigurationValue?)
+    case notAChoice(key: String, value: ConfigurationValue)
 
     // MARK: - Property
     public var message: String {
@@ -30,7 +30,7 @@ public enum ConfigurationError: Refusal, Equatable {
             "\(key) is text"
 
         case let .notAChoice(key, value):
-            "not one of what \(key) takes: \(value.map(String.init(describing:)) ?? "none")"
+            "not one of what \(key) takes: \(value)"
         }
     }
 

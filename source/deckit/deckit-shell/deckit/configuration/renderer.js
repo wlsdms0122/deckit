@@ -33,8 +33,8 @@ export function createConfiguration({ RUN }) {
         });
     }
 
-    // `deckit.configuration` for a handle: `get(key)`, `set(key, value)`, and `on(listener)`, which hears each value
-    // that changes, until its off or until `scope` is cut.
+    // `deckit.configuration` for a handle: `get(key)`; `set(key, value)`, null unsetting it, so it reads as its default
+    // again; and `on(listener)`, which hears each value that changes, until its off or until `scope` is cut.
     function forScope(scope) {
         return Object.freeze({
             get: (key) => values[key],
@@ -66,7 +66,7 @@ export function createConfiguration({ RUN }) {
 // MARK: - Public
 // `deckit.modConfiguration` for a mod with deckit.mod-configuration: every mod's configuration. `list()` answers, for
 // each mod that declares any, `{ id, name, items }`, each item its declaration and the value it reads as; `set(id, key,
-// value)` answers the value as kept.
+// value)`, null unsetting it, answers what it reads as now.
 function tool() {
     return Object.freeze({
         list: () => PROTOCOL.list.invoke(),
