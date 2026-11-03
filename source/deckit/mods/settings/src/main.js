@@ -145,7 +145,7 @@ class Settings {
             })
         );
         deckit.mods.onChange(() => shown && redraw());
-        // Fonts set elsewhere come as a new theme, which a mod's setting left unset may follow.
+        // Fonts set elsewhere come as a new theme, which a mod's setting left unset may inherit.
         shell.theme.onChange(() => {
             if (!shown) return;
             general.draw();

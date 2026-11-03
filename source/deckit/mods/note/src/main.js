@@ -65,7 +65,7 @@ class Note {
         '체크리스트',
         '할일',
     ];
-    static form = { textSize: { unit: ' px', follows: 'textSize' }, font: { choices: 'textFonts' } };
+    static form = { textSize: { unit: ' px', inherits: 'textSize' }, font: { choices: 'textFonts' } };
 
     // What detach() waits for: the open note written, its title typed and not yet applied too, so what was typed just
     // before the run ends is kept, and the notes folder no longer watched.
