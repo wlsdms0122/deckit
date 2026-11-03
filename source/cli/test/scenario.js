@@ -678,6 +678,94 @@ async function run({
             [downloaded, refusedWritten]
         );
         check('the tab that downloaded stays on its page', (await shownAt()) === FRONT_TAB, await shownAt());
+        // A window a tab's page opens is a tab after it that is the site's window: the page holds it and the window
+        // knows its opener. Opened again by its name, the same tab is reused.
+        {
+            const site = require('http').createServer((request, response) => {
+                response.writeHead(200, { 'Content-Type': 'text/html' });
+                if (request.url === '/child') {
+                    return response.end('<script>window.opener && window.opener.postMessage("hello", "*")</script>');
+                }
+                response.end(`<button style="position:fixed;inset:0" onclick="
+                    held = window.open('/child', 'named') ? 'held' : 'lost';
+                    pressed++;
+                    show();
+                ">open</button><script>
+                    let held = '', pressed = 0, heard = 0;
+                    const show = () => (document.title = held + ' ' + pressed + ' ' + heard);
+                    addEventListener('message', () => (heard++, show()));
+                </script>`);
+            });
+            await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+            const openerPage = `http://127.0.0.1:${site.address().port}/`;
+            const tabs = `document.querySelectorAll('.browser-row-label').length`;
+            const tabsBefore = await browser?.evaluate(tabs);
+            const openerId = await browser?.evaluate(shownPage);
+            await main(`return webkit.load(${openerId}, '${openerPage}')`);
+            await until(
+                async () => (await shownAt()) === openerPage && !(await webPage(openerId).state())?.loading,
+                5000
+            );
+            const press = async () => {
+                for (const type of ['down', 'up'])
+                    await main(`return webkit.sendMouse(${openerId}, { type: '${type}', x: 40, y: 40 })`);
+            };
+            await press();
+            const titled = async () => (await webPage(openerId).state())?.title;
+            const heard = await until(async () => (await titled()) === 'held 1 1', 5000);
+            const added = await until(async () => (await browser?.evaluate(tabs)) === tabsBefore + 1, 3000);
+            const beside = await browser?.evaluate(`(() => {
+                const labels = [...document.querySelectorAll('.browser-row-label')].map((label) => label.title);
+                return labels.indexOf('${openerPage}child') === labels.indexOf('${openerPage}') + 1;
+            })()`);
+            check(
+                "a tab's window is a tab after it, held by the page, which hears from it",
+                heard && added && beside,
+                JSON.stringify({ title: await titled(), tabs: await browser?.evaluate(tabs), beside })
+            );
+            await pressTab(openerPage);
+            await until(async () => (await shownAt()) === openerPage, 3000);
+            // A press is lost while the tab comes back on screen, so it is pressed until the page counts it.
+            await until(async () => {
+                if ((await titled()).split(' ')[1] === '1') await press();
+                return (await titled()).split(' ')[1] === '2';
+            }, 5000);
+            await until(async () => (await titled()) === 'held 2 2', 8000);
+            check(
+                'a window opened again by its name is the same tab',
+                (await titled()) === 'held 2 2' && (await browser?.evaluate(tabs)) === tabsBefore + 1,
+                JSON.stringify({ title: await titled(), tabs: await browser?.evaluate(tabs) })
+            );
+            await pressTab(`${openerPage}child`);
+            const windowId = await until(async () => {
+                const id = await browser?.evaluate(shownPage);
+                return id !== openerId && id;
+            }, 3000);
+            await main(`return webkit.load(${windowId}, '${openerPage}moved')`);
+            const moved = await until(
+                async () => (await webPage(windowId).state())?.url === `${openerPage}moved`,
+                5000
+            );
+            check(
+                "a tab's window loads an address as any tab does",
+                moved,
+                JSON.stringify(await webPage(windowId).state())
+            );
+            // The tabs this made go, so the tab the next opens a tab from is the one in front.
+            const made = `[...document.querySelectorAll('.browser-row-label')]
+                .map((label) => label.title)
+                .find((title) => title.startsWith('${openerPage}') && title !== '${openerPage}')`;
+            for (let left = await browser?.evaluate(made); left; left = await browser?.evaluate(made)) {
+                const count = await browser?.evaluate(tabs);
+                await pressTab(left);
+                await browser?.key('w', 'KeyW', META, 87);
+                if (!(await until(async () => (await browser?.evaluate(tabs)) < count, 2000))) break;
+            }
+            site.close();
+            await pressTab(openerPage);
+            await main(`return webkit.load(${openerId}, '${FRONT_TAB}')`);
+            await until(async () => (await shownAt()) === FRONT_TAB, 5000);
+        }
         // A link to a file that opens a tab: the tab, which shows no page, closes once the download is asked about, and
         // the tab the link is in stays.
         {

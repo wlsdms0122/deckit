@@ -141,9 +141,7 @@ export function createWeb({ sessions, web: WEB }) {
         PROTOCOL.refused.on(({ id, certificate }) => deliver(id, 'certificate', certificate));
         PROTOCOL.found.on(({ id, matches, active, final }) => deliver(id, 'found', { matches, active, final }));
         PROTOCOL.leaving.on(({ id, url }) => deliver(id, 'leave', { url }));
-        PROTOCOL.opening.on(({ id, url, activates, target }) =>
-            deliver(id, 'window', { url, options: { activates, target } })
-        );
+        PROTOCOL.opening.on(({ id, page, url, activates }) => deliver(id, 'window', { page, url, activates }));
         PROTOCOL.asking.on(({ id, ask, origin, permissions, app, url }) => {
             let answered = false;
             deliver(id, 'permission', {
@@ -226,11 +224,22 @@ export function createWeb({ sessions, web: WEB }) {
             }
         };
         // Only false keeps the default back, so a delegate that forgot to answer does not lose the request.
-        const otherwiseOpen = async (method, to, options) => {
-            if ((await ask(method, true, to, options)) === false) return;
+        const openElsewhere = (to, options) =>
             opener
                 .open(to, options)
                 .catch((error) => owner.recordFailure(`${to} did not open: ${error.message || error}`));
+        const otherwiseOpen = async (method, to, options) => {
+            if ((await ask(method, true, to, options)) === false) return;
+            openElsewhere(to, options);
+        };
+        // The window a page opened, as a page of the mod's to show. One the delegate does not take goes, and its
+        // address opens elsewhere, as one of a page with no window to hand over does.
+        const takeWindow = async ({ page: given, url: to, activates }) => {
+            if (given === undefined || given === null) return void openElsewhere(to, { activates });
+            const opened = page(names.get(session), to, owner, opener, session, given);
+            if ((await ask('openWindow', false, opened, { url: to, activates })) !== false) return;
+            opened.close();
+            openElsewhere(to, { activates });
         };
         const receive = (event, payload) => {
             switch (event) {
@@ -263,7 +272,7 @@ export function createWeb({ sessions, web: WEB }) {
                 case 'leave':
                     return otherwiseOpen('shouldLeave', payload.url);
                 case 'window':
-                    return otherwiseOpen('shouldOpenWindow', payload.url, payload.options);
+                    return takeWindow(payload);
             }
         };
         const whenKnown = (send) => {
@@ -309,12 +318,13 @@ export function createWeb({ sessions, web: WEB }) {
         };
     }
 
-    // A web page shown in this page, as an element of it.
-    function page(name, url, owner, opener, session) {
+    // A web page shown in this page, as an element of it: a new one at `url`, or the window of id `given` a web page
+    // opened.
+    function page(name, url, owner, opener, session, given) {
         const { handle, know, receive, isKnown } = handleOf(owner, opener, session, url);
         let closed = false;
         const { element, id, close } = WEB.view(
-            { sessions, session: name, url },
+            { sessions, session: name, url, ...(given === undefined ? {} : { page: given }) },
             { closing: () => !closed && receive('close'), focused: () => receive('press') }
         );
         id.then((known) => !isKnown() && !closed && know(known));

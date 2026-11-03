@@ -52,6 +52,8 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
             attaching,
             windowOpen,
             adopted,
+            opened: (embedder, tab, page, { url, activates }) =>
+                PROTOCOL.opening.send(embedder, { id: tab, page, url, activates }),
             changed: (embedder, id, state) => PROTOCOL.changed.send(embedder, { id, state }),
             found: (embedder, id, { matches, active, final }) =>
                 PROTOCOL.found.send(embedder, { id, matches, active, final }),
@@ -256,17 +258,21 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // What a web page's window.open gets: a window of its own only in a window, or when it asks for one with features,
     // as a consent step's popup posts its answer back to its opener, which a tab could not do. A file page's window
     // would share its session, so it is asked of the delegate instead. Answers whether it is given the window.
-    function windowOpen(modPage, page, { url, tab, from, inPage, ownWindow, activates, target }) {
+    // A window a page asked for is a window of the app's when it asked for one or is in one; a tab's is handed to its
+    // mod's page, which shows it. A file page's window to the web is no window of its session: its address is opened.
+    function windowOpen(modPage, page, { url, tab, from, inPage, ownWindow, activates }) {
         // A page opens what it opens during a person's click or key, as a browser blocks a popup otherwise.
-        if (!IDENTITY.consumeUserActivation(page)) return false;
+        if (!IDENTITY.consumeUserActivation(page)) return '';
         // An app's address opened as a window is the same question as one navigated to.
         if (!/^https?:\/\//i.test(url)) {
             mayOpenApp(modPage, tab, url, SITE.originOf(from)).then((ok) => ok && SYSTEM.url(url));
-            return false;
+            return '';
         }
-        if ((!inPage || ownWindow) && !/^file:/i.test(String(from))) return true;
-        PROTOCOL.opening.send(modPage, { id: tab, url, activates, target });
-        return false;
+        if (/^file:/i.test(String(from))) {
+            PROTOCOL.opening.send(modPage, { id: tab, url, activates });
+            return '';
+        }
+        return !inPage || ownWindow ? 'window' : 'page';
     }
 
     // What a site shows only once it was allowed notifications.
