@@ -8,7 +8,8 @@
 import AppKit
 import WebKit
 
-// A web page's WKWebView, which tells when it takes the keyboard, keeps the files of the drop last performed on it, and
+// A web page's WKWebView, which tells when it takes the keyboard, takes it only as it is given it or pressed unless it
+// `takesKeyboard` as its document focuses an element, keeps the files of the drop last performed on it, and
 // hears the pointer only where it is the page under it, in a key window of an app that is not active too
 // (PointerRelay). WebKit tracks the pointer through tracking areas of its own, which each page is given behind a gate
 // (TrackingGate), so a page under another does not answer the moves too and set its own cursor.
@@ -16,6 +17,8 @@ import WebKit
 final class WebPageView: WKWebView {
     // MARK: - Property
     var onFocus: (() -> Void)?
+    var takesKeyboard = true
+    private var given = false // whether the keyboard is being handed to it
     private(set) var droppedFiles: [URL] = []
     private lazy var relay = PointerRelay(view: self)
     private var relayed: NSTrackingArea?
@@ -52,6 +55,7 @@ final class WebPageView: WKWebView {
     }
 
     override func becomeFirstResponder() -> Bool {
+        guard takesKeyboard || given || isPressed() else { return false }
         let became = super.becomeFirstResponder()
         if became { onFocus?() }
 
@@ -80,6 +84,13 @@ final class WebPageView: WKWebView {
     }
 
     // MARK: - Public
+    // The keyboard handed to it, in its window.
+    func take() {
+        given = true
+        window?.makeFirstResponder(self)
+        given = false
+    }
+
     // Whether a move of the pointer is this page's, the one under it; once it is not, the pointer has left it.
     func hears(_ event: NSEvent) -> Bool {
         guard isUnderPointer(event) else {
@@ -102,6 +113,17 @@ final class WebPageView: WKWebView {
     }
 
     // MARK: - Private
+    // Whether the event under way is a press of the mouse on it.
+    private func isPressed() -> Bool {
+        guard let event = NSApp.currentEvent, event.window === window,
+            [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type)
+        else {
+            return false
+        }
+
+        return isUnderPointer(event)
+    }
+
     // Once a page comes over it, the pointer moves off it, so nothing stays hovered under that page.
     private func leave(_ event: NSEvent) {
         guard !covered else { return }

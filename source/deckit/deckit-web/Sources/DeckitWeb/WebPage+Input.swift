@@ -16,7 +16,7 @@ extension WebPage {
     // the keyboard first.
     func sendKey(_ code: KeyCode, key: String, modifiers: NSEvent.ModifierFlags, through input: InputMonitor) throws {
         let window = try shownWindow()
-        window.makeFirstResponder(view)
+        view.take()
         let characters = Self.characters[key] ?? key
         for type in [NSEvent.EventType.keyDown, .keyUp] {
             guard let event = NSEvent.keyEvent(
@@ -37,8 +37,9 @@ extension WebPage {
         }
     }
 
-    // The mouse's button pressed (`leftMouseDown`), moved held (`leftMouseDragged`) or let go (`leftMouseUp`) at
-    // `point`, from the page's top left, or the mouse moved there (`mouseMoved`), which its window hands on.
+    // The mouse's button pressed (`leftMouseDown`), the page given the keyboard as its window gives it on a press,
+    // moved held (`leftMouseDragged`) or let go (`leftMouseUp`) at `point`, from the page's top left, or the mouse
+    // moved there (`mouseMoved`), which its window hands on.
     func sendMouse(_ type: NSEvent.EventType, at point: CGPoint, through input: InputMonitor) throws {
         let window = try shownWindow()
         guard let event = NSEvent.mouseEvent(
@@ -57,6 +58,7 @@ extension WebPage {
         switch type {
         case .leftMouseDown:
             HeldButton.hold(true)
+            view.take()
             view.mouseDown(with: event)
 
         case .leftMouseDragged:

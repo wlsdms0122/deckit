@@ -11,9 +11,10 @@ import CNodeAPI
 
 // The pages, windows and stages the module made, each by an id of its own, and what JavaScript does to them and to
 // the pages' data stores (Export).
-// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, fullSpeed }, emit) -> id` (WebPage),
-//   `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document does not, as do the
-//   windows it opens, `fullSpeed` running off screen or covered as on it; `load(id, url)`; `go(id, to)`; `focus(id)`;
+// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, fullSpeed, takesKeyboard }, emit) -> id`
+//   (WebPage), `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document does not, as
+//   do the windows it opens, `fullSpeed` running off screen or covered as on it, `takesKeyboard` false having the
+//   keyboard only as it is given it or pressed, as do the windows it opens; `load(id, url)`; `go(id, to)`; `focus(id)`;
 //   `isFocused(id)`; `focusedPage()`, the page with the keyboard, or null; `state(id)`; `droppedFiles(id)`, the paths
 //   of the files dropped on it last; `run(id, [{ source, world, mainFrameOnly }])`; `evaluate(id, source, world) ->
 //   Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
@@ -411,8 +412,9 @@ final class WebEngine {
         let fullSpeed = try node.member(options, "fullSpeed").map { try node.bool($0) } ?? false
         if fullSpeed { Self.runOffScreen(configuration.preferences) }
         let clear = try node.member(options, "clear").map { try node.bool($0) } ?? false
+        let takesKeyboard = try node.member(options, "takesKeyboard").map { try node.bool($0) } ?? true
 
-        return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed).id
+        return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed, takesKeyboard: takesKeyboard).id
     }
 
     // A download a page started, kept by its id until it ends.
@@ -431,7 +433,8 @@ final class WebEngine {
         _ configuration: WKWebViewConfiguration,
         _ emitter: Emitter,
         clear: Bool,
-        fullSpeed: Bool
+        fullSpeed: Bool,
+        takesKeyboard: Bool
     ) -> WebPage {
         lastID += 1
         let page = WebPage(
@@ -441,7 +444,7 @@ final class WebEngine {
             adopt: { [weak self] configuration, emitter in
                 guard let self else { fatalError("a web page outlived the module") }
 
-                return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed)
+                return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed, takesKeyboard: takesKeyboard)
             },
             keep: { [weak self] download, emitter in
                 self?.keep(download, emitter)
@@ -449,6 +452,7 @@ final class WebEngine {
         )
         if clear { Self.drawNoBackground(page.view) }
         if fullSpeed { Self.runWhileCovered(page.view) }
+        page.view.takesKeyboard = takesKeyboard
         pages[page.id] = page
         input.start()
 

@@ -131,7 +131,7 @@ final class WebPage: NSObject {
     }
 
     func focus() {
-        view.window?.makeFirstResponder(view)
+        view.take()
     }
 
     // The scripts every document of the page runs as it starts, in place of those it had.
