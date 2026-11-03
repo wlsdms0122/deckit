@@ -1,24 +1,32 @@
-// Find in the page of the tab in front, in a panel floating at the top right of `area`, over the page. Closing it gives
-// the page the keyboard back.
-function findInPage({ ui, area, frontTab }) {
+// Find in the page of the tab in front, in a bar at the top right of `area`, on a layer over the page and its web
+// pages: it stays while the person uses the page, fading in as it shows and out as it hides. Closing it gives the page
+// the keyboard back.
+function findInPage({ theme, ui, area, frontTab }) {
     let searchedTab = null;
     let state = { query: '', caseSensitive: false };
 
     ui.addStyle(`
         .browser-find {
+            position: fixed;
+            right: 12px;
             display: flex;
             align-items: center;
             gap: 2px;
             padding: 4px;
-            right: 12px;
+            box-sizing: border-box;
             border-radius: var(--deckit-radius-round);
+            border: var(--deckit-border);
+            background: var(--deckit-background);
+            box-shadow: var(--deckit-shadow-raised);
+            color: var(--deckit-text);
             transform-origin: top right;
         }
         .browser-find-field { flex: 0 1 auto; width: 300px; min-width: 0; margin: 0 2px; }
     `);
-    const panel = ui.floatingPanel();
-    const { element } = panel;
-    element.classList.add('browser-find');
+    const element = document.createElement('div');
+    element.className = 'browser-find';
+    let layer = null;
+    let leaving = null; // the exit playing, once it hides
     const field = ui.findBar({
         placeholder: 'Find in page',
         options: ['caseSensitive'],
@@ -41,7 +49,15 @@ function findInPage({ ui, area, frontTab }) {
 
     function show() {
         element.style.top = area.getBoundingClientRect().top + 8 + 'px';
-        panel.focus(field);
+        if (leaving) {
+            leaving.cancel();
+            leaving = null;
+            element.style.pointerEvents = '';
+        } else if (!layer) {
+            layer = ui.layer(element);
+            element.animate(FADE, { duration: theme.motion.fast, easing: theme.motion.easing });
+        }
+        layer.focus(field);
         if (state.query) step(false);
     }
 
@@ -50,9 +66,23 @@ function findInPage({ ui, area, frontTab }) {
         frontTab().page?.focus();
     }
 
+    // Hidden, it takes no presses while it fades.
     function hide({ keepSelection = false } = {}) {
-        if (!panel.isOpen()) return;
-        panel.hide();
+        if (!layer || leaving) return;
+        element.style.pointerEvents = 'none';
+        leaving = element.animate(FADE, {
+            duration: theme.motion.fast,
+            easing: theme.motion.easing,
+            direction: 'reverse',
+            fill: 'forwards',
+        });
+        leaving.onfinish = () => {
+            leaving.cancel();
+            leaving = null;
+            element.style.pointerEvents = '';
+            layer.remove();
+            layer = null;
+        };
         searchedTab?.page.stopFind({ keepSelection });
         searchedTab = null;
         field.setCount(0, 0);
@@ -87,5 +117,10 @@ function findInPage({ ui, area, frontTab }) {
         searchedTab = tab;
     }
 }
+
+const FADE = [
+    { opacity: 0, transform: 'translateY(-6px) scale(.96)' },
+    { opacity: 1, transform: 'none' },
+];
 
 module.exports = { findInPage };

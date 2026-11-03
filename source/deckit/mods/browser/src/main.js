@@ -73,7 +73,7 @@ class Browser {
             onBookmark: () => editor.show(tabs.front()),
             onSubmit: go,
         });
-        const find = findInPage({ ui, area, frontTab: () => tabs.front() });
+        const find = findInPage({ theme, ui, area, frontTab: () => tabs.front() });
         const start = startPage({ ui, onOpen: (bookmark) => go(bookmark.url) });
         const tabs = tabList({
             web: shell.web,

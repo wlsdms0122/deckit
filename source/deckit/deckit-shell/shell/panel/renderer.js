@@ -1,5 +1,6 @@
 import * as SCROLL from '../ui/scroll/index.js';
 import * as KIT from '../ui/kit/index.js';
+import * as LAYER from '../ui/layer/index.js';
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 
@@ -39,9 +40,9 @@ function createPanel({ channels }) {
     // MARK: - Public
     // One mod's view, in its own page, laid out where the panel's guide says: the content in its room and the sidebar,
     // if the view has one, in the slot the panel lends it. `tell` calls a part of the view (didAppear, didDisappear);
-    // `layers` is what floats in the page. Answers `{ unmount, remove }`: on unmount a view on screen disappears and
-    // what main tells of it is heard no more; on remove it is taken off the page.
-    function mount({ theme, view, tell: told, layers }) {
+    // `presented` is what is presented over the page. Answers `{ unmount, remove }`: on unmount a view on screen
+    // disappears and what main tells of it is heard no more; on remove it is taken off the page.
+    function mount({ theme, view, tell: told, presented }) {
         KIT.addStyle(STYLE);
         const setup = PROTOCOL.setup.invoke();
         const { motion: MOTION } = theme;
@@ -70,21 +71,18 @@ function createPanel({ channels }) {
         lay();
         appear();
 
-        // Main took this Escape, so the field never saw it: it is played again as a keydown. A field that handles
-        // it keeps the caret; one that does not is left, as a browser would, so the next Escape reaches the page.
+        // Main took this Escape, so what is presented on top, or the field with the keyboard, in the page or a layer
+        // over it, never saw it: it is played again as a keydown. A field that handles it keeps the caret; one that
+        // does not is left, as a browser would, so the next Escape reaches the page.
         PROTOCOL.escape.handle(() => {
             if (!mounted) return false;
-            const top = layers.top();
-            if (top) {
-                top.dismiss();
-                return true;
-            }
-            const field = document.activeElement;
+            if (presented.escape()) return true;
+            const field = LAYER.focused() || document.activeElement;
             if (!isField(field)) return false;
             const handled = !field.dispatchEvent(
                 new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
             );
-            if (!handled && document.activeElement === field) field.blur();
+            if (!handled && field.ownerDocument.activeElement === field) field.blur();
             return true;
         });
         PROTOCOL.guide.on((next) => {

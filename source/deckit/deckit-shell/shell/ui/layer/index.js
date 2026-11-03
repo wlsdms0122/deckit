@@ -1,66 +1,23 @@
-import * as TOKEN from '../token/index.js';
 import * as SHEET from '../sheet/index.js';
 
 // MARK: - Property
-// A float (a toolbar, an autocomplete, a floating panel) is above the page's own fixed things, placed by its caller
-// and answering nothing: in the page, or a floating panel in the overlay. In the overlay a layer is above the floats
-// and the layers under it, by its place in the stack, and what a drag carries is above them all.
-const Z = Object.freeze({ float: 1150, layer: 1200, drag: 2147483646 });
-// How far inside the window a placed box stays.
-const MARGIN = 8;
-// How far a submenu overlaps the menu it opens from.
-const OVERLAP = 6;
-const STYLE = `
-    .deckit-surface {
-        position: fixed;
-        transition: opacity var(--deckit-fast) var(--deckit-easing), transform var(--deckit-base) var(--deckit-easing);
-    }
-    .deckit-surface[data-side='bottom'] { transform-origin: top left; }
-    .deckit-surface[data-side='top'] { transform-origin: bottom left; }
-    .deckit-surface[data-side='right'] { transform-origin: top left; }
-    .deckit-surface[data-side='left'] { transform-origin: top right; }
-    .deckit-surface[data-state='closed'] { opacity: 0; pointer-events: none; }
-    .deckit-surface[data-state='closed'][data-side='bottom'] { transform: translateY(-6px) scale(.96); }
-    .deckit-surface[data-state='closed'][data-side='top'] { transform: translateY(6px) scale(.96); }
-    .deckit-surface[data-state='closed'][data-side='right'] { transform: translateX(-6px) scale(.96); }
-    .deckit-surface[data-state='closed'][data-side='left'] { transform: translateX(6px) scale(.96); }
-`;
-// What floats and is dismissed, bottom first.
-const stack = [];
-const layers = Object.freeze({
-    top: () => stack.at(-1) || null,
-    count: () => stack.length,
-});
-// The page's overlay: `{ window, document, tell({ shows, layered, focused, regions }), take() }`, a document beside the
-// page's own, laid over the page while it shows anything, where what floats is drawn. Elements made in the page are
-// drawn there as they are, with the page's rules copied in.
+// The page's overlay: `{ window, document, tell({ shows, focused, regions }), take() }`, a document beside the page's
+// own, laid over the page while it draws anything. Its layers are the elements in its body, each over the page and the
+// layers before it. Elements made in the page are drawn there as they are, with the page's rules copied in.
 let overlay = null;
 let style = null; // what wears the copies in the overlay
 let told = '';
+const awaited = new WeakSet(); // the animations in the overlay whose end is told
 
 // MARK: - Initializer
 // MARK: - Public
-// Presses and keys are heard in the page and in its overlay. On pointerdown, so a control that cancels the mouse
-// events after it (a resize handle) still dismisses what is open. Keys are the top layer's first, in the capture
-// phase, before the page sees them. The keyboard moving between the page and its overlay is no blur.
+// Where the overlay draws and what holds the focus in it are told again as they change, where it draws once what moves
+// in it stops, however it moves, and after a press, once the focus moved, so main hears where the keyboard belongs.
 function start(given) {
     overlay = given;
     style = overlay.document.createElement('style');
     overlay.document.head.replaceChildren(style);
     overlay.document.body.replaceChildren();
-    for (const each of [window, overlay.window]) {
-        each.addEventListener('pointerdown', dismissOutside, true);
-        each.addEventListener('keydown', route, true);
-        each.addEventListener('blur', () => requestAnimationFrame(() => setTimeout(dismissUnfocused)));
-    }
-    window.addEventListener('scroll', dismissScrolledAway, true);
-    overlay.window.addEventListener('wheel', dismissWheeledOutside, true);
-    window.addEventListener('resize', () => {
-        dismissTransient();
-        placeAgain();
-    });
-    // Where it draws and what holds the focus are told again as they change, where it draws once what moves in it
-    // stops, and after a press, once the focus moved, so main hears where the keyboard belongs.
     const resized = new ResizeObserver(() => report());
     new MutationObserver(() => {
         resized.disconnect();
@@ -73,10 +30,28 @@ function start(given) {
         attributeFilter: ['style', 'class', 'data-state', 'hidden'],
     });
     overlay.window.addEventListener('resize', () => report());
-    overlay.document.addEventListener('transitionend', () => report());
     for (const type of ['focusin', 'focusout']) overlay.document.addEventListener(type, () => setTimeout(report));
     for (const type of ['focus', 'blur']) overlay.window.addEventListener(type, () => setTimeout(report));
     overlay.window.addEventListener('pointerdown', () => setTimeout(() => report({ again: true })), true);
+}
+
+// Adds `element` to the page's overlay, over the page and every layer added before it, and answers the layer:
+// `{ element, focus(target), remove() }`. The overlay takes presses where a layer draws what takes them, and has the
+// keyboard while an element in a layer holds the focus, once the person presses there or `focus(target)` gives it:
+// `target`, `element` unless given, an element or a control with `focus()`, takes the focus and the keyboard the page
+// has. A layer takes presses where it lies over a part of the page that drags the window too.
+function add(element) {
+    if (!overlay.document.body.childElementCount) dress();
+    element.style.setProperty('--app-region', 'no-drag');
+    overlay.document.body.append(element);
+    return Object.freeze({
+        element,
+        focus: (target = element) => {
+            target.focus();
+            take();
+        },
+        remove: () => element.remove(),
+    });
 }
 
 // The keyboard the page has goes to the overlay, for what holds the focus in it now.
@@ -85,13 +60,14 @@ function take() {
     overlay.take();
 }
 
-// What floats over the page goes into its overlay, which wears the page's rules first.
-function append(element) {
-    if (!overlay.document.body.childElementCount) dress();
-    overlay.document.body.append(element);
+// The element in a layer that has the keyboard, or null.
+function focused() {
+    const { document } = overlay;
+    const active = document.activeElement;
+    return document.hasFocus() && active && active !== document.body && document.body.contains(active) ? active : null;
 }
 
-// The page and its overlay, where what floats hears the pointer and the keys.
+// The page and its overlay, where the pointer and the keys are heard.
 function windows() {
     return [window, overlay.window];
 }
@@ -104,194 +80,32 @@ function dress() {
     overlay.document.documentElement.style.colorScheme = document.documentElement.style.colorScheme;
 }
 
-// Opens a layer: `element` (optional) goes in the page's overlay, placed by `anchor`, `rect`, `point` or `beside`.
-// - A press outside the layer and what it hangs from dismisses it, then the next layer, until one holds the
-//   press. A `modal` layer holds every press.
-// - A key goes to `onKey` first; one it does not take (it returns falsy) that is Escape dismisses the layer.
-// - A `transient` layer is also dismissed by a scroll outside it, a resize and the keyboard leaving the page and its
-//   overlay. One that stays through a resize is placed again, against what it hangs from where that is now.
-// - Dismissing calls `onDismiss`; `close()` plays the exit, `fast` or `base` long by `speed`, or none for null, and
-//   takes the element away.
-function open({
-    element = null,
-    anchor = null,
-    rect = null,
-    point = null,
-    beside = null,
-    gap = 4,
-    modal = false,
-    transient = false,
-    contains = () => false,
-    speed = 'fast',
-    onKey = () => false,
-    onDismiss,
-}) {
-    const layer = {
-        element,
-        z: Z.layer + stack.length,
-        modal,
-        transient,
-        isTop: () => stack.at(-1) === layer,
-        holds: (target) =>
-            !!element?.contains(target) || !!anchor?.contains(target) || !!beside?.contains(target) || contains(target),
-        onKey,
-        dismiss: () => onDismiss(),
-        place: () => (anchor || rect || point || beside) && place(element, { anchor, rect, point, beside, gap }),
-        close: () => close(layer, speed),
-    };
-    stack.push(layer);
-    if (element) show(element, layer);
-    report();
-    return layer;
-}
-
-// Places a fixed box against a target, kept MARGIN inside the window, and returns the side it went to.
-// - `anchor` (an element) or `rect`: below it, or above when only that fits. `align` is `start` or `center`.
-// - `point`: at it, or above it.
-// - `beside` (a row of a menu): right of the menu, overlapping it, or left of it when only that fits.
-// `prefer` puts a box above its target first. A placed box takes presses where it lies, over a part of the
-// page that drags the window too.
-function place(
-    element,
-    { anchor = null, rect = null, point = null, beside = null, gap = 4, align = 'start', prefer = 'bottom' }
-) {
-    element.style.setProperty('--app-region', 'no-drag');
-    const width = element.offsetWidth;
-    const height = element.offsetHeight;
-    let x;
-    let y;
-    let side;
-    if (beside) {
-        const row = beside.getBoundingClientRect();
-        const menu = beside.parentElement.getBoundingClientRect();
-        side = menu.right - OVERLAP + width > window.innerWidth - MARGIN ? 'left' : 'right';
-        x = side === 'right' ? menu.right - OVERLAP : menu.left + OVERLAP - width;
-        y = row.top - 4;
-    } else if (anchor || rect) {
-        const box = rect || anchor.getBoundingClientRect();
-        const below = box.bottom + gap;
-        const above = box.top - gap - height;
-        const fitsBelow = below + height <= window.innerHeight - MARGIN;
-        const fitsAbove = above >= MARGIN;
-        side =
-            prefer === 'top'
-                ? fitsAbove || !fitsBelow
-                    ? 'top'
-                    : 'bottom'
-                : fitsBelow || !fitsAbove
-                  ? 'bottom'
-                  : 'top';
-        x = align === 'center' ? (box.left + box.right) / 2 - width / 2 : box.left;
-        y = side === 'bottom' ? below : above;
-    } else {
-        side = point.y + height > window.innerHeight - MARGIN ? 'top' : 'bottom';
-        x = point.x;
-        y = side === 'bottom' ? point.y : point.y - height;
-    }
-    element.style.left = clamp(x, MARGIN, window.innerWidth - width - MARGIN) + 'px';
-    element.style.top = clamp(y, MARGIN, window.innerHeight - height - MARGIN) + 'px';
-    element.dataset.side = side;
-    return side;
-}
-
-// MARK: - Private
-// The box arrives from its closed state: laid out closed first, or both states land in one style pass. What
-// floats takes presses where it lies, a part of the page that drags the window included.
-function show(element, layer) {
-    element.classList.add('deckit-surface');
-    element.dataset.state = 'closed';
-    element.style.zIndex = String(layer.z);
-    element.style.setProperty('--app-region', 'no-drag');
-    append(element);
-    layer.place();
-    void element.offsetHeight;
-    element.dataset.state = 'open';
-}
-
-function close(layer, speed) {
-    const index = stack.indexOf(layer);
-    if (index < 0) return;
-    stack.splice(index, 1);
-    report();
-    const { element } = layer;
-    if (!element) return;
-    element.dataset.state = 'closed';
-    const length = TOKEN.MOTION[speed];
-    if (length) setTimeout(() => element.dataset.state === 'closed' && element.remove(), length);
-    else element.remove();
-}
-
-function dismissOutside(event) {
-    for (const layer of [...stack].reverse()) {
-        if (layer.modal || layer.holds(event.target)) return;
-        layer.dismiss();
-    }
-}
-
-function route(event) {
-    const top = stack.at(-1);
-    if (!top) return;
-    if (top.onKey(event)) {
-        event.preventDefault();
-        event.stopPropagation();
-    } else if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        top.dismiss();
-    }
-}
-
-// A box placed against something that scrolled away points at nothing.
-function dismissScrolledAway(event) {
-    for (const layer of [...stack].reverse()) {
-        if (layer.transient && !layer.element?.contains(event.target)) layer.dismiss();
-    }
-}
-
-// The wheel turned over the overlay outside what floats would scroll the page under it.
-function dismissWheeledOutside(event) {
-    if (!stack.some((layer) => layer.element?.contains(event.target))) dismissTransient();
-}
-
-function placeAgain() {
-    for (const layer of stack) if (layer.element) layer.place();
-}
-
-function dismissTransient() {
-    for (const layer of [...stack].reverse()) if (layer.transient) layer.dismiss();
-}
-
-// Once neither the page nor its overlay has the keyboard: it went to another page or another app.
-function dismissUnfocused() {
-    if (!document.hasFocus() && !overlay.document.hasFocus()) dismissTransient();
-}
-
 // Whether the overlay draws anything, so it is laid over the page.
 function draws() {
     return overlay.document.body.childElementCount > 0;
 }
 
-// Told when it changed, or `again`: whether the overlay draws anything, whether a layer is open, whether an element
-// drawn in it has the keyboard, and where it draws while no layer is, which then covers it all, what is on its way out
-// left out.
+// MARK: - Private
+// Told when it changed, or `again`: whether the overlay draws anything, whether an element in it has the keyboard, and
+// where it draws what takes presses.
 function report({ again = false } = {}) {
-    const layered = stack.length > 0;
-    const drawn = layered
-        ? []
-        : [...overlay.document.body.children].filter((child) => child.dataset.state !== 'closed');
-    const active = overlay.document.activeElement;
+    for (const animation of overlay.document.getAnimations()) {
+        if (awaited.has(animation)) continue;
+        awaited.add(animation);
+        animation.finished.then(
+            () => report(),
+            () => report()
+        );
+    }
     const state = {
         shows: draws(),
-        layered,
-        focused:
-            overlay.document.hasFocus() &&
-            !!active &&
-            active !== overlay.document.body &&
-            overlay.document.body.contains(active),
-        regions: drawn.map((child) => {
-            const { x, y, width, height } = child.getBoundingClientRect();
-            return { x, y, width, height };
-        }),
+        focused: !!focused(),
+        regions: [...overlay.document.body.children]
+            .filter((child) => overlay.window.getComputedStyle(child).pointerEvents !== 'none')
+            .map((child) => {
+                const { x, y, width, height } = child.getBoundingClientRect();
+                return { x, y, width, height };
+            }),
     };
     const written = JSON.stringify(state);
     if (written === told && !again) return;
@@ -299,8 +113,4 @@ function report({ again = false } = {}) {
     overlay.tell(state);
 }
 
-function clamp(value, low, high) {
-    return Math.max(low, Math.min(value, high));
-}
-
-export { Z, STYLE, start, append, take, dress, windows, draws, open, place, layers };
+export { start, add, take, focused, windows, dress, draws };

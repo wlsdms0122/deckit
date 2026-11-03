@@ -1,5 +1,6 @@
 import * as ICON from '../icon/index.js';
-import * as LAYER from '../layer/index.js';
+import * as PLACE from '../place/index.js';
+import * as PRESENTATION from '../presentation/index.js';
 import * as LISTBOX from '../list/listbox.js';
 
 // MARK: - Property
@@ -205,14 +206,14 @@ function contextMenu(area, { rowAt, items, keyRow = () => rowAt(document.activeE
 // A press on it never takes the focus from the text it acts on.
 function floatingToolbar() {
     const element = tag('div', 'deckit-menu deckit-toolbar');
-    element.style.zIndex = String(LAYER.Z.float);
+    element.style.zIndex = String(PLACE.Z.float);
     element.addEventListener('mousedown', (event) => event.preventDefault());
     document.body.append(element);
     return {
         element,
         show: (rect) => {
             element.style.display = 'flex';
-            LAYER.place(element, { rect, gap: 8, align: 'center', prefer: 'top' });
+            PLACE.place(element, { rect, gap: 8, align: 'center', prefer: 'top' });
         },
         hide: () => (element.style.display = 'none'),
     };
@@ -222,12 +223,12 @@ function floatingToolbar() {
 // while open: left in it, it would keep alive whatever its rows hold.
 function autocomplete({ onPick }) {
     const box = tag('div', 'deckit-menu');
-    Object.assign(box.style, { minWidth: '220px', zIndex: String(LAYER.Z.float) });
+    Object.assign(box.style, { minWidth: '220px', zIndex: String(PLACE.Z.float) });
     box.addEventListener('mousedown', (event) => event.preventDefault());
     let items = [];
     let open = false;
     const list = LISTBOX.listbox(box, { onPick: (index) => pick(index) });
-    const place = (rect) => open && rect && LAYER.place(box, { rect, gap: 6 });
+    const place = (rect) => open && rect && PLACE.place(box, { rect, gap: 6 });
     const close = () => {
         open = false;
         items = [];
@@ -312,7 +313,7 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
         open = false;
         closeSubmenu();
         stopFaces();
-        layer.close();
+        presented.close();
         onClose?.();
     };
     const take = (index, keyboard) => {
@@ -342,7 +343,7 @@ function popMenu({ items, anchor = null, point = null, beside = null, active = -
         else return false;
         return true;
     };
-    const layer = LAYER.open({
+    const presented = PRESENTATION.present({
         element: box,
         anchor,
         point,

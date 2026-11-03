@@ -1,4 +1,4 @@
-import * as LAYER from '../layer/index.js';
+import * as PRESENTATION from '../presentation/index.js';
 
 // MARK: - Property
 const STYLE = `
@@ -29,18 +29,18 @@ function popover({ width = '', onClose } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-popover';
     if (width) element.style.maxWidth = width;
-    let layer = null;
+    let presented = null;
     const close = () => {
-        if (!layer) return;
-        layer.close();
-        layer = null;
+        if (!presented) return;
+        presented.close();
+        presented = null;
         onClose?.();
     };
     const show = (anchor) => {
-        layer?.close();
-        layer = LAYER.open({ element, anchor, gap: 6, onDismiss: close });
+        presented?.close();
+        presented = PRESENTATION.present({ element, anchor, gap: 6, onDismiss: close });
     };
-    return { element, show, close, isOpen: () => !!layer };
+    return { element, show, close, isOpen: () => !!presented };
 }
 
 export { STYLE, make };

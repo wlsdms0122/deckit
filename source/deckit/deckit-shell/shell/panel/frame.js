@@ -2,6 +2,7 @@ import * as KIT from '../ui/kit/index.js';
 import * as FONTS from '../fonts/renderer.js';
 import * as SHEET from '../ui/sheet/index.js';
 import * as GESTURE from '../ui/gesture/index.js';
+import * as PRESENTATION from '../ui/presentation/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
 import * as WIDTH from './model/width.js';
@@ -164,6 +165,8 @@ function boot(theme, channels) {
     );
     PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut(() => {}) : fadeIn()));
     PROTOCOL.leave.handle(() => new Promise((resolve) => fadeOut(resolve)));
+    // Main took this Escape: what is presented on top hears it, or the panel goes.
+    PROTOCOL.escape.handle(() => PRESENTATION.escape());
 
     function showDown() {
         down.hidden = !state.down;
