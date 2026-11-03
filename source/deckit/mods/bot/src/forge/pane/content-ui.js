@@ -19,7 +19,7 @@ const installContent = (ui) => {
     .bot-content section > .bot-section-button { align-self: flex-start; }
     .bot-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .bot-values { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(0, 3fr); gap: 10px 16px; margin: 0; font: 12px var(--deckit-font); }
-    .bot-values dt { color: var(--deckit-muted); } .bot-values dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+    .bot-values dt { color: var(--deckit-muted); } .bot-values dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
     .bot-feedback:empty { display: none; } .bot-feedback { padding: 10px 12px; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px var(--deckit-font); }
     .bot-field-error { color: var(--deckit-alert); font: 12px var(--deckit-font); } .bot-field-error:empty { display: none; }
     .bot-content [aria-invalid='true'] { outline: 1px solid var(--deckit-alert); outline-offset: 2px; }
