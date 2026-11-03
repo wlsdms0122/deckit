@@ -78,12 +78,12 @@ Every list answers the same keys and presses. `ui.tree` gives most of them; give
 - **Context menu:** the row's actions and the keys that act on it, in the order open, make, change, remove.
 - **Drag:** a row is dragged to reorder it or move it into a folder. A folder's row shows `--deckit-target` while it would take the drop.
 
-## What floats
+## What is presented
 
 - `ui.menu` for a choice of actions, `ui.popover` for a small view or form about one thing opened from it (an event's details from its block), `ui.modal` for a form that is a task of its own (adding an account), `ui.quickPick` for finding one of many by typing.
-- Nothing of a view is drawn over a web page it shows: what floats is drawn over it, and a panel about the page that stays while the person uses the page (the Browser's find) is a floating panel.
+- Nothing of a view's page is drawn over a web page it shows: what is drawn over it goes on a layer (`ui.layer`), as the Browser's find bar does, and what is presented is on one already.
 - Ask before what is hard to undo: a folder going to the Trash with more in it, what is deleted for good. Closing a tab or leaving a form does not ask.
-- A float opens from a press or a key, never on its own.
+- What is presented opens from a press or a key, never on its own.
 
 ## The switcher
 

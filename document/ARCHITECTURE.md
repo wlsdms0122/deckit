@@ -51,7 +51,7 @@ A new mod needs no change to deck. A new place to show the panel in needs no cha
 | a mod's sandbox | where one mod's entry runs, headless or not: a page of WebKit's of its own at `deckit://<id>.mod/`, its code run in WebKit's own processes; with deckit's shell on deckit, a mod with a view lays it there where the panel's frame leaves it room, or in a region where it is another's child |
 | a web page a mod shows | the Mac's WebKit, as Safari has it: a view in main's process, laid just over the mod's page where the page's element is and cut to the page, over what the page draws and under the page's overlay, its site run in WebKit's own processes, and its session a data store of WebKit's of its own |
 | a page that runs no mod | made for the shell, at `deckit://<name>/`: the panel's frame, at `deckit://panel/`, with the two documents it opens and draws in, its backdrop under the mods and its width's handle over them |
-| a page's overlay | a document each page the shell draws in opens beside itself, `about:blank` named `deckit-overlay`, where the kit draws what floats over the page; laid at the page's rect over all that is laid with it while it shows anything, taking the pointer where it draws, and all of it while a layer is open in it |
+| a page's overlay | a document each page the shell draws in opens beside itself, `about:blank` named `deckit-overlay`, where the kit draws the page's layers; laid at the page's rect over all that is laid with it while it shows anything, taking the pointer where it draws what takes it |
 
 A mod's sandbox is a page and deck is in main. Each mod's sandbox has its own origin, its own sessions and its own storage, so one mod cannot reach another's page, data, cookies or what it was allowed; a mod with `deckit.styles` styles another's page, and that is all. Main knows which mod is asking by the page that asks (`deckit-shell/deck/identity`): no page says who it is. A mod's page is held to its origin; a link out of it is offered to its scheme's handlers.
 
@@ -97,7 +97,7 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | which mod's view is whose child, which child a region shows, and where it lies | `deckit-shell/shell/region/main.js` |
 | the files last dropped on a page from outside the app | WebKit's module, `deckit-web` (`WebPageView`), as macOS hands the drop; a mod's page asks main for its own, `deckit-shell/shell/drop/main.js` |
 | where each page is laid in the panel, the order the person arranged its list in, and the children they pinned to it | `deckit-shell/shell/panel/main.js`, the order and the pins in `state/host/`; the views laid to match, `deckit-electron/stage` |
-| whether a page's overlay shows anything, where, and has a layer open or an element holding the focus, and who has the keyboard while it does | `deckit-shell/shell/overlay/main.js`, as the page's kit tells it |
+| whether a page's overlay shows anything, where it takes the pointer, and whether an element in it holds the focus, and who has the keyboard while it does | `deckit-shell/shell/overlay/main.js`, as the page's kit tells it |
 | where the frame's parts are: the card, the slot it lends the mod's sidebar, the content's room and the handle | `deckit-shell/shell/panel/main.js`, from the panel's size and the sidebar (`model/layout.js`), as the window resizes; the frame's page draws them where main says and tells main where the slot starts under its list |
 | what the switcher lists, and what was picked before | the Switcher mod, `mods/switcher`, from what the mods connected to its exports hand `setActions` and the shell's `show` command; what was picked before is in its records (`use`) |
 | which styles each page wears, in what order | `deckit-shell/shell/style/main.js` |
@@ -187,7 +187,7 @@ The kit is the shell's, and the one way things look and behave in every page it 
 
 - One token, derived from the host app's theme and the person's fonts: colours, type, radius, shadow, motion, and a code palette. The kit's stylesheet and every mod read it.
 - One stylesheet: hover, press, focus and selection are the platform's states, drawn by rules.
-- One overlay: what floats (a menu, a popover, a modal, a drag) is one stack that owns its order, the press outside, Escape and placement, drawn in the page's overlay, over everything laid with the page; a floating panel there stays under the stack, taking presses where it lies.
+- One overlay: a page's layers are drawn in it, over everything laid with the page, each over those added before it, taking presses where they draw. What is presented on them (a menu, a popover, a modal, a drag) is one stack that owns the press outside, Escape and placement.
 - One list: rows drawn by key, so what the pointer rests on and what has the focus stay put; one listbox for a list with a cursor, and one tree for the keys of a list or a tree whose items the person selects.
 - One shape for each kind of part: a maker takes one options object and returns `{ element, ...its controls }`, a decorator takes an element and returns its dispose, and a control draws the value it is set to and reports what was asked.
 
