@@ -19,9 +19,8 @@ const OUT = path.join(root, '.build', 'test');
 const LIMIT = 300000;
 
 const args = process.argv.slice(2);
-const at = args.indexOf('--port');
-const port = at < 0 ? 9334 : Number(args[at + 1]);
-if (!Number.isInteger(port) || port <= 0) {
+const port = args.length ? Number(args[1]) : 9334;
+if ((args.length && (args.length !== 2 || args[0] !== '--port')) || !Number.isInteger(port) || port <= 0) {
     console.error("usage: deckit test [--port <the main process's inspector port, default 9334>]");
     process.exit(2);
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+[ $# -eq 0 ] || { echo "usage: deckit build (it takes no arguments)" >&2; exit 2; }
 cd "$(dirname "$0")/../../.."
 
 source/cli/command/check || { echo "the files do not hold to their modules: stopping" >&2; exit 1; }
