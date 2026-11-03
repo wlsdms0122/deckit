@@ -5,29 +5,36 @@ import * as SURFACE from './model/surface.js';
 // The overlay over each page the shell draws in, a mod's or its own: a document the page opens beside itself, where
 // the kit draws what floats over the page, so it is over everything laid with the page, web pages too. It is the
 // page's: whatever lays the page lays its overlay at the same rect, over all it lays, while the overlay shows anything
-// (`withOverlays`), and what asks whose a page is asks `ownerOf`. The overlay has the keyboard only while it shows a
-// layer: the keyboard the page has, or is given, is the overlay's then, and the page's again once it is not. Its keys
-// reach the key map as those of a page that is no mod's: a key of the page's own does not run behind a layer.
-// `deckit` is what connect answered, and `PAGES` the shell's pages.
+// (`withOverlays`), and what asks whose a page is asks `ownerOf`. It takes the pointer where it draws, and all of it
+// over the page while it shows a layer. It has the keyboard while it shows a layer, the keyboard the page has or is
+// given being the overlay's then, and while an element drawn in it holds the focus, once the person presses there or
+// it asks for the keyboard the page has; the page has it again once neither is so. Its keys reach the key map as the
+// page's, and as those of a page that is no mod's while a layer is open: a key of the page's own does not run behind
+// a layer. `deckit` is what connect answered, and `PAGES` the shell's pages.
 export function createOverlay({ deckit, PAGES }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    const overlays = new Map(); // a page -> { surface, shows, layered }, once the page asked for its overlay
+    const overlays = new Map(); // a page -> { surface, shows, layered, focused, regions }, once the page asked for it
     const listeners = new Set();
+    const NOTHING = Object.freeze({ shows: false, layered: false, focused: false, regions: [] });
 
     // MARK: - Initializer
     // MARK: - Public
     function start() {
         PROTOCOL.open.handle((_payload, sender) => open(sender));
         PROTOCOL.state.on((state, sender) => setState(sender, state));
+        PROTOCOL.take.on((_payload, sender) => take(sender));
     }
 
-    // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect.
+    // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect,
+    // taking the pointer where it draws, or over all of it while it shows a layer.
     function withOverlays(laid) {
-        const over = laid
-            .filter(({ rect }) => rect)
-            .map(({ page, rect }) => ({ page: shownOver(page), rect }))
-            .filter(({ page }) => page);
+        const over = laid.flatMap(({ page, rect }) => {
+            const surface = rect && shownOver(page);
+            if (!surface) return [];
+            const held = overlays.get(page);
+            return [holdsLayer(held) ? { page: surface, rect } : { page: surface, rect, input: held.regions }];
+        });
         return [...laid, ...over];
     }
 
@@ -47,7 +54,7 @@ export function createOverlay({ deckit, PAGES }) {
         return page;
     }
 
-    // `listener(page)` hears whether `page`'s overlay shows change: answers its off.
+    // `listener(page)` hears `page`'s overlay change how it is laid: answers its off.
     function onChange(listener) {
         listeners.add(listener);
         return () => listeners.delete(listener);
@@ -61,20 +68,19 @@ export function createOverlay({ deckit, PAGES }) {
             throw new Error('[deckit] an overlay is for a page the shell draws in');
         let held = overlays.get(page);
         if (!held) {
-            held = { surface: null, shows: false, layered: false };
+            held = { surface: null, ...NOTHING };
             overlays.set(page, held);
             PAGES.whenFocused(page, () => overlays.get(page) === held && holdsLayer(held) && focusOverlay(held));
         }
-        setState(page, { shows: false, layered: false });
+        setState(page, NOTHING);
         PAGES.allowSurface(page, SURFACE.NAME, (surface) => {
             if (overlays.get(page) !== held) return PAGES.close(surface);
             held.surface = surface;
-            deckit.keymap.listen(surface);
-            PAGES.whenFocused(surface, () => overlays.get(page) === held && giveBack(page, held));
+            deckit.keymap.listen(surface, { belongsTo: () => (holdsLayer(held) ? null : page) });
         });
         deckit.pages.whenEnds(page, ({ replaced }) => {
             if (overlays.get(page) !== held) return;
-            setState(page, { shows: false, layered: false });
+            setState(page, NOTHING);
             if (replaced) return;
             overlays.delete(page);
             if (held.surface) PAGES.close(held.surface);
@@ -82,15 +88,22 @@ export function createOverlay({ deckit, PAGES }) {
         return SURFACE.NAME;
     }
 
-    function setState(page, { shows, layered: on }) {
+    function setState(page, { shows, layered: on, focused, regions }) {
         const held = overlays.get(page);
         if (!held) return;
         const was = { ...held };
-        held.shows = shows;
-        held.layered = on;
-        if (was.shows !== shows) tell(page);
+        Object.assign(held, { shows, layered: on, focused, regions: regions.flatMap(rectOf) });
+        if (was.shows !== shows || was.layered !== on || JSON.stringify(was.regions) !== JSON.stringify(held.regions))
+            tell(page);
         if (holdsLayer(held) && !holdsLayer(was) && deckit.web.holdsKeyboard(page)) focusOverlay(held);
         giveBack(page, held);
+    }
+
+    // The keyboard the page has, or a web page in it, goes to its overlay, for an element drawn there that holds it.
+    function take(surface) {
+        const page = ownerOf(surface);
+        const held = overlays.get(page);
+        if (held?.surface === surface && mayHold(held) && deckit.web.holdsKeyboard(page)) focusOverlay(held);
     }
 
     // The overlay to lay over `page`, while it shows anything, or null.
@@ -104,9 +117,15 @@ export function createOverlay({ deckit, PAGES }) {
         return shows && on;
     }
 
-    // An overlay with the keyboard and no layer, as one pressed while a layer fades out, gives it to its page.
+    // Whether the overlay may keep the keyboard: it shows a layer, or an element drawn in it holds the focus.
+    function mayHold({ shows, layered: on, focused }) {
+        return shows && (on || focused);
+    }
+
+    // An overlay with the keyboard it may not keep, as one pressed where nothing takes the focus, gives it to its page:
+    // the overlay tells what it holds after each press.
     function giveBack(page, held) {
-        if (!holdsLayer(held) && overlayHoldsKeyboard(held)) PAGES.focus(page);
+        if (!mayHold(held) && overlayHoldsKeyboard(held)) PAGES.focus(page);
     }
 
     function overlayHoldsKeyboard(held) {
@@ -115,6 +134,12 @@ export function createOverlay({ deckit, PAGES }) {
 
     function focusOverlay(held) {
         if (held.surface && PAGES.isAlive(held.surface)) PAGES.focus(held.surface);
+    }
+
+    // A rect a page told, as numbers, or none.
+    function rectOf(rect) {
+        const { x, y, width, height } = rect || {};
+        return [x, y, width, height].every(Number.isFinite) ? [{ x, y, width, height }] : [];
     }
 
     function tell(page) {

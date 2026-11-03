@@ -1,9 +1,9 @@
 import * as TOKEN from '../token/index.js';
 
 // MARK: - Property
-// A float (a toolbar, an autocomplete) is in the page, above its own fixed things, placed by its caller and answering
-// nothing. In the overlay a layer is above the layers under it, by its place in the stack, and what a drag carries is
-// above them all.
+// A float (a toolbar, an autocomplete, a floating panel) is above the page's own fixed things, placed by its caller
+// and answering nothing: in the page, or a floating panel in the overlay. In the overlay a layer is above the floats
+// and the layers under it, by its place in the stack, and what a drag carries is above them all.
 const Z = Object.freeze({ float: 1150, layer: 1200, drag: 2147483646 });
 // How far inside the window a placed box stays.
 const MARGIN = 8;
@@ -30,9 +30,9 @@ const layers = Object.freeze({
     top: () => stack.at(-1) || null,
     count: () => stack.length,
 });
-// The page's overlay: `{ window, document, tell({ shows, layered }) }`, a document beside the page's own, laid over the
-// page while it shows anything, where what floats is drawn. Elements made in the page are drawn there as they are,
-// with the page's rules copied in.
+// The page's overlay: `{ window, document, tell({ shows, layered, focused, regions }), take() }`, a document beside the
+// page's own, laid over the page while it shows anything, where what floats is drawn. Elements made in the page are
+// drawn there as they are, with the page's rules copied in.
 let overlay = null;
 const copies = new WeakMap(); // a sheet of the page -> { count, text }, its rules as last copied
 let style = null; // what wears the copies in the overlay
@@ -59,7 +59,29 @@ function start(given) {
         dismissTransient();
         placeAgain();
     });
-    new MutationObserver(report).observe(overlay.document.body, { childList: true });
+    // Where it draws and what holds the focus are told again as they change, and after a press, once the focus moved,
+    // so main hears where the keyboard belongs.
+    const resized = new ResizeObserver(() => report());
+    new MutationObserver(() => {
+        resized.disconnect();
+        for (const child of overlay.document.body.children) resized.observe(child);
+        report();
+    }).observe(overlay.document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'data-state', 'hidden'],
+    });
+    overlay.window.addEventListener('resize', () => report());
+    overlay.document.addEventListener('focusin', () => setTimeout(report));
+    overlay.document.addEventListener('focusout', () => setTimeout(report));
+    overlay.window.addEventListener('pointerdown', () => setTimeout(() => report({ again: true })), true);
+}
+
+// The keyboard the page has goes to the overlay, for what holds the focus in it now.
+function take() {
+    report();
+    overlay.take();
 }
 
 // What floats over the page goes into its overlay, which wears the page's rules first.
@@ -249,11 +271,26 @@ function draws() {
     return overlay.document.body.childElementCount > 0;
 }
 
-// Told only when it changed: whether the overlay draws anything, and whether a layer is open.
-function report() {
-    const state = { shows: draws(), layered: stack.length > 0 };
+// Told when it changed, or `again`: whether the overlay draws anything, whether a layer is open, whether an element
+// drawn in it holds the focus, and where it draws while no layer is, which then covers it all, what is on its way out
+// left out.
+function report({ again = false } = {}) {
+    const layered = stack.length > 0;
+    const drawn = layered
+        ? []
+        : [...overlay.document.body.children].filter((child) => child.dataset.state !== 'closed');
+    const active = overlay.document.activeElement;
+    const state = {
+        shows: draws(),
+        layered,
+        focused: !!active && active !== overlay.document.body && overlay.document.body.contains(active),
+        regions: drawn.map((child) => {
+            const { x, y, width, height } = child.getBoundingClientRect();
+            return { x, y, width, height };
+        }),
+    };
     const written = JSON.stringify(state);
-    if (written === told) return;
+    if (written === told && !again) return;
     told = written;
     overlay.tell(state);
 }
@@ -272,4 +309,4 @@ function clamp(value, low, high) {
     return Math.max(low, Math.min(value, high));
 }
 
-export { Z, STYLE, start, append, dress, windows, draws, open, place, layers };
+export { Z, STYLE, start, append, take, dress, windows, draws, open, place, layers };
