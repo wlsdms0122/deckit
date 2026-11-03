@@ -5,4 +5,4 @@ api = "1.0.0"
 main = "main.js"
 
 [permissions]
-"system.network" = "to test reading an address as its web session"
+"system.network" = "to test sending requests as its web session"

@@ -19,7 +19,7 @@ enum Export: Int, CaseIterable {
     case run
     case evaluate
     case find
-    case fetchText
+    case fetch
     case droppedFiles
     case clear
     case close

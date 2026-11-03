@@ -161,7 +161,7 @@ function createEnvironment({ core, preload, openWindow }) {
             clickNotification: WEB.clickNotification,
             sessionOf: WEB.sessionOf,
             permissionsChanged: WEB.permissionsChanged,
-            fetchText: WEB.fetchText,
+            fetch: WEB.fetch,
             clear: WEB.clear,
             cancelDownload: WEB.cancelDownload,
             trust: WEB.trust,

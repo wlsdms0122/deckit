@@ -42,9 +42,9 @@ export function createWebKit({ path, LOG }) {
         return id === null || id === undefined ? null : pageById(id);
     }
 
-    // The text at `url`, asked as the pages of `store` ask, refused past `limit` bytes.
-    function fetchText(store, url, limit) {
-        return loaded().fetchText(store, String(url), { limit, applicationName: agentName() });
+    // `request` sent as the pages of `store` send one, its answer refused past `limit` bytes.
+    function fetch(store, request, limit) {
+        return loaded().fetch(store, request, { limit, applicationName: agentName() });
     }
 
     // A download a page started, stopped where it is still under way.
@@ -221,7 +221,7 @@ export function createWebKit({ path, LOG }) {
         return applicationName;
     }
 
-    return { make, listenerFor, pageById, focusedPage, fetchText, cancelDownload, clear, native };
+    return { make, listenerFor, pageById, focusedPage, fetch, cancelDownload, clear, native };
 }
 
 // A UUID made from `name`, the same each run, as WebKit names a data store.

@@ -1063,15 +1063,96 @@ async function run({
             await until(async () => (await mark(webUser, 'loaded')) === `${at}/sign-in`, 8000);
             await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-close'))`);
             await until(async () => (await webWindow()) === null, 3000);
-            await webUser?.evaluate(
-                `document.dispatchEvent(new CustomEvent('test-web-read', { detail: '${at}/echo' }))`
-            );
-            const read = await until(() => mark(webUser, 'read'), 5000);
+            await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-fetch', {
+                detail: { as: 'kept', url: '${at}/echo' },
+            }))`);
+            const answer = await until(() => mark(webUser, 'kept'), 5000);
+            const read = Buffer.from(JSON.parse(answer || '{}').bytes || []).toString();
             site.close();
             check(
-                "a session's fetchText sends the cookies its page was given, once the page is gone",
+                "a session's fetch sends the cookies its page was given, once the page is gone",
                 read === 'probe=kept',
                 read
+            );
+        }
+
+        // A session's fetch is a page's fetch sent as the session: it follows redirects, keeps the cookies answers set
+        // and sends them again, sends a body and headers, reads bytes, and answers a status that is no success.
+        {
+            const site = require('http').createServer((request, response) => {
+                const parts = [];
+                request.on('data', (part) => parts.push(part));
+                request.on('end', () => {
+                    if (request.url === '/set') {
+                        response.writeHead(302, { Location: '/echo', 'Set-Cookie': 'probe=kept; Path=/' });
+                        return response.end();
+                    }
+                    if (request.url === '/bytes') return response.end(Buffer.from([0, 255, 1, 254]));
+                    if (request.url !== '/echo') {
+                        response.writeHead(404);
+                        return response.end('gone');
+                    }
+                    const { method, headers } = request;
+                    const echo = {
+                        method,
+                        body: Buffer.concat(parts).toString(),
+                        probe: headers['x-probe'],
+                        agent: headers['user-agent'],
+                    };
+                    response.writeHead(200, { 'Content-Type': 'application/json' });
+                    response.end(JSON.stringify({ ...echo, cookie: headers.cookie }));
+                });
+            });
+            await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+            const at = `http://127.0.0.1:${site.address().port}`;
+            const fetched = async (as, url, init) => {
+                await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-fetch', {
+                    detail: ${JSON.stringify({ as, url, init })},
+                }))`);
+                const answer = await until(() => mark(webUser, as), 5000);
+                return answer ? JSON.parse(answer) : null;
+            };
+            const bodyOf = (answer) => Buffer.from(answer?.bytes || []).toString();
+            const followed = await fetched('followed', `${at}/set`);
+            const posted = await fetched('posted', `${at}/echo`, {
+                method: 'POST',
+                headers: { 'X-Probe': 'sent', 'User-Agent': 'Probe/1' },
+                body: 'hello',
+            });
+            const bytes = await fetched('bytes', `${at}/bytes`);
+            const missing = await fetched('missing', `${at}/missing`);
+            const manual = await fetched('manual', `${at}/set`, { redirect: 'manual' });
+            const refused = await fetched('refused', `${at}/set`, { redirect: 'error' });
+            site.close();
+            const echoed = (answer) => JSON.parse(bodyOf(answer) || '{}');
+            check(
+                "a session's fetch follows a redirect and sends the cookie it set",
+                followed?.url === `${at}/echo` && followed.redirected && echoed(followed).cookie === 'probe=kept',
+                JSON.stringify(followed)
+            );
+            check(
+                "a session's fetch sends its method, headers, user agent and body, and the session's cookies",
+                JSON.stringify(echoed(posted)) ===
+                    JSON.stringify({
+                        method: 'POST',
+                        body: 'hello',
+                        probe: 'sent',
+                        agent: 'Probe/1',
+                        cookie: 'probe=kept',
+                    }),
+                JSON.stringify(posted)
+            );
+            check(
+                "a session's fetch reads an answer's bytes, and answers a status that is no success",
+                JSON.stringify(bytes?.bytes) === '[0,255,1,254]' &&
+                    missing?.status === 404 &&
+                    bodyOf(missing) === 'gone',
+                JSON.stringify([bytes, missing])
+            );
+            check(
+                "a session's fetch heeds the request's redirect",
+                manual?.status === 302 && manual.headers.location === '/echo' && !manual.redirected && !!refused?.error,
+                JSON.stringify([manual, refused])
             );
         }
 

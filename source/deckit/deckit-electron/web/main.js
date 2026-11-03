@@ -147,8 +147,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         };
     }
 
-    function fetchText(mod, session, url) {
-        return WEBKIT.fetchText(storeOf(PARTITION.spell(mod, session)), url, deck.fetchLimit);
+    function fetch(mod, session, request) {
+        return WEBKIT.fetch(storeOf(PARTITION.spell(mod, session)), request, deck.fetchLimit);
     }
 
     function clear(mod, session) {
@@ -370,7 +370,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         clickNotification: (page, notification) => SCRIPT.clickNotification(page, notification),
         sessionOf,
         permissionsChanged: () => SCRIPT.permissionsChanged(),
-        fetchText,
+        fetch,
         clear,
         cancelDownload: (id) => WEBKIT.cancelDownload(id),
         trust: (mod, session, entries) => CERTIFICATE.trust(PARTITION.spell(mod, session), entries),

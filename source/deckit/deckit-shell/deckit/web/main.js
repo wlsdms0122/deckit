@@ -19,7 +19,7 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // A cookie with no expiry would sign the person out of every site at each launch; a browser restoring its session
     // keeps them, so here it is given a lifetime.
     const COOKIE_LIFETIME = 60 * 60 * 24 * 14;
-    // `fetchText` reads in the app's process, and a huge answer would be held whole there.
+    // `fetch` reads in the app's process, and a huge answer would be held whole there.
     const FETCH_LIMIT = 4 * 1024 * 1024;
     const WINDOW_SIZE = Object.freeze({ width: 520, height: 700 });
     // Asked per scheme, so a site allowed one app is not allowed every app. These are the web's own, never an app's.
@@ -117,8 +117,8 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         PROTOCOL.window.handle(({ name, url, title }, sender) =>
             openWindow(sender, IDENTITY.modFrom(sender), name, url, title)
         );
-        PROTOCOL.fetchText.handle(({ name, url }, sender) =>
-            fetchText(IDENTITY.modFrom(sender, WEB_PERMISSION.NETWORK), name, url)
+        PROTOCOL.fetch.handle(({ name, ...request }, sender) =>
+            fetch(IDENTITY.modFrom(sender, WEB_PERMISSION.NETWORK), name, request)
         );
         PROTOCOL.clear.handle(({ name }, sender) => clear(IDENTITY.modFrom(sender), name));
         PROTOCOL.trust.handle(({ name, entries }, sender) =>
@@ -205,10 +205,10 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
         return id;
     }
 
-    async function fetchText(mod, name, url) {
-        if (!/^https?:\/\//i.test(url)) throw new Error('not a web address: ' + url);
+    async function fetch(mod, name, request) {
+        if (!/^https?:\/\//i.test(request.url)) throw new Error('not a web address: ' + request.url);
         use(mod.id, name);
-        return WEB.fetchText(mod.id, name, url);
+        return WEB.fetch(mod.id, name, request);
     }
 
     async function clear(mod, name) {
