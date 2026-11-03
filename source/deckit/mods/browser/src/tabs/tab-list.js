@@ -76,27 +76,35 @@ function tabList({
 
     // At `index` in `parent`, the end of the top level by default.
     function add(url = home(), { title = '', icon = '', background = false, parent = nodes.root, index } = {}) {
-        const tab = tabOf(url, { title, icon });
-        nodes.insert(tab, parent, index);
-        if (background) changed();
-        else select(tab);
-        return tab;
+        return insert(tabOf(url, { title, icon }), { background, parent, index });
     }
 
-    // `target` is the window the page named: a second request for it reuses the tab that answered the first. A tab
-    // opened by another goes after it, and after the tabs it opened just before, in its folder.
-    function open(url, { activates = true, target = '', opener = null } = {}) {
+    // `target` is the window the address is opened in: a second request for it reuses the tab that answered the first.
+    function open(url, { activates = true, target = '' } = {}) {
         const named = target && nodes.items().find((tab) => tab.target === target);
         if (named) {
             navigate(named, url);
             if (activates) select(named);
             return;
         }
-        if (!opener) return Object.assign(add(url, { background: !activates }), { target });
+        Object.assign(add(url, { background: !activates }), { target });
+    }
+
+    // The window a tab's page opened, as a tab after it, and after the tabs it opened just before, in its folder.
+    function openWindow(page, { url, activates, opener }) {
+        const tab = Object.assign(tabOf(url, { asleep: true }), { opener });
+        wake(tab, page);
         const { children } = nodes.parentOf(opener);
         let after = opener;
         while (children[children.indexOf(after) + 1]?.opener === opener) after = children[children.indexOf(after) + 1];
-        Object.assign(add(url, { background: !activates, ...nodes.beside(after) }), { target, opener });
+        insert(tab, { background: !activates, ...nodes.beside(after) });
+    }
+
+    function insert(tab, { background = false, parent = nodes.root, index } = {}) {
+        nodes.insert(tab, parent, index);
+        if (background) changed();
+        else select(tab);
+        return tab;
     }
 
     // A tab chosen in a folded folder opens it, and the folders it is in.
@@ -252,9 +260,9 @@ function tabList({
                 if (isCurrentPage()) navigate(tab, url);
                 return false;
             },
-            shouldOpenWindow: (url, { activates, target }) => {
-                if (isCurrentPage()) open(url, { activates, target, opener: tab });
-                return false;
+            openWindow: (opened, { url, activates }) => {
+                if (!isCurrentPage()) return false;
+                openWindow(opened, { url, activates, opener: tab });
             },
             didRequestClose: () => {
                 if (isCurrentPage()) close(tab);
@@ -289,7 +297,7 @@ function tabList({
             loading: false,
             canGoBack: false,
             canGoForward: false,
-            // The window name the page asked for, which a later request for the same name reuses.
+            // The window name an address was opened in, which a later request for the same name reuses.
             target: '',
             // The tab whose page opened this one.
             opener: null,
@@ -301,10 +309,10 @@ function tabList({
         return tab;
     }
 
-    // A tab asleep is given its page, at its address.
-    function wake(tab) {
+    // A tab asleep is given its page, at its address, or `page`, a window a page opened.
+    function wake(tab, page) {
         if (tab.page) return;
-        tab.page = pageFor(tab.url);
+        tab.page = page ? fill(page) : pageFor(tab.url);
         tab.page.element.style.visibility = 'hidden';
         area.prepend(tab.page.element);
         tab.loading = true;
@@ -313,7 +321,10 @@ function tabList({
 
     // Every tab's page fills the area, one over another; only the front one is shown.
     function pageFor(url) {
-        const page = web.page({ session: isFile(url) ? filesSession : webSession, url });
+        return fill(web.page({ session: isFile(url) ? filesSession : webSession, url }));
+    }
+
+    function fill(page) {
         Object.assign(page.element.style, { position: 'absolute', inset: '0', width: '100%', height: '100%' });
         return page;
     }

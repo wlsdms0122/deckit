@@ -183,31 +183,33 @@ async function main() {
         inPage: true,
         ownWindow: false,
         activates: true,
-        target: '',
         ...fields,
     });
-    check('without a press nothing opens', !deck.windowOpen(filesPage, tab, asked({ inPage: false })), '');
+    check('without a press nothing opens', deck.windowOpen(filesPage, tab, asked({ inPage: false })) === '', '');
     activated.add(tab);
-    check('a window page opens a window', deck.windowOpen(filesPage, tab, asked({ inPage: false })), '');
+    check('a window page opens a window', deck.windowOpen(filesPage, tab, asked({ inPage: false })) === 'window', '');
     activated.add(tab);
     check(
         'a tab asking for a window with features gets one',
-        deck.windowOpen(filesPage, tab, asked({ ownWindow: true })),
+        deck.windowOpen(filesPage, tab, asked({ ownWindow: true })) === 'window',
         ''
     );
     activated.add(tab);
-    const tabOpens = !deck.windowOpen(filesPage, tab, asked({}));
-    const opening = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
+    check("a tab's window is handed to its mod's page", deck.windowOpen(filesPage, tab, asked({})) === 'page', '');
+    deck.opened(filesPage, 7, 9, { url: 'https://a.com', activates: true });
+    const handed = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
     check(
-        "a tab's new tab is the delegate's",
-        tabOpens && opening?.id === 7 && opening?.url === 'https://a.com',
-        opening
+        "a tab's window is told to the delegate as its page",
+        handed?.id === 7 && handed.page === 9 && handed.url === 'https://a.com',
+        handed
     );
     activated.add(tab);
+    const fileOpens = deck.windowOpen(filesPage, tab, asked({ from: 'file:///a.html', inPage: false }));
+    const fileOpening = toldOn('deckit-shell:web-opening').at(-1)?.[1].payload;
     check(
-        'a file page never gets a window',
-        !deck.windowOpen(filesPage, tab, asked({ from: 'file:///a.html', inPage: false })),
-        ''
+        "a file page's window is no window, its address opened",
+        fileOpens === '' && fileOpening?.page === undefined && fileOpening?.url === 'https://a.com',
+        fileOpening
     );
 
     // The question put to the mod showing a site.

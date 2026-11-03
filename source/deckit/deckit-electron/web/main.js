@@ -21,6 +21,8 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
     const embedders = new WeakSet(); // the mods' pages that show web pages
     const pages = new Map(); // id -> a web page deck holds
     const layouts = new Map(); // id -> where its mod's page last said it shows, { frame, visible }
+    // The windows web pages opened that are handed to their mod's page, until it shows them as elements.
+    const handed = new Map(); // id -> the mod's page
     let deck = null; // what deck answers and is told (listen)
     const told =
         (name) =>
@@ -163,7 +165,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
             const page = pageOf(id);
             return page && REGISTRY.get(id)?.embedder === sender ? page : null;
         };
-        MESSAGES.on(CHANNEL.webShow, (sender, { partition, url }) => show(sender, { partition, url }));
+        MESSAGES.on(CHANNEL.webShow, (sender, { partition, url, page }) => show(sender, { partition, url, page }));
         // One not shown hands the keyboard to its mod's page.
         MESSAGES.on(CHANNEL.webPlace, (sender, layout) => {
             const page = ownPage(sender, layout.id);
@@ -184,11 +186,16 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         });
     }
 
-    // A web page an element of `modPage` shows, in the session `partition` spells, loaded at `url` as deck lets it:
-    // its id, or null when it is not shown.
-    function show(modPage, { partition, url }) {
+    // A web page an element of `modPage` shows, in the session `partition` spells, loaded at `url` as deck lets it, or
+    // the window of id `page` a web page opened, handed to it: its id, or null when it is not shown.
+    function show(modPage, { partition, url, page: handedId }) {
         try {
             if (!embedders.has(modPage)) throw new Error('the page shows no web pages');
+            if (handedId !== undefined) {
+                if (handed.get(handedId) !== modPage) throw new Error('the window was not handed to it');
+                handed.delete(handedId);
+                return handedId;
+            }
             const session = PARTITION.read(partition);
             if (!session || !deck.attaching(modPage, session)) throw new Error("its session is not the mod's");
             const page = makePage(PARTITION.spell(session.mod, session.name), modPage);
@@ -228,10 +235,11 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
                     inPage,
                     ownWindow,
                     activates: !background,
-                    target: '',
                 };
-                if (!deck.windowOpen(modPage, page, asked)) return null;
-                return openPopup(modPage, page, { width, height });
+                const where = deck.windowOpen(modPage, page, asked);
+                if (where === 'window') return openPopup(modPage, page, { width, height });
+                if (where === 'page') return openHanded(modPage, page, { url, activates: asked.activates });
+                return null;
             },
             permission: ({ origin, permissions }) => {
                 const at = REGISTRY.tabOf(page);
@@ -302,6 +310,23 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
                 const closeWithOpener = () => window.close();
                 opener.once('destroyed', closeWithOpener);
                 page.once('destroyed', () => opener.removeListener('destroyed', closeWithOpener));
+            },
+        });
+    }
+
+    // The listener of the page WebKit makes for a window `opener` opened, handed to `modPage` to show as an element,
+    // and closed with `modPage` if it never shows it.
+    function openHanded(modPage, opener, { url, activates }) {
+        const tab = REGISTRY.get(opener.id)?.tab ?? opener.id;
+        return WEBKIT.listenerFor({
+            fields: { partition: opener.partition },
+            delegate: delegateOf(modPage),
+            opened: (page) => {
+                pages.set(page.id, page);
+                handed.set(page.id, modPage);
+                page.once('destroyed', () => handed.delete(page.id));
+                adopt(modPage, page, { inPage: true, tab: page.id });
+                deck.opened(modPage, tab, page.id, { url, activates });
             },
         });
     }

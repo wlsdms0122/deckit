@@ -407,12 +407,12 @@ page.delegate = {
     didClose() {},
     decidePermission(request) {},    // { origin, permissions, app, url }: true allows it
     shouldLeave(url) {},             // a file page's link to the web
-    shouldOpenWindow(url, options) {}, // { activates, target }
+    openWindow(page, options) {},    // { url, activates }: the window it opened, to show
     shouldDownload(download) {},     // { url, name, mimeType, expected }: false does not save it
 };
 ```
 
-A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers, and a download is saved. Answer `false` when the mod opened it itself, or for a download not to save. A page opens a window only during a person's click or key in it, as a browser blocks a popup otherwise; one it opens at any other time is refused before the delegate hears of it.
+A `should…` left out, or answered with anything but `false`, lets the default go ahead: the address goes to its scheme's handlers, and a download is saved. Answer `false` when the mod opened it itself, or for a download not to save. `openWindow` hands over the window the page opened with `window.open` or a link to a new one, a page as `shell.web.page` makes it, already the site's window: the mod shows its `element`, and the site and the window reach each other as they do in a browser. Left out or answered `false`, the window closes and its address goes to its scheme's handlers. A window that asked for its size, or one a window opened, is a window of the app's, and a file page's goes to the handlers. A page opens a window only during a person's click or key in it, as a browser blocks a popup otherwise; one it opens at any other time is refused before the delegate hears of it.
 
 A site gets what a browser lets it have without asking (full screen, writing what is copied). What a browser asks the person for (the camera, the microphone, notifications, reading what was copied, the location, an app for a link) is `decidePermission`, asked only of a mod with `system.site-permissions`; for any other mod the site is refused. Anything else a site asks for is refused.
 

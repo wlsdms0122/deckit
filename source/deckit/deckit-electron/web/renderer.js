@@ -14,7 +14,7 @@ function createViews() {
     on(CHANNEL.webTold, ({ id, event }) => shown.get(id)?.told(event));
 
     // `sessions` is the prefix main told the page its mod's sessions are spelled under.
-    function view({ sessions, session, url }, { closing, focused }) {
+    function view({ sessions, session, url, page }, { closing, focused }) {
         const element = document.createElement('div');
         element.tabIndex = -1;
         // A web page's element, naming the page once main has given it its id.
@@ -32,6 +32,7 @@ function createViews() {
             request(CHANNEL.webShow, {
                 partition: PARTITION.spellIn(sessions, session),
                 url: url || 'about:blank',
+                ...(page === undefined ? {} : { page }),
             }).then((given) => {
                 if (given === null) return;
                 known = given;

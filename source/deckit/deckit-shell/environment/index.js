@@ -237,23 +237,25 @@ const SHELL = Object.freeze({
 // is made, `followed` when the page follows a link of its own: `load`, `refuse`, or `leave`, the document staying where
 // it is while deck tells who shows it, and the environment does as it answers whatever it answers; `attaching(embedder,
 // session)`, whether a web page in `session`, `{ mod, name }` or null for one that is no mod's, is shown in
-// `embedder`'s page; `windowOpen(embedder, page, { url, tab, from, inPage, ownWindow, activates, target })`, whether a
-// web page's window.open is given a window of its own, `tab` the id of the tab it answers to, `from` the address it is
-// at and `ownWindow` whether it asked for a window rather than a tab; `permits(session, origin, name)`, whether a site
+// `embedder`'s page; `windowOpen(embedder, page, { url, tab, from, inPage, ownWindow, activates })`, where a web page's
+// window.open is given its window: `window`, a window of the app's, `page`, a page handed to `embedder` to show (told
+// with `opened`), or `` for none, `tab` the id of the tab it answers to, `from` the address it is at and `ownWindow`
+// whether it asked for a window rather than a tab; `permits(session, origin, name)`, whether a site
 // may have `name` in `session`, as the environment checks it, and `permitted(session, name)`, the origins that may.
-// Told: `adopted(embedder, page)`, a web page now shown, in its page or in a window; `changed(embedder, id, state)`;
-// `found(embedder, id, { matches, active, final })`; `closed(embedder, id)`, a window gone; `refused(embedder, id,
-// certificate)`; `notified(embedder, id, { origin, notification, title, body, silent })`, what a site's
-// notification shows; and `downloaded(embedder, { id, url, name, path, state, received, expected, error })`, a download
-// a web page it shows started, as it changes, written to the Downloads folder: `state` is `downloading`, `finished`,
-// `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise of whether it is allowed:
-// `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download a web page in the tab of that
-// id started is saved, `name` the file's as the site gives it; `request(embedder, id, { origin, permissions })` and
-// `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks, `permissions` as deck names
-// them (web/model/site-permission.js), none where the environment's name for it is none of deck's. Kept as given:
-// `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session; `fetchLimit`, the bytes
-// past which `fetch` refuses an answer; and `windowSize`, `{ width, height }`, a web page's window where it asks
-// for no size.
+// Told: `adopted(embedder, page)`, a web page now shown, in its page or in a window; `opened(embedder, tab, id, { url,
+// activates })`, the window of id `id` the tab of id `tab` opened, handed to `embedder`, which shows it with `view`;
+// `changed(embedder, id, state)`; `found(embedder, id, { matches, active, final })`; `closed(embedder, id)`, a window
+// gone; `refused(embedder, id, certificate)`; `notified(embedder, id, { origin, notification, title, body, silent })`,
+// what a site's notification shows; and `downloaded(embedder, { id, url, name, path, state, received, expected, error
+// })`, a download a web page it shows started, as it changes, written to the Downloads folder: `state` is
+// `downloading`, `finished`, `failed` or `cancelled`, and `expected` -1 while it is not known. Asked, each a promise of
+// whether it is allowed: `shouldDownload(embedder, id, { url, name, mimeType, expected })`, whether a download a web
+// page in the tab of that id started is saved, `name` the file's as the site gives it; `request(embedder, id, { origin,
+// permissions })` and `requestApp(embedder, id, { url, origin })`, what a site in the tab of that id asks,
+// `permissions` as deck names them (web/model/site-permission.js), none where the environment's name for it is none of
+// deck's. Kept as given: `cookieLifetime`, the seconds a cookie a site sets with no expiry lasts in a mod's session;
+// `fetchLimit`, the bytes past which `fetch` refuses an answer; and `windowSize`, `{ width, height }`, a web page's
+// window where it asks for no size.
 const WEB_DECK = Object.freeze({
     loading: 'function',
     attaching: 'function',
@@ -261,6 +263,7 @@ const WEB_DECK = Object.freeze({
     permits: 'function',
     permitted: 'function',
     adopted: 'function',
+    opened: 'function',
     changed: 'function',
     found: 'function',
     closed: 'function',
@@ -307,9 +310,9 @@ const PAGE = Object.freeze({
         evaluate: 'function',
     },
     web: {
-        // view({ sessions, session, url }, { closing, focused }) -> { element, id, close }: a web page shown in this
-        // page, in the mod's session by that name, `sessions` what main told this page its mod's sessions are named by
-        // (`sessionsOf`, MAIN).
+        // view({ sessions, session, url, page }, { closing, focused }) -> { element, id, close }: a web page shown in
+        // this page, in the mod's session by that name, `sessions` what main told this page its mod's sessions are
+        // named by (`sessionsOf`, MAIN), or with `page` the id of a window handed to this page (`opened`, WEB_DECK).
         // `element` is put where it shows, `id` a promise of its id once it has one, and `close()` ends it, in the
         // document or never put there; the element leaving the document once in it ends it too. `closing()` when the web page asks to close itself, `focused()` when it takes
         // focus
