@@ -4,7 +4,8 @@
 // each frame every page draws, as its width; the person drags the window's edge; `stop` ends it and reports how often
 // the window was resized, and for each page how often it drew and, for one as wide as the window, how far what it
 // drew trailed the window and how long it took to draw a width the window had.
-const [mode, port] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const [mode, port] = args;
 // A page whose width is this close to the window's at the start draws across it.
 const ACROSS = 60;
 // After the last resize, how long the pages are given to catch up.
@@ -12,9 +13,9 @@ const SETTLE_MS = 300;
 // How long a page is waited on: one that is gone or stuck answers nothing.
 const PAGE_LIMIT_MS = 500;
 
-if (!['start', 'stop'].includes(mode) || !port) {
+if (args.length !== 2 || !['start', 'stop'].includes(mode)) {
     console.error('usage: deckit resize start|stop <port> (the inspector port deckit dev --inspect=<port> opened)');
-    process.exit(1);
+    process.exit(2);
 }
 
 (async () => {

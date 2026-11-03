@@ -5,6 +5,11 @@ const path = require('path');
 
 const LIBRARY = require(path.join(__dirname, '..', 'library.js'));
 
+if (process.argv.length > 2) {
+    console.error('usage: deckit check (it takes no arguments)');
+    process.exit(2);
+}
+
 // The packages each may depend on. An environment stands on the shell, which declares what it provides, and the shell
 // knows no environment.
 const MAY_DEPEND = {

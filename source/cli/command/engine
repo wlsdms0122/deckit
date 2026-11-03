@@ -2,7 +2,8 @@
 # The output is checked in: a mod's sandbox has no network or package manager, so the engine ships as one
 # CommonJS file of the mod's, which deckit's build bundles with the rest of it.
 set -euo pipefail
-mod="${1:?usage: deckit engine <mod> (a mod with src/engine/: editor, note)}"
+[ $# -eq 1 ] || { echo "usage: deckit engine <mod> (a mod with src/engine/: editor, note)" >&2; exit 2; }
+mod="$1"
 root="$(cd "$(dirname "$0")/../../.." && pwd)"
 here="$root/source/deckit/mods/$mod/src/engine"
 [ -f "$here/entry.mjs" ] || { echo "$mod has no src/engine/entry.mjs" >&2; exit 1; }
