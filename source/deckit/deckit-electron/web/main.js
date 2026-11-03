@@ -367,6 +367,7 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         return WEBKIT.make({
             store: storeOf(partition),
             cookieLifetime: deck.cookieLifetime,
+            clearWhileBlank: true,
             takesKeyboard: false,
             delegate: delegateOf(modPage),
             fields: { partition },

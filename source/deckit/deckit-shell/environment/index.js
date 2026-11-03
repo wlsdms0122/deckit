@@ -18,8 +18,10 @@ import * as CHANNEL from '../deck/channel/index.js';
  * tells a question and an answer from a tell by what they hold.
  * @typedef {object} Message
  *
- * A page as a stage lays it, bottom to top: at `rect`, or hidden in the place it has.
- * @typedef {{ page: Page, rect: { x: number, y: number, width: number, height: number } } | { page: Page, hidden: true }} Laid
+ * A page as a stage lays it, bottom to top: at `rect`, taking the pointer only inside the rects of `input`, from its
+ * top left, where it has them, or hidden in the place it has.
+ * @typedef {{ page: Page, rect: Rect, input?: Rect[] } | { page: Page, hidden: true }} Laid
+ * @typedef {{ x: number, y: number, width: number, height: number }} Rect
  */
 
 const MAIN = Object.freeze({

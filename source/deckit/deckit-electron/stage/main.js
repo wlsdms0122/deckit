@@ -52,9 +52,10 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
             if (!closed) native.showStage(id, !!on);
         }
 
-        // What is on the stage: each layer `{ page, rect }`, laid there, or `{ page, hidden: true }`, kept out of the
-        // window, which a page in it would slow as it resizes. The pages laid are in the order given, bottom to top. A
-        // page left out, or gone, is taken off. Each is clear where it draws nothing.
+        // What is on the stage: each layer `{ page, rect, input }`, laid there, taking the pointer only inside the
+        // rects `input` names in it where it names any, or `{ page, hidden: true }`, kept out of the window, which a
+        // page in it would slow as it resizes. The pages laid are in the order given, bottom to top. A page left out,
+        // or gone, is taken off. Each is clear where it draws nothing.
         function lay(layers) {
             if (closed) return;
             for (const { page, rect = null, hidden = false } of layers)
@@ -101,7 +102,7 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                 showing.set(page, record);
                 record.shown.add(page);
             };
-            const layers = laid.flatMap(({ page, rect }) => {
+            const layers = laid.flatMap(({ page, rect, input }) => {
                 if (page.isDestroyed()) return [];
                 if (!rect) return [{ page: page.id, hidden: true }];
                 show(page);
@@ -110,7 +111,7 @@ export function createStages({ LOG, WEBKIT, idOf, webPagesIn }) {
                     const { x, y, width, height } = web.frame;
                     return { page: web.page.id, frame: { x: rect.x + x, y: rect.y + y, width, height }, clip: rect };
                 });
-                return [{ page: page.id, frame: rect }, ...over];
+                return [{ page: page.id, frame: rect, ...(input ? { input } : {}) }, ...over];
             });
             native.layStage(id, layers);
         }

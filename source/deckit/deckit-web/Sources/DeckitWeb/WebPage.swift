@@ -394,6 +394,10 @@ extension WebPage: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        if view.clearWhileBlank {
+            view.clearWhileBlank = false
+            view.setValue(true, forKey: "drawsBackground")
+        }
         emitter.emit("committed", ["url": webView.url?.absoluteString ?? ""])
     }
 

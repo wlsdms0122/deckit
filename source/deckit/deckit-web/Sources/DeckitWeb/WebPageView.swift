@@ -9,15 +9,18 @@ import AppKit
 import WebKit
 
 // A web page's WKWebView, which tells when it takes the keyboard, may take it only as it is given it or pressed unless
-// it `takesKeyboard` as its document focuses an element, keeps the files of the drop last performed on it, and
-// hears the pointer only where it is the page under it, in a key window of an app that is not active too
-// (PointerRelay). WebKit tracks the pointer through tracking areas of its own, which each page is given behind a gate
-// (TrackingGate), so a page under another does not answer the moves too and set its own cursor.
+// it `takesKeyboard` as its document focuses an element, keeps the files of the drop last performed on it, takes the
+// pointer only inside its `inputRegion` while it has one, and hears the pointer only where it is the page under it, in
+// a key window of an app that is not active too (PointerRelay). WebKit tracks the pointer through tracking areas of its
+// own, which each page is given behind a gate (TrackingGate), so a page under another does not answer the moves too and
+// set its own cursor.
 @MainActor
 final class WebPageView: WKWebView {
     // MARK: - Property
     var onFocus: (() -> Void)?
     var takesKeyboard = true
+    var clearWhileBlank = false // drawing nothing where the document does not until it commits its first page
+    var inputRegion: [CGRect]? // the rects that take the pointer, from its top left; nil, all of it
     private var given = false // whether the keyboard is being handed to it
     private(set) var droppedFiles: [URL] = []
     private lazy var relay = PointerRelay(view: self)
@@ -69,6 +72,17 @@ final class WebPageView: WKWebView {
         droppedFiles = files.map { ($0.filePathURL ?? $0 as URL) }
 
         return super.performDragOperation(sender)
+    }
+
+    // Outside its input region a press, a move and a scroll go to what is under it.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let inputRegion {
+            let local = convert(point, from: superview)
+            let at = CGPoint(x: local.x, y: isFlipped ? local.y : bounds.height - local.y)
+            guard inputRegion.contains(where: { $0.contains(at) }) else { return nil }
+        }
+
+        return super.hitTest(point)
     }
 
     // A page under another hears the pointer only where it is the one under it, so the two do not each set the cursor.
