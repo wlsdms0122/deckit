@@ -25,13 +25,17 @@ const stack = [];
 // The layer under what is presented, while an element of it is: a press outside it lands there, over the page and
 // its web pages too.
 let backdrop = null;
+// Tells whether anything is presented, as that changes.
+let tell = () => {};
 
 // MARK: - Initializer
 // MARK: - Public
 // Presses and keys are heard in the page and in its overlay. On pointerdown, so a control that cancels the mouse
 // events after it (a resize handle) still dismisses what is presented. Keys are the top one's first, in the capture
-// phase, before the page sees them. The keyboard moving between the page and its overlay is no blur.
-function start() {
+// phase, before the page sees them. The keyboard moving between the page and its overlay is no blur. `tell(on)` hears
+// whether anything is presented, as that changes.
+function start({ tell: given }) {
+    tell = given;
     const [page, overlay] = LAYER.windows();
     for (const each of [page, overlay]) {
         each.addEventListener('pointerdown', dismissOutside, true);
@@ -84,6 +88,7 @@ function present({
         close: () => close(presented, speed),
     };
     stack.push(presented);
+    if (stack.length === 1) tell(true);
     if (element) show(presented);
     return presented;
 }
@@ -96,6 +101,17 @@ function top() {
 // How much is presented.
 function count() {
     return stack.length;
+}
+
+// An Escape taken before the page saw it is played again as a keydown where the keyboard is, so what is presented on
+// top hears it as it hears any key. Answers whether anything is presented.
+function escape() {
+    if (!stack.length) return false;
+    const target = LAYER.focused() || document.activeElement || document.body;
+    target.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true })
+    );
+    return true;
 }
 
 // MARK: - Private
@@ -117,6 +133,7 @@ function close(presented, speed) {
     const index = stack.indexOf(presented);
     if (index < 0) return;
     stack.splice(index, 1);
+    if (!stack.length) tell(false);
     const { element, layer, returns } = presented;
     if (!element) return;
     if (!stack.some((each) => each.element)) {
@@ -185,4 +202,4 @@ function dismissUnfocused() {
     if (!page.document.hasFocus() && !overlay.document.hasFocus()) dismissTransient();
 }
 
-export { STYLE, start, present, top, count };
+export { STYLE, start, present, top, count, escape };

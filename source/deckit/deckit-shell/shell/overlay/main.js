@@ -7,12 +7,14 @@ import * as SURFACE from './model/surface.js';
 // whatever lays the page lays its overlay at the same rect, over all it lays, while the overlay shows anything
 // (`withOverlays`), and what asks whose a page is asks `ownerOf`. It takes the pointer where it draws what takes it. It
 // has the keyboard while an element drawn in it has it, once the person presses there or the page gives its keyboard
-// for an element focused there; the page has it again once that is not so. Its keys reach the key map as the page's.
+// for an element focused there; the page has it again once that is not so. Its keys reach the key map as the page's,
+// and as those of a page that is no mod's while anything is presented over the page: no key of the page's own runs
+// behind it.
 // `deckit` is what connect answered, and `PAGES` the shell's pages.
 export function createOverlay({ deckit, PAGES }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    const overlays = new Map(); // a page -> { surface, shows, focused, regions }, once the page asked for it
+    const overlays = new Map(); // a page -> { surface, shows, focused, regions, presents }, once the page asked for it
     const listeners = new Set();
     const NOTHING = Object.freeze({ shows: false, focused: false, regions: [] });
 
@@ -22,6 +24,10 @@ export function createOverlay({ deckit, PAGES }) {
         PROTOCOL.open.handle((_payload, sender) => open(sender));
         PROTOCOL.state.on((state, sender) => setState(sender, state));
         PROTOCOL.take.on((_payload, sender) => take(sender));
+        PROTOCOL.presents.on(({ on }, sender) => {
+            const held = overlays.get(sender);
+            if (held) held.presents = on;
+        });
     }
 
     // What is laid (STAGE.lay), and over it the overlay of each page laid that shows anything, at the page's rect,
@@ -59,17 +65,19 @@ export function createOverlay({ deckit, PAGES }) {
             throw new Error('[deckit] an overlay is for a page the shell draws in');
         let held = overlays.get(page);
         if (!held) {
-            held = { surface: null, ...NOTHING };
+            held = { surface: null, presents: false, ...NOTHING };
             overlays.set(page, held);
         }
+        held.presents = false;
         setState(page, NOTHING);
         PAGES.allowSurface(page, SURFACE.NAME, (surface) => {
             if (overlays.get(page) !== held) return PAGES.close(surface);
             held.surface = surface;
-            deckit.keymap.listen(surface, { belongsTo: () => page });
+            deckit.keymap.listen(surface, { belongsTo: () => (held.presents ? null : page) });
         });
         deckit.pages.whenEnds(page, ({ replaced }) => {
             if (overlays.get(page) !== held) return;
+            held.presents = false;
             setState(page, NOTHING);
             if (replaced) return;
             overlays.delete(page);

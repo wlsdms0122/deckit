@@ -165,12 +165,8 @@ function boot(theme, channels) {
     );
     PROTOCOL.play.on(({ direction }) => (direction === 'out' ? fadeOut(() => {}) : fadeIn()));
     PROTOCOL.leave.handle(() => new Promise((resolve) => fadeOut(resolve)));
-    // Main took this Escape: what is presented on top is dismissed, or the panel goes.
-    PROTOCOL.escape.handle(() => {
-        const top = PRESENTATION.top();
-        top?.dismiss();
-        return !!top;
-    });
+    // Main took this Escape: what is presented on top hears it, or the panel goes.
+    PROTOCOL.escape.handle(() => PRESENTATION.escape());
 
     function showDown() {
         down.hidden = !state.down;

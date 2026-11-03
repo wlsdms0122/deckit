@@ -71,16 +71,12 @@ function createPanel({ channels }) {
         lay();
         appear();
 
-        // Main took this Escape, so what is presented on top is dismissed, or the field with the keyboard, in the page
-        // or a layer over it, never saw it: it is played again as a keydown. A field that handles it keeps the caret;
-        // one that does not is left, as a browser would, so the next Escape reaches the page.
+        // Main took this Escape, so what is presented on top, or the field with the keyboard, in the page or a layer
+        // over it, never saw it: it is played again as a keydown. A field that handles it keeps the caret; one that
+        // does not is left, as a browser would, so the next Escape reaches the page.
         PROTOCOL.escape.handle(() => {
             if (!mounted) return false;
-            const top = presented.top();
-            if (top) {
-                top.dismiss();
-                return true;
-            }
+            if (presented.escape()) return true;
             const field = LAYER.focused() || document.activeElement;
             if (!isField(field)) return false;
             const handled = !field.dispatchEvent(

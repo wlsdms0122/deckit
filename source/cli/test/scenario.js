@@ -1007,6 +1007,17 @@ async function run({
                 gone && back,
                 JSON.stringify({ gone, back })
             );
+            // Shown again once its exit played out, it is drawn whole, as the first time.
+            await browser?.key('f', 'KeyF', META, 70);
+            const opacity = () =>
+                overlay?.evaluate(`(() => {
+                    const found = document.querySelector('.browser-find');
+                    return found ? getComputedStyle(found).opacity : '';
+                })()`);
+            const whole = await until(async () => (await opacity()) === '1', 3000);
+            check('the find bar shown again is drawn whole', whole, await opacity());
+            await overlay?.key('Escape', 'Escape', 0);
+            await until(async () => !(await overlaid()), 3000);
         }
         const tabLaidOut = async () => {
             const element = await browser?.evaluate(`(() => {

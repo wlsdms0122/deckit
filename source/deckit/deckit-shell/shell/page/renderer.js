@@ -30,7 +30,7 @@ function start({ channels, tell }) {
     const overlay = OVERLAY.open({ channels });
     POINTER.start([window, overlay.window], { isShown: (each) => each === window || LAYER.draws() });
     LAYER.start(overlay);
-    PRESENTATION.start();
+    PRESENTATION.start({ tell: overlay.presents });
     const theme = THEME.start({ channels, tell });
     theme.onChange(() => LAYER.dress());
     return theme;
