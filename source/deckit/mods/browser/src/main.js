@@ -70,11 +70,7 @@ class Browser {
             onReload: reload,
             onSitePermissions: () => prompter.editSitePermissions(tabs.front().url),
             onBookmark: () => editor.show(tabs.front()),
-            onSubmit: (text) =>
-                tabs.navigate(
-                    tabs.front(),
-                    parseAddress(text) || configuration.get('searchEngine') + encodeURIComponent(text)
-                ),
+            onSubmit: go,
         });
         const find = findInPage({ ui, frontTab: () => tabs.front() });
         const tabs = tabList({
@@ -271,6 +267,13 @@ class Browser {
 
         function closeTab() {
             tabs.close(tabs.front());
+        }
+
+        // The page goes to the address typed, or searches for the text, and takes the keyboard.
+        function go(text) {
+            const tab = tabs.front();
+            tabs.navigate(tab, parseAddress(text) || configuration.get('searchEngine') + encodeURIComponent(text));
+            tab.page.focus();
         }
 
         // The address is edited with the bookmark editor gone.
