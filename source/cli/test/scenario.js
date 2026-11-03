@@ -417,6 +417,48 @@ async function run({
             sizeKept,
             fs.existsSync(fontsKept) && fs.readFileSync(fontsKept)
         );
+        // The Editor's size, left unset, shows Default and follows the General one; stepped, it is the Editor's own
+        // from the General one, and cleared it is unset again.
+        const editorSize = `[...document.querySelectorAll('.settings-setting-card')]
+            .find((card) => card.querySelector('.settings-card-title')?.textContent === 'Editor')
+            ?.querySelector('.deckit-stepper')`;
+        const unsetShown = await settings?.evaluate(`(() => {
+            const input = ${editorSize}?.querySelector('input');
+            return input && { value: input.value, placeholder: input.placeholder };
+        })()`);
+        check(
+            "a mod's size left unset shows Default",
+            unsetShown?.value === '' && unsetShown?.placeholder === 'Default',
+            JSON.stringify(unsetShown)
+        );
+        await settings?.evaluate(`${editorSize}.querySelector('[title="More"]').click()`);
+        const stepped = await until(async () => (await editor.evaluate(codeSize)) === '13px', 3000);
+        check(
+            "a mod's size steps from the General one",
+            stepped && (await settings?.evaluate(`${editorSize}.querySelector('input').value`)) === '13 px',
+            `${await editor.evaluate(codeSize)} ${await settings?.evaluate(`${editorSize}.querySelector('input').value`)}`
+        );
+        await settings?.evaluate(`(() => {
+            const input = ${editorSize}.querySelector('input');
+            input.value = '';
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        })()`);
+        const unsetAgain = await until(async () => (await editor.evaluate(codeSize)) === '12px', 3000);
+        check(
+            "a mod's size cleared follows the General one again",
+            unsetAgain && (await settings?.evaluate(`${editorSize}.querySelector('input').value`)) === '',
+            await editor.evaluate(codeSize)
+        );
+        // The General font offers every family installed, not a list of its own.
+        const fontSelect = `document.querySelector('.settings-font .deckit-select')`;
+        await settings?.evaluate(`${fontSelect}.click()`);
+        await until(() => settingsOverlay.evaluate(menus), 2000);
+        const families = await settingsOverlay?.evaluate(
+            `document.querySelectorAll('.deckit-menu [role^="menuitem"]').length`
+        );
+        check('the General font offers every family installed', families > 40, families);
+        await settingsOverlay?.key('Escape', 'Escape', 0, 27);
+        await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
         // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away. The
         // select is a mod's setting's.
         const firstSelect = `document.querySelector('.settings-setting .deckit-select')`;
@@ -917,7 +959,22 @@ async function run({
             );
             // The keyboard the page has goes to the overlay only in a key window, which this app, never active, lacks.
             const held = await overlay?.evaluate(`!!document.activeElement?.closest('.browser-find')`);
-            check('the find panel has the focus as it opens', held, held);
+            // The overlay wears the page's rules as written, so the count is in the face of the field beside it.
+            await overlay?.evaluate(`(() => {
+                const input = document.querySelector('.browser-find input');
+                input.value = 'e';
+                input.dispatchEvent(new Event('input'));
+            })()`);
+            const faces = await until(
+                () =>
+                    overlay?.evaluate(`(() => {
+                        const count = document.querySelector('.deckit-find-count');
+                        const face = (element) => { const { fontFamily, fontSize } = getComputedStyle(element); return fontFamily + ' ' + fontSize; };
+                        return count.textContent && { count: face(count), field: face(document.querySelector('.browser-find input')) };
+                    })()`),
+                3000
+            );
+            check('the find count is in the face of its field', faces?.count === faces?.field, JSON.stringify(faces));
             await overlay?.key('Escape', 'Escape', 0);
             const gone = await until(async () => !(await overlaid()), 3000);
             const tabId = Number(await browser?.evaluate(shownPage));

@@ -21,7 +21,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 | `dark` | whether the background is dark |
 | `font` | the family the app's own parts are in, the host app's |
 | `textFont` | the family text a person reads and writes is in: the person's face, falling back to `font` |
-| `mono` | the fixed-width family: the person's face, falling back to the kit's |
+| `mono` | the fixed-width family: the system's |
 | `textSize` | the size in px text a person reads and writes is in: the person's, 14 by default |
 | `type` | font shorthands: `caption` 11, `small` 12, `body` 13, `medium` 14, `large` 15, `heading` 16, `title` 18 |
 | `border` | the border shorthand |
@@ -47,7 +47,7 @@ For CSS, the token is also custom properties on the page's root: each colour by 
 ## Text and numbers
 
 - `field({ placeholder, value, icon, inline, trailing, size, clearable, onInput, onSubmit, onCancel })` returns `{ element, input, set(value), focus() }`. Enter calls `onSubmit(value, { shift })`; Escape is the field's only when `onCancel` takes it.
-- `stepper({ value, min, max, step, unit, onChange })` returns `{ element, set(value) }`. Enter and leaving the field report what is typed; Escape puts the value back.
+- `stepper({ value, min, max, step, unit, unset, onChange })` returns `{ element, set(value) }`. Enter and leaving the field report what is typed; Escape puts the value back. With `unset`, `{ label, value }`, it may hold no number, null: it shows `label` then and steps from `value`, and what is typed cleared reports null.
 - `findBar({ placeholder, options, nav, replace, onChange, onNext, onPrevious, onCancel })` returns `{ element, setQuery(text, options), focus(which), setCount(active, total), setReplaceOpen(on), state(), replacement() }`. `options` are any of `caseSensitive`, `word`, `regex`, and `state()` is `{ query, caseSensitive, word, regex }`, what `onChange` gets too; `setQuery` takes the same keys. `focus(which)` puts the keyboard in the find field, or with `'replace'` in the replace field. `replace` is `{ open, onReplace, onReplaceAll }`: `onReplaceAll` is required, and without `onReplace` there is no Replace button and Enter in the replace field replaces all.
 
 ## What floats
@@ -66,7 +66,7 @@ What floats is drawn in the page's overlay: a document beside the page, laid ove
 
 Floats are placed by their caller and are not layers. A floating panel is in the overlay; the other two are in the page, and the keyboard stays with the text they act on.
 
-- `floatingPanel()` returns `{ element, show(), hide(), isOpen(), focus(target) }`: a panel over the page and its web pages that stays while the person presses elsewhere, as a find bar does. It takes presses only where it lies, so the page around it goes on as it is, and has the keyboard while an element in it holds the focus, once the person presses there or `focus(target)` gives it: `target`, an element or a control with `focus()`, takes the focus and the keyboard the page has. Its caller places it with `top`, `left`, `right` or `bottom`, in the page's coordinates.
+- `floatingPanel()` returns `{ element, show(), hide(), isOpen(), focus(target) }`: a panel over the page and its web pages that stays while the person presses elsewhere, as a find bar does, fading in as it shows and out as it hides. It takes presses only where it lies, so the page around it goes on as it is, and has the keyboard while an element in it holds the focus, once the person presses there or `focus(target)` gives it: `target`, an element or a control with `focus()`, takes the focus and the keyboard the page has. Its caller places it with `top`, `left`, `right` or `bottom`, in the page's coordinates.
 
 - `floatingToolbar()` returns `{ element, show(rect), hide() }`: centred above the rect, below when only that fits.
 - `autocomplete({ onPick })` returns `{ show(items, rect), place(rect), move(by), pick(), close(), isOpen() }`. An item is `{ label, icon, hint }`, and `onPick(item)` gets it. The caller moves through it with its own keys.
@@ -108,4 +108,4 @@ Floats are placed by their caller and are not layers. A floating panel is in the
 - `element(tag, { className, style, text })`.
 - `edgeFade(element, { size })`, `pressable(element)`, `selectable(element)`, `titleBar(element)` are decorators: the edges of what scrolls fade, something pressed is washed and ringed, text can be selected, and a bar along the top of the view lies in the window's title bar area (MOD.md, `shell.view.register`): at least as tall as it, clear of the window's buttons, and dragging the window wherever nothing in it is pressed. Buttons, fields, links and anything with a `tabindex` in it take presses; another control there marks itself `--app-region: no-drag`.
 - `isFullyVisible(element)`, `capturePointer(cursor)` (returns the release), `mix(foreground, background, amount)`, `alpha(color, amount)`.
-- `installedFonts(faces)`: the faces (`{ font }`) installed on this Mac. `textFonts()` and `monospacedFonts()`: the installed ones of the faces offered for text and of the fixed-width ones, as options `{ value, label, font }`, the first `{ value: 'default', label: 'Default' }`, which leaves the face to the theme. A key of a mod's `static form` names either as its `choices` (MOD.md, Configuration).
+- `installedFonts(faces)`: the faces (`{ font }`) installed on this Mac. `textFonts()` and `monospacedFonts()`: every font family installed on this Mac, and those whose faces are fixed-width, as options `{ value, label, font }`, the first `{ value: 'default', label: 'Default' }`, which leaves the face to the theme. A key of a mod's `static form` names either as its `choices` (MOD.md, Configuration).

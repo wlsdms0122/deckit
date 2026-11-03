@@ -57,6 +57,7 @@ class Settings {
         const sources = new Map(); // connection -> the buttons its mod set
         const modSettings = modSettingsSection({
             ui,
+            theme: shell.theme,
             modConfiguration: deckit.modConfiguration,
             formOf: shell.formOf,
             sources,
@@ -66,7 +67,7 @@ class Settings {
         const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
         const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts, onFailure: mods.showNotice });
         const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
-        const sections = [general, mods, modSettings, urlSchemes, keyboard];
+        const sections = [mods, general, modSettings, urlSchemes, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
@@ -144,8 +145,12 @@ class Settings {
             })
         );
         deckit.mods.onChange(() => shown && redraw());
-        // Fonts set elsewhere come as a new theme.
-        shell.theme.onChange(() => shown && general.draw());
+        // Fonts set elsewhere come as a new theme, which a mod's setting left unset may follow.
+        shell.theme.onChange(() => {
+            if (!shown) return;
+            general.draw();
+            modSettings.draw();
+        });
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as

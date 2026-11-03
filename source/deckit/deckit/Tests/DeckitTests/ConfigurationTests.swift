@@ -166,12 +166,32 @@ struct ConfigurationTests {
         #expect(chosen.value == .string("dark"))
     }
 
+    @Test("a value unset reads as its default again, and as none where it has no default")
+    func valueUnsetReadsAsDefault() throws {
+        // Given
+        let sut = try deckit(["a"])
+        _ = try sut.configuration.declare([number("size"), string("font")], mod: "a", run: 1)
+        _ = try sut.configuration.set(mod: "a", key: "size", value: .number(14))
+        _ = try sut.configuration.set(mod: "a", key: "font", value: .string("Menlo"))
+
+        // When
+        let size = try sut.configuration.set(mod: "a", key: "size", value: nil)
+        let font = try sut.configuration.set(mod: "a", key: "font", value: nil)
+        let again = try sut.configuration.set(mod: "a", key: "font", value: nil)
+
+        // Then
+        #expect(size == ConfigurationChange(value: .number(12), changed: true))
+        #expect(font == ConfigurationChange(value: nil, changed: true))
+        #expect(again == ConfigurationChange(value: nil, changed: false))
+        #expect(sut.configuration.values(of: "a") == ["size": .number(12)])
+        #expect(sut.deck.modState.read("configuration", mod: "a") == "{}")
+    }
+
     @Test(
         "a value its declaration does not take is refused",
         arguments: [
             ("wrap", ConfigurationValue?.some(.number(1)), ConfigurationError.notOfType(key: "wrap", type: .boolean)),
             ("size", .string("12"), .notOfType(key: "size", type: .number)),
-            ("font", nil, .notOfType(key: "font", type: .string)),
             ("theme", .string("blue"), .notAChoice(key: "theme", value: .string("blue")))
         ]
     )

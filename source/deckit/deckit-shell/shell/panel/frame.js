@@ -1,4 +1,6 @@
 import * as KIT from '../ui/kit/index.js';
+import * as FONTS from '../fonts/renderer.js';
+import * as SHEET from '../ui/sheet/index.js';
 import * as GESTURE from '../ui/gesture/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
@@ -72,7 +74,7 @@ const STYLE = `
 // the page tells main where the slot under its list is in the card. `channels` binds the panel's channels in the page.
 function boot(theme, channels) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
-    const ui = KIT.make(theme);
+    const ui = KIT.make(theme, { fonts: FONTS.installed({ channels }) });
     KIT.addStyle(CARD + STYLE);
     const setup = PROTOCOL.frameSetup.invoke();
     const { motion: MOTION } = theme;
@@ -181,9 +183,7 @@ function boot(theme, channels) {
 
     // A style sheet made here cannot be taken by another document, so the surfaces wear a copy of the rules.
     function dressSurfaces() {
-        const rules = document.adoptedStyleSheets
-            .flatMap((sheet) => [...sheet.cssRules].map((rule) => rule.cssText))
-            .join('\n');
+        const rules = document.adoptedStyleSheets.map((sheet) => SHEET.textOf(sheet)).join('\n');
         for (const { document: page, style } of [backdrop, handleSurface]) {
             style.textContent = rules;
             page.documentElement.style.colorScheme = document.documentElement.style.colorScheme;

@@ -22,6 +22,7 @@ import * as RESIZER from '../resizer/index.js';
 import * as EMPTY_STATE from '../empty-state/index.js';
 import * as LOADING from '../loading/index.js';
 import * as FONTS from '../fonts/index.js';
+import * as SHEET from '../sheet/index.js';
 import * as MODAL from '../modal/index.js';
 import * as QUICK_PICK from '../quick-pick/index.js';
 import * as COLOR_PICKER from '../color-picker/index.js';
@@ -52,9 +53,10 @@ const components = [
 let installed = false;
 // MARK: - Initializer
 // MARK: - Public
-// The `ui` a page draws with, for `theme`. Frozen all the way down: a mod is handed the very objects its page
-// draws with. Components are made in the order of `components`, as one may lend another something through `inner`.
-function make(theme) {
+// The `ui` a page draws with, for `theme`, `fonts()` answering the fonts installed (`{ families, monospaced }`). Frozen
+// all the way down: a mod is handed the very objects its page draws with. Components are made in the order of
+// `components`, as one may lend another something through `inner`.
+function make(theme, { fonts }) {
     install();
     const ui = {};
     const inner = {};
@@ -72,8 +74,8 @@ function make(theme) {
         capturePointer: POINTER.capture,
         edgeFade: SCROLL.edgeFade,
         installedFonts: FONTS.installedFonts,
-        textFonts: FONTS.textFonts,
-        monospacedFonts: FONTS.monospacedFonts,
+        textFonts: () => FONTS.textFonts(fonts()),
+        monospacedFonts: () => FONTS.monospacedFonts(fonts()),
         isFullyVisible: SCROLL.isFullyVisible,
         pressable: PART.pressable,
         selectable: PART.selectable,
@@ -84,9 +86,7 @@ function make(theme) {
 
 // Rules of a view of deckit's own, drawn with the kit's custom properties.
 function addStyle(rules) {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(rules);
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, SHEET.make(rules)];
 }
 
 // MARK: - Private

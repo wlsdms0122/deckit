@@ -80,9 +80,16 @@ public final class Configuration {
         declarations[mod] = nil
     }
 
+    // A value of none unsets it: it reads as its default again.
     public func set(mod: String, key: String, value: ConfigurationValue?) throws -> ConfigurationChange {
         guard let declaration = declared(mod).first(where: { declaration in declaration.key == key }) else {
             throw ConfigurationError.undeclared(mod: mod, key: key)
+        }
+        guard let value else {
+            return ConfigurationChange(
+                value: declaration.defaultValue,
+                changed: try write(mod: mod, key: key, value: nil)
+            )
         }
         let next = try declaration.value(for: value)
 
@@ -137,8 +144,8 @@ public final class Configuration {
         return (try? JSONDecoder().decode([String: ConfigurationValue].self, from: Data(text.utf8))) ?? [:]
     }
 
-    // One value saved among the others the mod has: whether it changed.
-    private func write(mod: String, key: String, value: ConfigurationValue) throws -> Bool {
+    // One value saved among the others the mod has, or none: whether it changed.
+    private func write(mod: String, key: String, value: ConfigurationValue?) throws -> Bool {
         var values = read(mod: mod)
         guard values[key] != value else { return false }
 

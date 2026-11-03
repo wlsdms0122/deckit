@@ -3,8 +3,8 @@ import * as DECLARED from './protocol.js';
 import * as FONTS from './model/fonts.js';
 import * as FONTS_PERMISSION from './model/permission.js';
 
-// `deckit` is what connect answered.
-export function createFonts({ deckit }) {
+// `deckit` is what connect answered; `installed()` answers the fonts installed (environment: SHELL.fonts).
+export function createFonts({ deckit, installed }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const KEPT = 'fonts';
@@ -22,6 +22,7 @@ export function createFonts({ deckit }) {
             holds(sender);
             return fonts;
         });
+        PROTOCOL.installed.handle(() => installed());
         PROTOCOL.set.handle((change, sender) => {
             holds(sender);
             const problem = FONTS.problemOf(change);

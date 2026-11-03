@@ -144,6 +144,7 @@ function createEnvironment({ core, preload, openWindow }) {
         }),
         dialogs: Object.freeze({ chooseFolders }),
         stage: STAGE,
+        fonts: () => WEBKIT.native().fonts(),
         web: Object.freeze({
             listen: WEB.listen,
             embed: WEB.embed,

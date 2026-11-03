@@ -255,7 +255,7 @@ static configuration = {
 |---|---|
 | `type` | `boolean`, `number` or `string` |
 | `title`, `description` | what a person reads |
-| `default` | what it reads as while nothing it takes is saved |
+| `default` | what it reads as while nothing it takes is saved; without one it reads as nothing then |
 | `oneOf` | `[{ const, title }]`: the values it takes, each of its `type` |
 | `minimum`, `maximum` | for a number: the values it takes, and what a number set is held within |
 
@@ -263,12 +263,12 @@ A declaration deckit's core does not read (no `type`, a choice of another type, 
 
 ### static form
 
-How Settings draws each key: `{ <key>: { placeholder, unit, step, choices } }`, read by deckit's shell. `placeholder` is the hint in an empty text field, `unit` is written after a number, `step` is what a number moves by. `choices` names a list the shell has, a method of `ui` that answers it: `textFonts` or `monospacedFonts` (UI.md). A key with `choices` is declared `type: 'string'`; a value saved that the list does not have is drawn as the default.
+How Settings draws each key: `{ <key>: { placeholder, unit, step, follows, choices } }`, read by deckit's shell. `placeholder` is the hint in an empty text field, `unit` is written after a number, `step` is what a number moves by. A number with no `default` may be left unset, drawn as Default, and `follows` names the `theme` number it steps from then: `textSize`. `choices` names a list the shell has, a method of `ui` that answers it: `textFonts` or `monospacedFonts` (UI.md). A key with `choices` is declared `type: 'string'`; a value saved that the list does not have is drawn as the default.
 
 ### deckit.configuration
 
-- `get(key)`: what it reads as: the value saved, when its declaration takes it, or `default`.
-- `set(key, value)`: checked against the declaration, a number held within `minimum` and `maximum`; a value of another type, or not one of the choices, rejects. Resolves to the value as kept.
+- `get(key)`: what it reads as: the value saved, when its declaration takes it, or `default`, undefined where it has none.
+- `set(key, value)`: checked against the declaration, a number held within `minimum` and `maximum`; a value of another type, or not one of the choices, rejects. Null unsets it, so it reads as its default again. Resolves to what it reads as now, null for none.
 - `on(listener)`: `listener(key, value)` on every change, from Settings or from the mod. Returns the unsubscribe.
 
 ## deckit
@@ -371,7 +371,7 @@ What `attach` receives as `shell`, from deckit's shell (the panel and the kit). 
 | `dropDestination(element, { onDrop, onTargeted })` | takes the files the person drops on `element` from outside the app, by their paths (below) |
 | `children` | `list()`, `[{ id, name, icon }]` of the mods whose view names this one as its `parent` and that run or are launching again, each from its first launch, in the load order, and `onChange(listener)`, which hears them each time they change and returns its off |
 | `web` | `page({ session, url })`, `window({ session, url, title })` (below) |
-| `fonts` | with `deckit.fonts`: `get()`, the person's `{ text, mono, size }` at once, each null for the default: a face's name for `text` and `mono`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `mono`, `textSize`) |
+| `fonts` | with `deckit.fonts`: `get()`, the person's `{ text, size }` at once, each null for the default: a face's name for `text`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `textSize`) |
 | `mods` | with `deckit.mods`: `pinned()`, the children the person pinned to the mod list, at once, and `setPinned(id, pinned)` |
 | `view`, `window`, `styles` | each `register` (Registering); `styles` with `deckit.styles` |
 

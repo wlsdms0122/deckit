@@ -50,7 +50,7 @@ struct GoldenTests {
         (CommandError.notAName("a.b"), "REFUSED"),
         (ConfigurationError.undeclared(mod: "a", key: "k"), "UNDECLARED"),
         (ConfigurationError.notOfType(key: "k", type: .number), "TYPE"),
-        (ConfigurationError.notAChoice(key: "k", value: nil), "CHOICE"),
+        (ConfigurationError.notAChoice(key: "k", value: .string("v")), "CHOICE"),
         (URLRouterError.noHandlers("x"), "SCHEME")
     ]
 

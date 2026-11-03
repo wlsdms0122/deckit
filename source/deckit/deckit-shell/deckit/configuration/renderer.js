@@ -33,16 +33,18 @@ export function createConfiguration({ RUN }) {
         });
     }
 
-    // `deckit.configuration` for a handle: `get(key)`, `set(key, value)`, and `on(listener)`, which hears each value
-    // that changes, until its off or until `scope` is cut.
+    // `deckit.configuration` for a handle: `get(key)`; `set(key, value)`, null unsetting it, so it reads as its default
+    // again; and `on(listener)`, which hears each value that changes, until its off or until `scope` is cut.
     function forScope(scope) {
         return Object.freeze({
             get: (key) => values[key],
             set: (key, value) =>
-                PROTOCOL.set.invoke({ key: String(key), value }).catch((error) => {
-                    RUN.fail(`could not set "${key}": ${error.message}`);
-                    throw error;
-                }),
+                Promise.resolve()
+                    .then(() => PROTOCOL.set.invoke({ key: String(key), value: given(value) }))
+                    .catch((error) => {
+                        RUN.fail(`could not set "${key}": ${error.message}`);
+                        throw error;
+                    }),
             on(listener) {
                 listeners.add(listener);
                 return scope.add(() => listeners.delete(listener));
@@ -66,15 +68,24 @@ export function createConfiguration({ RUN }) {
 // MARK: - Public
 // `deckit.modConfiguration` for a mod with deckit.mod-configuration: every mod's configuration. `list()` answers, for
 // each mod that declares any, `{ id, name, items }`, each item its declaration and the value it reads as; `set(id, key,
-// value)` answers the value as kept.
+// value)`, null unsetting it, answers what it reads as now.
 function tool() {
     return Object.freeze({
         list: () => PROTOCOL.list.invoke(),
-        set: (id, key, value) => PROTOCOL.setOf.invoke({ mod: String(id), key: String(key), value }),
+        set: (id, key, value) =>
+            Promise.resolve().then(() =>
+                PROTOCOL.setOf.invoke({ mod: String(id), key: String(key), value: given(value) })
+            ),
     });
 }
 
 // MARK: - Private
+// The value a set gives: one left out is refused, as null is what unsets.
+function given(value) {
+    if (value === undefined) throw new Error('takes a value, or null to unset it');
+    return value;
+}
+
 // A declaration as data: what JSON does not hold is left out, which the core then reads as missing.
 function dataOf(declaration) {
     try {

@@ -1,4 +1,5 @@
 import * as TOKEN from '../ui/token/index.js';
+import * as SHEET from '../ui/sheet/index.js';
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 
@@ -12,7 +13,7 @@ import * as DECLARED from './protocol.js';
 function start({ channels, tell = told }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const listeners = new Set();
-    const sheet = new CSSStyleSheet();
+    const sheet = SHEET.make('');
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
     let token = wear(PROTOCOL.setup.invoke());
     PROTOCOL.change.on((given) => {
@@ -30,7 +31,7 @@ function start({ channels, tell = told }) {
 
     function wear({ theme, fonts }) {
         const worn = TOKEN.tokenOf(theme || TOKEN.FALLBACK_THEME, fonts || undefined);
-        sheet.replaceSync(TOKEN.propertiesOf(worn));
+        SHEET.replace(sheet, TOKEN.propertiesOf(worn));
         // So what the browser draws itself (scrollbars, native controls) follows it.
         document.documentElement.style.colorScheme = worn.dark ? 'dark' : 'light';
         return worn;

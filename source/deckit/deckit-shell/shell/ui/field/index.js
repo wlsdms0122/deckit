@@ -47,6 +47,7 @@ const STYLE = `
             background: var(--deckit-fill);
         }
         .deckit-stepper-input { width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+        .deckit-stepper[data-unset] .deckit-stepper-input { width: 56px; }
         .deckit-stepper-button {
             width: 22px;
             height: 22px;
@@ -167,8 +168,9 @@ function field({
 }
 
 // A number typed or stepped, drawn as the caller sets it. Enter and leaving the field commit what is typed; Escape
-// puts the value back.
-function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = '', onChange } = {}) {
+// puts the value back. With `unset`, `{ label, value }`, it may hold no number, null: it shows `label` then, steps from
+// `value`, and what is typed cleared commits null.
+function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = '', unset = null, onChange } = {}) {
     const element = document.createElement('div');
     element.className = 'deckit-stepper';
     let current = value;
@@ -176,20 +178,26 @@ function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = 
     const input = document.createElement('input');
     input.className = 'deckit-stepper-input';
     input.spellcheck = false;
+    if (unset) {
+        element.dataset.unset = '';
+        input.placeholder = unset.label;
+    }
     const show = () => {
-        input.value = String(+current.toFixed(4)) + unit;
+        input.value = current === null ? '' : String(+current.toFixed(4)) + unit;
     };
     // Reports what was asked, then shows the value the caller set, or kept.
     const commit = (number) => {
-        const next = clamp(Number.isFinite(number) ? number : current);
+        const next = Number.isFinite(number) ? clamp(number) : unset && number === null ? null : current;
         if (next !== current) onChange?.(next);
         show();
     };
     // From what is typed, if anything is: a step button keeps the focus, so nothing has committed it yet.
     const typed = () => {
         const number = parseFloat(input.value);
-        return Number.isFinite(number) ? clamp(number) : current;
+        return Number.isFinite(number) ? clamp(number) : (current ?? unset.value);
     };
+    // What is typed as it commits: nothing typed is null where the stepper may hold none.
+    const entered = () => (unset && !input.value.trim() ? null : parseFloat(input.value));
     const buttonOf = (name, title, delta) => {
         const button = document.createElement('button');
         button.type = 'button';
@@ -202,7 +210,7 @@ function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = 
     };
     input.addEventListener('keydown', (event) => {
         if (event.key === 'Enter') {
-            commit(parseFloat(input.value));
+            commit(entered());
             input.blur();
         } else if (event.key === 'ArrowUp') commit(typed() + step);
         else if (event.key === 'ArrowDown') commit(typed() - step);
@@ -213,13 +221,13 @@ function stepper({ value = 0, min = -Infinity, max = Infinity, step = 1, unit = 
         } else return;
         event.preventDefault();
     });
-    input.addEventListener('blur', () => commit(parseFloat(input.value)));
+    input.addEventListener('blur', () => commit(entered()));
     element.append(buttonOf('minus', 'Less', -step), input, buttonOf('plus', 'More', step));
     show();
     return {
         element,
         set: (next) => {
-            current = clamp(next);
+            current = unset && next == null ? null : clamp(next);
             show();
         },
     };
