@@ -11,6 +11,7 @@ import * as FIELD from '../field/index.js';
 import * as MENU from '../menu/index.js';
 import * as SECTION from '../section/index.js';
 import * as POPOVER from '../popover/index.js';
+import * as FLOATING_PANEL from '../floating-panel/index.js';
 import * as ROW from '../row/index.js';
 import * as INLINE_EDIT from '../inline-edit/index.js';
 import * as SORTABLE from '../sortable/index.js';
@@ -32,6 +33,7 @@ const components = [
     MENU,
     SECTION,
     POPOVER,
+    FLOATING_PANEL,
     ROW,
     INLINE_EDIT,
     SORTABLE,
