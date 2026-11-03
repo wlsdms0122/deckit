@@ -75,7 +75,7 @@ class Editor {
         '폴더',
         '워크스페이스',
     ];
-    static form = { fontSize: { unit: ' px', follows: 'textSize' }, font: { choices: 'monospacedFonts' } };
+    static form = { fontSize: { unit: ' px', inherits: 'textSize' }, font: { choices: 'monospacedFonts' } };
 
     // What detach() waits for: the unsaved text of every open file kept as a draft, typed until the run ends, and the
     // folders of the open files no longer watched.
