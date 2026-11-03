@@ -232,7 +232,7 @@ const SHELL = Object.freeze({
     },
     // stage() -> a stage (`STAGE`): where pages are laid in one of the host app's windows
     stage: 'function',
-    // fonts() -> { families, fixedPitch }: the font families installed, by name, and those of them whose faces are
+    // fonts() -> { families, monospaced }: the font families installed, by name, and those of them whose faces are
     // fixed-width, as read at each call
     fonts: 'function',
 });

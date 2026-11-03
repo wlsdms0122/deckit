@@ -21,7 +21,7 @@ function installedFonts(faces) {
     );
 }
 
-// The faces for text, from `installed` (`{ families, fixedPitch }`), as a choice's options ({ value, label, font }):
+// The faces for text, from `installed` (`{ families, monospaced }`), as a choice's options ({ value, label, font }):
 // `default` first, then every family installed, by its name.
 function textFonts(installed) {
     return optionsOf(installed.families);
@@ -29,7 +29,7 @@ function textFonts(installed) {
 
 // The same of the families whose faces are fixed-width.
 function monospacedFonts(installed) {
-    return optionsOf(installed.fixedPitch);
+    return optionsOf(installed.monospaced);
 }
 
 // MARK: - Private

@@ -21,7 +21,7 @@ import CNodeAPI
 //   Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
 //   `fetch(store, request, { limit, applicationName }) -> Promise of the answer` (WebRequest, WebAnswer), sent as the
 //   store's pages made with `applicationName` send it; `clear(store) -> Promise`; `close(id)`; `safariVersion()`.
-// - Fonts: `fonts() -> { families, fixedPitch }`, the font families installed, by name, and those of them whose faces
+// - Fonts: `fonts() -> { families, monospaced }`, the font families installed, by name, and those of them whose faces
 //   are fixed-width.
 // - Downloads a page started (WebDownload): `cancelDownload(id)`, nothing for one that ended.
 // - Windows: `openWindow({ kind, size, title, showsTitle, color, material, buttons }, emit) -> id` (Window), `color`
@@ -620,14 +620,14 @@ final class WebEngine {
 
     private func fonts() -> [String: Any?] {
         let manager = NSFontManager.shared
-        let fixedPitch = Set(
+        let monospaced = Set(
             (manager.availableFontNames(with: .fixedPitchFontMask) ?? []).compactMap { name in
                 NSFont(name: name, size: 0)?.familyName
             }
         )
         let families = manager.availableFontFamilies
 
-        return ["families": families, "fixedPitch": families.filter(fixedPitch.contains)]
+        return ["families": families, "monospaced": families.filter(monospaced.contains)]
     }
 
     private func dataStore(_ id: UUID) -> WKWebsiteDataStore {

@@ -5,6 +5,6 @@ import * as CHANNEL from '../../deck/channel/index.js';
 export const current = CHANNEL.pageToMain('deckit-shell:fonts-current', {}, { reply: true, sync: true });
 // Any of { text, size }, null for the default: answers the fonts as kept.
 export const set = CHANNEL.pageToMain('deckit-shell:fonts-set', { text: 'string?', size: 'number?' }, { reply: true });
-// Answers the fonts installed at once, to any page: { families, fixedPitch }, the families by name and those of them
+// Answers the fonts installed at once, to any page: { families, monospaced }, the families by name and those of them
 // whose faces are fixed-width.
 export const installed = CHANNEL.pageToMain('deckit-shell:fonts-installed', {}, { reply: true, sync: true });

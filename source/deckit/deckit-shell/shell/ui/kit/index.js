@@ -53,7 +53,7 @@ const components = [
 let installed = false;
 // MARK: - Initializer
 // MARK: - Public
-// The `ui` a page draws with, for `theme`, `fonts()` answering the fonts installed (`{ families, fixedPitch }`). Frozen
+// The `ui` a page draws with, for `theme`, `fonts()` answering the fonts installed (`{ families, monospaced }`). Frozen
 // all the way down: a mod is handed the very objects its page draws with. Components are made in the order of
 // `components`, as one may lend another something through `inner`.
 function make(theme, { fonts }) {

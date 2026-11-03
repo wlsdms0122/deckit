@@ -15,7 +15,7 @@ function tool({ channels }) {
     });
 }
 
-// The fonts installed, `{ families, fixedPitch }`, read at each call of what it answers, in a page whose channels are
+// The fonts installed, `{ families, monospaced }`, read at each call of what it answers, in a page whose channels are
 // bound with `channels`.
 function installed({ channels }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
