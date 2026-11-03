@@ -998,9 +998,17 @@ async function run({
                 3000
             );
             check('the find count is in the face of its field', faces?.count === faces?.field, JSON.stringify(faces));
+            const tabId = Number(await browser?.evaluate(shownPage));
+            const selected = () => webPage(tabId).evaluate('String(getSelection())');
+            const found = await until(async () => !!(await selected()), 3000);
             await overlay?.key('Escape', 'Escape', 0);
             const gone = await until(async () => !(await overlaid()), 3000);
-            const tabId = Number(await browser?.evaluate(shownPage));
+            const letGo = await until(async () => (await selected()) === '', 3000);
+            check(
+                'closing the find bar lets go of the match it selected',
+                found && letGo,
+                JSON.stringify({ found, letGo })
+            );
             const back = await until(() => responderIs(tabId), 2000);
             check(
                 'closing the find bar takes its overlay off and gives the page the keyboard',

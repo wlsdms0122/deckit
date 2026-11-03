@@ -62,12 +62,12 @@ function findInPage({ theme, ui, area, frontTab }) {
     }
 
     function close() {
-        hide({ keepSelection: true });
+        hide();
         frontTab().page?.focus();
     }
 
-    // Hidden, it takes no presses while it fades.
-    function hide({ keepSelection = false } = {}) {
+    // Hidden, it takes no presses while it fades, and the match it selected is let go.
+    function hide() {
         if (!layer || leaving) return;
         element.style.pointerEvents = 'none';
         leaving = element.animate(FADE, {
@@ -83,7 +83,7 @@ function findInPage({ theme, ui, area, frontTab }) {
             layer.remove();
             layer = null;
         };
-        searchedTab?.page.stopFind({ keepSelection });
+        searchedTab?.page.stopFind();
         searchedTab = null;
         field.setCount(0, 0);
     }
