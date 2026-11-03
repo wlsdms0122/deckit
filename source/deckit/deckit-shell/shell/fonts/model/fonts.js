@@ -1,8 +1,8 @@
 // MARK: - Property
 // The person's fonts: the face text is written in and a size in px, each null for the default.
 const DEFAULT = Object.freeze({ text: null, size: null });
-// A face by the name of its family, as an installed font names it.
-const FACE = /^[\p{L}\p{N} ._-]{1,64}$/u;
+// A face by the name of its family, as an installed font names it: any text on one line.
+const FACE = /^[^\p{Cc}]{1,256}$/u;
 const SIZE = Object.freeze({ min: 11, max: 22 });
 
 // MARK: - Initializer

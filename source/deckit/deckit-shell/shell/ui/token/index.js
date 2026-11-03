@@ -1,4 +1,5 @@
 import * as COLOR from '../color/index.js';
+import * as FONTS from '../fonts/index.js';
 
 // MARK: - Property
 // Worn until the embedder gives its theme.
@@ -75,7 +76,7 @@ function tokenOf(theme, fonts = {}) {
         dark,
         font: theme.font,
         mono: MONO,
-        textFont: fonts.text ? `"${fonts.text}", ${theme.font}` : theme.font,
+        textFont: fonts.text ? `${FONTS.familyOf(fonts.text)}, ${theme.font}` : theme.font,
         textSize: fonts.size || TEXT_SIZE,
         type: Object.fromEntries(Object.entries(TYPE).map(([name, size]) => [name, `${size}px ${theme.font}`])),
         border: theme.border,

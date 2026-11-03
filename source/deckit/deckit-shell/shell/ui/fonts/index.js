@@ -32,9 +32,14 @@ function monospacedFonts(installed) {
     return optionsOf(installed.monospaced);
 }
 
-// MARK: - Private
-function optionsOf(names) {
-    return [DEFAULT, ...names.map((name) => ({ value: name, label: name, font: `"${name}"` }))];
+// A family by its name, as CSS names it in `font-family`.
+function familyOf(name) {
+    return `"${name.replace(/[\\"]/g, '\\$&')}"`;
 }
 
-export { installedFonts, textFonts, monospacedFonts };
+// MARK: - Private
+function optionsOf(names) {
+    return [DEFAULT, ...names.map((name) => ({ value: name, label: name, font: familyOf(name) }))];
+}
+
+export { installedFonts, textFonts, monospacedFonts, familyOf };
