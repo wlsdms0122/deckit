@@ -22,6 +22,8 @@ function findInPage({ theme, ui, area, frontTab }) {
             transform-origin: top right;
         }
         .browser-find-field { flex: 0 1 auto; width: 300px; min-width: 0; margin: 0 2px; }
+        .browser-find .deckit-icon-button,
+        .browser-find .deckit-toggle-button { border-radius: var(--deckit-radius-round); }
     `);
     const element = document.createElement('div');
     element.className = 'browser-find';
