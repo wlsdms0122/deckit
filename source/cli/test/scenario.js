@@ -541,20 +541,27 @@ async function run({
             `${usage} (the disk holds ${JSON.stringify(told)})`
         );
 
-        // A folder dropped on the Mods section is asked about as a picked one is: one install refuses is told.
+        // A folder dropped on the Mods section is asked about as a picked one is: one install refuses is told. While it
+        // is over the section, the section says what a drop does there.
         const notMod = path.join(home, '..', 'not-a-mod');
         fs.mkdirSync(notMod, { recursive: true });
         const settingsId = await main(
             `return webkit.pages().find((id) => webkit.state(id).url.startsWith('deckit://settings.mod'))`
         );
         const modsHead = await settings.evaluate(`(() => {
-            const head = document.querySelector('.settings-section-head');
+            const head = document.querySelector('.settings-mods .settings-section-head');
             head.scrollIntoView();
             const box = head.getBoundingClientRect();
             return { x: box.left + 20, y: box.top + 10 };
         })()`);
         const dropped = JSON.stringify({ files: [fs.realpathSync(notMod)], ...modsHead });
-        await main(`return webkit.sendDrop(${settingsId}, ${dropped})`);
+        const dropping = main(`return webkit.sendDrop(${settingsId}, ${dropped})`);
+        const covered = await until(
+            () => settings.evaluate(`getComputedStyle(document.querySelector('.settings-drop')).opacity === '1'`),
+            1000
+        );
+        check('files dragged over the Mods section show where they install', covered, '');
+        await dropping;
         const noticeText = `document.querySelector('.settings-notice')?.textContent || ''`;
         const refusedDrop = await until(
             async () => /^Could not install not-a-mod: /.test(await settings.evaluate(noticeText)),

@@ -116,15 +116,36 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         .settings-order-text[data-refused] { color: var(--deckit-alert); opacity: 1; }
         .settings-install-mod { margin: 12px 0 6px; font: 600 var(--deckit-type-body); }
         .settings-install-mod:first-child { margin-top: 0; }
-        .settings-section[data-targeted] {
-            outline: 2px solid var(--deckit-target);
-            outline-offset: 4px;
+        /* Over the whole section while files are dragged over it, drawn inside it, so nothing of it is cut. The
+           drag goes on to what is under it. */
+        .settings-mods { position: relative; }
+        .settings-drop {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: 2px solid var(--deckit-target);
             border-radius: var(--deckit-radius-medium);
+            background: color-mix(in srgb, var(--deckit-background) 55%, transparent);
+            backdrop-filter: blur(8px);
+            color: var(--deckit-text);
+            font: 600 var(--deckit-type-body);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--deckit-fast) var(--deckit-easing);
         }
+        .settings-mods[data-targeted] .settings-drop { opacity: 1; }
+        .settings-drop-icon { display: flex; color: var(--deckit-target); }
         .settings-install-note { margin-top: 10px; font: var(--deckit-type-small); line-height: 1.5; opacity: 0.5; }
     `);
     ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE);
     const { element, head, body } = section({ ui, title: TITLE, description: DESCRIPTION });
+    const drop = ui.element('div', { className: 'settings-drop' });
+    const dropIcon = ui.element('div', { className: 'settings-drop-icon' });
     const installButton = ui.button({
         label: 'Install Mod',
         size: 'small',
@@ -166,6 +187,10 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
     order.hidden = true;
     order.append(orderText, revertButton.element, applyButton.element);
     head.append(installButton.element);
+    element.classList.add('settings-mods');
+    dropIcon.innerHTML = ui.icon('download', { size: 28 });
+    drop.append(dropIcon, ui.element('div', { text: 'Drop to install mods' }));
+    element.append(drop);
     dropDestination(element, {
         onTargeted: (on) => element.toggleAttribute('data-targeted', on),
         onDrop: dropAndInstall,
