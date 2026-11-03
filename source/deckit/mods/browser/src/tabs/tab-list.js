@@ -1,4 +1,5 @@
 const { canonical, isFile, placeOf } = require('../address/address.js');
+const { START } = require('../start-page/start-page.js');
 const { tree, isFolder, folderOf } = require('../tree/tree.js');
 
 // The open tabs, each with its page, in a tree of folders (`tree.js`), and the session record that brings them back.
@@ -113,7 +114,6 @@ function tabList({
         front = tab;
         wake(tab);
         for (const folder of nodes.ancestorsOf(tab)) folder.collapsed = false;
-        showCurrent();
         changed();
         onSelect(tab, previous);
     }
@@ -126,12 +126,13 @@ function tabList({
         if (!tab.page) {
             Object.assign(tab, { url, title: '', icon: '' });
             wake(tab);
-            showCurrent();
             changed();
             return;
         }
         if (isFile(url) === (tab.page.session === filesSession)) {
+            tab.url = url;
             tab.page.load(url);
+            changed();
             return;
         }
         const old = tab.page;
@@ -140,7 +141,6 @@ function tabList({
         release(tab, old);
         Object.assign(tab, { url, title: '', icon: '', loading: true, canGoBack: false, canGoForward: false });
         listen(tab);
-        showCurrent();
         changed();
     }
 
@@ -273,7 +273,7 @@ function tabList({
     function retire(tab) {
         const { parent, index } = nodes.remove(tab);
         // One whose page has shown no page has nothing to come back to.
-        if (tab.url !== 'about:blank' && !tab.page?.state.blank) {
+        if (tab.url !== START && !tab.page?.state.blank) {
             const { url, title, icon } = tab;
             closed.push({ url, title, icon, parent: parent === nodes.root ? null : parent.id, index });
             closed.splice(0, Math.max(0, closed.length - KEPT_CLOSED));
@@ -330,13 +330,14 @@ function tabList({
     }
 
     // Pages out of sight are hidden by visibility: a page element with nothing to draw into (display: none) comes
-    // back blank or at the wrong size.
+    // back blank or at the wrong size. The tab in front at the start shows the start page instead.
     function showCurrent() {
         for (const tab of nodes.items())
-            if (tab.page) tab.page.element.style.visibility = tab === front ? 'visible' : 'hidden';
+            if (tab.page) tab.page.element.style.visibility = tab === front && tab.url !== START ? 'visible' : 'hidden';
     }
 
     function changed() {
+        showCurrent();
         onChange();
         persist();
     }

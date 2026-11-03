@@ -5,6 +5,7 @@ const { downloadList } = require('./downloads/downloads.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
+const { START, startPage } = require('./start-page/start-page.js');
 const { store } = require('./store/store.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabList, tabLabel } = require('./tabs/tab-list.js');
@@ -17,8 +18,8 @@ class Browser {
         homepage: {
             type: 'string',
             title: 'Homepage',
-            description: 'What a new tab opens.',
-            default: 'https://www.google.com/',
+            description: 'What a new tab opens: the start page, the bookmarks as tiles, when empty.',
+            default: '',
         },
         searchEngine: {
             type: 'string',
@@ -73,6 +74,7 @@ class Browser {
             onSubmit: go,
         });
         const find = findInPage({ ui, area, frontTab: () => tabs.front() });
+        const start = startPage({ ui, onOpen: (bookmark) => go(bookmark.url) });
         const tabs = tabList({
             web: shell.web,
             records,
@@ -122,6 +124,7 @@ class Browser {
             onEditBookmark: (tab) => editor.show(tab),
         });
 
+        area.append(start.element);
         content.append(bar.element, area);
         webSession.trust(certificates.all());
         webSession.allow(sitePermissions.all());
@@ -218,16 +221,18 @@ class Browser {
         deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         function home() {
-            return parseAddress(configuration.get('homepage')) || 'about:blank';
+            return parseAddress(configuration.get('homepage')) || START;
         }
 
         function showTabs() {
             sidePanel.showTabs(tabs.tree(), tabs.front());
+            start.setShown(tabs.front().url === START);
             showBar();
         }
 
         function showBookmarks() {
             sidePanel.showBookmarks(bookmarks.tree());
+            start.show(bookmarks.tree());
             showBar();
         }
 
@@ -236,10 +241,12 @@ class Browser {
             bar.show(tab, { bookmarked: bookmarks.has(tab.url) });
         }
 
+        // One opened at no address given has its address edited.
         function newTab(url) {
             const address = url === undefined ? home() : parseAddress(url);
             if (!address) throw new Error(`${url} is not a web address`);
             tabs.add(address);
+            if (url === undefined) editAddress();
         }
 
         function reopenTab() {
