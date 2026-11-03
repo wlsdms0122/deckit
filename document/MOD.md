@@ -263,7 +263,7 @@ A declaration deckit's core does not read (no `type`, a choice of another type, 
 
 ### static form
 
-How Settings draws each key: `{ <key>: { placeholder, unit, step, choices } }`, read by deckit's shell. `placeholder` is the hint in an empty text field, `unit` is written after a number, `step` is what a number moves by. `choices` names a list the shell has, a method of `ui` that answers it: `textFonts` or `monospacedFonts` (UI.md). A key with `choices` is declared `type: 'string'`; a value saved that the list does not have is drawn as the default.
+How Settings draws each key: `{ <key>: { placeholder, unit, step, follows, choices } }`, read by deckit's shell. `placeholder` is the hint in an empty text field, `unit` is written after a number, `step` is what a number moves by. A number with no `default` may be left unset, drawn as Default, and `follows` names the `theme` number it steps from then: `textSize`. `choices` names a list the shell has, a method of `ui` that answers it: `textFonts` or `monospacedFonts` (UI.md). A key with `choices` is declared `type: 'string'`; a value saved that the list does not have is drawn as the default.
 
 ### deckit.configuration
 

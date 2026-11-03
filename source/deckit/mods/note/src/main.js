@@ -15,7 +15,7 @@ const { relocationLog } = require('./notes-folder/relocation-log.js');
 const { session } = require('./session/session.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tree } = require('./browsing/tree.js');
-const { TEXT_SIZES, typefaceOf } = require('./editor/typeface.js');
+const { typefaceOf } = require('./editor/typeface.js');
 
 // The paragraph styles, without the separators of their menu.
 const STYLES = PARAGRAPH_STYLES.filter((style) => style !== '-');
@@ -34,11 +34,11 @@ class Note {
             ],
         },
         textSize: {
-            type: 'string',
+            type: 'number',
             title: 'Text size',
             description: 'Default follows the text size in the General section.',
-            default: 'default',
-            oneOf: TEXT_SIZES,
+            minimum: 11,
+            maximum: 22,
         },
         font: {
             type: 'string',
@@ -65,7 +65,7 @@ class Note {
         '체크리스트',
         '할일',
     ];
-    static form = { font: { choices: 'textFonts' } };
+    static form = { textSize: { unit: ' px', follows: 'textSize' }, font: { choices: 'textFonts' } };
 
     // What detach() waits for: the open note written, its title typed and not yet applied too, so what was typed just
     // before the run ends is kept, and the notes folder no longer watched.

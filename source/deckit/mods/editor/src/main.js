@@ -21,7 +21,6 @@ const { sidebar, SIDEBAR_STYLE } = require('./workspace/sidebar.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
 const { tabs, TABS_STYLE } = require('./workspace/tabs.js');
 const { treeEntryActions } = require('./file-tree/tree-entry-actions.js');
-const { FONT_SIZES } = require('./code/typeface.js');
 const { unsavedDrafts, DRAFTS_STYLE } = require('./open-file/unsaved-drafts.js');
 const { workspaceModel } = require('./workspace/workspace-model.js');
 const { workspaceSearch, WORKSPACE_SEARCH_STYLE } = require('./workspace-search/workspace-search.js');
@@ -29,11 +28,11 @@ const { workspaceSearch, WORKSPACE_SEARCH_STYLE } = require('./workspace-search/
 class Editor {
     static configuration = {
         fontSize: {
-            type: 'string',
+            type: 'number',
             title: 'Font size',
             description: 'Default follows the text size in the General section.',
-            default: 'default',
-            oneOf: FONT_SIZES,
+            minimum: 10,
+            maximum: 24,
         },
         font: {
             type: 'string',
@@ -76,7 +75,7 @@ class Editor {
         '폴더',
         '워크스페이스',
     ];
-    static form = { font: { choices: 'monospacedFonts' } };
+    static form = { fontSize: { unit: ' px', follows: 'textSize' }, font: { choices: 'monospacedFonts' } };
 
     // What detach() waits for: the unsaved text of every open file kept as a draft, typed until the run ends, and the
     // folders of the open files no longer watched.

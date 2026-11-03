@@ -1,12 +1,13 @@
 const { section } = require('../section/section.js');
 
 // The Mod Settings section: a card per mod that declares a configuration or sets buttons through Settings' exports,
-// `setButtons(buttons)`, a control per configuration item and a row per button. `modConfiguration` is
+// `setButtons(buttons)`, a control per configuration item and a row per button. `theme` is shell.theme, whose numbers
+// a number left unset may follow. `modConfiguration` is
 // deckit.modConfiguration; `formOf(mod)` answers how a mod's configuration is drawn (shell.formOf). `sources` is what
 // each mod set, `{ list, run }`, by its connection. A button gives its value to the `run` its mod set and shows under
 // it the text that answers; `nameOf(mod)` names a card that has only buttons. `onFailure` hears a change that did not
 // apply.
-function modSettingsSection({ ui, modConfiguration, formOf, sources, nameOf, onFailure }) {
+function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, nameOf, onFailure }) {
     const TITLE = 'Mod Settings';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
@@ -14,6 +15,10 @@ function modSettingsSection({ ui, modConfiguration, formOf, sources, nameOf, onF
     const HIGHLIGHT_LENGTH = 1200;
     // The kit's lists a form's `choices` can name.
     const LISTS = ['textFonts', 'monospacedFonts'];
+    // The theme's numbers a form's `follows` can name.
+    const FOLLOWED = ['textSize'];
+    // What a number left unset shows.
+    const UNSET = 'Default';
 
     // As last drawn, for the commands, which cannot wait for a drawing.
     let groups = [];
@@ -209,6 +214,7 @@ function modSettingsSection({ ui, modConfiguration, formOf, sources, nameOf, onF
                 onChange: change,
             });
         if (item.options.length || item.listed) return ui.select({ options: item.options, value, onChange: change });
+        // A number with no default may be left unset, stepping from what it follows.
         if (item.type === 'number')
             return ui.stepper({
                 value,
@@ -216,6 +222,7 @@ function modSettingsSection({ ui, modConfiguration, formOf, sources, nameOf, onF
                 max: item.maximum,
                 step: item.step,
                 unit: item.unit,
+                unset: item.default === undefined ? { label: UNSET, value: item.follows ?? item.minimum ?? 0 } : null,
                 onChange: change,
             });
         const field = ui.field({
@@ -256,7 +263,7 @@ function modSettingsSection({ ui, modConfiguration, formOf, sources, nameOf, onF
         if (item.type === 'boolean') return !!item.value;
         if (item.listed) return item.options.some((option) => option.value === item.value) ? item.value : item.default;
         if (item.type === 'string' && !item.options.length) return item.value || '';
-        return item.value;
+        return item.value ?? null;
     }
 
     // Everything a setting declares but its value: when it changes, the control is made again.
@@ -265,7 +272,8 @@ function modSettingsSection({ ui, modConfiguration, formOf, sources, nameOf, onF
     }
 
     // A configuration item as its row draws it, with the hints of its form: its options are its `oneOf`, or for a
-    // string the list of the kit its form's `choices` names (`listed`).
+    // string the list of the kit its form's `choices` names (`listed`); `follows` is the theme's number its form's
+    // `follows` names, for a number.
     function itemOf(item, hints) {
         const listed = item.type === 'string' && LISTS.includes(hints.choices) ? ui[hints.choices]() : null;
         const choices = (item.oneOf || []).map((choice) => ({
@@ -286,6 +294,7 @@ function modSettingsSection({ ui, modConfiguration, formOf, sources, nameOf, onF
             step: typeof hints.step === 'number' && hints.step > 0 ? hints.step : 1,
             unit: typeof hints.unit === 'string' ? hints.unit : '',
             placeholder: typeof hints.placeholder === 'string' ? hints.placeholder : '',
+            follows: item.type === 'number' && FOLLOWED.includes(hints.follows) ? theme[hints.follows] : null,
         };
     }
 }
