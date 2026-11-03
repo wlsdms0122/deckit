@@ -386,6 +386,15 @@ async function run({
             text.includes('"*" already takes every address'),
             text.slice(text.indexOf(BROKEN) - 100, text.indexOf(BROKEN) + 200)
         );
+        const selectable = await settings?.evaluate(`({
+            unprefixed: CSS.supports('user-select', 'text'),
+            failure: getComputedStyle(document.querySelector('.settings-mod-failure')).webkitUserSelect,
+        })`);
+        check(
+            "text made selectable can be selected, such as a mod's failure",
+            selectable?.failure === 'text',
+            JSON.stringify(selectable)
+        );
         await settings?.shot('settings');
         // A menu is a layer, drawn in the page's overlay, which has the keys while it is open.
         const settingsOverlay = settings && (await overlayOf(settings));

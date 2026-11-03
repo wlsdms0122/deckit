@@ -34,10 +34,10 @@ function pressable(element) {
     return () => element.classList.remove('deckit-pressable');
 }
 
-// Text the person can select, in a page where nothing is by default.
+// Text the person can select, in a page where nothing is by default. WebKit takes only the prefixed property.
 function selectable(element) {
-    element.style.userSelect = 'text';
-    return () => (element.style.userSelect = '');
+    element.style.webkitUserSelect = element.style.userSelect = 'text';
+    return () => (element.style.webkitUserSelect = element.style.userSelect = '');
 }
 
 // A bar along the top of the view, where the window's title bar may lie over it: at least as tall as the
