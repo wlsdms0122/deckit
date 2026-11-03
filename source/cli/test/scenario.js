@@ -1046,6 +1046,34 @@ async function run({
         await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-close'))`);
         const webClosed = await until(async () => (await webWindow()) === null, 3000);
         check("a mod's web window goes as the mod closes it", webClosed, JSON.stringify(await webWindow()));
+        // What a session's page was given is the session's: read once the page is gone, the cookie it set is sent.
+        {
+            const site = require('http').createServer((request, response) => {
+                if (request.url === '/sign-in') {
+                    response.writeHead(200, { 'Set-Cookie': 'probe=kept; Path=/; Max-Age=3600' });
+                    return response.end('signed in');
+                }
+                response.end(request.headers.cookie || 'no cookie');
+            });
+            await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+            const at = `http://127.0.0.1:${site.address().port}`;
+            await webUser?.evaluate(
+                `document.dispatchEvent(new CustomEvent('test-web-open', { detail: '${at}/sign-in' }))`
+            );
+            await until(async () => (await mark(webUser, 'loaded')) === `${at}/sign-in`, 8000);
+            await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-close'))`);
+            await until(async () => (await webWindow()) === null, 3000);
+            await webUser?.evaluate(
+                `document.dispatchEvent(new CustomEvent('test-web-read', { detail: '${at}/echo' }))`
+            );
+            const read = await until(() => mark(webUser, 'read'), 5000);
+            site.close();
+            check(
+                "a session's fetchText sends the cookies its page was given, once the page is gone",
+                read === 'probe=kept',
+                read
+            );
+        }
 
         // A region in the parent's sidebar: the child is laid over it, and goes as the sidebar folds.
         await show('region-parent');
