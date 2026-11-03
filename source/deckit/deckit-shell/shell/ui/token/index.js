@@ -65,8 +65,9 @@ const WASH = (amount) => `rgba(128,128,128,${amount})`;
 // MARK: - Initializer
 // MARK: - Public
 // What every view draws with, derived once from the embedder's theme and the person's fonts. `font` and `type` are the
-// host's, the face the app's own parts are in; `textFont` and `textSize` are what text a person reads and writes is in,
-// the person's where they chose them, and `mono` the system's fixed-width face.
+// host's, the face the app's own parts are in; `textFont` and `textSize` are what a page's text is in where nothing
+// chooses another, and text a person reads and writes, the person's where they chose them; `mono` is the system's
+// fixed-width face.
 function tokenOf(theme, fonts = {}) {
     const text = theme.contentColor;
     const background = theme.contentBg;

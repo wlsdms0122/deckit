@@ -8,11 +8,11 @@ import * as FRAME_PAGE from '../panel/model/page-name.js';
 import * as THEME from '../theme/renderer.js';
 
 // MARK: - Property
-// Every page the shell draws in: clear around what it draws, and no drag selection, so text meant to be copied
-// opts in (ui.selectable).
+// Every page the shell draws in: clear around what it draws, no drag selection, so text meant to be copied opts in
+// (ui.selectable), and text in the person's face and size where nothing chooses another.
 const PAGE_STYLE = `
     html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
-    body { -webkit-user-select: none; user-select: none; }
+    body { -webkit-user-select: none; user-select: none; font: var(--deckit-text-size) var(--deckit-text-font); }
 `;
 
 // MARK: - Initializer

@@ -407,6 +407,12 @@ async function run({
             sized,
             `${sizeBefore} -> ${await editor.evaluate(codeSize)}`
         );
+        const pageSize = `getComputedStyle(document.body).fontSize`;
+        check(
+            "a page's text that nothing styles is in the General size",
+            (await settings?.evaluate(pageSize)) === '12px',
+            await settings?.evaluate(pageSize)
+        );
         const fontsKept = path.join(home, 'state', 'host', 'fonts.json');
         const sizeKept = await until(
             () => fs.existsSync(fontsKept) && JSON.parse(fs.readFileSync(fontsKept, 'utf8')).size === 12,
@@ -1635,7 +1641,12 @@ async function run({
         );
         check(
             'files dropped from outside the app reach a drop destination by their paths',
-            drop === JSON.stringify({ paths: droppedFiles, at: { x: 10, y: 10 } }),
+            (() => {
+                const { paths, at } = JSON.parse(drop || '{}');
+                // The point lands on a whole pixel of the window, the zone's corner wherever its layout puts it.
+                const near = (value) => Math.abs(value - 10) < 1;
+                return JSON.stringify(paths) === JSON.stringify(droppedFiles) && near(at?.x) && near(at?.y);
+            })(),
             drop
         );
         const targeted = await probe.evaluate('document.documentElement.dataset.targeted');
