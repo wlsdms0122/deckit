@@ -53,7 +53,7 @@ final class Window: NSObject {
         switch kind {
         case .titled:
             let fullSize: NSWindow.StyleMask = buttons == nil ? [] : .fullSizeContentView
-            window = NSWindow(
+            window = KeyedWindow(
                 contentRect: rect,
                 styleMask: [.titled, .closable, .miniaturizable, .resizable, fullSize],
                 backing: .buffered,
@@ -62,7 +62,7 @@ final class Window: NSObject {
             window.titleVisibility = showsTitle ? .visible : .hidden
 
         case .floating:
-            let panel = NSPanel(
+            let panel = KeyedPanel(
                 contentRect: rect,
                 styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
                 backing: .buffered,
@@ -280,5 +280,19 @@ extension Window: NSWindowDelegate {
         emitter.emit("close")
         emitter.release()
         ended?()
+    }
+}
+
+// Windows that hand the keyboard to a web page only as it may take it (WebPageView): asked before what has it now gives
+// it up, so a page that may not leaves it where it is.
+private final class KeyedWindow: NSWindow {
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        WebPageView.mayTake(responder) && super.makeFirstResponder(responder)
+    }
+}
+
+private final class KeyedPanel: NSPanel {
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        WebPageView.mayTake(responder) && super.makeFirstResponder(responder)
     }
 }

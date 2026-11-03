@@ -8,8 +8,8 @@
 import AppKit
 import WebKit
 
-// A web page's WKWebView, which tells when it takes the keyboard, takes it only as it is given it or pressed unless it
-// `takesKeyboard` as its document focuses an element, keeps the files of the drop last performed on it, and
+// A web page's WKWebView, which tells when it takes the keyboard, may take it only as it is given it or pressed unless
+// it `takesKeyboard` as its document focuses an element, keeps the files of the drop last performed on it, and
 // hears the pointer only where it is the page under it, in a key window of an app that is not active too
 // (PointerRelay). WebKit tracks the pointer through tracking areas of its own, which each page is given behind a gate
 // (TrackingGate), so a page under another does not answer the moves too and set its own cursor.
@@ -55,7 +55,6 @@ final class WebPageView: WKWebView {
     }
 
     override func becomeFirstResponder() -> Bool {
-        guard takesKeyboard || given || isPressed() else { return false }
         let became = super.becomeFirstResponder()
         if became { onFocus?() }
 
@@ -84,6 +83,13 @@ final class WebPageView: WKWebView {
     }
 
     // MARK: - Public
+    // Whether `responder` may have the keyboard of the window it is in: anything but a page that may not take it now.
+    static func mayTake(_ responder: NSResponder?) -> Bool {
+        guard let page = responder as? WebPageView else { return true }
+
+        return page.takesKeyboard || page.given || page.isPressed()
+    }
+
     // The keyboard handed to it, in its window.
     func take() {
         given = true
