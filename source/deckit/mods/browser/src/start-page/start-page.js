@@ -2,10 +2,7 @@ const { placeOf } = require('../address/address.js');
 const { faviconOf } = require('../favicon/favicon.js');
 const { isFolder } = require('../tree/tree.js');
 
-// The address of a tab that has gone nowhere yet, which shows the start page.
-const START = 'about:blank';
-
-// What a tab shows before it goes anywhere, drawn in the area of pages where its page is not shown: the bookmarks as
+// What a tab at the start shows (tab-list.js), drawn in the area of pages where its page is not shown: the bookmarks as
 // tiles, those at the top level first and then each folder's own, a press on one going to it (`onOpen(bookmark)`).
 function startPage({ ui, onOpen }) {
     ui.addStyle(`
@@ -116,4 +113,4 @@ function startPage({ ui, onOpen }) {
     }
 }
 
-module.exports = { START, startPage };
+module.exports = { startPage };

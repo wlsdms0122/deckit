@@ -1,11 +1,14 @@
 const { canonical, isFile, placeOf } = require('../address/address.js');
-const { START } = require('../start-page/start-page.js');
 const { tree, isFolder, folderOf } = require('../tree/tree.js');
+
+// The address a tab that has gone nowhere is at.
+const START = 'about:blank';
 
 // The open tabs, each with its page, in a tree of folders (`tree.js`), and the session record that brings them back.
 // A tab brought back sleeps, with no page, until it first comes to the front, as a browser restoring its tabs does: a
 // page loads and runs from when it is made. A web address opens in the web session and a file in the files session. A
-// folder stands until it is deleted, empty or not.
+// folder stands until it is deleted, empty or not. A tab the Browser opened at START, which goes nowhere, is at the
+// start, and shows no page.
 function tabList({
     web,
     records,
@@ -36,6 +39,7 @@ function tabList({
         tree: () => nodes,
         list: () => nodes.items(),
         front: () => front,
+        atStart,
         lastClosed: () => closed.at(-1),
         add,
         open,
@@ -333,7 +337,12 @@ function tabList({
     // back blank or at the wrong size. The tab in front at the start shows the start page instead.
     function showCurrent() {
         for (const tab of nodes.items())
-            if (tab.page) tab.page.element.style.visibility = tab === front && tab.url !== START ? 'visible' : 'hidden';
+            if (tab.page) tab.page.element.style.visibility = tab === front && !atStart(tab) ? 'visible' : 'hidden';
+    }
+
+    // A window a page opened at START is the page's, which may draw in it.
+    function atStart(tab) {
+        return tab.url === START && !tab.opener;
     }
 
     function changed() {
@@ -358,4 +367,4 @@ function tabLabel(tab) {
     return tab.title || placeOf(tab.url) || 'New tab';
 }
 
-module.exports = { tabList, tabLabel };
+module.exports = { START, tabList, tabLabel };

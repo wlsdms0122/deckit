@@ -1,6 +1,6 @@
 const { isWeb, placeOf } = require('../address/address.js');
 const { favicon } = require('../favicon/favicon.js');
-const { START } = require('../start-page/start-page.js');
+const { START } = require('../tabs/tab-list.js');
 
 // The view's title bar, as the Browser's toolbar: Back and Forward, the field of the tab in front, and `trailing` at its
 // end. The field holds the site's icon, which opens its permissions, the site, and Reload and the bookmark star of the

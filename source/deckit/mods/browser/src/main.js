@@ -5,10 +5,10 @@ const { downloadList } = require('./downloads/downloads.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
-const { START, startPage } = require('./start-page/start-page.js');
+const { startPage } = require('./start-page/start-page.js');
 const { store } = require('./store/store.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
-const { tabList, tabLabel } = require('./tabs/tab-list.js');
+const { START, tabList, tabLabel } = require('./tabs/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
 
 class Browser {
@@ -226,7 +226,7 @@ class Browser {
 
         function showTabs() {
             sidePanel.showTabs(tabs.tree(), tabs.front());
-            start.setShown(tabs.front().url === START);
+            start.setShown(tabs.atStart(tabs.front()));
             showBar();
         }
 
@@ -303,8 +303,9 @@ class Browser {
             tabs.front().page.reload();
         }
 
+        // A tab at the start has no page to find in.
         function openFind() {
-            find.show();
+            if (!tabs.atStart(tabs.front())) find.show();
         }
 
         function notify(tab, notification) {
