@@ -7,11 +7,12 @@ import * as SHEET from '../sheet/index.js';
 let overlay = null;
 let style = null; // what wears the copies in the overlay
 let told = '';
+const awaited = new WeakSet(); // the animations in the overlay whose end is told
 
 // MARK: - Initializer
 // MARK: - Public
 // Where the overlay draws and what holds the focus in it are told again as they change, where it draws once what moves
-// in it stops, and after a press, once the focus moved, so main hears where the keyboard belongs.
+// in it stops, however it moves, and after a press, once the focus moved, so main hears where the keyboard belongs.
 function start(given) {
     overlay = given;
     style = overlay.document.createElement('style');
@@ -29,7 +30,6 @@ function start(given) {
         attributeFilter: ['style', 'class', 'data-state', 'hidden'],
     });
     overlay.window.addEventListener('resize', () => report());
-    overlay.document.addEventListener('transitionend', () => report());
     for (const type of ['focusin', 'focusout']) overlay.document.addEventListener(type, () => setTimeout(report));
     for (const type of ['focus', 'blur']) overlay.window.addEventListener(type, () => setTimeout(report));
     overlay.window.addEventListener('pointerdown', () => setTimeout(() => report({ again: true })), true);
@@ -89,6 +89,14 @@ function draws() {
 // Told when it changed, or `again`: whether the overlay draws anything, whether an element in it has the keyboard, and
 // where it draws what takes presses.
 function report({ again = false } = {}) {
+    for (const animation of overlay.document.getAnimations()) {
+        if (awaited.has(animation)) continue;
+        awaited.add(animation);
+        animation.finished.then(
+            () => report(),
+            () => report()
+        );
+    }
     const state = {
         shows: draws(),
         focused: !!focused(),
