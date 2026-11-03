@@ -543,6 +543,31 @@ async function run({
             usage === (told.length ? told : ['Nothing stored']).join(' · '),
             `${usage} (the disk holds ${JSON.stringify(told)})`
         );
+
+        // A folder dropped on the Mods section is asked about as a picked one is: one install refuses is told.
+        const notMod = path.join(home, '..', 'not-a-mod');
+        fs.mkdirSync(notMod, { recursive: true });
+        const settingsId = await main(
+            `return webkit.pages().find((id) => webkit.state(id).url.startsWith('deckit://settings.mod'))`
+        );
+        const modsHead = await settings.evaluate(`(() => {
+            const head = document.querySelector('.settings-section-head');
+            head.scrollIntoView();
+            const box = head.getBoundingClientRect();
+            return { x: box.left + 20, y: box.top + 10 };
+        })()`);
+        const dropped = JSON.stringify({ files: [fs.realpathSync(notMod)], ...modsHead });
+        await main(`return webkit.sendDrop(${settingsId}, ${dropped})`);
+        const noticeText = `document.querySelector('.settings-notice')?.textContent || ''`;
+        const refusedDrop = await until(
+            async () => /^Could not install not-a-mod: /.test(await settings.evaluate(noticeText)),
+            4000
+        );
+        check(
+            'a folder dropped on the Mods section is planned as a picked one, and one install refuses is told',
+            refusedDrop,
+            await settings.evaluate(noticeText)
+        );
         const browser = await page('deckit://browser.mod');
         // A tab's page is reached through its element, which names it once main has given it its id.
         const shownPage = `[...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible')?.dataset.webPage`;

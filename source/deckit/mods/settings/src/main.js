@@ -48,6 +48,7 @@ class Settings {
             ui,
             mods: deckit.mods,
             pins: shell.mods,
+            dropDestination: shell.dropDestination,
             everyScheme: deckit.urls.everyScheme,
             util,
             appName: APP_NAME,

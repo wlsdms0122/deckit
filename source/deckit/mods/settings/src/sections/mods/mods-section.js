@@ -8,8 +8,8 @@ const { section } = require('../section/section.js');
 // The Mods section: every mod found in the load order, what each contributes, installing and removing them, and putting
 // them in another order and applying it. `onChange` hears that a mod was installed, removed, restarted, pinned or moved
 // here. Failures and what was done are told in the notice under the list. `mods` is deckit.mods; `pins`, the panel's
-// pins (shell.mods), or nothing under a shell that has none.
-function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
+// pins (shell.mods), or nothing under a shell that has none; `dropDestination` the shell's.
+function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
     // What a mod that loads but is not running is doing, by its run's state: one starting or stopping says it by a
@@ -19,8 +19,9 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
     // How long a restart asked here is shown at least: one that ends sooner would only flicker.
     const RESTART_SHOWN_MS = 600;
     const DESCRIPTION =
-        'Install a mod from its folder, or remove one you no longer need. Drag rows to change the order mods load ' +
-        'in, then apply it. Open a row to see what it adds, what it needs and where its files are.';
+        'Install a mod from its folder, picked or dropped here, or remove one you no longer need. Drag rows to ' +
+        'change the order mods load in, then apply it. Open a row to see what it adds, what it needs and where its ' +
+        'files are.';
     const COLUMNS = ['NAME', 'VERSION', 'CONTRIBUTES', ''];
 
     const rowFills = new WeakMap(); // row element -> its fill(mod)
@@ -115,6 +116,11 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         .settings-order-text[data-refused] { color: var(--deckit-alert); opacity: 1; }
         .settings-install-mod { margin: 12px 0 6px; font: 600 var(--deckit-type-body); }
         .settings-install-mod:first-child { margin-top: 0; }
+        .settings-section[data-targeted] {
+            outline: 2px solid var(--deckit-target);
+            outline-offset: 4px;
+            border-radius: var(--deckit-radius-medium);
+        }
         .settings-install-note { margin-top: 10px; font: var(--deckit-type-small); line-height: 1.5; opacity: 0.5; }
     `);
     ui.addStyle(MOD_DETAILS_STYLE + PERMISSION_LIST_STYLE);
@@ -160,6 +166,10 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
     order.hidden = true;
     order.append(orderText, revertButton.element, applyButton.element);
     head.append(installButton.element);
+    dropDestination(element, {
+        onTargeted: (on) => element.toggleAttribute('data-targeted', on),
+        onDrop: dropAndInstall,
+    });
     body.append(columns, rows.element, order, restart.element, notice);
     return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
 
@@ -315,8 +325,6 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         }
     }
 
-    // The folders picked install one after another once the person agrees to what they replace and ask for. A folder
-    // refused is told, and the others install.
     async function pickAndInstall() {
         let picked;
         try {
@@ -324,6 +332,20 @@ function modsSection({ ui, mods, pins, everyScheme, util, appName, onChange }) {
         } catch (error) {
             return showNotice('Could not install: ' + error.message);
         }
+        askAndInstall(picked);
+    }
+
+    // Each folder refused on its own, so one refused leaves the others to install.
+    async function dropAndInstall(folders) {
+        const plans = folders.map((from) =>
+            mods.planInstall(from).catch((error) => ({ from, problem: error.message }))
+        );
+        askAndInstall(await Promise.all(plans));
+    }
+
+    // The folders picked install one after another once the person agrees to what they replace and ask for. A folder
+    // refused is told, and the others install.
+    function askAndInstall(picked) {
         const refused = picked.filter((entry) => entry.problem);
         const plans = picked.filter((entry) => !entry.problem);
         if (!plans.length) {
