@@ -107,8 +107,10 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     };
     const moveTo = (x, y) => (label.style.transform = `translate(${x}px, ${y}px)`);
     const hangAt = (x, y) => moveTo(x - GRAB.x, y - GRAB.y);
-    const morph = (length) => {
-        label.style.transition = ['transform', 'width', 'height', 'border-radius']
+    // `transform` is where the label is put, and `translate` how far it still is from there, which a lift plays down
+    // while the label follows the pointer at once.
+    const morph = (length, { follows = false } = {}) => {
+        label.style.transition = [...(follows ? [] : ['transform']), 'translate', 'width', 'height', 'border-radius']
             .map((property) => `${property} ${length}ms ${MOTION.easing}`)
             .join(', ');
         face.style.transition = `opacity ${length}ms ${MOTION.easing}`;
@@ -174,17 +176,17 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
         });
         ending = setTimeout(end, length);
     };
-    // Moves during the lift retarget the same transition, so it catches up with the pointer instead of jumping.
+    hangAt(down.clientX, down.clientY);
     const from = home();
     if (from && MOTION.base) {
-        moveTo(from.x, from.y);
+        label.style.translate = `${from.x - down.clientX + GRAB.x}px ${from.y - down.clientY + GRAB.y}px`;
         shape(from, false);
         void label.offsetHeight;
-        morph(MOTION.base);
+        morph(MOTION.base, { follows: true });
+        label.style.translate = '0px 0px';
         shape(chip, true);
         lifting = setTimeout(() => (label.style.transition = ''), MOTION.base);
     }
-    hangAt(down.clientX, down.clientY);
     return {
         follow: (x, y) => {
             hangAt(x, y);
