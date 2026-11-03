@@ -47,7 +47,7 @@ For CSS, the token is also custom properties on the page's root: each colour by 
 ## Text and numbers
 
 - `field({ placeholder, value, icon, inline, trailing, size, clearable, onInput, onSubmit, onCancel })` returns `{ element, input, set(value), focus() }`. Enter calls `onSubmit(value, { shift })`; Escape is the field's only when `onCancel` takes it.
-- `stepper({ value, min, max, step, unit, onChange })` returns `{ element, set(value) }`. Enter and leaving the field report what is typed; Escape puts the value back.
+- `stepper({ value, min, max, step, unit, unset, onChange })` returns `{ element, set(value) }`. Enter and leaving the field report what is typed; Escape puts the value back. With `unset`, `{ label, value }`, it may hold no number, null: it shows `label` then and steps from `value`, and what is typed cleared reports null.
 - `findBar({ placeholder, options, nav, replace, onChange, onNext, onPrevious, onCancel })` returns `{ element, setQuery(text, options), focus(which), setCount(active, total), setReplaceOpen(on), state(), replacement() }`. `options` are any of `caseSensitive`, `word`, `regex`, and `state()` is `{ query, caseSensitive, word, regex }`, what `onChange` gets too; `setQuery` takes the same keys. `focus(which)` puts the keyboard in the find field, or with `'replace'` in the replace field. `replace` is `{ open, onReplace, onReplaceAll }`: `onReplaceAll` is required, and without `onReplace` there is no Replace button and Enter in the replace field replaces all.
 
 ## What floats
