@@ -3,7 +3,7 @@ const { section } = require('../section/section.js');
 // The Fonts section: the face text is written in, the fixed-width face and the size, which every page's theme wears
 // and a mod's own font settings follow while they are Default. `fonts` is shell.fonts; `onFailure` hears a change that
 // did not apply.
-function fontsSection({ ui, fonts, onFailure }) {
+function generalSection({ ui, fonts, onFailure }) {
     const TITLE = 'Fonts';
     const KEYWORDS = ['글꼴', '폰트', '글자 크기', 'fonts', 'font size', 'typeface', 'monospaced'];
     const DESCRIPTION =
@@ -70,4 +70,4 @@ function fontsSection({ ui, fonts, onFailure }) {
     }
 }
 
-module.exports = { fontsSection };
+module.exports = { generalSection };
