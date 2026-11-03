@@ -1046,6 +1046,35 @@ async function run({
         await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-close'))`);
         const webClosed = await until(async () => (await webWindow()) === null, 3000);
         check("a mod's web window goes as the mod closes it", webClosed, JSON.stringify(await webWindow()));
+        // What a session's page was given is the session's: read once the page is gone, the cookie it set is sent.
+        {
+            const site = require('http').createServer((request, response) => {
+                if (request.url === '/sign-in') {
+                    response.writeHead(200, { 'Set-Cookie': 'probe=kept; Path=/; Max-Age=3600' });
+                    return response.end('signed in');
+                }
+                response.end(request.headers.cookie || 'no cookie');
+            });
+            await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+            const at = `http://127.0.0.1:${site.address().port}`;
+            await webUser?.evaluate(
+                `document.dispatchEvent(new CustomEvent('test-web-open', { detail: '${at}/sign-in' }))`
+            );
+            await until(async () => (await mark(webUser, 'loaded')) === `${at}/sign-in`, 8000);
+            await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-close'))`);
+            await until(async () => (await webWindow()) === null, 3000);
+            await webUser?.evaluate(`document.dispatchEvent(new CustomEvent('test-web-fetch', {
+                detail: { as: 'kept', url: '${at}/echo' },
+            }))`);
+            const answer = await until(() => mark(webUser, 'kept'), 5000);
+            const read = Buffer.from(JSON.parse(answer || '{}').bytes || []).toString();
+            site.close();
+            check(
+                "a session's fetch sends the cookies its page was given, once the page is gone",
+                read === 'probe=kept',
+                read
+            );
+        }
 
         // A session's fetch is a page's fetch sent as the session: it follows redirects, keeps the cookies answers set
         // and sends them again, sends a body and headers, reads bytes, and answers a status that is no success.

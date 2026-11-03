@@ -46,6 +46,9 @@ final class WebEngine {
     private var windows: [Int: Window] = [:]
     private var stages: [Int: Stage] = [:]
     private var downloads: [Int: WebDownload] = [:]
+    // A data store is opened once and kept: the cookie store of one let go reads nothing, and keeps nothing it is
+    // given, once no page holds the store.
+    private var stores: [UUID: WKWebsiteDataStore] = [:]
     private var keepers: [UUID: CookieKeeper] = [:]
     private var lastID = 0
     private lazy var input = InputMonitor { [weak self] view in
@@ -155,7 +158,7 @@ final class WebEngine {
                 throw NodeError(message: "fetch takes { limit, applicationName }")
             }
             let applicationName = try node.member(options, "applicationName").map { try node.string($0) } ?? ""
-            let fetcher = WebFetcher(store: store, applicationName: applicationName)
+            let fetcher = WebFetcher(store: dataStore(store), applicationName: applicationName)
             let (promise, settle) = try promised()
             Task { @MainActor in
                 do {
@@ -169,7 +172,7 @@ final class WebEngine {
         case .clear:
             let store = try storeOf(try string(0))
             let (promise, settle) = try promised()
-            WKWebsiteDataStore(forIdentifier: store).removeData(
+            dataStore(store).removeData(
                 ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
                 modifiedSince: .distantPast
             ) {
@@ -393,7 +396,7 @@ final class WebEngine {
     private func make(_ options: napi_value, emit: napi_value) throws -> Int {
         let store = try node.member(options, "store").map { try storeOf(try node.string($0)) }
         let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = store.map { WKWebsiteDataStore(forIdentifier: $0) } ?? .nonPersistent()
+        configuration.websiteDataStore = store.map(dataStore) ?? .nonPersistent()
         configuration.applicationNameForUserAgent = try node.member(options, "applicationName")
             .map { try node.string($0) } ?? ""
         if let store, let lifetime = try node.member(options, "cookieLifetime").map({ try node.number($0) }),
@@ -577,6 +580,14 @@ final class WebEngine {
     private static func drawNoBackground(_ view: WKWebView) {
         guard view.responds(to: NSSelectorFromString("_setDrawsBackground:")) else { return }
         view.setValue(false, forKey: "drawsBackground")
+    }
+
+    private func dataStore(_ id: UUID) -> WKWebsiteDataStore {
+        if let opened = stores[id] { return opened }
+        let opened = WKWebsiteDataStore(forIdentifier: id)
+        stores[id] = opened
+
+        return opened
     }
 
     private func storeOf(_ text: String) throws -> UUID {

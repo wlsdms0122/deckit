@@ -13,18 +13,18 @@ import WebKit
 @MainActor
 struct WebFetcher {
     // MARK: - Property
-    private let store: UUID
+    private let store: WKWebsiteDataStore
     private let applicationName: String
 
     // MARK: - Initializer
-    init(store: UUID, applicationName: String) {
+    init(store: WKWebsiteDataStore, applicationName: String) {
         self.store = store
         self.applicationName = applicationName
     }
 
     // MARK: - Public
     func answer(to request: WebRequest, limit: Int) async throws -> WebAnswer {
-        let cookies = WKWebsiteDataStore(forIdentifier: store).httpCookieStore
+        let cookies = store.httpCookieStore
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpAdditionalHeaders = ["User-Agent": await Self.userAgent(applicationName)]
         guard let jar = configuration.httpCookieStorage else { throw NodeError(message: "no cookie storage to ask with") }
