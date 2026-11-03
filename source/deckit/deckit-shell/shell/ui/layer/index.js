@@ -1,4 +1,5 @@
 import * as TOKEN from '../token/index.js';
+import * as SHEET from '../sheet/index.js';
 
 // MARK: - Property
 // A float (a toolbar, an autocomplete, a floating panel) is above the page's own fixed things, placed by its caller
@@ -34,7 +35,6 @@ const layers = Object.freeze({
 // page's own, laid over the page while it shows anything, where what floats is drawn. Elements made in the page are
 // drawn there as they are, with the page's rules copied in.
 let overlay = null;
-const copies = new WeakMap(); // a sheet of the page -> { count, text }, its rules as last copied
 let style = null; // what wears the copies in the overlay
 let told = '';
 
@@ -95,11 +95,10 @@ function windows() {
     return [window, overlay.window];
 }
 
-// The overlay wears the page's rules as they are now; `again`, every sheet read anew, as one whose rules were replaced
-// in place (the theme's) keeps their count.
-function dress({ again = false } = {}) {
+// The overlay wears the page's rules as they are now.
+function dress() {
     if (!overlay) return;
-    const text = document.adoptedStyleSheets.map((sheet) => textOf(sheet, again)).join('\n');
+    const text = document.adoptedStyleSheets.map((sheet) => SHEET.textOf(sheet)).join('\n');
     if (style.textContent !== text) style.textContent = text;
     overlay.document.documentElement.style.colorScheme = document.documentElement.style.colorScheme;
 }
@@ -297,16 +296,6 @@ function report({ again = false } = {}) {
     if (written === told && !again) return;
     told = written;
     overlay.tell(state);
-}
-
-// A sheet's rules as text, read again only once their count changed.
-function textOf(sheet, again) {
-    const count = sheet.cssRules.length;
-    const copy = copies.get(sheet);
-    if (!again && copy?.count === count) return copy.text;
-    const text = [...sheet.cssRules].map((rule) => rule.cssText).join('\n');
-    copies.set(sheet, { count, text });
-    return text;
 }
 
 function clamp(value, low, high) {

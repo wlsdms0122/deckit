@@ -1,5 +1,6 @@
 import * as KIT from '../ui/kit/index.js';
 import * as FONTS from '../fonts/renderer.js';
+import * as SHEET from '../ui/sheet/index.js';
 import * as GESTURE from '../ui/gesture/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
@@ -182,9 +183,7 @@ function boot(theme, channels) {
 
     // A style sheet made here cannot be taken by another document, so the surfaces wear a copy of the rules.
     function dressSurfaces() {
-        const rules = document.adoptedStyleSheets
-            .flatMap((sheet) => [...sheet.cssRules].map((rule) => rule.cssText))
-            .join('\n');
+        const rules = document.adoptedStyleSheets.map((sheet) => SHEET.textOf(sheet)).join('\n');
         for (const { document: page, style } of [backdrop, handleSurface]) {
             style.textContent = rules;
             page.documentElement.style.colorScheme = document.documentElement.style.colorScheme;

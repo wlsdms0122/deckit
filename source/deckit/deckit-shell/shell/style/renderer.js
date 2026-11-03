@@ -1,5 +1,6 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
+import * as SHEET from '../ui/sheet/index.js';
 
 // MARK: - Property
 // MARK: - Initializer
@@ -20,11 +21,8 @@ function wear({ channels, onChange = null }) {
     });
     const apply = (styles) => {
         const kept = others();
-        worn = styles.map((css) => {
-            const sheet = new CSSStyleSheet();
-            sheet.replaceSync(css);
-            return sheet;
-        });
+        for (const sheet of worn) SHEET.drop(sheet);
+        worn = styles.map((css) => SHEET.make(css));
         adopted.set.call(document, [...kept, ...worn]);
         onChange?.();
     };

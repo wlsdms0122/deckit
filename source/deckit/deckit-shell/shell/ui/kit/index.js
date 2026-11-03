@@ -22,6 +22,7 @@ import * as RESIZER from '../resizer/index.js';
 import * as EMPTY_STATE from '../empty-state/index.js';
 import * as LOADING from '../loading/index.js';
 import * as FONTS from '../fonts/index.js';
+import * as SHEET from '../sheet/index.js';
 import * as MODAL from '../modal/index.js';
 import * as QUICK_PICK from '../quick-pick/index.js';
 import * as COLOR_PICKER from '../color-picker/index.js';
@@ -85,9 +86,7 @@ function make(theme, { fonts }) {
 
 // Rules of a view of deckit's own, drawn with the kit's custom properties.
 function addStyle(rules) {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(rules);
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, SHEET.make(rules)];
 }
 
 // MARK: - Private
