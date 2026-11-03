@@ -19,8 +19,9 @@ import CNodeAPI
 //   `isFocused(id)`; `focusedPage()`, the page with the keyboard, or null; `state(id)`; `droppedFiles(id)`, the paths
 //   of the files dropped on it last; `run(id, [{ source, world, mainFrameOnly }])`; `evaluate(id, source, world) ->
 //   Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
-//   `fetch(store, request, { limit, applicationName }) -> Promise of the answer` (WebRequest, WebAnswer), sent as the
-//   store's pages made with `applicationName` send it; `clear(store) -> Promise`; `close(id)`; `safariVersion()`.
+//   `fetch(store, request, { limit, applicationName, cookieLifetime }) -> Promise of the answer` (WebRequest,
+//   WebAnswer), sent as the store's pages made with `applicationName` send it, the session cookies it is set lasting
+//   `cookieLifetime` as a page's do; `clear(store) -> Promise`; `close(id)`; `safariVersion()`.
 // - Fonts: `fonts() -> { families, monospaced }`, the font families installed, by name, and those of them whose faces
 //   are fixed-width.
 // - Downloads a page started (WebDownload): `cancelDownload(id)`, nothing for one that ended.
@@ -161,10 +162,14 @@ final class WebEngine {
             let request = try WebRequest(try argument(1), in: node)
             let options = try argument(2)
             guard let limit = try node.member(options, "limit").map({ Int(try node.number($0)) }) else {
-                throw NodeError(message: "fetch takes { limit, applicationName }")
+                throw NodeError(message: "fetch takes { limit, applicationName, cookieLifetime }")
             }
             let applicationName = try node.member(options, "applicationName").map { try node.string($0) } ?? ""
-            let fetcher = WebFetcher(store: dataStore(store), applicationName: applicationName)
+            let lifetime = try node.member(options, "cookieLifetime").map { try node.number($0) }
+            let fetcher = WebFetcher(
+                store: dataStore(store, cookieLifetime: lifetime),
+                applicationName: applicationName
+            )
             let (promise, settle) = try promised()
             Task { @MainActor in
                 do {
@@ -411,15 +416,12 @@ final class WebEngine {
     // MARK: - Private
     private func make(_ options: napi_value, emit: napi_value) throws -> Int {
         let store = try node.member(options, "store").map { try storeOf(try node.string($0)) }
+        let lifetime = try node.member(options, "cookieLifetime").map { try node.number($0) }
         let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = store.map(dataStore) ?? .nonPersistent()
+        configuration.websiteDataStore = store.map { store in dataStore(store, cookieLifetime: lifetime) }
+            ?? .nonPersistent()
         configuration.applicationNameForUserAgent = try node.member(options, "applicationName")
             .map { try node.string($0) } ?? ""
-        if let store, let lifetime = try node.member(options, "cookieLifetime").map({ try node.number($0) }),
-            keepers[store] == nil
-        {
-            keepers[store] = CookieKeeper(store: configuration.websiteDataStore.httpCookieStore, lifetime: lifetime)
-        }
         let emitter = try Emitter(node: node, function: emit)
         if let scheme = try node.member(options, "scheme").map({ try node.string($0) }) {
             configuration.setURLSchemeHandler(SchemeHandler(emitter: emitter), forURLScheme: scheme)
@@ -630,10 +632,21 @@ final class WebEngine {
         return ["families": families, "monospaced": families.filter(monospaced.contains)]
     }
 
-    private func dataStore(_ id: UUID) -> WKWebsiteDataStore {
-        if let opened = stores[id] { return opened }
-        let opened = WKWebsiteDataStore(forIdentifier: id)
-        stores[id] = opened
+    // The store of `id`, opened the first time: a web view is made with it then, since its cookie store may read none
+    // of the cookies kept on disk until one has. With `cookieLifetime`, the session cookies its sites set last that
+    // long (CookieKeeper).
+    private func dataStore(_ id: UUID, cookieLifetime: TimeInterval? = nil) -> WKWebsiteDataStore {
+        let opened = stores[id] ?? {
+            let opened = WKWebsiteDataStore(forIdentifier: id)
+            let configuration = WKWebViewConfiguration()
+            configuration.websiteDataStore = opened
+            _ = WKWebView(frame: .zero, configuration: configuration)
+            stores[id] = opened
+            return opened
+        }()
+        if let cookieLifetime, keepers[id] == nil {
+            keepers[id] = CookieKeeper(store: opened.httpCookieStore, lifetime: cookieLifetime)
+        }
 
         return opened
     }

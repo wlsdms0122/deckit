@@ -62,9 +62,10 @@ export function createWebKit({ path, LOG }) {
         return id === null || id === undefined ? null : pageById(id);
     }
 
-    // `request` sent as the pages of `store` send one, its answer refused past `limit` bytes.
-    function fetch(store, request, limit) {
-        return loaded().fetch(store, request, { limit, applicationName: agentName() });
+    // `request` sent as the pages of `store` send one, its answer refused past `limit` bytes, the session cookies it is
+    // set lasting `cookieLifetime` seconds where that is given.
+    function fetch(store, request, { limit, cookieLifetime }) {
+        return loaded().fetch(store, request, { limit, applicationName: agentName(), cookieLifetime });
     }
 
     // A download a page started, stopped where it is still under way.
