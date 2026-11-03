@@ -77,6 +77,7 @@ function findInPage({ theme, ui, area, frontTab }) {
             fill: 'forwards',
         });
         leaving.onfinish = () => {
+            leaving.cancel();
             leaving = null;
             element.style.pointerEvents = '';
             layer.remove();
