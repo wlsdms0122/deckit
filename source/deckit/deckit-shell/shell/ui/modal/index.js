@@ -1,4 +1,4 @@
-import * as LAYER from '../layer/index.js';
+import * as PRESENTATION from '../presentation/index.js';
 
 // MARK: - Property
 const STYLE = `
@@ -96,7 +96,7 @@ function modal(
     const close = () => {
         if (closed) return;
         closed = true;
-        layer.close();
+        presented.close();
         if (before && before !== document.body && before.isConnected) before.focus({ preventScroll: true });
         onClose?.();
     };
@@ -138,7 +138,7 @@ function modal(
         actions.append(...[cancel, extra, confirm].filter(Boolean));
         card.append(actions);
     }
-    const layer = LAYER.open({
+    const presented = PRESENTATION.present({
         element: scrim,
         modal: true,
         speed: align === 'fill' ? null : 'base',

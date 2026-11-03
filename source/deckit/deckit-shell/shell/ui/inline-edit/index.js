@@ -1,4 +1,4 @@
-import * as LAYER from '../layer/index.js';
+import * as PLACE from '../place/index.js';
 import * as LIST from '../list/index.js';
 
 // MARK: - Property
@@ -75,11 +75,11 @@ function inlineEdit(label, { selectStem = false, onCommit }) {
         clear();
         refusal = document.createElement('div');
         refusal.className = 'deckit-menu deckit-refusal';
-        refusal.style.zIndex = String(LAYER.Z.float);
+        refusal.style.zIndex = String(PLACE.Z.float);
         refusal.textContent = why;
         // In the document of what it is about: an edit in a layer is in the overlay.
         under.ownerDocument.body.append(refusal);
-        LAYER.place(refusal, { anchor: under, gap: 6 });
+        PLACE.place(refusal, { anchor: under, gap: 6 });
         if (!length) return;
         const shown = refusal;
         setTimeout(() => refusal === shown && clear(), length);

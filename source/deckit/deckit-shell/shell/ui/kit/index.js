@@ -2,6 +2,7 @@ import * as COLOR from '../color/index.js';
 import * as ICON from '../icon/index.js';
 import * as POINTER from '../pointer/index.js';
 import * as LAYER from '../layer/index.js';
+import * as PRESENTATION from '../presentation/index.js';
 import * as SCROLL from '../scroll/index.js';
 import * as LISTBOX from '../list/listbox.js';
 import * as TREE from '../list/tree.js';
@@ -11,7 +12,6 @@ import * as FIELD from '../field/index.js';
 import * as MENU from '../menu/index.js';
 import * as SECTION from '../section/index.js';
 import * as POPOVER from '../popover/index.js';
-import * as FLOATING_PANEL from '../floating-panel/index.js';
 import * as ROW from '../row/index.js';
 import * as INLINE_EDIT from '../inline-edit/index.js';
 import * as SORTABLE from '../sortable/index.js';
@@ -34,7 +34,6 @@ const components = [
     MENU,
     SECTION,
     POPOVER,
-    FLOATING_PANEL,
     ROW,
     INLINE_EDIT,
     SORTABLE,
@@ -67,6 +66,7 @@ function make(theme, { fonts }) {
         sanitizeIcon: ICON.sanitize,
         element: PART.element,
         addStyle,
+        layer: LAYER.add,
         listbox: LISTBOX.listbox,
         tree: TREE.tree,
         alpha: COLOR.alpha,
@@ -94,7 +94,7 @@ function addStyle(rules) {
 function install() {
     if (installed) return;
     installed = true;
-    const rules = [LAYER, PART, ...components].map((part) => part.STYLE);
+    const rules = [PRESENTATION, PART, ...components].map((part) => part.STYLE);
     addStyle(rules.join('\n'));
 }
 

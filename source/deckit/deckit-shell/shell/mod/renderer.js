@@ -1,4 +1,5 @@
 import * as LAYER from '../ui/layer/index.js';
+import * as PRESENTATION from '../ui/presentation/index.js';
 import * as KIT from '../ui/kit/index.js';
 import * as STYLE from '../style/renderer.js';
 import * as STYLE_PERMISSION from '../style/model/permission.js';
@@ -39,7 +40,7 @@ function shellOf({ WEB, channels }) {
         let reported = {};
         let page = null; // the theme and the kit, once the page wears them
         let mounted = { unmount() {}, remove() {} };
-        deckit.blockKeysWhen(() => LAYER.layers.count() > 0);
+        deckit.blockKeysWhen(() => PRESENTATION.count() > 0);
         return {
             read: (Entry) => ({ icon: iconOf(Entry, fail), form: formOf(Entry, fail) }),
             report: () => reported,
@@ -103,7 +104,7 @@ function shellOf({ WEB, channels }) {
                         if (view) {
                             const tell = (name) =>
                                 typeof view[name] === 'function' && deliver(`${name}()`, () => view[name]());
-                            mounted = PANEL.mount({ theme: page.theme, view, tell, layers: LAYER.layers });
+                            mounted = PANEL.mount({ theme: page.theme, view, tell, presented: PRESENTATION });
                         }
                         const window = WINDOW.mount();
                         const styles = { ...(parts.styles || {}) };

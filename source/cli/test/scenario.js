@@ -952,8 +952,8 @@ async function run({
             await pressTab(FRONT_TAB);
             await until(async () => (await shownAt()) === FRONT_TAB, 3000);
         }
-        // Find floats over the page in the Browser's overlay, which takes the pointer only where the panel lies, and
-        // has the focus as it opens; closed, the overlay is off the page, which has the keyboard again.
+        // Find is a bar on a layer over the page, in the Browser's overlay, which takes the pointer only where the bar
+        // lies, and has the focus as it opens; closed, the overlay is off the page, which has the keyboard again.
         {
             const laidPages = async () =>
                 (await laidNow()).flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid));
@@ -976,7 +976,7 @@ async function run({
                 return !!panel && laid?.input.length === 1 && near(laid.input[0], panel);
             }, 3000);
             check(
-                'the find panel floats over the page, and its overlay takes the pointer only where it lies',
+                'the find bar is on a layer over the page, and its overlay takes the pointer only where it lies',
                 matched,
                 JSON.stringify({ panel, input: laid?.input })
             );
@@ -1003,7 +1003,7 @@ async function run({
             const tabId = Number(await browser?.evaluate(shownPage));
             const back = await until(() => responderIs(tabId), 2000);
             check(
-                'closing the find panel takes its overlay off and gives the page the keyboard',
+                'closing the find bar takes its overlay off and gives the page the keyboard',
                 gone && back,
                 JSON.stringify({ gone, back })
             );
@@ -1048,6 +1048,23 @@ async function run({
                 overPage.at(-1).opener.startsWith('deckit://browser.mod') &&
                 (underMenu.views || []).some(({ rect }) => near(rect, underMenu.at)),
             JSON.stringify({ menuShown, top: overPage.at(-1), views: underMenu.views })
+        );
+        // What is presented lies on a backdrop the overlay takes every press over the page by, and has the focus there.
+        const presentedOver = async () => {
+            const laid = (await laidNow()).flatMap(({ stages }) => stages.flatMap(({ pages: each }) => each));
+            const over = laid.find(({ url, input }) => url === 'about:blank' && input?.length);
+            return {
+                covers: !!over?.input.some(({ x, y, width, height }) =>
+                    near({ x, y, width, height }, { x: 0, y: 0, width: over.rect.width, height: over.rect.height })
+                ),
+                focused: await browserOverlay?.evaluate(`!!document.activeElement?.closest('.deckit-menu')`),
+            };
+        };
+        const presented = await presentedOver();
+        check(
+            'a menu lies on a backdrop that takes every press over the page, and holds the focus in the overlay',
+            presented.covers && presented.focused,
+            JSON.stringify(presented)
         );
         await browserOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);

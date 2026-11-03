@@ -78,7 +78,7 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     const MOTION = TOKEN.MOTION;
     const label = labelOf(text, icon);
     const face = label.firstChild;
-    LAYER.append(label);
+    const layer = LAYER.add(label);
     // Measured to the fraction and rounded up: a box half a pixel narrower than its name ellipsizes its end.
     const measured = label.getBoundingClientRect();
     const chip = {
@@ -142,7 +142,7 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
     const end = () => {
         clearTimeout(lifting);
         clearTimeout(ending);
-        label.remove();
+        layer.remove();
         item.style.opacity = keptOpacity;
         restoring?.cancel();
         finished();
@@ -210,7 +210,6 @@ function carry(item, { kind, payload, text, icon }, down, finished) {
 
 function labelOf(text, icon) {
     const label = element('div', 'deckit-drag-label');
-    label.style.zIndex = String(LAYER.Z.drag);
     const face = element('span', 'deckit-drag-face');
     if (icon) {
         const glyph = element('span', 'deckit-drag-icon');

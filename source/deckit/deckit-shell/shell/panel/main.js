@@ -87,21 +87,13 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         return !!host.showsPanel(page);
     }
 
-    // Escape is the page's while a layer is open over it, and else puts the panel away where the panel floats over
-    // something; in its own window Escape is the window's. A mod's page plays it out and answers whether it took
-    // it.
+    // Escape puts the panel away where the panel floats over something, once the page did not take it: the frame or a
+    // mod's page plays it out and answers whether it did. In its own window Escape is the window's.
     function monitor(page, keystroke) {
-        if (!isEscape(keystroke)) return false;
-        const last = dismisses(page);
-        if (page === frameContents()) {
-            if (last) host.dismiss();
-            return last;
-        }
-        const layered = OVERLAY.layered(page) && [...pages.values()].includes(page);
-        if (!layered && !last) return false;
+        if (!isEscape(keystroke) || !dismisses(page)) return false;
         PROTOCOL.escape
             .invoke(page, {}, { timeout: EXIT_LIMIT_MS })
-            .then((taken) => !taken && last && dismisses(page) && host.dismiss())
+            .then((taken) => !taken && dismisses(page) && host.dismiss())
             .catch(() => {});
         return true;
     }

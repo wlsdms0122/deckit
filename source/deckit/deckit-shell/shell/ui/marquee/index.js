@@ -1,4 +1,4 @@
-import * as LAYER from '../layer/index.js';
+import * as PLACE from '../place/index.js';
 import * as GESTURE from '../gesture/index.js';
 import * as LIST from '../list/index.js';
 
@@ -61,7 +61,7 @@ function draw(area, place, down, selection, onSelect, finished) {
     const clip = scroller.getBoundingClientRect();
     const box = document.createElement('div');
     box.className = 'deckit-marquee';
-    box.style.zIndex = String(LAYER.Z.drag);
+    box.style.zIndex = String(PLACE.Z.drag);
     document.body.append(box);
     let selected = '';
     const follow = (x, y) => {
