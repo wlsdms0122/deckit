@@ -379,19 +379,17 @@ async function run({
         // A menu is a layer, drawn in the page's overlay, which has the keys while it is open.
         const settingsOverlay = settings && (await overlayOf(settings));
         const menus = `document.querySelectorAll('.deckit-menu[data-state="open"]').length`;
-        // The size picked in the Fonts section is the Editor's, which leaves its own to the fonts, and is kept.
-        const sizeSelect = `document.querySelectorAll('.settings-font .deckit-select')[2]`;
+        // The size set in the General section is the Editor's, which leaves its own to the fonts, and is kept.
+        const less = `document.querySelector('.settings-font .deckit-stepper-button[title="Less"]')`;
+        const sizeShown = `document.querySelector('.settings-font .deckit-stepper-input').value`;
         const codeSize = `getComputedStyle(document.querySelector('.cm-editor')).fontSize`;
         const sizeBefore = await editor.evaluate(codeSize);
-        await settings?.evaluate(`${sizeSelect}.scrollIntoView({ block: 'center' })`);
+        await settings?.evaluate(`${less}.scrollIntoView({ block: 'center' })`);
         await sleep(200);
-        await settings?.shot('settings-fonts');
-        await settings?.evaluate(`${sizeSelect}.click()`);
-        await until(() => settingsOverlay.evaluate(menus), 2000);
-        await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
-        await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
-        await settingsOverlay?.key('Enter', 'Enter', 0, 13);
-        await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
+        await settings?.shot('settings-general');
+        check('the text size starts at the default, 14', (await settings?.evaluate(sizeShown)) === '14 px', '');
+        await settings?.evaluate(`${less}.click()`);
+        await settings?.evaluate(`${less}.click()`);
         const sized = await until(async () => (await editor.evaluate(codeSize)) === '12px', 3000);
         check(
             "the fonts' size picked in Settings is the Editor's text size",
@@ -408,10 +406,9 @@ async function run({
             sizeKept,
             fs.existsSync(fontsKept) && fs.readFileSync(fontsKept)
         );
-        // The size's button gives up the keyboard the menu gave back to it, so the keys reach the menu opened next.
-        await settings?.evaluate(`document.activeElement.blur()`);
-        // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away.
-        const firstSelect = `document.querySelector('.deckit-select')`;
+        // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away. The
+        // select is a mod's setting's.
+        const firstSelect = `document.querySelector('.settings-setting .deckit-select')`;
         const before = await settings?.evaluate(`${firstSelect}?.textContent`);
         // Scrolled first and clicked a frame later: a scroll that lands after a menu opened puts it away.
         await settings?.evaluate(`${firstSelect}.scrollIntoView()`);

@@ -1,19 +1,17 @@
 const { section } = require('../section/section.js');
 
-// The Fonts section: the face text is written in, the fixed-width face and the size, which every page's theme wears
-// and a mod's own font settings follow while they are Default. `fonts` is shell.fonts; `onFailure` hears a change that
-// did not apply.
-function generalSection({ ui, fonts, onFailure }) {
-    const TITLE = 'Fonts';
-    const KEYWORDS = ['글꼴', '폰트', '글자 크기', 'fonts', 'font size', 'typeface', 'monospaced'];
+// The General section, what every mod follows: the face text is written in, the fixed-width face and the size, which
+// every page's theme wears and a mod's own font settings follow while they are Default. `theme` is shell.theme, `fonts`
+// shell.fonts; `onFailure` hears a change that did not apply.
+function generalSection({ ui, theme, fonts, onFailure }) {
+    const TITLE = 'General';
+    const KEYWORDS = ['일반', '글꼴', '폰트', '글자 크기', 'general', 'fonts', 'font size', 'typeface', 'monospaced'];
     const DESCRIPTION =
-        "The faces and the size text is written in, such as a note or a file. A mod's own font " +
-        'settings follow these while they are Default.';
+        "What every mod follows: the faces and the size text is written in, such as a note or a file. A mod's own " +
+        'font settings follow these while they are Default.';
     const DEFAULT = 'default';
-    const SIZES = [
-        { value: DEFAULT, label: 'Default' },
-        ...Array.from({ length: 12 }, (_, index) => ({ value: 11 + index, label: `${11 + index} px` })),
-    ];
+    // The sizes fonts.set() takes.
+    const SIZE = { min: 11, max: 22 };
 
     ui.addStyle(`
         .settings-font { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 4px 12px; }
@@ -24,7 +22,7 @@ function generalSection({ ui, fonts, onFailure }) {
     const rows = {
         text: choiceRow('text', 'Font', () => ui.textFonts()),
         mono: choiceRow('mono', 'Monospaced font', () => ui.monospacedFonts()),
-        size: choiceRow('size', 'Size', () => SIZES),
+        size: sizeRow(),
     };
 
     card.append(...Object.values(rows).map((row) => row.element));
@@ -36,8 +34,11 @@ function generalSection({ ui, fonts, onFailure }) {
         show(fonts.get());
     }
 
+    // The size shown is the one text is in now, the default's where none was chosen.
     function show(kept) {
-        for (const [key, row] of Object.entries(rows)) row.set(kept[key]);
+        rows.text.set(kept.text);
+        rows.mono.set(kept.mono);
+        rows.size.set(kept.size ?? theme.textSize);
     }
 
     // `optionsOf()` answers the choices; a value kept that is not among them (a face chosen on another Mac) is labeled
@@ -56,6 +57,19 @@ function generalSection({ ui, fonts, onFailure }) {
             select.setOptions(absent ? [...options, { value: chosen, label: `${chosen} (not available)` }] : options);
             select.set(chosen);
         }
+    }
+
+    function sizeRow() {
+        const row = ui.element('div', { className: 'settings-font' });
+        const stepper = ui.stepper({
+            value: theme.textSize,
+            ...SIZE,
+            unit: ' px',
+            onChange: (value) => change('size', value),
+        });
+
+        row.append(ui.element('div', { className: 'settings-font-label', text: 'Text size' }), stepper.element);
+        return { element: row, set: stepper.set };
     }
 
     // The controls show what was kept.

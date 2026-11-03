@@ -31,14 +31,14 @@ class Editor {
         fontSize: {
             type: 'string',
             title: 'Font size',
-            description: 'Default follows the size in the Fonts section.',
+            description: 'Default follows the text size in the General section.',
             default: 'default',
             oneOf: FONT_SIZES,
         },
         font: {
             type: 'string',
             title: 'Font',
-            description: 'The monospaced faces installed on this Mac. Default follows the Fonts section.',
+            description: 'The monospaced faces installed on this Mac. Default follows the General section.',
             default: 'default',
         },
         wrap: {

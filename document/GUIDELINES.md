@@ -101,7 +101,7 @@ What a mod hands the switcher (the Switcher's `setActions`, MOD.md) is what it d
 A mod's settings (`static configuration` in its class) are shown in Settings under the mod, drawn as its `static form` says.
 
 - **`title`:** what the setting holds, in sentence case (Search engine, Forge command).
-- **`description`:** one or two sentences, each with a full stop, saying what the setting changes and what an empty or default value does ("Empty: the forge on your login shell's PATH.", "Default follows the Fonts section.").
+- **`description`:** one or two sentences, each with a full stop, saying what the setting changes and what an empty or default value does ("Empty: the forge on your login shell's PATH.", "Default follows the General section.").
 - A path the person types takes `~` for the home folder.
 - A button on the mod's settings (Settings' `setButtons`, MOD.md) is labelled as a button is (Words), and what it answers shows under it.
 
