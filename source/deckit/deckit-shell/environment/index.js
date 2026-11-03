@@ -145,7 +145,8 @@ const MAIN = Object.freeze({
         find: 'function',
         stopFind: 'function', // stopFind(page, { keepSelection })
         close: 'function', // close(page): a web page in a window, with its window
-        // stateOf(page) -> { url, title, icon, loading, canGoBack, canGoForward, audible, muted, capture }, or null
+        // stateOf(page) -> { url, title, icon, loading, canGoBack, canGoForward, blank, audible, muted, capture }, or
+        // null
         // once it is gone; `capture` is `{ microphone, camera, screen }`, what the page says it captures
         stateOf: 'function',
         clickNotification: 'function', // clickNotification(page, notification): one it showed, clicked

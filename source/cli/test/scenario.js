@@ -678,6 +678,63 @@ async function run({
             [downloaded, refusedWritten]
         );
         check('the tab that downloaded stays on its page', (await shownAt()) === FRONT_TAB, await shownAt());
+        // A link to a file that opens a tab: the tab, which shows no page, closes once the download is asked about, and
+        // the tab the link is in stays.
+        {
+            const site = require('http').createServer((request, response) => {
+                if (request.url === '/gone.csv') return request.socket.destroy();
+                if (request.url === '/file') {
+                    response.writeHead(200, {
+                        'Content-Type': 'text/csv',
+                        'Content-Disposition': 'attachment; filename="opened.csv"',
+                    });
+                    return response.end('c,d\n3,4\n');
+                }
+                response.writeHead(200, { 'Content-Type': 'text/html' });
+                const link = request.url === '/failing' ? 'href="/gone.csv" download' : 'href="/file" target="_blank"';
+                response.end(`<a ${link} style="position:fixed;inset:0;display:block">a file</a>`);
+            });
+            await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+            const linkPage = `http://127.0.0.1:${site.address().port}/`;
+            const tabs = `document.querySelectorAll('.browser-row-label').length`;
+            const tabsBefore = await browser?.evaluate(tabs);
+            const linkPageId = await browser?.evaluate(shownPage);
+            await main(`return webkit.load(${linkPageId}, '${linkPage}')`);
+            await until(
+                async () => (await shownAt()) === linkPage && !(await webPage(linkPageId).state())?.loading,
+                5000
+            );
+            for (const type of ['down', 'up'])
+                await main(`return webkit.sendMouse(${linkPageId}, { type: '${type}', x: 40, y: 40 })`);
+            const opened = await until(async () => (await browser?.evaluate(tabs)) === tabsBefore + 1, 3000);
+            const asked = await answerDownload('Download');
+            const closed = await until(async () => (await browser?.evaluate(tabs)) === tabsBefore, 3000);
+            const saved = await until(
+                () =>
+                    main(`const file = require('path').join(require('electron').app.getPath('downloads'), 'opened.csv');
+                        return require('fs').existsSync(file) && require('fs').readFileSync(file, 'utf8')`),
+                5000
+            );
+            check(
+                'a tab a link opened for a file closes once the download is asked, and the file is saved',
+                opened && asked === 'Download “opened.csv”?' && closed && saved === 'c,d\n3,4\n',
+                JSON.stringify({ opened, asked, closed, saved, tabs: await browser?.evaluate(tabs) })
+            );
+            check('the tab with the link stays on its page', (await shownAt()) === linkPage, await shownAt());
+            // A link to a file that fails before it is answered is listed as failed, and its tab stays on its page.
+            const failingPage = `${linkPage}failing`;
+            await main(`return webkit.load(${linkPageId}, ${JSON.stringify(failingPage)})`);
+            await until(
+                async () => (await shownAt()) === failingPage && !(await webPage(linkPageId).state())?.loading,
+                5000
+            );
+            for (const type of ['down', 'up'])
+                await main(`return webkit.sendMouse(${linkPageId}, { type: '${type}', x: 40, y: 40 })`);
+            check('the tab whose file failed stays on its page', (await shownAt()) === failingPage, await shownAt());
+            site.close();
+            await main(`return webkit.load(${linkPageId}, '${FRONT_TAB}')`);
+            await until(async () => (await shownAt()) === FRONT_TAB, 5000);
+        }
         const tabLaidOut = async () => {
             const element = await browser?.evaluate(`(() => {
                 const shown = [...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible');
@@ -733,7 +790,11 @@ async function run({
                 ),
             3000
         );
-        check('the Browser lists what its tabs downloaded', listedDownloads === 'finished report.csv', listedDownloads);
+        check(
+            'the Browser lists what its tabs downloaded',
+            listedDownloads === 'failed gone.csv,finished opened.csv,finished report.csv',
+            listedDownloads
+        );
         await browserOverlay?.key('Escape', 'Escape', 0, 27);
         await until(async () => !(await browserOverlay?.evaluate('document.body.childElementCount')), 2000);
         await show(onScreen);

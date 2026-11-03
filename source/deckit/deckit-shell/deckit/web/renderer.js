@@ -205,6 +205,7 @@ export function createWeb({ sessions, web: WEB }) {
             loading: !!url,
             canGoBack: false,
             canGoForward: false,
+            blank: true,
             audible: false,
             muted: false,
             capture: { microphone: false, camera: false, screen: false },

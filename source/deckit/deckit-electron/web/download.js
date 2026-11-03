@@ -1,6 +1,7 @@
 // The downloads web pages start, each written to `folder()` under the name the site gives it, made unique there, once
 // `ask({ url, name, mimeType, expected })` answers true; otherwise it is cancelled. What becomes of one is told to the
-// `tell(download)` it started with, at each change, from the moment it has a file:
+// `tell(download)` it started with, at each change, from the moment it has a file, and one that fails before it could
+// be asked, named for its address, once:
 // `{ id, url, name, path, state, received, expected, error }`, `id` the module's, `state` one of `downloading`,
 // `finished`, `failed` or `cancelled`, and `expected` -1 while it is not known.
 export function createDownload({ folder }) {
@@ -23,6 +24,7 @@ export function createDownload({ folder }) {
             expected: -1,
             error: '',
         };
+        let questioned = false; // whether its destination was asked about
         const told = () => download.path && tell({ ...download });
         // The path it is written to, picked as it is answered, so two answered together never pick one file.
         const pick = (name) => {
@@ -37,6 +39,7 @@ export function createDownload({ folder }) {
                     download.id = payload.id;
                     return undefined;
                 case 'destination': {
+                    questioned = true;
                     download.url = payload.url || download.url;
                     download.expected = payload.expectedLength;
                     const asked = {
@@ -69,6 +72,10 @@ export function createDownload({ folder }) {
                     writing.delete(download.path);
                     download.state = payload.cancelled ? 'cancelled' : 'failed';
                     download.error = payload.cancelled ? '' : String(payload.description || '');
+                    if (!questioned && !payload.cancelled) {
+                        download.name = nameOf(decodeURIComponent(new URL(download.url).pathname));
+                        return void tell({ ...download });
+                    }
                     return void told();
                 default:
                     return undefined;

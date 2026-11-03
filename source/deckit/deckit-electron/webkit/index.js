@@ -73,7 +73,7 @@ export function createWebKit({ path, LOG }) {
         const WEBKIT = loaded();
         const { EventEmitter } = require('events');
         const page = new EventEmitter();
-        let state = { url: '', title: '', loading: false, canGoBack: false, canGoForward: false };
+        let state = { url: '', title: '', loading: false, canGoBack: false, canGoForward: false, blank: true };
         let destroyed = false;
         let crashed = false;
         const can = () => !destroyed && page.id !== null;
@@ -158,6 +158,8 @@ export function createWebKit({ path, LOG }) {
             getURL: () => state.url,
             getTitle: () => state.title,
             isLoading: () => state.loading,
+            // Whether it has shown no page yet.
+            isBlank: () => state.blank,
             isFocused: () => can() && WEBKIT.isFocused(page.id),
             capture: () => ({ microphone: !!state.microphone, camera: !!state.camera, screen: false }),
             navigationHistory: Object.freeze({
