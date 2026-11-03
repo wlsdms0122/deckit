@@ -2,12 +2,11 @@ const { section } = require('../section/section.js');
 
 // The Mod Settings section: a card per mod that declares a configuration or sets buttons through Settings' exports,
 // `setButtons(buttons)`, a control per configuration item and a row per button. `theme` is shell.theme, whose numbers
-// a number left unset may inherit. `modConfiguration` is
-// deckit.modConfiguration; `formOf(mod)` answers how a mod's configuration is drawn (shell.formOf). `sources` is what
-// each mod set, `{ list, run }`, by its connection. A button gives its value to the `run` its mod set and shows under
-// it the text that answers; `nameOf(mod)` names a card that has only buttons. `onFailure` hears a change that did not
-// apply.
-function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, nameOf, onFailure }) {
+// a number left unset may inherit. `modConfiguration` is deckit.modConfiguration; `formOf(mod)` answers how a mod's
+// configuration is drawn (shell.formOf). `sources` is what each mod set, `{ list, run }`, by its connection. A button
+// gives its value to the `run` its mod set and shows under it the text that answers; `nameOf(mod)` names a card that
+// has only buttons. A change that did not apply is told in a toast.
+function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, nameOf }) {
     const TITLE = 'Mod Settings';
     const KEYWORDS = ['설정', '모드 설정', 'settings', 'preferences'];
     const DESCRIPTION =
@@ -32,10 +31,6 @@ function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, name
         .settings-setting-card[data-highlighted] {
             background: color-mix(in srgb, var(--deckit-accent) 12%, transparent);
         }
-        .settings-setting { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 4px 12px; }
-        .settings-setting-words { display: flex; flex: 1 1 auto; flex-direction: column; gap: 1px; min-width: 0; }
-        .settings-setting-label { font: var(--deckit-type-body); }
-        .settings-setting-hint { font: var(--deckit-type-small); line-height: 1.45; opacity: 0.5; }
         .settings-setting-answer { font: var(--deckit-type-small); line-height: 1.45; opacity: 0.6; }
         .settings-setting-field { flex: 0 0 220px; }
     `);
@@ -198,7 +193,7 @@ function modSettingsSection({ ui, theme, modConfiguration, formOf, sources, name
                 control.set(await modConfiguration.set(modId, current.key, value));
             } catch (error) {
                 control.set(valueOf(current));
-                onFailure('Could not change the setting: ' + error.message);
+                ui.toast('Could not change the setting: ' + error.message);
             }
         }
     }

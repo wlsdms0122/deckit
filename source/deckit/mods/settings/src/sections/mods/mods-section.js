@@ -7,8 +7,8 @@ const { section } = require('../section/section.js');
 
 // The Mods section: every mod found in the load order, what each contributes, installing and removing them, and putting
 // them in another order and applying it. `onChange` hears that a mod was installed, removed, restarted, pinned or moved
-// here. Failures and what was done are told in the notice under the list. `mods` is deckit.mods; `pins`, the panel's
-// pins (shell.mods), or nothing under a shell that has none; `dropDestination` the shell's.
+// here. Failures and what was done are told in a toast. `mods` is deckit.mods; `pins`, the panel's pins (shell.mods),
+// or nothing under a shell that has none; `dropDestination` the shell's.
 function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appName, onChange }) {
     const TITLE = 'Mods';
     const KEYWORDS = ['모드', '설치', '삭제', 'mods', 'install', 'remove'];
@@ -95,15 +95,6 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         }
         .settings-mod-failure { color: var(--deckit-alert); }
         .settings-mod-note { opacity: 0.5; }
-        .settings-notice {
-            margin: 8px 0 0;
-            padding: 8px 10px;
-            border: var(--deckit-border);
-            border-radius: 7px;
-            font: 12.5px var(--deckit-font);
-            line-height: 1.6;
-            opacity: 0.8;
-        }
         .settings-order {
             display: flex;
             align-items: center;
@@ -176,14 +167,12 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
     const orderText = ui.element('span', { className: 'settings-order-text' });
     const revertButton = ui.button({ label: 'Revert', size: 'small', onClick: settleOrder });
     const applyButton = ui.button({ label: 'Apply', size: 'small', variant: 'primary', onClick: applyOrder });
-    const restart = restartNotice({ ui, mods, appName, onFailure: showNotice });
-    const notice = ui.element('div', { className: 'settings-notice' });
+    const restart = restartNotice({ ui, mods, appName });
     const headings = COLUMNS.map((text) => ui.element('div', { text }));
 
     // Over the name, past the caret in front of it.
     headings[0].style.paddingLeft = '13px';
     columns.append(...headings);
-    notice.hidden = true;
     order.hidden = true;
     order.append(orderText, revertButton.element, applyButton.element);
     head.append(installButton.element);
@@ -195,8 +184,8 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         onTargeted: (on) => element.toggleAttribute('data-targeted', on),
         onDrop: dropAndInstall,
     });
-    body.append(columns, rows.element, order, restart.element, notice);
-    return { element, title: TITLE, keywords: KEYWORDS, draw, showNotice };
+    body.append(columns, rows.element, order, restart.element);
+    return { element, title: TITLE, keywords: KEYWORDS, draw };
 
     function draw(state) {
         listed = state;
@@ -246,11 +235,6 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         draft = null;
         refusal = '';
         render();
-    }
-
-    function showNotice(text) {
-        notice.textContent = text;
-        notice.hidden = false;
     }
 
     // A row opens and closes by a press, and stays as it is when the list is drawn again.
@@ -355,7 +339,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         try {
             picked = await mods.pick({ multiple: true });
         } catch (error) {
-            return showNotice('Could not install: ' + error.message);
+            return ui.toast('Could not install: ' + error.message);
         }
         askAndInstall(picked);
     }
@@ -374,7 +358,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         const refused = picked.filter((entry) => entry.problem);
         const plans = picked.filter((entry) => !entry.problem);
         if (!plans.length) {
-            if (refused.length) showNotice(refusalText(refused));
+            if (refused.length) ui.toast(refusalText(refused));
             return;
         }
         const asking = plans.filter((plan) => plan.permissions.length > 0);
@@ -410,7 +394,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
                 failed.push(`Could not install ${plan.name}: ${error.message}`);
             }
         }
-        showNotice([...done, ...failed, refused.length ? refusalText(refused) : ''].filter(Boolean).join(' '));
+        ui.toast([...done, ...failed, refused.length ? refusalText(refused) : ''].filter(Boolean).join(' '));
         if (done.length) onChange();
     }
 
@@ -444,7 +428,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         try {
             places = usageParts(await mods.usage(mod.id));
         } catch (error) {
-            return showNotice('Could not tell what it stores: ' + error.message);
+            return ui.toast('Could not tell what it stores: ' + error.message);
         }
         const hasData = places.length > 0;
         const names = new Map(mods.list().found.map((other) => [other.id, other.name]));
@@ -481,7 +465,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         try {
             await Promise.all([mods.relaunch(mod.id), shown]);
         } catch (error) {
-            return showNotice('Could not restart: ' + error.message);
+            return ui.toast('Could not restart: ' + error.message);
         } finally {
             for (const id of ids) restarting.delete(id);
             render();
@@ -493,9 +477,9 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
         try {
             await mods.remove(mod.id, withData);
         } catch (error) {
-            return showNotice('Could not remove: ' + error.message);
+            return ui.toast('Could not remove: ' + error.message);
         }
-        showNotice(`Removed ${mod.name}${withData ? ' and its data' : ''}.`);
+        ui.toast(`Removed ${mod.name}${withData ? ' and its data' : ''}.`);
         onChange();
     }
 

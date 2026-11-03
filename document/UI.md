@@ -20,9 +20,9 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 |---|---|
 | `dark` | whether the background is dark |
 | `font` | the family the app's own parts are in, the host app's |
-| `textFont` | the family text a person reads and writes is in: the person's face, falling back to `font` |
+| `textFont` | the family a page's text is in where nothing chooses another, and text a person reads and writes: the person's face, falling back to `font` |
 | `mono` | the fixed-width family: the system's |
-| `textSize` | the size in px text a person reads and writes is in: the person's, 14 by default |
+| `textSize` | the size in px of that text: the person's, 14 by default |
 | `type` | font shorthands: `caption` 11, `small` 12, `body` 13, `medium` 14, `large` 15, `heading` 16, `title` 18 |
 | `border` | the border shorthand |
 | `color` | `text`, `muted`, `disabled`, `background`, `surface`, `lifted`, `divider`, `fill`, `hover`, `selected`, `pressed`, `accent`, `onAccent`, `ok`, `warn`, `alert`, `focus`, `target`, `scrim`, `folder` |
@@ -67,6 +67,10 @@ What is presented over the page is on layers, in one stack. The top one has the 
 - `confirmTrash({ name, onConfirm })`: asks before a folder and what is in it go to the Trash.
 - `colorPicker({ title, value, onPick })`.
 - `quickPick({ placeholder, value, fills, drags, glass, width, key, create, update, optionOf, onInput, onPick, onEnter, onKey, onActive, onCommandKey, onClose })` returns `{ text(), setText(text), setPlaceholder(text), setScope({ icon, label } | null), focus(), set(items, { active, message, note, loading, alert }), move(by), active(), close() }`: a field over a list to pick from, at the top of the page, on a modal, or with `fills` on one that fills the page (`align: 'fill'`), and with `drags` it drags the window from anywhere but its list, the field too, which keeps the keyboard all the same; `glass` is the modal's. A quick pick that fills an overlay window's page drags it and is drawn at `glass: theme.glass`. Items are drawn by `key(item)`, `create` and `update`, as a keyed list draws them; `optionOf(item)` is null for an item that is no option (a heading) or `{ disabled }`. The arrows move the active option, which `onActive(item, index, { pointer })` hears, and Enter picks it, which `onPick(item, index)` hears, or `onEnter({ item, text })` hears both. `onKey(event)` has a key first and answers true when it took it, or the arrows, Enter and Escape act on it too; `onCommandKey(held)` hears Command held down or let go. The field keeps the focus. `setScope` shows what the field searches in, before it.
+
+A toast tells what was just done, or that it failed, where it was done, and goes by itself.
+
+- `toast(text)` returns `{ close() }`: `text` at the top right of the page, under the title bar it lays, for a few seconds, longer for more words, on a layer over the page that takes no presses. Toasts stack, the newest on top, four at most.
 
 Floats are placed by their caller and stay in the page, where the keyboard stays with the text they act on.
 

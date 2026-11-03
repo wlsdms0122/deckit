@@ -111,7 +111,7 @@ A mod's settings (`static configuration` in its class) are shown in Settings und
 
 - The title is what it is about (the event, the site), and the body is the rest.
 - `onClick` brings the mod to the front at what it is about.
-- The result of what the person just did where they are looking is shown there, in the view or on the switcher's row.
+- The result of what the person just did where they are looking is shown there, in the view or on the switcher's row. What has no place of its own in the view to stay (a mod removed, a change that did not apply) is a `ui.toast`.
 
 ## Keys
 
@@ -138,7 +138,7 @@ A mod's keys are registered with `deckit.keys.register`, and the person can chan
 Draw with the kit and its tokens (UI.md, The theme). A new theme or new fonts change every token in place, and a mod drawn with them follows.
 
 - **Type:** the `--deckit-type-*` scale, and no sizes between. Body is the default; small is for what sits beside something more important (a count, a time); heading and title are for the content's own titles.
-- **Text the person reads and writes** (a note, a file, a message being written) is in `--deckit-text-font` at `--deckit-text-size`, or `--deckit-mono` for code. The UI around it stays on the type scale.
+- **Text the person reads and writes** (a note, a file, a message being written) is in `--deckit-text-font` at `--deckit-text-size`, or `--deckit-mono` for code. A page's text is in them too where nothing chooses another. The UI around it stays on the type scale.
 - **Colour:** `text`, `muted` for what is secondary, `disabled`; `fill` for fields; `hover`, `pressed` and `selected` for state; `accent` for the one thing to press and for what is on; `ok`, `warn` and `alert` for status only. A colour of the content's own (a calendar's, a file type's) is data.
 - **Radius:** `--deckit-radius-*`: `control` for buttons and rows, `card` for surfaces, `round` for pills and fields in a bar.
 - **Icons:** `ui.icon`, 16px in the title bar and section headers, 15px in rows, 13px beside text in a line.

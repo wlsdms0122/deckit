@@ -1,7 +1,7 @@
 // A main process module runs in the host app's main process. One with no dispose is kept until the host app quits,
 // so one whose code changed underneath it keeps running the old code, and one whose dispose failed may have left what
 // it made: only a restart finishes those.
-function restartNotice({ ui, mods, appName, onFailure }) {
+function restartNotice({ ui, mods, appName }) {
     ui.addStyle(`
         .settings-restart {
             display: flex;
@@ -56,7 +56,7 @@ function restartNotice({ ui, mods, appName, onFailure }) {
         } catch (error) {
             restart.setEnabled(true);
             restart.setLabel('Restart ' + appName);
-            onFailure('Could not restart: ' + error.message);
+            ui.toast('Could not restart: ' + error.message);
         }
     }
 }

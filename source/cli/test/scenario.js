@@ -391,8 +391,9 @@ async function run({
         const settingsOverlay = settings && (await overlayOf(settings));
         const menus = `document.querySelectorAll('.deckit-menu[data-state="open"]').length`;
         // The size set in the General section is the Editor's, which leaves its own to the fonts, and is kept.
-        const less = `document.querySelector('.settings-font .deckit-stepper-button[title="Less"]')`;
-        const sizeShown = `document.querySelector('.settings-font .deckit-stepper-input').value`;
+        const general = `[...document.querySelectorAll('.settings-section')].find((section) => section.querySelector('.settings-section-title').textContent === 'General')`;
+        const less = `${general}.querySelector('.deckit-stepper-button[title="Less"]')`;
+        const sizeShown = `${general}.querySelector('.deckit-stepper-input').value`;
         const codeSize = `getComputedStyle(document.querySelector('.cm-editor')).fontSize`;
         const sizeBefore = await editor.evaluate(codeSize);
         await settings?.evaluate(`${less}.scrollIntoView({ block: 'center' })`);
@@ -406,6 +407,12 @@ async function run({
             "the fonts' size picked in Settings is the Editor's text size",
             sized,
             `${sizeBefore} -> ${await editor.evaluate(codeSize)}`
+        );
+        const pageSize = `getComputedStyle(document.body).fontSize`;
+        check(
+            "a page's text that nothing styles is in the General size",
+            (await settings?.evaluate(pageSize)) === '12px',
+            await settings?.evaluate(pageSize)
         );
         const fontsKept = path.join(home, 'state', 'host', 'fonts.json');
         const sizeKept = await until(
@@ -450,7 +457,7 @@ async function run({
             await editor.evaluate(codeSize)
         );
         // The General font offers every family installed, not a list of its own.
-        const fontSelect = `document.querySelector('.settings-font .deckit-select')`;
+        const fontSelect = `${general}.querySelector('.deckit-select')`;
         await settings?.evaluate(`${fontSelect}.click()`);
         await until(() => settingsOverlay.evaluate(menus), 2000);
         const families = await settingsOverlay?.evaluate(
@@ -634,15 +641,32 @@ async function run({
         );
         check('files dragged over the Mods section show where they install', covered, '');
         await dropping;
-        const noticeText = `document.querySelector('.settings-notice')?.textContent || ''`;
+        const toastText = `document.querySelector('.deckit-toast')?.textContent || ''`;
         const refusedDrop = await until(
-            async () => /^Could not install not-a-mod: /.test(await settings.evaluate(noticeText)),
+            async () => /^Could not install not-a-mod: /.test(await settingsOverlay?.evaluate(toastText)),
             4000
         );
         check(
             'a folder dropped on the Mods section is planned as a picked one, and one install refuses is told',
             refusedDrop,
-            await settings.evaluate(noticeText)
+            await settingsOverlay?.evaluate(toastText)
+        );
+        // A second refusal stacks on the first, at the top right of the page under its title bar.
+        await main(`return webkit.sendDrop(${settingsId}, ${dropped})`);
+        const stackOf = `(() => {
+            const toasts = [...document.querySelectorAll('.deckit-toast')];
+            const stack = document.querySelector('.deckit-toasts')?.getBoundingClientRect();
+            return stack && { count: toasts.length, right: innerWidth - stack.right, top: stack.top };
+        })()`;
+        const stacked = await until(async () => (await settingsOverlay?.evaluate(stackOf))?.count === 2, 4000);
+        const stackSeen = await settingsOverlay?.evaluate(stackOf);
+        const titleBottom = await settings.evaluate(
+            `document.querySelector('.deckit-title-bar').getBoundingClientRect().bottom`
+        );
+        check(
+            'toasts stack at the top right of the page, under its title bar',
+            stacked && stackSeen.right === 12 && stackSeen.top >= titleBottom,
+            JSON.stringify({ stackSeen, titleBottom })
         );
         const browser = await page('deckit://browser.mod');
         // A tab's page is reached through its element, which names it once main has given it its id.
@@ -1635,7 +1659,12 @@ async function run({
         );
         check(
             'files dropped from outside the app reach a drop destination by their paths',
-            drop === JSON.stringify({ paths: droppedFiles, at: { x: 10, y: 10 } }),
+            (() => {
+                const { paths, at } = JSON.parse(drop || '{}');
+                // The point lands on a whole pixel of the window, the zone's corner wherever its layout puts it.
+                const near = (value) => Math.abs(value - 10) < 1;
+                return JSON.stringify(paths) === JSON.stringify(droppedFiles) && near(at?.x) && near(at?.y);
+            })(),
             drop
         );
         const targeted = await probe.evaluate('document.documentElement.dataset.targeted');

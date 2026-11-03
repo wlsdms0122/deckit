@@ -7,7 +7,7 @@ import * as DECLARED from './protocol.js';
 // MARK: - Property
 // The mod's sidebar scrolls when it is taller than its slot.
 const STYLE = `
-    .deckit-view { position: fixed; inset: 0; overflow: hidden; font: 15px var(--deckit-font); }
+    .deckit-view { position: fixed; inset: 0; overflow: hidden; }
     .deckit-view-content { position: absolute; display: flex; flex-direction: column; color: var(--deckit-text); }
     .deckit-view-slot { position: absolute; overflow: hidden; }
     .deckit-view-sidebar {
