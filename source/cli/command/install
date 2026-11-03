@@ -6,11 +6,11 @@ cd "$(dirname "$0")/../../.."
 FROM=.build/Deckit.app
 TO=/Applications/Deckit.app
 ID=dev.deckit.app
-[ -d "$FROM" ] || { echo "no $FROM: run deckit build, then deckit app" >&2; exit 1; }
 if [ -e "$TO" ]; then
   [ "$(plutil -extract CFBundleIdentifier raw "$TO/Contents/Info.plist" 2>/dev/null || true)" = "$ID" ] \
     || { echo "$TO is not Deckit ($ID): not replaced" >&2; exit 1; }
 fi
+source/cli/command/build app
 
 RUNNING="$TO/Contents/MacOS/Electron"
 if pgrep -f "$RUNNING" >/dev/null; then

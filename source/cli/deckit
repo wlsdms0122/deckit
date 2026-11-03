@@ -6,14 +6,16 @@ usage() {
   cat <<TEXT
 deckit: a library a host app embeds to take mods, the way a game does
 
-  build            the deckit archive, into .build/: what an app embeds
-  app              Deckit.app, into .build/, from the archive the last build made
+  build [app]      the deckit archive, into .build/: what an app embeds; with app, Deckit.app from it too
   check            hold the packages' files to how they are laid out
   dev [<Electron's arguments>]
                    Deckit.app from the sources, built again when one changes
   test [--port <port>]
-                   the core's tests, then Deckit.app, from the archive the last build made, through its scenario
-  install          Deckit.app into /Applications, as deckit app last made it
+                   deckit built, then the core's tests, then Deckit.app from it, through its scenario
+  install          Deckit.app built, then put into /Applications
+
+For work on deckit itself, and kept out of manifest.toml:
+
   engine <mod>     build a mod's editing engine again (editor, note)
   resize start|stop <port>
                    what a window resize a person makes draws, in a Deckit.app run with --inspect=<port>

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-[ $# -eq 0 ] || { echo "usage: deckit build (it takes no arguments)" >&2; exit 2; }
+[ $# -eq 0 ] || [ "$*" = app ] || { echo "usage: deckit build [app]" >&2; exit 2; }
 cd "$(dirname "$0")/../../.."
 
 source/cli/command/check || { echo "the files do not hold to their modules: stopping" >&2; exit 1; }
@@ -74,3 +74,8 @@ ARCHIVE="$OUT/$NAME"
 
 echo "built deckit $VERSION (sources $SOURCE_HASH, $SWIFT)"
 echo "  $ARCHIVE  $(cut -c1-12 < "$ARCHIVE.sha256")  $(du -h "$ARCHIVE" | cut -f1 | tr -d ' ')"
+
+# With app, Deckit.app too, from the archive just made.
+if [ "${1:-}" = app ]; then
+  node source/cli/app.js
+fi
