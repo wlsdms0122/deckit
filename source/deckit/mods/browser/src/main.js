@@ -72,7 +72,7 @@ class Browser {
             onBookmark: () => editor.show(tabs.front()),
             onSubmit: go,
         });
-        const find = findInPage({ ui, frontTab: () => tabs.front() });
+        const find = findInPage({ ui, area, frontTab: () => tabs.front() });
         const tabs = tabList({
             web: shell.web,
             records,
@@ -122,7 +122,7 @@ class Browser {
             onEditBookmark: (tab) => editor.show(tab),
         });
 
-        content.append(bar.element, find.element, area);
+        content.append(bar.element, area);
         webSession.trust(certificates.all());
         webSession.allow(sitePermissions.all());
         tabs.restore();
