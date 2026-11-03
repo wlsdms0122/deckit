@@ -1,4 +1,5 @@
 import * as KIT from '../ui/kit/index.js';
+import * as FONTS from '../fonts/renderer.js';
 import * as GESTURE from '../ui/gesture/index.js';
 import * as MOD_STYLE from '../style/renderer.js';
 import * as SIDEBAR from './sidebar.js';
@@ -72,7 +73,7 @@ const STYLE = `
 // the page tells main where the slot under its list is in the card. `channels` binds the panel's channels in the page.
 function boot(theme, channels) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
-    const ui = KIT.make(theme);
+    const ui = KIT.make(theme, { fonts: FONTS.installed({ channels }) });
     KIT.addStyle(CARD + STYLE);
     const setup = PROTOCOL.frameSetup.invoke();
     const { motion: MOTION } = theme;

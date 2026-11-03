@@ -1,13 +1,13 @@
 const { section } = require('../section/section.js');
 
-// The General section, what every mod follows: the face text is written in, the fixed-width face and the size, which
-// every page's theme wears and a mod's own font settings follow while they are Default. `theme` is shell.theme, `fonts`
+// The General section, what every mod follows: the face text is written in and its size, which every page's theme
+// wears and a mod's own font settings follow while they are Default. `theme` is shell.theme, `fonts`
 // shell.fonts; `onFailure` hears a change that did not apply.
 function generalSection({ ui, theme, fonts, onFailure }) {
     const TITLE = 'General';
-    const KEYWORDS = ['일반', '글꼴', '폰트', '글자 크기', 'general', 'fonts', 'font size', 'typeface', 'monospaced'];
+    const KEYWORDS = ['일반', '글꼴', '폰트', '글자 크기', 'general', 'fonts', 'font size', 'typeface'];
     const DESCRIPTION =
-        "What every mod follows: the faces and the size text is written in, such as a note or a file. A mod's own " +
+        "What every mod follows: the face and the size text is written in, such as a note or a file. A mod's own " +
         'font settings follow these while they are Default.';
     const DEFAULT = 'default';
     // The sizes fonts.set() takes.
@@ -21,7 +21,6 @@ function generalSection({ ui, theme, fonts, onFailure }) {
     const card = ui.element('div', { className: 'settings-card' });
     const rows = {
         text: choiceRow('text', 'Font', () => ui.textFonts()),
-        mono: choiceRow('mono', 'Monospaced font', () => ui.monospacedFonts()),
         size: sizeRow(),
     };
 
@@ -37,7 +36,6 @@ function generalSection({ ui, theme, fonts, onFailure }) {
     // The size shown is the one text is in now, the default's where none was chosen.
     function show(kept) {
         rows.text.set(kept.text);
-        rows.mono.set(kept.mono);
         rows.size.set(kept.size ?? theme.textSize);
     }
 

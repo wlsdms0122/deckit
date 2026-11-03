@@ -128,7 +128,7 @@ function shellOf({ WEB, channels }) {
         function wear() {
             const theme = PAGE.start({ channels, tell: (listener) => deliver('theme.onChange()', listener) });
             STYLE.wear({ channels, onChange: () => LAYER.dress() });
-            return { theme, ui: KIT.make(theme) };
+            return { theme, ui: KIT.make(theme, { fonts: FONTS.installed({ channels }) }) };
         }
     };
 }

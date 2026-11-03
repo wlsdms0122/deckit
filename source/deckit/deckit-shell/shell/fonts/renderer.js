@@ -5,7 +5,7 @@ import * as DECLARED from './protocol.js';
 // MARK: - Initializer
 // MARK: - Public
 // `shell.fonts` for a mod with deckit.fonts, its channels bound with `channels`: `get()` answers the person's fonts,
-// `{ text, mono, size }`, each null for the default, at once, and `set(change)` takes any of them, null putting one
+// `{ text, size }`, each null for the default, at once, and `set(change)` takes any of them, null putting one
 // back to its default, and resolves to the fonts as kept. Every page's theme wears them.
 function tool({ channels }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
@@ -15,6 +15,13 @@ function tool({ channels }) {
     });
 }
 
+// The fonts installed, `{ families, fixedPitch }`, read at each call of what it answers, in a page whose channels are
+// bound with `channels`.
+function installed({ channels }) {
+    const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
+    return () => PROTOCOL.installed.invoke();
+}
+
 // MARK: - Private
 // A member left undefined is not named: the fonts keep it.
 function defined(change) {
@@ -22,4 +29,4 @@ function defined(change) {
     return Object.fromEntries(Object.entries(change).filter(([, value]) => value !== undefined));
 }
 
-export { tool };
+export { tool, installed };

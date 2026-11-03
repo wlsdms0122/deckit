@@ -38,7 +38,7 @@ class Editor {
         font: {
             type: 'string',
             title: 'Font',
-            description: 'The monospaced faces installed on this Mac. Default follows the General section.',
+            description: "The fixed-width faces installed on this Mac. Default is the system's.",
             default: 'default',
         },
         wrap: {

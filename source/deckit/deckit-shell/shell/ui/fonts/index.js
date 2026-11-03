@@ -1,37 +1,6 @@
 // MARK: - Property
 // Letters whose widths differ from face to face.
 const PROBE = 'mmmmmmmmmmlli1|WW@#';
-// The faces offered for text a person reads and writes, and the fixed-width ones, by their families' names.
-const TEXT_FACES = Object.freeze([
-    'Apple SD Gothic Neo',
-    'Pretendard',
-    'Noto Sans KR',
-    'Spoqa Han Sans Neo',
-    'Nanum Gothic',
-    'Nanum Myeongjo',
-    'Helvetica Neue',
-    'Avenir Next',
-    'Inter',
-    'IBM Plex Sans',
-    'Georgia',
-    'Charter',
-    'Palatino',
-]);
-const MONOSPACED_FACES = Object.freeze([
-    'Menlo',
-    'Monaco',
-    'JetBrains Mono',
-    'Fira Code',
-    'Source Code Pro',
-    'D2Coding',
-    'Cascadia Code',
-    'IBM Plex Mono',
-    'Hack',
-    'Inconsolata',
-    'Roboto Mono',
-    'Ubuntu Mono',
-    'Courier New',
-]);
 // The option that leaves the face to the theme. It has no font, so it is always installed.
 const DEFAULT = Object.freeze({ value: 'default', label: 'Default' });
 
@@ -52,15 +21,15 @@ function installedFonts(faces) {
     );
 }
 
-// The installed faces for text, as a choice's options ({ value, label, font }): `default` first, then each by its
-// family's name.
-function textFonts() {
-    return installedFonts(optionsOf(TEXT_FACES));
+// The faces for text, from `installed` (`{ families, fixedPitch }`), as a choice's options ({ value, label, font }):
+// `default` first, then every family installed, by its name.
+function textFonts(installed) {
+    return optionsOf(installed.families);
 }
 
-// The same of the fixed-width faces.
-function monospacedFonts() {
-    return installedFonts(optionsOf(MONOSPACED_FACES));
+// The same of the families whose faces are fixed-width.
+function monospacedFonts(installed) {
+    return optionsOf(installed.fixedPitch);
 }
 
 // MARK: - Private

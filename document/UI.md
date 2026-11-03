@@ -21,7 +21,7 @@ A control draws the value it is set to and reports what was asked (`onChange(nex
 | `dark` | whether the background is dark |
 | `font` | the family the app's own parts are in, the host app's |
 | `textFont` | the family text a person reads and writes is in: the person's face, falling back to `font` |
-| `mono` | the fixed-width family: the person's face, falling back to the kit's |
+| `mono` | the fixed-width family: the system's |
 | `textSize` | the size in px text a person reads and writes is in: the person's, 14 by default |
 | `type` | font shorthands: `caption` 11, `small` 12, `body` 13, `medium` 14, `large` 15, `heading` 16, `title` 18 |
 | `border` | the border shorthand |
@@ -108,4 +108,4 @@ Floats are placed by their caller and are not layers. A floating panel is in the
 - `element(tag, { className, style, text })`.
 - `edgeFade(element, { size })`, `pressable(element)`, `selectable(element)`, `titleBar(element)` are decorators: the edges of what scrolls fade, something pressed is washed and ringed, text can be selected, and a bar along the top of the view lies in the window's title bar area (MOD.md, `shell.view.register`): at least as tall as it, clear of the window's buttons, and dragging the window wherever nothing in it is pressed. Buttons, fields, links and anything with a `tabindex` in it take presses; another control there marks itself `--app-region: no-drag`.
 - `isFullyVisible(element)`, `capturePointer(cursor)` (returns the release), `mix(foreground, background, amount)`, `alpha(color, amount)`.
-- `installedFonts(faces)`: the faces (`{ font }`) installed on this Mac. `textFonts()` and `monospacedFonts()`: the installed ones of the faces offered for text and of the fixed-width ones, as options `{ value, label, font }`, the first `{ value: 'default', label: 'Default' }`, which leaves the face to the theme. A key of a mod's `static form` names either as its `choices` (MOD.md, Configuration).
+- `installedFonts(faces)`: the faces (`{ font }`) installed on this Mac. `textFonts()` and `monospacedFonts()`: every font family installed on this Mac, and those whose faces are fixed-width, as options `{ value, label, font }`, the first `{ value: 'default', label: 'Default' }`, which leaves the face to the theme. A key of a mod's `static form` names either as its `choices` (MOD.md, Configuration).

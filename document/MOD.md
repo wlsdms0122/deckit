@@ -371,7 +371,7 @@ What `attach` receives as `shell`, from deckit's shell (the panel and the kit). 
 | `dropDestination(element, { onDrop, onTargeted })` | takes the files the person drops on `element` from outside the app, by their paths (below) |
 | `children` | `list()`, `[{ id, name, icon }]` of the mods whose view names this one as its `parent` and that run or are launching again, each from its first launch, in the load order, and `onChange(listener)`, which hears them each time they change and returns its off |
 | `web` | `page({ session, url })`, `window({ session, url, title })` (below) |
-| `fonts` | with `deckit.fonts`: `get()`, the person's `{ text, mono, size }` at once, each null for the default: a face's name for `text` and `mono`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `mono`, `textSize`) |
+| `fonts` | with `deckit.fonts`: `get()`, the person's `{ text, size }` at once, each null for the default: a face's name for `text`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `textSize`) |
 | `mods` | with `deckit.mods`: `pinned()`, the children the person pinned to the mod list, at once, and `setPinned(id, pinned)` |
 | `view`, `window`, `styles` | each `register` (Registering); `styles` with `deckit.styles` |
 

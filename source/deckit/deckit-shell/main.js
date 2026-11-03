@@ -138,7 +138,7 @@ function attach(deckit, environment, { host } = {}) {
     const PANEL = createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
-    const FONTS = createFonts({ deckit });
+    const FONTS = createFonts({ deckit, installed: ENV.fonts });
     deckit.onStart(() => {
         THEME.start({ draws: (sender) => !!deckit.mods.modOf(sender) || !!deckit.pages.nameOf(sender) });
         FONTS.start({ onChange: THEME.setFonts });
