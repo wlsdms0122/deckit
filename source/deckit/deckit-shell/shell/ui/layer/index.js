@@ -73,8 +73,8 @@ function start(given) {
         attributeFilter: ['style', 'class', 'data-state', 'hidden'],
     });
     overlay.window.addEventListener('resize', () => report());
-    overlay.document.addEventListener('focusin', () => setTimeout(report));
-    overlay.document.addEventListener('focusout', () => setTimeout(report));
+    for (const type of ['focusin', 'focusout']) overlay.document.addEventListener(type, () => setTimeout(report));
+    for (const type of ['focus', 'blur']) overlay.window.addEventListener(type, () => setTimeout(report));
     overlay.window.addEventListener('pointerdown', () => setTimeout(() => report({ again: true })), true);
 }
 
@@ -272,7 +272,7 @@ function draws() {
 }
 
 // Told when it changed, or `again`: whether the overlay draws anything, whether a layer is open, whether an element
-// drawn in it holds the focus, and where it draws while no layer is, which then covers it all, what is on its way out
+// drawn in it has the keyboard, and where it draws while no layer is, which then covers it all, what is on its way out
 // left out.
 function report({ again = false } = {}) {
     const layered = stack.length > 0;
@@ -283,7 +283,11 @@ function report({ again = false } = {}) {
     const state = {
         shows: draws(),
         layered,
-        focused: !!active && active !== overlay.document.body && overlay.document.body.contains(active),
+        focused:
+            overlay.document.hasFocus() &&
+            !!active &&
+            active !== overlay.document.body &&
+            overlay.document.body.contains(active),
         regions: drawn.map((child) => {
             const { x, y, width, height } = child.getBoundingClientRect();
             return { x, y, width, height };

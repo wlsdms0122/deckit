@@ -2,15 +2,15 @@ import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as SURFACE from './model/surface.js';
 
-// The overlay over each page the shell draws in, a mod's or its own: a document the page opens beside itself, where
-// the kit draws what floats over the page, so it is over everything laid with the page, web pages too. It is the
-// page's: whatever lays the page lays its overlay at the same rect, over all it lays, while the overlay shows anything
+// The overlay over each page the shell draws in, a mod's or its own: a document the page opens beside itself, where the
+// kit draws what floats over the page, so it is over everything laid with the page, web pages too. It is the page's:
+// whatever lays the page lays its overlay at the same rect, over all it lays, while the overlay shows anything
 // (`withOverlays`), and what asks whose a page is asks `ownerOf`. It takes the pointer where it draws, and all of it
 // over the page while it shows a layer. It has the keyboard while it shows a layer, the keyboard the page has or is
-// given being the overlay's then, and while an element drawn in it holds the focus, once the person presses there or
-// it asks for the keyboard the page has; the page has it again once neither is so. Its keys reach the key map as the
-// page's, and as those of a page that is no mod's while a layer is open: a key of the page's own does not run behind
-// a layer. `deckit` is what connect answered, and `PAGES` the shell's pages.
+// given being the overlay's then, and while an element drawn in it has it, once the person presses there or the page
+// gives its keyboard for an element focused there; the page has it again once neither is so. Its keys reach the key map
+// as the page's, and as those of a page that is no mod's while a layer is open: a key of the page's own does not run
+// behind a layer. `deckit` is what connect answered, and `PAGES` the shell's pages.
 export function createOverlay({ deckit, PAGES }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
@@ -99,11 +99,10 @@ export function createOverlay({ deckit, PAGES }) {
         giveBack(page, held);
     }
 
-    // The keyboard the page has, or a web page in it, goes to its overlay, for an element drawn there that holds it.
-    function take(surface) {
-        const page = ownerOf(surface);
+    // The keyboard `page` has, or a web page in it, goes to its overlay, for an element focused there.
+    function take(page) {
         const held = overlays.get(page);
-        if (held?.surface === surface && mayHold(held) && deckit.web.holdsKeyboard(page)) focusOverlay(held);
+        if (held?.shows && deckit.web.holdsKeyboard(page)) focusOverlay(held);
     }
 
     // The overlay to lay over `page`, while it shows anything, or null.
@@ -117,7 +116,7 @@ export function createOverlay({ deckit, PAGES }) {
         return shows && on;
     }
 
-    // Whether the overlay may keep the keyboard: it shows a layer, or an element drawn in it holds the focus.
+    // Whether the overlay may keep the keyboard: it shows a layer, or an element drawn in it has the keyboard.
     function mayHold({ shows, layered: on, focused }) {
         return shows && (on || focused);
     }

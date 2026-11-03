@@ -304,7 +304,8 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     // asks for, and a link that leaves its origin, which deck holds it to.
     function preparePage(page) {
         WEB.prepare(page);
-        KEYMAP.listen(page, { page: WEB.pageFor(page) });
+        const owner = WEB.pageFor(page);
+        KEYMAP.listen(page, { belongsTo: () => owner });
         ENV.pages.watch(page, {
             opens: (url, options) => OPEN.openFrom(page, url, options),
             leaves: (url) => OPEN.openFrom(page, url),

@@ -251,7 +251,8 @@ export function createWeb({ LOG, IDENTITY, KEYMAP, STORAGE, web: WEB, pages: PAG
     // A web page is a page of its own: its keystrokes reach the key map only when it is listened to, and what a person
     // does in it is watched, as a window it opens takes a press.
     function adopted(modPage, page) {
-        KEYMAP.listen(page, { page: pageFor(page) });
+        const owner = pageFor(page);
+        KEYMAP.listen(page, { belongsTo: () => owner });
         IDENTITY.watchPresses(page);
     }
 

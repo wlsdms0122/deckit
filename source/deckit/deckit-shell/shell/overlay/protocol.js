@@ -5,7 +5,7 @@ import * as CHANNEL from '../../deck/channel/index.js';
 export const open = CHANNEL.pageToMain('deckit-shell:overlay-open', {}, { reply: true, sync: true });
 // What the overlay holds: `shows`, anything drawn, so it is laid over the page; `layered`, a layer open (a menu, a
 // popover, a dialog, a drag), which has the keys, in the overlay while it shows; `focused`, an element drawn in it
-// holding the focus; `regions`, the rects `{ x, y, width, height }` of what is drawn, from the page's top left.
+// having the keyboard; `regions`, the rects `{ x, y, width, height }` of what is drawn, from the page's top left.
 export const state = CHANNEL.pageToMain('deckit-shell:overlay-state', {
     shows: 'boolean',
     layered: 'boolean',
