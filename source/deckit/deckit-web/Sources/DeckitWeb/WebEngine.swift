@@ -156,7 +156,7 @@ final class WebEngine {
                 throw NodeError(message: "fetchText takes { limit, applicationName }")
             }
             let applicationName = try node.member(options, "applicationName").map { try node.string($0) } ?? ""
-            let fetcher = TextFetcher(store: store, applicationName: applicationName)
+            let fetcher = WebFetcher(store: store, applicationName: applicationName)
             let (promise, settle) = try promised()
             Task { @MainActor in
                 do {

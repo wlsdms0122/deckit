@@ -1,5 +1,5 @@
 //
-//  TextFetcher.swift
+//  WebFetcher.swift
 //  DeckitWeb
 //
 //  Created by JSilver on 10/30/26.
@@ -11,7 +11,7 @@ import WebKit
 // The text at a web address, asked as a data store's pages would ask: with the cookies it holds and the user agent its
 // pages send, the cookies the answer sets kept in it; read as it arrives, past `limit` bytes refused.
 @MainActor
-struct TextFetcher {
+struct WebFetcher {
     // MARK: - Property
     private let store: UUID
     private let applicationName: String
