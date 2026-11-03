@@ -133,8 +133,8 @@ async function main() {
         ],
     });
 
-    KEYMAP.listen(shell, { page: shell });
-    KEYMAP.listen(mod, { page: mod, keys: [{ key: 'Meta+L', run: () => ran.push(['own']) }] });
+    KEYMAP.listen(shell, { belongsTo: () => shell });
+    KEYMAP.listen(mod, { belongsTo: () => mod, keys: [{ key: 'Meta+L', run: () => ran.push(['own']) }] });
     await tick();
 
     // A key that works anywhere in the app runs wherever a listened page has the keyboard, and is taken at once.

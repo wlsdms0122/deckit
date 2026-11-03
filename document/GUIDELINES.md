@@ -81,7 +81,7 @@ Every list answers the same keys and presses. `ui.tree` gives most of them; give
 ## What floats
 
 - `ui.menu` for a choice of actions, `ui.popover` for a small view or form about one thing opened from it (an event's details from its block), `ui.modal` for a form that is a task of its own (adding an account), `ui.quickPick` for finding one of many by typing.
-- Nothing of a view is drawn over a web page it shows: what floats is drawn over it, and a bar about the page (the Browser's find) stands beside it, as the toolbar does.
+- Nothing of a view is drawn over a web page it shows: what floats is drawn over it, and a panel about the page that stays while the person uses the page (the Browser's find) is a floating panel.
 - Ask before what is hard to undo: a folder going to the Trash with more in it, what is deleted for good. Closing a tab or leaving a form does not ask.
 - A float opens from a press or a key, never on its own.
 
@@ -101,7 +101,7 @@ What a mod hands the switcher (the Switcher's `setActions`, MOD.md) is what it d
 A mod's settings (`static configuration` in its class) are shown in Settings under the mod, drawn as its `static form` says.
 
 - **`title`:** what the setting holds, in sentence case (Search engine, Forge command).
-- **`description`:** one or two sentences, each with a full stop, saying what the setting changes and what an empty or default value does ("Empty: the forge on your login shell's PATH.", "Default follows the Fonts section.").
+- **`description`:** one or two sentences, each with a full stop, saying what the setting changes and what an empty or default value does ("Empty: the forge on your login shell's PATH.", "Default follows the General section.").
 - A path the person types takes `~` for the home folder.
 - A button on the mod's settings (Settings' `setButtons`, MOD.md) is labelled as a button is (Words), and what it answers shows under it.
 

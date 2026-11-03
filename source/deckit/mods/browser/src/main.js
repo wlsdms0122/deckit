@@ -5,9 +5,10 @@ const { downloadList } = require('./downloads/downloads.js');
 const { findInPage } = require('./find-in-page/find-in-page.js');
 const { sitePrompter } = require('./site-prompter/site-prompter.js');
 const { sidebar } = require('./sidebar/sidebar.js');
+const { startPage } = require('./start-page/start-page.js');
 const { store } = require('./store/store.js');
 const { switcher, inFront } = require('./switcher/switcher.js');
-const { tabList, tabLabel } = require('./tabs/tab-list.js');
+const { START, tabList, tabLabel } = require('./tabs/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
 
 class Browser {
@@ -17,8 +18,8 @@ class Browser {
         homepage: {
             type: 'string',
             title: 'Homepage',
-            description: 'What a new tab opens.',
-            default: 'https://www.google.com/',
+            description: 'What a new tab opens: the start page, the bookmarks as tiles, when empty.',
+            default: '',
         },
         searchEngine: {
             type: 'string',
@@ -70,13 +71,10 @@ class Browser {
             onReload: reload,
             onSitePermissions: () => prompter.editSitePermissions(tabs.front().url),
             onBookmark: () => editor.show(tabs.front()),
-            onSubmit: (text) =>
-                tabs.navigate(
-                    tabs.front(),
-                    parseAddress(text) || configuration.get('searchEngine') + encodeURIComponent(text)
-                ),
+            onSubmit: go,
         });
-        const find = findInPage({ ui, frontTab: () => tabs.front() });
+        const find = findInPage({ ui, area, frontTab: () => tabs.front() });
+        const start = startPage({ ui, onOpen: (bookmark) => go(bookmark.url) });
         const tabs = tabList({
             web: shell.web,
             records,
@@ -126,7 +124,8 @@ class Browser {
             onEditBookmark: (tab) => editor.show(tab),
         });
 
-        content.append(bar.element, find.element, area);
+        area.append(start.element);
+        content.append(bar.element, area);
         webSession.trust(certificates.all());
         webSession.allow(sitePermissions.all());
         tabs.restore();
@@ -222,16 +221,18 @@ class Browser {
         deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         function home() {
-            return parseAddress(configuration.get('homepage')) || 'about:blank';
+            return parseAddress(configuration.get('homepage')) || START;
         }
 
         function showTabs() {
             sidePanel.showTabs(tabs.tree(), tabs.front());
+            start.setShown(tabs.atStart(tabs.front()));
             showBar();
         }
 
         function showBookmarks() {
             sidePanel.showBookmarks(bookmarks.tree());
+            start.show(bookmarks.tree());
             showBar();
         }
 
@@ -240,10 +241,12 @@ class Browser {
             bar.show(tab, { bookmarked: bookmarks.has(tab.url) });
         }
 
+        // One opened at no address given has its address edited.
         function newTab(url) {
             const address = url === undefined ? home() : parseAddress(url);
             if (!address) throw new Error(`${url} is not a web address`);
             tabs.add(address);
+            if (url === undefined) editAddress();
         }
 
         function reopenTab() {
@@ -273,6 +276,13 @@ class Browser {
             tabs.close(tabs.front());
         }
 
+        // The page goes to the address typed, or searches for the text, and takes the keyboard.
+        function go(text) {
+            const tab = tabs.front();
+            tabs.navigate(tab, parseAddress(text) || configuration.get('searchEngine') + encodeURIComponent(text));
+            tab.page.focus();
+        }
+
         // The address is edited with the bookmark editor gone.
         function editAddress() {
             editor.close();
@@ -293,8 +303,9 @@ class Browser {
             tabs.front().page.reload();
         }
 
+        // A tab at the start has no page to find in.
         function openFind() {
-            find.show();
+            if (!tabs.atStart(tabs.front())) find.show();
         }
 
         function notify(tab, notification) {

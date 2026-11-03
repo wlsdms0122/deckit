@@ -52,16 +52,18 @@ final class Stage {
     }
 
     // The pages on the stage, bottom to top, each at its frame, or hidden: kept out of the window, which a page in it
-    // would slow as it resizes. A page with a clip is drawn only inside it, cut there and never resized. A page left
-    // out is taken off, from this stage alone: one another stage shows since stays where it is.
-    func lay(_ layers: [(page: WebPage, frame: CGRect?, clip: CGRect?)]) {
-        let shown = layers.compactMap { layer in layer.frame.map { (layer.page, $0, layer.clip) } }
+    // would slow as it resizes. A page with a clip is drawn only inside it, cut there and never resized. A page with an
+    // input region takes the pointer only inside it, its rects from the page's top left. A page left out is taken off,
+    // from this stage alone: one another stage shows since stays where it is.
+    func lay(_ layers: [(page: WebPage, frame: CGRect?, clip: CGRect?, input: [CGRect]?)]) {
+        let shown = layers.compactMap { layer in layer.frame.map { (layer.page, $0, layer.clip, layer.input) } }
         let kept = Set(shown.map { ObjectIdentifier($0.0) })
         for page in laid where !kept.contains(ObjectIdentifier(page)) {
             takeOff(page)
         }
         var below: NSView?
-        for (page, frame, clip) in shown {
+        for (page, frame, clip, input) in shown {
+            page.view.inputRegion = input
             let item = holder(of: page, frame: frame, clip: clip)
             if item.superview !== view {
                 view.addSubview(item, positioned: .above, relativeTo: below)
@@ -94,6 +96,7 @@ final class Stage {
     }
 
     private func takeOff(_ page: WebPage) {
+        page.view.inputRegion = nil
         if !dropClip(of: page), page.view.superview === view { page.view.removeFromSuperview() }
     }
 

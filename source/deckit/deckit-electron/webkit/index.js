@@ -15,11 +15,31 @@ export function createWebKit({ path, LOG }) {
     // MARK: - Public
     // A page in the data store `store`, a UUID (storeOf), its session cookies lasting `cookieLifetime` seconds where
     // that is given. `scheme` is served by the page's delegate (`request`), `clear` draws nothing where the document
-    // does not, and `fullSpeed` runs off screen as on it. `delegate` answers what the page asks (pageOf); `fields` are
-    // kept on the token.
-    function make({ store, cookieLifetime, scheme, clear, fullSpeed, delegate, fields = {} }) {
+    // does not, `clearWhileBlank` so until it commits its first page, `fullSpeed` runs off screen as on it, and
+    // `takesKeyboard` false has the keyboard only as it is given it or pressed. `delegate` answers what the page asks
+    // (pageOf); `fields` are kept on the token.
+    function make({
+        store,
+        cookieLifetime,
+        scheme,
+        clear,
+        clearWhileBlank,
+        fullSpeed,
+        takesKeyboard,
+        delegate,
+        fields = {},
+    }) {
         const { page, listener } = pageOf({ delegate, fields });
-        const options = { store, applicationName: agentName(), cookieLifetime, scheme, clear, fullSpeed };
+        const options = {
+            store,
+            applicationName: agentName(),
+            cookieLifetime,
+            scheme,
+            clear,
+            clearWhileBlank,
+            fullSpeed,
+            takesKeyboard,
+        };
         page.adopted(loaded().make(options, listener));
         return page;
     }

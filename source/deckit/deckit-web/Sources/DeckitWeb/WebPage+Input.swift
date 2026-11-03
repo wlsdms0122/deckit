@@ -16,7 +16,7 @@ extension WebPage {
     // the keyboard first.
     func sendKey(_ code: KeyCode, key: String, modifiers: NSEvent.ModifierFlags, through input: InputMonitor) throws {
         let window = try shownWindow()
-        window.makeFirstResponder(view)
+        view.take()
         let characters = Self.characters[key] ?? key
         for type in [NSEvent.EventType.keyDown, .keyUp] {
             guard let event = NSEvent.keyEvent(

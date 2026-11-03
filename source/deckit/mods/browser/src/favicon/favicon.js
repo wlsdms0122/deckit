@@ -34,4 +34,4 @@ function faviconOf({ url, icon }) {
     return hrefOf('/favicon.ico', url) ?? '';
 }
 
-module.exports = { favicon };
+module.exports = { favicon, faviconOf };

@@ -131,7 +131,7 @@ final class WebPage: NSObject {
     }
 
     func focus() {
-        view.window?.makeFirstResponder(view)
+        view.take()
     }
 
     // The scripts every document of the page runs as it starts, in place of those it had.
@@ -394,6 +394,10 @@ extension WebPage: WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        if view.clearWhileBlank {
+            view.clearWhileBlank = false
+            view.setValue(true, forKey: "drawsBackground")
+        }
         emitter.emit("committed", ["url": webView.url?.absoluteString ?? ""])
     }
 

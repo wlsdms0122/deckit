@@ -1,5 +1,5 @@
 const { CHIP_STYLE } = require('./chip/chip.js');
-const { fontsSection } = require('./sections/fonts/fonts-section.js');
+const { generalSection } = require('./sections/general/general-section.js');
 const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
 const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
 const { modsSection } = require('./sections/mods/mods-section.js');
@@ -64,9 +64,9 @@ class Settings {
             onFailure: mods.showNotice,
         });
         const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
-        const fonts = fontsSection({ ui, fonts: shell.fonts, onFailure: mods.showNotice });
+        const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts, onFailure: mods.showNotice });
         const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
-        const sections = [mods, modSettings, urlSchemes, fonts, keyboard];
+        const sections = [general, mods, modSettings, urlSchemes, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
@@ -145,7 +145,7 @@ class Settings {
         );
         deckit.mods.onChange(() => shown && redraw());
         // Fonts set elsewhere come as a new theme.
-        shell.theme.onChange(() => shown && fonts.draw());
+        shell.theme.onChange(() => shown && general.draw());
 
         // Each section changes only what changed in it: a row, a key being recorded and a field being typed in stay.
         // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
@@ -170,7 +170,7 @@ class Settings {
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();
             urlSchemes.draw(handlerLists);
-            fonts.draw();
+            general.draw();
             keyboard.draw(shortcuts);
         }
 

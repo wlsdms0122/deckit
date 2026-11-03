@@ -87,13 +87,22 @@ function storeOf(partition) {
 }
 
 // A line of WebKit's module's `tree`, a view indented under its superview: its type, its frame in its superview,
-// whether it is hidden, and the page it shows, if one.
+// whether it is hidden, whether it has its window's keyboard, and the page it shows and the rects of it that take the
+// pointer, if one.
 function viewOf(line) {
     const match = /^ *(\S+) \{\{([-\d.]+), ([-\d.]+)\}, \{([-\d.]+), ([-\d.]+)\}\}(.*)$/.exec(line);
     if (!match) return null;
     const [x, y, width, height] = match.slice(2, 6).map(Number);
     const page = Number(/ page (\d+)/.exec(match[6])?.[1]) || null;
-    return { type: match[1], rect: { x, y, width, height }, hidden: / hidden/.test(match[6]), page };
+    const input = / input \[(.*?)\]/.exec(match[6])?.[1].split('|').filter(Boolean).map(rectOf) ?? null;
+    const responder = / responder/.test(match[6]);
+    return { type: match[1], rect: { x, y, width, height }, hidden: / hidden/.test(match[6]), responder, page, input };
+}
+
+// A rect as NSStringFromRect writes it, `{{x, y}, {width, height}}`.
+function rectOf(text) {
+    const [x, y, width, height] = text.match(/[-\d.]+/g).map(Number);
+    return { x, y, width, height };
 }
 
 // Whether two rects are the same to a point.
@@ -135,7 +144,7 @@ async function run({
         );
     // Every window of WebKit's module: its content's size, and its stages from the bottom, each whether it is shown
     // and the pages on it, bottom to top, `{ id, width, height, stages: [{ shown, rect, pages: [{ id, url, rect,
-    // hidden }] }] }`.
+    // hidden, responder, input }] }] }`.
     const laidNow = async () => {
         const found = await main(`return {
             windows: webkit.windows().map((id) => ({ id, tree: webkit.tree(id) })),
@@ -152,6 +161,8 @@ async function run({
                         url: found.urls[view.page] || '',
                         rect: view.rect,
                         hidden: view.hidden,
+                        responder: view.responder,
+                        input: view.input,
                     });
             }
             return { id, width: views[0]?.rect.width, height: views[0]?.rect.height, stages };
@@ -379,19 +390,17 @@ async function run({
         // A menu is a layer, drawn in the page's overlay, which has the keys while it is open.
         const settingsOverlay = settings && (await overlayOf(settings));
         const menus = `document.querySelectorAll('.deckit-menu[data-state="open"]').length`;
-        // The size picked in the Fonts section is the Editor's, which leaves its own to the fonts, and is kept.
-        const sizeSelect = `document.querySelectorAll('.settings-font .deckit-select')[2]`;
+        // The size set in the General section is the Editor's, which leaves its own to the fonts, and is kept.
+        const less = `document.querySelector('.settings-font .deckit-stepper-button[title="Less"]')`;
+        const sizeShown = `document.querySelector('.settings-font .deckit-stepper-input').value`;
         const codeSize = `getComputedStyle(document.querySelector('.cm-editor')).fontSize`;
         const sizeBefore = await editor.evaluate(codeSize);
-        await settings?.evaluate(`${sizeSelect}.scrollIntoView({ block: 'center' })`);
+        await settings?.evaluate(`${less}.scrollIntoView({ block: 'center' })`);
         await sleep(200);
-        await settings?.shot('settings-fonts');
-        await settings?.evaluate(`${sizeSelect}.click()`);
-        await until(() => settingsOverlay.evaluate(menus), 2000);
-        await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
-        await settingsOverlay?.key('ArrowDown', 'ArrowDown', 0, 40);
-        await settingsOverlay?.key('Enter', 'Enter', 0, 13);
-        await until(async () => !(await settingsOverlay.evaluate(menus)), 2000);
+        await settings?.shot('settings-general');
+        check('the text size starts at the default, 14', (await settings?.evaluate(sizeShown)) === '14 px', '');
+        await settings?.evaluate(`${less}.click()`);
+        await settings?.evaluate(`${less}.click()`);
         const sized = await until(async () => (await editor.evaluate(codeSize)) === '12px', 3000);
         check(
             "the fonts' size picked in Settings is the Editor's text size",
@@ -408,10 +417,9 @@ async function run({
             sizeKept,
             fs.existsSync(fontsKept) && fs.readFileSync(fontsKept)
         );
-        // The size's button gives up the keyboard the menu gave back to it, so the keys reach the menu opened next.
-        await settings?.evaluate(`document.activeElement.blur()`);
-        // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away.
-        const firstSelect = `document.querySelector('.deckit-select')`;
+        // The overlay: a select opens its menu, keys move and pick, Escape and a press outside put a menu away. The
+        // select is a mod's setting's.
+        const firstSelect = `document.querySelector('.settings-setting .deckit-select')`;
         const before = await settings?.evaluate(`${firstSelect}?.textContent`);
         // Scrolled first and clicked a frame later: a scroll that lands after a menu opened puts it away.
         await settings?.evaluate(`${firstSelect}.scrollIntoView()`);
@@ -544,20 +552,27 @@ async function run({
             `${usage} (the disk holds ${JSON.stringify(told)})`
         );
 
-        // A folder dropped on the Mods section is asked about as a picked one is: one install refuses is told.
+        // A folder dropped on the Mods section is asked about as a picked one is: one install refuses is told. While it
+        // is over the section, the section says what a drop does there.
         const notMod = path.join(home, '..', 'not-a-mod');
         fs.mkdirSync(notMod, { recursive: true });
         const settingsId = await main(
             `return webkit.pages().find((id) => webkit.state(id).url.startsWith('deckit://settings.mod'))`
         );
         const modsHead = await settings.evaluate(`(() => {
-            const head = document.querySelector('.settings-section-head');
+            const head = document.querySelector('.settings-mods .settings-section-head');
             head.scrollIntoView();
             const box = head.getBoundingClientRect();
             return { x: box.left + 20, y: box.top + 10 };
         })()`);
         const dropped = JSON.stringify({ files: [fs.realpathSync(notMod)], ...modsHead });
-        await main(`return webkit.sendDrop(${settingsId}, ${dropped})`);
+        const dropping = main(`return webkit.sendDrop(${settingsId}, ${dropped})`);
+        const covered = await until(
+            () => settings.evaluate(`getComputedStyle(document.querySelector('.settings-drop')).opacity === '1'`),
+            1000
+        );
+        check('files dragged over the Mods section show where they install', covered, '');
+        await dropping;
         const noticeText = `document.querySelector('.settings-notice')?.textContent || ''`;
         const refusedDrop = await until(
             async () => /^Could not install not-a-mod: /.test(await settings.evaluate(noticeText)),
@@ -822,6 +837,96 @@ async function run({
             site.close();
             await main(`return webkit.load(${linkPageId}, '${FRONT_TAB}')`);
             await until(async () => (await shownAt()) === FRONT_TAB, 5000);
+        }
+        // A site that focuses a field of its own as it loads does not take the keyboard from the address being edited;
+        // an address typed and gone to gives the page the keyboard.
+        {
+            const site = require('http').createServer((_request, response) => {
+                response.writeHead(200, { 'Content-Type': 'text/html' });
+                response.end('<input autofocus>');
+            });
+            await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+            const focusing = `http://127.0.0.1:${site.address().port}/`;
+            const tabId = await browser?.evaluate(shownPage);
+            const holder = `(() => {
+                const held = document.activeElement;
+                return held?.dataset.webPage ? 'page ' + held.dataset.webPage : held?.className || '';
+            })()`;
+            await browser?.key('l', 'KeyL', META, 76);
+            await main(`return webkit.load(${tabId}, '${focusing}')`);
+            await until(async () => (await shownAt()) === focusing && !(await webPage(tabId).state())?.loading, 5000);
+            await sleep(600);
+            const kept = await browser?.evaluate(holder);
+            check(
+                'a site focusing its own field leaves the address being edited the keyboard',
+                kept === 'browser-address-input',
+                kept
+            );
+            await browser?.type(FRONT_TAB);
+            await browser?.key('Enter', 'Enter', 0, 13);
+            await until(async () => (await shownAt()) === FRONT_TAB, 5000);
+            const given = await browser?.evaluate(holder);
+            check('an address gone to gives the page the keyboard', given === `page ${tabId}`, given);
+            site.close();
+        }
+        // A new tab shows the start page, with no web page shown over it, and its address being edited.
+        {
+            const tabCount = `document.querySelectorAll('.browser-row-label').length`;
+            const before = await browser?.evaluate(tabCount);
+            await browser?.key('t', 'KeyT', META, 84);
+            const opened = await until(async () => (await browser?.evaluate(tabCount)) === before + 1, 3000);
+            await sleep(300);
+            const started = await browser?.evaluate(`({
+                start: !!document.querySelector('.browser-start[data-shown]'),
+                held: document.activeElement?.className || '',
+                shown: [...document.querySelectorAll('[data-web-page]')].some((element) => element.style.visibility === 'visible'),
+            })`);
+            check(
+                'a new tab shows the start page and has its address being edited',
+                opened && started?.start && !started.shown && started.held === 'browser-address-input',
+                started
+            );
+            await browser?.key('w', 'KeyW', META, 87);
+            await until(async () => (await browser?.evaluate(tabCount)) === before, 3000);
+            await pressTab(FRONT_TAB);
+            await until(async () => (await shownAt()) === FRONT_TAB, 3000);
+        }
+        // Find floats over the page in the Browser's overlay, which takes the pointer only where the panel lies, and
+        // has the focus as it opens; closed, the overlay is off the page, which has the keyboard again.
+        {
+            const laidPages = async () =>
+                (await laidNow()).flatMap(({ stages }) => stages.flatMap(({ pages: laid }) => laid));
+            const overlaid = async () =>
+                (await laidPages()).find(({ url, input }) => url === 'about:blank' && input?.length);
+            const responderIs = async (id) => (await laidPages()).some((laid) => laid.id === id && laid.responder);
+            await browser?.key('f', 'KeyF', META, 70);
+            const overlay = await until(() => overlayOf(browser), 3000);
+            const panel = await until(
+                () =>
+                    overlay?.evaluate(`(() => {
+                        const found = document.querySelector('.browser-find')?.getBoundingClientRect();
+                        return found && { x: found.x, y: found.y, width: found.width, height: found.height };
+                    })()`),
+                3000
+            );
+            const laid = await until(overlaid, 3000);
+            check(
+                'the find panel floats over the page, and its overlay takes the pointer only where it lies',
+                !!panel && laid?.input.length === 1 && near(laid.input[0], panel),
+                JSON.stringify({ panel, input: laid?.input })
+            );
+            // The keyboard the page has goes to the overlay only in a key window, which this app, never active, lacks.
+            const held = await overlay?.evaluate(`!!document.activeElement?.closest('.browser-find')`);
+            check('the find panel has the focus as it opens', held, held);
+            await overlay?.key('Escape', 'Escape', 0);
+            const gone = await until(async () => !(await overlaid()), 3000);
+            const tabId = Number(await browser?.evaluate(shownPage));
+            const back = await until(() => responderIs(tabId), 2000);
+            check(
+                'closing the find panel takes its overlay off and gives the page the keyboard',
+                gone && back,
+                JSON.stringify({ gone, back })
+            );
         }
         const tabLaidOut = async () => {
             const element = await browser?.evaluate(`(() => {

@@ -1,10 +1,14 @@
 const { canonical, isFile, placeOf } = require('../address/address.js');
 const { tree, isFolder, folderOf } = require('../tree/tree.js');
 
+// The address a tab that has gone nowhere is at.
+const START = 'about:blank';
+
 // The open tabs, each with its page, in a tree of folders (`tree.js`), and the session record that brings them back.
 // A tab brought back sleeps, with no page, until it first comes to the front, as a browser restoring its tabs does: a
 // page loads and runs from when it is made. A web address opens in the web session and a file in the files session. A
-// folder stands until it is deleted, empty or not.
+// folder stands until it is deleted, empty or not. A tab the Browser opened at START, which goes nowhere, is at the
+// start, and shows no page.
 function tabList({
     web,
     records,
@@ -35,6 +39,7 @@ function tabList({
         tree: () => nodes,
         list: () => nodes.items(),
         front: () => front,
+        atStart,
         lastClosed: () => closed.at(-1),
         add,
         open,
@@ -113,7 +118,6 @@ function tabList({
         front = tab;
         wake(tab);
         for (const folder of nodes.ancestorsOf(tab)) folder.collapsed = false;
-        showCurrent();
         changed();
         onSelect(tab, previous);
     }
@@ -126,12 +130,13 @@ function tabList({
         if (!tab.page) {
             Object.assign(tab, { url, title: '', icon: '' });
             wake(tab);
-            showCurrent();
             changed();
             return;
         }
         if (isFile(url) === (tab.page.session === filesSession)) {
+            tab.url = url;
             tab.page.load(url);
+            changed();
             return;
         }
         const old = tab.page;
@@ -140,7 +145,6 @@ function tabList({
         release(tab, old);
         Object.assign(tab, { url, title: '', icon: '', loading: true, canGoBack: false, canGoForward: false });
         listen(tab);
-        showCurrent();
         changed();
     }
 
@@ -273,7 +277,7 @@ function tabList({
     function retire(tab) {
         const { parent, index } = nodes.remove(tab);
         // One whose page has shown no page has nothing to come back to.
-        if (tab.url !== 'about:blank' && !tab.page?.state.blank) {
+        if (tab.url !== START && !tab.page?.state.blank) {
             const { url, title, icon } = tab;
             closed.push({ url, title, icon, parent: parent === nodes.root ? null : parent.id, index });
             closed.splice(0, Math.max(0, closed.length - KEPT_CLOSED));
@@ -330,13 +334,19 @@ function tabList({
     }
 
     // Pages out of sight are hidden by visibility: a page element with nothing to draw into (display: none) comes
-    // back blank or at the wrong size.
+    // back blank or at the wrong size. The tab in front at the start shows the start page instead.
     function showCurrent() {
         for (const tab of nodes.items())
-            if (tab.page) tab.page.element.style.visibility = tab === front ? 'visible' : 'hidden';
+            if (tab.page) tab.page.element.style.visibility = tab === front && !atStart(tab) ? 'visible' : 'hidden';
+    }
+
+    // A window a page opened at START is the page's, which may draw in it.
+    function atStart(tab) {
+        return tab.url === START && !tab.opener;
     }
 
     function changed() {
+        showCurrent();
         onChange();
         persist();
     }
@@ -357,4 +367,4 @@ function tabLabel(tab) {
     return tab.title || placeOf(tab.url) || 'New tab';
 }
 
-module.exports = { tabList, tabLabel };
+module.exports = { START, tabList, tabLabel };

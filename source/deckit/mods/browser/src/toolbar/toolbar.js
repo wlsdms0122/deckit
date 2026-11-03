@@ -1,5 +1,6 @@
 const { isWeb, placeOf } = require('../address/address.js');
 const { favicon } = require('../favicon/favicon.js');
+const { START } = require('../tabs/tab-list.js');
 
 // The view's title bar, as the Browser's toolbar: Back and Forward, the field of the tab in front, and `trailing` at its
 // end. The field holds the site's icon, which opens its permissions, the site, and Reload and the bookmark star of the
@@ -134,7 +135,7 @@ function toolbar({ theme, ui, trailing, onBack, onForward, onReload, onSitePermi
     function edit() {
         if (!shownTab) return;
         element.toggleAttribute('data-editing', true);
-        input.value = shownTab.url;
+        input.value = shownTab.url === START ? '' : shownTab.url;
         input.focus();
         input.select();
     }

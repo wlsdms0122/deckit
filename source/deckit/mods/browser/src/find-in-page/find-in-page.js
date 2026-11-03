@@ -1,22 +1,16 @@
-// Find in the page of the tab in front, in a bar between the toolbar and the page: nothing is drawn over a web page.
-function findInPage({ ui, frontTab }) {
+// Find in the page of the tab in front, in a panel floating at the top right of `area`, over the page. Closing it gives
+// the page the keyboard back.
+function findInPage({ ui, area, frontTab }) {
     let searchedTab = null;
     let state = { query: '', caseSensitive: false };
-    let open = false;
 
     ui.addStyle(`
-        .browser-find {
-            flex: 0 0 auto;
-            display: none;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 2px;
-            padding: 0 10px 6px;
-        }
-        .browser-find[data-open] { display: flex; }
-        .browser-find-field { flex: 0 1 auto; width: 330px; min-width: 0; margin: 0 2px; }
+        .browser-find { display: flex; align-items: center; gap: 2px; padding: 4px; right: 12px; }
+        .browser-find-field { flex: 0 1 auto; width: 300px; min-width: 0; margin: 0 2px; }
     `);
-    const element = ui.element('div', { className: 'browser-find' });
+    const panel = ui.floatingPanel();
+    const { element } = panel;
+    element.classList.add('browser-find');
     const field = ui.findBar({
         placeholder: 'Find in page',
         options: ['caseSensitive'],
@@ -24,30 +18,33 @@ function findInPage({ ui, frontTab }) {
         onChange: change,
         onNext: () => step(false),
         onPrevious: () => step(true),
-        onCancel: () => hide({ keepSelection: true }),
+        onCancel: close,
     });
-    const close = ui.iconButton({
+    const closeButton = ui.iconButton({
         icon: ui.icon('x', { size: 14 }),
         title: 'Close',
-        onClick: () => hide({ keepSelection: true }),
+        onClick: close,
         size: 'small',
     });
     field.element.classList.add('browser-find-field');
-    element.append(field.element, close.element);
+    element.append(field.element, closeButton.element);
 
-    return { element, show, hide, showCount, release };
+    return { show, hide, showCount, release };
 
     function show() {
-        open = true;
-        element.toggleAttribute('data-open', true);
-        field.focus();
+        element.style.top = area.getBoundingClientRect().top + 8 + 'px';
+        panel.focus(field);
         if (state.query) step(false);
     }
 
+    function close() {
+        hide({ keepSelection: true });
+        frontTab().page?.focus();
+    }
+
     function hide({ keepSelection = false } = {}) {
-        if (!open) return;
-        open = false;
-        element.removeAttribute('data-open');
+        if (!panel.isOpen()) return;
+        panel.hide();
         searchedTab?.page.stopFind({ keepSelection });
         searchedTab = null;
         field.setCount(0, 0);

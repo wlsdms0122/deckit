@@ -36,7 +36,7 @@ class Note {
         textSize: {
             type: 'string',
             title: 'Text size',
-            description: 'Default follows the size in the Fonts section.',
+            description: 'Default follows the text size in the General section.',
             default: 'default',
             oneOf: TEXT_SIZES,
         },
@@ -44,7 +44,7 @@ class Note {
             type: 'string',
             title: 'Font',
             description:
-                'The face a note is written in, its title too; code stays monospaced. Default follows the Fonts section.',
+                'The face a note is written in, its title too; code stays monospaced. Default follows the General section.',
             default: 'default',
         },
     };

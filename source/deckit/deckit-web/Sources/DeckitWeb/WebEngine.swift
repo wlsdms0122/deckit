@@ -11,9 +11,11 @@ import CNodeAPI
 
 // The pages, windows and stages the module made, each by an id of its own, and what JavaScript does to them and to
 // the pages' data stores (Export).
-// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, fullSpeed }, emit) -> id` (WebPage),
-//   `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document does not, as do the
-//   windows it opens, `fullSpeed` running off screen or covered as on it; `load(id, url)`; `go(id, to)`; `focus(id)`;
+// - Pages: `make({ store, applicationName, cookieLifetime, scheme, clear, clearWhileBlank, fullSpeed, takesKeyboard },
+//   emit) -> id` (WebPage), `scheme` a scheme of its own (SchemeHandler), `clear` drawing nothing where the document
+//   does not, as do the windows it opens, `clearWhileBlank` so until it commits its first page, `fullSpeed` running off
+//   screen or covered as on it, `takesKeyboard` false having the keyboard only as it is given it or pressed, as do the
+//   windows it opens; `load(id, url)`; `go(id, to)`; `focus(id)`;
 //   `isFocused(id)`; `focusedPage()`, the page with the keyboard, or null; `state(id)`; `droppedFiles(id)`, the paths
 //   of the files dropped on it last; `run(id, [{ source, world, mainFrameOnly }])`; `evaluate(id, source, world) ->
 //   Promise of JSON`; `find(id, text, { backwards, caseSensitive }) -> Promise of whether it found it`;
@@ -35,8 +37,10 @@ import CNodeAPI
 //   from outside the app dropped there. `snapshot(id) -> Promise of a PNG in base64`; `killProcess(id)`, its content's
 //   process ended as a crash ends it; `pages()` and `windows()`, the ids of those open.
 // - Stages (Stage): `makeStage() -> id`; `placeStage(id, { window, frame, front })`; `layStage(id, [{ page, frame,
-//   clip } | { page, hidden: true }])`, `clip` a rect on the stage the page is cut to; `showStage(id, on)`;
-//   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id.
+//   clip, input } | { page, hidden: true }])`, `clip` a rect on the stage the page is cut to, `input` the rects in the
+//   page that take the pointer, all of it without; `showStage(id, on)`;
+//   `removeStage(id)`; and `tree(window)`, a window's views as text, a page's view with its id and input region, and
+//   the view with the window's keyboard marked.
 // A store is a UUID, as WebKit names a data store; none keeps nothing.
 @MainActor
 final class WebEngine {
@@ -369,12 +373,19 @@ final class WebEngine {
                 guard let id = try node.member(layer, "page") else { throw NodeError(message: "a layer needs a page") }
                 let page = Int(try node.number(id))
                 guard let laid = pages[page] else { throw NodeError(message: "no web page \(page)") }
-                if try node.member(layer, "hidden").map({ try node.bool($0) }) == true { return (laid, nil, nil) }
+                if try node.member(layer, "hidden").map({ try node.bool($0) }) == true {
+                    return (laid, nil, nil, nil)
+                }
                 guard let frame = try node.member(layer, "frame") else {
-                    throw NodeError(message: "a layer is { page, frame, clip } or { page, hidden: true }")
+                    throw NodeError(message: "a layer is { page, frame, clip, input } or { page, hidden: true }")
                 }
 
-                return (laid, try node.rect(frame), try node.member(layer, "clip").map { try node.rect($0) })
+                return (
+                    laid,
+                    try node.rect(frame),
+                    try node.member(layer, "clip").map { try node.rect($0) },
+                    try node.member(layer, "input").map { try node.array($0).map { try node.rect($0) } }
+                )
             })
 
         case .showStage:
@@ -411,8 +422,17 @@ final class WebEngine {
         let fullSpeed = try node.member(options, "fullSpeed").map { try node.bool($0) } ?? false
         if fullSpeed { Self.runOffScreen(configuration.preferences) }
         let clear = try node.member(options, "clear").map { try node.bool($0) } ?? false
+        let clearWhileBlank = try node.member(options, "clearWhileBlank").map { try node.bool($0) } ?? false
+        let takesKeyboard = try node.member(options, "takesKeyboard").map { try node.bool($0) } ?? true
 
-        return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed).id
+        return adopt(
+            configuration,
+            emitter,
+            clear: clear,
+            clearWhileBlank: clearWhileBlank,
+            fullSpeed: fullSpeed,
+            takesKeyboard: takesKeyboard
+        ).id
     }
 
     // A download a page started, kept by its id until it ends.
@@ -425,13 +445,15 @@ final class WebEngine {
         kept.announce()
     }
 
-    // A page of the module's, on `configuration`: a new one, or WebKit's for a window a page opened, clear and at full
-    // speed as the page that opened it is.
+    // A page of the module's, on `configuration`: a new one, or WebKit's for a window a page opened, drawn and run as
+    // the page that opened it is.
     private func adopt(
         _ configuration: WKWebViewConfiguration,
         _ emitter: Emitter,
         clear: Bool,
-        fullSpeed: Bool
+        clearWhileBlank: Bool,
+        fullSpeed: Bool,
+        takesKeyboard: Bool
     ) -> WebPage {
         lastID += 1
         let page = WebPage(
@@ -441,14 +463,23 @@ final class WebEngine {
             adopt: { [weak self] configuration, emitter in
                 guard let self else { fatalError("a web page outlived the module") }
 
-                return adopt(configuration, emitter, clear: clear, fullSpeed: fullSpeed)
+                return adopt(
+                    configuration,
+                    emitter,
+                    clear: clear,
+                    clearWhileBlank: clearWhileBlank,
+                    fullSpeed: fullSpeed,
+                    takesKeyboard: takesKeyboard
+                )
             },
             keep: { [weak self] download, emitter in
                 self?.keep(download, emitter)
             }
         )
-        if clear { Self.drawNoBackground(page.view) }
+        if clear || clearWhileBlank { Self.drawNoBackground(page.view) }
         if fullSpeed { Self.runWhileCovered(page.view) }
+        page.view.clearWhileBlank = clearWhileBlank && !clear
+        page.view.takesKeyboard = takesKeyboard
         pages[page.id] = page
         input.start()
 
@@ -642,7 +673,10 @@ final class WebEngine {
         let line = String(repeating: "  ", count: depth)
             + "\(type(of: view)) \(NSStringFromRect(view.frame))\(view.isHidden ? " hidden" : "")"
             + "\(view.isFlipped ? " flipped" : "")"
+            + "\(view.window?.firstResponder === view ? " responder" : "")"
             + (pages.values.first { $0.view === view }.map { " page \($0.id)" } ?? "")
+            + ((view as? WebPageView)?.inputRegion.map { " input [\($0.map(NSStringFromRect).joined(separator: "|"))]" }
+                ?? "")
 
         return ([line] + view.subviews.map { tree(of: $0, depth: depth + 1) }).joined(separator: "\n")
     }

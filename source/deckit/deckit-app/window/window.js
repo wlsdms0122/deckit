@@ -1,9 +1,7 @@
 function createWindow({ CONFIG, THEME, windows }) {
     // MARK: - Property
-    // The bar over a view laid below it, and the taller one over a view that fills the window, the bar's height
-    // included, whose buttons stand in the panel's top left, inside the sidebar card while it is open. The buttons
-    // are centred on the bar's height.
-    const BAR = barOf({ height: 38, left: 14 });
+    // The bar over a view that fills the window, the bar's height included, whose buttons stand in the panel's top
+    // left, inside the sidebar card while it is open. The buttons are centred on the bar's height.
     const FULL_SIZE_BAR = barOf({ height: 52, left: 20 });
     // The window's three buttons, from the first one's left edge to the last one's right.
     const BUTTONS_WIDTH = 52;
@@ -23,16 +21,18 @@ function createWindow({ CONFIG, THEME, windows }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A window of Deckit.app, with macOS's title bar across its top, drawn in the bar's colour, and a view below it
-    // through `place(window, { bounds })`. The bar is the window's own, so it drags, snaps and answers a double click
-    // as the person set. `size` is the view's, below the bar. `glass`, for a view drawn as glass: the window blurs what
-    // is behind it instead. `fullSize`: the view fills the window, the bar's height included, and draws and drags what
-    // lies under the bar itself (TITLE_BAR), the title not drawn. A window with a `key` opens where it was last left;
-    // another opens over the window in front. `focus` hands the keyboard to the view as the window takes it.
+    // A window of Deckit.app, with macOS's title bar across its top, drawn in the bar's colour, and a view below it,
+    // all of the window's content, through `place(window)`. The bar is the window's own, laid as macOS lays it, so
+    // it drags, snaps and answers a double click as the person set. `size` is the view's. `glass`, for a view drawn as
+    // glass: the window blurs what is behind it instead. `fullSize`: the view fills the window, the bar's height
+    // included, and draws and drags what lies under the bar itself (TITLE_BAR), the title not drawn. A window with a
+    // `key` opens where it was last left; another opens over the window in front. `focus` hands the keyboard to the
+    // view as the window takes it.
     function open({ title = '', size = null, glass = null, fullSize = false, key = null, place, focus = null }) {
         const viewSize = size || DEFAULT_VIEW_SIZE;
-        const bar = fullSize ? FULL_SIZE_BAR : BAR;
-        const windowSize = { width: viewSize.width, height: viewSize.height + bar.height };
+        const windowSize = fullSize
+            ? { width: viewSize.width, height: viewSize.height + FULL_SIZE_BAR.height }
+            : viewSize;
         const window = windows().open({
             kind: 'titled',
             size: windowSize,
@@ -40,14 +40,14 @@ function createWindow({ CONFIG, THEME, windows }) {
             title: title || CONFIG.name,
             showsTitle: !fullSize,
             ...(glass !== null ? { material: 'hud' } : { color: colourOf(THEME.now().bar.background) }),
-            buttons: bar.buttons,
+            ...(fullSize ? { buttons: FULL_SIZE_BAR.buttons } : {}),
         });
         if (glass === null) {
             solid.add(window);
             window.on('close', () => solid.delete(window));
         }
         if (fullSize) covered.add(window);
-        place(window, { bounds: fullSize ? null : viewBounds });
+        place(window);
         if (key) remember(window, key);
         if (focus) window.on('key', () => setImmediate(() => window.isKey() && focus()));
         window.show({ focus: true });
@@ -90,15 +90,9 @@ function createWindow({ CONFIG, THEME, windows }) {
         window.show({ focus: true });
     }
 
-    // Where a view goes in the window: all of it below the bar.
-    function viewBounds({ width, height }) {
-        return { x: 0, y: BAR.height, width, height: Math.max(0, height - BAR.height) };
-    }
-
-    // Gives a window's view `size`: below the bar in a window with one, the whole of a floating one.
+    // Gives a window's view `size`, and the bar's height with it in a window whose view fills it.
     function setViewSize(window, { width, height }) {
-        const bar = floating.has(window) ? null : covered.has(window) ? FULL_SIZE_BAR : BAR;
-        window.setSize({ width, height: height + (bar?.height || 0) });
+        window.setSize({ width, height: height + (covered.has(window) ? FULL_SIZE_BAR.height : 0) });
     }
 
     function setTitle(window, title) {
@@ -216,7 +210,7 @@ function createWindow({ CONFIG, THEME, windows }) {
         return Object.freeze({ height, buttons: Object.freeze({ x: left, y: Math.round((height - 14) / 2) }) });
     }
 
-    return { open, openFloating, float, viewBounds, setViewSize, titleBar: TITLE_BAR, setTitle, recolor };
+    return { open, openFloating, float, setViewSize, titleBar: TITLE_BAR, setTitle, recolor };
 }
 
 module.exports = { createWindow };

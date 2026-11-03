@@ -361,11 +361,14 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
         return window;
     }
 
-    // A page of a mod's session, in its data store, answering to `modPage`.
+    // A page of a mod's session, in its data store, answering to `modPage`, which hands it the keyboard: a site does
+    // not take it from what has it by focusing an element of its own.
     function makePage(partition, modPage) {
         return WEBKIT.make({
             store: storeOf(partition),
             cookieLifetime: deck.cookieLifetime,
+            clearWhileBlank: true,
+            takesKeyboard: false,
             delegate: delegateOf(modPage),
             fields: { partition },
         });

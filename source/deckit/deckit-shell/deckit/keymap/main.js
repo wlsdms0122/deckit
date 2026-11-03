@@ -15,7 +15,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     const typing = new WeakSet(); // pages with a field focused
     const local = new Map(); // page -> [{ keystroke, run }], taken there before anything else
     const hosts = new Map(); // a host's name, as its provider -> Map of name -> run, as it registered its keys here
-    const listened = new WeakMap(); // page -> the deckit page a keystroke there belongs to, or null
+    const listened = new WeakMap(); // page -> belongsTo, as listen was given it
     let keymap = { revision: 0, bindings: [] };
     let recording = null; // { page, drop, timer }
     let delegated = { isActive: () => false, monitor: () => false };
@@ -59,11 +59,11 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
     }
 
     // Keystrokes in `target`, a page, go through the key map. deckit listens on its own pages and the web pages they
-    // show; an app hands its own where deckit's keys that work anywhere in the app should work too. `page` is the
-    // deckit page a keystroke here belongs to, as web answers it, or null: the keys of the page in front run only in
-    // one. `keys` are the target's own, taken there first: only a chord main catches wins over a meaning the app's menu
-    // gives it.
-    function listen(target, { keys = [], page = null } = {}) {
+    // show; an app hands its own where deckit's keys that work anywhere in the app should work too. `belongsTo()`
+    // answers the deckit page a keystroke here belongs to as it lands, as web answers it, or null: the keys of the page
+    // in front run only in one. `keys` are the target's own, taken there first: only a
+    // chord main catches wins over a meaning the app's menu gives it.
+    function listen(target, { keys = [], belongsTo = () => null } = {}) {
         let destroyed = false;
         if (keys.length)
             CORE.request('keymap/keystrokes', { specs: keys.map(({ key }) => String(key)) }).then(
@@ -77,8 +77,8 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
                 },
                 (error) => LOG.error("a page's own keys were not read", error)
             );
-        listened.set(target, page);
-        KEYS.capture(target, (keystroke) => handle(target, page, keystroke));
+        listened.set(target, belongsTo);
+        KEYS.capture(target, (keystroke) => handle(target, belongsTo(), keystroke));
         // A replaced document or an ended process keeps the page, but what the page had focused is gone.
         const forget = () => typing.delete(target);
         PAGES.watch(target, {
@@ -174,7 +174,7 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         const pressed = { type: 'keydown', ...keystroke };
         if (recording) return take(pressed);
         const target = KEYS.focused();
-        if (listened.has(target)) return handle(target, listened.get(target), pressed);
+        if (listened.has(target)) return handle(target, listened.get(target)(), pressed);
         const binding = keymap.bindings.find(
             (binding) => binding.scope === 'global' && binding.active && matches(binding.keystroke, keystroke)
         );

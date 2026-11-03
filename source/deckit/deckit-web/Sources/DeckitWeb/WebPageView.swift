@@ -8,14 +8,20 @@
 import AppKit
 import WebKit
 
-// A web page's WKWebView, which tells when it takes the keyboard, keeps the files of the drop last performed on it, and
-// hears the pointer only where it is the page under it, in a key window of an app that is not active too
-// (PointerRelay). WebKit tracks the pointer through tracking areas of its own, which each page is given behind a gate
-// (TrackingGate), so a page under another does not answer the moves too and set its own cursor.
+// A web page's WKWebView, which tells when it takes the keyboard, may take it only as it is given it or pressed unless
+// it `takesKeyboard` as its document focuses an element, keeps the files of the drop last performed on it, takes the
+// pointer only inside its `inputRegion` while it has one, and hears the pointer only where it is the page under it, in
+// a key window of an app that is not active too (PointerRelay). WebKit tracks the pointer through tracking areas of its
+// own, which each page is given behind a gate (TrackingGate), so a page under another does not answer the moves too and
+// set its own cursor.
 @MainActor
 final class WebPageView: WKWebView {
     // MARK: - Property
     var onFocus: (() -> Void)?
+    var takesKeyboard = true
+    var clearWhileBlank = false // drawing nothing where the document does not until it commits its first page
+    var inputRegion: [CGRect]? // the rects that take the pointer, from its top left; nil, all of it
+    private var given = false // whether the keyboard is being handed to it
     private(set) var droppedFiles: [URL] = []
     private lazy var relay = PointerRelay(view: self)
     private var relayed: NSTrackingArea?
@@ -68,6 +74,17 @@ final class WebPageView: WKWebView {
         return super.performDragOperation(sender)
     }
 
+    // Outside its input region a press, a move and a scroll go to what is under it.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let inputRegion {
+            let local = convert(point, from: superview)
+            let at = CGPoint(x: local.x, y: isFlipped ? local.y : bounds.height - local.y)
+            guard inputRegion.contains(where: { $0.contains(at) }) else { return nil }
+        }
+
+        return super.hitTest(point)
+    }
+
     // A page under another hears the pointer only where it is the one under it, so the two do not each set the cursor.
     override func mouseMoved(with event: NSEvent) {
         guard hears(event) else { return }
@@ -80,6 +97,20 @@ final class WebPageView: WKWebView {
     }
 
     // MARK: - Public
+    // Whether `responder` may have the keyboard of the window it is in: anything but a page that may not take it now.
+    static func mayTake(_ responder: NSResponder?) -> Bool {
+        guard let page = responder as? WebPageView else { return true }
+
+        return page.takesKeyboard || page.given || page.isPressed()
+    }
+
+    // The keyboard handed to it, in its window.
+    func take() {
+        given = true
+        window?.makeFirstResponder(self)
+        given = false
+    }
+
     // Whether a move of the pointer is this page's, the one under it; once it is not, the pointer has left it.
     func hears(_ event: NSEvent) -> Bool {
         guard isUnderPointer(event) else {
@@ -102,6 +133,17 @@ final class WebPageView: WKWebView {
     }
 
     // MARK: - Private
+    // Whether the event under way is a press of the mouse on it.
+    private func isPressed() -> Bool {
+        guard let event = NSApp.currentEvent, event.window === window,
+            [.leftMouseDown, .rightMouseDown, .otherMouseDown].contains(event.type)
+        else {
+            return false
+        }
+
+        return isUnderPointer(event)
+    }
+
     // Once a page comes over it, the pointer moves off it, so nothing stays hovered under that page.
     private func leave(_ event: NSEvent) {
         guard !covered else { return }

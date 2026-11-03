@@ -15,8 +15,9 @@ import Quartz
 @MainActor
 final class Window: NSObject {
     // MARK: - Property
-    // `titled`: macOS's title bar, its buttons and its title over what the window shows. `floating`: no bar, over every
-    // app, on every Space and over one in full screen, taking the keyboard without bringing the app forward.
+    // `titled`: macOS's title bar, its buttons and its title, above what the window shows, or over it where the buttons
+    // are put. `floating`: no bar, over every app, on every Space and over one in full screen, taking the keyboard
+    // without bringing the app forward.
     enum Kind: String {
         case titled
         case floating
@@ -35,7 +36,8 @@ final class Window: NSObject {
 
     // MARK: - Initializer
     // `color` is laid under what the window shows; `material` blurs what is behind it instead. `showsTitle` draws the
-    // title in the bar.
+    // title in the bar. A titled window with `buttons` shows its content under the bar too, the buttons where they
+    // say; one without has the bar as macOS lays it.
     init(
         id: Int,
         kind: Kind,
@@ -50,16 +52,17 @@ final class Window: NSObject {
         let rect = CGRect(origin: .zero, size: size)
         switch kind {
         case .titled:
-            window = NSWindow(
+            let fullSize: NSWindow.StyleMask = buttons == nil ? [] : .fullSizeContentView
+            window = KeyedWindow(
                 contentRect: rect,
-                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                styleMask: [.titled, .closable, .miniaturizable, .resizable, fullSize],
                 backing: .buffered,
                 defer: false
             )
             window.titleVisibility = showsTitle ? .visible : .hidden
 
         case .floating:
-            let panel = NSPanel(
+            let panel = KeyedPanel(
                 contentRect: rect,
                 styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
                 backing: .buffered,
@@ -277,5 +280,19 @@ extension Window: NSWindowDelegate {
         emitter.emit("close")
         emitter.release()
         ended?()
+    }
+}
+
+// Windows that hand the keyboard to a web page only as it may take it (WebPageView): asked before what has it now gives
+// it up, so a page that may not leaves it where it is.
+private final class KeyedWindow: NSWindow {
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        WebPageView.mayTake(responder) && super.makeFirstResponder(responder)
+    }
+}
+
+private final class KeyedPanel: NSPanel {
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        WebPageView.mayTake(responder) && super.makeFirstResponder(responder)
     }
 }

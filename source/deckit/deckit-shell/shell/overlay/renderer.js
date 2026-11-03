@@ -4,9 +4,10 @@ import * as DECLARED from './protocol.js';
 // MARK: - Property
 // MARK: - Initializer
 // MARK: - Public
-// The page's overlay, opened beside it as main lets it: `{ window, document, tell({ shows, layered }) }`. It draws
-// nothing of its own: what is in it is drawn from here. One the last document of this page opened is found by its
-// name. `channels` binds the overlay's channels in the page.
+// The page's overlay, opened beside it as main lets it: `{ window, document, tell(state), take() }`, `state` as the
+// overlay's state channel carries it and `take` asking for the keyboard the page has. It draws nothing of its own:
+// what is in it is drawn from here. One the last document of this page opened is found by its name. `channels` binds
+// the overlay's channels in the page.
 function open({ channels }) {
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const opened = window.open('', PROTOCOL.open.invoke());
@@ -14,6 +15,7 @@ function open({ channels }) {
         window: opened,
         document: opened.document,
         tell: (state) => PROTOCOL.state.send(state),
+        take: () => PROTOCOL.take.send({}),
     });
 }
 
