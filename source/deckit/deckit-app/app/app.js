@@ -37,7 +37,7 @@ function createApp({ WINDOW, THEME }) {
                         glass: controls.panel.glass,
                         fullSize: true,
                         key: 'panel',
-                        place: (window, { bounds }) => controls.panel.place(window, { bounds, onClose }),
+                        place: (window) => controls.panel.place(window, { onClose }),
                         focus: focusPanel,
                     });
                     controls.panel.present({ floating: false, dismissible: false, titleBar: WINDOW.titleBar });
@@ -83,7 +83,7 @@ function createApp({ WINDOW, THEME }) {
                       title: control.name,
                       size,
                       key,
-                      place: (window, { bounds }) => control.place(window, { bounds }),
+                      place: (window) => control.place(window),
                       focus: control.focus,
                   });
             state.windows.set(control, window);

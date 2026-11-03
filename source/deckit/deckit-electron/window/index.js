@@ -7,8 +7,9 @@ export function createWindows({ LOG, WEBKIT, openWindow }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A window, hidden until shown: `kind` `titled`, with macOS's title bar, its buttons where `buttons` puts the
-    // first's top left and its title shown with `showsTitle`, or `floating`, with no bar, over every app and on every
+    // A window, hidden until shown: `kind` `titled`, with macOS's title bar, its title shown with `showsTitle`, over the
+    // content with its buttons where `buttons` puts the first's top left, or above it as macOS lays it where no
+    // `buttons` are given, or `floating`, with no bar, over every app and on every
     // Space, taking the keyboard without bringing the app forward; `size` its content's; `frame` where it is on screen,
     // `{ x, y, width, height }` from the top left of the main display as Electron's screen gives it; `color` `{ red,
     // green, blue }` under what it shows, or `material` (`hud`, `sidebar`, `menu`, `popover`) blurring what is behind
