@@ -651,6 +651,23 @@ async function run({
             refusedDrop,
             await settingsOverlay?.evaluate(toastText)
         );
+        // A second refusal stacks on the first, at the top right of the page under its title bar.
+        await main(`return webkit.sendDrop(${settingsId}, ${dropped})`);
+        const stackOf = `(() => {
+            const toasts = [...document.querySelectorAll('.deckit-toast')];
+            const stack = document.querySelector('.deckit-toasts')?.getBoundingClientRect();
+            return stack && { count: toasts.length, right: innerWidth - stack.right, top: stack.top };
+        })()`;
+        const stacked = await until(async () => (await settingsOverlay?.evaluate(stackOf))?.count === 2, 4000);
+        const stackSeen = await settingsOverlay?.evaluate(stackOf);
+        const titleBottom = await settings.evaluate(
+            `document.querySelector('.deckit-title-bar').getBoundingClientRect().bottom`
+        );
+        check(
+            'toasts stack at the top right of the page, under its title bar',
+            stacked && stackSeen.right === 12 && stackSeen.top >= titleBottom,
+            JSON.stringify({ stackSeen, titleBottom })
+        );
         const browser = await page('deckit://browser.mod');
         // A tab's page is reached through its element, which names it once main has given it its id.
         const shownPage = `[...document.querySelectorAll('[data-web-page]')].find((element) => element.style.visibility === 'visible')?.dataset.webPage`;

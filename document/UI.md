@@ -70,7 +70,7 @@ What is presented over the page is on layers, in one stack. The top one has the 
 
 A toast tells what was just done, or that it failed, where it was done, and goes by itself.
 
-- `toast(text)` returns `{ close() }`: `text` at the bottom of the page for a few seconds, longer for more words, on a layer over the page that takes no presses. A new toast takes the place of the one shown.
+- `toast(text)` returns `{ close() }`: `text` at the top right of the page, under the title bar it lays, for a few seconds, longer for more words, on a layer over the page that takes no presses. Toasts stack, the newest on top, four at most.
 
 Floats are placed by their caller and stay in the page, where the keyboard stays with the text they act on.
 
