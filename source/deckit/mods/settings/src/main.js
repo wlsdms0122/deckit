@@ -62,10 +62,9 @@ class Settings {
             formOf: shell.formOf,
             sources,
             nameOf: (id) => deckit.mods.list().running.find((mod) => mod.id === id)?.name || id,
-            onFailure: mods.showNotice,
         });
         const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
-        const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts, onFailure: mods.showNotice });
+        const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts });
         const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
         const sections = [mods, general, modSettings, urlSchemes, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });

@@ -391,8 +391,9 @@ async function run({
         const settingsOverlay = settings && (await overlayOf(settings));
         const menus = `document.querySelectorAll('.deckit-menu[data-state="open"]').length`;
         // The size set in the General section is the Editor's, which leaves its own to the fonts, and is kept.
-        const less = `document.querySelector('.settings-font .deckit-stepper-button[title="Less"]')`;
-        const sizeShown = `document.querySelector('.settings-font .deckit-stepper-input').value`;
+        const general = `[...document.querySelectorAll('.settings-section')].find((section) => section.querySelector('.settings-section-title').textContent === 'General')`;
+        const less = `${general}.querySelector('.deckit-stepper-button[title="Less"]')`;
+        const sizeShown = `${general}.querySelector('.deckit-stepper-input').value`;
         const codeSize = `getComputedStyle(document.querySelector('.cm-editor')).fontSize`;
         const sizeBefore = await editor.evaluate(codeSize);
         await settings?.evaluate(`${less}.scrollIntoView({ block: 'center' })`);
@@ -456,7 +457,7 @@ async function run({
             await editor.evaluate(codeSize)
         );
         // The General font offers every family installed, not a list of its own.
-        const fontSelect = `document.querySelector('.settings-font .deckit-select')`;
+        const fontSelect = `${general}.querySelector('.deckit-select')`;
         await settings?.evaluate(`${fontSelect}.click()`);
         await until(() => settingsOverlay.evaluate(menus), 2000);
         const families = await settingsOverlay?.evaluate(
@@ -640,15 +641,15 @@ async function run({
         );
         check('files dragged over the Mods section show where they install', covered, '');
         await dropping;
-        const noticeText = `document.querySelector('.settings-notice')?.textContent || ''`;
+        const toastText = `document.querySelector('.deckit-toast')?.textContent || ''`;
         const refusedDrop = await until(
-            async () => /^Could not install not-a-mod: /.test(await settings.evaluate(noticeText)),
+            async () => /^Could not install not-a-mod: /.test(await settingsOverlay?.evaluate(toastText)),
             4000
         );
         check(
             'a folder dropped on the Mods section is planned as a picked one, and one install refuses is told',
             refusedDrop,
-            await settings.evaluate(noticeText)
+            await settingsOverlay?.evaluate(toastText)
         );
         const browser = await page('deckit://browser.mod');
         // A tab's page is reached through its element, which names it once main has given it its id.

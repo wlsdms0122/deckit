@@ -1,27 +1,27 @@
 const { section } = require('../section/section.js');
 
-// The General section, what every mod follows: the face text is written in and its size, which every page's theme
-// wears and a mod's own font settings follow while they are Default. `theme` is shell.theme, `fonts`
-// shell.fonts; `onFailure` hears a change that did not apply.
-function generalSection({ ui, theme, fonts, onFailure }) {
+// The General section, what every mod follows: the face text is in and its size, which a page's text wears where
+// nothing chooses another and a mod's own font settings follow while they are Default. `theme` is shell.theme, `fonts`
+// shell.fonts. A change that did not apply is told in a toast.
+function generalSection({ ui, theme, fonts }) {
     const TITLE = 'General';
     const KEYWORDS = ['일반', '글꼴', '폰트', '글자 크기', 'general', 'fonts', 'font size', 'typeface'];
     const DESCRIPTION =
-        "What every mod follows: the face and the size text is written in, such as a note or a file. A mod's own " +
-        'font settings follow these while they are Default.';
+        'The font and size of text in every mod, wherever a mod does not choose its own. ' +
+        "A mod's own font settings follow these while they are Default.";
     const DEFAULT = 'default';
     // The sizes fonts.set() takes.
     const SIZE = { min: 11, max: 22 };
 
-    ui.addStyle(`
-        .settings-font { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 4px 12px; }
-        .settings-font-label { flex: 1 1 auto; min-width: 0; font: var(--deckit-type-body); }
-    `);
     const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const card = ui.element('div', { className: 'settings-card' });
     const rows = {
-        text: choiceRow('text', 'Font', () => ui.textFonts()),
-        size: sizeRow(),
+        text: choiceRow('text', {
+            label: 'Font',
+            hint: "The face of notes, files and any text a mod leaves unstyled. Default is the app's own.",
+            optionsOf: () => ui.textFonts(),
+        }),
+        size: sizeRow({ label: 'Text size', hint: 'The size of that text.' }),
     };
 
     card.append(...Object.values(rows).map((row) => row.element));
@@ -41,12 +41,9 @@ function generalSection({ ui, theme, fonts, onFailure }) {
 
     // `optionsOf()` answers the choices; a value kept that is not among them (a face chosen on another Mac) is labeled
     // so it does not read as nothing chosen.
-    function choiceRow(key, label, optionsOf) {
-        const row = ui.element('div', { className: 'settings-font' });
+    function choiceRow(key, { label, hint, optionsOf }) {
         const select = ui.select({ options: optionsOf(), value: DEFAULT, onChange: (value) => change(key, value) });
-
-        row.append(ui.element('div', { className: 'settings-font-label', text: label }), select.element);
-        return { element: row, set };
+        return { element: settingRow(label, hint, select.element), set };
 
         function set(value) {
             const options = optionsOf();
@@ -57,17 +54,25 @@ function generalSection({ ui, theme, fonts, onFailure }) {
         }
     }
 
-    function sizeRow() {
-        const row = ui.element('div', { className: 'settings-font' });
+    function sizeRow({ label, hint }) {
         const stepper = ui.stepper({
             value: theme.textSize,
             ...SIZE,
             unit: ' px',
             onChange: (value) => change('size', value),
         });
+        return { element: settingRow(label, hint, stepper.element), set: stepper.set };
+    }
 
-        row.append(ui.element('div', { className: 'settings-font-label', text: 'Text size' }), stepper.element);
-        return { element: row, set: stepper.set };
+    function settingRow(label, hint, control) {
+        const row = ui.element('div', { className: 'settings-setting' });
+        const words = ui.element('div', { className: 'settings-setting-words' });
+        words.append(
+            ui.element('div', { className: 'settings-setting-label', text: label }),
+            ui.element('div', { className: 'settings-setting-hint', text: hint })
+        );
+        row.append(words, control);
+        return row;
     }
 
     // The controls show what was kept.
@@ -77,7 +82,7 @@ function generalSection({ ui, theme, fonts, onFailure }) {
             show(await fonts.set({ [key]: value === DEFAULT ? null : value }));
         } catch (error) {
             draw();
-            onFailure('Could not change the fonts: ' + error.message);
+            ui.toast('Could not change the fonts: ' + error.message);
         }
     }
 }
