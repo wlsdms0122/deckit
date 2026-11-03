@@ -151,7 +151,10 @@ export function createWeb({ CONFIG, LOG, WEBKIT, MESSAGES, STAGES, WINDOWS }) {
     }
 
     function fetch(mod, session, request) {
-        return WEBKIT.fetch(storeOf(PARTITION.spell(mod, session)), request, deck.fetchLimit);
+        return WEBKIT.fetch(storeOf(PARTITION.spell(mod, session)), request, {
+            limit: deck.fetchLimit,
+            cookieLifetime: deck.cookieLifetime,
+        });
     }
 
     function clear(mod, session) {
