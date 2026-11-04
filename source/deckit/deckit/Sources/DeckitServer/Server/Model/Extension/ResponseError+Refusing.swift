@@ -76,6 +76,12 @@ extension ResponseError {
 
             case .unreadable:
                 "UNREADABLE"
+
+            case .noInterface:
+                "INTERFACE"
+
+            case .cycle:
+                "CYCLE"
             }
 
         case let error as ManifestError:

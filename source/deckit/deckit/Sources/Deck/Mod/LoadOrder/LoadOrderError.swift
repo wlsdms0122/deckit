@@ -13,6 +13,10 @@ public enum LoadOrderError: Refusal, Equatable {
     case requiredLater(mod: String, requirement: String)
     // The settings file the order is kept in, which does not read as a JSON object.
     case unreadable(String)
+    // An interface no mod implements or depends on, which has no list to order.
+    case noInterface(String)
+    // Mods that would require one another, as `<id> → … → <id>`.
+    case cycle([String])
 
     // MARK: - Property
     public var message: String {
@@ -22,6 +26,12 @@ public enum LoadOrderError: Refusal, Equatable {
 
         case let .unreadable(file):
             "\(file) does not read as a JSON object, so the order is not kept in it"
+
+        case let .noInterface(interface):
+            "no mod implements or depends on \(interface)"
+
+        case let .cycle(loop):
+            "the mods would require themselves: " + loop.joined(separator: " → ")
         }
     }
 

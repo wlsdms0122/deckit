@@ -8,7 +8,8 @@
 import Foundation
 
 // Every mod deck reads: those read in place from a source folder, ahead of an installed one of the same id, and the
-// installed ones. Each loads or says why not, and all come in their load order.
+// installed ones. Each loads or says why not, and all come in their load order. Each interface a mod names has a list
+// of the mods that implement it, and the first of them that is on is picked for it.
 public final class Catalog {
     // MARK: - Property
     private let sources: [URL]
@@ -18,19 +19,24 @@ public final class Catalog {
     private let dataFolder: DataFolder
     private let installer: Installer
     private let loadOrder: LoadOrder
+    private let implementationOrder: ImplementationOrder
+    // Interface -> the mods the host app places in its list, in order, until the person orders them.
+    private let implementations: [String: [String]]
     private let store: Store
     // Mod id -> how many times it was installed while deck ran.
     private var installs: [String: Int] = [:]
     // The mods as they were last read: what runs.
     private(set) var lastRead: [Mod] = []
+    // Each interface's list, as the mods were last read.
+    public private(set) var interfaces: [InterfaceList] = []
     // Those of them that load, in their load order.
     public var loading: [Mod] {
         lastRead.filter { mod in mod.problem == nil }
     }
 
     // MARK: - Initializer
-    // `folder` is deck's mods folder, `sources` the folders of mods read in place, and `ship` the folders of what the
-    // app ships.
+    // `folder` is deck's mods folder, `sources` the folders of mods read in place, `ship` the folders of what the app
+    // ships, and `implementations`, by interface, the mods the app places in its list.
     init(
         folder: URL,
         sources: [URL],
@@ -39,6 +45,8 @@ public final class Catalog {
         dataFolder: DataFolder,
         installer: Installer,
         loadOrder: LoadOrder,
+        implementationOrder: ImplementationOrder,
+        implementations: [String: [String]],
         store: Store
     ) {
         self.folder = folder
@@ -48,6 +56,8 @@ public final class Catalog {
         self.dataFolder = dataFolder
         self.installer = installer
         self.loadOrder = loadOrder
+        self.implementationOrder = implementationOrder
+        self.implementations = implementations
         self.store = store
     }
 
@@ -56,26 +66,64 @@ public final class Catalog {
     // otherwise each comes as the load order kept places it; one it does not place goes where the app ships it, and one
     // the app does not ship goes last, by id.
     func mods() -> [Mod] {
-        let kept = loadOrder.read()
-        let shipOrder = ship.map { source in modFolder.manifest(of: source).id }
-        let rank = { (id: String) in
-            (kept.firstIndex(of: id) ?? kept.count, shipOrder.firstIndex(of: id) ?? shipOrder.count, id)
-        }
-        let found = list().sorted { mod, other in rank(mod.manifest.id) < rank(other.manifest.id) }
-
-        return DependencyGraph(found).ordered()
+        resolve().mods
     }
 
-    // The mods, read and kept as read.
+    // The mods, read and kept as read, with each interface's list.
     func read() -> [Mod] {
-        lastRead = mods()
+        (lastRead, interfaces) = resolve()
         return lastRead
+    }
+
+    // The id of the mod picked for `interface`, as the mods were last read, or nil while none is.
+    func pick(of interface: String) -> String? {
+        interfaces.first { list in list.interface == interface }?.pick?.id
+    }
+
+    // As the person's: the implementations in `order` take the places they held among themselves in the interface's
+    // list, in the order given, and those in `off` are switched off. One missing from the list now keeps its place and
+    // switch, so editing the list while it was gone keeps what the person set of it. Refused when the picks it comes to
+    // would put a mod that loads before one it requires, or make a cycle of mods that load now.
+    public func order(_ interface: String, order: [String], off: [String]) throws {
+        let found = ranked()
+        let kept = implementationOrder.read()
+        let before = InterfaceLists(found: found, kept: kept, host: implementations)
+        guard before.lists.contains(where: { list in list.interface == interface }) else {
+            throw LoadOrderError.noInterface(interface)
+        }
+
+        let given = Set(order)
+        let preference = kept[interface] ?? .none
+        let placed = preference.order + (implementations[interface] ?? []).filter { id in !preference.order.contains(id) }
+        var next = order[...]
+        var after = kept
+        after[interface] = ImplementationPreference(
+            order: placed.compactMap { id in given.contains(id) ? next.popFirst() : id } + next,
+            off: preference.off.filter { id in !given.contains(id) } + off
+        )
+
+        let now = DependencyGraph(found, picks: before.picks).ordered()
+        let loading = Set(now.filter { mod in mod.problem == nil }.map(\.manifest.id))
+        let unresolved = now.compactMap { mod in found.first { other in other.manifest.id == mod.manifest.id } }
+        let graph = DependencyGraph(
+            unresolved,
+            picks: InterfaceLists(found: found, kept: after, host: implementations).picks
+        )
+        if let loop = graph.cycles().first(where: { loop in loop.contains(where: loading.contains) }) {
+            throw LoadOrderError.cycle(loop)
+        }
+        if let (mod, requirement) = graph.requiredLater() {
+            throw LoadOrderError.requiredLater(mod: mod, requirement: requirement)
+        }
+        try implementationOrder.write(after)
     }
 
     // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
     // put. An order that puts a mod that loads before one it requires is refused.
     public func arrange(_ ids: [String]) throws {
-        let mods = mods()
+        let found = ranked()
+        let picks = InterfaceLists(found: found, kept: implementationOrder.read(), host: implementations).picks
+        let mods = DependencyGraph(found, picks: picks).ordered()
         var seen: Set<String> = []
         let moved = ids
             .filter { id in seen.insert(id).inserted }
@@ -86,7 +134,7 @@ public final class Catalog {
             next[place] = mod
         }
 
-        if let (mod, requirement) = DependencyGraph(next).requiredLater() {
+        if let (mod, requirement) = DependencyGraph(next, picks: picks).requiredLater() {
             throw LoadOrderError.requiredLater(mod: mod, requirement: requirement)
         }
         try loadOrder.write(next.map(\.manifest.id))
@@ -126,10 +174,30 @@ public final class Catalog {
     }
 
     // MARK: - Private
+    // The mods found, as `list()` reads them, in the order the load order kept, the app ships them, then by id.
+    private func ranked() -> [Mod] {
+        let kept = loadOrder.read()
+        let shipOrder = ship.map { source in modFolder.manifest(of: source).id }
+        let rank = { (id: String) in
+            (kept.firstIndex(of: id) ?? kept.count, shipOrder.firstIndex(of: id) ?? shipOrder.count, id)
+        }
+
+        return list().sorted { mod, other in rank(mod.manifest.id) < rank(other.manifest.id) }
+    }
+
+    // Every mod in its load order, and each interface's list, the picks of which join the mods.
+    private func resolve() -> (mods: [Mod], interfaces: [InterfaceList]) {
+        let found = ranked()
+        let interfaces = InterfaceLists(found: found, kept: implementationOrder.read(), host: implementations)
+
+        return (DependencyGraph(found, picks: interfaces.picks).ordered(), interfaces.lists)
+    }
+
     // The load order kept with the mods `installed` that it did not place, each just before the first it places that comes
-    // after it now, and without those `removed`; every other place stays. A settings file that does not read as a JSON
-    // object keeps no order until it does, which arranging tells.
+    // after it now, and without those `removed`, which leave every interface's order too; every other place stays. A
+    // settings file that does not read as a JSON object keeps no order until it does, which arranging tells.
     private func keepOrder(installed: [String] = [], removed: [String] = []) {
+        try? implementationOrder.remove(removed)
         let before = loadOrder.read()
         var kept = before.filter { id in !removed.contains(id) }
         let order = mods().map(\.manifest.id)

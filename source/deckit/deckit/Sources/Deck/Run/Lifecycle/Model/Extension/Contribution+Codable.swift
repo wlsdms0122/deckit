@@ -30,7 +30,7 @@ extension Contribution: Codable {
     // MARK: - Initializer
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Key.self)
-        exportedIn = try container.decodeIfPresent(Int.self, forKey: .exportedIn)
+        exportedIn = try container.decodeIfPresent([String: Int].self, forKey: .exportedIn) ?? [:]
         awaits = try container.decode([String: Int].self, forKey: .awaits)
         var layers: [String: JSONValue] = [:]
         for key in container.allKeys where !Key.deck.contains(key.stringValue) {
@@ -45,7 +45,7 @@ extension Contribution: Codable {
         for (key, value) in layers {
             try container.encode(value, forKey: Key(stringValue: key))
         }
-        try container.encodeIfPresent(exportedIn, forKey: .exportedIn)
+        try container.encode(exportedIn, forKey: .exportedIn)
         try container.encode(awaits, forKey: .awaits)
     }
 

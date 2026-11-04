@@ -7,19 +7,19 @@
 
 import Foundation
 
-// What a run contributes now, of the lifecycles that joined. Deck reads the lifecycle its exports were opened in and
-// those that wait for other mods' exports; what the layers on deck add beside them, by key, it carries and does not
-// read.
+// What a run contributes now, of the lifecycles that joined. Deck reads the lifecycle each interface's exports were
+// opened in and those that wait for the exports of the interfaces it depends on; what the layers on deck add beside
+// them, by key, it carries and does not read.
 public struct Contribution: Sendable {
     // MARK: - Property
-    // The lifecycle that opened its exports, or nil while none did.
-    public let exportedIn: Int?
-    // Mod id -> the lowest lifecycle that waits for that mod's exports to connect.
+    // Interface -> the lifecycle that opened its exports.
+    public let exportedIn: [String: Int]
+    // Interface -> the lowest lifecycle that waits for its exports to connect.
     public let awaits: [String: Int]
     public let layers: [String: JSONValue]
 
     // MARK: - Initializer
-    public init(exportedIn: Int?, awaits: [String: Int], layers: [String: JSONValue]) {
+    public init(exportedIn: [String: Int], awaits: [String: Int], layers: [String: JSONValue]) {
         self.exportedIn = exportedIn
         self.awaits = awaits
         self.layers = layers

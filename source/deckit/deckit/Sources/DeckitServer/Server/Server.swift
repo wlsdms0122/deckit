@@ -90,6 +90,7 @@ final class Server {
                 sources: params.sources.map { folder in URL(filePath: folder) },
                 api: params.api,
                 schemeHandlers: params.schemeHandlers,
+                implementations: params.implementations,
                 permissions: params.permissions
             )
             self.deckit = deckit
@@ -145,8 +146,16 @@ final class Server {
         case "catalog/read":
             return deck.readCatalog()
 
+        case "catalog/interfaces":
+            return deck.catalog.interfaces
+
         case "catalog/arrange":
             try deck.catalog.arrange(request.decodeParams(as: ArrangeCatalogParams.self).ids)
+            return true
+
+        case "catalog/order":
+            let params = try request.decodeParams(as: OrderCatalogParams.self)
+            try deck.catalog.order(params.interface, order: params.order, off: params.off)
             return true
 
         case "catalog/install-shipped":
@@ -176,6 +185,9 @@ final class Server {
         case "erasure/cleared":
             try deck.erasure.cleared(mod: request.decodeParams(as: ModParams.self).mod)
             return true
+
+        case "runner/repick":
+            return deck.repick()
 
         case "runner/load":
             return try deck.load(request.decodeParams(as: ModsParams.self).mods)

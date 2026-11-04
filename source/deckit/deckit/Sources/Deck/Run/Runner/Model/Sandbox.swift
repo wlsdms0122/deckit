@@ -13,6 +13,9 @@ final class Sandbox {
     let mod: Mod
     // Its latest run.
     var run: Run
+    // The interfaces its latest run requires, each with the mod picked for it as the run launched: the run ends before
+    // any of those.
+    var requires: [Relation] = []
     var stopAsked = false
     var state: RunState {
         run.state

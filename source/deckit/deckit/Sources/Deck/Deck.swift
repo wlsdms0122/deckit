@@ -28,12 +28,14 @@ public final class Deck {
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
     // place. A manifest is read against `api`, the mod contract the mods are run with, the `permissions` the layers on
-    // this host define, deck's own among them, and the `fields` the layers on deck add.
+    // this host define, deck's own among them, and the `fields` the layers on deck add. `implementations` is, by
+    // interface, the mods the app places in its list, in order, until the person orders them.
     public init(
         home: URL,
         ship: [URL],
         sources: [URL],
         api: Version,
+        implementations: [String: [String]],
         permissions: [Permission],
         fields: [any ManifestField]
     ) throws {
@@ -49,6 +51,7 @@ public final class Deck {
         let state = State(root: home.appending(path: "state", directoryHint: .isDirectory), store: store)
         let record = Record(folder: home.appending(path: "records", directoryHint: .isDirectory), store: store)
         let dataFolder = DataFolder(folder: home.appending(path: "data", directoryHint: .isDirectory), store: store)
+        let settings = home.appending(path: "deck.json")
         let catalog = Catalog(
             folder: folder,
             sources: sources,
@@ -56,7 +59,9 @@ public final class Deck {
             modFolder: modFolder,
             dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
+            loadOrder: LoadOrder(file: settings, store: store),
+            implementationOrder: ImplementationOrder(file: settings, store: store),
+            implementations: implementations,
             store: store
         )
         let runner = Runner(catalog: catalog)
@@ -95,6 +100,12 @@ public final class Deck {
     // The mods read again, as the catalog reads them now.
     public func readCatalog() -> [Mod] {
         catalog.read()
+    }
+
+    // What the runs come to once the catalog was read again: a connection to a mod no longer picked for its interface
+    // ends, and the mod picked now connects. A mod that requires an interface picked anew is the caller's to load again.
+    public func repick() -> [Effect] {
+        withChanges([])
     }
 
     // The mods named load, as the catalog was last read.
@@ -149,13 +160,14 @@ public final class Deck {
 
     // MARK: - Private
     // What deck and each layer find wrong with what the run contributes now is recorded against it, and what deck
-    // finds wrong with what the runs that depend on it wait for, against each of those.
+    // finds wrong with what the runs that depend on an interface it is picked for wait for, against each of those.
     private func judged(_ id: String, run: Int, _ effects: [Effect]) throws -> [Effect] {
         var effects = effects
         for problem in problems(of: id, run: run) {
             effects += try runner.report(id, run: run, problem: problem)
         }
-        for mod in runner.mods() where mod.manifest.dependencies[id] != nil {
+        for mod in runner.mods()
+        where mod.manifest.dependencies.keys.contains(where: { interface in runner.pick(of: interface) == id }) {
             guard let dependent = runner.run(of: mod.manifest.id) else { continue }
             for problem in connections.problems(of: dependent) {
                 effects += try runner.report(mod.manifest.id, run: dependent.number, problem: problem)

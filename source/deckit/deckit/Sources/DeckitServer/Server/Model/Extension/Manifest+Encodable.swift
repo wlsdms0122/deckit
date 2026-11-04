@@ -38,6 +38,7 @@ extension Manifest: Encodable {
         try container.encode(version, forKey: Key("version"))
         try container.encode(api, forKey: Key("api"))
         try container.encode(main, forKey: Key("main"))
+        try container.encode(implements, forKey: Key("implements"))
         try container.encode(dependencies, forKey: Key("dependencies"))
         try container.encode(permissions, forKey: Key("permissions"))
         try container.encode(value(of: URLsField()).map(\.written), forKey: Key("urls"))

@@ -8,12 +8,15 @@
 import Foundation
 
 // How deck reads a manifest: what it says, and what is wrong with it, against the mod contract `api` this deck speaks,
-// the permissions the layers on this host define, and the fields the layers on deck add.
+// the permissions the layers on this host define, and the fields the layers on deck add. An interface is named
+// `<mod id>/<name>`, the name of the same characters as an id.
 struct ManifestReader {
     // MARK: - Property
     let file = "manifest.toml"
 
-    private let ownFields: Set<String> = ["id", "name", "version", "api", "main", "dependencies", "permissions"]
+    private let ownFields: Set<String> = [
+        "id", "name", "version", "api", "main", "implements", "dependencies", "permissions"
+    ]
     private let parser = TOMLParser()
     private let store: Store
     private let api: Version
@@ -60,6 +63,7 @@ struct ManifestReader {
             version: string(of: raw["version"]),
             api: string(of: raw["api"]),
             main: string(of: raw["main"]),
+            implements: implemented(of: raw["implements"]),
             dependencies: dependencies(of: raw["dependencies"]),
             permissions: requests(of: asked),
             fields: Dictionary(uniqueKeysWithValues: fields.map { field in (field.key, field.read(raw[field.name])) })
@@ -104,6 +108,7 @@ struct ManifestReader {
         }
 
         return mainProblem(raw)
+            ?? implementsProblem(raw)
             ?? dependenciesProblem(raw, id: id)
             ?? permissionsProblem(raw)
             ?? fieldsProblem(raw)
@@ -139,25 +144,60 @@ struct ManifestReader {
         return nil
     }
 
-    // Each mod by id at a version: a required one as `id = "1.0.0"`, an optional one as
-    // `id = { version = "1.0.0", optional = true }`. A mod does not depend on itself.
+    // `<mod id>/<name>`: the id of the mod that defines it, and a name of the same characters.
+    private func interfaceProblem(_ name: String) -> String? {
+        let parts = name.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.count == 2, parts.allSatisfy({ part in store.isName(String(part)) }) else {
+            return "\"\(name)\" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at "
+                + "most 64 of them"
+        }
+
+        return nil
+    }
+
+    // Each interface at the version the mod implements it at, as `"other/name" = "1.0.0"`.
+    private func implementsProblem(_ raw: [String: TOMLValue]) -> String? {
+        guard let written = raw["implements"] else { return nil }
+
+        let example = "\"other/name\" = \"1.0.0\""
+        guard case let .table(table) = written else {
+            return "implements must be an [implements] table of interface = version, as \(example)"
+        }
+
+        for interface in table.keys.sorted() {
+            if let problem = interfaceProblem(interface) {
+                return "implements \(interface): \(problem)"
+            }
+            guard case let .string(version) = table[interface]!, Version(version) != nil else {
+                return "implements \(interface) must be written as \"MAJOR.MINOR.PATCH\", not \(table[interface]!)"
+            }
+        }
+
+        return nil
+    }
+
+    // Each interface at a version: a required one as `"other/name" = "1.0.0"`, an optional one as
+    // `"other/name" = { version = "1.0.0", optional = true }`. A mod does not require an interface it implements: once
+    // it is picked for it, it would never load.
     private func dependenciesProblem(_ raw: [String: TOMLValue], id: String) -> String? {
         guard let written = raw["dependencies"] else { return nil }
 
-        let example = "other = \"1.0.0\", or other = { version = \"1.0.0\", optional = true }"
+        let example = "\"other/name\" = \"1.0.0\", or \"other/name\" = { version = \"1.0.0\", optional = true }"
         guard case let .table(table) = written else {
-            return "dependencies must be a [dependencies] table of mod id = version, as \(example)"
+            return "dependencies must be a [dependencies] table of interface = version, as \(example)"
         }
 
+        let implemented = implemented(of: raw["implements"])
         for other in table.keys.sorted() {
-            if let problem = idProblem(other) {
+            if let problem = interfaceProblem(other) {
                 return "dependencies \(other): \(problem)"
             }
-            guard other != id else { return "\(id) names itself in [dependencies]" }
 
             switch table[other]! {
             case let .string(wanted) where Version(wanted) != nil:
-                continue
+                guard implemented[other] == nil else {
+                    return "\(id) requires \(other), which it implements: it may name it as optional"
+                }
 
             case let .table(fields):
                 let unknown = fields.keys.filter { key in key != "version" && key != "optional" }.sorted()
@@ -171,6 +211,9 @@ struct ManifestReader {
                     guard case .boolean = optional else {
                         return "dependencies \(other): optional must be true or false"
                     }
+                }
+                guard fields["optional"] == .boolean(true) || implemented[other] == nil else {
+                    return "\(id) requires \(other), which it implements: it may name it as optional"
                 }
 
             case let value:
@@ -226,6 +269,12 @@ struct ManifestReader {
         return PermissionReach.allCases.flatMap { reach in
             (defined + undefined).filter { request in request.reach == reach }
         }
+    }
+
+    // Each interface by the version written, as it is.
+    private func implemented(of written: TOMLValue?) -> [String: String] {
+        guard case let .table(table) = written else { return [:] }
+        return table.mapValues(self.written)
     }
 
     // A required one by its version, an optional one as its table says.

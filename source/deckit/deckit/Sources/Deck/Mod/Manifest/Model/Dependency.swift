@@ -7,8 +7,8 @@
 
 import Foundation
 
-// A mod another names in its [dependencies], at the version it wants: a required one it runs only with, an optional one
-// that comes and goes as it runs.
+// An interface a mod names in its [dependencies], at the lowest version it takes: a required one it runs only with, an
+// optional one that comes and goes as it runs.
 public struct Dependency: Equatable, Sendable {
     // MARK: - Property
     public let version: String
@@ -16,9 +16,10 @@ public struct Dependency: Equatable, Sendable {
 
     // MARK: - Initializer
     // MARK: - Public
-    // Whether `provider` is at a version it takes.
-    func isSatisfied(by provider: Manifest) -> Bool {
-        guard let wanted = Version(version), let found = provider.version.flatMap(Version.init) else { return false }
+    // Whether an implementation at `implemented`, the version its manifest implements the interface at, is one it
+    // takes.
+    func isSatisfied(by implemented: String?) -> Bool {
+        guard let wanted = Version(version), let found = implemented.flatMap(Version.init) else { return false }
         return found.satisfies(wanted)
     }
 
