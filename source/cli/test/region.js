@@ -1,8 +1,8 @@
 // The regions mods give in their views (deckit-shell/shell/region/main), over a stand-in for what connect answers: a
-// child is the child of the mod picked for the interface its view names as parent, a region shows only the children of
-// its own interface, so a mod that gives regions for two keeps them apart, and a new pick takes a child out of the old
-// one's region and to the new one's children. Exits 1 with a line for each check that failed. The packages are ES
-// modules, so they are imported as such.
+// child is the child of the mod picked for the interface its view names as parent, at a version it takes, a region
+// shows only the children of its own interface, so a mod that gives regions for two keeps them apart, and a new pick
+// takes a child out of the old one's region and to the new one's children. Exits 1 with a line for each check that
+// failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -29,6 +29,7 @@ async function main() {
         ['dash/boards', 'dash'],
         ['dash/tools', 'dash'],
     ]);
+    const untaken = new Set(); // the mods that do not take the version picked for what they name
     const pages = Object.fromEntries(mods.map(({ id }) => [id, { mod: id }]));
     const runs = Object.fromEntries(mods.map(({ id }) => [id, { mod: { id }, state: 'running', relaunches: false }]));
     const handlers = {};
@@ -46,7 +47,7 @@ async function main() {
         mods: {
             notifications: ['didTerminate'],
             list: () => mods,
-            pickOf: (named) => picks.get(named) ?? null,
+            pickOf: (named, dependent) => (untaken.has(dependent) ? null : (picks.get(named) ?? null)),
             runOf: (id) => runs[id],
             runs: () => Object.values(runs).map((run) => ({ run, page: pages[run.mod.id] })),
             listingOf: () => null,
@@ -123,6 +124,10 @@ async function main() {
             JSON.stringify({ 'dash/boards': [], 'dash/tools': [{ id: 'tool', name: 'Tool', icon: '' }] }),
         sent
     );
+
+    untaken.add('board');
+    check('a child that does not take the version picked has no parent', REGION.parentOf('board') === null, '');
+    untaken.delete('board');
 
     picks.set('dash/tools', 'tool');
     check('a mod picked for the interface it names is no child', REGION.parentOf('tool') === null, '');

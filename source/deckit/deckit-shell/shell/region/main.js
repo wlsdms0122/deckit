@@ -52,11 +52,11 @@ export function createRegion({ deckit }) {
         return known.get(id)?.parent || null;
     }
 
-    // The mod whose regions the mod's view is shown in, the one picked for the interface its view names, or null. A
-    // mod picked for the interface it names is no one's child.
+    // The mod whose regions the mod's view is shown in, the one picked for the interface its view names at a version
+    // it takes, or null. A mod picked for the interface it names is no one's child.
     function parentOf(id) {
         const named = interfaceOf(id);
-        const parent = named && deckit.mods.pickOf(named);
+        const parent = named && deckit.mods.pickOf(named, id);
         return parent && parent !== id ? parent : null;
     }
 
