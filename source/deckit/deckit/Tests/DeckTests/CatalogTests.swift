@@ -372,6 +372,96 @@ struct CatalogTests {
         #expect(own == true)
     }
 
+    @Test("ordering an interface's list keeps the person's order and switches, refusing an interface with no list")
+    func orderKeepsThePersonsList() throws {
+        // Given
+        for id in ["a", "b", "c"] {
+            try write(id, in: source, implements: ["x/api": "1.0.0"])
+        }
+        let sut = try catalog(sources: [source], implementations: ["x/api": ["b"]])
+
+        // When
+        try sut.order("x/api", order: ["c", "b"], off: ["b"])
+        _ = sut.read()
+        let refused = Result { try sut.order("x/none", order: [], off: []) }
+
+        // Then
+        let list = try #require(sut.interfaces.first)
+        #expect(list.implementations.map(\.id) == ["c", "b", "a"])
+        #expect(list.implementations.map(\.on) == [true, false, true])
+        #expect(sut.pick(of: "x/api") == "c")
+        #expect(throws: LoadOrderError.noInterface("x/none")) { try refused.get() }
+    }
+
+    @Test("an order whose pick would make a cycle of mods that load now is refused, and nothing is kept")
+    func orderRefusesACycle() throws {
+        // Given
+        try write("a", in: source, implements: ["x/one": "1.0.0"], requires: ["x/two": "1.0.0"])
+        try write("b", in: source, implements: ["x/two": "1.0.0"])
+        try write("c", in: source, implements: ["x/two": "1.0.0"], requires: ["x/one": "1.0.0"])
+        let sut = try catalog(sources: [source])
+
+        // When
+        let refused = Result { try sut.order("x/two", order: ["c"], off: []) }
+        _ = sut.read()
+
+        // Then
+        #expect(throws: LoadOrderError.cycle(["a", "c", "a"])) { try refused.get() }
+        #expect(sut.pick(of: "x/two") == "b")
+        #expect(!FileManager.default.fileExists(atPath: home.appending(path: "deck.json").path(percentEncoded: false)))
+    }
+
+    @Test("an order whose pick would load after a mod that requires it, as the mods come now, is refused")
+    func orderRefusesARequirementLater() throws {
+        // Given
+        try write("a", in: source, requires: ["x/api": "1.0.0"])
+        try write("b", in: source, implements: ["x/api": "1.0.0"])
+        try write("z", in: source, implements: ["x/api": "1.0.0"])
+        let sut = try catalog(sources: [source])
+
+        // When
+        let refused = Result { try sut.order("x/api", order: ["z"], off: []) }
+        _ = sut.read()
+
+        // Then
+        #expect(throws: LoadOrderError.requiredLater(mod: "a", requirement: "z")) { try refused.get() }
+        #expect(sut.pick(of: "x/api") == "b")
+    }
+
+    @Test("what the person set of a mod stays while it is off the list for a while, and goes once it is removed")
+    func orderOutlivesAbsenceNotRemoval() throws {
+        // Given
+        let mods = home.appending(path: "mods")
+        try write("a", in: mods, implements: ["x/api": "1.0.0"])
+        try write("b", in: mods, implements: ["x/api": "1.0.0"])
+        let settings = home.appending(path: "deck.json")
+        let sut = try catalog()
+        try sut.order("x/api", order: ["b", "a"], off: ["a"])
+        try FileManager.default.removeItem(at: mods.appending(path: "a"))
+
+        // When
+        _ = sut.read()
+        let absent = sut.interfaces.first?.implementations.map(\.id)
+        try sut.order("x/api", order: ["b"], off: [])
+        try write("a", in: mods, implements: ["x/api": "1.0.0"])
+        _ = sut.read()
+        let back = try #require(sut.interfaces.first)
+        _ = try sut.remove("a")
+        let removed = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+
+        // Then
+        #expect(absent == ["b"])
+        #expect(back.implementations.map(\.id) == ["b", "a"])
+        #expect(back.implementations.map(\.on) == [true, false])
+        #expect(
+            removed == .object([
+                "implementations": .object([
+                    "x/api": .object(["order": .array([.string("b")]), "off": .array([])])
+                ])
+            ])
+        )
+    }
+
     // MARK: - Private
     private func catalog(
         sources: [URL] = [],
