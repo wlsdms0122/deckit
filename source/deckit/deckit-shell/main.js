@@ -51,10 +51,11 @@ import { createOverlay } from './shell/overlay/main.js';
 
 // MARK: - Property
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
-// keeps, `name` is what a person reads, and `schemeHandlers`, by scheme, the mods asked first to open an address. `folders`: `home` is deckit's
-// folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships, installed at every start, and
-// `sources` folders of mods read in place, ahead of installed ones.
-const CONFIG = { id: 'deckit', name: 'Deckit', schemeHandlers: {} };
+// keeps, `name` is what a person reads, `schemeHandlers`, by scheme, the mods asked first to open an address, and
+// `implementations`, by interface, the mods placed in its list, in order, until the person orders them. `folders`:
+// `home` is deckit's folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships, installed at
+// every start, and `sources` folders of mods read in place, ahead of installed ones.
+const CONFIG = { id: 'deckit', name: 'Deckit', schemeHandlers: {}, implementations: {} };
 const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process and its windows are its own. And what it answers the UI: where it is
 // shown.
@@ -262,7 +263,11 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
             nameOf: (page) => IDENTITY.modOf(page)?.id || IDENTITY.pageNameOf(page) || 'page',
         });
         LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
-        CORE.start({ ...PERMISSION.all(), layers: { schemeHandlers: CONFIG.schemeHandlers } });
+        CORE.start({
+            ...PERMISSION.all(),
+            implementations: CONFIG.implementations,
+            layers: { schemeHandlers: CONFIG.schemeHandlers },
+        });
         await STORAGE.load();
         await CATALOG.load();
         ENV.pages.serve((modId) => CATALOG.mods().find((mod) => mod.id === modId)?.folder || null);
