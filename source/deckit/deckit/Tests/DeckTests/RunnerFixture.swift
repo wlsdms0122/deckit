@@ -23,28 +23,43 @@ struct RunnerFixture {
     }
 
     // MARK: - Public
+    // A mod that implements each interface in `implements` at the version given, and depends on those in `requires`
+    // and `optional` at the version given.
     func write(
         _ id: String,
         version: String = "1.0.0",
+        implements: [String: String] = [:],
         requires: [String: String] = [:],
         optional: [String: String] = [:]
     ) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let dependencies = requires.map { other, want in "\(other) = \"\(want)\"" }
-            + optional.map { other, want in "\(other) = { version = \"\(want)\", optional = true }" }
+        let implemented = implements.map { interface, version in "\"\(interface)\" = \"\(version)\"" }
+        let dependencies = requires.map { interface, want in "\"\(interface)\" = \"\(want)\"" }
+            + optional.map { interface, want in "\"\(interface)\" = { version = \"\(want)\", optional = true }" }
         let text = """
             id = "\(id)"
             version = "\(version)"
             api = "1.0.0"
             main = "main.js"
-            """ + (dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n"))
+            """
+            + (implemented.isEmpty ? "" : "\n[implements]\n" + implemented.joined(separator: "\n"))
+            + (dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n"))
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         try Data().write(to: location.appending(path: "main.js"))
     }
 
+    func remove(_ id: String) throws {
+        try FileManager.default.removeItem(at: source.appending(path: id))
+    }
+
     // A runner over what is written, as the catalog reads it, with no mod loaded.
     func runner() throws -> Runner {
+        Runner(catalog: try catalog())
+    }
+
+    // A catalog over what is written, read, the host app placing `implementations` in each interface's list.
+    func catalog(implementations: [String: [String]] = [:]) throws -> Catalog {
         let store = Store()
         let reader = try ManifestReader(
             api: try #require(Version("1.0.0")),
@@ -54,6 +69,7 @@ struct RunnerFixture {
         )
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
+        let settings = home.appending(path: "deck.json")
         let catalog = Catalog(
             folder: folder,
             sources: [source],
@@ -61,12 +77,14 @@ struct RunnerFixture {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
+            loadOrder: LoadOrder(file: settings, store: store),
+            implementationOrder: ImplementationOrder(file: settings, store: store),
+            implementations: implementations,
             store: store
         )
         _ = catalog.read()
 
-        return Runner(catalog: catalog)
+        return catalog
     }
 
     // MARK: - Private

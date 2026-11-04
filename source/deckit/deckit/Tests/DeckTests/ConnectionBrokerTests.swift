@@ -16,14 +16,14 @@ struct ConnectionBrokerTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("each lifecycle that begins connects to the exports of a mod it requires, and a message on it goes to the other end")
+    @Test("each lifecycle that begins connects to the exports picked for what it requires, and a message on it goes across")
     func beginningLifecycleConnects() throws {
         // Given
-        try fixture.write("dep")
-        try fixture.write("a", requires: ["dep": "1.0.0"])
+        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
+        try fixture.write("a", requires: ["dep/api": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("dep", exportedIn: 0, runner: runner, sut: sut)
+        try start("dep", exportedIn: ["dep/api": 0], runner: runner, sut: sut)
         _ = try runner.load(["a"])
 
         // When
@@ -45,12 +45,12 @@ struct ConnectionBrokerTests {
         #expect(sut.changes().isEmpty)
     }
 
-    @Test("exports opened in a lifecycle reach that lifecycle and those above, and an optional mod connects as it comes")
+    @Test("exports opened in a lifecycle reach that lifecycle and those above, and an optional one connects as it comes")
     func exportsReachTheirLifecycleAndAbove() throws {
         // Given
-        try fixture.write("dep")
-        try fixture.write("a", optional: ["dep": "1.0.0"])
-        try fixture.write("old", optional: ["dep": "2.0.0"])
+        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
+        try fixture.write("a", optional: ["dep/api": "1.0.0"])
+        try fixture.write("old", optional: ["dep/api": "2.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
         for id in ["a", "old"] {
@@ -64,7 +64,7 @@ struct ConnectionBrokerTests {
         // When
         let before = sut.changes()
         _ = try sut.begin(mod: "dep", run: 1, lifecycle: 1)
-        _ = try runner.joined("dep", run: 1, summary: .object([:]), contributions: contribution(exportedIn: 1))
+        _ = try runner.joined("dep", run: 1, summary: .object([:]), contributions: contribution(exportedIn: ["dep/api": 1]))
         let after = sut.changes()
 
         // Then
@@ -75,12 +75,12 @@ struct ConnectionBrokerTests {
     @Test("a connection ends with either lifecycle, and only once")
     func connectionEndsWithEitherLifecycle() throws {
         // Given
-        try fixture.write("dep")
-        try fixture.write("a", optional: ["dep": "1.0.0"])
-        try fixture.write("b", optional: ["dep": "1.0.0"])
+        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
+        try fixture.write("a", optional: ["dep/api": "1.0.0"])
+        try fixture.write("b", optional: ["dep/api": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("dep", exportedIn: 0, runner: runner, sut: sut)
+        try start("dep", exportedIn: ["dep/api": 0], runner: runner, sut: sut)
         for id in ["a", "b"] {
             try start(id, runner: runner, sut: sut)
         }
@@ -102,12 +102,12 @@ struct ConnectionBrokerTests {
     @Test("a connection its dependency's page refused is not made again while both its ends are up")
     func refusedConnectionStaysDown() throws {
         // Given
-        try fixture.write("dep")
-        try fixture.write("a", optional: ["dep": "1.0.0"])
+        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
+        try fixture.write("a", optional: ["dep/api": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
         try start("a", runner: runner, sut: sut)
-        try start("dep", exportedIn: 0, runner: runner, sut: sut)
+        try start("dep", exportedIn: ["dep/api": 0], runner: runner, sut: sut)
         let connected = sut.changes()
 
         // When
@@ -116,7 +116,7 @@ struct ConnectionBrokerTests {
         _ = try runner.unload(["dep"])
         _ = try runner.stopped("dep", run: 1)
         _ = sut.changes()
-        try start("dep", exportedIn: 0, runner: runner, sut: sut, run: 2)
+        try start("dep", exportedIn: ["dep/api": 0], runner: runner, sut: sut, run: 2)
         let relaunched = sut.changes()
 
         // Then
@@ -128,13 +128,13 @@ struct ConnectionBrokerTests {
     @Test("a run that waits for exports in a lifecycle they do not reach is told so")
     func unreachedWaitIsAProblem() throws {
         // Given
-        try fixture.write("dep")
-        try fixture.write("a", optional: ["dep": "1.0.0"])
+        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
+        try fixture.write("a", optional: ["dep/api": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("dep", exportedIn: 1, runner: runner, sut: sut)
+        try start("dep", exportedIn: ["dep/api": 1], runner: runner, sut: sut)
         _ = try runner.load(["a"])
-        _ = try runner.started("a", run: 1, awaits: ["dep": 0])
+        _ = try runner.started("a", run: 1, awaits: ["dep/api": 0])
         let waiting = try #require(runner.run(of: "a"))
 
         // When
@@ -143,16 +143,17 @@ struct ConnectionBrokerTests {
         // Then
         #expect(
             problems == [
-                "it waits for dep in a lifecycle dep's exports do not reach: dep opens them in one stacked above"
+                "it waits for dep/api in a lifecycle its exports do not reach: they are opened in one stacked above"
             ]
         )
     }
 
     // MARK: - Private
-    // The mod launches, begins its first lifecycle and starts, its exports opened in the lifecycle `exports`, if any.
+    // The mod launches, begins its first lifecycle and starts, the exports of each interface in `exportedIn` opened in
+    // the lifecycle given.
     private func start(
         _ id: String,
-        exportedIn: Int? = nil,
+        exportedIn: [String: Int] = [:],
         runner: Runner,
         sut: ConnectionBroker,
         run: Int = 1
@@ -162,7 +163,7 @@ struct ConnectionBrokerTests {
         _ = try runner.started(id, run: run, exportedIn: exportedIn)
     }
 
-    private func contribution(exportedIn: Int?) -> Contribution {
+    private func contribution(exportedIn: [String: Int]) -> Contribution {
         Contribution(exportedIn: exportedIn, awaits: [:], layers: [:])
     }
 }

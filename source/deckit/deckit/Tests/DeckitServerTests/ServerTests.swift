@@ -22,7 +22,8 @@ struct ServerTests {
     // MARK: - Initializer
     init() {
         home = FileManager.default.temporaryDirectory.appending(path: "server-tests-\(UUID().uuidString)").path()
-        initializeParams = #"{"home":"\#(home)","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":["\#(home)source"],"permissions":[]}"#
+        initializeParams = #"{"home":"\#(home)","schemeHandlers":{},"implementations":{},"api":"1.0.0","ship":[],"#
+            + #""sources":["\#(home)source"],"permissions":[]}"#
         initializeRequest = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":\#(initializeParams)}"#
         sut = Server()
     }
@@ -251,7 +252,7 @@ struct ServerTests {
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","schemeHandlers":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#,
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","schemeHandlers":{},"implementations":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#,
             to: sut
         )
 
@@ -290,13 +291,13 @@ struct ServerTests {
     func contributionsRoundTrip() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
-        try mod("dep")
-        try mod("a", dependencies: #"dep = "1.0.0""#)
+        try mod("dep", implements: #""dep/api" = "1.0.0""#)
+        try mod("a", dependencies: #""dep/api" = "1.0.0""#)
         _ = try send(#"{"jsonrpc":"2.0","id":2,"method":"catalog/read"}"#, to: sut)
         _ = try send(#"{"jsonrpc":"2.0","id":3,"method":"runner/load","params":{"mods":["dep"]}}"#, to: sut)
         let begin = #"{"jsonrpc":"2.0","id":4,"method":"connection/begin","params":"#
         _ = try send(begin + #"{"mod":"dep","run":1,"lifecycle":0}}"#, to: sut)
-        let contributions = #"{"exportedIn":0,"awaits":{},"layer":["a"]}"#
+        let contributions = #"{"exportedIn":{"dep/api":0},"awaits":{},"layer":["a"]}"#
         let started = #"{"mod":"dep","run":1,"summary":{"x":true},"contributions":\#(contributions)}"#
 
         // When
@@ -312,11 +313,11 @@ struct ServerTests {
         #expect(value(in: told, at: "notification") == .string("didLaunch"))
         #expect(value(in: told, at: "summary", "x") == .bool(true))
         #expect(value(in: told, at: "contributions", "layer") == .array([.string("a")]))
-        #expect(value(in: told, at: "contributions", "exportedIn") == .number(0))
+        #expect(value(in: told, at: "contributions", "exportedIn") == .object(["dep/api": .number(0)]))
         #expect(
             value(in: connected, at: "result")
                 == (try json(
-                    #"[{"id":1,"dependent":{"mod":"a","run":1,"lifecycle":0},"#
+                    #"[{"id":1,"interface":"dep/api","dependent":{"mod":"a","run":1,"lifecycle":0},"#
                         + #""dependency":{"mod":"dep","run":1,"lifecycle":0},"required":true}]"#
                 ))
         )
@@ -512,7 +513,12 @@ struct ServerTests {
     }
 
     // MARK: - Private
-    private func mod(_ id: String, urls: String? = nil, dependencies: String? = nil) throws {
+    private func mod(
+        _ id: String,
+        urls: String? = nil,
+        implements: String? = nil,
+        dependencies: String? = nil
+    ) throws {
         let folder = URL(filePath: home + "source").appending(path: id)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let manifest = """
@@ -521,6 +527,7 @@ struct ServerTests {
             api = "1.0.0"
             main = "main.js"
             """ + (urls.map { urls in "\nurls = \(urls)" } ?? "")
+            + (implements.map { implements in "\n[implements]\n\(implements)" } ?? "")
             + (dependencies.map { dependencies in "\n[dependencies]\n\(dependencies)" } ?? "")
         try Data(manifest.utf8).write(to: folder.appending(path: "manifest.toml"))
         try Data().write(to: folder.appending(path: "main.js"))

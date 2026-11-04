@@ -42,7 +42,7 @@ struct HostTests {
         try writeMod("a")
         let sut = try deckit()
         let contributions = Contribution(
-            exportedIn: nil,
+            exportedIn: [:],
             awaits: [:],
             layers: [
                 "keys": .array([
@@ -89,6 +89,7 @@ struct HostTests {
             sources: [root.appending(path: "source")],
             api: try #require(Version("1.0.0")),
             schemeHandlers: [:],
+            implementations: [:],
             permissions: []
         )
         let mods = deckit.deck.readCatalog()
