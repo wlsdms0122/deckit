@@ -47,7 +47,11 @@ async function main() {
         mods: {
             notifications: ['didTerminate'],
             list: () => mods,
-            pickOf: (named, dependent) => (untaken.has(dependent) ? null : (picks.get(named) ?? null)),
+            // As deckit's: null for a dependent that does not take the pick, and for one that is itself the pick.
+            pickOf: (named, dependent) => {
+                const picked = picks.get(named) ?? null;
+                return untaken.has(dependent) || picked === dependent ? null : picked;
+            },
             runOf: (id) => runs[id],
             runs: () => Object.values(runs).map((run) => ({ run, page: pages[run.mod.id] })),
             listingOf: () => null,

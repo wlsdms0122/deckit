@@ -53,11 +53,10 @@ export function createRegion({ deckit }) {
     }
 
     // The mod whose regions the mod's view is shown in, the one picked for the interface its view names at a version
-    // it takes, or null. A mod picked for the interface it names is no one's child.
+    // it takes, or null. A mod picked for the interface it names is no one's child: `pickOf` answers null for it.
     function parentOf(id) {
         const named = interfaceOf(id);
-        const parent = named && deckit.mods.pickOf(named, id);
-        return parent && parent !== id ? parent : null;
+        return (named && deckit.mods.pickOf(named, id)) || null;
     }
 
     // child id -> its rect: the children `parent`'s regions show, of those `shown(id)` lets on screen, laid out.

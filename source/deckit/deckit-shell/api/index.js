@@ -51,7 +51,7 @@ export function createApi({
                 arrange: CATALOG.arrange,
                 // The id of the mod picked for an interface, the first in its list that is on, or null; with
                 // `dependent`, the id of a mod, null too where that mod does not take it: it is not picked at a version
-                // the mod names, or the mod names no such interface.
+                // the mod names, the mod itself is picked, or the mod names no such interface.
                 pickOf: (named, dependent) => {
                     const picked = CATALOG.picks().get(named) ?? null;
                     if (!picked || dependent === undefined) return picked;

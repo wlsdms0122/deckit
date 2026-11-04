@@ -46,7 +46,7 @@ struct DependencyGraph {
                 let manifest = mods[place].manifest
                 for interface in manifest.required {
                     let dependency = manifest.dependencies[interface]!
-                    guard let problem = problem(interface, dependency, in: mods) else { continue }
+                    guard let problem = problem(interface, dependency, of: manifest, in: mods) else { continue }
 
                     mods[place].problem = problem
                     changed = true
@@ -133,10 +133,17 @@ struct DependencyGraph {
     }
 
     // MARK: - Private
+    // The id of the mod picked for `interface` as `manifest` sees it, or nil: the mod itself is as if none were picked.
+    private func pick(of interface: String, for manifest: Manifest) -> String? {
+        guard let id = picks[interface], id != manifest.id else { return nil }
+        return id
+    }
+
     // The ids of the mods picked for the interfaces it requires, in the order of those interfaces, each once.
     private func requirements(of manifest: Manifest) -> [String] {
-        var seen: Set<String> = [manifest.id]
-        return manifest.required.compactMap { interface in picks[interface] }.filter { id in seen.insert(id).inserted }
+        var seen: Set<String> = []
+        return manifest.required.compactMap { interface in pick(of: interface, for: manifest) }
+            .filter { id in seen.insert(id).inserted }
     }
 
     // The mods that load and require `id`, directly or through another, by id: none of them loads without it. One that
@@ -157,7 +164,7 @@ struct DependencyGraph {
 
     private func relations(of manifest: Manifest, in mods: [Mod]) -> [Relation] {
         manifest.dependencies.sorted { one, other in one.key < other.key }.map { interface, dependency in
-            let pick = picks[interface].flatMap { id in places[id] }.map { place in mods[place] }
+            let pick = pick(of: interface, for: manifest).flatMap { id in places[id] }.map { place in mods[place] }
             return Relation(
                 interface: interface,
                 optional: dependency.optional,
@@ -165,17 +172,16 @@ struct DependencyGraph {
                 id: pick?.manifest.id,
                 name: pick?.manifest.name,
                 problem: dependency.optional
-                    ? mismatch(interface, dependency, of: manifest, pick: pick)
-                    : problem(interface, dependency, in: mods)
+                    ? mismatch(interface, dependency, pick: pick)
+                    : problem(interface, dependency, of: manifest, in: mods)
             )
         }
     }
 
-    // What is wrong with an optional dependency: only a version that does not satisfy, of a mod that loads and is not
-    // the dependent itself, which is as if none were picked.
-    private func mismatch(_ interface: String, _ dependency: Dependency, of manifest: Manifest, pick: Mod?) -> String? {
+    // What is wrong with an optional dependency: only a version that does not satisfy, of a mod picked for it that
+    // loads.
+    private func mismatch(_ interface: String, _ dependency: Dependency, pick: Mod?) -> String? {
         guard let pick,
-            pick.manifest.id != manifest.id,
             pick.problem == nil,
             !dependency.isSatisfied(by: pick.manifest.implements[interface])
         else { return nil }
@@ -184,8 +190,13 @@ struct DependencyGraph {
             + "\(pick.manifest.implements[interface] ?? "no version"), so it runs without it"
     }
 
-    private func problem(_ interface: String, _ dependency: Dependency, in mods: [Mod]) -> String? {
-        guard let id = picks[interface] else { return "needs \(interface), which no mod implements" }
+    private func problem(
+        _ interface: String,
+        _ dependency: Dependency,
+        of manifest: Manifest,
+        in mods: [Mod]
+    ) -> String? {
+        guard let id = pick(of: interface, for: manifest) else { return "needs \(interface), which no mod implements" }
         guard let pick = places[id].map({ place in mods[place] }), pick.problem == nil else {
             return "needs \(interface), which \(id) implements and did not load"
         }

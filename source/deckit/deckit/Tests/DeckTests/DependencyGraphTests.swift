@@ -102,7 +102,10 @@ struct DependencyGraphTests {
 
         // Then
         #expect(problems(of: sut) == ["d": nil])
-        #expect(relation("x/api", of: "d", in: sut)?.problem == nil)
+        #expect(
+            relation("x/api", of: "d", in: sut)
+                == Relation(interface: "x/api", optional: true, version: "2.0.0", id: nil, name: nil, problem: nil)
+        )
         #expect(sut.first?.dependents == [])
     }
 
