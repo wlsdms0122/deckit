@@ -148,6 +148,36 @@ struct ConnectionBrokerTests {
         )
     }
 
+    @Test("once another mod is picked for an interface, the connection to the old pick ends and the new pick connects")
+    func repickConnectsTheNewPick() throws {
+        // Given
+        try fixture.write("b", implements: ["x/api": "1.0.0"])
+        try fixture.write("c", implements: ["x/api": "1.0.0"])
+        try fixture.write("a", optional: ["x/api": "1.0.0"])
+        let catalog = try fixture.catalog()
+        let runner = Runner(catalog: catalog)
+        let sut = ConnectionBroker(runner: runner)
+        for id in ["b", "c"] {
+            try start(id, exportedIn: ["x/api": 0], runner: runner, sut: sut)
+        }
+        _ = try runner.load(["a"])
+        let connected = try sut.begin(mod: "a", run: 1, lifecycle: 0)
+        _ = try runner.started("a", run: 1)
+
+        // When
+        try catalog.order("x/api", order: ["c"], off: [])
+        let unread = sut.changes()
+        _ = catalog.read()
+        let repicked = sut.changes()
+        let again = sut.changes()
+
+        // Then
+        #expect(connected.map(\.line) == ["1 a#1@0 -> b#1@0"])
+        #expect(unread.isEmpty)
+        #expect(repicked.map(\.line) == ["disconnect 1 a#1@0 -> b#1@0", "connect 2 a#1@0 -> c#1@0"])
+        #expect(again.isEmpty)
+    }
+
     // MARK: - Private
     // The mod launches, begins its first lifecycle and starts, the exports of each interface in `exportedIn` opened in
     // the lifecycle given.
