@@ -16,7 +16,7 @@ struct ConnectionBrokerTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("each lifecycle that begins connects to the exports picked for what it requires, and a message on it goes across")
+    @Test("a lifecycle that begins connects to the exports picked for what it requires, and a message goes across")
     func beginningLifecycleConnects() throws {
         // Given
         try fixture.write("dep", implements: ["dep/api": "1.0.0"])
@@ -45,7 +45,7 @@ struct ConnectionBrokerTests {
         #expect(sut.changes().isEmpty)
     }
 
-    @Test("exports opened in a lifecycle reach that lifecycle and those above, and an optional one connects as it comes")
+    @Test("exports opened in a lifecycle reach it and those above, and an optional dependency connects as it comes")
     func exportsReachTheirLifecycleAndAbove() throws {
         // Given
         try fixture.write("dep", implements: ["dep/api": "1.0.0"])
@@ -64,7 +64,12 @@ struct ConnectionBrokerTests {
         // When
         let before = sut.changes()
         _ = try sut.begin(mod: "dep", run: 1, lifecycle: 1)
-        _ = try runner.joined("dep", run: 1, summary: .object([:]), contributions: contribution(exportedIn: ["dep/api": 1]))
+        _ = try runner.joined(
+            "dep",
+            run: 1,
+            summary: .object([:]),
+            contributions: contribution(exportedIn: ["dep/api": 1])
+        )
         let after = sut.changes()
 
         // Then

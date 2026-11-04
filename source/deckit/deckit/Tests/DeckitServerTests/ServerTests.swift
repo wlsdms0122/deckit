@@ -47,7 +47,11 @@ struct ServerTests {
         let response = try send(#"{"jsonrpc":"2.0","id":1,"method":"record/keys","params":{"mod":"notes"}}"#, to: sut)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"record/keys before initialize"}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":1,"error":{"code":-32002,"message":"record/keys before initialize"}}"#
+            ))
+        )
     }
 
     @Test("initialize twice is refused")
@@ -62,7 +66,11 @@ struct ServerTests {
         )
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32600,"message":"the core is initialized once"}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":2,"error":{"code":-32600,"message":"the core is initialized once"}}"#
+            ))
+        )
     }
 
     @Test("a record written is read back as its text")
@@ -70,7 +78,8 @@ struct ServerTests {
         // Given
         _ = try send(initializeRequest, to: sut)
         _ = try send(
-            #"{"jsonrpc":"2.0","id":2,"method":"record/write","params":{"mod":"notes","key":"tabs","text":"[1,\"a\"]"}}"#,
+            #"{"jsonrpc":"2.0","id":2,"method":"record/write","#
+                + #""params":{"mod":"notes","key":"tabs","text":"[1,\"a\"]"}}"#,
             to: sut
         )
 
@@ -111,7 +120,12 @@ struct ServerTests {
         )
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32803,"message":"not a record key: A","data":{"kind":"KEY"}}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":2,"error":{"code":-32803,"message":"not a record key: A","#
+                    + #""data":{"kind":"KEY"}}}"#
+            ))
+        )
     }
 
     @Test("an unknown method is not found")
@@ -123,7 +137,11 @@ struct ServerTests {
         let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"record/burn","params":{}}"#, to: sut)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"no method record/burn"}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":2,"error":{"code":-32601,"message":"no method record/burn"}}"#
+            ))
+        )
     }
 
     @Test("params of the wrong shape are invalid")
@@ -135,7 +153,11 @@ struct ServerTests {
         let response = try send(#"{"jsonrpc":"2.0","id":2,"method":"record/keys","params":{"key":"a"}}"#, to: sut)
 
         // Then
-        #expect(response == (try json(#"{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"record/keys has no such params at mod"}}"#)))
+        #expect(
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":2,"error":{"code":-32602,"message":"record/keys has no such params at mod"}}"#
+            ))
+        )
     }
 
     @Test("params of the wrong shape say where")
@@ -150,7 +172,9 @@ struct ServerTests {
         )
 
         // Then
-        #expect(value(in: response, at: "error", "message") == .string("keymap/keystrokes has no such params at specs.1"))
+        #expect(
+            value(in: response, at: "error", "message") == .string("keymap/keystrokes has no such params at specs.1")
+        )
     }
 
     @Test("a notification is not answered")
@@ -208,7 +232,8 @@ struct ServerTests {
             to: sut
         )
         _ = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"configuration/set","params":{"mod":"notes","key":"wrap","value":true}}"#,
+            #"{"jsonrpc":"2.0","id":5,"method":"configuration/set","#
+                + #""params":{"mod":"notes","key":"wrap","value":true}}"#,
             to: sut
         )
 
@@ -252,13 +277,18 @@ struct ServerTests {
 
         // When
         let response = try send(
-            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","schemeHandlers":{},"implementations":{},"api":"1.0.0","ship":[],"sources":[],"permissions":[\#(permission),\#(permission)]}}"#,
+            #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"home":"\#(home)","schemeHandlers":{},"#
+                + #""implementations":{},"api":"1.0.0","ship":[],"sources":[],"#
+                + #""permissions":[\#(permission),\#(permission)]}}"#,
             to: sut
         )
 
         // Then
         #expect(
-            response == (try json(#"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"message":"the permission deckit.mods is defined twice","data":{"kind":"PERMISSION"}}}"#))
+            response == (try json(
+                #"{"jsonrpc":"2.0","id":1,"error":{"code":-32803,"#
+                    + #""message":"the permission deckit.mods is defined twice","data":{"kind":"PERMISSION"}}}"#
+            ))
         )
     }
 
@@ -287,7 +317,7 @@ struct ServerTests {
         )
     }
 
-    @Test("what a run contributed comes back with it, the layers' too, and a mod that depends on it connects to its exports")
+    @Test("what a run contributed comes back with it, the layers' too, and a dependent connects to its exports")
     func contributionsRoundTrip() throws {
         // Given
         _ = try send(initializeRequest, to: sut)
@@ -370,8 +400,8 @@ struct ServerTests {
             to: sut
         )
         let registered = try send(
-            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"provider":"@app","name":"Deckit","key":{"name":"go","#
-                + #""label":"Go","key":"mod+1","scope":"local"}}}"#,
+            #"{"jsonrpc":"2.0","id":5,"method":"keymap/register","params":{"provider":"@app","name":"Deckit","#
+                + #""key":{"name":"go","label":"Go","key":"mod+1","scope":"local"}}}"#,
             to: sut
         )
         let bound = try send(
@@ -439,7 +469,9 @@ struct ServerTests {
         let listed = String(decoding: try encoder.encode(sut), as: UTF8.self)
 
         // Then
-        #expect(listed == #"{"default":12,"key":"size","minimum":8,"oneOf":[],"title":"Size","type":"number","value":14}"#)
+        #expect(
+            listed == #"{"default":12,"key":"size","minimum":8,"oneOf":[],"title":"Size","type":"number","value":14}"#
+        )
     }
 
     @Test("the keymap reads as the driver keeps it: each binding with its chord, its issues and its keystroke")
@@ -448,7 +480,8 @@ struct ServerTests {
         _ = try send(initializeRequest, to: sut)
         for (id, (name, spec)) in [("one", "mod+1"), ("two", "mod+2")].enumerated() {
             _ = try send(
-                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","params":{"provider":"@app","name":"Deckit","#
+                #"{"jsonrpc":"2.0","id":\#(id + 2),"method":"keymap/register","#
+                    + #""params":{"provider":"@app","name":"Deckit","#
                     + #""key":{"name":"\#(name)","label":"\#(name)","key":"\#(spec)","scope":"local"}}}"#,
                 to: sut
             )

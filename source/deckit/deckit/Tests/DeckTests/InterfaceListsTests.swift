@@ -48,7 +48,9 @@ struct InterfaceListsTests {
         let sut = try fixture.catalog(implementations: ["x/placed": ["a"], "x/placed-off": ["a"]])
 
         // Then
-        let undecided = Dictionary(uniqueKeysWithValues: sut.interfaces.map { list in (list.interface, list.undecided) })
+        let undecided = Dictionary(
+            uniqueKeysWithValues: sut.interfaces.map { list in (list.interface, list.undecided) }
+        )
         #expect(undecided == ["x/two": true, "x/placed": false, "x/off": false, "x/placed-off": true])
     }
 

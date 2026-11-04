@@ -306,7 +306,7 @@ struct RunnerTests {
         #expect(try #require(sut.run(of: "a")).summary == .object([:]))
     }
 
-    @Test("a running run contributes anew, what it contributes now in place of what it did, and one not running does not")
+    @Test("a running run contributes anew, what it contributes now in place of what it did; one not running does not")
     func runningRunJoins() throws {
         // Given
         try write("a")
