@@ -5,17 +5,19 @@ import * as WIRE from './model/wire.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// The page's ends of its connections. For each it keeps a table of the functions it handed over, by number, and the
-// references it was handed, by number, and drops both as the connection ends. A reference is a function that calls the
-// other end and resolves with what that answers; one the page holds no more is let go on the other end. A function the
-// page was handed is never handed on: what calls the far end is always the mod connected to it. `RUN` is the page's run.
+// The page's ends of its connections, each for an interface. For each it keeps a table of the functions it handed
+// over, by number, and the references it was handed, by number, and drops both as the connection ends. A reference is
+// a function that calls the other end and resolves with what that answers; one the page holds no more is let go on the
+// other end. A function the page was handed is never handed on: what calls the far end is always the mod connected to
+// it. The end that depends knows the interface alone, never the mod that implements it. `RUN` is the page's run.
 export function createConnection({ RUN }) {
     // MARK: - Property
-    // Connection id -> { id, mod, lifecycle, dependent, lasting, given, held, connection, exports, cleanups, ended }:
-    // `lifecycle` is the page's own, `dependent` whether the page is the end that depends on `mod`, `lasting` whether
-    // its exports are the lifecycle's for as long as it lasts, as `dependencies.<id>`; `given` its numbers by function,
-    // and by number each function with how many times it was handed over; `held` its references by number, each with
-    // how many times it was handed in; `connection` what the exports' `connect` was called with; `cleanups` what each
+    // Connection id -> { id, interface, lifecycle, dependent, lasting, given, held, exporting, connection, exports,
+    // cleanups, ended }: `lifecycle` is the page's own, `dependent` whether the page is the end that depends on
+    // `interface`, `lasting` whether its exports are the lifecycle's for as long as it lasts, as
+    // `dependencies['<interface>']`; `given` its numbers by function, and by number each function with how many times
+    // it was handed over; `held` its references by number, each with how many times it was handed in; `exporting` the
+    // registration that answered it and `connection` what its `connect` was called with; `cleanups` what each
     // `onConnect` answered for it; `ended` whether the other end ended it, as opposed to the page's lifecycle.
     const connections = new Map();
     const handed = new WeakSet(); // every reference made, which is never handed on
@@ -26,10 +28,11 @@ export function createConnection({ RUN }) {
         entry.held.delete(number);
         PROTOCOL.release.send({ run: RUN.number, connection: id, number, count: held.count });
     });
-    // Lifecycle -> mod id -> the listeners its `onConnect` added.
+    // Lifecycle -> interface -> the listeners its `onConnect` added.
     const listening = new Map();
     const begun = new Set(); // the lifecycles begun and not left
-    let giving = null; // { lifecycle, connect, disconnect }, once the lifecycle that opened the exports has joined
+    // Interface -> { lifecycle, connect, disconnect }, once the lifecycle that opened its exports has joined.
+    const exporting = new Map();
     let refused = () => {}; // told of a required connection its dependency refused, once its lifecycle has begun
 
     // MARK: - Initializer
@@ -43,24 +46,26 @@ export function createConnection({ RUN }) {
     });
 
     // MARK: - Public
-    // The `lifecycle`th lifecycle begins: answers its `dependencies`, the exports each required mod opened in the
-    // lowest lifecycle by its id, with `onConnect(id, connected)`, and the problems of the connections refused, each
-    // `{ mod, required, problem }`. What `onConnect` adds is cut with `scope`.
+    // The `lifecycle`th lifecycle begins: answers its `dependencies`, the exports the implementation of each required
+    // interface opened in the lowest lifecycle by the interface, with `onConnect(interface, connected)`, and the
+    // problems of the connections refused, each `{ interface, required, problem }`. What `onConnect` adds is cut with
+    // `scope`.
     async function begin(lifecycle, scope) {
         begun.add(lifecycle);
         const answered = await PROTOCOL.begin.invoke({ run: RUN.number, lifecycle });
         const problems = [];
         const lasting = {};
         for (const told of answered) {
-            if (told.problem) problems.push({ mod: told.mod, required: told.required, problem: told.problem });
+            if (told.problem)
+                problems.push({ interface: told.interface, required: told.required, problem: told.problem });
             else {
                 const entry = open({ ...told, lifecycle });
-                if (entry.lasting) lasting[told.mod] = entry.exports;
+                if (entry.lasting) lasting[told.interface] = entry.exports;
             }
         }
         const dependencies = Object.freeze({
             ...lasting,
-            onConnect: (id, connected) => listen(lifecycle, String(id), connected, scope),
+            onConnect: (named, connected) => listen(lifecycle, String(named), connected, scope),
         });
         return { dependencies, problems };
     }
@@ -71,18 +76,18 @@ export function createConnection({ RUN }) {
         refused = listener;
     }
 
-    // The exports opened in `lifecycle`, which answer each connection from now on: `connect(connection)` makes them,
-    // `disconnect(connection)` hears the connection end while the exports are open.
-    function give(lifecycle, { connect, disconnect }) {
-        giving = { lifecycle, connect, disconnect };
+    // The exports of `named`, an interface, opened in `lifecycle`, which answer each connection for it from now on:
+    // `connect(connection)` makes them, `disconnect(connection)` hears the connection end while the exports are open.
+    function give(lifecycle, named, { connect, disconnect }) {
+        exporting.set(named, { lifecycle, connect, disconnect });
     }
 
-    // The mods the run listens for, each by the lowest lifecycle that does.
+    // The interfaces the run listens for, each by the lowest lifecycle that does.
     function awaited() {
         const awaits = {};
-        for (const [lifecycle, byMod] of listening) {
-            for (const [id, listeners] of byMod) {
-                if (listeners.size && !(awaits[id] <= lifecycle)) awaits[id] = lifecycle;
+        for (const [lifecycle, byInterface] of listening) {
+            for (const [named, listeners] of byInterface) {
+                if (listeners.size && !(awaits[named] <= lifecycle)) awaits[named] = lifecycle;
             }
         }
         return awaits;
@@ -94,23 +99,24 @@ export function createConnection({ RUN }) {
         for (const entry of [...connections.values()]) {
             if (entry.lifecycle === lifecycle) connections.delete(entry.id);
         }
-        if (giving?.lifecycle === lifecycle) giving = null;
+        for (const [named, registered] of [...exporting])
+            if (registered.lifecycle === lifecycle) exporting.delete(named);
         listening.delete(lifecycle);
         begun.delete(lifecycle);
         PROTOCOL.end.send({ run: RUN.number, lifecycle });
     }
 
     // MARK: - Private
-    // A connection the page depends on, its exports read: those of a required mod opened in its lowest lifecycle are
-    // the lifecycle's while it lasts, and every other comes and goes, handed to what listens for its mod. `exportedIn`
-    // is the lifecycle of `mod` that opened them.
-    function open({ id, mod, required, lifecycle, exportedIn, exports }) {
-        const entry = makeEntry({ id, mod, lifecycle, dependent: true });
+    // A connection the page depends on, its exports read: those of a required interface opened in its
+    // implementation's lowest lifecycle are the lifecycle's while it lasts, and every other comes and goes, handed to
+    // what listens for its interface. `exportedIn` is the lifecycle of the implementation that opened them.
+    function open({ id, interface: named, required, lifecycle, exportedIn, exports }) {
+        const entry = makeEntry({ id, named, lifecycle, dependent: true });
         entry.lasting = required && exportedIn === 0;
         entry.exports = WIRE.materialize(exports, (number) => referenceOf(entry, number));
         connections.set(id, entry);
         if (!entry.lasting) {
-            for (const listener of listening.get(lifecycle)?.get(mod) ?? []) hand(entry, listener);
+            for (const listener of listening.get(lifecycle)?.get(named) ?? []) hand(entry, listener);
         }
         return entry;
     }
@@ -123,17 +129,18 @@ export function createConnection({ RUN }) {
         else RUN.fail(told.problem);
     }
 
-    function listen(lifecycle, id, connected, scope) {
-        if (typeof connected !== 'function') throw new Error('dependencies.onConnect() takes a mod id and a function');
+    function listen(lifecycle, named, connected, scope) {
+        if (typeof connected !== 'function')
+            throw new Error('dependencies.onConnect() takes an interface and a function');
         if (!listening.has(lifecycle)) listening.set(lifecycle, new Map());
-        const byMod = listening.get(lifecycle);
-        if (!byMod.has(id)) byMod.set(id, new Set());
-        byMod.get(id).add(connected);
+        const byInterface = listening.get(lifecycle);
+        if (!byInterface.has(named)) byInterface.set(named, new Set());
+        byInterface.get(named).add(connected);
         for (const entry of connections.values()) {
-            if (entry.dependent && !entry.lasting && entry.lifecycle === lifecycle && entry.mod === id)
+            if (entry.dependent && !entry.lasting && entry.lifecycle === lifecycle && entry.interface === named)
                 hand(entry, connected);
         }
-        scope.add(() => byMod.get(id)?.delete(connected));
+        scope.add(() => byInterface.get(named)?.delete(connected));
     }
 
     // The exports go to a listener, and what it answers is called as the connection ends while the listener's
@@ -147,15 +154,17 @@ export function createConnection({ RUN }) {
         });
     }
 
-    // The exports for a new connection, made by the `connect` of the lifecycle that opened them, or null once it has
-    // ended.
-    function answerConnect({ id, mod, lifecycle }) {
-        if (!giving || giving.lifecycle !== lifecycle) return null;
+    // The exports for a new connection, made by the `connect` of the interface's exports, opened in `lifecycle`, or
+    // null once it has ended. `mod` is the dependent's id and name.
+    function answerConnect({ id, interface: named, mod, lifecycle }) {
+        const registered = exporting.get(named);
+        if (!registered || registered.lifecycle !== lifecycle) return null;
         const connection = Object.freeze({ mod: Object.freeze({ id: mod.id, name: mod.name }) });
-        const exports = giving.connect(connection);
+        const exports = registered.connect(connection);
         if (exports && typeof exports.then === 'function')
             throw new Error('exports.register(): connect() answers the exports, not a promise');
-        const entry = makeEntry({ id, mod: mod.id, lifecycle, dependent: false });
+        const entry = makeEntry({ id, named, lifecycle, dependent: false });
+        entry.exporting = registered;
         entry.connection = connection;
         const described = describe(entry, exports);
         connections.set(id, entry);
@@ -169,8 +178,8 @@ export function createConnection({ RUN }) {
         connections.delete(id);
         entry.ended = true;
         if (entry.dependent) for (const cleanup of entry.cleanups) RUN.deliver('an onConnect cleanup', cleanup);
-        else if (giving?.disconnect)
-            RUN.deliver('exports.register(): disconnect()', giving.disconnect, entry.connection);
+        else if (entry.exporting.disconnect)
+            RUN.deliver('exports.register(): disconnect()', entry.exporting.disconnect, entry.connection);
     }
 
     async function answerCall({ connection, number, args }) {
@@ -192,15 +201,16 @@ export function createConnection({ RUN }) {
         }
     }
 
-    function makeEntry({ id, mod, lifecycle, dependent }) {
+    function makeEntry({ id, named, lifecycle, dependent }) {
         return {
             id,
-            mod,
+            interface: named,
             lifecycle,
             dependent,
             lasting: false,
             given: { numbers: new Map(), byNumber: new Map(), next: 0 },
             held: new Map(),
+            exporting: null,
             connection: null,
             exports: undefined,
             cleanups: [],

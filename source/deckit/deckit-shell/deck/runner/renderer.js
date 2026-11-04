@@ -8,9 +8,9 @@ import { makeScope } from './model/scope.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The run of a mod in its page: its entry evaluated, the class it exports made once and its lifecycles started in the
-// order they are stacked, each connected to the mods it depends on as it begins, and what each registered told to main
-// as it joins. `RUN` is the page's run; `STORAGE`, `CONNECTION`, `EVENT` and `MODS` are what deck gives it; `modules`
-// is the environment's (environment/: PAGE.modules).
+// order they are stacked, each connected to the interfaces it depends on as it begins, and what each registered told to
+// main as it joins. `RUN` is the page's run; `STORAGE`, `CONNECTION`, `EVENT` and `MODS` are what deck gives it;
+// `modules` is the environment's (environment/: PAGE.modules).
 export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: MODULES }) {
     // MARK: - Property
     // What a layer gives of what it leaves out, and what is on deck when nothing is: no lifecycle, so the run starts
@@ -81,8 +81,8 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             fail(`its constructor threw: ${error.message || error}`);
             return RUN.notStarted();
         }
-        // The lifecycle that opened the run's exports, once one has, as deck joins it.
-        const joined = { exportedIn: null };
+        // Interface -> the lifecycle that opened its exports, as deck joins it.
+        const joined = { exportedIn: {} };
         if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined });
         // A required connection refused once its lifecycle has begun ends that lifecycle and those stacked on it, the
         // highest first.
@@ -91,7 +91,8 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             if (at < 0 || stopping) return;
             fail(problem);
             const ending = begun.splice(at).reverse();
-            if (joined.exportedIn !== null && joined.exportedIn >= index) joined.exportedIn = null;
+            for (const [named, lifecycle] of Object.entries(joined.exportedIn))
+                if (lifecycle >= index) delete joined.exportedIn[named];
             for (const entry of ending) await end(entry, instance);
             if (!stopping) tell(PROTOCOL.joined, { described, joined, reported: given.report() });
         });
@@ -113,9 +114,9 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
                 if (stopping) return;
                 const parts = registry.close();
                 lifecycle.join(parts, scope);
-                if (parts.exports) {
-                    CONNECTION.give(index, parts.exports);
-                    joined.exportedIn = index;
+                for (const [named, exports] of Object.entries(parts.exports ?? {})) {
+                    CONNECTION.give(index, named, exports);
+                    joined.exportedIn[named] = index;
                 }
             } catch (error) {
                 registry.close();
@@ -153,13 +154,14 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         };
     }
 
-    // Main is told what the run contributes now, all of it, and as a person reads it.
+    // Main is told what the run contributes now, all of it, and as a person reads it: `exports` in the summary is
+    // whether a lifecycle opened the exports of any interface.
     function tell(channel, { described, joined, reported = {} }) {
-        const opened = joined.exportedIn === null ? {} : { exportedIn: joined.exportedIn };
+        const exportedIn = { ...joined.exportedIn };
         channel.send({
             run: RUN.number,
-            contributions: { ...reported.contributions, ...opened, awaits: CONNECTION.awaited() },
-            summary: { ...described, ...reported.summary, exports: joined.exportedIn !== null },
+            contributions: { ...reported.contributions, exportedIn, awaits: CONNECTION.awaited() },
+            summary: { ...described, ...reported.summary, exports: Object.keys(exportedIn).length > 0 },
         });
     }
 
@@ -199,10 +201,11 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
     }
 
     // What a lifecycle's handles register, each once and only while its start runs, by the handle each is on: each as
-    // `<handle>.<name>.register()`, deck's own `exports` on the handle named `handle`, once for the run, beside the
-    // lifecycle's.
+    // `<handle>.<name>.register()`, deck's own `exports` on the handle named `handle`, `register(interface, exports)`
+    // once for the run for each interface the manifest implements, beside the lifecycle's.
     function registryOf(lifecycle, { handle, joined }) {
         const registered = {};
+        const exported = {}; // interface -> the exports registered for it
         let open = true;
         const closed = (name) => `${name} is called in ${lifecycle.method}(), and ${lifecycle.method}() has ended`;
         const once = (name, label, problemOf) => (value) => {
@@ -212,8 +215,13 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             if (problem) return RUN.fail(`${label} ${problem}`);
             registered[name] = value;
         };
-        const exportsProblem = (value) => {
-            if (joined.exportedIn !== null) return 'is called once for the run, and a lifecycle under it opened them';
+        const exportsProblem = (named, value) => {
+            if (typeof named !== 'string' || !Object.hasOwn(RUN.mod.implements ?? {}, named))
+                return `takes an interface the manifest implements, and ${String(named)} is not one`;
+            if (Object.hasOwn(exported, named))
+                return `is called once for each interface, and ${named} has its exports`;
+            if (Object.hasOwn(joined.exportedIn, named))
+                return `is called once for the run for each interface, and a lifecycle under it opened ${named}`;
             if (!value || typeof value.connect !== 'function') return 'takes { connect(connection), disconnect? }';
             if (value.disconnect !== undefined && typeof value.disconnect !== 'function')
                 return 'takes a disconnect function';
@@ -226,13 +234,21 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             }));
         for (const [name, { handle: on, check }] of Object.entries(lifecycle.registrations || {}))
             registers(on, name, check);
-        registers(handle, 'exports', exportsProblem);
+        const label = `${handle}.exports.register()`;
+        (handles[handle] ??= {}).exports = Object.freeze({
+            register: (named, value) => {
+                if (!open) return RUN.fail(closed(label));
+                const problem = exportsProblem(named, value);
+                if (problem) return RUN.fail(`${label} ${problem}`);
+                exported[named] = value;
+            },
+        });
         return {
             handles,
-            // What it registered, by name.
+            // What it registered, by name, `exports` by interface.
             close() {
                 open = false;
-                return { ...registered };
+                return Object.keys(exported).length ? { ...registered, exports: { ...exported } } : { ...registered };
             },
         };
     }

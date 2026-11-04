@@ -7,6 +7,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
 // what crosses goes from page to page through here, never read. A connection is handed to its dependent while it
 // stands, and so is one its dependency refused, with why: one that ended while its exports were asked for is left out.
+// The dependency is handed the dependent's id and name; the dependent, the interface alone.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -55,16 +56,17 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Private
     // The exports the connection reaches, as its dependency's page answers them for it, or why it refused them: the
     // core keeps it down from then on. One whose dependency's lifecycle ended while they were asked for was not
-    // refused, and is null.
+    // refused, and is null. What the dependent is handed names the interface, never the mod that implements it.
     async function open(connection) {
         const { id, dependent, dependency, required } = connection;
-        const named = { id, mod: dependency.mod, required, exportedIn: dependency.lifecycle };
+        const named = { id, interface: connection.interface, required, exportedIn: dependency.lifecycle };
         const mod = CATALOG.mods().find((one) => one.id === dependent.mod);
         try {
             const page = IDENTITY.pageOf(dependency.mod);
             if (!page) return null;
             const exports = await PROTOCOL.connect.invoke(page, {
                 id,
+                interface: connection.interface,
                 mod: { id: dependent.mod, name: mod?.name ?? dependent.mod },
                 lifecycle: dependency.lifecycle,
             });
@@ -72,7 +74,7 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
         } catch (error) {
             if (!standing.delete(id)) return null;
             CORE.request('connection/refuse', { connection: id }).catch(() => {});
-            return { ...named, problem: `${dependency.mod} did not connect: ${error.message || error}` };
+            return { ...named, problem: `${connection.interface} did not connect: ${error.message || error}` };
         }
     }
 
