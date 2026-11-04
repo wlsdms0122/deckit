@@ -12,6 +12,11 @@ export const remove = CHANNEL.pageToMain(
 export const relaunch = CHANNEL.pageToMain('deckit-shell:mods-relaunch', { id: 'string' }, { reply: true });
 export const load = CHANNEL.pageToMain('deckit-shell:mods-load', { ids: 'array' }, { reply: true });
 export const arrange = CHANNEL.pageToMain('deckit-shell:mods-arrange', { ids: 'array' }, { reply: true });
+export const order = CHANNEL.pageToMain(
+    'deckit-shell:mods-order',
+    { interface: 'string', order: 'array', off: 'array' },
+    { reply: true }
+);
 export const usage = CHANNEL.pageToMain('deckit-shell:mods-usage', { id: 'string' }, { reply: true });
 // The sending page hears modsChanged from then on, while it lasts.
 export const watchMods = CHANNEL.pageToMain('deckit-shell:mods-watch', {});

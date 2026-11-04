@@ -6,6 +6,9 @@ export function createCatalog({ CORE, LOG, files }) {
     // MARK: - Property
     let all = []; // every mod the core read, in the load order
     let loading = [];
+    // Every interface a mod implements or depends on, each `{ interface, name, undecided, implementations }`, its
+    // implementations `[{ id, name, version, on }]` in their order, as the core read them with the mods.
+    let lists = [];
     const listeners = new Set();
 
     // MARK: - Initializer
@@ -35,11 +38,34 @@ export function createCatalog({ CORE, LOG, files }) {
         return loading;
     }
 
+    // Each interface's list of implementations, as the mods were last read.
+    function interfaces() {
+        return lists;
+    }
+
+    // Interface -> the id of the mod picked for it, the first in its list that is on, for each interface one is.
+    function picks() {
+        const picked = new Map();
+        for (const list of lists) {
+            const pick = list.implementations.find(({ on }) => on);
+            if (pick) picked.set(list.interface, pick.id);
+        }
+        return picked;
+    }
+
     // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
     // put. Refused for an order that puts a mod that loads before one it requires. Settled once the mods are read
     // again.
     async function arrange(ids) {
         await CORE.request('catalog/arrange', { ids });
+        await refresh();
+    }
+
+    // As the person's: the implementations in `order` take the places they held among themselves in the interface's
+    // list, in the order given, and those in `off` are switched off. Refused for an order whose pick would put a mod
+    // that loads before one it requires, or make a cycle. Settled once the mods are read again.
+    async function order(named, { order: ids = [], off = [] } = {}) {
+        await CORE.request('catalog/order', { interface: named, order: ids, off });
         await refresh();
     }
 
@@ -60,9 +86,11 @@ export function createCatalog({ CORE, LOG, files }) {
         return CORE.request('catalog/remove', { id });
     }
 
-    // The mods read again, and whoever listens told.
+    // The mods read again, with each interface's list as they come to, and whoever listens told.
     async function refresh() {
-        all = (await CORE.request('catalog/read')).map(MOD.read);
+        const read = (await CORE.request('catalog/read')).map(MOD.read);
+        lists = await CORE.request('catalog/interfaces');
+        all = read;
         loading = all.filter((mod) => !mod.problem);
         for (const listener of listeners) listener();
     }
@@ -84,7 +112,10 @@ export function createCatalog({ CORE, LOG, files }) {
         load,
         found,
         mods,
+        interfaces,
+        picks,
         arrange,
+        order,
         planInstall,
         install,
         remove,
