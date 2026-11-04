@@ -96,17 +96,21 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         mainFailure = mod.mainProcessFailure ? 'A main process module did not start' : '';
         statusLine = detailsLine(mainFailure, { muted: true });
         box.replaceChildren();
-        // One is short while it has a problem or is not running, and its problem is said over it. An optional one
-        // short stops nothing, so it is drawn quiet, not as a fault.
+        // Each interface it depends on, at the version it names, with the mod picked for it when one is. One is short
+        // while it has a problem or is not running, and its problem is said over it. An optional one short stops
+        // nothing, so it is drawn quiet, not as a fault.
         const relationChips = (optional) =>
             (mod.relations || [])
                 .filter((relation) => relation.optional === optional)
                 .map((relation) => {
-                    const text = `${relation.name} ${relation.version}`;
+                    const text = [`${relation.interface} ${relation.version}`, relation.name]
+                        .filter(Boolean)
+                        .join(' · ');
                     const ok = !relation.problem && relation.running;
                     const { element } =
                         optional && !ok ? chip({ ui, text, muted: true }) : statusChip({ ui, text, ok });
-                    if (relation.problem) element.title = relation.problem;
+                    element.title =
+                        relation.problem || (relation.name ? '' : `No mod is picked for ${relation.interface}`);
                     return element;
                 });
         for (const [label, optional] of [
@@ -154,9 +158,10 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         );
     }
 
-    // A child's view is shown in its parent's, and in the sidebar's list as well once the person pins it there.
+    // A child's view is shown in the view of the mod picked for the interface it names as parent, and in the
+    // sidebar's list as well once the person pins it there.
     function sidebarPin() {
-        const parent = (mod.relations || []).find((relation) => relation.id === mod.live.parent);
+        const parent = (mod.relations || []).find((relation) => relation.interface === mod.live.parent);
         const { id } = mod;
         const pin = ui.element('div', { className: 'settings-details-switch' });
         const toggle = ui.toggle({
@@ -167,7 +172,11 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
             },
         });
         pin.append(
-            detailsLine(`Shown in ${parent?.name || mod.live.parent}. Pinned to the sidebar too`),
+            detailsLine(
+                parent?.name
+                    ? `Shown in ${parent.name}. Pinned to the sidebar too`
+                    : `Shown in what implements ${mod.live.parent}. Pinned to the sidebar too`
+            ),
             toggle.element
         );
         return pin;

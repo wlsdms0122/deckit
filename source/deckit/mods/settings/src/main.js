@@ -1,5 +1,7 @@
 const { CHIP_STYLE } = require('./chip/chip.js');
 const { generalSection } = require('./sections/general/general-section.js');
+const { HANDLER_LIST_STYLE } = require('./sections/handler-list/handler-list.js');
+const { interfacesSection } = require('./sections/interfaces/interfaces-section.js');
 const { keyboardSection } = require('./sections/keyboard/keyboard-section.js');
 const { modSettingsSection } = require('./sections/mod-settings/mod-settings-section.js');
 const { modsSection } = require('./sections/mods/mods-section.js');
@@ -41,7 +43,7 @@ class Settings {
             }
             .settings-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 14px 16px; }
         `);
-        ui.addStyle(SECTION_STYLE + CHIP_STYLE);
+        ui.addStyle(SECTION_STYLE + CHIP_STYLE + HANDLER_LIST_STYLE);
         const page = ui.element('div', { className: 'settings-page' });
         const body = ui.element('div', { className: 'settings-body' });
         const mods = modsSection({
@@ -64,9 +66,10 @@ class Settings {
             nameOf: (id) => deckit.mods.list().running.find((mod) => mod.id === id)?.name || id,
         });
         const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
+        const interfaces = interfacesSection({ ui, mods: deckit.mods });
         const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts });
         const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
-        const sections = [mods, general, modSettings, urlSchemes, keyboard];
+        const sections = [mods, general, modSettings, urlSchemes, interfaces, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
@@ -155,7 +158,7 @@ class Settings {
         // A mod starting or stopping keeps what its run that launched showed (deck's `launched`), so a restart reads as
         // one, not as a mod gone and back.
         function redraw() {
-            const { found, running: now } = deckit.mods.list();
+            const { found, running: now, interfaces: interfaceLists } = deckit.mods.list();
             const listed = deckit.keys.list();
             const handlerLists = deckit.urls.list();
             for (const mod of now)
@@ -174,6 +177,7 @@ class Settings {
             mods.draw({ found, running, shortcuts, handlerLists });
             modSettings.draw();
             urlSchemes.draw(handlerLists);
+            interfaces.draw(interfaceLists);
             general.draw();
             keyboard.draw(shortcuts);
         }

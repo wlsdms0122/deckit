@@ -1,6 +1,7 @@
 const { chip } = require('../../chip/chip.js');
 const { NO_VALUE, schemeName } = require('../../format/format.js');
 const { section } = require('../section/section.js');
+const { handlerRow, moved } = require('../handler-list/handler-list.js');
 
 // The URL Schemes section: a card per scheme with its handler list, the mods asked in turn to open an address,
 // reordered by dragging and switched off one by one, and the host app's own answer after them.
@@ -34,36 +35,6 @@ function urlSchemesSection({ ui, urls, appName }) {
         .settings-scheme-name { padding: 0 12px; font: 600 var(--deckit-type-body); }
         .settings-scheme-description { padding: 1px 12px 6px; font: var(--deckit-type-small); opacity: 0.5; }
         .settings-scheme-none { padding: 4px 12px 6px 44px; font: 12.5px var(--deckit-font); opacity: 0.4; }
-        .settings-handler {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 32px;
-            margin: 0 4px;
-            padding: 0 8px 0 6px;
-            border-radius: var(--deckit-radius-control);
-            cursor: default;
-            transition: background-color var(--deckit-fast) var(--deckit-easing);
-        }
-        .settings-handler[data-draggable] { cursor: grab; }
-        .settings-handler[data-draggable]:hover { background: var(--deckit-hover); }
-        .settings-handler-grip { display: flex; flex: 0 0 14px; opacity: 0.35; }
-        .settings-handler-position {
-            flex: 0 0 16px;
-            font: var(--deckit-type-small);
-            font-variant-numeric: tabular-nums;
-            text-align: right;
-            opacity: 0.4;
-        }
-        .settings-handler-name {
-            flex: 1 1 auto;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            font: var(--deckit-type-body);
-        }
-        .settings-handler[data-muted] .settings-handler-name { opacity: 0.55; }
     `);
     const { element, body } = section({ ui, title: TITLE, description: DESCRIPTION });
     const cards = ui.list({
@@ -90,7 +61,7 @@ function urlSchemesSection({ ui, urls, appName }) {
             update: (row, entry) => rowFills.get(row)(entry),
         });
         const defaultChip = chip({ ui, text: 'Default', muted: true });
-        const defaultRow = handlerRow({ trailing: defaultChip.element });
+        const defaultRow = handlerRow({ ui, trailing: defaultChip.element });
 
         card.append(
             ui.element('div', { className: 'settings-scheme-name', text: schemeName(handlerList.scheme, everyScheme) }),
@@ -104,11 +75,8 @@ function urlSchemesSection({ ui, urls, appName }) {
         );
         ui.sortable(list, {
             onReorder: (id, toId) => {
-                const next = [...current.handlers];
-                const from = next.findIndex((handler) => handler.id === id);
-                const to = next.findIndex((handler) => handler.id === toId);
-                if (from < 0 || to < 0) return;
-                next.splice(to, 0, next.splice(from, 1)[0]);
+                const next = moved(current.handlers, id, toId);
+                if (!next) return;
                 save(current.scheme, next);
                 draw(urls.list());
             },
@@ -146,7 +114,7 @@ function urlSchemesSection({ ui, urls, appName }) {
                     draw(urls.list());
                 },
             });
-            const row = handlerRow({ trailing: toggle.element, draggable: true });
+            const row = handlerRow({ ui, trailing: toggle.element, draggable: true });
 
             rowFills.set(row.element, fill);
             fill(entry);
@@ -169,25 +137,6 @@ function urlSchemesSection({ ui, urls, appName }) {
             order: handlers.map((handler) => handler.id),
             off: handlers.filter((handler) => !handler.on).map((handler) => handler.id),
         });
-    }
-
-    // A line of a handler list: a grip when it can be dragged, its position, its name, then `trailing`.
-    function handlerRow({ trailing, draggable = false }) {
-        const element = ui.element('div', { className: 'settings-handler' });
-        const grip = ui.element('span', { className: 'settings-handler-grip' });
-        const position = ui.element('span', { className: 'settings-handler-position' });
-        const name = ui.element('span', { className: 'settings-handler-name' });
-
-        element.toggleAttribute('data-draggable', draggable);
-        if (draggable) grip.innerHTML = ui.icon('grip', { size: 14 });
-        element.append(grip, position, name, trailing);
-        return { element, set };
-
-        function set({ position: text, label, muted }) {
-            position.textContent = text;
-            name.textContent = name.title = label;
-            element.toggleAttribute('data-muted', muted);
-        }
     }
 
     function schemeDescription(scheme) {
