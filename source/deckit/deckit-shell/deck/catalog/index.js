@@ -60,8 +60,8 @@ export function createCatalog({ CORE, LOG, files }) {
     }
 
     // As the person's: the implementations in `order` take the places they held among themselves in the interface's
-    // list, in the order given, and those in `off` are switched off. Refused for an order whose pick would put a mod
-    // that loads before one it requires, or make a cycle. Settled once the mods are read again.
+    // list, in the order given, and those in `off` are switched off. Refused for an order whose pick would make a cycle
+    // among mods that load now. Settled once the mods are read again.
     async function order(named, { order: ids = [], off = [] } = {}) {
         await CORE.request('catalog/order', { interface: named, order: ids, off });
         await refresh();

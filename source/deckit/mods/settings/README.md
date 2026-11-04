@@ -4,7 +4,7 @@ Where the app is set up: the mods (installing, removing, restarting, pinning, th
 
 ## Interfaces
 
-Each interface a mod implements or depends on, with its implementations in their order. The first that is on is the one picked, and the mods that depend on the interface get it: drag to change the order, switch one off to pass it over. An interface whose implementations no one placed is marked Undecided until one is dragged into place. An order deckit refuses, one whose pick would make a cycle, is told on its card.
+Each interface a mod implements or depends on, with its implementations in their order. The first that is on is the one picked, and the mods that depend on the interface get it: drag to change the order, switch one off to pass it over. An interface whose implementations no one placed is marked Undecided until one is dragged into place. An order deckit refuses, one whose pick would make a cycle among mods that load now, is told on its card.
 
 ## Adding buttons: `settings/buttons`
 
