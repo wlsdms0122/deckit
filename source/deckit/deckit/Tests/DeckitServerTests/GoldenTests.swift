@@ -30,6 +30,8 @@ struct GoldenTests {
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
         (LoadOrderError.requiredLater(mod: "b", requirement: "a"), "REQUIRED_LATER"),
         (LoadOrderError.unreadable("deck.json"), "UNREADABLE"),
+        (LoadOrderError.noInterface("x/none"), "INTERFACE"),
+        (LoadOrderError.cycle(["a", "b", "a"]), "CYCLE"),
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),
         (ManifestError.permissionDefined("p"), "PERMISSION"),
         (ManifestError.fieldDefined("f"), "FIELD"),
@@ -64,11 +66,11 @@ struct GoldenTests {
         try writeMod(
             "a",
             in: "source",
-            adding: "urls = [\"mailto:*\"]\n[permissions]\n\"system.global-keys\" = \"to test\"\n"
-                + "\"system.example\" = \"to test\""
+            adding: "urls = [\"mailto:*\"]\n[implements]\n\"a/api\" = \"1.0.0\"\n[permissions]\n"
+                + "\"system.global-keys\" = \"to test\"\n\"system.example\" = \"to test\""
         )
-        try writeMod("b", in: "source", adding: "[dependencies]\na = \"1.0.0\"")
-        try writeMod("c", in: "ship")
+        try writeMod("b", in: "source", adding: "[dependencies]\n\"a/api\" = \"1.0.0\"")
+        try writeMod("c", in: "ship", adding: "[implements]\n\"a/api\" = \"1.0.0\"")
         try writeMod("d", in: "spare")
         let requests = try lines(of: "session")
         let pinned = try lines(of: "answers")

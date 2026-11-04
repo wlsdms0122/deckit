@@ -1,15 +1,16 @@
-{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[{"id":"deckit.example","means":"An example","name":"Example"}],"schemeHandlers":{"mailto":["a"]},"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
+{"id":1,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","implementations":{},"permissions":[{"id":"deckit.example","means":"An example","name":"Example"}],"schemeHandlers":{"mailto":["a"]},"ship":["@SHIP@/c"],"sources":["@SOURCE@"]}}
 {"id":2,"jsonrpc":"2.0","method":"catalog/install-shipped"}
 {"id":3,"jsonrpc":"2.0","method":"catalog/read"}
+{"id":86,"jsonrpc":"2.0","method":"catalog/interfaces"}
 {"id":4,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["a","b","c"]}}
 {"id":5,"jsonrpc":"2.0","method":"configuration/declare","params":{"configuration":[{"default":12,"key":"size","minimum":8,"title":"Size","type":"number"},{"default":"mono","key":"font","oneOf":[{"const":"mono","title":"Mono"}],"type":"string"},{"default":"x","key":"bad","oneOf":[{"const":"y"}],"type":"string"}],"mod":"a","run":1}}
 {"id":50,"jsonrpc":"2.0","method":"runner/described","params":{"mod":"a","run":1,"summary":{"keywords":["alpha"]}}}
 {"id":81,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":0,"mod":"a","run":1}}
-{"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":0,"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"}],"urls":true},"mod":"a","run":1,"summary":{"x":true}}}
+{"id":6,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":{"a/api":0},"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"}],"urls":true},"mod":"a","run":1,"summary":{"x":true}}}
 {"id":7,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["b"]}}
 {"id":82,"jsonrpc":"2.0","method":"connection/begin","params":{"lifecycle":0,"mod":"b","run":2}}
-{"id":8,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{"a":1},"now":true},"mod":"b","run":2,"summary":{}}}
-{"id":80,"jsonrpc":"2.0","method":"runner/joined","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":0,"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"},{"key":"mod+k","label":"Back","name":"back","scope":"app"}],"urls":true},"mod":"a","run":1,"summary":{"keywords":["alpha"],"x":true}}}
+{"id":8,"jsonrpc":"2.0","method":"runner/started","params":{"contributions":{"awaits":{"a/api":1},"now":true},"mod":"b","run":2,"summary":{}}}
+{"id":80,"jsonrpc":"2.0","method":"runner/joined","params":{"contributions":{"awaits":{},"commands":[{"name":"next"}],"exportedIn":{"a/api":0},"keys":[{"key":"mod+j","label":"Next","name":"next","scope":"global"},{"key":"mod+k","label":"Back","name":"back","scope":"app"}],"urls":true},"mod":"a","run":1,"summary":{"keywords":["alpha"],"x":true}}}
 {"id":9,"jsonrpc":"2.0","method":"connection/route","params":{"connection":1,"mod":"b","run":2}}
 {"id":10,"jsonrpc":"2.0","method":"connection/route","params":{"connection":1,"mod":"a","run":1}}
 {"id":11,"jsonrpc":"2.0","method":"connection/route","params":{"connection":1,"mod":"c","run":1}}
@@ -54,6 +55,11 @@
 {"id":47,"jsonrpc":"2.0","method":"catalog/install","params":{"from":"@SPARE@/d"}}
 {"id":48,"jsonrpc":"2.0","method":"catalog/arrange","params":{"ids":["b","a"]}}
 {"id":49,"jsonrpc":"2.0","method":"catalog/read"}
+{"id":87,"jsonrpc":"2.0","method":"catalog/order","params":{"interface":"a/api","off":[],"order":["a"]}}
+{"id":88,"jsonrpc":"2.0","method":"catalog/order","params":{"interface":"x/none","off":[],"order":[]}}
+{"id":89,"jsonrpc":"2.0","method":"catalog/read"}
+{"id":90,"jsonrpc":"2.0","method":"catalog/interfaces"}
+{"id":91,"jsonrpc":"2.0","method":"runner/repick"}
 {"id":50,"jsonrpc":"2.0","method":"runner/load","params":{"mods":["d"]}}
 {"id":51,"jsonrpc":"2.0","method":"runner/problem","params":{"mod":"a","problem":"slow","run":1}}
 {"id":52,"jsonrpc":"2.0","method":"runner/crash","params":{"mod":"b","problem":"gone","run":2}}
@@ -67,4 +73,4 @@
 {"id":60,"jsonrpc":"2.0","method":"erasure/cleared","params":{"mod":"d"}}
 {"id":61,"jsonrpc":"2.0","method":"runner/unload","params":{"mods":["a","d"]}}
 {"id":62,"jsonrpc":"2.0","method":"no/such"}
-{"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","permissions":[],"schemeHandlers":{},"ship":[],"sources":[]}}
+{"id":63,"jsonrpc":"2.0","method":"initialize","params":{"api":"1.0.0","home":"@HOME@","implementations":{},"permissions":[],"schemeHandlers":{},"ship":[],"sources":[]}}
