@@ -1,7 +1,6 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
 import * as STYLE_PERMISSION from './model/permission.js';
-import * as MOD from '../../deck/catalog/model/mod.js';
 
 // `deckit` is what connect answered.
 export function createStyle({ deckit }) {
@@ -12,9 +11,9 @@ export function createStyle({ deckit }) {
 
     // MARK: - Initializer
     // MARK: - Public
-    // A mod with `deckit.styles` styles other pages while it runs: by id its own and those of the mods it links, in its
-    // [dependencies], and by "*" every page, the shell's and every mod's. Each page wears what applies
-    // to it in the load order, the later over the earlier, so a mod's styles go over those of the mods it requires.
+    // A mod with `deckit.styles` styles other pages while it runs: by id that mod's page, its own among them, and by
+    // "*" every page, the shell's and every mod's. Each page wears what applies to it in the load order, the later over
+    // the earlier, so a mod's styles go over those of the mods it requires.
     function start() {
         PROTOCOL.current.handle((_payload, sender) => {
             const modId = deckit.mods.modOf(sender);
@@ -39,8 +38,7 @@ export function createStyle({ deckit }) {
             .filter((run) => run?.state === 'running')
             .flatMap((run) => {
                 const given = stylesOf(run) || {};
-                const reaches = run.mod.id === modId || MOD.links(run.mod, modId);
-                return [given[EVERY_PAGE], modId && reaches && given[modId]];
+                return [given[EVERY_PAGE], modId && given[modId]];
             })
             .filter((css) => typeof css === 'string');
     }

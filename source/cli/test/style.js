@@ -1,6 +1,6 @@
 // The styles a page wears (deckit-shell/shell/style/main): what running mods with deckit.styles give every page, and what
-// they give a mod's page by its id, from the mod itself and from the mods that link it, in the load order. Exits 1
-// with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// they give a mod's page by its id, from the mod itself and from any other, in the load order. Exits 1 with a line for
+// each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -15,19 +15,11 @@ async function main() {
         if (!ok) failed.push(`FAIL ${name}: ${JSON.stringify(seen)}`);
     };
 
-    const mod = (id, dependencies = {}) => ({ id, dependencies, permissions: [{ id: 'deckit.styles' }] });
+    const mod = (id, permissions = [{ id: 'deckit.styles' }]) => ({ id, dependencies: {}, permissions });
     const runs = {
         a: { mod: mod('a'), state: 'running', contributions: { styles: { a: 'a-own', '*': 'a-all' } } },
-        b: {
-            mod: mod('b', { a: { version: '1.0.0', optional: false } }),
-            state: 'running',
-            contributions: { styles: { a: 'b-a' } },
-        },
-        c: {
-            mod: mod('c', { a: { version: '1.0.0', optional: true } }),
-            state: 'running',
-            contributions: { styles: { a: 'c-a' } },
-        },
+        b: { mod: mod('b'), state: 'running', contributions: { styles: { a: 'b-a', c: 'b-c' } } },
+        c: { mod: mod('c', []), state: 'running', contributions: { styles: { a: 'c-a' } } },
         d: { mod: mod('d'), state: 'running', contributions: { styles: { a: 'd-a', '*': 'd-all' } } },
     };
     const handlers = {};
@@ -47,8 +39,8 @@ async function main() {
 
     const own = current({}, { mod: 'a' }).join();
     check(
-        "a mod's page wears every page's styles, and by its id its own and those of the mods that link it",
-        own === 'a-all,a-own,b-a,c-a,d-all',
+        "a mod's page wears every page's styles, and by its id those of each mod with deckit.styles, its own too",
+        own === 'a-all,a-own,b-a,d-all,d-a',
         own
     );
     const shell = current({}, { mod: null }).join();
