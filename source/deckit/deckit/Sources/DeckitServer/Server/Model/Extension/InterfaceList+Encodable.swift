@@ -15,6 +15,7 @@ extension InterfaceList: Encodable {
         case name
         case undecided
         case implementations
+        case pick
     }
 
     // MARK: - Initializer
@@ -25,6 +26,7 @@ extension InterfaceList: Encodable {
         try container.encodeIfPresent(name, forKey: .name)
         try container.encode(undecided, forKey: .undecided)
         try container.encode(implementations, forKey: .implementations)
+        try container.encodeIfPresent(pick?.id, forKey: .pick)
     }
 
     // MARK: - Private

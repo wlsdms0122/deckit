@@ -6,8 +6,9 @@ export function createCatalog({ CORE, LOG, files }) {
     // MARK: - Property
     let all = []; // every mod the core read, in the load order
     let loading = [];
-    // Every interface a mod implements or depends on, each `{ interface, name, undecided, implementations }`, its
-    // implementations `[{ id, name, version, on }]` in their order, as the core read them with the mods.
+    // Every interface a mod implements or depends on, each `{ interface, name, undecided, implementations, pick }`, its
+    // implementations `[{ id, name, version, on }]` in their order and `pick` the id of the one the core picked, absent
+    // when none is, as the core read them with the mods.
     let lists = [];
     const listeners = new Set();
 
@@ -43,13 +44,10 @@ export function createCatalog({ CORE, LOG, files }) {
         return lists;
     }
 
-    // Interface -> the id of the mod picked for it, the first in its list that is on, for each interface one is.
+    // Interface -> the id of the mod the core picked for it, for each interface one is.
     function picks() {
         const picked = new Map();
-        for (const list of lists) {
-            const pick = list.implementations.find(({ on }) => on);
-            if (pick) picked.set(list.interface, pick.id);
-        }
+        for (const list of lists) if (list.pick) picked.set(list.interface, list.pick);
         return picked;
     }
 
