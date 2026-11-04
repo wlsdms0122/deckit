@@ -2,20 +2,20 @@
 
 Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add.
 
-## Providing accounts
+## Providing accounts: `calendar/accounts`
 
-A mod that provides accounts depends on Calendar and sets its provider in `start`, since the reminders read through it where nothing is on screen. Calendar opens `setProvider(provider)` in `start`, one provider for each connection:
+Calendar defines the interface `calendar/accounts`, and implements it at `1.0.0`. Its exports open in `start`, since the reminders read through a provider where nothing is on screen, so a mod that provides accounts requires it and sets its provider in `start`. They are `setProvider(provider)`, one provider for each connection. It gives no place for views.
 
 ```toml
 [dependencies]
-calendar = "1.0.0"
+"calendar/accounts" = "1.0.0"
 
 [permissions]
 "system.network" = "Reads your calendars from Example."
 ```
 
 ```js
-deckit.dependencies.calendar.setProvider({
+deckit.dependencies['calendar/accounts'].setProvider({
     name: 'Example',
     hint: 'An Example account',
     icon: `<svg …>`,

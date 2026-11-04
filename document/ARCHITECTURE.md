@@ -157,7 +157,7 @@ Deck has one device between mods' pages, `deckit-shell/deck/connection`. A conne
 
 A number is from the table of the end that handed the function over, and means something only on its connection: the same function handed twice on one connection is one number. Every call is a message, so every call is asynchronous. A reference received is never handed on, so whatever calls into a page is the mod connected to it.
 
-The architecture is the same whatever language a mod's page runs: only the binding is language specific. A binding says which of its language's values are data and which cross as references, how a received reference is called and how it learns the page holds it no more, and how `dependencies.<id>` reads in that language. The JavaScript binding copies an object's own enumerable data, sends its functions and its class's methods as references bound to it, makes each number one function answering a promise, and learns of one held no more through a `FinalizationRegistry`.
+The architecture is the same whatever language a mod's page runs: only the binding is language specific. A binding says which of its language's values are data and which cross as references, how a received reference is called and how it learns the page holds it no more, and how `dependencies[<interface>]` reads in that language. The JavaScript binding copies an object's own enumerable data, sends its functions and its class's methods as references bound to it, makes each number one function answering a promise, and learns of one held no more through a `FinalizationRegistry`.
 
 A mod changes how another's pages look with styles, which the shell puts last on each page they style, and nothing else of another mod.
 
