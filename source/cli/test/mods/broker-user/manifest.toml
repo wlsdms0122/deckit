@@ -5,6 +5,6 @@ api = "1.0.0"
 main = "main.js"
 
 [dependencies]
-broker-provider = "1.0.0"
-broker-screen = { version = "1.0.0", optional = true }
-broker-absent = { version = "1.0.0", optional = true }
+"broker-provider/calls" = "1.0.0"
+"broker-screen/takes" = { version = "1.0.0", optional = true }
+"broker-absent/none" = { version = "1.0.0", optional = true }

@@ -3,3 +3,6 @@ name = "Broker Refuser"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+
+[implements]
+"broker-refuser/refusals" = "1.0.0"

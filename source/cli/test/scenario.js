@@ -1275,7 +1275,7 @@ async function run({
         );
         check(
             'a mod runs while an optional dependency it names is not installed, its dependencies holding the required one alone',
-            asked && (await mark(user, 'lasting')) === 'broker-provider',
+            asked && (await mark(user, 'lasting')) === 'broker-provider/calls',
             await mark(user, 'lasting')
         );
         const pinged = await until(async () => (await mark(user, 'pinged')) === '7', 4000);
@@ -1300,7 +1300,9 @@ async function run({
         const refusedFailure = `${rowOf('Broker Refused')}?.querySelector('.settings-mod-failure')?.textContent || ''`;
         const refusedRow = await until(
             async () =>
-                /broker-refuser did not connect: .*no connections here/.test(await settings.evaluate(refusedFailure)),
+                /broker-refuser\/refusals did not connect: .*no connections here/.test(
+                    await settings.evaluate(refusedFailure)
+                ),
             4000
         );
         const refusedPage = await page('deckit://broker-refused.mod');
@@ -1325,7 +1327,7 @@ async function run({
         const mismatched = await until(
             async () =>
                 (await settings.evaluate(screenNote)).includes(
-                    'uses broker-provider 2.0.0, and broker-provider is 1.0.0, so it runs without it'
+                    'uses broker-provider/calls 2.0.0, and broker-provider implements it at 1.0.0, so it runs without it'
                 ),
             4000
         );

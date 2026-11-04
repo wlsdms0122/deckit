@@ -1,7 +1,7 @@
-// A headless mod that opens exports in start and refuses every connection.
+// A headless mod that opens the exports of broker-refuser/refusals in start and refuses every connection.
 class BrokerRefuser {
     start(deckit) {
-        deckit.exports.register({
+        deckit.exports.register('broker-refuser/refusals', {
             connect() {
                 throw new Error('no connections here');
             },

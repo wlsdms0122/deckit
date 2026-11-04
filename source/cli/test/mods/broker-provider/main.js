@@ -1,8 +1,9 @@
-// A headless mod that opens its exports in start and sends an event. Each connection's exports answer who connected,
-// call back what they are handed, throw an error of a kind, and tell whether a function handed again is the one handed before.
+// A headless mod that opens the exports of broker-provider/calls in start and sends an event. Each connection's exports
+// answer who connected, call back what they are handed, throw an error of a kind, and tell whether a function handed
+// again is the one handed before.
 class BrokerProvider {
     start(deckit) {
-        deckit.exports.register({
+        deckit.exports.register('broker-provider/calls', {
             connect: (connection) => {
                 let kept = null;
                 return {

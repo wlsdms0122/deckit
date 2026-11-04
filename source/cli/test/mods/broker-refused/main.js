@@ -1,4 +1,5 @@
-// A headless mod that requires the refuser. It marks its page as its start runs.
+// A headless mod that requires broker-refuser/refusals, which the refuser implements. It marks its page as its start
+// runs.
 class BrokerRefused {
     start() {
         document.documentElement.dataset.started = '1';

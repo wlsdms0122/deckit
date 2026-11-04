@@ -6,4 +6,4 @@ main = "main.js"
 urls = ["test-open:*"]
 
 [dependencies]
-switcher = { version = "1.0.0", optional = true }
+"switcher/actions" = { version = "1.0.0", optional = true }

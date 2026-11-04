@@ -16,7 +16,7 @@ class OpenUser {
 
     attach(shell, deckit) {
         const marks = document.documentElement.dataset;
-        deckit.dependencies.onConnect('switcher', async (switcher) => {
+        deckit.dependencies.onConnect('switcher/actions', async (switcher) => {
             await switcher.setActions({
                 search: (query) => (query === 'probe open user' ? [{ label: 'Open User Probe', value: 'probe' }] : []),
                 run: () => {
