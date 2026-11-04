@@ -4,9 +4,12 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 
+[implements]
+"calendar/accounts" = "1.0.0"
+
 [permissions]
 "system.notifications" = "Reminds you of a meeting before it starts."
 
 [dependencies]
-switcher = { version = "1.0.0", optional = true }
-settings = { version = "1.0.0", optional = true }
+"switcher/actions" = { version = "1.0.0", optional = true }
+"settings/buttons" = { version = "1.0.0", optional = true }

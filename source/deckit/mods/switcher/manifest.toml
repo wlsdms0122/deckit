@@ -4,6 +4,9 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 
+[implements]
+"switcher/actions" = "1.0.0"
+
 [permissions]
 "deckit.command-registry" = "Lists each mod the app can show, and shows the one you pick."
 "system.global-keys" = "Opens on its key from any app."

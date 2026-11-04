@@ -220,7 +220,7 @@ class Browser {
                 forward: goForward,
             }),
         });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         function home() {
             return parseAddress(configuration.get('homepage')) || START;

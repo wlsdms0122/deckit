@@ -351,7 +351,7 @@ class Finder {
                 }),
             },
         });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         // `ready()` is told once the path is found to be there, before Finder goes to it.
         async function openFolder({ path }, { ready = () => {} } = {}) {

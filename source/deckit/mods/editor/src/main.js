@@ -422,7 +422,7 @@ class Editor {
                 }),
             },
         });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         function heardDiskState(file) {
             if (disk.isDirty(file)) drafts.keepSoon();

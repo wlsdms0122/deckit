@@ -10,4 +10,4 @@ main = "main.js"
 "system.clipboard-write" = "Copy as Markdown in a note's menu, and Copy in the menu over a note's text, put the text on the clipboard."
 
 [dependencies]
-switcher = { version = "1.0.0", optional = true }
+"switcher/actions" = { version = "1.0.0", optional = true }

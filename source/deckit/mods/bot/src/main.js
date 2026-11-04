@@ -62,7 +62,7 @@ class Bot {
     async attach(shell, deckit) {
         const { ui } = shell;
         const store = deckit.storage.values;
-        const { forge } = deckit.dependencies;
+        const forge = deckit.dependencies['forge/workflows'];
         const bot = await deckit.mainProcess('main-process/bot/bot.js');
         const places = () => Object.fromEntries(PLACES.map((key) => [key, deckit.configuration.get(key)]));
         await bot.use(places());
@@ -330,7 +330,7 @@ class Bot {
                 },
             },
         });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         function showView({ view, session }) {
             if (!MODES.some((entry) => entry.key === view)) throw new Error(`Bot has no view ${view}`);

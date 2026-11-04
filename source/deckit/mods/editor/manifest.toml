@@ -11,4 +11,4 @@ urls = ["file:*"]
 "system.clipboard-write" = "Copy Path and Copy Relative Path in a file's menu put its path on the clipboard."
 
 [dependencies]
-switcher = { version = "1.0.0", optional = true }
+"switcher/actions" = { version = "1.0.0", optional = true }

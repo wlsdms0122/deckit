@@ -78,7 +78,7 @@ class Settings {
         page.append(title, body);
         // A mod's settings can be asked for by its command before the first visit draws anything.
         modSettings.draw();
-        deckit.exports.register({
+        deckit.exports.register('settings/buttons', {
             connect: (connection) => ({
                 setButtons: (buttons) => {
                     sources.set(connection, buttons);
@@ -116,7 +116,7 @@ class Settings {
                 complete: (_param, partial) => settingsOf(partial),
             },
         });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) =>
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) =>
             quickSwitcher.setActions({
                 list: () => [
                     ...sections.map((section, index) => ({

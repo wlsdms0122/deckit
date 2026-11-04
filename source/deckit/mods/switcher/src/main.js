@@ -18,7 +18,7 @@ class Switcher {
         });
         const given = new Map(); // connection -> the actions its mod set
         this.list = switcher(shell, deckit, window, given);
-        deckit.exports.register({
+        deckit.exports.register('switcher/actions', {
             connect: (connection) => ({
                 setActions: (actions) => {
                     given.set(connection, actions);

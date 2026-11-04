@@ -32,7 +32,7 @@ class Calendar {
                 run: this.sendTest,
             },
         });
-        deckit.exports.register({
+        deckit.exports.register('calendar/accounts', {
             connect: (connection) => ({
                 setProvider: (provider) => {
                     this.calendar.setProvider(connection, provider);
@@ -52,8 +52,8 @@ class Calendar {
         shell.view.register({ content, sidebar, didAppear, didDisappear });
         deckit.keys.register(keys);
         deckit.commands.register(commands);
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
-        deckit.dependencies.onConnect('settings', (settings) =>
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('settings/buttons', (settings) =>
             settings.setButtons({
                 list: () => [
                     {

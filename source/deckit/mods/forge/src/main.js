@@ -38,7 +38,7 @@ class Forge {
 
         // A session not given is `default`. A run is the dispatching mod's (runs.js).
         const dispatched = runs(forge);
-        deckit.exports.register({
+        deckit.exports.register('forge/workflows', {
             connect: (connection) => ({
                 sessions: () => forge.sessions(),
                 session: (session) => forge.session(session),

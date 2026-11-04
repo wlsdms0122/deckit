@@ -316,7 +316,7 @@ class Note {
                 }),
             },
         });
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
 
         // `ready()` is told once the note is reached.
         async function openNoteOf({ id }, { ready = () => {} } = {}) {

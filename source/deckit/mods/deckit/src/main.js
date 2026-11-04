@@ -148,7 +148,7 @@ class Deckit {
 
     attach(_shell, deckit) {
         const actions = switcher(this.actions);
-        deckit.dependencies.onConnect('switcher', (quickSwitcher) => quickSwitcher.setActions(actions));
+        deckit.dependencies.onConnect('switcher/actions', (quickSwitcher) => quickSwitcher.setActions(actions));
     }
 }
 
