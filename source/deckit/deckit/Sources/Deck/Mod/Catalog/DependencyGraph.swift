@@ -196,7 +196,9 @@ struct DependencyGraph {
         of manifest: Manifest,
         in mods: [Mod]
     ) -> String? {
-        guard let id = pick(of: interface, for: manifest) else { return "needs \(interface), which no mod implements" }
+        guard let id = pick(of: interface, for: manifest) else {
+            return "needs \(interface), and no implementation of it is on"
+        }
         guard let pick = places[id].map({ place in mods[place] }), pick.problem == nil else {
             return "needs \(interface), which \(id) implements and did not load"
         }

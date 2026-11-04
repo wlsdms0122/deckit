@@ -198,7 +198,7 @@ struct CatalogTests {
 
         // Then
         #expect(failed.map(\.manifest.id) == ["a", "x", "b"])
-        #expect(failed.map(\.problem) == [nil, "needs y/api, which no mod implements", nil])
+        #expect(failed.map(\.problem) == [nil, "needs y/api, and no implementation of it is on", nil])
         #expect(back.map(\.manifest.id) == ["a", "y", "x", "b"])
         #expect(back.allSatisfy { mod in mod.problem == nil })
     }

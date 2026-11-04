@@ -31,8 +31,8 @@ struct DependencyGraphTests {
         // Then
         #expect(problems(of: sut) == [
             "a": nil,
-            "d": "needs x/none, which no mod implements",
-            "e": "needs x/off, which no mod implements"
+            "d": "needs x/none, and no implementation of it is on",
+            "e": "needs x/off, and no implementation of it is on"
         ])
         #expect(relation("x/off", of: "e", in: sut)?.id == nil)
     }
