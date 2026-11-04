@@ -33,7 +33,7 @@ struct InterfaceLists {
         self.lists = named.sorted().map { interface in
             let members = loadable.filter { mod in mod.manifest.implements[interface] != nil }
             let preference = kept[interface] ?? .none
-            let order = preference.order + (host[interface] ?? []).filter { id in !preference.order.contains(id) }
+            let order = preference.placed(host: host[interface] ?? [])
             let placed = order.compactMap { id in members.first { mod in mod.manifest.id == id } }
             let unplaced = members
                 .filter { mod in !order.contains(mod.manifest.id) }

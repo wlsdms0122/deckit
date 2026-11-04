@@ -17,5 +17,11 @@ struct ImplementationPreference: Equatable, Sendable {
 
     // MARK: - Initializer
     // MARK: - Public
+    // The ids placed in the interface's list, in order: the person's, then those of `host`, the host app's, they did
+    // not place.
+    func placed(host: [String]) -> [String] {
+        order + host.filter { id in !order.contains(id) }
+    }
+
     // MARK: - Private
 }

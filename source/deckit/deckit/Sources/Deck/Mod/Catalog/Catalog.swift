@@ -94,8 +94,7 @@ public final class Catalog {
 
         let given = Set(order)
         let preference = kept[interface] ?? .none
-        let placed = preference.order
-            + (implementations[interface] ?? []).filter { id in !preference.order.contains(id) }
+        let placed = preference.placed(host: implementations[interface] ?? [])
         var next = order[...]
         var after = kept
         after[interface] = ImplementationPreference(
