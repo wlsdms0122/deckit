@@ -3,8 +3,12 @@
 // dispatch by the mod named and sends each change of a run as its event `run`. A change heard before its dispatch has
 // answered is kept until it has, for the last hundred runs heard so. Ended runs are answered by id until a hundred more
 // have ended, as the main process keeps them.
+// What a mod is handed as a run's `id`, and gives `run(id)`, is a handle: forge's workflow id behind a mark of this
+// run of Forge's own, so a handle never repeats across implementations and runs, and one of another is answered as not
+// there. The workflow id is handed too, as `workflow_id`, forge's own name for the run.
 function runs(forge) {
     const KEPT = 100;
+    const MARK = `forge-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}/`;
     const owners = new Map(); // workflow id -> the id of the mod that dispatched it
     const ended = []; // the workflow ids of the runs that ended, the oldest first
     const listeners = new Map(); // workflow id -> connection -> its onRun
@@ -21,22 +25,25 @@ function runs(forge) {
     async function dispatch(connection, session, name, inputs, onRun) {
         const accepted = await forge.call(session, 'workflow.dispatch', { name, inputs }, connection.mod.id);
         claim(connection, accepted.workflow_id, onRun);
-        return accepted;
+        return { id: MARK + accepted.workflow_id, ...accepted };
     }
 
     async function runSchedule(connection, session, id, onRun) {
         const accepted = await forge.runSchedule(session, id, connection.mod.id);
         claim(connection, accepted.workflow_id, onRun);
-        return accepted;
+        return { id: MARK + accepted.workflow_id, ...accepted };
     }
 
-    // Only a run the connection's mod dispatched, or null. `onRun` is told its changes from here.
-    async function run(connection, id, onRun) {
+    // Only a run the connection's mod dispatched, by the handle it was handed, or null. `onRun` is told its changes
+    // from here.
+    async function run(connection, handle, onRun) {
+        if (typeof handle !== 'string' || !handle.startsWith(MARK)) return null;
+        const id = handle.slice(MARK.length);
         if (owners.get(id) !== connection.mod.id) return null;
         if (onRun) listen(connection, id, onRun);
         const found = await forge.run(id);
         if (found?.status !== 'running') drop(connection, id);
-        return found;
+        return found && handed(found);
     }
 
     // The connection has ended: what it handed over goes.
@@ -76,7 +83,12 @@ function runs(forge) {
         const told = listeners.get(run.id);
         if (!told) return;
         if (run.status !== 'running') listeners.delete(run.id);
-        for (const onRun of told.values()) onRun(run).catch(() => {});
+        for (const onRun of told.values()) onRun(handed(run)).catch(() => {});
+    }
+
+    // A run as a mod is handed it: by its handle, with forge's workflow id.
+    function handed(run) {
+        return { ...run, id: MARK + run.id, workflow_id: run.id };
     }
 }
 
