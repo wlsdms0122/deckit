@@ -132,7 +132,9 @@ public final class ConnectionBroker {
 
             let exports = Endpoint(modId: id, run: otherRun.number, lifecycle: lifecycle)
             let standing = connections.contains { connection in
-                connection.interface == interface && connection.dependent == dependent && connection.dependency == exports
+                connection.interface == interface
+                    && connection.dependent == dependent
+                    && connection.dependency == exports
             }
             let refusedBefore = refused.contains { refusal in
                 refusal.interface == interface && refusal.ends == [dependent, exports]

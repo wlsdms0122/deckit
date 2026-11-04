@@ -94,7 +94,8 @@ public final class Catalog {
 
         let given = Set(order)
         let preference = kept[interface] ?? .none
-        let placed = preference.order + (implementations[interface] ?? []).filter { id in !preference.order.contains(id) }
+        let placed = preference.order
+            + (implementations[interface] ?? []).filter { id in !preference.order.contains(id) }
         var next = order[...]
         var after = kept
         after[interface] = ImplementationPreference(
@@ -128,7 +129,9 @@ public final class Catalog {
         let moved = ids
             .filter { id in seen.insert(id).inserted }
             .compactMap { id in mods.first { mod in mod.manifest.id == id } }
-        let places = mods.indices.filter { place in moved.contains { mod in mod.manifest.id == mods[place].manifest.id } }
+        let places = mods.indices.filter { place in
+            moved.contains { mod in mod.manifest.id == mods[place].manifest.id }
+        }
         var next = mods
         for (place, mod) in zip(places, moved) {
             next[place] = mod
@@ -193,9 +196,9 @@ public final class Catalog {
         return (DependencyGraph(found, picks: interfaces.picks).ordered(), interfaces.lists)
     }
 
-    // The load order kept with the mods `installed` that it did not place, each just before the first it places that comes
-    // after it now, and without those `removed`, which leave every interface's order too; every other place stays. A
-    // settings file that does not read as a JSON object keeps no order until it does, which arranging tells.
+    // The load order kept with the mods `installed` that it did not place, each just before the first it places that
+    // comes after it now, and without those `removed`, which leave every interface's order too; every other place
+    // stays. A settings file that does not read as a JSON object keeps no order until it does, which arranging tells.
     private func keepOrder(installed: [String] = [], removed: [String] = []) {
         try? implementationOrder.remove(removed)
         let before = loadOrder.read()

@@ -16,7 +16,9 @@ struct InterfaceLists {
     let lists: [InterfaceList]
     // Interface -> the id of the mod picked for it.
     var picks: [String: String] {
-        Dictionary(uniqueKeysWithValues: lists.compactMap { list in list.pick.map { pick in (list.interface, pick.id) } })
+        Dictionary(
+            uniqueKeysWithValues: lists.compactMap { list in list.pick.map { pick in (list.interface, pick.id) } }
+        )
     }
 
     // MARK: - Initializer

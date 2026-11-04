@@ -103,7 +103,8 @@ public final class Deck {
     }
 
     // What the runs come to once the catalog was read again: a connection to a mod no longer picked for its interface
-    // ends, and the mod picked now connects. A mod that requires an interface picked anew is the caller's to load again.
+    // ends, and the mod picked now connects. A mod that requires an interface picked anew is the caller's to load
+    // again.
     public func repick() -> [Effect] {
         withChanges([])
     }

@@ -21,7 +21,9 @@ struct DependencyGraph {
     // MARK: - Initializer
     init(_ found: [Mod], picks: [String: String]) {
         self.found = found
-        self.places = Dictionary(found.enumerated().map { place, mod in (mod.manifest.id, place) }) { first, _ in first }
+        self.places = Dictionary(found.enumerated().map { place, mod in (mod.manifest.id, place) }) { first, _ in
+            first
+        }
         self.picks = picks
     }
 
