@@ -83,7 +83,7 @@ public final class Catalog {
     // As the person's: the implementations in `order` take the places they held among themselves in the interface's
     // list, in the order given, and those in `off` are switched off. One missing from the list now keeps its place and
     // switch, so editing the list while it was gone keeps what the person set of it. Refused when the picks it comes to
-    // would put a mod that loads before one it requires, or make a cycle of mods that load now.
+    // make a cycle of mods that load now.
     public func order(_ interface: String, order: [String], off: [String]) throws {
         let found = ranked()
         let kept = implementationOrder.read()
@@ -103,18 +103,14 @@ public final class Catalog {
             off: preference.off.filter { id in !given.contains(id) } + off
         )
 
-        let now = DependencyGraph(found, picks: before.picks).ordered()
-        let loading = Set(now.filter { mod in mod.problem == nil }.map(\.manifest.id))
-        let unresolved = now.compactMap { mod in found.first { other in other.manifest.id == mod.manifest.id } }
-        let graph = DependencyGraph(
-            unresolved,
-            picks: InterfaceLists(found: found, kept: after, host: implementations).picks
+        let loading = Set(
+            DependencyGraph(found, picks: before.picks).resolved()
+                .filter { mod in mod.problem == nil }
+                .map(\.manifest.id)
         )
+        let graph = DependencyGraph(found, picks: InterfaceLists(found: found, kept: after, host: implementations).picks)
         if let loop = graph.cycles().first(where: { loop in loop.contains(where: loading.contains) }) {
             throw LoadOrderError.cycle(loop)
-        }
-        if let (mod, requirement) = graph.requiredLater() {
-            throw LoadOrderError.requiredLater(mod: mod, requirement: requirement)
         }
         try implementationOrder.write(after)
     }

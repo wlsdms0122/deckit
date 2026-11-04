@@ -411,8 +411,8 @@ struct CatalogTests {
         #expect(!FileManager.default.fileExists(atPath: home.appending(path: "deck.json").path(percentEncoded: false)))
     }
 
-    @Test("an order whose pick would load after a mod that requires it, as the mods come now, is refused")
-    func orderRefusesARequirementLater() throws {
+    @Test("a pick the load order places after a mod that requires it loads just before that mod")
+    func orderLoadsAPickBeforeItsDependent() throws {
         // Given
         try write("a", in: source, requires: ["x/api": "1.0.0"])
         try write("b", in: source, implements: ["x/api": "1.0.0"])
@@ -420,12 +420,13 @@ struct CatalogTests {
         let sut = try catalog(sources: [source])
 
         // When
-        let refused = Result { try sut.order("x/api", order: ["z"], off: []) }
-        _ = sut.read()
+        try sut.order("x/api", order: ["z"], off: [])
+        let mods = sut.read()
 
         // Then
-        #expect(throws: LoadOrderError.requiredLater(mod: "a", requirement: "z")) { try refused.get() }
-        #expect(sut.pick(of: "x/api") == "b")
+        #expect(sut.pick(of: "x/api") == "z")
+        #expect(mods.map(\.manifest.id) == ["z", "a", "b"])
+        #expect(mods.allSatisfy { mod in mod.problem == nil })
     }
 
     @Test("what the person set of a mod stays while it is off the list for a while, and goes once it is removed")
