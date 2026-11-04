@@ -49,6 +49,12 @@ struct RunnerFixture {
         try Data().write(to: location.appending(path: "main.js"))
     }
 
+    // `deck.json` as `text`.
+    func writeSettings(_ text: String) throws {
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        try Data(text.utf8).write(to: home.appending(path: "deck.json"))
+    }
+
     func remove(_ id: String) throws {
         try FileManager.default.removeItem(at: source.appending(path: id))
     }
