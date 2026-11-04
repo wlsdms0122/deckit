@@ -49,6 +49,8 @@ export function createApi({
                     return () => offs.forEach((off) => off?.());
                 },
                 arrange: CATALOG.arrange,
+                // The id of the mod picked for an interface, the first in its list that is on, or null.
+                pickOf: (named) => CATALOG.picks().get(named) ?? null,
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: factsOf(run), page }))),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),

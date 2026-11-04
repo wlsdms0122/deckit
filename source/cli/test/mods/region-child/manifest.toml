@@ -5,4 +5,4 @@ api = "1.0.0"
 main = "main.js"
 
 [dependencies]
-region-parent = { version = "1.0.0", optional = true }
+"region-parent/boards" = { version = "1.0.0", optional = true }

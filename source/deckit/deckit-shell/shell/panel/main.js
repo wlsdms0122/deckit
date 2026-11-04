@@ -385,9 +385,9 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         broadcast();
     }
 
-    // In the panel's list: a mod that is no child, or a child the person pinned.
+    // In the panel's list: a mod whose view names no parent, or a child the person pinned.
     function listed(id) {
-        return !REGION.parentOf(id) || pinned.has(id);
+        return !REGION.interfaceOf(id) || pinned.has(id);
     }
 
     // The mods' pages on screen while the panel is: the mod on screen, then the children its regions show.

@@ -7,11 +7,6 @@ function read(found) {
     return { ...found.manifest, ...found };
 }
 
-// Whether `mod` links the mod of `id`: names it in its [dependencies].
-function links(mod, id) {
-    return Object.hasOwn(mod.dependencies, id);
-}
-
 // MARK: - Private
 
-export { read, links };
+export { read };

@@ -1,4 +1,4 @@
-// A parent that shows its first child in a region inside its sidebar.
+// A parent that shows its first board in a region inside its sidebar.
 class RegionParent {
     attach(shell) {
         const content = document.createElement('div');
@@ -8,9 +8,9 @@ class RegionParent {
         slot.style.height = '120px';
         sidebar.append(slot);
         shell.view.register({ content, sidebar });
-        const region = shell.region(slot);
+        const region = shell.region(slot, 'region-parent/boards');
         const placeFirst = () => {
-            const [first] = shell.children.list();
+            const [first] = shell.children.list('region-parent/boards');
             if (first) region.place(first.id);
         };
         shell.children.onChange(placeFirst);

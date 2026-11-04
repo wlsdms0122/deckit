@@ -1,32 +1,37 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
-import * as MOD from '../../deck/catalog/model/mod.js';
 
-// `deliver(label, listener, ...args)` calls a listener of the mod's and records on its row what it throws; `channels`
-// binds the regions' channels in the page.
-export function createRegion({ deliver, channels }) {
+// `running` is the mod the page runs; `deliver(label, listener, ...args)` calls a listener of the mod's and records on
+// its row what it throws; `channels` binds the regions' channels in the page.
+export function createRegion({ running, deliver, channels }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(channels, DECLARED);
     const listeners = new Set();
-    let known = null; // [{ id, name, icon }]: asked for once, then told
+    let known = null; // interface -> [{ id, name, icon }]: asked for once, then told
     let count = 0;
 
     // MARK: - Initializer
     // MARK: - Public
-    // What a handle holds of regions, what it makes ending as `scope` is cut. `region(element)` makes a place in the
-    // mod's view where the shell shows a child's. The child runs in its own page, laid over what of `element` is seen
-    // as it moves, so what the parent draws there is covered and nothing of the parent's floats over it. `place(id)`
-    // puts a child in this region, out of any other it was in, and `clear()` leaves the region empty. The region ends
-    // when its element, once in the page, leaves it. `children` are the mod's children: the mods whose view names it
-    // as their parent. `list()` answers them in the person's order, and `onChange(listener)` hears them each time they
-    // change, answering its off.
+    // What a handle holds of regions, what it makes ending as `scope` is cut. `region(element, interface)` makes a
+    // place in the mod's view where the shell shows the views of that interface's children, for an interface the
+    // manifest implements. A child runs in its own page, laid over what of `element` is seen as it moves, so what the
+    // parent draws there is covered and nothing of the parent's floats over it. `place(id)` puts a child in this
+    // region, out of any other it was in, and `clear()` leaves the region empty. The region ends when its element, once
+    // in the page, leaves it. `children` are the mod's children: the mods whose view names an interface it implements
+    // as their parent, while it is the implementation picked for it. `list(interface)` answers those of one interface
+    // in the load order, and `onChange(listener)` hears `listener(interface, children)` each time an interface's
+    // children change, answering its off.
     function forScope(scope) {
         return {
-            region(element) {
-                return make(element, scope);
+            region(element, named) {
+                return make(element, named, scope);
             },
             children: Object.freeze({
-                list: () => childrenNow().slice(),
+                list: (named) => {
+                    const problem = interfaceProblem(named);
+                    if (problem) throw new Error(`children.list() ${problem}`);
+                    return (childrenNow()[named] || []).slice();
+                },
                 onChange(listener) {
                     if (typeof listener !== 'function') throw new Error('onChange() takes a listener function');
                     childrenNow();
@@ -39,8 +44,10 @@ export function createRegion({ deliver, channels }) {
 
     // MARK: - Private
     // A region ends once its element, after it was in the page, leaves it, or as `scope` is cut.
-    function make(element, scope) {
+    function make(element, named, scope) {
         if (element?.nodeType !== Node.ELEMENT_NODE) throw new Error('shell.region() takes an element');
+        const problem = interfaceProblem(named);
+        if (problem) throw new Error(`shell.region() ${problem}`);
         const region = ++count;
         let sent = '';
         let entered = false; // a region made in attach() has its element in the page only once the view is up
@@ -57,27 +64,41 @@ export function createRegion({ deliver, channels }) {
             const written = JSON.stringify([x, y, width, height]);
             if (written !== sent) {
                 sent = written;
-                PROTOCOL.rect.send({ region, x, y, width, height });
+                PROTOCOL.rect.send({ region, interface: named, x, y, width, height });
             }
             requestAnimationFrame(follow);
         };
         follow();
         return Object.freeze({
-            place: (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, id: String(id) })),
-            clear: () => (ended ? refused() : PROTOCOL.place.invoke({ region, id: null })),
+            place: (id) => (ended ? refused() : PROTOCOL.place.invoke({ region, interface: named, id: String(id) })),
+            clear: () => (ended ? refused() : PROTOCOL.place.invoke({ region, interface: named, id: null })),
         });
+    }
+
+    // Why `named` is not an interface the mod gives regions for, or ''.
+    function interfaceProblem(named) {
+        if (typeof named !== 'string') return 'takes an interface the manifest implements';
+        if (!Object.hasOwn(running.implements ?? {}, named))
+            return `takes an interface the manifest implements, and ${named} is not one`;
+        return '';
     }
 
     function refused() {
         return Promise.reject(new Error('the region has ended: its element left the page'));
     }
 
+    // Each listener hears the interfaces whose children changed, one by one.
     function childrenNow() {
         if (known === null) {
             known = PROTOCOL.children.invoke();
             PROTOCOL.childrenChanged.on(({ children: next }) => {
+                const was = known;
                 known = next;
-                for (const listener of [...listeners]) deliver('children.onChange()', listener, known.slice());
+                for (const named of new Set([...Object.keys(was), ...Object.keys(next)])) {
+                    if (JSON.stringify(was[named] || []) === JSON.stringify(next[named] || [])) continue;
+                    for (const listener of [...listeners])
+                        deliver('children.onChange()', listener, named, (next[named] || []).slice());
+                }
             });
         }
         return known;
@@ -105,10 +126,11 @@ function seenRect(element) {
     return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
 
-// Why a view's parent is not one a mod may name, or '': a mod it links, in its [dependencies].
+// Why a view's parent is not one a mod may name, or '': an interface in its [dependencies].
 export function parentProblem(parent, mod) {
     if (parent === undefined || parent === null) return '';
-    if (typeof parent !== 'string') return "takes a parent that is a mod's id";
-    if (!MOD.links(mod, parent)) return `names the parent ${parent}, which is not in [dependencies]`;
+    if (typeof parent !== 'string') return 'takes a parent that is an interface';
+    if (!Object.hasOwn(mod.dependencies ?? {}, parent))
+        return `names the parent ${parent}, which is not in [dependencies]`;
     return '';
 }

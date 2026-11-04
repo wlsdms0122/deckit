@@ -17,7 +17,7 @@ import { createWindow } from '../window/renderer.js';
 // MARK: - Public
 // The shell as a layer on deckit in a mod's page (deckit-shell/deck/runner/renderer.js), stacked with what deckit
 // offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), and the handle `shell`:
-// the theme, the kit, `show()`, `iconOf(mod)`, `formOf(mod)`, `region(element)`, `children`,
+// the theme, the kit, `show()`, `iconOf(mod)`, `formOf(mod)`, `region(element, interface)`, `children`,
 // `dropDestination(element, options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the panel's pins on `mods`,
 // and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme,
 // the kit and the styles from just before attach().
@@ -30,7 +30,7 @@ function shellOf({ WEB, channels }) {
         const has = (permission) => running.permissions.some(({ id }) => id === permission);
         const WINDOW = createWindow({ running, fail, deliver, channels });
         const PANEL = createPanel({ channels });
-        const REGION = createRegion({ deliver, channels });
+        const REGION = createRegion({ running, deliver, channels });
         const DROP = createDrop({ deliver, channels });
         // What it tells of the run: nothing until its lifecycle has joined, nothing on screen once it has ended.
         const ENDED = Object.freeze({
