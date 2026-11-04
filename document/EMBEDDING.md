@@ -38,6 +38,7 @@ if (environment) DeckitShellRenderer.start(environment);
 | `id` | what everything deckit keeps is named from: its folder, its sessions and its state | `deckit` |
 | `name` | what a person reads | `Deckit` |
 | `schemeHandlers` | by scheme, the mods the host app places in that scheme's handler list, in order, until the person orders them (MOD.md, `urls`) | none |
+| `implementations` | by interface, the mods the host app places in that interface's list, in order, until the person orders them (MOD.md, Interfaces) | each interface its own mods define, placed to the mod that defines it |
 
 `folders`, deck's:
 
