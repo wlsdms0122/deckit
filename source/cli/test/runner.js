@@ -1,7 +1,8 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: a run's page
 // made, known as the mod's and set up before it loads, what the core is told as the page fails, crashes or is
 // replaced, a run's end asked of its page, a mod loaded once what it requires has launched, one restarted with the
-// mods that require it, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each
+// mods that require it, one that requires an interface picked anew loaded again once the core has said what the pick
+// comes to, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each
 // check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -49,8 +50,10 @@ async function main() {
     IPC.carry({ messages, pages }, { report: () => {} });
     const app = { onQuit: (given) => (hold = given), quit: () => done.push(['quit']) };
     const IDENTITY = { add: (page) => done.push(['add', page.modId]), modFrom: () => ({ id: 'a' }) };
-    let catalog = [{ id: 'a', dependencies: {}, revision: '1', dependents: [] }];
-    const CATALOG = { onChange: () => {}, mods: () => catalog };
+    let catalog = [{ id: 'a', relations: [], revision: '1', dependents: [] }];
+    let picks = new Map([['a/x', 'a']]);
+    let changed = null;
+    const CATALOG = { onChange: (listener) => (changed = listener), mods: () => catalog, picks: () => picks };
     const LOG = { warn: () => {}, error: () => {} };
     // The core answers each request with what the test queued for its method, a list of effects or a function that
     // answers, and nothing otherwise.
@@ -64,7 +67,7 @@ async function main() {
         },
     };
     const methods = (method) => asked.filter((request) => request.method === method);
-    const found = (id) => ({ id, manifest: { id, name: id.toUpperCase() } });
+    const found = (id) => ({ id, revision: '1', manifest: { id, name: id.toUpperCase() } });
     const told = (notification, state, mod = 'a') => ({ effect: 'tell', mod, run: 1, notification, state });
     answers.set('runner/load', [
         [{ effect: 'open', found: found('a') }, told('willLaunch', 'launching'), { effect: 'loadPage', mod: 'a' }],
@@ -146,7 +149,12 @@ async function main() {
     // A mod loads once what it requires has launched.
     catalog = [
         ...catalog,
-        { id: 'b', dependencies: { a: { version: '1.0.0', optional: false } }, revision: '1', dependents: [] },
+        {
+            id: 'b',
+            relations: [{ interface: 'a/x', optional: false, version: '1.0.0', id: 'a' }],
+            revision: '1',
+            dependents: [],
+        },
     ];
     answers.set('runner/load', [
         [{ effect: 'open', found: found('b') }, told('willLaunch', 'launching', 'b'), { effect: 'loadPage', mod: 'b' }],
@@ -192,6 +200,37 @@ async function main() {
     check('a run that launches while a reload is bringing its mod back says so too', markedAgain === true, markedAgain);
     check('a reload ended says so no more', RUNNER.runOf('a').relaunches === false, RUNNER.runOf('a').relaunches);
 
+    // Another mod picked for an interface: the core says first what that comes to, and a mod that requires the
+    // interface goes and loads again, once the mod picked now has launched.
+    catalog = [
+        ...catalog.map((mod) =>
+            mod.id === 'b' ? { ...mod, relations: [{ ...mod.relations[0], id: 'c' }] } : { ...mod, dependents: [] }
+        ),
+        { id: 'c', relations: [], revision: '1', dependents: ['b'] },
+    ];
+    picks = new Map([['a/x', 'c']]);
+    const before = asked.length;
+    answers.set('runner/unload', [[told('didTerminate', 'notRunning', 'b')]]);
+    answers.set('runner/load', [
+        [{ effect: 'open', found: found('c') }, told('willLaunch', 'launching', 'c'), { effect: 'loadPage', mod: 'c' }],
+        [told('willLaunch', 'launching', 'b'), told('didLaunch', 'running', 'b')],
+    ]);
+    changed();
+    for (let at = 0; at < 6; at++) await tick();
+    answers.set('runner/started', [[told('didLaunch', 'running', 'c')]]);
+    await RUNNER.ask('runner/started', { mod: 'c', run: 1 });
+    await RUNNER.whenReconciled();
+    const repicking = asked
+        .slice(before)
+        .filter(({ method }) => method !== 'runner/started')
+        .map(({ method, params }) => `${method}${params.mods ? ' ' + params.mods.join() : ''}`);
+    check(
+        'a pick change asks the core first, then loads again what requires the interface, after the mod picked now',
+        repicking.join(' | ') === 'runner/repick | runner/unload b | runner/load c | runner/load b',
+        repicking
+    );
+    check('a mod picked anew runs the mod that requires it again', RUNNER.runOf('b')?.state === 'running', null);
+
     answers.set('runner/crash', [[{ effect: 'close', mod: 'a' }]]);
     watching.get(page).gone('killed');
     await tick();
@@ -212,7 +251,7 @@ async function main() {
     ]);
     check('the quit is held while a run has not ended', hold() === true, RUNNER.runs());
     const quit = methods('runner/unload').at(-1)?.params;
-    check('the core is asked to stop the runs as the app quits', quit?.mods.join() === 'b', quit);
+    check('the core is asked to stop the runs as the app quits', quit?.mods.join() === 'b,c', quit);
     check('a quit asked again meanwhile waits too', hold() === true, null);
     end();
     await tick();

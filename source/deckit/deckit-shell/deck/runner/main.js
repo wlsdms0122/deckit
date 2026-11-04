@@ -26,6 +26,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     const waiting = new Set(); // { done, resolve, reject }: what resolves once what the core told makes done() true
     let asked = Promise.resolve(); // settled once the core has answered all that was asked of it, and it was done
     let reconciled = Promise.resolve(); // settled once what the catalog's last change comes to has loaded
+    let picks = new Map(); // interface -> the id of the mod picked for it, as the catalog last reconciled had it
     let preparePage = null;
     let quitHold = null; // 'held' while the runs terminate as the app quits, 'free' once nothing holds it
 
@@ -108,15 +109,16 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         effectHandlers.set(name, handler);
     }
 
-    // The mods named load, in the load order, each once its own run that terminates has ended and what it requires
-    // has launched or failed to: a mod loaded while one it requires does not run fails as it launches. One launching
-    // or running is left as it is, and none loads while the app quits. Resolves once each has launched, or failed to.
+    // The mods named load, in the load order, each once its own run that terminates has ended and what it requires,
+    // the mods picked for the interfaces it requires, has launched or failed to: a mod loaded while one it requires
+    // does not run fails as it launches. One launching or running is left as it is, and none loads while the app quits.
+    // Resolves once each has launched, or failed to.
     async function load(ids) {
         let left = CATALOG.mods()
             .filter((mod) => ids.includes(mod.id))
             .map((mod) => ({
                 id: mod.id,
-                requires: Object.keys(mod.dependencies).filter((id) => !mod.dependencies[id].optional),
+                requires: mod.relations.filter(({ optional, id }) => !optional && id).map(({ id }) => id),
             }));
         const ready = ({ id, requires }) =>
             runOf(id)?.state !== 'terminating' &&
@@ -153,18 +155,35 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
 
     // MARK: - Private
     // A mod opens as it arrives and goes as it leaves. One whose code changed goes and opens again, and the mods that
-    // require it load again with it. Each change of the catalog comes to this on its own: one that waits on a mod still
-    // launching holds up no other.
+    // require it load again with it. The core is asked first what the picks come to: a connection to a mod no longer
+    // picked for its interface ends, and an optional one to the mod picked now stands. A mod that requires an interface
+    // picked anew goes and loads again, with the mods that require it. Each change of the catalog comes to this on its
+    // own: one that waits on a mod still launching holds up no other.
     function reconcile() {
         const current = new Map(CATALOG.mods().map((mod) => [mod.id, mod]));
+        const now = CATALOG.picks();
+        const repicked = new Set(
+            [...now.keys(), ...picks.keys()].filter((named) => now.get(named) !== picks.get(named))
+        );
+        picks = now;
         const stale = [...sandboxes.values()]
             .filter(({ mod }) => current.get(mod.id)?.revision !== mod.revision)
             .map(({ mod }) => mod.id);
         const updated = stale.filter((id) => current.has(id));
+        const requiring = [...current.values()]
+            .filter(({ id, relations }) => sandboxes.has(id) && !updated.includes(id) && requires(relations, repicked))
+            .map(({ id }) => id);
         const opening = [...current.keys()].filter((id) => !sandboxes.has(id));
-        const again = withDependents(updated, current);
-        reconciled = unload(stale.filter((id) => !current.has(id))).then(() => reload(updated, [...opening, ...again]));
+        const again = withDependents([...updated, ...requiring], current);
+        reconciled = ask('runner/repick', {})
+            .then(() => unload(stale.filter((id) => !current.has(id))))
+            .then(() => reload([...updated, ...requiring], [...opening, ...again]));
         reconciled.catch((error) => LOG.error('the mods were not loaded', error));
+    }
+
+    // Whether `relations` require one of the interfaces named.
+    function requires(relations, named) {
+        return relations.some((relation) => !relation.optional && named.has(relation.interface));
     }
 
     // The mods named unload, and then those in `loading` load, the runs of those that have one saying meanwhile that
