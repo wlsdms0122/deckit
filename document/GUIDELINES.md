@@ -14,7 +14,7 @@ A person meets a mod through its view, its actions in the switcher, its keys, it
 | Something it does | a key (`deckit.keys.register`) and a switcher action; also a button in the title bar or in a section's header when it is done while looking at the view |
 | Something other mods, the host app or an automation runs by name, its args saying it in full | a command (`deckit.commands.register`). What only means something where the person is (Save, Next Tab) stays a key |
 | Something due now | the switcher's `now`, and a notification when the person may be elsewhere |
-| A choice set once that holds from then on | a setting (`static configuration`). One switched while working is a control in the view |
+| A choice set once that holds from then on | a setting (`configuration` in its contributes). One switched while working is a control in the view |
 | A view shown inside another mod's | a region of that mod (`parent`, MOD.md, `shell.region`) |
 
 ## Checklist
@@ -98,7 +98,7 @@ What a mod hands the switcher (the Switcher's `setActions`, MOD.md) is what it d
 
 ## Settings
 
-A mod's settings (`static configuration` in its class) are shown in Settings under the mod, drawn as its `static form` says.
+A mod's settings (`configuration` in its contributes) are shown in Settings under the mod, drawn as its `form` says.
 
 - **`title`:** what the setting holds, in sentence case (Search engine, Forge command).
 - **`description`:** one or two sentences, each with a full stop, saying what the setting changes and what an empty or default value does ("Empty: the forge on your login shell's PATH.", "Default follows the General section.").
