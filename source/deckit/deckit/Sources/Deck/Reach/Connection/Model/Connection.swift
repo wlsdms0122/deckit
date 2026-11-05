@@ -13,8 +13,8 @@ import Foundation
 public struct Connection: Equatable, Sendable {
     // MARK: - Property
     public let id: Int
-    // The interface the dependent names, whose exports it reaches.
-    public let interface: String
+    // The name the dependent reaches the exports by.
+    public let name: String
     // The lifecycle that depends on the interface.
     public let dependent: Endpoint
     // The lifecycle that opened the exports it reaches.

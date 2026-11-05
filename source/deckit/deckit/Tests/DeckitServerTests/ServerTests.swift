@@ -347,7 +347,7 @@ struct ServerTests {
         #expect(
             value(in: connected, at: "result")
                 == (try json(
-                    #"[{"id":1,"interface":"dep/api","dependent":{"mod":"a","run":1,"lifecycle":0},"#
+                    #"[{"id":1,"name":"dep/api","dependent":{"mod":"a","run":1,"lifecycle":0},"#
                         + #""dependency":{"mod":"dep","run":1,"lifecycle":0},"required":true}]"#
                 ))
         )

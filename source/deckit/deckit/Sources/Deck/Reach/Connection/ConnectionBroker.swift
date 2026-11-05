@@ -19,8 +19,8 @@ public final class ConnectionBroker {
     // Mod id -> its run whose lifecycles are up, and those lifecycles.
     private var up: [String: (run: Int, lifecycles: Set<Int>)] = [:]
     private var connections: [Connection] = []
-    // The connections a dependency's page refused, by interface and ends, never asked again while both are up.
-    private var refused: [(interface: String, ends: [Endpoint])] = []
+    // The connections a dependency's page refused, by name and ends, never asked again while both are up.
+    private var refused: [(name: String, ends: [Endpoint])] = []
     private var lastId = 0
 
     // MARK: - Initializer
@@ -50,7 +50,7 @@ public final class ConnectionBroker {
     public func refuse(_ id: Int) {
         guard let connection = connections.first(where: { connection in connection.id == id }) else { return }
         connections.removeAll { other in other.id == id }
-        refused.append((connection.interface, [connection.dependent, connection.dependency]))
+        refused.append((connection.name, [connection.dependent, connection.dependency]))
     }
 
     // The other end of the connection, for a message from the `number`th run of `id` on it.
@@ -74,11 +74,11 @@ public final class ConnectionBroker {
         let ended = connections.filter { connection in
             !isUp(connection.dependent)
                 || !isUp(connection.dependency)
-                || runner.pick(of: connection.interface) != connection.dependency.modId
+                || runner.pick(of: connection.name) != connection.dependency.modId
         }
         connections.removeAll { connection in ended.contains(connection) }
         refused = refused.filter { refusal in
-            refusal.ends.allSatisfy(isUp) && runner.pick(of: refusal.interface) == refusal.ends[1].modId
+            refusal.ends.allSatisfy(isUp) && runner.pick(of: refusal.name) == refusal.ends[1].modId
         }
         var effects = ended.map(Effect.disconnect)
         for (id, up) in up.sorted(by: { one, other in one.key < other.key }) {
@@ -132,19 +132,19 @@ public final class ConnectionBroker {
 
             let exports = Endpoint(modId: id, run: otherRun.number, lifecycle: lifecycle)
             let standing = connections.contains { connection in
-                connection.interface == interface
+                connection.name == interface
                     && connection.dependent == dependent
                     && connection.dependency == exports
             }
             let refusedBefore = refused.contains { refusal in
-                refusal.interface == interface && refusal.ends == [dependent, exports]
+                refusal.name == interface && refusal.ends == [dependent, exports]
             }
             guard isUp(exports), !standing, !refusedBefore else { continue }
 
             lastId += 1
             let connection = Connection(
                 id: lastId,
-                interface: interface,
+                name: interface,
                 dependent: dependent,
                 dependency: exports,
                 required: !dependency.optional
