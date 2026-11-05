@@ -150,6 +150,9 @@ extension ResponseError {
             case .arguments:
                 "ARGUMENTS"
 
+            case .noSuchToken:
+                "TOKEN"
+
             case .notAName, .declaration, .schema, .defined:
                 "REFUSED"
             }

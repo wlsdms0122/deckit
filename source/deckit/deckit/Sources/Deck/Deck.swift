@@ -91,14 +91,19 @@ public final class Deck {
     }
 
     // `layer` is asked of each run as it starts, and of what has changed once the runs have moved, and told of each
-    // sandbox that closed.
+    // sandbox that closed and of the mods each time they are read.
     package func add(_ layer: Layer) {
         layers.append(layer)
     }
 
     // The mods read again, as the catalog reads them now.
     public func readCatalog() -> [Mod] {
-        catalog.read()
+        let mods = catalog.read()
+        for layer in layers {
+            layer.read(mods)
+        }
+
+        return mods
     }
 
     // What the runs come to once the catalog was read again: a connection to an interface's owner ends as it has

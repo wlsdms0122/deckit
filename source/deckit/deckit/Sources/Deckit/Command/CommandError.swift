@@ -15,6 +15,7 @@ public enum CommandError: Refusal, Equatable {
     case defined(String)
     case noSuchCommand(String)
     case arguments(command: String, why: String)
+    case noSuchToken
 
     // MARK: - Property
     public var message: String {
@@ -36,6 +37,9 @@ public enum CommandError: Refusal, Equatable {
 
         case let .arguments(command, why):
             "\(command) cannot run: \(why)"
+
+        case .noSuchToken:
+            "no such token: it has ended, or deckit never made it"
         }
     }
 

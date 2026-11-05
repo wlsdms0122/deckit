@@ -290,6 +290,22 @@ final class Server {
             let params = try request.decodeParams(as: CheckCommandParams.self)
             return try deckit.commands.check(params.command, of: params.provider, args: params.args)
 
+        case "command/mint":
+            let params = try request.decodeParams(as: MintTokenParams.self)
+            return try deckit.commands.mint(params.command, of: params.mod, args: params.args).id
+
+        case "command/check-token":
+            return try deckit.commands.check(token: request.decodeParams(as: TokenParams.self).token)
+
+        case "command/cancel":
+            let params = try request.decodeParams(as: CancelTokenParams.self)
+            try deckit.commands.cancel(token: params.token, of: params.mod)
+            return true
+
+        case "command/release":
+            try deckit.commands.release(token: request.decodeParams(as: TokenParams.self).token)
+            return true
+
         case "provider":
             return deckit.provider(of: try request.decodeParams(as: ProviderParams.self).id)
 

@@ -42,7 +42,10 @@ public final class Deckit {
         let keymap = Keymap(deck: deck)
         let urlRouter = URLRouter(deck: deck, field: urls, schemeHandlers: schemeHandlers)
         // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
-        deck.add(Layer(problems: { [weak commands] run, mod in commands?.problems(of: run, mod: mod) ?? [] }))
+        deck.add(Layer(
+            problems: { [weak commands] run, mod in commands?.problems(of: run, mod: mod) ?? [] },
+            read: { [weak commands] mods in commands?.read(mods) }
+        ))
         deck.add(Layer(
             problems: { [weak keymap] run, mod in keymap?.problems(of: run, mod: mod) ?? [] },
             changes: { [weak keymap] in keymap?.changes() ?? [] }

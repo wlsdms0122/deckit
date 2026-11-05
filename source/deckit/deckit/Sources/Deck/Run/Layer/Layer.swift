@@ -17,16 +17,20 @@ package struct Layer {
     let changes: () -> [any LayerChange]
     // The mod's sandbox closed, by its id: what the layer kept of its runs ends with it.
     let closed: (String) -> Void
+    // The mods read again, every one found: what the layer kept of a mod not found ends with it.
+    let read: ([Mod]) -> Void
 
     // MARK: - Initializer
     package init(
         problems: @escaping (Run, Mod) -> [String] = { _, _ in [] },
         changes: @escaping () -> [any LayerChange] = { [] },
-        closed: @escaping (String) -> Void = { _ in }
+        closed: @escaping (String) -> Void = { _ in },
+        read: @escaping ([Mod]) -> Void = { _ in }
     ) {
         self.problems = problems
         self.changes = changes
         self.closed = closed
+        self.read = read
     }
 
     // MARK: - Public

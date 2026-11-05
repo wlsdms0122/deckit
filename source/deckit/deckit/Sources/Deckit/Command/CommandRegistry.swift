@@ -10,17 +10,25 @@ import Deck
 
 // The commands there are: those each mod declares under `commands` in its contributes, running or not, those its run
 // registers beside them while it runs, and those a host declares under a name of its own. A command is found by its
-// provider and its name, never by a joined id.
+// provider and its name, never by a joined id. A mod's command is also run by a token of it the mod asked for, which
+// lasts until its sender cancels it, a holder releases it, or its sender or the holder deckit knows is not found.
 public final class CommandRegistry {
     // MARK: - Property
     private let contributionKey = "commands"
+    private let tokensKey = "command-tokens"
     private let deck: Deck
     // In the order they were declared.
     private var hostCommands: [RegisteredCommand] = []
+    // In the order they were minted.
+    private var tokens: [CommandToken]
 
     // MARK: - Initializer
     init(deck: Deck) {
         self.deck = deck
+        deck.state.reserve(tokensKey)
+        let saved = try? deck.state.read(folder: nil, key: tokensKey)
+        self.tokens = saved.flatMap { text in try? JSONDecoder().decode([CommandToken].self, from: Data(text.utf8)) }
+            ?? []
     }
 
     // MARK: - Lifecycle
@@ -42,6 +50,17 @@ public final class CommandRegistry {
 
         return contributed.compactMap { name, value in problem { try Command(name: name, declared: value) } }
             + registered.compactMap { value in problem { try Command(declared: value) } }
+    }
+
+    // The mods read again: a token ends once its sender, or the holder deckit handed it to, is not found.
+    func read(_ mods: [Mod]) {
+        let found = Set(mods.map(\.manifest.id))
+        let kept = tokens.filter { token in
+            found.contains(token.sender) && token.holder.map(found.contains) ?? true
+        }
+        guard kept != tokens else { return }
+
+        try? save(kept)
     }
 
     // MARK: - Public
@@ -105,7 +124,54 @@ public final class CommandRegistry {
         return registered
     }
 
+    // A token of `sender`'s command `name`, which `args` fit now, for `holder` when deckit hands it over itself: one
+    // deckit handed `holder` before of the same command and args is handed again.
+    public func mint(
+        _ name: String,
+        of sender: String,
+        args: JSONValue?,
+        holder: String? = nil
+    ) throws -> CommandToken {
+        _ = try check(name, of: sender, args: args)
+        if let holder, let minted = tokens.first(where: { token in
+            token.holder == holder && token.sender == sender && token.command == name && token.args == args
+        }) {
+            return minted
+        }
+
+        let token = CommandToken(id: UUID().uuidString, sender: sender, command: name, args: args, holder: holder)
+        try save(tokens + [token])
+
+        return token
+    }
+
+    // The token of `id`, its command there and its args fitting it, refused with why: what runs it asks this first.
+    public func check(token id: String) throws -> CommandToken {
+        guard let token = tokens.first(where: { token in token.id == id }) else { throw CommandError.noSuchToken }
+        _ = try check(token.command, of: token.sender, args: token.args)
+
+        return token
+    }
+
+    // The token of `id` ends, when `sender` is its sender.
+    public func cancel(token id: String, of sender: String) throws {
+        guard tokens.contains(where: { token in token.id == id && token.sender == sender }) else { return }
+        try save(tokens.filter { token in token.id != id })
+    }
+
+    // The token of `id` ends, whoever holds it.
+    public func release(token id: String) throws {
+        guard tokens.contains(where: { token in token.id == id }) else { return }
+        try save(tokens.filter { token in token.id != id })
+    }
+
     // MARK: - Private
+    private func save(_ next: [CommandToken]) throws {
+        let text = String(decoding: try JSONEncoder().encode(next), as: UTF8.self)
+        try deck.state.write(reserved: tokensKey, text: text)
+        tokens = next
+    }
+
     // The commands the mod declares that can be used, by name.
     private func declared(of mod: Mod) -> [Command] {
         guard case let .object(entries) = mod.contributes[contributionKey] else { return [] }
