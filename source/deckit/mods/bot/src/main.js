@@ -62,7 +62,7 @@ class Bot {
     async attach(shell, deckit) {
         const { ui } = shell;
         const store = deckit.storage.values;
-        const forge = deckit.dependencies['forge/workflows'];
+        const forge = deckit.dependencies.forge;
         const bot = await deckit.mainProcess('main-process/bot/bot.js');
         const places = () => Object.fromEntries(PLACES.map((key) => [key, deckit.configuration.get(key)]));
         await bot.use(places());

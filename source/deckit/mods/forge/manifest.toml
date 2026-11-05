@@ -4,8 +4,5 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 
-[implements]
-"forge/workflows" = "1.0.0"
-
 [permissions]
 "system.main-process" = "Starts and stops the forge daemons and runs forge's operations on them, by running the forge command."

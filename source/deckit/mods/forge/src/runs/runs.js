@@ -4,8 +4,7 @@
 // answered is kept until it has, for the last hundred runs heard so. Ended runs are answered by id until a hundred more
 // have ended, as the main process keeps them.
 // What a mod is handed as a run's `id`, and gives `run(id)`, is a handle: forge's workflow id behind a mark of this
-// run of Forge's own, so a handle never repeats across implementations and runs, and one of another is answered as not
-// there. The workflow id is handed too, as `workflow_id`, forge's own name for the run.
+// run of Forge's own, so a handle never repeats across its runs, and one of another is answered as not there. The workflow id is handed too, as `workflow_id`, forge's own name for the run.
 function runs(forge) {
     const KEPT = 100;
     const MARK = `forge-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}/`;

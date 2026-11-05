@@ -13,5 +13,5 @@ urls = ["http:*", "https:*"]
 "system.file-handlers" = "Opens a file you downloaded in the app that handles it, and shows it in Finder."
 "system.clipboard-write" = "Copy Link in a tab's or a bookmark's menu puts its address on the clipboard."
 
-[dependencies]
-"switcher/actions" = { version = "1.0.0", optional = true }
+[interfaces]
+uses = { "switcher/actions" = 1 }
