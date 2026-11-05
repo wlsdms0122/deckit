@@ -24,9 +24,17 @@ function read(action) {
     };
 }
 
+// An entry a mod declares to `switcher/actions` in its contributes, `{ mod, entry, token }` as the switcher is handed
+// it, read as `read` reads an action, or null: choosing it runs `token`, the command the entry names, and one that
+// names none is read only. A declared action has no `value` and opens nothing.
+function readDeclared({ entry, token }) {
+    const action = read({ ...entry, value: null, opens: false });
+    return action && { ...action, token: typeof token === 'string' ? token : '' };
+}
+
 // MARK: - Private
 function text(value) {
     return typeof value === 'string' ? value : '';
 }
 
-module.exports = { read };
+module.exports = { read, readDeclared };

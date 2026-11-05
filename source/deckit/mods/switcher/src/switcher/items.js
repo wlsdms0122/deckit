@@ -6,9 +6,9 @@ const SHOW = Object.freeze({ provider: '@shell', command: 'show' });
 // MARK: - Initializer
 // MARK: - Public
 // What the list holds, before it is made runnable: `{ id, label, hint, icon, group, section, keywords, tone,
-// attention, fallback, mod, value, opens, shows }`, `section` the one it is in, `{ id, name, icon }`. An item
-// gives `value` to the `run` of `mod`, the mod whose action it is, or with `opens` searches inside it; a Show item
-// `shows` a mod; one with neither is read only.
+// attention, fallback, mod, value, opens, token, shows }`, `section` the one it is in, `{ id, name, icon }`. An item
+// gives `value` to the `run` of `mod`, the mod whose action it is, or with `opens` searches inside it; one `mod`
+// declared runs its `token`; a Show item `shows` a mod; one with none of these is read only.
 
 // A Show item for each mod the shell can show, and each mod's listed actions, section by section: the mods in the
 // order the shell shows them, then the others. `actions` is `[mod id, actions]` as `action.js` reads them, `shown` the
@@ -40,7 +40,7 @@ function itemOf(kind, mod, action, about) {
     return {
         ...blank(section),
         ...action,
-        id: idOf(kind, mod, action.label, action.value),
+        id: idOf(kind, mod, action.label, action.value, action.token ?? ''),
         icon: action.icon || section.icon,
         keywords: action.keywords.join(' '),
         mod,
@@ -67,6 +67,7 @@ function blank(section) {
         mod: '',
         value: null,
         opens: false,
+        token: '',
         shows: '',
     };
 }

@@ -2,10 +2,10 @@
 // Checks the channels between main and a page, the stage pages are laid on, what an environment gives and connect
 // answers, deck's client of the core, its runner, the exports a page opens by interface, the scope a lifecycle cuts
 // and the events a page hears, deckit as a layer on deck, the key map, command tokens, the web pages a mod shows, what
-// a page is told as it starts, the styles a page wears and the regions mods give their children, runs the core's
-// tests, then drives Deckit.app, put together from the archive it builds first, through the scenario, with data of
-// its own that is thrown away. Exits 1 with a line for each check that failed. Screenshots and the app's log are left
-// in .build/test/.
+// a page is told as it starts, the styles a page wears, the regions mods give their children and the Switcher's list,
+// runs the core's tests, then drives Deckit.app, put together from the archive it builds first, through the scenario,
+// with data of its own that is thrown away. Exits 1 with a line for each check that failed. Screenshots and the app's
+// log are left in .build/test/.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -57,6 +57,7 @@ const main = async () => {
         'style.js',
         'region.js',
         'forge.js',
+        'switcher.js',
     ];
     for (const check of checks)
         execFileSync(process.execPath, ['--no-warnings', path.join(root, 'source', 'cli', 'test', check)], {

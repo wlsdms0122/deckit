@@ -10,9 +10,9 @@ const NOW_MAX = 3;
 // How long the list waits for slow Now actions before it opens; later ones arrive on their own.
 const NOW_WAIT_MS = 150;
 
-// The list of a Show item for each mod the shell can show and the actions mods set, `given`, by the connection of
-// each, in `window`, the mod's own: `show()` opens it, and `toggle()` opens it or puts it away when it is
-// open. Each open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod
+// The list of a Show item for each mod the shell can show, the actions mods set, `given`, by the connection of each,
+// and the actions mods declare to `switcher/actions`, in `window`, the mod's own: `show()` opens it, and `toggle()`
+// opens it or puts it away when it is open. Each open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod
 // coming on screen, another app. `end()` drops the list.
 function switcher(shell, deckit, window, given) {
     const registry = deckit.commands;
@@ -76,7 +76,7 @@ function switcher(shell, deckit, window, given) {
             sources.map(async ([mod, source]) => [mod, (await actionsOf(mod, source, 'list')) || []])
         );
         const shown = await showable();
-        const actions = await listing;
+        const actions = [...(await listing), ...(await declared())];
         const mods = ITEMS.modsIn({ actions, shown });
         const found = await Promise.all(mods.map((id) => deckit.provider(id)));
         current.about = {
@@ -130,7 +130,8 @@ function switcher(shell, deckit, window, given) {
             current.submenus.set(item.id, item);
             return { ...item, run: () => remembers && remember(item), submenu: { icon: item.icon } };
         }
-        if (item.shows || item.value !== null) return { ...item, run: () => go(current, item, remembers) };
+        if (item.shows || item.token || item.value !== null)
+            return { ...item, run: () => go(current, item, remembers) };
         return { ...item, run: undefined };
     }
 
@@ -145,7 +146,9 @@ function switcher(shell, deckit, window, given) {
         try {
             const left = item.shows
                 ? await registry.run(ITEMS.SHOW, { mod: item.shows })
-                : await sourceOf(item.mod).run(item.value);
+                : item.token
+                  ? await registry.tokens.run(item.token)
+                  : await sourceOf(item.mod).run(item.value);
             if (typeof left === 'string' && left) said = { text: left, alert: false };
         } catch (error) {
             said = { text: error?.message || String(error), alert: true };
@@ -173,6 +176,25 @@ function switcher(shell, deckit, window, given) {
         const source = currentSources().find(([id]) => id === mod)?.[1];
         if (typeof source?.run !== 'function') throw new Error(`${mod} has no actions now`);
         return source;
+    }
+
+    // What mods declare to `switcher/actions`, `[mod id, actions]` for each mod in turn, as `action.js` reads them:
+    // none while the switcher does not own it.
+    async function declared() {
+        let handed = [];
+        try {
+            handed = await deckit.exports.contributions('switcher/actions');
+        } catch (error) {
+            if (error?.kind !== 'NOT_OWNER') console.error('[switcher] the declared actions could not be read', error);
+        }
+        const byMod = new Map();
+        for (const contribution of handed) {
+            const action = ACTION.readDeclared(contribution);
+            if (!action) continue;
+            if (!byMod.has(contribution.mod.id)) byMod.set(contribution.mod.id, []);
+            byMod.get(contribution.mod.id).push(action);
+        }
+        return [...byMod];
     }
 
     // The mods the shell can show, as its Show command completes them, or none for a host with no shell.
@@ -206,9 +228,10 @@ function switcher(shell, deckit, window, given) {
         return out;
     }
 
-    // Keyed by what it runs, as an item is made fresh on every open: a mod gives an action the same value each time.
-    function keyOf({ mod, value, shows }) {
-        return JSON.stringify(shows ? [ITEMS.SHOW.provider, shows] : [mod, value]);
+    // Keyed by what it runs, as an item is made fresh on every open: a mod gives an action the same value each time,
+    // and deckit hands the switcher the same token for a declared one.
+    function keyOf({ mod, value, token, shows }) {
+        return JSON.stringify(shows ? [ITEMS.SHOW.provider, shows] : token ? [mod, { token }] : [mod, value]);
     }
 
     // Too small to outweigh a use, the time only breaks ties, the later first.
