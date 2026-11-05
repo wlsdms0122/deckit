@@ -2,28 +2,30 @@
 
 Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add.
 
-## Providing accounts: `calendar/accounts`
+## Adding accounts: `calendar/accounts`
 
-Calendar defines the interface `calendar/accounts`, and implements it at `1.0.0`. Its exports open in `start`, since the reminders read through a provider where nothing is on screen, so a mod that provides accounts requires it and sets its provider in `start`. They are `setProvider(provider)`, one provider for each connection. It gives no place for views.
+Calendar defines the interface `calendar/accounts`, and provides its major 1. Its exports open in `start`, since the reminders read through a provider where nothing is on screen, so a mod that adds accounts uses it and sets its provider in `start`, with `onConnect`, each time the interface's owner connects. They are `setProvider(provider)`, one provider for each connection. It gives no place for views.
 
 ```toml
-[dependencies]
-"calendar/accounts" = "1.0.0"
+[interfaces]
+uses = { "calendar/accounts" = 1 }
 
 [permissions]
 "system.network" = "Reads your calendars from Example."
 ```
 
 ```js
-deckit.dependencies['calendar/accounts'].setProvider({
-    name: 'Example',
-    hint: 'An Example account',
-    icon: `<svg …>`,
-    async signIn(account, { title, ask }) {},
-    async calendars(account) {},
-    async events(account, calendar, from, to) {},
-    async respond(account, eventId, status) {},
-    async forget(account) {},
+deckit.dependencies.onConnect('calendar/accounts', (calendar) => {
+    calendar.setProvider({
+        name: 'Example',
+        hint: 'An Example account',
+        icon: `<svg …>`,
+        async signIn(account, { title, ask }) {},
+        async calendars(account) {},
+        async events(account, calendar, from, to) {},
+        async respond(account, eventId, status) {},
+        async forget(account) {},
+    });
 });
 ```
 

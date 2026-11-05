@@ -1,6 +1,6 @@
 # Forge
 
-The forge daemons, for the mods that depend on `forge/workflows`. Forge starts, stops and restarts a daemon, holds the token the daemon hands the process that starts it, and runs forge's operations on it by running the `forge` command in its main process module. It has no view: a mod that depends on it shows the daemons.
+The forge daemons, for the mods that depend on Forge. Forge starts, stops and restarts a daemon, holds the token the daemon hands the process that starts it, and runs forge's operations on it by running the `forge` command in its main process module. It has no view: a mod that depends on it shows the daemons.
 
 ## Where forge is
 
@@ -29,13 +29,13 @@ What a CLI, the switcher or another mod runs by name, on a host app with no UI t
 | `stop` | stops the session's daemon, with the services it supervises |
 | `restart` | restarts the session's daemon with the services it supervises, or starts it |
 
-## For other mods: `forge/workflows`
+## For other mods: `forge`
 
-Forge defines the interface `forge/workflows`, and implements it at `1.0.0`. Its exports open in `start`, so a mod that requires it reaches them as `deckit.dependencies['forge/workflows']` from its `start` on. It gives no place for views. A session not given is `default`:
+Forge's exports are for the mods that depend on it by id, at the version in its manifest. They open in `start`, so a mod that requires it reaches them as `deckit.dependencies.forge` from its `start` on. It gives no place for views. A session not given is `default`:
 
 ```toml
 [dependencies]
-"forge/workflows" = "1.0.0"
+forge = "1.0.0"
 ```
 
 | Member | What it does |
@@ -66,11 +66,11 @@ Forge defines the interface `forge/workflows`, and implements it at `1.0.0`. Its
 
 A run is `{ id, workflow_id, name, session, status, step, startedAt, endedAt, outputs, error }`. `status` is forge's, `running` and then `ok` or `failed`, with `error` as forge gives it, `{ type, message }`; `step` is the step of the run itself it last started. A run is followed whatever the settings become; one whose stream ends before forge tells its end, as when the daemon stops, ends `failed` with the error type `unfollowed`. Forge waits fifteen seconds for forge to take a run, and rejects the dispatch after. Ended runs are answered by `run(id)` until a hundred more have ended.
 
-`id` is the run's handle, what `run(id)` takes: a dependent holds it as it was handed and never reads it. A handle never repeats across the implementations of `forge/workflows` and their runs, and one an implementation does not know, from another or from an earlier run of it, is answered as not there, `null`. `workflow_id` is forge's own name for the run, what its operations take (`workflow.cancel`) and what `workflow.active` lists. A session is no handle: it is named by the person, `default` or the name of its folder, and is the same daemon whichever implementation reaches it.
+`id` is the run's handle, what `run(id)` takes: a dependent holds it as it was handed and never reads it. A handle never repeats across Forge's runs, and one it does not know, from an earlier run of it, is answered as not there, `null`. `workflow_id` is forge's own name for the run, what its operations take (`workflow.cancel`) and what `workflow.active` lists. A session is no handle: it is named by the person, `default` or the name of its folder, and is the same daemon whichever implementation reaches it.
 
 A run is the mod's that dispatched it, which forge records as who dispatched it, and only that mod reads it with `run(id)`; to another, it is not there. `onRun(run)` is told each change of the run, a step started or the end, until it ends. It lasts as long as the connection it was handed over on: a mod that starts again reaches a run it dispatched before with `run(id, { onRun })`, while the run of Forge that handed it lasts.
 
 ```js
-const forge = deckit.dependencies['forge/workflows'];
+const forge = deckit.dependencies.forge;
 await forge.dispatch('merge-gate', { number: 42 }, { onRun: (run) => draw(run) });
 ```

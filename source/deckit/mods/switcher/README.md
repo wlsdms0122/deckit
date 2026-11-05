@@ -4,11 +4,11 @@ A list over the app you are in, opened on its key from any app: each mod the app
 
 ## Adding actions: `switcher/actions`
 
-Switcher defines the interface `switcher/actions`, and implements it at `1.0.0`. Its exports open in `attach`, so a mod names it as an optional dependency and hands its actions over in `attach`, with `onConnect`. They are `setActions(actions)`, one set of actions for each connection, listed under the connected mod. It gives no place for views.
+Switcher defines the interface `switcher/actions`, and provides its major 1. A mod gives actions by using it: while the interface's owner speaks major 1, the mod is connected to it, and since its exports open in `attach`, the mod hands its actions over in `attach`, with `onConnect`. They are `setActions(actions)`, one set of actions for each connection, listed under the connected mod. A mod that provides `switcher/actions` and is pinned in Settings takes the actions in the Switcher's place. It gives no place for views.
 
 ```toml
-[dependencies]
-"switcher/actions" = { version = "1.0.0", optional = true }
+[interfaces]
+uses = { "switcher/actions" = 1 }
 ```
 
 ```js
