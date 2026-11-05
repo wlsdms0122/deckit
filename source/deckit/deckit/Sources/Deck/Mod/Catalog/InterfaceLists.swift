@@ -24,7 +24,7 @@ struct InterfaceLists {
     // MARK: - Initializer
     // `found` is every mod found, each with a problem only of its own: its manifest's or its folder's. `kept` is the
     // person's order of each interface, and `host` the mods the host app places in each.
-    init(found: [Mod], kept: [String: ImplementationPreference], host: [String: [String]]) {
+    init(found: [Mod], kept: [String: ListPreference], host: [String: [String]]) {
         let loadable = found.filter { mod in mod.problem == nil }
         let named = Set(loadable.flatMap { mod in
             Array(mod.manifest.implements.keys) + Array(mod.manifest.dependencies.keys)

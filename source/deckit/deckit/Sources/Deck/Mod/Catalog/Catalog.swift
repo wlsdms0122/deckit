@@ -97,7 +97,7 @@ public final class Catalog {
         let placed = preference.placed(host: implementations[interface] ?? [])
         var next = order[...]
         var after = kept
-        after[interface] = ImplementationPreference(
+        after[interface] = ListPreference(
             order: placed.compactMap { id in given.contains(id) ? next.popFirst() : id } + next,
             off: preference.off.filter { id in !given.contains(id) } + off
         )

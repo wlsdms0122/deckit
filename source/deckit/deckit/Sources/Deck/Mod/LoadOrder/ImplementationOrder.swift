@@ -23,15 +23,15 @@ final class ImplementationOrder {
     // MARK: - Public
     // What is kept, by interface, or none while the file keeps nothing of it: it is a person's to edit, so what is not
     // a list of ids reads as none.
-    func read() -> [String: ImplementationPreference] {
+    func read() -> [String: ListPreference] {
         guard case let .object(kept)? = settings.value(of: key) else { return [:] }
         return kept.compactMapValues { value in
             guard case let .object(fields) = value else { return nil }
-            return ImplementationPreference(order: ids(in: fields["order"]), off: ids(in: fields["off"]))
+            return ListPreference(order: ids(in: fields["order"]), off: ids(in: fields["off"]))
         }
     }
 
-    func write(_ preferences: [String: ImplementationPreference]) throws {
+    func write(_ preferences: [String: ListPreference]) throws {
         let value = JSONValue.object(preferences.mapValues { preference in
             .object([
                 "order": .array(preference.order.map(JSONValue.string)),
@@ -45,7 +45,7 @@ final class ImplementationOrder {
     func remove(_ ids: [String]) throws {
         let before = read()
         let after = before.mapValues { preference in
-            ImplementationPreference(
+            ListPreference(
                 order: preference.order.filter { id in !ids.contains(id) },
                 off: preference.off.filter { id in !ids.contains(id) }
             )
