@@ -40,7 +40,7 @@ An action, as the first three answer it:
 | `value` | what `run` is given. An action with none is read only |
 | `opens` | it opens a list of its own (`search(query, value)`) |
 
-The picked action's row shows it running, then done or failed. The list stays until the keyboard leaves it, and a throw that comes once it has gone is told in a notification. Whether the mod comes on screen is its own to ask, with `shell.show()` ([GUIDELINES.md](../../../../document/GUIDELINES.md), The switcher): the shell putting it on screen takes the keyboard from the switcher, which goes. The switcher ranks what was picked before by the mod and the `value`, so an action keeps one `value`.
+The picked action's row shows it running, then done or failed. The list stays until the keyboard leaves it, and a throw that comes once it has gone is posted to `deckit/notifications` (MOD.md, Standard interfaces), with nothing to bring forward, or only logged while no mod owns it. Whether the mod comes on screen is its own to ask, with `shell.show()` ([GUIDELINES.md](../../../../document/GUIDELINES.md), The switcher): the shell putting it on screen takes the keyboard from the switcher, which goes. The switcher ranks what was picked before by the mod and the `value`, so an action keeps one `value`.
 
 ## Declaring actions
 

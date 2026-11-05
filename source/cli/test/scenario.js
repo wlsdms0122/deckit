@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { until, sleep, ALT, CTRL, META, SHIFT } = require('./devtools.js');
 
-// The mods Deckit.app ships with a view: every one but Deckit, which has none, and the Switcher, a window.
+// The mods Deckit.app ships with a view: every one but Deckit, which has none, and the Switcher and Notifications,
+// windows.
 const VIEWS = 7;
 // The test's own mods with a view: the region parent and the window probe. Its region child is in no list.
 const TEST_VIEWS = 2;
@@ -225,6 +226,11 @@ async function run({
     check(
         'a startup mod runs as the app starts',
         launchedAtStart.some((url) => url.startsWith('deckit://switcher.mod')),
+        launchedAtStart.join(' ')
+    );
+    check(
+        'Notifications, the owner of deckit/notifications, runs as the app starts',
+        launchedAtStart.some((url) => url.startsWith('deckit://notifications.mod')),
         launchedAtStart.join(' ')
     );
     check(

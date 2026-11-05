@@ -2,6 +2,8 @@
 
 Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add. It asks to start with the app, so a meeting reminds whether or not its view was opened.
 
+A meeting's notice is posted to `deckit/notifications` (MOD.md, Standard interfaces), as is the one Send a test posts. Pressing it runs Calendar's `show-date` command with the meeting's day, by a token Calendar minted: Calendar comes forward on that day. A notice is marked sent only once it was posted, so while no mod owns the interface, or the owner refuses it, it is posted again on the next check while the meeting is still due.
+
 ## Adding accounts: `calendar/accounts`
 
 Calendar defines the interface `calendar/accounts`, and provides its major 1. Its exports open in `start`, since the reminders read through a provider where nothing is on screen, so a mod that adds accounts uses it and sets its provider in `start`, with `onConnect`, each time the interface's owner connects. They are `setProvider(provider)`, one provider for each connection. It gives no place for views.

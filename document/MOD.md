@@ -674,7 +674,7 @@ Telling the person something: what was posted is recorded, queued, shown and pre
 |---|---|
 | `post({ title, body, silent, token, actions })` | posts a notification of the mod's, and resolves to its id, a string. `title` and `body` are text, one of them not empty; `silent` asks for no sound. `token` is a command token of the sender's (Command tokens), which a press on the notification runs; `actions`, `[{ title, token }]`, are buttons beside it, each running its own. A notification with no `token` is pressed to put it away, and brings nothing forward |
 | `remove(id)` | takes away a notification the mod posted, from the screen and the record, and resolves to whether it was there |
-| `list()` | the notifications kept, newest first, `[{ id, mod, title, body, posted }]`, `mod` the sender's `{ id, name }` and `posted` the time in milliseconds |
+| `list()` | the notifications kept, newest first, `[{ id, mod, title, body, posted, actions }]`, `mod` the sender's `{ id, name }`, `posted` the time in milliseconds and `actions` `[{ title }]` |
 
 The owner sends `deckit/notifications:posted` and `deckit/notifications:removed`, each with the notification's id, to the mods that use the interface and listen. Pressing a notification, or one of its actions, runs that token, which launches the sender if it is not running, and takes the notification away; the owner releases the tokens of a notification it no longer keeps. The record, how many are kept, how often a sender is shown and whether a notification is drawn in the app or as the system's is the owner's: the Notifications README says what deckit's does.
 
@@ -684,6 +684,7 @@ While no mod owns the interface, or its owner does not run, the connection is do
 
 Each README writes down what its exports take.
 
+- `deckit/notifications`, defined by this document (Standard interfaces) and provided by Notifications: `post`, `remove` and `list`, opened in `start` ([README](../source/deckit/mods/notifications/README.md)).
 - `switcher/actions`, defined and provided by the Switcher: `setActions(actions)`, the actions listed under the mod, opened in `attach`, so a mod uses it and hands its actions with `onConnect` ([README](../source/deckit/mods/switcher/README.md)).
 - `settings/buttons`, defined and provided by Settings: `setButtons(buttons)`, buttons on the mod's settings, opened in `attach` ([README](../source/deckit/mods/settings/README.md)).
 - `calendar/accounts`, defined and provided by Calendar: `setProvider(provider)`, an account the calendar shows ([README](../source/deckit/mods/calendar/README.md)).

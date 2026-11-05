@@ -2,6 +2,8 @@
 
 Web pages in tabs, in folders, with bookmarks, an address bar in its title bar, and find in page. What a site asks for (the camera, notifications, a certificate this Mac cannot verify) is asked of you. The Browser opens the `http` and `https` addresses other mods ask to open. What a site hands over as a file goes to the Downloads folder once you say to download it, and the download button at the toolbar's end lists what was downloaded: press a finished one to open it.
 
+A site's notification, once you let the site have them, is posted to `deckit/notifications` (MOD.md, Standard interfaces), titled by the site and naming it. Pressing it runs the Browser's `show-notification` command, by a token the Browser minted: the tab it came from comes forward, and the site hears the press. While no mod owns the interface, a site's notification is dropped.
+
 ## Records
 
 The Browser keeps what must not be lost in its records, one JSON file a key under `records/browser/` in deckit's folder.
