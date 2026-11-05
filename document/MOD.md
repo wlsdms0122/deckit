@@ -322,7 +322,7 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `configuration` | above |
 | `storage` | below |
 | `web` | `web.session(name)` and `web.downloads`, below |
-| `commands` | `register(commands)`; with `deckit.command-registry`: `list()`, `[{ provider, command, description, params }]`, the app's commands first, then the mods' in their order, `provider` the id of what declared and runs one: a mod's, or a host's `@` name; `run({ provider, command }, args)`, which resolves to the command's result or null and rejects with why it did not run; `complete({ provider, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
+| `commands` | `register(commands)`; `tokens`, `mint(command, args)`, `run(token)`, `cancel(token)` and `release(token)` (Command tokens, below); with `deckit.command-registry`: `list()`, `[{ provider, command, description, params }]`, the app's commands first, then the mods' in their order, `provider` the id of what declared and runs one: a mod's, or a host's `@` name; `run({ provider, command }, args)`, which resolves to the command's result or null and rejects with why it did not run; `complete({ provider, command }, param, partial, { args, signal })`; `onChange(listener)`, which returns its off |
 | `keys` | `register(keys)`; `chordOf(name, { provider })`, the chord one of the mod's keys is bound to now, or `''`, and with `provider`, a key of that mod or host; with `deckit.keymap`: `list`, `bind`, `reset`, `record`, `onChange`, where `bind` gives a key the chord a person chose, as Settings does; `list` answers at once, `onChange` returns the unsubscribe |
 | `urls` | `register(handler)`; `open(url, { activates, usesDefaultApp, target })`, which offers an address to the handlers its patterns match in turn, then deckit's own answer (`urls`, above), and resolves to whether anything opened it. A `file://` address goes anywhere only with `system.file-handlers`, and otherwise resolves `false`; a web address goes to the default browser with no permission. With `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, undecided, handlers }` at once, `undecided` its undecided patterns as written, `handlers` in the order Settings shows (`urls`, above), a handler `{ id, name, patterns, on }`; `set(scheme, { order, off })`, which gives the handlers in `order` the places they held among themselves in the scheme's list, in the order given, puts those placed it does not name after them, and switches off those in `off`, as the person's; `everyScheme`, the name of the list for every scheme |
 | `events` | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` (below) |
@@ -572,6 +572,24 @@ The exports, the args of a call and what a call answers cross the same way:
 - A function received from another mod is not handed on: handing it over again throws. To pass one on, a mod hands a function of its own that calls it. So whatever calls a mod's function is the mod connected to it, and `connection.mod` is always the mod that calls.
 - A reference the far side holds no more is let go, and the side that handed the function over drops it. Every reference of a connection is let go as the connection ends, and calling one then rejects: the mod on the other end has ended.
 - How long a function is good for is the function's own to say: a calendar's `ask`, handed to a provider for one sign-in, answers false once that sign-in has ended. A function of one lifecycle handed over a connection of another is not caught: it is the mod's fault.
+
+### Command tokens
+
+```js
+// the sender: a token of one of its own commands, handed over a connection as any value
+const token = await deckit.commands.tokens.mint('open-note', { id: note.id });
+notifications.post({ title: note.title, onClick: token });
+
+// the holder: runs that one command, and lets it go once it has no more use for it
+await deckit.commands.tokens.run(token);
+await deckit.commands.tokens.release(token);
+```
+
+A token is one command of the mod's own with the args it runs with, which the mod hands another mod to run that command and nothing else. `mint(command, args)` checks the command is the mod's and the args fit its `params`, and resolves to the token, a string that crosses a connection, and is kept, as any value. deckit makes it and keeps its record (the sender, the command, the args), so no mod makes up or changes one: it holds the args as the sender gave them and never reads them.
+
+`run(token)` runs the sender's command with those args, as `deckit.commands.run` would, with no `deckit.command-registry`, and resolves to its result or null. It is refused with kind `TOKEN` for a token that has ended, and fails as running the command fails: `NOT_RUNNING` while the sender is not running, `COMMAND` once an update took the command away. The args a token was minted with are the command's to keep taking.
+
+A token lasts until its sender ends it with `cancel(token)`, until a mod that holds it ends it with `release(token)`, or until its sender is removed; the records are kept across runs of the app. A token crosses connections as a value, so deckit does not know who holds one: `release` ends it for every holder, and the holder that knows it is done with it (a notification cleared) releases it. A token deckit hands a mod itself (Declared contributions) is also ended once that mod is removed.
 
 ### When a connection fails
 
