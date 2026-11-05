@@ -38,14 +38,13 @@ if (environment) DeckitShellRenderer.start(environment);
 | `id` | what everything deckit keeps is named from: its folder, its sessions and its state | `deckit` |
 | `name` | what a person reads | `Deckit` |
 | `schemeHandlers` | by scheme, the mods the host app places in that scheme's handler list, in order, until the person orders them (MOD.md, `urls`) | none |
-| `implementations` | by interface, the mods the host app places in that interface's list, in order, until the person orders them (MOD.md, Interfaces) | each interface its own mods define, placed to the mod that defines it |
 
 `folders`, deck's:
 
 | Key | What it is | Deckit's own |
 |---|---|---|
 | `home` | deckit's folder | `~/.config/<id>` |
-| `ship` | the mod folders the host app ships, deckit's own it picks and its own, each a mod like any other; installed at every start, and a removed one stays removed. One that does not install fails alone and the next start tries it again: with no copy of it installed it does not load and its problem says why, and an installed copy goes on running | none |
+| `ship` | the mod folders the host app ships, deckit's own it picks and its own, each a mod like any other; installed at every start, and a removed one stays removed. Installed first, they come first in the queue of each interface they provide, so they own it unless the person pins another (MOD.md, Interfaces). One that does not install fails alone and the next start tries it again: with no copy of it installed it does not load and its problem says why, and an installed copy goes on running | none |
 | `sources` | folders that hold mod folders, read in place ahead of installed ones (for a development build) | none |
 
 A key deckit does not read stops `connect` with its name. A page holds none of it: what a page needs of it, main answers.
