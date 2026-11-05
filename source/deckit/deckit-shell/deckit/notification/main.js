@@ -5,7 +5,8 @@ import * as NOTIFICATION_PERMISSION from './model/permission.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
-// `clicked` is the app's answer to a clicked notification, which brings it forward before the mod hears of it.
+// A platform notification, shown and its press heard: what is shown, when and for whom is the mod's that asks.
+// `clicked` is the app's answer to a pressed notification, which brings it forward before the mod hears of it.
 // `notifications` is the environment's.
 export function createNotification({ LOG, IDENTITY, clicked, notifications: NOTIFICATIONS }) {
     // MARK: - Property
@@ -27,7 +28,7 @@ export function createNotification({ LOG, IDENTITY, clicked, notifications: NOTI
         const notification = { title: title.slice(0, TITLE_LIMIT), body: body.slice(0, BODY_LIMIT), silent };
         const onClick = () => {
             clicked();
-            PROTOCOL.clicked.send(sender, { id });
+            PROTOCOL.pressed.send(sender, { id });
         };
         return NOTIFICATIONS.show(notification, { onClick }).catch((error) => {
             LOG.warn('a notification was not shown', error?.message || '');

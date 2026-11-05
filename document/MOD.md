@@ -503,7 +503,7 @@ A caller that names who it calls names a mod by id: a dependency, a command (`pr
 
 ### Interfaces
 
-An interface is a name, its majors and a document. The name is `<mod id>/<name>`, the defining mod's id first, so no two mods that do not know each other make up the same one; its document is that mod's README, which writes down what the exports hold, what each function takes and answers, the lifecycle that opens them, and whether it gives a place for views (`parent`). A change that breaks any of it is a new major. The major is not part of the name: a provider lists the majors it speaks in `provides`, and a mod that uses the interface names the one it speaks in `uses`. An interface that hands out handles (a session, a run) promises that a handle never repeats across providers and runs, and that one it does not know is answered as not there: a dependent holds a handle as it was handed and never reads it.
+An interface is a name, its majors and a document. The name is `<mod id>/<name>`, the defining mod's id first, so no two mods that do not know each other make up the same one; its document is that mod's README (an interface named `deckit/<name>` is the mod contract's own, and its document is this one's, Standard interfaces), which writes down what the exports hold, what each function takes and answers, the lifecycle that opens them, and whether it gives a place for views (`parent`). A change that breaks any of it is a new major. The major is not part of the name: a provider lists the majors it speaks in `provides`, and a mod that uses the interface names the one it speaks in `uses`. An interface that hands out handles (a session, a run) promises that a handle never repeats across providers and runs, and that one it does not know is answered as not there: a dependent holds a handle as it was handed and never reads it.
 
 Each interface has one owner at a time, among the mods that provide it. deck keeps a queue of them for each interface, in the order they started providing it: a mod joins the end of the queue when it is installed, first read, or updated to provide the interface, and leaves it when it is removed, is no longer found, or is updated to stop providing it. An update that goes on providing it keeps its place. A mod that cannot load by its own manifest (a refused manifest, an `api` of another major) provides nothing. Whether what a mod requires is there, and whether it runs, keep no mod out of a queue.
 
@@ -618,7 +618,7 @@ The exports, the args of a call and what a call answers cross the same way:
 ```js
 // the sender: a token of one of its own commands, handed over a connection as any value
 const token = await deckit.commands.tokens.mint('open-note', { id: note.id });
-notifications.post({ title: note.title, onClick: token });
+notifications.post({ title: note.title, token });
 
 // the holder: runs that one command, and lets it go once it has no more use for it
 await deckit.commands.tokens.run(token);
@@ -651,6 +651,34 @@ A mod's `version` is the version of the promise its own exports keep to the mods
 - Connecting a mod to every provider of an interface at once: one that gathers from many is an interface the gatherer provides and the many use (`switcher/actions`).
 - A provider that calls the next one in the queue (a proxy, a decorator).
 - A different owner for each mod that uses an interface, or for each major.
+
+### Standard interfaces
+
+The interfaces the mod contract defines, named `deckit/<name>`. Any mod may provide one; deckit ships a mod that does.
+
+#### deckit/notifications (major 1)
+
+```js
+// a mod that tells the person something: uses = { "deckit/notifications" = 1 }, and a command a press runs
+deckit.dependencies.onConnect('deckit/notifications', (notifications) => {
+    this.notifications = notifications;
+    return () => (this.notifications = null);
+});
+const token = await deckit.commands.tokens.mint('show-event', { start });
+const id = await this.notifications.post({ title: 'Standup', body: 'in 5 min', token });
+```
+
+Telling the person something: what was posted is recorded, queued, shown and pressed in one place, the owner's. The owner opens the exports in `start`, so they reach a sender's `start` and `attach`, and no sender learns how a notification is shown.
+
+| Export | What it is |
+|---|---|
+| `post({ title, body, silent, token, actions })` | posts a notification of the mod's, and resolves to its id, a string. `title` and `body` are text, one of them not empty; `silent` asks for no sound. `token` is a command token of the sender's (Command tokens), which a press on the notification runs; `actions`, `[{ title, token }]`, are buttons beside it, each running its own. A notification with no `token` is pressed to put it away, and brings nothing forward |
+| `remove(id)` | takes away a notification the mod posted, from the screen and the record, and resolves to whether it was there |
+| `list()` | the notifications kept, newest first, `[{ id, mod, title, body, posted }]`, `mod` the sender's `{ id, name }` and `posted` the time in milliseconds |
+
+The owner sends `deckit/notifications:posted` and `deckit/notifications:removed`, each with the notification's id, to the mods that use the interface and listen. Pressing a notification, or one of its actions, runs that token, which launches the sender if it is not running, and takes the notification away; the owner releases the tokens of a notification it no longer keeps. The record, how many are kept, how often a sender is shown and whether a notification is drawn in the app or as the system's is the owner's: the Notifications README says what deckit's does.
+
+While no mod owns the interface, or its owner does not run, the connection is down: a sender holds no exports, and `post` on exports it kept rejects. Nothing is shown then, and the sender decides whether to post again.
 
 ### What deckit's own mods open
 

@@ -196,6 +196,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
             fileURL: OPEN.fileURL,
             filePath: OPEN.filePath,
             about: RUNTIME.about,
+            active: RUNTIME.active,
             ...(has(COMMAND_PERMISSION.COMMAND_REGISTRY) || has(KEYMAP_PERMISSION.KEYMAP)
                 ? { provider: PROVIDER.provider }
                 : {}),
@@ -203,7 +204,9 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
                 ...(has(CLIPBOARD_PERMISSION.CLIPBOARD_READ) ? { readText: CLIPBOARD.readText } : {}),
                 ...(has(CLIPBOARD_PERMISSION.CLIPBOARD_WRITE) ? { writeText: CLIPBOARD.writeText } : {}),
             }),
-            ...(has(NOTIFICATION_PERMISSION.NOTIFICATIONS) ? { notify: NOTIFICATION.notifyOf(scope) } : {}),
+            ...(has(NOTIFICATION_PERMISSION.NOTIFICATIONS)
+                ? { notifications: NOTIFICATION.notificationsOf(scope) }
+                : {}),
             ...(has(MAIN_PROCESS_PERMISSION.MAIN_PROCESS) ? { mainProcess: mainProcess.forScope(scope) } : {}),
             ...(has(CONFIGURATION_PERMISSION.MOD_CONFIGURATION) ? { modConfiguration: CONFIGURATION.tool() } : {}),
         };

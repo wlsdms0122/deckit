@@ -6,38 +6,52 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 export function createNotification() {
     // MARK: - Property
-    // macOS keeps a notification in Notification Centre well past the banner, so a click can come late.
+    // macOS keeps a notification in Notification Centre well past the banner, so a press can come late.
     const TTL = 10 * 60 * 1000;
-    const handlers = new Map(); // id -> onClick
+    const listeners = new Map(); // id -> Set of what hears its press
     let sequence = 0;
 
     // MARK: - Initializer
     // MARK: - Public
     function listen(deliver) {
-        PROTOCOL.clicked.on(({ id }) => {
-            const handler = handlers.get(id);
-            handlers.delete(id);
-            if (handler) deliver('notification onClick', handler);
+        PROTOCOL.pressed.on(({ id }) => {
+            const heard = listeners.get(id);
+            listeners.delete(id);
+            for (const listener of heard ?? []) deliver('notification press', listener);
         });
     }
 
-    // `notify` for a handle: a click is heard until `scope` is cut.
-    function notifyOf(scope) {
-        return ({ title = '', body = '', silent = false, onClick = null } = {}) => {
+    // `notifications` for a handle: a press is heard until `scope` is cut, or the notification is too old to be.
+    function notificationsOf(scope) {
+        const show = async ({ title = '', body = '', silent = false } = {}) => {
             const id = 'notification-' + ++sequence;
-            if (typeof onClick === 'function') {
-                handlers.set(id, onClick);
-                // Most notifications are never clicked; without this every handler stays for the life of the page.
-                setTimeout(
-                    scope.add(() => handlers.delete(id)),
-                    TTL
-                );
-            }
-            return PROTOCOL.show.invoke({ id, title: String(title), body: String(body), silent: !!silent });
+            const heard = new Set();
+            listeners.set(id, heard);
+            // Most notifications are never pressed; without this every listener stays for the life of the page.
+            setTimeout(
+                scope.add(() => listeners.delete(id)),
+                TTL
+            );
+            const shown = await PROTOCOL.show.invoke({
+                id,
+                title: String(title),
+                body: String(body),
+                silent: !!silent,
+            });
+            if (!shown) listeners.delete(id);
+            return Object.freeze({
+                shown,
+                onPress: (listener) => {
+                    if (typeof listener !== 'function') throw new TypeError('onPress takes a function');
+                    heard.add(listener);
+                    return () => heard.delete(listener);
+                },
+            });
         };
+        return Object.freeze({ show });
     }
 
     // MARK: - Private
 
-    return { listen, notifyOf };
+    return { listen, notificationsOf };
 }
