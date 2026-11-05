@@ -85,7 +85,7 @@ async function main() {
 
     const minted = await ask(sender, 'command-mint', { command: 'open', args: { url: 'https://example.com' } });
     check(
-        'a token is minted of the asking mod's own command, with its args',
+        "a token is minted of the asking mod's own command, with its args",
         minted.value === 'token-1' &&
             asked[0].method === 'command/mint' &&
             asked[0].params.mod === 'a' &&
