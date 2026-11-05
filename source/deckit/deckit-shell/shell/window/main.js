@@ -9,8 +9,8 @@ import * as WINDOW_PERMISSION from './model/permission.js';
 export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hideWindow, closeWindow }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
-    // mod id -> { control, page, look, stage, unheard, shown }: `page` the mod's page while a run of it that has a
-    // window runs, `look` its window as that run said, `stage` where the page is laid, made as the window is first
+    // mod id -> { control, page, look, size, stage, unheard, shown }: `page` the mod's page while a run of it that has
+    // a window runs, `look` its window as that run said, `size` the size that page gave it since, `stage` where the page is laid, made as the window is first
     // placed, and `unheard` the off of its resizes
     const windows = new Map();
 
@@ -21,6 +21,7 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
     function start() {
         PROTOCOL.open.on(({ activates }, sender) => open(heldBy(sender), activates));
         PROTOCOL.close.on((_payload, sender) => close(heldBy(sender)));
+        PROTOCOL.resize.on((size, sender) => resize(heldBy(sender), size));
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, reconcile);
         deckit.mods.onChange(reconcile);
         OVERLAY.onChange((page) => {
@@ -54,6 +55,7 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
         }
         for (const [id, { run, page }] of running) {
             const held = windows.get(id) || make(id);
+            if (held.page !== page) held.size = null;
             held.page = page;
             held.look = lookOf(run);
             lay(held);
@@ -68,7 +70,7 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
     }
 
     function make(id) {
-        const held = { control: null, page: null, look: null, stage: null, unheard: null, shown: false };
+        const held = { control: null, page: null, look: null, size: null, stage: null, unheard: null, shown: false };
         // What the host app drives of the window: where it is laid and how it is told the keyboard comes and goes.
         held.control = Object.freeze({
             mod: id,
@@ -76,10 +78,10 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
                 return held.look.name;
             },
             get width() {
-                return held.look.width;
+                return held.size?.width ?? held.look.width;
             },
             get height() {
-                return held.look.height;
+                return held.size?.height ?? held.look.height;
             },
             get overlay() {
                 return held.look.overlay;
@@ -115,6 +117,13 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
         showWindow(held.control, { activates });
         if (activates) PAGES.focus(held.page);
         PROTOCOL.shown.send(held.page, { on: true });
+    }
+
+    // A window on screen takes its new size where it is, and leaves the keyboard where it is.
+    function resize(held, size) {
+        if (!held) return;
+        held.size = size;
+        if (held.shown) showWindow(held.control, { activates: false });
     }
 
     function close(held) {

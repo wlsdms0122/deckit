@@ -22,6 +22,11 @@ function createWindow({ running, fail, deliver, channels }) {
     const handle = Object.freeze({
         open: ({ activates = true } = {}) => PROTOCOL.open.send({ activates: activates !== false }),
         close: () => PROTOCOL.close.send(),
+        resize: ({ width, height }) => {
+            const size = (number) => Number.isFinite(number) && number > 0;
+            if (!size(width) || !size(height)) throw new TypeError('resize takes { width, height }, each above 0');
+            PROTOCOL.resize.send({ width, height });
+        },
     });
     let window = null;
     let started = false;
