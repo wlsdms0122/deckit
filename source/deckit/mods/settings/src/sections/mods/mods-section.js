@@ -485,8 +485,8 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
 
     // One row per mod, in the mods' order whether it loads or not, each in its place whatever its run is doing: one
     // starting or stopping is in `running` as it last ran, and says so by its spinner. `notLoaded` is why one is not
-    // running, `problem` what went wrong with one that is. Permissions are read from the folder, so one that did not
-    // load still shows the permissions it asks for.
+    // running, `problem` what went wrong with one that is, or else the first problem of what it declares. Permissions
+    // are read from the folder, so one that did not load still shows the permissions it asks for.
     function modRowsOf({ found, running, shortcuts, handlerLists, pinned }) {
         const keysOf = (id) => shortcuts.filter((shortcut) => shortcut.provider === id);
         const fromDisk = (mod) => ({
@@ -519,7 +519,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
                         (restarting.has(mod.id)
                             ? null
                             : mod.run?.problem ||
-                              (mod.run?.state === 'launching' ? null : STATE_WORDS[mod.run?.state] || 'did not load')),
+                              (mod.run?.state === 'launching' ? null : STATE_WORDS[mod.run?.state ?? 'notRunning'])),
                 };
             return {
                 id: live.id,
@@ -532,7 +532,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
                 restarting: restarting.has(live.id),
                 problem: mod.mainProcess.failure
                     ? 'a main process module did not start: ' + mod.mainProcess.failure
-                    : live.problem,
+                    : live.problem || mod.declarationProblems[0],
             };
         });
     }

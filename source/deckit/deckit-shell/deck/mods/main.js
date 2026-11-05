@@ -96,11 +96,13 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
 
     // What a mod with deckit.mods reads of every mod, loaded or not, and what each running one contributes. `found`:
     // every mod the catalog found, in the mods' order whether it loads or not, each with `installed`, whether it is a
-    // copy in deck's mods folder, `problem`, why it does not load, `run`, its latest run's `state` and `problem`, null
-    // for one with no sandbox, `hides`, folders of the same id that are not read, `launched`, while it starts or stops
-    // again, what its latest run that launched contributed, as `running` lists it, `relations`, each mod in its
-    // [dependencies] and whether that one runs, and `uses`, each interface it uses and what it comes to. `interfaces`:
-    // each interface's queue of providers and its owner, as the catalog read it.
+    // copy in deck's mods folder, `problem`, why it does not load, `declarationProblems`, what is wrong with what it
+    // declares, `startupApproved`, whether the person approved it to start with the app, `run`, its latest run's
+    // `state`, `problem`, `origin`, `failed` and `relaunchLimited`, null for one with no sandbox, `hides`, folders of
+    // the same id that are not read, `launched`, while it starts or stops again, what its latest run that launched
+    // contributed, as `running` lists it, `relations`, each mod in its [dependencies] and whether that one runs, and
+    // `uses`, each interface it uses and what it comes to. `interfaces`: each interface's queue of providers and its
+    // owner, as the catalog read it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
@@ -113,7 +115,15 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
                     shipped: mod.shipped,
                     hides: mod.hides,
                     problem: mod.problem ?? null,
-                    run: run && { state: run.state, problem: run.problem },
+                    declarationProblems: mod.declarationProblems,
+                    startupApproved: mod.startupApproved,
+                    run: run && {
+                        state: run.state,
+                        problem: run.problem,
+                        origin: run.origin,
+                        failed: run.failed,
+                        relaunchLimited: run.relaunchLimited,
+                    },
                     launched:
                         TRANSITIONS.includes(run?.state) && RUNNER.launchedOf(mod.id)
                             ? entryOf(mod, RUNNER.launchedOf(mod.id))
