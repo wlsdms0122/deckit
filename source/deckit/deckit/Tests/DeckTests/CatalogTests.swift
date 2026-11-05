@@ -371,6 +371,126 @@ struct CatalogTests {
         #expect(own == true)
     }
 
+    @Test("a mod joins the end of an interface's queue as it starts to provide it, and leaves it as it stops")
+    func queueFollowsWhatModsProvide() throws {
+        // Given
+        let spare = root.appending(path: "spare")
+        try write("a", in: source, provides: ["x/api": [1], "y/api": [1]])
+        try write("b", in: source, provides: ["x/api": [1]])
+        try write("c", in: spare, provides: ["x/api": [1]])
+        let sut = try catalog(sources: [source])
+
+        // When
+        let first = queues(of: sut)
+        try write("a", in: source, provides: ["y/api": [1], "z/api": [1]])
+        let updated = queues(of: sut)
+        try write("a", in: source, provides: ["x/api": [1], "y/api": [1], "z/api": [1]])
+        let providing = queues(of: sut)
+        _ = try sut.install(from: spare.appending(path: "c"))
+        let installed = queues(of: sut)
+        _ = try sut.remove("c")
+        let removed = queues(of: sut)
+        try FileManager.default.removeItem(at: source.appending(path: "b"))
+        let gone = queues(of: sut)
+        let kept = queues(of: try catalog(sources: [source]))
+
+        // Then
+        #expect(first == ["x/api": ["a", "b"], "y/api": ["a"]])
+        #expect(updated == ["x/api": ["b"], "y/api": ["a"], "z/api": ["a"]])
+        #expect(providing == ["x/api": ["b", "a"], "y/api": ["a"], "z/api": ["a"]])
+        #expect(installed == ["x/api": ["b", "a", "c"], "y/api": ["a"], "z/api": ["a"]])
+        #expect(removed == ["x/api": ["b", "a"], "y/api": ["a"], "z/api": ["a"]])
+        #expect(gone == ["x/api": ["a"], "y/api": ["a"], "z/api": ["a"]])
+        #expect(kept == gone)
+    }
+
+    @Test("providers arriving at once queue in the app's ship order, then by id, and a mod that does not load is none")
+    func queueTiesComeInShipOrder() throws {
+        // Given
+        try write("b", in: source, provides: ["x/api": [1]])
+        try write("a", in: source, provides: ["x/api": [1]])
+        try write("f", in: source, main: nil, provides: ["x/api": [1]])
+        try write("s", in: ship, provides: ["x/api": [1]])
+        let sut = try catalog(sources: [source], ship: [ship.appending(path: "s")])
+        _ = try sut.installShipped()
+
+        // When
+        let queues = queues(of: sut)
+
+        // Then
+        #expect(queues == ["x/api": ["s", "a", "b"]])
+        #expect(sut.interfaces.map(\.owner) == ["s"])
+    }
+
+    @Test("a pinned provider owns an interface until the pin is cleared or it leaves the queue, and only a provider is")
+    func pinnedProviderOwns() throws {
+        // Given
+        try write("a", in: source, provides: ["x/api": [1]])
+        try write("b", in: source, provides: ["x/api": [2]])
+        try write("c", in: source)
+        let settings = home.appending(path: "deck.json")
+        let sut = try catalog(sources: [source])
+        _ = sut.read()
+
+        // When
+        try sut.pin("x/api", to: "b")
+        let unread = sut.interfaces
+        _ = sut.read()
+        let pinned = sut.interfaces
+        let notProvider = Result { try sut.pin("x/api", to: "c") }
+        let noInterface = Result { try sut.pin("y/api", to: "a") }
+        try sut.pin("x/api", to: nil)
+        _ = sut.read()
+        let cleared = sut.interfaces
+        try sut.pin("x/api", to: "b")
+        try FileManager.default.removeItem(at: source.appending(path: "b"))
+        _ = sut.read()
+        let left = sut.interfaces
+        let kept = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
+
+        // Then
+        let a = InterfaceProvider(id: "a", name: "a", majors: [1])
+        let b = InterfaceProvider(id: "b", name: "b", majors: [2])
+        #expect(unread == [InterfaceQueue(interface: "x/api", name: nil, owner: "a", pinned: false, providers: [a, b])])
+        #expect(pinned == [InterfaceQueue(interface: "x/api", name: nil, owner: "b", pinned: true, providers: [a, b])])
+        #expect(throws: PinError.notProvider(interface: "x/api", mod: "c")) { try notProvider.get() }
+        #expect(throws: PinError.notProvider(interface: "y/api", mod: "a")) { try noInterface.get() }
+        #expect(cleared == unread)
+        #expect(left == [InterfaceQueue(interface: "x/api", name: nil, owner: "a", pinned: false, providers: [a])])
+        #expect(kept == .object(["providers": .object(["x/api": .array([.string("a")])]), "pins": .object([:])]))
+    }
+
+    @Test("an interface a mod uses comes to its owner, with a problem when it does not provide that major, and to none")
+    func useComesToItsOwner() throws {
+        // Given
+        try write("x", in: source, provides: ["x/api": [2, 3]], uses: ["x/api": 2])
+        try write("a", in: source, uses: ["x/api": 1])
+        try write("b", in: source, uses: ["x/api": 2])
+        try write("c", in: source, uses: ["y/api": 1])
+        let sut = try catalog(sources: [source])
+
+        // When
+        let uses = Dictionary(uniqueKeysWithValues: sut.read().map { mod in (mod.manifest.id, mod.uses) })
+
+        // Then
+        #expect(
+            uses == [
+                "a": [
+                    InterfaceUse(
+                        interface: "x/api",
+                        major: 1,
+                        owner: "x",
+                        name: "x",
+                        problem: "uses x/api 1, and its owner x provides it at 2, 3, so it reaches no one by it"
+                    )
+                ],
+                "b": [InterfaceUse(interface: "x/api", major: 2, owner: "x", name: "x", problem: nil)],
+                "c": [InterfaceUse(interface: "y/api", major: 1, owner: nil, name: nil, problem: nil)],
+                "x": [InterfaceUse(interface: "x/api", major: 2, owner: nil, name: nil, problem: nil)]
+            ]
+        )
+    }
+
     // MARK: - Private
     private func catalog(sources: [URL] = [], ship: [URL] = []) throws -> Catalog {
         let store = Store()
@@ -393,6 +513,15 @@ struct CatalogTests {
             ownershipStore: OwnershipStore(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
+    }
+
+    // Interface -> the ids of its providers, the earliest first, as `catalog` reads the mods again.
+    private func queues(of catalog: Catalog) -> [String: [String]] {
+        _ = catalog.read()
+
+        return Dictionary(uniqueKeysWithValues: catalog.interfaces.map { queue in
+            (queue.interface, queue.providers.map(\.id))
+        })
     }
 
     private func write(
