@@ -4,7 +4,8 @@ const { section } = require('../section/section.js');
 const { handlerRow, moved, placing } = require('../handler-list/handler-list.js');
 
 // The URL Schemes section: a card per scheme with its handler list, the mods asked in turn to open an address,
-// reordered by dragging and switched off one by one, and the host app's own answer after them.
+// reordered by dragging and switched off one by one, and the host app's own answer after them. A card names its
+// undecided patterns: those whose addresses go to mods no one placed by id alone.
 function urlSchemesSection({ ui, urls, appName }) {
     const TITLE = 'URL Schemes';
     const KEYWORDS = [
@@ -32,7 +33,8 @@ function urlSchemesSection({ ui, urls, appName }) {
     const rowFills = new WeakMap(); // handler row -> its fill(entry)
 
     ui.addStyle(`
-        .settings-scheme-name { padding: 0 12px; font: 600 var(--deckit-type-body); }
+        .settings-scheme-head { display: flex; align-items: center; gap: 8px; padding: 0 12px; }
+        .settings-scheme-name { flex: 1 1 auto; min-width: 0; font: 600 var(--deckit-type-body); }
         .settings-scheme-description { padding: 1px 12px 6px; font: var(--deckit-type-small); opacity: 0.5; }
         .settings-scheme-none { padding: 4px 12px 6px 44px; font: 12.5px var(--deckit-font); opacity: 0.4; }
     `);
@@ -54,6 +56,8 @@ function urlSchemesSection({ ui, urls, appName }) {
         let current = handlerList;
 
         const card = ui.element('div', { className: 'settings-card' });
+        const head = ui.element('div', { className: 'settings-scheme-head' });
+        const undecided = chip({ ui, text: 'Undecided' });
         const none = ui.element('div', { className: 'settings-scheme-none', text: 'No mod takes this over.' });
         const list = ui.list({
             key: ({ handler }) => handler.id,
@@ -63,8 +67,14 @@ function urlSchemesSection({ ui, urls, appName }) {
         const defaultChip = chip({ ui, text: 'Default', muted: true });
         const defaultRow = handlerRow({ ui, trailing: defaultChip.element });
 
-        card.append(
+        undecided.element.title =
+            'No one placed the mods that take these addresses, so they are asked by name for now. Drag one to the top.';
+        head.append(
             ui.element('div', { className: 'settings-scheme-name', text: schemeName(handlerList.scheme, everyScheme) }),
+            undecided.element
+        );
+        card.append(
+            head,
             ui.element('div', {
                 className: 'settings-scheme-description',
                 text: schemeDescription(handlerList.scheme),
@@ -90,6 +100,12 @@ function urlSchemesSection({ ui, urls, appName }) {
             const defaultAnswer = DEFAULT_ANSWERS[handlerList.system];
             list.set(handlerList.handlers.map((handler, index) => ({ handler, index })));
             none.hidden = handlerList.handlers.length > 0;
+            undecided.element.hidden = !handlerList.undecided.length;
+            undecided.element.textContent =
+                'Undecided: ' +
+                handlerList.undecided
+                    .map((pattern) => (pattern === everyScheme ? 'every address' : pattern))
+                    .join(', ');
             defaultChip.element.hidden = !defaultAnswer;
             defaultRow.set({ position: NO_VALUE, label: defaultAnswer || 'Nothing opens it', muted: true });
             defaultRow.element.title = defaultAnswer
