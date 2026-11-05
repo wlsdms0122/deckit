@@ -53,14 +53,25 @@ function handlerRow({ ui, trailing, draggable = false }) {
 }
 
 // `list` with `id` the key of its rows, moved from where `id` is to where `toId` is: answers the list as it is then,
-// or null when either is not in it.
+// with what placing the moved row sets (`placing`), or null when either is not in it.
 function moved(list, id, toId) {
     const next = [...list];
     const from = next.findIndex((item) => item.id === id);
     const to = next.findIndex((item) => item.id === toId);
     if (from < 0 || to < 0) return null;
     next.splice(to, 0, next.splice(from, 1)[0]);
-    return next;
+    return { list: next, ...placing(next, id) };
 }
 
-module.exports = { HANDLER_LIST_STYLE, handlerRow, moved };
+// What placing the row `id` of `list` sets, `{ order, off }` as the list's setter takes them: the rows down to it
+// and including it are placed as shown, and those of them not on are switched off. The rows after it are left as
+// they are.
+function placing(list, id) {
+    const placed = list.slice(0, list.findIndex((item) => item.id === id) + 1);
+    return {
+        order: placed.map((item) => item.id),
+        off: placed.filter((item) => !item.on).map((item) => item.id),
+    };
+}
+
+module.exports = { HANDLER_LIST_STYLE, handlerRow, moved, placing };

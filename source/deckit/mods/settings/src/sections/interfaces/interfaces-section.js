@@ -1,6 +1,6 @@
 const { chip } = require('../../chip/chip.js');
 const { section } = require('../section/section.js');
-const { handlerRow, moved } = require('../handler-list/handler-list.js');
+const { handlerRow, moved, placing } = require('../handler-list/handler-list.js');
 
 // The Interfaces section: a card per interface a mod implements or depends on, with its implementations in their
 // order, reordered by dragging and switched off one by one. The first that is on is the one picked: the mods that
@@ -72,7 +72,7 @@ function interfacesSection({ ui, mods }) {
         ui.sortable(list, {
             onReorder: (id, toId) => {
                 const next = moved(current.implementations, id, toId);
-                if (next) save(current.interface, next);
+                if (next) save(current.interface, next.list, next);
             },
         });
         cardFills.set(card, fill);
@@ -100,13 +100,11 @@ function interfacesSection({ ui, mods }) {
                 value: entry.implementation.on,
                 onChange: (on) => {
                     const { implementation } = currentEntry;
-                    toggle.set(on);
-                    save(
-                        current.interface,
-                        current.implementations.map((candidate) =>
-                            candidate.id === implementation.id ? { ...implementation, on } : candidate
-                        )
+                    const next = current.implementations.map((candidate) =>
+                        candidate.id === implementation.id ? { ...implementation, on } : candidate
                     );
+                    toggle.set(on);
+                    save(current.interface, next, placing(next, implementation.id));
                 },
             });
             const row = handlerRow({ ui, trailing: [version, toggle.element], draggable: true });
@@ -131,14 +129,12 @@ function interfacesSection({ ui, mods }) {
         }
     }
 
-    // The order is drawn at once, and as deckit has it once it does: a refused one is drawn as it stands, with why.
-    function save(named, implementations) {
+    // `implementations` is drawn at once, and the list as deckit has it once it set `order` and `off`: a refused one is
+    // drawn as it stands, with why.
+    function save(named, implementations, { order, off }) {
         refusals.delete(named);
         draw(withList(named, implementations));
-        mods.order(named, {
-            order: implementations.map((implementation) => implementation.id),
-            off: implementations.filter((implementation) => !implementation.on).map(({ id }) => id),
-        }).then(
+        mods.order(named, { order, off }).then(
             () => draw(mods.list().interfaces),
             (error) => {
                 refusals.set(named, error.message || String(error));

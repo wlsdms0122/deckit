@@ -1,7 +1,7 @@
 const { chip } = require('../../chip/chip.js');
 const { NO_VALUE, schemeName } = require('../../format/format.js');
 const { section } = require('../section/section.js');
-const { handlerRow, moved } = require('../handler-list/handler-list.js');
+const { handlerRow, moved, placing } = require('../handler-list/handler-list.js');
 
 // The URL Schemes section: a card per scheme with its handler list, the mods asked in turn to open an address,
 // reordered by dragging and switched off one by one, and the host app's own answer after them.
@@ -77,7 +77,7 @@ function urlSchemesSection({ ui, urls, appName }) {
             onReorder: (id, toId) => {
                 const next = moved(current.handlers, id, toId);
                 if (!next) return;
-                save(current.scheme, next);
+                urls.set(current.scheme, next);
                 draw(urls.list());
             },
         });
@@ -104,13 +104,11 @@ function urlSchemesSection({ ui, urls, appName }) {
                 value: entry.handler.on,
                 onChange: (on) => {
                     const { handler } = currentEntry;
-                    toggle.set(on);
-                    save(
-                        current.scheme,
-                        current.handlers.map((candidate) =>
-                            candidate.id === handler.id ? { ...handler, on } : candidate
-                        )
+                    const next = current.handlers.map((candidate) =>
+                        candidate.id === handler.id ? { ...handler, on } : candidate
                     );
+                    toggle.set(on);
+                    urls.set(current.scheme, placing(next, handler.id));
                     draw(urls.list());
                 },
             });
@@ -130,13 +128,6 @@ function urlSchemesSection({ ui, urls, appName }) {
                 row.set({ position: String(index + 1), label: handler.name, muted: !handler.on });
             }
         }
-    }
-
-    function save(scheme, handlers) {
-        urls.set(scheme, {
-            order: handlers.map((handler) => handler.id),
-            off: handlers.filter((handler) => !handler.on).map((handler) => handler.id),
-        });
     }
 
     function schemeDescription(scheme) {
