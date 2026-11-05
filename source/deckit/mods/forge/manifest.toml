@@ -4,6 +4,7 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 contributes = "contributes.json"
+startup = "Follows the forge daemons and the runs on them while the app is open."
 
 [permissions]
 "system.main-process" = "Starts and stops the forge daemons and runs forge's operations on them, by running the forge command."

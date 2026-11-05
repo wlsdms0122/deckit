@@ -4,6 +4,7 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 contributes = "contributes.json"
+startup = "Opens on its key from any app, so it waits for the key from the start."
 
 [interfaces]
 provides = { "switcher/actions" = [1] }

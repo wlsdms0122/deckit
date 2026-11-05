@@ -1,6 +1,6 @@
 # Switcher
 
-A list over the app you are in, opened on its key from any app: each mod the app can show, to show the one you pick, and what other mods add to it.
+A list over the app you are in, opened on its key from any app: each mod the app can show, to show the one you pick, and what other mods add to it. It asks to start with the app, so its key opens it from the start.
 
 ## Adding actions: `switcher/actions`
 

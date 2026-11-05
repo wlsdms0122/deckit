@@ -1,6 +1,6 @@
 # Calendar
 
-Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add.
+Day, week and month views of the calendars of your accounts, what is on now and next in the switcher, and a notice before a meeting. Calendar reads no calendar itself: each kind of account comes from a mod that sets a provider through its exports, and with none there is nothing to add. It asks to start with the app, so a meeting reminds whether or not its view was opened.
 
 ## Adding accounts: `calendar/accounts`
 

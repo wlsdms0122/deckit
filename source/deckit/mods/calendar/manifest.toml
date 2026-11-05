@@ -4,6 +4,7 @@ version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
 contributes = "contributes.json"
+startup = "Reminds you of a meeting before it starts."
 
 [interfaces]
 provides = { "calendar/accounts" = [1] }

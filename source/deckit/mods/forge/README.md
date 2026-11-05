@@ -1,6 +1,6 @@
 # Forge
 
-The forge daemons, for the mods that depend on Forge. Forge starts, stops and restarts a daemon, holds the token the daemon hands the process that starts it, and runs forge's operations on it by running the `forge` command in its main process module. It has no view: a mod that depends on it shows the daemons.
+The forge daemons, for the mods that depend on Forge. Forge starts, stops and restarts a daemon, holds the token the daemon hands the process that starts it, and runs forge's operations on it by running the `forge` command in its main process module. It has no view: a mod that depends on it shows the daemons. It asks to start with the app, so it follows the daemons and their runs while the app is open.
 
 ## Where forge is
 
