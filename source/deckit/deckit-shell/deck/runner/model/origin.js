@@ -11,6 +11,12 @@ function requiredBy(id) {
     return Object.freeze({ kind: 'required', by: id });
 }
 
+// Work that needed the mod, as the layer that asked for it describes it, and the id of the mod that asked for it, if
+// any.
+function work(described, mod = null) {
+    return Object.freeze({ kind: 'work', work: described, ...(mod ? { mod } : {}) });
+}
+
 // MARK: - Private
 
-export { PERSON, STARTUP, requiredBy };
+export { PERSON, STARTUP, requiredBy, work };

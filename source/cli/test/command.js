@@ -1,8 +1,8 @@
 // Command tokens (deckit-shell/deckit/command/main.js) over a stand-in for the core, the pages and the messages: a mod
 // mints a token of its own command, the token crosses to another mod as a value, and that mod, with no permission to
 // run commands, runs it, which runs the sender's command in the sender's page with the args it was minted with; a
-// holder releases it and only its sender cancels it, and a token of a sender that is not running fails as its command
-// would. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// holder releases it and only its sender cancels it; a token of a sender that is not running launches it for the work,
+// then runs, and fails with why when it does not launch. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -70,15 +70,29 @@ async function main() {
             return true;
         },
     };
-    const RUNNER = { observe: () => {}, runs: () => [] };
+    // The runner launches a mod not running for the origin asked, or fails to with why, as `launches` says.
+    let launches = true;
+    const activated = [];
+    const RUNNER = {
+        observe: () => {},
+        runs: () => [],
+        activate: async (id, origin) => {
+            activated.push({ id, origin });
+            if (id === 'a' && !running && launches) running = true;
+            if (id === 'a' && !running)
+                throw Object.assign(new Error('a is not running: it did not launch'), { kind: 'NOT_RUNNING' });
+        },
+    };
     const COMMAND = createCommand({ LOG: { warn: () => {} }, IDENTITY, RUNNER, CORE });
     COMMAND.start();
 
     const ask = (page, channel, payload) => heard.asked(page, { channel: `deckit-shell:${channel}`, payload });
-    // The page answers main's question of it on `channel` with `value`.
+    // The page answers main's latest question of it on `channel` with `value`.
     const answerAs = async (page, channel, value) => {
         await tick();
-        const question = tells.find(([to, message]) => to === page && message.channel === `deckit-shell:${channel}`);
+        const question = tells.findLast(
+            ([to, message]) => to === page && message.channel === `deckit-shell:${channel}`
+        );
         heard.told(page, { channel: question[1].channel, id: question[1].id, value });
         return question[1].payload;
     };
@@ -117,13 +131,42 @@ async function main() {
     check('a mod that did not mint a token does not end it by cancelling', kept.has(token), cancelled);
 
     running = false;
+    const launched = ask(holder, 'command-run-token', { token });
+    const runAgain = await answerAs(sender, 'command-run', { opened: true });
+    const after = await launched;
+    const asking = activated.pop();
+    check(
+        'a token of a sender that is not running launches it for the token, as the holder asked, then runs',
+        asking.id === 'a' &&
+            asking.origin.kind === 'work' &&
+            asking.origin.work.token === 'open' &&
+            asking.origin.mod === 'b' &&
+            runAgain.command === 'open' &&
+            after.value?.opened === true,
+        { asking, runAgain, after }
+    );
+
+    running = false;
+    const byName = COMMAND.run({ provider: 'a', command: 'open' });
+    await answerAs(sender, 'command-run', { opened: true });
+    await byName;
+    const named = activated.pop();
+    check(
+        'a declared command whose mod is not running launches it for the command, by no mod for the host',
+        named.origin.work.command === 'open' && !('mod' in named.origin) && running,
+        named
+    );
+
+    running = false;
+    launches = false;
     const down = await ask(holder, 'command-run-token', { token });
     check(
-        'a token of a sender that is not running fails as its command would',
-        down.error?.kind === 'NOT_RUNNING',
+        'a token of a sender that does not launch fails with why',
+        down.error?.kind === 'NOT_RUNNING' && /did not launch/.test(down.error?.message),
         down
     );
     running = true;
+    launches = true;
 
     await ask(holder, 'command-release-token', { token });
     const ended = await ask(holder, 'command-run-token', { token });

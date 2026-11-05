@@ -121,6 +121,22 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         return loadRequested(ids.map((id) => ({ id, origin })));
     }
 
+    // The mod's run, for `origin`: as it runs, or once the mod has loaded for it and its start has ended. Rejects with
+    // why it does not run, `kind` NOT_RUNNING, for a mod that does not load, failed to launch or is at the relaunch
+    // limit.
+    async function activate(id, origin) {
+        if (runOf(id)?.state !== 'running') await load([id], origin);
+        const run = runOf(id);
+        if (run?.state === 'running') return run;
+        const mod = CATALOG.mods().find((one) => one.id === id);
+        const why = !mod
+            ? 'it is not installed or does not load'
+            : run?.relaunchLimited
+              ? 'it failed too often in a short time, and launches again only as the person opens it'
+              : run?.problem || 'it did not launch';
+        throw Object.assign(new Error(`${id} is not running: ${why}`), { kind: 'NOT_RUNNING' });
+    }
+
     // The mods named terminate, after the mods that require them. Resolves once each has ended.
     async function unload(ids) {
         if (!ids.length) return;
@@ -452,6 +468,7 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
         handleEffect,
         whenReconciled,
         load,
+        activate,
         unload,
         relaunch,
         relaunchAll,
