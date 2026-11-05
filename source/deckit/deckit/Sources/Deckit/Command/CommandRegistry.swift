@@ -8,8 +8,9 @@
 import Foundation
 import Deck
 
-// The commands there are: those each running mod's run contributes under `commands`, and those a host declares under
-// a name of its own. A command is found by its provider and its name, never by a joined id.
+// The commands there are: those each mod declares under `commands` in its contributes, running or not, those its run
+// registers beside them while it runs, and those a host declares under a name of its own. A command is found by its
+// provider and its name, never by a joined id.
 public final class CommandRegistry {
     // MARK: - Property
     private let contributionKey = "commands"
@@ -23,18 +24,24 @@ public final class CommandRegistry {
     }
 
     // MARK: - Lifecycle
-    // A declaration that cannot be used is told so as the mod starts, and left out.
+    // A declaration that cannot be used, the mod's or its run's, is told so as the mod starts, and left out.
     func problems(of run: Run, mod: Mod) -> [String] {
-        written(in: run.contributions).compactMap { value in
-            do {
-                _ = try Command(declared: value)
-                return nil
-            } catch let refusal as CommandError {
-                return refusal.message
-            } catch {
-                return "a command cannot be used: \(error)"
-            }
+        let contributed: [(String, JSONValue)]
+        switch mod.contributes[contributionKey] {
+        case .none:
+            contributed = []
+
+        case let .object(entries):
+            contributed = entries.sorted { one, other in one.key < other.key }
+
+        case .some:
+            return ["contributes \"\(contributionKey)\" must be an object of commands by name"]
         }
+        let names = Set(contributed.map { name, _ in name })
+        let registered = written(in: run.contributions).filter { value in !names.contains(name(of: value)) }
+
+        return contributed.compactMap { name, value in problem { try Command(name: name, declared: value) } }
+            + registered.compactMap { value in problem { try Command(declared: value) } }
     }
 
     // MARK: - Public
@@ -55,13 +62,17 @@ public final class CommandRegistry {
         hostCommands = next
     }
 
-    // The hosts' first, in the order declared, then each running mod's, in the load order.
+    // The hosts' first, in the order declared, then each mod's, in the load order: those it declares, by name, running
+    // or not, then those its run registers beside them.
     public func list() -> [RegisteredCommand] {
         let mods = deck.catalog.loading.flatMap { mod in
             let provider = Provider.mod(id: mod.manifest.id, name: mod.manifest.name)
-            return declared(in: deck.contributions(of: mod.manifest.id)).map { command in
-                RegisteredCommand(provider: provider, command: command)
+            let declared = declared(of: mod)
+            let names = Set(declared.map(\.name))
+            let registered = registered(in: deck.contributions(of: mod.manifest.id)).filter { command in
+                !names.contains(command.name)
             }
+            return (declared + registered).map { command in RegisteredCommand(provider: provider, command: command) }
         }
 
         return hostCommands + mods
@@ -94,14 +105,38 @@ public final class CommandRegistry {
         return registered
     }
 
-    // The commands a run contributed that can be used.
-    private func declared(in contributions: Contribution?) -> [Command] {
+    // MARK: - Private
+    // The commands the mod declares that can be used, by name.
+    private func declared(of mod: Mod) -> [Command] {
+        guard case let .object(entries) = mod.contributes[contributionKey] else { return [] }
+        return entries.sorted { one, other in one.key < other.key }.compactMap { name, value in
+            try? Command(name: name, declared: value)
+        }
+    }
+
+    // The commands a run registered that can be used.
+    private func registered(in contributions: Contribution?) -> [Command] {
         written(in: contributions).compactMap { value in try? Command(declared: value) }
     }
 
-    // MARK: - Private
     private func written(in contributions: Contribution?) -> [JSONValue] {
         guard case let .array(values) = contributions?.layers[contributionKey] else { return [] }
         return values
+    }
+
+    private func name(of value: JSONValue) -> String {
+        guard case let .object(fields) = value, case let .string(name) = fields["name"] else { return "" }
+        return name
+    }
+
+    private func problem(_ read: () throws -> Command) -> String? {
+        do {
+            _ = try read()
+            return nil
+        } catch let refusal as CommandError {
+            return refusal.message
+        } catch {
+            return "a command cannot be used: \(error)"
+        }
     }
 }

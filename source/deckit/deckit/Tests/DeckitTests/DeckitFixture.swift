@@ -24,13 +24,14 @@ struct DeckitFixture {
     }
 
     // MARK: - Public
-    // `requires` are the mods it requires, by id, at 1.0.0.
+    // `requires` are the mods it requires, by id, at 1.0.0, and `contributes` what its contributes file declares.
     func write(
         _ id: String,
         api: String = "1.0.0",
         permissions: [String] = [],
         urls: [String] = [],
-        requires: [String] = []
+        requires: [String] = [],
+        contributes: [String: JSONValue]? = nil
     ) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
@@ -51,8 +52,11 @@ struct DeckitFixture {
             version = "1.0.0"
             api = "\(api)"
             main = "main.js"
-            """ + patterns + asked + required
+            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"") + patterns + asked + required
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
+        if let contributes {
+            try JSONEncoder().encode(JSONValue.object(contributes)).write(to: location.appending(path: "contributes.json"))
+        }
         try Data().write(to: location.appending(path: "main.js"))
     }
 

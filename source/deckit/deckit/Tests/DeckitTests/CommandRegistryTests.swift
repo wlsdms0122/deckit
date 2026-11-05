@@ -41,6 +41,48 @@ struct CommandRegistryTests {
         #expect(sut.provider(of: "c") == nil)
     }
 
+    @Test("a mod's declared commands are listed by name, running or not, then those its run registers beside them")
+    func declaredCommandsAreListed() throws {
+        // Given
+        let open: JSONValue = .object(["description": .string("Open a file")])
+        try fixture.write("a", contributes: ["commands": .object(["open": open, "close": .object([:])])])
+        let sut = try fixture.deckit()
+
+        // When
+        let declared = sut.commands.list()
+        _ = try sut.started("a", run: 1, contributing: ["commands": .array([
+            .object(["name": .string("open")]),
+            command("reload")
+        ])])
+        let running = sut.commands.list()
+
+        // Then
+        #expect(declared.map(\.command.name) == ["close", "open"])
+        #expect(running.map(\.command.name) == ["close", "open", "reload"])
+        #expect(running[1].command.description == "Open a file")
+    }
+
+    @Test("a declared command that cannot be used is told as the mod starts and left out", arguments: [
+        (
+            ["commands": .object(["go": .object(["params": .object(["type": .string("string")])])])],
+            "command \"go\" cannot be used: its \"params\" takes { type: 'object' }"
+        ),
+        (["commands": .object(["go": .string("Go")])], "command \"go\" cannot be used: it needs an object"),
+        (["commands": .array([])], "contributes \"commands\" must be an object of commands by name")
+    ] as [([String: JSONValue], String)])
+    func declaredCommandIsRefused(contributes: [String: JSONValue], problem: String) throws {
+        // Given
+        try fixture.write("a", contributes: contributes)
+        let sut = try fixture.deckit()
+
+        // When
+        let effects = try sut.started("a", run: 1, contributing: [:])
+
+        // Then
+        #expect(effects.problem == problem)
+        #expect(sut.commands.list().isEmpty)
+    }
+
     @Test("a declaration that cannot be used is told as the mod starts and left out", arguments: [
         (["name": .string("a.b")], "\"a.b\" is no name: a name has letters, digits, \"_\" and \"-\""),
         (

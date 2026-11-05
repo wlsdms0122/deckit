@@ -17,12 +17,22 @@ public struct Command: Equatable, Sendable {
     public let params: ParameterSchema?
 
     // MARK: - Initializer
-    // A declaration as written, `{ name, description, params }`, refused with why it cannot be used.
+    // A declaration as a run registers it, `{ name, description, params }`, refused with why it cannot be used.
     public init(declared value: JSONValue) throws {
         guard case let .object(fields) = value, case let .string(name) = fields["name"] else {
             throw CommandError.declaration(name: "", why: "it needs a name")
         }
+
+        try self.init(name: name, declared: value)
+    }
+
+    // The declaration of `name` as a mod's contributes writes it, `{ description, params }`, refused with why it cannot
+    // be used.
+    public init(name: String, declared value: JSONValue) throws {
         guard Provider.isName(name) else { throw CommandError.notAName(name) }
+        guard case let .object(fields) = value else {
+            throw CommandError.declaration(name: name, why: "it needs an object")
+        }
 
         self.name = name
         self.description = if case let .string(description) = fields["description"] { description } else { "" }
