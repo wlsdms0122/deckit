@@ -36,7 +36,8 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     const history = { list: [], at: -1 };
     let stage = null; // where the pages are laid, which the host app places
     let current = null;
-    let returning = null; // the mod that was on screen while its page runs again
+    let returning = null; // the mod that was on screen while its page runs again, or that the person opened
+    let opening = null; // the mod the person opened, while its launch has not settled
     let inList = new Set(); // the mods in the list as it was last sent
     // How long main waits on a page's exit, or its answer to Escape, before it goes on: it guards a page that is
     // gone or stuck.
@@ -99,14 +100,21 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     }
 
     // A mod on screen, asked by the mod itself, the shell's show command or an address it opened. One with no view in
-    // the panel has nothing to show. A child not in the list brings its parent, whose regions show what they show.
+    // the panel has nothing to show. A child not in the list brings its parent, whose regions show what they show. One
+    // that does not run launches as the person opens it.
     function bringToFront(modId) {
-        if (select(frontOf(modId))) host.show();
+        const front = frontOf(modId);
+        if (select(front)) host.show();
+        else if (launchable(front)) {
+            open(front);
+            host.show();
+        }
     }
 
     // Whether bringToFront has a mod to put on screen for it.
     function canBringToFront(modId) {
-        return shownInList(frontOf(modId));
+        const front = frontOf(modId);
+        return shownInList(front) || launchable(front);
     }
 
     // MARK: - Private
@@ -126,7 +134,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         PROTOCOL.chord.handle(({ action }, sender) =>
             fromFrame(sender) && NAMED_KEYS.has(action) ? deckit.keymap.chordOf(PROVIDER.id, action) : ''
         );
-        PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && select(id));
+        PROTOCOL.pick.on(({ id }, sender) => fromFrame(sender) && (select(id) || (launchable(id) && open(id))));
         PROTOCOL.step.on(({ by }, sender) => fromFrame(sender) && step(by));
         PROTOCOL.reorder.on(({ ids }, sender) => fromFrame(sender) && arrange(ids));
         PROTOCOL.layout.on((change, sender) => fromFrame(sender) && setSidebar(change));
@@ -317,9 +325,9 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     }
 
     // The pages of the mods that said they have something to show, as the mods run. A page shown stays while
-    // its mod terminates, and while it launches again in that page. The mod on screen whose page is replaced
-    // comes back on screen once the new page says it has something to show; until then, and when it has nothing,
-    // the panel lands as it does at the start.
+    // its mod terminates, and while it launches again in that page. The mod on screen whose page is replaced, or the
+    // one the person opened, comes on screen once its new page says it has something to show; until then, and when it
+    // has nothing, the panel lands as it does at the start.
     function reconcile() {
         const showing = new Map(
             deckit.mods
@@ -336,7 +344,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         }
         for (const [id, page] of showing) if (!pages.has(id)) pages.set(id, page);
         update();
-        if (returning && !mayShow(returning)) returning = null;
+        if (returning && returning !== opening && !mayShow(returning)) returning = null;
         if (returning && pages.has(returning)) {
             select(returning, { fromHistory: true });
             returning = null;
@@ -360,6 +368,26 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     // Launching, terminating, or ended to launch again.
     function inTransition(run) {
         return run.state !== 'notRunning' || run.relaunches;
+    }
+
+    // In the list, and not running: it has no run, or its run ended and does not launch again.
+    function launchable(id) {
+        const run = deckit.mods.runOf(id);
+        return listed(id) && (!run || (run.state === 'notRunning' && !run.relaunches));
+    }
+
+    // The person opens a mod that does not run: it launches, and comes on screen once its view joins.
+    function open(id) {
+        remember(id);
+        returning = id;
+        opening = id;
+        deckit.mods
+            .launch(id)
+            .catch((error) => deckit.log.error(`${id} did not launch`, error))
+            .finally(() => {
+                if (opening === id) opening = null;
+                reconcile();
+            });
     }
 
     // In the list's order: the first mod that has something to show, or may have once it has started, of those in
@@ -566,10 +594,10 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     }
 
     // A mod listed stays listed while it launches again, in this page or a new one (a replace), until its new run
-    // says whether it has something to show.
+    // says whether it has something to show. One that does not run is listed for the person to open.
     function stateOf() {
         const mods = inOrder()
-            .filter(({ id }) => shownInList(id) || (inList.has(id) && listed(id) && mayShow(id)))
+            .filter(({ id }) => shownInList(id) || (inList.has(id) && listed(id) && mayShow(id)) || launchable(id))
             .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));
         inList = new Set(mods.map(({ id }) => id));
         return {
@@ -611,16 +639,19 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         // Another mod put on screen meanwhile is where the panel stays.
         if (id !== returning) returning = null;
         if (current === id) return true;
-        if (!fromHistory) {
-            history.list.splice(history.at + 1, Infinity, id);
-            if (history.list.length > HISTORY_LIMIT) history.list.shift();
-            history.at = history.list.length - 1;
-        }
+        if (!fromHistory) remember(id);
         current = id;
         update();
         if (shown) focus();
         broadcast();
         return true;
+    }
+
+    // The mod is the latest in the history, after where it is now.
+    function remember(id) {
+        history.list.splice(history.at + 1, Infinity, id);
+        if (history.list.length > HISTORY_LIMIT) history.list.shift();
+        history.at = history.list.length - 1;
     }
 
     // A mod no longer there, or with nothing to show, is passed over.
