@@ -11,6 +11,9 @@ const { switcher, inFront } = require('./switcher/switcher.js');
 const { START, tabList, tabLabel } = require('./tabs/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
 
+// The sites' notifications kept for a press, the latest.
+const NOTICES_KEPT = 100;
+
 class Browser {
     attach(shell, deckit) {
         const { theme, ui } = shell;
@@ -18,6 +21,15 @@ class Browser {
         const { values, records } = storage;
 
         let shown = false;
+        // The owner of deckit/notifications while one is connected, and the sites' notifications posted to it, by the
+        // key a press names, the latest kept.
+        let notifications = null;
+        const notices = new Map();
+        let noticeSequence = 0;
+        deckit.dependencies.onConnect('deckit/notifications', (connected) => {
+            notifications = connected;
+            return () => (notifications = null);
+        });
 
         // Files get a session of their own (system.files), so a file page never holds the web's cookies.
         const webSession = deckit.web.session('web');
@@ -124,6 +136,7 @@ class Browser {
         deckit.commands.register({
             'new-tab': { run: ({ url } = {}) => newTab(url) },
             'reopen-tab': { run: reopenTab },
+            'show-notification': { run: showNotification },
             'switch-to-tab': {
                 run: switchToTab,
                 complete: (_param, partial) => candidatesOf(tabs.tree(), tabLabel, partial, deckit.util),
@@ -270,19 +283,39 @@ class Browser {
             if (!tabs.atStart(tabs.front())) find.show();
         }
 
-        function notify(tab, notification) {
+        // A site's notification, posted while an owner of deckit/notifications is connected and dropped while none is.
+        async function notify(tab, notification) {
+            if (!notifications) return;
             const site = hostOf(tab.url);
-            deckit.notify({
-                title: notification.title || site,
-                body: notification.body ? notification.body + ' · ' + site : site,
-                silent: notification.silent,
-                onClick: () => {
-                    if (!tabs.list().includes(tab)) return;
-                    shell.show();
-                    tabs.select(tab);
-                    notification.click();
-                },
-            });
+            const key = String(++noticeSequence);
+            let token = null;
+            try {
+                token = await deckit.commands.tokens.mint('show-notification', {
+                    tab: String(tab.id),
+                    notification: key,
+                });
+                notices.set(key, notification);
+                for (const old of [...notices.keys()].slice(0, -NOTICES_KEPT)) notices.delete(old);
+                await notifications.post({
+                    title: notification.title || site,
+                    body: notification.body ? notification.body + ' · ' + site : site,
+                    silent: notification.silent,
+                    token,
+                });
+            } catch {
+                notices.delete(key);
+                if (token) deckit.commands.tokens.cancel(token).catch(() => {});
+            }
+        }
+
+        // A press on a site's notification: its tab comes forward, and the site hears the press.
+        function showNotification({ tab, notification }) {
+            const found = tabs.list().find((each) => String(each.id) === tab);
+            if (!found) throw new Error('The tab the notification came from is closed');
+            shell.show();
+            tabs.select(found);
+            notices.get(notification)?.click();
+            notices.delete(notification);
         }
 
         function notAnAddress(text) {

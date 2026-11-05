@@ -13,8 +13,9 @@ const NOW_WAIT_MS = 150;
 // The list of a Show item for each mod the shell can show, the actions mods set, `given`, by the connection of each,
 // and the actions mods declare to `switcher/actions`, in `window`, the mod's own: `show()` opens it, and `toggle()`
 // opens it or puts it away when it is open. Each open reads the mods and their actions anew. It stays until the keyboard goes elsewhere: Escape, a mod
-// coming on screen, another app. `end()` drops the list.
-function switcher(shell, deckit, window, given) {
+// coming on screen, another app. `end()` drops the list. `notifications()` is the owner of deckit/notifications while
+// one is connected, or null.
+function switcher(shell, deckit, window, given, notifications = () => null) {
     const registry = deckit.commands;
     const records = deckit.storage.records;
     const drawing = { ui: shell.ui, theme: shell.theme, util: deckit.util }; // what the list is drawn and ranked with
@@ -161,10 +162,13 @@ function switcher(shell, deckit, window, given) {
         if (said) current.list.model.say(said.text, { alert: said.alert });
     }
 
+    // Posted to deckit/notifications, with nothing to bring forward; while no owner is connected it is only logged.
     function notify(item, why) {
-        deckit
-            .notify({ title: item.label, body: why })
-            .catch((error) => console.error(`[switcher] ${item.label} did not run: ${why}`, error));
+        const owner = notifications();
+        const posted = owner
+            ? owner.post({ title: item.label, body: why })
+            : Promise.reject(new Error('no mod shows notifications'));
+        posted.catch((error) => console.error(`[switcher] ${item.label} did not run: ${why}`, error));
     }
 
     // What each mod set, `[mod id, { list, now, search, run }]`.

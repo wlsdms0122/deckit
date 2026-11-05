@@ -30,6 +30,17 @@
             "params": { "type": "object", "properties": { "url": { "type": "string", "title": "Address" } } }
         },
         "reopen-tab": { "description": "Opens the tab closed last again, where it was." },
+        "show-notification": {
+            "description": "Brings forward the tab a site's notification came from, and tells the site it was pressed.",
+            "params": {
+                "type": "object",
+                "properties": {
+                    "tab": { "type": "string", "title": "Tab" },
+                    "notification": { "type": "string", "title": "Notification" }
+                },
+                "required": ["tab", "notification"]
+            }
+        },
         "switch-to-tab": {
             "description": "Brings an open tab to the front.",
             "params": {

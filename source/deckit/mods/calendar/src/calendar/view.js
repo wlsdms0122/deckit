@@ -188,6 +188,7 @@ function calendarView({ calendar, shell, deckit, sendTest }) {
         },
         commands: {
             'go-to-date': { run: goToDate },
+            'show-date': { run: (args) => (goToDate(args), shell.show()) },
             'show-view': { run: showView },
         },
         actions,

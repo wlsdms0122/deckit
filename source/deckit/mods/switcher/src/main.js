@@ -14,7 +14,12 @@ class Switcher {
             didResignKey: () => this.list?.putAway(),
         });
         const given = new Map(); // connection -> the actions its mod set
-        this.list = switcher(shell, deckit, window, given);
+        let notifications = null; // the owner of deckit/notifications, while one is connected
+        deckit.dependencies.onConnect('deckit/notifications', (connected) => {
+            notifications = connected;
+            return () => (notifications = null);
+        });
+        this.list = switcher(shell, deckit, window, given, () => notifications);
         deckit.exports.register('switcher/actions', {
             connect: (connection) => ({
                 setActions: (actions) => {

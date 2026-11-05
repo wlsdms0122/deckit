@@ -1,13 +1,15 @@
 const { calendar } = require('./calendar/calendar.js');
 const { calendarView } = require('./calendar/view.js');
+const { notice } = require('./notice/notice.js');
 
 class Calendar {
     // What the view has put on screen for the function side to reach (calendar.js), while it is attached.
     screen = null;
 
     start(deckit) {
-        this.calendar = calendar({ deckit, screen: () => this.screen });
-        this.sendTest = () => sendTest(deckit, () => this.screen?.reveal());
+        const notices = notice(deckit);
+        this.calendar = calendar({ deckit, screen: () => this.screen, notice: notices });
+        this.sendTest = () => sendTest(deckit, notices);
         deckit.commands.register({ 'send-test': { run: this.sendTest } });
         deckit.exports.register('calendar/accounts', {
             connect: (connection) => ({
@@ -55,20 +57,19 @@ class Calendar {
 
 module.exports = Calendar;
 
-// Shows a notification the way a reminder looks, and answers what the person reads of how it went. A click on it
-// calls `reveal()`.
-async function sendTest(deckit, reveal) {
-    let shown = false;
+// Posts a notice the way a reminder looks, and answers what the person reads of how it went. A press on it shows
+// Calendar on today.
+async function sendTest(deckit, notices) {
+    let posted = false;
     try {
-        shown = await deckit.notify({
+        posted = await notices.post({
             title: 'Calendar',
             body: 'This is what a reminder looks like',
-            onClick: reveal,
+            date: new Date(),
         });
     } catch {}
     // macOS reports a notice as shown even when its settings keep it off the screen.
-    return (
-        (shown ? 'Sent. ' : 'Not shown. ') +
-        `If none appeared, allow ${deckit.about().name} in System Settings › Notifications.`
-    );
+    return posted
+        ? `Sent. If none appeared, allow ${deckit.about().name} in System Settings › Notifications.`
+        : 'Not sent: no mod shows notifications now.';
 }

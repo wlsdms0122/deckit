@@ -9,10 +9,9 @@ urls = ["http:*", "https:*"]
 [permissions]
 "system.certificates" = "Asks you about a site whose certificate this Mac cannot verify, and loads it once you say yes."
 "system.site-permissions" = "Asks you when a site wants the camera, the microphone or notices, and lets it have them once you say yes."
-"system.notifications" = "Shows a site's notices, the way a browser does."
 "system.files" = "Opens a file on this Mac in a tab when you type its path or a file:// address."
 "system.file-handlers" = "Opens a file you downloaded in the app that handles it, and shows it in Finder."
 "system.clipboard-write" = "Copy Link in a tab's or a bookmark's menu puts its address on the clipboard."
 
 [interfaces]
-uses = { "switcher/actions" = 1 }
+uses = { "switcher/actions" = 1, "deckit/notifications" = 1 }

@@ -8,7 +8,4 @@ startup = "Reminds you of a meeting before it starts."
 
 [interfaces]
 provides = { "calendar/accounts" = [1] }
-uses = { "switcher/actions" = 1, "settings/buttons" = 1 }
-
-[permissions]
-"system.notifications" = "Reminds you of a meeting before it starts."
+uses = { "switcher/actions" = 1, "settings/buttons" = 1, "deckit/notifications" = 1 }
