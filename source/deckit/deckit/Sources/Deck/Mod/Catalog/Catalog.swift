@@ -86,6 +86,22 @@ public final class Catalog {
         owners[interface]
     }
 
+    // What the mods that load declare to `interface`, in their order, as the mods were last read: handed to its owner
+    // `id` only.
+    public func declarations(to interface: String, for id: String) throws -> [Declaration] {
+        guard owners[interface] == id else { throw DeclarationError.notOwner(interface: interface, mod: id) }
+
+        return declarations(to: interface)
+    }
+
+    // Each interface the mods that load declare anything to, with what they declare, as the mods were last read.
+    func declarations() -> [String: [Declaration]] {
+        let interfaces = Set(loading.flatMap { mod in mod.declared.entries.keys })
+        return Dictionary(uniqueKeysWithValues: interfaces.map { interface in
+            (interface, declarations(to: interface))
+        })
+    }
+
     // As the person's: `id` owns `interface` from now on, whichever provider is first in its queue, until its pin is
     // cleared, for nil, or the mod leaves the queue. Refused for a mod that does not provide the interface now.
     // Settled once the mods are read again.
@@ -291,6 +307,7 @@ public final class Catalog {
             manifest.version ?? "",
             String(installs[manifest.id] ?? 0)
         ] + manifest.permissions.map { requested in "\(requested.id)=\(requested.reason)" }
+        let contributes = modFolder.contributes(of: manifest, in: source) ?? [:]
 
         return Mod(
             manifest: manifest,
@@ -305,8 +322,17 @@ public final class Catalog {
             uses: [],
             dependents: [],
             entry: manifest.main.flatMap { main in modFolder.file(main, in: source) },
-            contributes: modFolder.contributes(of: manifest, in: source) ?? [:]
+            contributes: contributes,
+            declared: InterfaceDeclaration(contributes: contributes)
         )
+    }
+
+    private func declarations(to interface: String) -> [Declaration] {
+        loading.flatMap { mod in
+            (mod.declared.entries[interface] ?? []).map { entry in
+                Declaration(mod: mod.manifest.id, name: mod.manifest.name, entry: entry)
+            }
+        }
     }
 
     // A source folder of the same id would hide the installed copy.

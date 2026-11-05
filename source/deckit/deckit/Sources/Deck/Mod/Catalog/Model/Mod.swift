@@ -37,6 +37,8 @@ public struct Mod: Sendable {
     // What the file its contributes names declares, by contribution point: deck reads it and does not judge it, and
     // the layer that owns a contribution point reads what is under it.
     public let contributes: [String: JSONValue]
+    // What it declares to interfaces under `interfaces` in its contributes, which deck holds for each one's owner.
+    public let declared: InterfaceDeclaration
 
     // MARK: - Initializer
     // MARK: - Public

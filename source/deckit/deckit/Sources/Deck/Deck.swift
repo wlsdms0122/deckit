@@ -26,6 +26,8 @@ public final class Deck {
     private var layers: [Layer] = []
     // Interface -> its owner, as the runs were last told.
     private var announced: [String: String] = [:]
+    // Interface -> what the mods declare to it, as the runs were last told.
+    private var announcedDeclarations: [String: [Declaration]] = [:]
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
@@ -184,8 +186,8 @@ public final class Deck {
 
     // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, then
     // `<interface>:owner-changed`, of no args, to those that listen for each interface whose owner changed since they
-    // were last told, and what each layer tells has changed of its own, once each layer has heard of the sandboxes that
-    // closed.
+    // were last told, `<interface>:contributions-changed` for each whose declarations changed, and what each layer
+    // tells has changed of its own, once each layer has heard of the sandboxes that closed.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
         events.dropEnded()
         for case let .close(modId) in effects {
@@ -199,9 +201,16 @@ public final class Deck {
             owners[interface] != announced[interface]
         }
         announced = owners
-        let deliveries = changed.sorted()
-            .map { interface in events.announce("\(interface):owner-changed") }
-            .filter { delivery in !delivery.listeners.isEmpty }
+        let declarations = catalog.declarations()
+        let redeclared = Set(declarations.keys).union(announcedDeclarations.keys).filter { interface in
+            declarations[interface] != announcedDeclarations[interface]
+        }
+        announcedDeclarations = declarations
+        let deliveries = (
+            changed.sorted().map { interface in events.announce("\(interface):owner-changed") }
+                + redeclared.sorted().map { interface in events.announce("\(interface):contributions-changed") }
+        )
+        .filter { delivery in !delivery.listeners.isEmpty }
 
         return effects
             + connections.changes()
@@ -214,6 +223,7 @@ public final class Deck {
         guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
 
         return connections.problems(of: run)
+            + mod.declared.problems
             + layers.flatMap { layer in layer.problems(run, mod) }
     }
 }
