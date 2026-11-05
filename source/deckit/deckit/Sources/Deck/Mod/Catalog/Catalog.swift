@@ -29,6 +29,9 @@ public final class Catalog {
     private(set) var lastRead: [Mod] = []
     // Each interface's list, as the mods were last read.
     public private(set) var interfaces: [InterfaceList] = []
+    // The mods that stand in a list, as they were last read: those that load by their own manifest, whether what they
+    // require is there or not and whether they run or not.
+    public private(set) var listed: [Mod] = []
     // Those of them that load, in their load order.
     public var loading: [Mod] {
         lastRead.filter { mod in mod.problem == nil }
@@ -69,9 +72,9 @@ public final class Catalog {
         resolve().mods
     }
 
-    // The mods, read and kept as read, with each interface's list.
+    // The mods, read and kept as read, with each interface's list and the mods that stand in a list.
     func read() -> [Mod] {
-        (lastRead, interfaces) = resolve()
+        (lastRead, interfaces, listed) = resolve()
         return lastRead
     }
 
@@ -181,12 +184,17 @@ public final class Catalog {
         return list().sorted { mod, other in rank(mod.manifest.id) < rank(other.manifest.id) }
     }
 
-    // Every mod in its load order, and each interface's list, the picks of which join the mods.
-    private func resolve() -> (mods: [Mod], interfaces: [InterfaceList]) {
+    // Every mod in its load order, each interface's list, the picks of which join the mods, and the mods that stand in
+    // a list.
+    private func resolve() -> (mods: [Mod], interfaces: [InterfaceList], listed: [Mod]) {
         let found = ranked()
         let interfaces = InterfaceLists(found: found, kept: implementationOrder.read(), host: implementations)
 
-        return (DependencyGraph(found, picks: interfaces.picks).ordered(), interfaces.lists)
+        return (
+            DependencyGraph(found, picks: interfaces.picks).ordered(),
+            interfaces.lists,
+            found.filter { mod in mod.problem == nil }
+        )
     }
 
     // The load order kept with the mods `installed` that it did not place, each just before the first it places that
