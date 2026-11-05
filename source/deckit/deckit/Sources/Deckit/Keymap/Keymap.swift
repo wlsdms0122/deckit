@@ -45,8 +45,8 @@ public final class Keymap {
     }
 
     // MARK: - Lifecycle
-    // A key that cannot be used, the mod's or its run's, is told so as the mod starts, and left out.
-    func problems(of run: Run, mod: Mod) -> [String] {
+    // A key the mod declares that cannot be used is told so as the mod is read, and left out.
+    func problems(of mod: Mod) -> [String] {
         let contributed: [(String, JSONValue)]
         switch mod.contributes[contributionKey] {
         case .none:
@@ -58,8 +58,8 @@ public final class Keymap {
         case .some:
             return ["contributes \"\(contributionKey)\" must be an object of keys by name"]
         }
-        let names = Set(contributed.map { name, _ in name })
-        let declaredProblems = contributed.compactMap { name, value in
+
+        return contributed.compactMap { name, value in
             guard let key = key(named: name, declared: value) else {
                 return "key \"\(name)\" cannot be used: it needs { label, key, scope }"
             }
@@ -68,11 +68,20 @@ public final class Keymap {
             }
             return problem(of: key, mod: mod)
         }
+    }
 
-        return declaredProblems
-            + registered(in: run.contributions)
-                .filter { key in !names.contains(key.name) }
-                .compactMap { key in problem(of: key, mod: mod) }
+    // A key its run registers beside those the mod declares that cannot be used is told so as the mod starts, and
+    // left out.
+    func problems(of run: Run, mod: Mod) -> [String] {
+        let names: Set<String> = if case let .object(entries) = mod.contributes[contributionKey] {
+            Set(entries.keys)
+        } else {
+            []
+        }
+
+        return registered(in: run.contributions)
+            .filter { key in !names.contains(key.name) }
+            .compactMap { key in problem(of: key, mod: mod) }
     }
 
     // The keymap, once it resolves otherwise than the driver was last told.

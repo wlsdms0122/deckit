@@ -94,7 +94,7 @@ struct InterfaceContributionTests {
         #expect(try sut.commands.check(token: second).holder == "p")
     }
 
-    @Test("an entry that names a command its mod cannot run is left out, and told as its mod starts")
+    @Test("an entry that names a command its mod cannot run is left out, and told as its mod is read")
     func entryOfUnknownCommandIsLeftOut() throws {
         // Given
         try fixture.write("o", provides: ["o/actions"])
@@ -109,14 +109,14 @@ struct InterfaceContributionTests {
 
         // When
         let handed = try sut.contributions(to: "o/actions", for: "o")
-        let effects = try sut.started("a", run: 1, contributing: [:])
+        let problems = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
 
         // Then
         #expect(handed.count == 1)
-        #expect(effects.problem == "an entry declared to o/actions is left out: no such command: a.missing")
+        #expect(problems == ["an entry declared to o/actions is left out: no such command: a.missing"])
     }
 
-    @Test("declarations that are not entry lists by interface are told as the mod starts and left out", arguments: [
+    @Test("declarations that are not entry lists by interface are told as the mod is read and left out", arguments: [
         (.array([]), "contributes \"interfaces\" must be an object of entry lists by interface"),
         (
             .object(["o/actions": .array([.string("x")])]),
@@ -130,10 +130,10 @@ struct InterfaceContributionTests {
         let sut = try fixture.deckit()
 
         // When
-        let effects = try sut.started("a", run: 1, contributing: [:])
+        let problems = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
 
         // Then
-        #expect(effects.problem == problem)
+        #expect(problems == [problem])
         #expect(try sut.contributions(to: "o/actions", for: "o").isEmpty)
     }
 

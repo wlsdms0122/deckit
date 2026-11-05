@@ -43,10 +43,12 @@ public final class Deckit {
         let urlRouter = URLRouter(deck: deck, field: urls, schemeHandlers: schemeHandlers)
         // Each part keeps the deck it is on; deck asks a part only while it is there, so neither keeps the other.
         deck.add(Layer(
+            declarationProblems: { [weak commands] mod in commands?.problems(of: mod) ?? [] },
             problems: { [weak commands] run, mod in commands?.problems(of: run, mod: mod) ?? [] },
             read: { [weak commands] mods in commands?.read(mods) }
         ))
         deck.add(Layer(
+            declarationProblems: { [weak keymap] mod in keymap?.problems(of: mod) ?? [] },
             problems: { [weak keymap] run, mod in keymap?.problems(of: run, mod: mod) ?? [] },
             changes: { [weak keymap] in keymap?.changes() ?? [] }
         ))
@@ -71,7 +73,7 @@ public final class Deckit {
 
     // What the mods that load declare to `interface`, for its owner `owner`: an entry that names a command of its mod's
     // comes with a token of it `owner` holds, minted once for each owner, and one whose command cannot run with its
-    // args is left out (CommandRegistry tells why as its mod starts). Refused for a mod that does not own `interface`.
+    // args is left out (CommandRegistry tells why as its mod is read). Refused for a mod that does not own `interface`.
     public func contributions(to interface: String, for owner: String) throws -> [InterfaceContribution] {
         try deck.catalog.declarations(to: interface, for: owner).compactMap { declaration in
             guard case let .object(fields) = declaration.entry else { return nil }

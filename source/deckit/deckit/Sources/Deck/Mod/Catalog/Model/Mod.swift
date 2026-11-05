@@ -41,6 +41,9 @@ public struct Mod: Sendable {
     public let contributes: [String: JSONValue]
     // What it declares to interfaces under `interfaces` in its contributes, which deck holds for each one's owner.
     public let declared: InterfaceDeclaration
+    // What is wrong with what it declares, deck's and each layer's, once it loads: each declaration it names is left
+    // out.
+    public internal(set) var declarationProblems: [String]
 
     // MARK: - Initializer
     // MARK: - Public

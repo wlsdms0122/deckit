@@ -62,7 +62,7 @@ struct CommandRegistryTests {
         #expect(running[1].command.description == "Open a file")
     }
 
-    @Test("a declared command that cannot be used is told as the mod starts and left out", arguments: [
+    @Test("a declared command that cannot be used is told as the mod is read and left out", arguments: [
         (
             ["commands": .object(["go": .object(["params": .object(["type": .string("string")])])])],
             "command \"go\" cannot be used: its \"params\" takes { type: 'object' }"
@@ -76,10 +76,10 @@ struct CommandRegistryTests {
         let sut = try fixture.deckit()
 
         // When
-        let effects = try sut.started("a", run: 1, contributing: [:])
+        let problems = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
 
         // Then
-        #expect(effects.problem == problem)
+        #expect(problems == [problem])
         #expect(sut.commands.list().isEmpty)
     }
 

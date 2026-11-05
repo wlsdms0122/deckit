@@ -75,11 +75,15 @@ public final class Catalog {
     }
 
     // The mods, read and kept as read, with the ownership of each interface, which is kept as the mods provide now.
-    func read() -> [Mod] {
+    // Each that loads is told what is wrong with what it declares: what `judge` finds, after deck's own.
+    func read(_ judge: (Mod) -> [String] = { _ in [] }) -> [Mod] {
         let found = ranked()
         let ownership = keptOwnership(of: found)
         (lastRead, interfaces, listed) = resolve(found, ownership: ownership)
         owners = ownership.owners()
+        for place in lastRead.indices where lastRead[place].problem == nil {
+            lastRead[place].declarationProblems = lastRead[place].declared.problems + judge(lastRead[place])
+        }
 
         return lastRead
     }
@@ -359,7 +363,8 @@ public final class Catalog {
             dependents: [],
             entry: manifest.main.flatMap { main in modFolder.file(main, in: source) },
             contributes: contributes,
-            declared: InterfaceDeclaration(contributes: contributes)
+            declared: InterfaceDeclaration(contributes: contributes),
+            declarationProblems: []
         )
     }
 

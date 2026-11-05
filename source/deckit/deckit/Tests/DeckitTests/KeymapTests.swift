@@ -66,7 +66,7 @@ struct KeymapTests {
         #expect(running.problem == nil)
     }
 
-    @Test("a declared key that cannot be used is told as the mod starts and left out", arguments: [
+    @Test("a declared key that cannot be used is told as the mod is read and left out", arguments: [
         (
             ["keys": .object(["find": .object(["label": .string("Find"), "key": .string("mod+f"), "scope": .string("local")])])],
             "key \"find\" cannot be declared: a local key is registered with what the mod shows"
@@ -87,10 +87,10 @@ struct KeymapTests {
         let sut = try fixture.deckit()
 
         // When
-        let effects = try sut.started("a", run: 1, keys: [])
+        let problems = sut.deck.readCatalog().first { mod in mod.manifest.id == "a" }?.declarationProblems
 
         // Then
-        #expect(effects.problem == problem)
+        #expect(problems == [problem])
         #expect(try sut.keymap.reset("a.none").bindings.isEmpty)
     }
 

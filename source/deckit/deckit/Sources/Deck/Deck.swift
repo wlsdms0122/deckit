@@ -99,9 +99,10 @@ public final class Deck {
         layers.append(layer)
     }
 
-    // The mods read again, as the catalog reads them now.
+    // The mods read again, as the catalog reads them now, each that loads with what deck and each layer find wrong
+    // with what it declares.
     public func readCatalog() -> [Mod] {
-        let mods = catalog.read()
+        let mods = catalog.read { mod in layers.flatMap { layer in layer.declarationProblems(mod) } }
         for layer in layers {
             layer.read(mods)
         }
@@ -223,8 +224,6 @@ public final class Deck {
     private func problems(of id: String, run number: Int) -> [String] {
         guard let run = runner.run(of: id), run.number == number, let mod = runner.mod(of: id) else { return [] }
 
-        return connections.problems(of: run)
-            + mod.declared.problems
-            + layers.flatMap { layer in layer.problems(run, mod) }
+        return connections.problems(of: run) + layers.flatMap { layer in layer.problems(run, mod) }
     }
 }

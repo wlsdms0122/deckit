@@ -32,8 +32,8 @@ public final class CommandRegistry {
     }
 
     // MARK: - Lifecycle
-    // A declaration that cannot be used, the mod's or its run's, is told so as the mod starts, and left out.
-    func problems(of run: Run, mod: Mod) -> [String] {
+    // A declaration that cannot be used is told so as the mod is read, and left out.
+    func problems(of mod: Mod) -> [String] {
         let contributed: [(String, JSONValue)]
         switch mod.contributes[contributionKey] {
         case .none:
@@ -45,14 +45,25 @@ public final class CommandRegistry {
         case .some:
             return ["contributes \"\(contributionKey)\" must be an object of commands by name"]
         }
-        let names = Set(contributed.map { name, _ in name })
-        let registered = written(in: run.contributions).filter { value in !names.contains(name(of: value)) }
 
         return contributed.compactMap { name, value in problem { try Command(name: name, declared: value) } }
-            + registered.compactMap { value in problem { try Command(declared: value) } }
             + mod.declared.entries.sorted { one, other in one.key < other.key }.flatMap { interface, entries in
                 entries.compactMap { entry in problem(ofEntry: entry, to: interface, mod: mod) }
             }
+    }
+
+    // A command its run registers beside those the mod declares that cannot be used is told so as the mod starts,
+    // and left out.
+    func problems(of run: Run, mod: Mod) -> [String] {
+        let names: Set<String> = if case let .object(entries) = mod.contributes[contributionKey] {
+            Set(entries.keys)
+        } else {
+            []
+        }
+
+        return written(in: run.contributions)
+            .filter { value in !names.contains(name(of: value)) }
+            .compactMap { value in problem { try Command(declared: value) } }
     }
 
     // The mods read again: a token ends once its sender, or the holder deckit handed it to, is not found.
