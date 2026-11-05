@@ -7,8 +7,8 @@ import * as LIFECYCLE from '../mod/lifecycle.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
-// again, loading, putting them in a load order, ordering each interface's implementations and what one has where deck
-// keeps it.
+// again, loading, putting them in a load order, pinning the owner of each interface and what one has where deck keeps
+// it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // MARK: - Property
@@ -65,9 +65,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return CATALOG.arrange(ids);
         });
-        PROTOCOL.order.handle(({ interface: named, order, off }, sender) => {
+        PROTOCOL.pin.handle(({ interface: named, mod }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
-            return CATALOG.order(named, { order, off });
+            return CATALOG.pin(named, mod);
         });
         PROTOCOL.usage.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
@@ -92,9 +92,9 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // every mod the catalog found, in the load order whether it loads or not, each with `installed`, whether it is a
     // copy in deck's mods folder, `problem`, why it does not load, `run`, its latest run's `state` and `problem`, null
     // for one with no sandbox, `hides`, folders of the same id that are not read, `launched`, while it starts or stops
-    // again, what its latest run that launched contributed, as `running` lists it, and `relations`, each interface in
-    // its [dependencies] with the mod picked for it and whether that one runs. `interfaces`: each interface's list of
-    // implementations, as the catalog read it.
+    // again, what its latest run that launched contributed, as `running` lists it, `relations`, each mod in its
+    // [dependencies] and whether that one runs, and `uses`, each interface it uses and what it comes to. `interfaces`:
+    // each interface's queue of providers and its owner, as the catalog read it.
     function describe() {
         const running = (id) => RUNNER.runOf(id)?.state === 'running';
         return {
@@ -117,6 +117,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
                         ...relation,
                         running: !!relation.id && running(relation.id),
                     })),
+                    uses: mod.uses,
                     dependents: mod.dependents,
                 };
             }),

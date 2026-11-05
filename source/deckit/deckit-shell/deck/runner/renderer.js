@@ -81,7 +81,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             fail(`its constructor threw: ${error.message || error}`);
             return RUN.notStarted();
         }
-        // Interface -> the lifecycle that opened its exports, as deck joins it.
+        // Name, an interface or the mod's own id -> the lifecycle that opened its exports, as deck joins it.
         const joined = { exportedIn: {} };
         if (!given.lifecycles.length) return tell(PROTOCOL.started, { described, joined });
         // A required connection refused once its lifecycle has begun ends that lifecycle and those stacked on it, the
@@ -202,10 +202,11 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
 
     // What a lifecycle's handles register, each once and only while its start runs, by the handle each is on: each as
     // `<handle>.<name>.register()`, deck's own `exports` on the handle named `handle`, `register(interface, exports)`
-    // once for the run for each interface the manifest implements, beside the lifecycle's.
+    // once for the run for each interface the manifest provides, and `register(exports)` once for the run for the mods
+    // that depend on it by id, under its own id, beside the lifecycle's.
     function registryOf(lifecycle, { handle, joined }) {
         const registered = {};
-        const exported = {}; // interface -> the exports registered for it
+        const exported = {}; // name, an interface or the mod's own id -> the exports registered for it
         let open = true;
         const closed = (name) => `${name} is called in ${lifecycle.method}(), and ${lifecycle.method}() has ended`;
         const once = (name, label, problemOf) => (value) => {
@@ -216,12 +217,13 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             registered[name] = value;
         };
         const exportsProblem = (named, value) => {
-            if (typeof named !== 'string' || !Object.hasOwn(RUN.mod.implements ?? {}, named))
-                return `takes an interface the manifest implements, and ${String(named)} is not one`;
-            if (Object.hasOwn(exported, named))
-                return `is called once for each interface, and ${named} has its exports`;
+            const own = named === RUN.mod.id;
+            if (!own && (typeof named !== 'string' || !Object.hasOwn(RUN.mod.provides ?? {}, named)))
+                return `takes an interface the manifest provides, and ${String(named)} is not one`;
+            const what = own ? 'its own id' : named;
+            if (Object.hasOwn(exported, named)) return `is called once for each name, and ${what} has its exports`;
             if (Object.hasOwn(joined.exportedIn, named))
-                return `is called once for the run for each interface, and a lifecycle under it opened ${named}`;
+                return `is called once for the run for each name, and a lifecycle under it opened ${what}`;
             if (!value || typeof value.connect !== 'function') return 'takes { connect(connection), disconnect? }';
             if (value.disconnect !== undefined && typeof value.disconnect !== 'function')
                 return 'takes a disconnect function';
@@ -236,8 +238,9 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
             registers(on, name, check);
         const label = `${handle}.exports.register()`;
         (handles[handle] ??= {}).exports = Object.freeze({
-            register: (named, value) => {
+            register: (...given) => {
                 if (!open) return RUN.fail(closed(label));
+                const [named, value] = given.length === 1 ? [RUN.mod.id, given[0]] : given;
                 const problem = exportsProblem(named, value);
                 if (problem) return RUN.fail(`${label} ${problem}`);
                 exported[named] = value;
@@ -245,7 +248,7 @@ export function createRunner({ RUN, STORAGE, CONNECTION, EVENT, MODS, modules: M
         });
         return {
             handles,
-            // What it registered, by name, `exports` by interface.
+            // What it registered, by name, `exports` by interface or the mod's own id.
             close() {
                 open = false;
                 return Object.keys(exported).length ? { ...registered, exports: { ...exported } } : { ...registered };

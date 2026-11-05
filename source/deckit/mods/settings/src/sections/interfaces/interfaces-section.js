@@ -134,7 +134,7 @@ function interfacesSection({ ui, mods }) {
     function save(named, implementations, { order, off }) {
         refusals.delete(named);
         draw(withList(named, implementations));
-        mods.order(named, { order, off }).then(
+        mods.pin(named, order[0] ?? null).then(
             () => draw(mods.list().interfaces),
             (error) => {
                 refusals.set(named, error.message || String(error));

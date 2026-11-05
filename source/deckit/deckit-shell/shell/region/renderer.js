@@ -14,11 +14,11 @@ export function createRegion({ running, deliver, channels }) {
     // MARK: - Public
     // What a handle holds of regions, what it makes ending as `scope` is cut. `region(element, interface)` makes a
     // place in the mod's view where the shell shows the views of that interface's children, for an interface the
-    // manifest implements. A child runs in its own page, laid over what of `element` is seen as it moves, so what the
+    // manifest provides. A child runs in its own page, laid over what of `element` is seen as it moves, so what the
     // parent draws there is covered and nothing of the parent's floats over it. `place(id)` puts a child in this
     // region, out of any other it was in, and `clear()` leaves the region empty. The region ends when its element, once
-    // in the page, leaves it. `children` are the mod's children: the mods whose view names an interface it implements
-    // as their parent, while it is the implementation picked for it. `list(interface)` answers those of one interface
+    // in the page, leaves it. `children` are the mod's children: the mods whose view names an interface it provides
+    // as their parent, while it owns it. `list(interface)` answers those of one interface
     // in the load order, and `onChange(listener)` hears `listener(interface, children)` each time an interface's
     // children change, answering its off.
     function forScope(scope) {
@@ -77,9 +77,9 @@ export function createRegion({ running, deliver, channels }) {
 
     // Why `named` is not an interface the mod gives regions for, or ''.
     function interfaceProblem(named) {
-        if (typeof named !== 'string') return 'takes an interface the manifest implements';
-        if (!Object.hasOwn(running.implements ?? {}, named))
-            return `takes an interface the manifest implements, and ${named} is not one`;
+        if (typeof named !== 'string') return 'takes an interface the manifest provides';
+        if (!Object.hasOwn(running.provides ?? {}, named))
+            return `takes an interface the manifest provides, and ${named} is not one`;
         return '';
     }
 

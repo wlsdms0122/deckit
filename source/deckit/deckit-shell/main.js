@@ -51,11 +51,10 @@ import { createOverlay } from './shell/overlay/main.js';
 
 // MARK: - Property
 // What the host app hands deckit, and what deckit makes of what it leaves out. `config`: `id` names everything deckit
-// keeps, `name` is what a person reads, `schemeHandlers`, by scheme, the mods asked first to open an address, and
-// `implementations`, by interface, the mods placed in its list, in order, until the person orders them. `folders`:
-// `home` is deckit's folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships, installed at
-// every start, and `sources` folders of mods read in place, ahead of installed ones.
-const CONFIG = { id: 'deckit', name: 'Deckit', schemeHandlers: {}, implementations: {} };
+// keeps, `name` is what a person reads, and `schemeHandlers`, by scheme, the mods asked first to open an address.
+// `folders`: `home` is deckit's folder, ~/.config/<id> when none is given, `ship` the mod folders the host app ships,
+// installed at every start, and `sources` folders of mods read in place, ahead of installed ones.
+const CONFIG = { id: 'deckit', name: 'Deckit', schemeHandlers: {} };
 const FOLDERS = { home: null, ship: [], sources: [] };
 // What the host app answers deckit: the process and its windows are its own. And what it answers the UI: where it is
 // shown.
@@ -181,7 +180,7 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
     const RECORD = createRecord({ CORE, IDENTITY });
     const CONFIGURATION = createConfiguration({ CORE, LOG, IDENTITY, RUNNER });
     const CONNECTION = createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER });
-    const EVENT = createEvent({ CORE, LOG, IDENTITY });
+    const EVENT = createEvent({ CORE, LOG, IDENTITY, RUNNER });
     const MODS = createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages: ENV.pages });
     const COMMAND = createCommand({ LOG, IDENTITY, RUNNER, CORE });
     const PROVIDER = createProvider({ CORE, IDENTITY });
@@ -265,7 +264,6 @@ function make({ ENV, host, config: CONFIG, folders: FOLDERS }) {
         LOG.info(`deckit ${BUILD.VERSION} (sources ${BUILD.SOURCE})`);
         CORE.start({
             ...PERMISSION.all(),
-            implementations: CONFIG.implementations,
             layers: { schemeHandlers: CONFIG.schemeHandlers },
         });
         await STORAGE.load();

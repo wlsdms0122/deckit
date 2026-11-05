@@ -17,9 +17,9 @@ export function createRegion({ deckit }) {
     // MARK: - Public
     // The places mods give in their views, and the children shown in them. A mod whose view names an interface as its
     // parent is a child from when the shell's lifecycle of its run joins, through launching again, until one joins that
-    // names none; it is the child of the mod picked for that interface, and is shown in a region that mod gives for it.
-    // As another is picked, or the view names another interface, the child leaves the region it was in, and the mod
-    // picked now hears it among its children.
+    // names none; it is the child of the owner of that interface, and is shown in a region that mod gives for it. As
+    // another owns it, or the view names another interface, the child leaves the region it was in, and the owner now
+    // hears it among its children.
     function start() {
         const judge = ({ mod, summary }) => {
             if (!('view' in summary)) return;
@@ -41,22 +41,23 @@ export function createRegion({ deckit }) {
         });
         PROTOCOL.rect.on(({ region, interface: named, ...rect }, sender) => {
             const parent = deckit.mods.modOf(sender);
-            if (parent && implementsOf(parent).has(named)) setRect(sender, region, named, rect);
+            if (parent && providesOf(parent).has(named)) setRect(sender, region, named, rect);
         });
         PROTOCOL.place.handle(({ region, interface: named, id }, sender) => place(sender, region, named, id ?? null));
         PROTOCOL.end.on(({ region }, sender) => end(sender, region));
     }
 
-    // The interface the mod's view names as its parent, or null: it is a child whether or not a mod is picked for it.
+    // The interface the mod's view names as its parent, or null: it is a child whether or not a mod owns it.
     function interfaceOf(id) {
         return known.get(id)?.parent || null;
     }
 
-    // The mod whose regions the mod's view is shown in, the one picked for the interface its view names at a version
-    // it takes, or null. A mod picked for the interface it names is no one's child: `pickOf` answers null for it.
+    // The mod whose regions the mod's view is shown in, the owner of the interface its view names, which the mod uses,
+    // at the major it uses, or null. The owner of the interface it names is no one's child: `ownerOf` answers null for
+    // it.
     function parentOf(id) {
         const named = interfaceOf(id);
-        return (named && deckit.mods.pickOf(named, id)) || null;
+        return (named && deckit.mods.ownerOf(named, id)) || null;
     }
 
     // child id -> its rect: the children `parent`'s regions show, of those `shown(id)` lets on screen, laid out.
@@ -82,7 +83,7 @@ export function createRegion({ deckit }) {
     }
 
     // MARK: - Private
-    // A region is its page's, for one interface its mod implements: it ends with the page, run by run, or when its
+    // A region is its page's, for one interface its mod provides: it ends with the page, run by run, or when its
     // element leaves the page.
     function setRect(page, number, named, rect) {
         if (!regions.has(page)) {
@@ -103,7 +104,7 @@ export function createRegion({ deckit }) {
     function place(page, number, named, id) {
         const parent = deckit.mods.modOf(page);
         if (!parent) throw new Error('only a mod has regions');
-        if (!implementsOf(parent).has(named)) throw new Error(`${parent} does not implement ${named}`);
+        if (!providesOf(parent).has(named)) throw new Error(`${parent} does not provide ${named}`);
         if (id !== null && (interfaceOf(id) !== named || parentOf(id) !== parent))
             throw new Error(`${id} is not a child of ${named} here`);
         if (!regions.get(page)?.has(number)) setRect(page, number, named, { x: 0, y: 0, width: 0, height: 0 });
@@ -123,7 +124,7 @@ export function createRegion({ deckit }) {
         for (const region of every()) if (region.child === id) region.child = null;
     }
 
-    // Whether the region may show the child now: its parent is the mod picked for the region's interface.
+    // Whether the region may show the child now: its parent is the owner of the region's interface.
     function holds(region, child) {
         return interfaceOf(child) === region.interface && parentOf(child) === region.parent;
     }
@@ -132,13 +133,13 @@ export function createRegion({ deckit }) {
         for (const inPage of regions.values()) yield* inPage.values();
     }
 
-    // The interfaces a mod implements, by its manifest: main does not take a page's word for it.
-    function implementsOf(id) {
+    // The interfaces a mod provides, by its manifest: main does not take a page's word for it.
+    function providesOf(id) {
         const mod = deckit.mods.list().find((one) => one.id === id);
-        return new Set(Object.keys(mod?.implements ?? {}));
+        return new Set(Object.keys(mod?.provides ?? {}));
     }
 
-    // A mod gone from the catalog is no one's child, and a child whose interface another mod is picked for now leaves
+    // A mod gone from the catalog is no one's child, and a child whose interface another mod owns now leaves
     // the region it was in; each parent hears its children as they change.
     function changed() {
         const installed = new Set(deckit.mods.list().map(({ id }) => id));
@@ -157,12 +158,12 @@ export function createRegion({ deckit }) {
         tell();
     }
 
-    // Interface -> its children that run, or launch again, in the load order, for each interface `parent` implements.
+    // Interface -> its children that run, or launch again, in the load order, for each interface `parent` provides.
     function childrenOf(parent) {
         if (!parent) return {};
         const mods = deckit.mods.list();
         const children = {};
-        for (const named of implementsOf(parent))
+        for (const named of providesOf(parent))
             children[named] = mods
                 .filter(({ id }) => interfaceOf(id) === named && parentOf(id) === parent && runs(id))
                 .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));

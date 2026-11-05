@@ -12,9 +12,10 @@ export const remove = CHANNEL.pageToMain(
 export const relaunch = CHANNEL.pageToMain('deckit-shell:mods-relaunch', { id: 'string' }, { reply: true });
 export const load = CHANNEL.pageToMain('deckit-shell:mods-load', { ids: 'array' }, { reply: true });
 export const arrange = CHANNEL.pageToMain('deckit-shell:mods-arrange', { ids: 'array' }, { reply: true });
-export const order = CHANNEL.pageToMain(
-    'deckit-shell:mods-order',
-    { interface: 'string', order: 'array', off: 'array' },
+// `mod` absent or null clears the pin.
+export const pin = CHANNEL.pageToMain(
+    'deckit-shell:mods-pin',
+    { interface: 'string', mod: 'string?' },
     { reply: true }
 );
 export const usage = CHANNEL.pageToMain('deckit-shell:mods-usage', { id: 'string' }, { reply: true });

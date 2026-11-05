@@ -47,8 +47,8 @@ export function createConnection({ RUN }) {
     });
 
     // MARK: - Public
-    // The `lifecycle`th lifecycle begins: answers its `dependencies`, the exports the implementation of each required
-    // interface opened in the lowest lifecycle by the interface, with `onConnect(interface, connected)`, and the
+    // The `lifecycle`th lifecycle begins: answers its `dependencies`, the exports each mod it requires opened in its
+    // lowest lifecycle, by its id, with `onConnect(name, connected)`, and the
     // problems of the connections refused, each `{ name, required, problem }`. What `onConnect` adds is cut with
     // `scope`.
     async function begin(lifecycle, scope) {
@@ -107,9 +107,9 @@ export function createConnection({ RUN }) {
     }
 
     // MARK: - Private
-    // A connection the page depends on, its exports read: those of a required interface opened in its
-    // implementation's lowest lifecycle are the lifecycle's while it lasts, and every other comes and goes, handed to
-    // what listens for its interface. `exportedIn` is the lifecycle of the implementation that opened them.
+    // A connection the page depends on, its exports read: those of a mod it requires opened in that mod's
+    // lowest lifecycle are the lifecycle's while it lasts, and every other comes and goes, handed to what listens for
+    // its name. `exportedIn` is the lifecycle of the dependency that opened them.
     function open({ id, name: named, required, lifecycle, exportedIn, exports }) {
         const entry = makeEntry({ id, named, lifecycle, dependent: true });
         entry.lasting = required && exportedIn === 0;

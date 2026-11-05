@@ -7,7 +7,7 @@ const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 // Connections between mods, as the core judges them: the core says which stand and whether a message on one goes, and
 // what crosses goes from page to page through here, never read. A connection is handed to its dependent while it
 // stands, and so is one its dependency refused, with why: one that ended while its exports were asked for is left out.
-// The dependency is handed the dependent's id and name; the dependent, the interface alone.
+// The dependency is handed the dependent's id and name; the dependent, the name alone.
 export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Property
     const standing = new Set(); // the ids of the connections that stand, as the core told them
@@ -56,7 +56,8 @@ export function createConnection({ CORE, LOG, IDENTITY, CATALOG, RUNNER }) {
     // MARK: - Private
     // The exports the connection reaches, as its dependency's page answers them for it, or why it refused them: the
     // core keeps it down from then on. One whose dependency's lifecycle ended while they were asked for was not
-    // refused, and is null. What the dependent is handed names the interface, never the mod that implements it.
+    // refused, and is null. What the dependent is handed names the mod id or the interface, never the mod that owns an
+    // interface.
     async function open(connection) {
         const { id, dependent, dependency, required } = connection;
         const named = { id, name: connection.name, required, exportedIn: dependency.lifecycle };

@@ -1,10 +1,10 @@
 // Between main and a mod's page, about the regions it gives its children.
 import * as CHANNEL from '../../deck/channel/index.js';
 
-// Interface -> the mods whose view names it as parent while the sending mod is picked for it: [{ id, name, icon }], in
-// the load order, for each interface the sending mod implements.
+// Interface -> the mods whose view names it as parent while the sending mod owns it: [{ id, name, icon }], in the load
+// order, for each interface the sending mod provides.
 export const children = CHANNEL.pageToMain('deckit-shell:region-children', {}, { reply: true, sync: true });
-// Where one of the sending page's regions, for an interface its mod implements, is in the page: its element's rect.
+// Where one of the sending page's regions, for an interface its mod provides, is in the page: its element's rect.
 export const rect = CHANNEL.pageToMain('deckit-shell:region-rect', {
     region: 'number',
     interface: 'string',

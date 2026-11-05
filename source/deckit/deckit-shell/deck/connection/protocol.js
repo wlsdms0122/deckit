@@ -1,11 +1,12 @@
-// Between a mod's page and main, about the connections between a lifecycle of a mod and the exports the implementation
-// picked for an interface it depends on opened for it. What crosses a connection is described as wire.js writes it:
-// `{ value, references }`. The dependent's end is told the interface and never the mod that implements it.
+// Between a mod's page and main, about the connections between a lifecycle of a mod and the exports opened for it by a
+// mod it depends on by id or the owner of an interface it uses. What crosses a connection is described as wire.js
+// writes it: `{ value, references }`. The dependent's end is told the name, the mod id or the interface, and never the
+// mod that owns an interface.
 import * as CHANNEL from '../channel/index.js';
 
 // A lifecycle of the page's run begins: answered with the connections it has from now on, each `{ id, name,
-// required, exportedIn, exports }`, `exportedIn` the lifecycle of the implementation that opened the exports, or with
-// `problem` in place of `exports` for one the implementation refused.
+// required, exportedIn, exports }`, `exportedIn` the lifecycle of the dependency that opened the exports, or with
+// `problem` in place of `exports` for one the dependency refused.
 export const begin = CHANNEL.pageToMain(
     'deckit-shell:connection-begin',
     { run: 'number', lifecycle: 'number' },

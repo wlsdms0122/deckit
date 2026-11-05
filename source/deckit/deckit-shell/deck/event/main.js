@@ -5,8 +5,9 @@ import * as DECLARED from './protocol.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // Events, as the core routes them: the core names an event after the mod that sent it and says which mods hear it, and
-// what it carries goes from page to page through here.
-export function createEvent({ CORE, LOG, IDENTITY }) {
+// what it carries goes from page to page through here. Deck's own events come as an effect the core answers, `deliver`,
+// and carry nothing.
+export function createEvent({ CORE, LOG, IDENTITY, RUNNER }) {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
@@ -28,14 +29,19 @@ export function createEvent({ CORE, LOG, IDENTITY }) {
                 LOG.error(`${id}: its event ${name} was not sent`, error);
                 return;
             }
-            for (const listener of delivery.listeners) {
-                const page = IDENTITY.pageOf(listener);
-                if (page) PROTOCOL.event.send(page, { name: delivery.name, args });
-            }
+            deliver(delivery, args);
         });
+        RUNNER.handleEffect('deliver', (delivery) => deliver(delivery, []));
     }
 
     // MARK: - Private
+    // The event `name` goes with `args` to the page of each run in `listeners` that has one.
+    function deliver({ name, listeners }, args) {
+        for (const listener of listeners) {
+            const page = IDENTITY.pageOf(listener);
+            if (page) PROTOCOL.event.send(page, { name, args });
+        }
+    }
 
     return { start };
 }

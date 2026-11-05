@@ -6,10 +6,10 @@ export function createCatalog({ CORE, LOG, files }) {
     // MARK: - Property
     let all = []; // every mod the core read, in the load order
     let loading = [];
-    // Every interface a mod implements or depends on, each `{ interface, name, undecided, implementations, pick }`, its
-    // implementations `[{ id, name, version, on }]` in their order and `pick` the id of the one the core picked, absent
-    // when none is, as the core read them with the mods.
-    let lists = [];
+    // Every interface a mod provides or uses, each `{ interface, name, owner, pinned, providers }`, its providers
+    // `[{ id, name, majors }]` in the order they began to provide it and `owner` the id of the one that owns it, absent
+    // while none provides it, as the core read them with the mods.
+    let queues = [];
     const listeners = new Set();
 
     // MARK: - Initializer
@@ -39,16 +39,16 @@ export function createCatalog({ CORE, LOG, files }) {
         return loading;
     }
 
-    // Each interface's list of implementations, as the mods were last read.
+    // Each interface's queue of providers, as the mods were last read.
     function interfaces() {
-        return lists;
+        return queues;
     }
 
-    // Interface -> the id of the mod the core picked for it, for each interface one is.
-    function picks() {
-        const picked = new Map();
-        for (const list of lists) if (list.pick) picked.set(list.interface, list.pick);
-        return picked;
+    // Interface -> the id of the mod that owns it, for each interface one does.
+    function owners() {
+        const owned = new Map();
+        for (const queue of queues) if (queue.owner) owned.set(queue.interface, queue.owner);
+        return owned;
     }
 
     // The ids named take the places they held among themselves in the load order, in the order given; the rest stay
@@ -59,11 +59,10 @@ export function createCatalog({ CORE, LOG, files }) {
         await refresh();
     }
 
-    // As the person's: the implementations in `order` take the places they held among themselves in the interface's
-    // list, in the order given, and those in `off` are switched off. Refused for an order whose pick would make a cycle
-    // among mods that load now. Settled once the mods are read again.
-    async function order(named, { order: ids = [], off = [] } = {}) {
-        await CORE.request('catalog/order', { interface: named, order: ids, off });
+    // As the person's: the provider `id` owns the interface from now on, until its pin is cleared, for null, or it
+    // stops providing it. Refused for a mod that does not provide the interface. Settled once the mods are read again.
+    async function pin(named, id) {
+        await CORE.request('catalog/pin', { interface: named, mod: id ?? null });
         await refresh();
     }
 
@@ -84,10 +83,10 @@ export function createCatalog({ CORE, LOG, files }) {
         return CORE.request('catalog/remove', { id });
     }
 
-    // The mods read again, with each interface's list as they come to, and whoever listens told.
+    // The mods read again, with each interface's queue as they come to, and whoever listens told.
     async function refresh() {
         const read = (await CORE.request('catalog/read')).map(MOD.read);
-        lists = await CORE.request('catalog/interfaces');
+        queues = await CORE.request('catalog/interfaces');
         all = read;
         loading = all.filter((mod) => !mod.problem);
         for (const listener of listeners) listener();
@@ -111,9 +110,9 @@ export function createCatalog({ CORE, LOG, files }) {
         found,
         mods,
         interfaces,
-        picks,
+        owners,
         arrange,
-        order,
+        pin,
         planInstall,
         install,
         remove,

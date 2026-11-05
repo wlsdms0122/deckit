@@ -49,16 +49,16 @@ export function createApi({
                     return () => offs.forEach((off) => off?.());
                 },
                 arrange: CATALOG.arrange,
-                // The id of the mod picked for an interface, the first in its list that is on, or null; with
-                // `dependent`, the id of a mod, null too where that mod does not take it: it is not picked at a version
-                // the mod names, the mod itself is picked, or the mod names no such interface.
-                pickOf: (named, dependent) => {
-                    const picked = CATALOG.picks().get(named) ?? null;
-                    if (!picked || dependent === undefined) return picked;
-                    const relation = CATALOG.found()
+                // The id of the mod that owns an interface, or null; with `dependent`, the id of a mod, null too where
+                // that mod does not reach it: it uses no such interface, owns it itself, or the owner does not provide
+                // the major it uses.
+                ownerOf: (named, dependent) => {
+                    const owner = CATALOG.owners().get(named) ?? null;
+                    if (!owner || dependent === undefined) return owner;
+                    const use = CATALOG.found()
                         .find(({ id }) => id === dependent)
-                        ?.relations.find((one) => one.interface === named);
-                    return relation?.id === picked && !relation.problem ? picked : null;
+                        ?.uses.find((one) => one.interface === named);
+                    return use?.owner === owner && !use.problem ? owner : null;
                 },
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: factsOf(run), page }))),

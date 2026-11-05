@@ -26,12 +26,7 @@ export function createMods({ RUN }) {
             relaunch: (id) => PROTOCOL.relaunch.invoke({ id: String(id) }),
             load: (ids) => PROTOCOL.load.invoke({ ids: Array.from(ids, String) }),
             arrange: (ids) => PROTOCOL.arrange.invoke({ ids: Array.from(ids, String) }),
-            order: (named, { order = [], off = [] } = {}) =>
-                PROTOCOL.order.invoke({
-                    interface: String(named),
-                    order: Array.from(order, String),
-                    off: Array.from(off, String),
-                }),
+            pin: (named, id) => PROTOCOL.pin.invoke({ interface: String(named), mod: id == null ? null : String(id) }),
             usage: (id) => PROTOCOL.usage.invoke({ id: String(id) }),
         });
     }
