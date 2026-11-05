@@ -1,8 +1,8 @@
 // Deckit.app's configuration of deckit, handed to connect.
 const path = require('path');
 
-// The mods Deckit ships, in the order they take until the person changes it: the panel lists those with a view
-// in it too, until the person arranges its list.
+// The mods Deckit ships, in the order they take until the person changes it: the Dock keeps those with a view from
+// the first start, until the person changes it.
 const SHIPS = [
     'editor',
     'finder',

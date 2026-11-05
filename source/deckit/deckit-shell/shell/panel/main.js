@@ -7,10 +7,12 @@ import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as MATCH from '../../deckit/match/match.js';
 import * as MOD_DECLARED from './model/declared.js';
+import * as DOCK from './model/dock.js';
 
 // `deckit` is what connect answered, `host` the app's answers, `PAGES` the shell's pages, `OVERLAY` their overlays and
-// `makeStage()` a stage to lay them on (environment: SHELL.stage).
-export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host }) {
+// `makeStage()` a stage to lay them on (environment: SHELL.stage), and `dock` the ids of the mods the host app keeps in
+// the Dock at the first start, or null.
+export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, dock }) {
     // MARK: - Property
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     const SIDEBAR = 'panel-frame';
@@ -48,17 +50,20 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     let down = null; // why deckit's core answers nothing more, once it does not
     let look = { floating: false, dismissible: false, titleBar: null };
     let sidebar = { width: WIDTH.MIN, collapsed: false, navHeight: null }; // as the person left it
-    let pinned = new Set(); // the children the person pinned to the panel's list
-    let order = []; // the ids of the mods, as the person arranged the panel's list
+    let pinned = new Set(); // the mods the person keeps in the Dock
+    let order = []; // the ids of the mods, as the person arranged the Dock
 
     // MARK: - Initializer
     // MARK: - Public
-    // The mods whose contributes declares a view, listed whether they run or not, their pages on a stage the host app
-    // places, under the panel's frame. A mod whose view names a parent is that one's child: its view is shown where a
-    // region of the parent's shows it, and in the panel only once the person pins it to the list.
+    // The mods whose contributes declares a view, their pages on a stage the host app places, under the panel's frame,
+    // and the Dock in its sidebar: the mods the person keeps there, running or not, and those running now. A mod whose
+    // view names a parent is that one's child: its view is shown where a region of the parent's shows it, and in the
+    // panel only once the person keeps it in the Dock.
     function start() {
         sidebar = { ...sidebar, ...deckit.state.read(SIDEBAR, {}) };
-        pinned = new Set(deckit.state.read(PINNED, []));
+        const kept = deckit.state.read(PINNED, null);
+        pinned = new Set(kept ?? firstDock());
+        if (!kept) deckit.state.write(PINNED, [...pinned]);
         order = deckit.state.read(ORDER, []);
         stage = makeStage();
         stage.whenResized(update);
@@ -114,7 +119,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     // Whether bringToFront has a mod to put on screen for it.
     function canBringToFront(modId) {
         const front = frontOf(modId);
-        return shownInList(front) || launchable(front);
+        return shownInPanel(front) || launchable(front);
     }
 
     // MARK: - Private
@@ -154,8 +159,14 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
             return [...pinned];
         });
         PROTOCOL.setPinned.handle(({ id, pinned: on }, sender) => {
-            deckit.mods.managerFrom(sender);
+            if (!fromFrame(sender)) deckit.mods.managerFrom(sender);
             setPinned(id, on);
+        });
+        PROTOCOL.quit.on(({ id }, sender) => fromFrame(sender) && quit(id));
+        PROTOCOL.open.handle(({ id }, sender) => {
+            deckit.mods.managerFrom(sender);
+            if (!canBringToFront(id)) throw new Error(`${id} has nothing to show`);
+            bringToFront(id);
         });
         PROTOCOL.restart.on((_payload, sender) => fromFrame(sender) && down && deckit.restart());
     }
@@ -237,23 +248,40 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         }, TOKEN.LENGTH.base);
     }
 
-    // A child unpinned while on screen leaves the panel for its parent.
+    // A mod kept in the Dock or taken out of it, as the person's. A child taken out while on screen leaves the panel
+    // for its parent.
     function setPinned(id, on) {
         if (on === pinned.has(id)) return;
         if (on) pinned.add(id);
         else pinned.delete(id);
         deckit.state.write(PINNED, [...pinned]);
-        if (!on && current === id) {
+        if (!on && current === id && !inPanel(id)) {
             current = null;
             if (!select(REGION.parentOf(id)) && !select(firstShown())) update();
         }
         broadcast();
     }
 
-    // The mod put on screen for one: itself, or the parent of a child not in the list.
+    // The mod put on screen for one: itself, or the parent of a child not in the panel.
     function frontOf(id) {
         const parent = REGION.parentOf(id);
-        return parent && !listed(id) ? parent : id;
+        return parent && !inPanel(id) ? parent : id;
+    }
+
+    // What the Dock keeps at the first start: the mods the host app names, or else those it ships whose view names no
+    // parent.
+    function firstDock() {
+        if (dock) return dock;
+        const shipped = new Set(deckit.mods.shipped());
+        return deckit.mods
+            .list()
+            .map(({ id }) => id)
+            .filter((id) => shipped.has(id) && viewOf(id)?.parent === null);
+    }
+
+    // The person quits a mod from the Dock.
+    function quit(id) {
+        deckit.mods.quit(id).catch((error) => deckit.log.error(`${id} did not quit`, error));
     }
 
     function isEscape(input) {
@@ -370,10 +398,10 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         return run.state !== 'notRunning' || run.relaunches;
     }
 
-    // In the list, and not running: it has no run, or its run ended and does not launch again.
+    // Shown in the panel, and not running: it has no run, or its run ended and does not launch again.
     function launchable(id) {
         const run = deckit.mods.runOf(id);
-        return listed(id) && (!run || (run.state === 'notRunning' && !run.relaunches));
+        return inPanel(id) && (!run || (run.state === 'notRunning' && !run.relaunches));
     }
 
     // The person opens a mod that does not run: it launches, and comes on screen once its view joins.
@@ -390,11 +418,11 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
             });
     }
 
-    // In the list's order: the first mod that has something to show, or may have once it has started, of those in
-    // the list. One still starting is waited for, so the panel lands where the order says and not on whoever started
-    // first.
+    // In the list's order: the first mod that has something to show, or may have once it has started, of those shown
+    // in the panel. One still starting is waited for, so the panel lands where the order says and not on whoever
+    // started first.
     function firstShown() {
-        return inOrder().find(({ id }) => mayShow(id) && listed(id))?.id;
+        return inOrder().find(({ id }) => mayShow(id) && inPanel(id))?.id;
     }
 
     // The mods in the list's order: those the person placed, as they placed them, then the rest in the mods' order.
@@ -413,8 +441,8 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         broadcast();
     }
 
-    // In the panel's list: a mod that declares a view naming no parent, or a child the person pinned.
-    function listed(id) {
+    // Shown in the panel: a mod that declares a view naming no parent, or a child the person keeps in the Dock.
+    function inPanel(id) {
         return !!viewOf(id) && (!REGION.interfaceOf(id) || pinned.has(id));
     }
 
@@ -599,11 +627,22 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         };
     }
 
-    // Every mod in the list, running or not: one that does not run is there for the person to open.
+    // The Dock: the mods shown in the panel that the person keeps there, running or not, then those running now. One
+    // that does not run is there for the person to open.
     function stateOf() {
-        const mods = inOrder()
-            .filter(({ id }) => listed(id))
-            .map(({ id, name }) => ({ id, name, icon: MOD_DECLARED.iconOf(deckit.mods.contributesOf(id)) }));
+        const shown = inOrder().filter(({ id }) => inPanel(id));
+        const names = new Map(shown.map(({ id, name }) => [id, name]));
+        const running = new Set(
+            deckit.mods
+                .runs()
+                .filter(({ run }) => inTransition(run))
+                .map(({ run }) => run.mod.id)
+        );
+        const mods = DOCK.items([...names.keys()], { pinned, running }).map((item) => ({
+            ...item,
+            name: names.get(item.id),
+            icon: MOD_DECLARED.iconOf(deckit.mods.contributesOf(item.id)),
+        }));
         return {
             mods,
             current,
@@ -639,7 +678,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     // Which mod is on screen. No fade: here it is a swap of views, on the most repeated action in the panel.
     // Answers whether it is on screen now.
     function select(id, { fromHistory = false } = {}) {
-        if (!shownInList(id)) return false;
+        if (!shownInPanel(id)) return false;
         // Another mod put on screen meanwhile is where the panel stays.
         if (id !== returning) returning = null;
         if (current === id) return true;
@@ -661,16 +700,16 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     // A mod no longer there, or with nothing to show, is passed over.
     function step(by) {
         let at = history.at + by;
-        while (at >= 0 && at < history.list.length && !shownInList(history.list[at])) at += by;
+        while (at >= 0 && at < history.list.length && !shownInPanel(history.list[at])) at += by;
         if (at < 0 || at >= history.list.length) return;
         if (!select(history.list[at], { fromHistory: true })) return;
         history.at = at;
         broadcast();
     }
 
-    // A mod that is there, has something to show, and is in the panel's list.
-    function shownInList(id) {
-        return pages.has(id) && listed(id);
+    // A mod that is there, has something to show, and is shown in the panel.
+    function shownInPanel(id) {
+        return pages.has(id) && inPanel(id);
     }
 
     // Whether a keystroke or a request in this page is the panel's: its frame, a surface the frame opened, one of its

@@ -8,6 +8,8 @@ export const pick = CHANNEL.pageToMain('deckit-shell:panel-pick', { id: 'string'
 // by: -1 back, 1 forward, through the mods shown.
 export const step = CHANNEL.pageToMain('deckit-shell:panel-step', { by: 'number' });
 export const reorder = CHANNEL.pageToMain('deckit-shell:panel-reorder', { ids: 'array' });
+// The person quits a mod from the Dock.
+export const quit = CHANNEL.pageToMain('deckit-shell:panel-quit', { id: 'string' });
 // The sidebar as the person left it: { width, collapsed, navHeight }, any of them.
 export const layout = CHANNEL.pageToMain('deckit-shell:panel-layout', {
     width: 'number?',
@@ -20,8 +22,9 @@ export const chord = CHANNEL.pageToMain('deckit-shell:panel-chord', { action: 's
 export const slot = CHANNEL.pageToMain('deckit-shell:panel-slot', { top: 'number', bottom: 'number' });
 // The sidebar's width as a drag of its handle draws it, until the drag ends and `layout` keeps it.
 export const sizing = CHANNEL.pageToMain('deckit-shell:panel-sizing', { width: 'number' });
-// { mods: [{ id, name, icon }], current, canBack, canForward, sidebar: { width, collapsed, navHeight }, down }: `down`
-// is `{ name, why }` once deckit's core answers nothing more, or null
+// { mods: [{ id, name, icon, pinned, running }], current, canBack, canForward, sidebar: { width, collapsed, navHeight }, down }: `down`
+// is `{ name, why }` once deckit's core answers nothing more, or null. `mods` is the Dock: `pinned` whether the person
+// keeps it there, `running` whether it runs now.
 export const state = CHANNEL.mainToPage('deckit-shell:panel-state');
 // { floating, titleBar, barRoom, size, parts, moves }: drawn over something, the window's title bar over the panel's
 // top, how far down the card holds what it lists under it, the panel's { width, height }, where the frame's parts are
@@ -55,12 +58,16 @@ export const show = CHANNEL.pageToMain('deckit-shell:panel-show', {});
 export const icon = CHANNEL.pageToMain('deckit-shell:panel-icon', { mod: 'string' }, { reply: true, sync: true });
 // How a mod's configuration is drawn, as its class says: `{ key: { placeholder, unit, step, choices } }`.
 export const form = CHANNEL.pageToMain('deckit-shell:panel-form', { mod: 'string' }, { reply: true });
-// The children the person pinned to the panel's list, asked by a mod with deckit.mods; and pinning one.
+// The mods the person keeps in the Dock, asked by a mod with deckit.mods; and keeping one there or taking it out, asked
+// by such a mod or the frame.
 export const pinned = CHANNEL.pageToMain('deckit-shell:panel-pinned', {}, { reply: true, sync: true });
 export const setPinned = CHANNEL.pageToMain(
     'deckit-shell:panel-set-pinned',
     { id: 'string', pinned: 'boolean' },
     { reply: true }
 );
+// A mod on screen as the person opens it, asked by a mod with deckit.mods: it launches when it does not run. Refused
+// for a mod with nothing to show in the panel.
+export const open = CHANNEL.pageToMain('deckit-shell:panel-open', { id: 'string' }, { reply: true });
 // The person asks for the app to restart, deckit's core having gone down.
 export const restart = CHANNEL.pageToMain('deckit-shell:panel-restart', {});

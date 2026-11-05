@@ -57,6 +57,7 @@ import { createOverlay } from './shell/overlay/main.js';
 // installed at every start, and `sources` folders of mods read in place, ahead of installed ones.
 const CONFIG = { id: 'deckit', name: 'Deckit', schemeHandlers: {} };
 const FOLDERS = { home: null, ship: [], sources: [] };
+const SHELL_CONFIG = { dock: null };
 // What the host app answers deckit: the process and its windows are its own. And what it answers the UI: where it is
 // shown.
 const CONNECT_ANSWERS = ['notificationClicked', 'restart'];
@@ -108,15 +109,18 @@ function connect(environment, { host, config = {}, folders = {} } = {}) {
 }
 
 // How a host app puts deckit's UI on deckit, once, before it is ready: `deckit` is what connect answered,
-// `environment` what the environment gives the UI (environment: SHELL), and `host` answers where the UI is shown. The
-// UI starts with deckit, before any mod launches.
-function attach(deckit, environment, { host } = {}) {
+// `environment` what the environment gives the UI (environment: SHELL), `host` answers where the UI is shown, and
+// `config` is the UI's configuration: `dock`, the ids of the mods the Dock keeps at the first start, in order, or else
+// the mods the host app ships whose view names no parent. The UI starts with deckit, before any mod launches.
+function attach(deckit, environment, { host, config = {} } = {}) {
     if (attached) throw new Error('[deckit] attach is called once');
     if (!connected) throw new Error('[deckit] attach comes after connect');
     if (deckit !== connected) throw new Error('[deckit] attach takes what connect answered');
     const ENV = ENVIRONMENT.checked(environment, ENVIRONMENT.SHELL, 'the environment');
     const missing = ATTACH_ANSWERS.filter((name) => typeof host?.[name] !== 'function');
     if (missing.length) throw new Error(`[deckit] the host does not answer ${missing.join(', ')}`);
+    refuseUnknown('config', config, Object.keys(SHELL_CONFIG));
+    const { dock } = { ...SHELL_CONFIG, ...config };
     attached = true;
     deckit.stack(SHELL_LAYER.LAYER);
     for (const model of SHELL_PERMISSIONS)
@@ -136,7 +140,7 @@ function attach(deckit, environment, { host } = {}) {
         hideWindow: (control) => host.hideWindow(control),
         closeWindow: (control) => host.closeWindow(control),
     });
-    const PANEL = createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host });
+    const PANEL = createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host, dock });
     const STYLE = createStyle({ deckit });
     const THEME = createTheme({ deckit });
     const FONTS = createFonts({ deckit, installed: ENV.fonts });

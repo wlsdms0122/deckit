@@ -44,6 +44,13 @@ export function createApi({
             mods: Object.freeze({
                 notifications: NOTIFICATIONS,
                 list: () => Object.freeze(CATALOG.mods().map(manifestOf)),
+                // The ids of the mods that load that the host app ships.
+                shipped: () =>
+                    Object.freeze(
+                        CATALOG.mods()
+                            .filter((mod) => mod.shipped)
+                            .map((mod) => mod.id)
+                    ),
                 // A mod found or gone, or what restartPending answers.
                 onChange: (listener) => {
                     const offs = [CATALOG.onChange(listener), MAIN_PROCESS.onChange(listener)];

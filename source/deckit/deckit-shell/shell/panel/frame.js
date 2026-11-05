@@ -104,6 +104,8 @@ function boot(theme, channels) {
         onPick: (id) => PROTOCOL.pick.send({ id }),
         onStep: (by) => PROTOCOL.step.send({ by }),
         onReorder: (ids) => PROTOCOL.reorder.send({ ids }),
+        onKeep: (id, pinned) => PROTOCOL.setPinned.invoke({ id, pinned }).catch(() => {}),
+        onQuit: (id) => PROTOCOL.quit.send({ id }),
         onLayout: (change) => PROTOCOL.layout.send(change),
         onMove: () => report(),
     });

@@ -66,14 +66,24 @@ const STYLE = `
     .deckit-mod-row[aria-selected='true'] { background: var(--deckit-selected); }
     .deckit-mod-row:focus-visible { box-shadow: 0 0 0 2px var(--deckit-focus); }
     .deckit-mod-icon { display: flex; flex: 0 0 auto; }
+    .deckit-mod-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .deckit-mod-running {
+        flex: 0 0 auto;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.5;
+    }
 `;
 
 // MARK: - Initializer
 // MARK: - Public
-// What the panel's sidebar holds: the mods' list, and under it `slot`, where the mod on screen lays its own
-// sidebar. What it draws is main's (`update(state)`), and what the person changes is told back: `onPick`,
-// `onStep`, `onReorder`, `onLayout`. `onMove` hears the slot move as the list is sized.
-function make({ ui, chordOf, onPick, onStep, onReorder, onLayout, onMove }) {
+// What the panel's sidebar holds: the Dock, and under it `slot`, where the mod on screen lays its own sidebar. What
+// it draws is main's (`update(state)`), and what the person changes is told back: `onPick`, `onStep`, `onReorder`,
+// `onKeep(id, pinned)`, `onQuit(id)`, `onLayout`. `onMove` hears the slot move as the list is sized. An item's menu
+// opens it, quits it while it runs, and keeps it in the Dock or takes it out.
+function make({ ui, chordOf, onPick, onStep, onReorder, onKeep, onQuit, onLayout, onMove }) {
     KIT.addStyle(STYLE);
     let mods = [];
     let current = null;
@@ -109,6 +119,14 @@ function make({ ui, chordOf, onPick, onStep, onReorder, onLayout, onMove }) {
             mods = [...rest.slice(0, to), moved, ...rest.slice(to)];
             rows.set(mods);
             onReorder(mods.map((mod) => mod.id));
+        },
+    });
+
+    ui.contextMenu(section.body, {
+        rowAt: (target) => target?.closest?.('.deckit-mod-row'),
+        items: (row) => {
+            const mod = row && mods.find(({ id }) => id === row.dataset.modId);
+            return mod && menuOf(mod);
         },
     });
 
@@ -157,14 +175,30 @@ function make({ ui, chordOf, onPick, onStep, onReorder, onLayout, onMove }) {
 
     function paintRow(row, mod) {
         row.setAttribute('aria-selected', String(mod.id === current));
-        const drawn = JSON.stringify([mod.icon, mod.name]);
+        row.toggleAttribute('data-running', mod.running);
+        const drawn = JSON.stringify([mod.icon, mod.name, mod.running]);
         if (row.dataset.drawn === drawn) return;
         row.dataset.drawn = drawn;
         const glyph = element('span', 'deckit-mod-icon');
         glyph.append(ICON.sanitize(mod.icon));
-        const name = element('span', '');
+        const name = element('span', 'deckit-mod-name');
         name.textContent = mod.name;
         row.replaceChildren(glyph, name);
+        if (!mod.running) return;
+        const running = element('span', 'deckit-mod-running');
+        running.title = 'Running';
+        row.append(running);
+    }
+
+    function menuOf(mod) {
+        return [
+            { label: 'Open', run: () => onPick(mod.id) },
+            ...(mod.running ? [{ label: 'Quit', run: () => onQuit(mod.id) }] : []),
+            '-',
+            mod.pinned
+                ? { label: 'Remove from Dock', run: () => onKeep(mod.id, false) }
+                : { label: 'Keep in Dock', run: () => onKeep(mod.id, true) },
+        ];
     }
 
     // What the sidebar holds starts `top` px below its own top: under the window's title bar.

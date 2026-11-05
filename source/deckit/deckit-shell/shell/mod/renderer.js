@@ -19,7 +19,7 @@ import { createWindow } from '../window/renderer.js';
 // The shell as a layer on deckit in a mod's page (deckit-shell/deck/runner/renderer.js), stacked with what deckit
 // offers a layer over it (`under`): the lifecycle it calls, attach(shell, deckit) and detach(), and the handle `shell`:
 // the theme, the kit, `show()`, `iconOf(mod)`, `formOf(mod)`, `region(element, interface)`, `children`,
-// `dropDestination(element, options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the panel's pins on `mods`,
+// `dropDestination(element, options)`, `web`, with deckit.fonts `fonts`, with deckit.mods the Dock on `mods`,
 // and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme,
 // the kit and the styles from just before attach().
 // Once attach() has ended, a view is laid where the panel's guide says, or a region's for a child, unless the page is
