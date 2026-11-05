@@ -10,7 +10,7 @@ provides = { "settings/buttons" = [1] }
 uses = { "switcher/actions" = 1 }
 
 [permissions]
-"deckit.mods" = "Its Mods section installs a mod from a folder you pick, removes installed ones, restarts a mod or the app, shows a mod's folder in Finder, pins a mod to the mod list, and chooses the mod that owns an interface. Its Activity section quits and restarts running mods and approves the mods that start with the app."
+"deckit.mods" = "Its Mods section installs a mod from a folder you pick, removes installed ones, restarts a mod or the app, shows a mod's folder in Finder, keeps a mod in the Dock, and chooses the mod that owns an interface. Its Activity section quits and restarts running mods and approves the mods that start with the app."
 "deckit.mod-configuration" = "Its Mod Settings section shows and changes every mod's configuration."
 "deckit.keymap" = "Its Keyboard section is where every mod's shortcuts are shown and changed."
 "deckit.url-schemes" = "Its URL Schemes section sets which mod is asked first to open an address, scheme by scheme."

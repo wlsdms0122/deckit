@@ -64,7 +64,7 @@ const MOD_DETAILS_STYLE = `
 `;
 
 // What an opened mod row shows: the mods it depends on, the interfaces it uses, where its view is shown, its permissions, the addresses
-// it opens, its keys and where it lives. `onPinnedChange` hears the person pin a mod to the sidebar's list or unpin it.
+// it opens, its keys and where it lives. `onPinnedChange` hears the person keep a mod in the Dock or take it out.
 // It opens by its grid row (0fr to 1fr), which animates to the content's height without measuring it, over the slow
 // duration, as content entering the row.
 function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
@@ -166,7 +166,7 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         });
     }
 
-    // A child's view is shown in the view of the owner of the interface it names as parent, and in the sidebar's list
+    // A child's view is shown in the view of the owner of the interface it names as parent, and in the Dock
     // as well once the person pins it there.
     function sidebarPin() {
         const parent = (mod.uses || []).find((use) => use.interface === mod.live.parent);
@@ -182,8 +182,8 @@ function modDetails({ ui, mods, pins, everyScheme, util, onPinnedChange }) {
         pin.append(
             detailsLine(
                 parent?.name
-                    ? `Shown in ${parent.name}. Pinned to the sidebar too`
-                    : `Shown in the owner of ${mod.live.parent}. Pinned to the sidebar too`
+                    ? `Shown in ${parent.name}. Kept in the Dock too`
+                    : `Shown in the owner of ${mod.live.parent}. Kept in the Dock too`
             ),
             toggle.element
         );

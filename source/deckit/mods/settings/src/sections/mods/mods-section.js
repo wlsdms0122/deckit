@@ -195,7 +195,7 @@ function modsSection({ ui, mods, pins, dropDestination, everyScheme, util, appNa
 
     // The rows in the order dragged into while one is, those found since after them.
     function render() {
-        // Under a shell that has no pins, no child is pinned.
+        // Under a shell that has no Dock, no mod is kept in one.
         const pinned = new Set(pins ? pins.pinned() : []);
         const place = (mod) => (draft.includes(mod.id) ? draft.indexOf(mod.id) : draft.length);
         const found = draft ? [...listed.found].sort((mod, other) => place(mod) - place(other)) : listed.found;
