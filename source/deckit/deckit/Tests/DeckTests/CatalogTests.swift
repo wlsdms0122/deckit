@@ -422,6 +422,31 @@ struct CatalogTests {
         #expect(sut.interfaces.map(\.owner) == ["s"])
     }
 
+    @Test("a provider that does not load only for what it requires keeps its place in the queue, and still owns")
+    func providerFailingByRequirementKeepsPlace() throws {
+        // Given
+        let spare = root.appending(path: "spare")
+        try write("a", in: source, provides: ["x/api": [1]])
+        try write("b", in: source, provides: ["x/api": [1]])
+        try write("m", in: spare)
+        let sut = try catalog(sources: [source])
+        let first = queues(of: sut)
+
+        // When
+        try write("a", in: source, provides: ["x/api": [1]], requires: ["m": "1.0.0"])
+        let failing = queues(of: sut)
+        let failed = sut.read().first { mod in mod.manifest.id == "a" }
+        _ = try sut.install(from: spare.appending(path: "m"))
+        let loading = queues(of: sut)
+
+        // Then
+        #expect(first == ["x/api": ["a", "b"]])
+        #expect(failed?.problem != nil)
+        #expect(failing == first)
+        #expect(sut.interfaces.map(\.owner) == ["a"])
+        #expect(loading == first)
+    }
+
     @Test("a pinned provider owns an interface until the pin is cleared or it leaves the queue, and only a provider is")
     func pinnedProviderOwns() throws {
         // Given
