@@ -109,9 +109,16 @@ export function createWindow({ deckit, PAGES, OVERLAY, makeStage, showWindow, hi
         return held?.page === sender ? held : null;
     }
 
-    // A window that does not activate leaves the keyboard where it is.
+    // A window that does not activate leaves the keyboard where it is; one on screen that does takes it.
     function open(held, activates) {
-        if (!held || held.shown || !PAGES.isAlive(held.page)) return;
+        if (!held || !PAGES.isAlive(held.page)) return;
+        if (held.shown) {
+            if (activates) {
+                showWindow(held.control, { activates });
+                PAGES.focus(held.page);
+            }
+            return;
+        }
         held.shown = true;
         lay(held);
         showWindow(held.control, { activates });
