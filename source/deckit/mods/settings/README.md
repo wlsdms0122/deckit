@@ -1,6 +1,10 @@
 # Settings
 
-Where the app is set up: the mods (installing, removing, restarting, pinning, their order), each mod's settings, the keys, which mod opens an address first, which mod owns an interface, and the fonts.
+Where the app is set up: the mods (installing, removing, restarting, pinning, their order), what runs and what starts with the app, each mod's settings, the keys, which mod opens an address first, which mod owns an interface, and the fonts.
+
+## Activity
+
+Every mod running now, with a view or without: its run's state, why it runs (opened by you, started with the app, required by another mod, or the work another mod asked of it: a connection, a command, a key, an address), how long it has run, and what is wrong with it, with a quit and a restart. One that owns an interface links to the Interfaces section. Under them, the startup list: each mod whose manifest asks to start with the app, with its reason and a switch approving it (`deckit.mods.approveStartup`). A mod switched off starts only when something opens it. What deckit refuses is told on the mod's row.
 
 ## Interfaces
 

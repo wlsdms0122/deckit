@@ -1,3 +1,4 @@
+const { activitySection } = require('./sections/activity/activity-section.js');
 const { CHIP_STYLE } = require('./chip/chip.js');
 const { generalSection } = require('./sections/general/general-section.js');
 const { HANDLER_LIST_STYLE } = require('./sections/handler-list/handler-list.js');
@@ -64,9 +65,10 @@ class Settings {
         });
         const urlSchemes = urlSchemesSection({ ui, urls: deckit.urls, appName: APP_NAME });
         const interfaces = interfacesSection({ ui, mods: deckit.mods });
+        const activity = activitySection({ ui, mods: deckit.mods, onInterfaces: () => contents.go(interfaces) });
         const general = generalSection({ ui, theme: shell.theme, fonts: shell.fonts });
         const keyboard = keyboardSection({ ui, keys: deckit.keys, providerOf: deckit.provider });
-        const sections = [mods, general, modSettings, urlSchemes, interfaces, keyboard];
+        const sections = [mods, activity, general, modSettings, urlSchemes, interfaces, keyboard];
         const contents = tableOfContents({ ui, scroller: body, sections });
 
         body.append(...sections.map((section) => section.element));
@@ -166,6 +168,7 @@ class Settings {
                 ...restarting.flatMap(({ id }) => drawnKeys.get(id) || []).filter(({ id }) => !listedIds.has(id)),
             ];
             mods.draw({ found, running, shortcuts, handlerLists });
+            activity.draw(found);
             modSettings.draw();
             urlSchemes.draw(handlerLists);
             interfaces.draw(interfaceQueues);
