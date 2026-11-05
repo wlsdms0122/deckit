@@ -1,5 +1,6 @@
-// The styles a page wears (deckit-shell/shell/style/main): what running mods with deckit.styles give every page, and what
-// they give a mod's page by its id, from the mod itself and from any other, in the load order. Exits 1 with a line for
+// The styles a page wears (deckit-shell/shell/style/main): what mods with deckit.styles declare and what their running
+// runs give every page, and what they give a mod's page by its id, from the mod itself and from any other, in the load
+// order. Exits 1 with a line for
 // each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -22,12 +23,22 @@ async function main() {
         c: { mod: mod('c', []), state: 'running', contributions: { styles: { a: 'c-a' } } },
         d: { mod: mod('d'), state: 'running', contributions: { styles: { a: 'd-a', '*': 'd-all' } } },
     };
+    const mods = { ...Object.fromEntries(Object.keys(runs).map((id) => [id, mod(id)])), e: mod('e'), f: mod('f', []) };
+    mods.c = mod('c', []);
+    const contributes = {
+        a: { styles: { '*': 'all.css' } },
+        e: { styles: { a: 'a.css', b: 'missing.css' } },
+        f: { styles: { a: 'a.css' } },
+    };
+    const files = { 'a/all.css': 'a-declared', 'e/a.css': 'e-a', 'f/a.css': 'f-a' };
     const handlers = {};
     const deckit = {
         channels: { bind: (declared) => ({ handle: (handler) => (handlers[declared.channel] = handler), send() {} }) },
         mods: {
-            list: () => Object.keys(runs).map((id) => ({ id })),
-            runOf: (id) => runs[id],
+            list: () => Object.values(mods),
+            runOf: (id) => runs[id] ?? null,
+            contributesOf: (id) => contributes[id] ?? {},
+            readFile: async (id, file) => files[`${id}/${file}`] ?? null,
             modOf: (page) => page.mod,
             observe() {},
             onChange() {},
@@ -35,16 +46,20 @@ async function main() {
         pages: { nameOf: () => 'panel', whenEnds() {} },
     };
     createStyle({ deckit }).start();
+    await new Promise((resolve) => setImmediate(resolve));
     const current = Object.values(handlers)[0];
 
     const own = current({}, { mod: 'a' }).join();
     check(
-        "a mod's page wears every page's styles, and by its id those of each mod with deckit.styles, its own too",
-        own === 'a-all,a-own,b-a,d-all,d-a',
+        "a mod's page wears every page's styles, and by its id those of each mod with deckit.styles, its own too, " +
+            'declared ones whether the mod runs or not',
+        own === 'a-declared,a-all,a-own,b-a,d-all,d-a,e-a',
         own
     );
     const shell = current({}, { mod: null }).join();
-    check("a page the shell made wears every page's styles alone", shell === 'a-all,d-all', shell);
+    check("a page the shell made wears every page's styles alone", shell === 'a-declared,a-all,d-all', shell);
+    const declared = current({}, { mod: 'b' }).join();
+    check('a file a mod declares that is not there is left out', declared === 'a-declared,a-all,d-all', declared);
 
     if (failed.length) {
         for (const line of failed) console.error(line);

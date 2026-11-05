@@ -63,6 +63,16 @@ export function createApi({
                 runs: () =>
                     Object.freeze(RUNNER.runs().map(({ run, page }) => Object.freeze({ run: factsOf(run), page }))),
                 runOf: (id) => factsOf(RUNNER.runOf(id)),
+                // What the mod's contributes file declares, by contribution point, or null for no mod that loads.
+                contributesOf: (id) => {
+                    const mod = CATALOG.mods().find((each) => each.id === id);
+                    return mod ? frozen(mod.contributes) : null;
+                },
+                // The text of a file inside the mod's folder, by its path there, or null for none.
+                readFile: async (id, path) => {
+                    const mod = CATALOG.mods().find((each) => each.id === id);
+                    return mod ? CATALOG.readFile(mod, path) : null;
+                },
                 listingOf,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
                 modOf: (page) => IDENTITY.modOf(page)?.id || null,
