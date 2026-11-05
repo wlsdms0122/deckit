@@ -3,7 +3,19 @@ const path = require('path');
 
 // The mods Deckit ships, in the order they take until the person changes it: the panel lists those with a view
 // in it too, until the person arranges its list.
-const SHIPS = ['editor', 'finder', 'note', 'browser', 'calendar', 'forge', 'bot', 'settings', 'deckit', 'switcher'];
+const SHIPS = [
+    'editor',
+    'finder',
+    'note',
+    'browser',
+    'calendar',
+    'forge',
+    'bot',
+    'settings',
+    'deckit',
+    'switcher',
+    'notifications',
+];
 // Run unpackaged, its data is in the folder DECKIT_DATA names (../main.js), and its id is that folder's own, so what
 // WebKit keeps of its pages, which is kept for the app that runs it, is that folder's alone too.
 const data = process.env.DECKIT_DATA;

@@ -1,0 +1,15 @@
+id = "notifications"
+name = "Notifications"
+version = "1.0.0"
+api = "1.0.0"
+main = "main.js"
+contributes = "contributes.json"
+startup = "Takes the notifications mods send from the start, so none is missed."
+
+[interfaces]
+provides = { "deckit/notifications" = [1] }
+uses = { "switcher/actions" = 1 }
+
+[permissions]
+"system.notifications" = "Shows a notification as the system's while you are in another app."
+"system.overlay-windows" = "Shows notifications over the app, and the recent ones when you ask."
