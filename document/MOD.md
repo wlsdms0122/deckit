@@ -26,12 +26,13 @@ api = "1.0.0"
 main = "dist/main.js"
 urls = ["https://github.com/*", "dashboard:*"]
 
-[implements]
-"dashboard/boards" = "1.0.0"
+[interfaces]
+provides = { "dashboard/boards" = [1] }
+uses = { "switcher/actions" = 1 }
 
 [dependencies]
-"forge/workflows" = "1.0.0"
-"switcher/actions" = { version = "1.0.0", optional = true }
+forge = "1.0.0"
+bot = { version = "1.0.0", optional = true }
 
 [permissions]
 "system.main-process" = "Starts the daemons the dashboard shows."
@@ -41,12 +42,12 @@ urls = ["https://github.com/*", "dashboard:*"]
 |---|---|---|
 | `id` | yes | who the mod is, to deck and to every other mod |
 | `name` | no | what a person reads; the id when left out |
-| `version` | yes | the mod's own release, `MAJOR.MINOR.PATCH`, by which an install tells a newer copy |
+| `version` | yes | the mod's own release, `MAJOR.MINOR.PATCH`, by which an install tells a newer copy, compared with what other mods name in `[dependencies]` |
 | `api` | yes | the version of the mod contract it is written against |
 | `main` | yes | the entry, a path inside the folder, `/` separated |
 | `urls` | no | patterns of the addresses it asks to be offered: it is one of their handlers (below) |
-| `implements` | no | interface = the version of it the mod implements (below) |
-| `dependencies` | no | interface = the lowest version it needs, or `{ version, optional = true }` for one it runs without (below) |
+| `interfaces` | no | `provides`, interface = the majors of it the mod speaks, and `uses`, interface = the major of it the mod speaks (below) |
+| `dependencies` | no | mod id = the lowest version it needs, or `{ version, optional = true }` for one it runs without (below) |
 | `permissions` | no | permission = why it is needed, in words the person reads |
 
 Any other field stops the mod loading, and so does a `main` that names no file inside the folder. The manifest is read by deckit's core before a line of the mod runs.
@@ -55,13 +56,13 @@ Only the part of TOML a manifest uses is read: top-level keys, one level of tabl
 
 An id is lower case letters, digits, `.`, `_` and `-`, starts with a letter or digit, is at most 64 characters and has no `..`. Lower case only, because a mod's data is kept in a folder named by its id and macOS disks ignore case.
 
-### implements
+### interfaces
 
-Each interface the mod implements, with the version of it it implements. An interface is named `<mod id>/<name>`: the id of the mod that defines it, whose README is its document, and a name of the same characters as an id. `"switcher/actions" = "1.0.0"` puts the mod in the list of `switcher/actions`, and the mod opens the exports the document writes down (Interfaces, below). Any mod may implement any interface, the one that defines it among them, which names it here like any other. A key with a `/` is quoted.
+The interfaces the mod provides and those it uses. An interface is named `<mod id>/<name>`: the id of the mod that defines it, whose README is its document, and a name of the same characters as an id. Its major is not part of the name. `provides = { "dashboard/boards" = [1] }` puts the mod in the queue of `dashboard/boards`, speaking major 1 of it, and the mod opens the exports the document writes down (Interfaces, below). `uses = { "switcher/actions" = 1 }` says the mod speaks major 1 of `switcher/actions`: it is connected to the interface's owner while the owner speaks that major. Any mod may provide any interface, the one that defines it among them, which names it here like any other. A mod may use an interface it provides, and while it owns it, it is as if there were no owner. Using an interface is never required: the mod runs whether or not the interface has an owner. The table takes `provides` and `uses` and nothing else, each an inline table on one line, with its keys quoted.
 
 ### dependencies
 
-Each interface the mod relies on. `"forge/workflows" = "1.0.0"` is a required dependency: the mod runs only with the implementation picked for it, at that version or a later one of the same major. `"switcher/actions" = { version = "1.0.0", optional = true }` is an optional one: the mod runs without it, and it comes and goes as the mod runs. A table takes `version` and `optional` and nothing else. A mod does not require an interface it implements; it may name one as optional, and while the implementation picked is the mod itself it is as if there were none. In this document, a mod requires the dependencies it names without `optional`, and only those. What a dependency gives is in Dependencies and connections, below.
+Each mod the mod relies on, by id. `forge = "1.0.0"` is a required dependency: the mod runs only with it, at that version or a later one of the same major. `bot = { version = "1.0.0", optional = true }` is an optional one: the mod runs without it, and it comes and goes as the mod runs. A table takes `version` and `optional` and nothing else. A mod does not name itself. In this document, a mod requires the dependencies it names without `optional`, and only those. What a dependency gives is in Dependencies and connections, below.
 
 ### urls
 
@@ -83,7 +84,7 @@ A pattern is undecided while two or more mods no one placed, both on, wrote it, 
 
 ### api
 
-The version of the contract: what the class has and how it is called, what the handles `deckit` and `shell` hold, the names of the permissions, and what a main process module is handed. This deck speaks `1.0.0`. A mod loads when the major is the same and deck's minor and patch, in that order, are at least the mod's; otherwise Settings shows why it did not. The same rule compares the version a mod implements an interface at with what another names for it in `[dependencies]`.
+The version of the contract: what the class has and how it is called, what the handles `deckit` and `shell` hold, the names of the permissions, and what a main process module is handed. This deck speaks `1.0.0`. A mod loads when the major is the same and deck's minor and patch, in that order, are at least the mod's; otherwise Settings shows why it did not. The same rule compares a mod's `version` with what another names for it in `[dependencies]`.
 
 ### permissions
 
@@ -103,7 +104,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.notifications` | notifications in the corner of the screen | `deckit.notify` |
 | `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `scope: 'global'` on a key |
 | `deckit.command-registry` | listing the commands of every mod and of the app, and running them, doing whatever they do | `list`, `run`, `complete` and `onChange` on `deckit.commands` |
-| `deckit.mods` | every mod: listing, installing, removing, launching them again, putting them in a load order and ordering each interface's implementations, picking and revealing their folders, the children pinned to the mod list, and restarting the app | `deckit.mods`, `shell.mods` |
+| `deckit.mods` | every mod: listing, installing, removing, launching them again, putting them in a load order and choosing the mod that owns each interface, picking and revealing their folders, the children pinned to the mod list, and restarting the app | `deckit.mods`, `shell.mods` |
 | `deckit.mod-configuration` | every mod's configuration | `deckit.modConfiguration` |
 | `deckit.app-keys` | keys that work wherever the keyboard is in the app, whatever is in front | `scope: 'app'` on a key |
 | `deckit.keymap` | binding, changing and switching off the keys of every mod | `list`, `bind`, `reset`, `record` and `onChange` on `deckit.keys` |
@@ -192,12 +193,13 @@ Each concept on a handle is one namespace, and `register` on it puts up the mod'
 | `deckit.keys.register(keys)` | `deckit` | keys |
 | `deckit.commands.register(commands)` | `deckit` | commands |
 | `deckit.urls.register(handler)` | `deckit` | the handler of the addresses its `urls` patterns match |
-| `deckit.exports.register(interface, { connect, disconnect })` | `deckit`, once for the run for each interface | the exports of an interface it implements, which the mods that depend on it are connected to |
+| `deckit.exports.register(interface, { connect, disconnect })` | `deckit`, once for the run for each interface | the exports of an interface it provides, which the mods that use it are connected to while it owns it |
+| `deckit.exports.register({ connect, disconnect })` | `deckit`, once for the run | its own exports, which the mods that depend on it by id are connected to |
 | `shell.view.register(view)` | `shell` | the view |
 | `shell.window.register(window)` | `shell` | a window of its own |
 | `shell.styles.register(styles)` | `shell`, with `deckit.styles` | styles for other pages |
 
-Keys and commands are named in one space for the mod. When `start` and `attach` register the same name (a key, a command) or both register a URL handler, the one from `start` stands, and the other is left out with a warning on the row. `exports.register` is called once for the run for each interface, in the lifecycle that has the job: once one lifecycle opened an interface's exports, a call for it in the other is refused.
+Keys and commands are named in one space for the mod. When `start` and `attach` register the same name (a key, a command) or both register a URL handler, the one from `start` stands, and the other is left out with a warning on the row. `exports.register` is called once for the run for each interface, and once for the mod's own exports, in the lifecycle that has the job: once one lifecycle opened a set of exports, a call for it in the other is refused.
 
 ### deckit.keys.register(keys)
 
@@ -224,7 +226,7 @@ deckit.commands.register({
 
 What the mod does, by name, for anyone to run: another mod through `deckit.commands.run`, the host app, a CLI, an automation. Which of what it does a mod offers is its own to choose: a command does not know where the person's focus is, so what only means something there (Save, Next Tab, Go to Line) stays a key, and a command is what its name and args say in full. A command a CLI runs by name is registered in `start`, so it is there with no UI. A name is ASCII letters, digits, `_` and `-`. `params` is a subset of JSON Schema: `type: 'object'` at the top, and `type`, `properties`, `required`, `items`, `enum`, `oneOf` of `{ const, title, description }`, `title` and `description`; the core refuses any other keyword and checks the args against `params` before every run. A command has no label and no icon: what a person reads is a key's or an action's. Commands are public.
 
-`run(args)` answers the command's result, what the caller receives: a value JSON holds, copied, or nothing. `description` says what it answers; commands have no version, so code that leans on the shape of a result depends on an interface that promises it and calls its exports instead. A throw is why it did not run, which the caller reads. A command does not come to the front: one whose work is to be seen (the shell's `show`) does, and a caller that wants a mod in front runs `@shell.show` too. `complete(param, partial, { args, signal })` answers `[{ value, title, hint, keywords }]` for a param being typed, ranked by the mod; `signal` is aborted when the caller no longer wants the answer, and an answer has 2 s. A headless mod is often nothing but commands.
+`run(args)` answers the command's result, what the caller receives: a value JSON holds, copied, or nothing. `description` says what it answers; commands have no version, so code that leans on the shape of a result depends on a mod, or uses an interface, that promises it and calls its exports instead. A throw is why it did not run, which the caller reads. A command does not come to the front: one whose work is to be seen (the shell's `show`) does, and a caller that wants a mod in front runs `@shell.show` too. `complete(param, partial, { args, signal })` answers `[{ value, title, hint, keywords }]` for a param being typed, ranked by the mod; `signal` is aborted when the caller no longer wants the answer, and an answer has 2 s. A headless mod is often nothing but commands.
 
 ### deckit.urls.register(handler)
 
@@ -234,7 +236,7 @@ What the mod does, by name, for anyone to run: another mod through `deckit.comma
 
 `content` is the element shown in the panel, beside its sidebar and to the panel's top. Where a window's title bar lies over that top, the top of the view is its title bar area, as tall as the page's `--deckit-title-bar-area-height` and starting `--deckit-title-bar-area-x` from the left, past the window's buttons; both are `0px` where there is none. A mod lays its own bar there with `ui.titleBar(element)`, or uses the two values itself. Left of `--deckit-title-bar-area-x`, where the window's buttons stand, the panel takes presses to drag the window, whatever the mod draws there. Registering a view gives the mod a row in the mod list and lets it be on screen. `sidebar` is an element shown in the panel's sidebar, in the slot it lends under the mod list, and scrolled when it is taller. Both are laid in the mod's own page, where the panel's frame leaves them room: the mod list and its card are the panel's, drawn over and under the page. Folding the sidebar takes the mod's `sidebar` away with it and gives its room to `content`.
 
-`parent` is an interface whose implementation's view this one is shown in: a child's view goes where a region the implementation picked for it gives shows it (`shell.region`, below), and has no row in the mod list until the person pins it there in Settings. The interface is one named in its `[dependencies]`: optional for a child that runs without it, required for one that does not. A view that names any other is refused and shown on the mod's row, and the mod shows nothing. In a region the view is laid in the region: no mod list, the parent showing through around it, its `sidebar` at the region's start, as wide as the panel's sidebar opens and no wider than the region, and as much of the title bar area as lies over the region.
+`parent` is an interface whose owner's view this one is shown in: a child's view goes where a region the owner gives for it shows it (`shell.region`, below), and has no row in the mod list until the person pins it there in Settings. The interface is one named in its `uses`. A view that names any other is refused and shown on the mod's row, and the mod shows nothing. In a region the view is laid in the region: no mod list, the parent showing through around it, its `sidebar` at the region's start, as wide as the panel's sidebar opens and no wider than the region, and as much of the title bar area as lies over the region.
 
 ### didAppear() and didDisappear()
 
@@ -297,8 +299,8 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `keys` | `register(keys)`; `chordOf(name, { provider })`, the chord one of the mod's keys is bound to now, or `''`, and with `provider`, a key of that mod or host; with `deckit.keymap`: `list`, `bind`, `reset`, `record`, `onChange`, where `bind` gives a key the chord a person chose, as Settings does; `list` answers at once, `onChange` returns the unsubscribe |
 | `urls` | `register(handler)`; `open(url, { activates, usesDefaultApp, target })`, which offers an address to the handlers its patterns match in turn, then deckit's own answer (`urls`, above), and resolves to whether anything opened it. A `file://` address goes anywhere only with `system.file-handlers`, and otherwise resolves `false`; a web address goes to the default browser with no permission. With `deckit.url-schemes`: `list()`, each scheme's handler list `{ scheme, system, undecided, handlers }` at once, `undecided` its undecided patterns as written, `handlers` in the order Settings shows (`urls`, above), a handler `{ id, name, patterns, on }`; `set(scheme, { order, off })`, which gives the handlers in `order` the places they held among themselves in the scheme's list, in the order given, puts those placed it does not name after them, and switches off those in `off`, as the person's; `everyScheme`, the name of the list for every scheme |
 | `events` | `emit(name, ...args)`, `on('<mod id>:<name>', listener)` (below) |
-| `exports` | `register(interface, { connect, disconnect })` (Dependencies and connections) |
-| `dependencies` | `dependencies['<interface>']` and `onConnect(interface, connected)` (Dependencies and connections) |
+| `exports` | `register(interface, { connect, disconnect })` and `register({ connect, disconnect })` (Dependencies and connections) |
+| `dependencies` | `dependencies.<id>` and `onConnect(name, connected)` (Dependencies and connections) |
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | with `system.file-handlers`: shows a file in the system's Finder |
 | `provider(id)` | with `deckit.command-registry` or `deckit.keymap`: who declares keys or commands as `id`, `{ id, name, host }`: a host by the name it gives, or a mod deck loads; null for neither |
@@ -335,11 +337,11 @@ What the mod's web pages download goes to the Downloads folder, under the name t
 
 ### mods
 
-With `deckit.mods`: `list`, `pick`, `planInstall`, `install`, `remove`, `relaunch`, `load`, `arrange`, `order`, `reveal`, `usage`, `restartPending`, `restart`, `onChange`; `list` and `restartPending` answer at once, the rest resolve. `pick()` resolves to the folder the person picks as it would install, or null; `pick({ multiple: true })` to the folders they pick, each as it would install or, refused, `{ from, problem }`. The children pinned to the mod list are the shell's, on `shell.mods`.
+With `deckit.mods`: `list`, `pick`, `planInstall`, `install`, `remove`, `relaunch`, `load`, `arrange`, `pin`, `reveal`, `usage`, `restartPending`, `restart`, `onChange`; `list` and `restartPending` answer at once, the rest resolve. `pick()` resolves to the folder the person picks as it would install, or null; `pick({ multiple: true })` to the folders they pick, each as it would install or, refused, `{ from, problem }`. The children pinned to the mod list are the shell's, on `shell.mods`.
 
-- `list()` answers `{ found, running }`. `found` is every mod deck found, loaded or not, in the load order, each its manifest with `folder`, `installed` (a copy in deckit's mods folder), `shipped`, `hides` (folders of the same id not read), `problem` (why it does not load, or null), `run` (its latest run's `{ state, problem }`, or null for one with no sandbox), `launched` (while it starts or stops again, what its latest run that launched contributed, as `running` lists it, or null), `mainProcess` (`{ running, failure }`: whether a main process module of its started, and why one did not, or null), `relations` (`[{ interface, optional, version, id, name, problem, running }]`, a row for each interface in its `[dependencies]`: `optional` whether it runs without it, `version` the version it names, `id` and `name` the implementation picked for it, absent when none is, `problem` what is wrong with it, absent when nothing is: a required one with no implementation at that version, or an optional one picked at a version it does not take, `running` whether the implementation is running) and `dependents` (the ids of the mods that load and require it, directly or through another: none of them loads without it). Each permission in a manifest is `{ id, name, means, reach, reason, usable }`, with no `name` and `means` and `usable` false for one no layer on this host app defines. `running` is each running mod's `id`, `name` and summary: what each layer read of its class (`keywords`, `icon`, `form`) and what it contributes, with `exports` (whether a lifecycle of it opened exports) and `problem`. `view` in a summary is absent until a screen lifecycle has joined, and false once it has ended.
-- `list()` answers `interfaces` too: every interface a mod implements or depends on, `[{ interface, name, undecided, implementations, pick }]`, `name` the defining mod's, absent when no mod of that id is found, `undecided` whether its implementations are in no one's order (Interfaces), `implementations` its list in order, `[{ id, name, version, on }]`, `version` the one the mod implements, and `pick` the id of the implementation picked for it, absent when none is.
-- `order(interface, { order, off })` gives the implementations in `order` the places they held among themselves in the interface's list, in the order given, puts those placed it does not name after them, and switches off those in `off`, as the person's; it rejects one whose pick would make a cycle among mods that load now, and resolves once `list()` has it.
+- `list()` answers `{ found, running }`. `found` is every mod deck found, loaded or not, in the load order, each its manifest with `folder`, `installed` (a copy in deckit's mods folder), `shipped`, `hides` (folders of the same id not read), `problem` (why it does not load, or null), `run` (its latest run's `{ state, problem }`, or null for one with no sandbox), `launched` (while it starts or stops again, what its latest run that launched contributed, as `running` lists it, or null), `mainProcess` (`{ running, failure }`: whether a main process module of its started, and why one did not, or null), `relations` (`[{ id, optional, version, name, problem, running }]`, a row for each mod in its `[dependencies]`: `optional` whether it runs without it, `version` the version it names, `name` that mod's, its id when it is not found, `problem` what is wrong with it, absent when nothing is: a required one not there at that version or that did not load, or an optional one there at a version it does not take, `running` whether that mod is running), `uses` (`[{ interface, major, owner, name, problem }]`, a row for each interface in its `uses`: `major` the major it uses, `owner` and `name` the interface's owner, absent when it has none or the mod owns it itself, `problem`, absent when nothing is wrong: an owner that does not speak that major, so the mod reaches no one by it) and `dependents` (the ids of the mods that load and require it, directly or through another: none of them loads without it). Each permission in a manifest is `{ id, name, means, reach, reason, usable }`, with no `name` and `means` and `usable` false for one no layer on this host app defines. `running` is each running mod's `id`, `name` and summary: what each layer read of its class (`keywords`, `icon`, `form`) and what it contributes, with `exports` (whether a lifecycle of it opened exports) and `problem`. `view` in a summary is absent until a screen lifecycle has joined, and false once it has ended.
+- `list()` answers `interfaces` too: every interface a mod provides or uses, `[{ interface, name, owner, pinned, providers }]`, `name` the defining mod's, absent when no mod of that id is found, `owner` the id of its owner, absent while no mod provides it, `pinned` whether the person pinned the owner, and `providers` its queue, the earliest first, `[{ id, name, majors }]`, `majors` those the mod speaks (Interfaces).
+- `pin(interface, id)` pins the provider `id` as the interface's owner, as the person's, and `pin(interface, null)` clears the pin; it rejects a mod that does not provide the interface, and while `deck.json` does not read, and resolves once `list()` has it.
 - `onChange(listener)` hears that what `list` or `restartPending` answers may have changed (a mod found or gone, a run that moved or joined a lifecycle, a problem against a run, a main process module that ended), and answers its off.
 - `planInstall(from)` resolves to the folder `from` as it would install, as `pick` answers a folder, without asking the person anything, and rejects with why for a folder install refuses: for a folder the person handed over another way, a drop on the page (`shell.dropDestination`).
 - `install(from)` resolves, once the mod and the mods that require it have launched in its place or failed to, to the mod's manifest with `restart`: whether only a restart of the app finishes the install.
@@ -379,9 +381,9 @@ What `attach` receives as `shell`, from deckit's shell (the panel and the kit). 
 | `show()` | the calling mod asks for its view on screen, and the shell puts it there; a mod with no view in the panel, or one still starting, has nothing to show. A child not in the mod list brings its parent on screen |
 | `iconOf(mod)` | the icon of the mod's latest launched run, or `''` |
 | `formOf(mod)` | resolves to the mod's `static form` as the shell read it |
-| `region(element, interface)` | a place in the mod's view where the children of an interface it implements are shown (below) |
+| `region(element, interface)` | a place in the mod's view where the children of an interface it provides are shown (below) |
 | `dropDestination(element, { onDrop, onTargeted })` | takes the files the person drops on `element` from outside the app, by their paths (below) |
-| `children` | `list(interface)`, `[{ id, name, icon }]` of the mods whose view names that interface as its `parent`, while this mod is the implementation picked for it, and that run or are launching again, each from its first launch, in the load order, and `onChange(listener)`, `listener(interface, children)` each time an interface's children change, which returns its off. `region` and `children.list` throw for an interface the mod does not implement |
+| `children` | `list(interface)`, `[{ id, name, icon }]` of the mods whose view names that interface as its `parent`, while this mod owns it, and that run or are launching again, each from its first launch, in the load order, and `onChange(listener)`, `listener(interface, children)` each time an interface's children change, which returns its off. `region` and `children.list` throw for an interface the mod does not provide |
 | `web` | `page({ session, url })`, `window({ session, url, title })` (below) |
 | `fonts` | with `deckit.fonts`: `get()`, the person's `{ text, size }` at once, each null for the default: a face's name for `text`, a whole size from 11 to 22 px; `set(change)`, any of them, null putting one back to its default, which resolves to the fonts as kept. Every page's `theme` wears them (`textFont`, `textSize`) |
 | `mods` | with `deckit.mods`: `pinned()`, the children the person pinned to the mod list, at once, and `setPinned(id, pinned)` |
@@ -391,7 +393,7 @@ The page wears the theme, the kit's styles and other mods' styles from just befo
 
 ### region(element, interface)
 
-A mod's view is shown in another's when that one gives a place in its view for an interface it implements (`shell.region(element, interface)`) and this one names the interface as its view's `parent`, in its `[dependencies]`, while that mod is the implementation picked for it: a dashboard shows its boards, each a mod, beside its own list of them. An interface that only gives a place needs no exports. The parent hears its children through `shell.children`, and a region answers `place(id)`, which puts that child's view in the region and out of any other, and `clear()`. Both resolve once done. A child whose `parent` is picked at a version it does not take has no parent, as if there were none. `place` rejects for a mod that is not this one's child of that interface, and a mod is a child only from its first launch: a parent places the children `shell.children` lists. A region ends when its element, once in the page, leaves it, or with the parent's screen lifecycle, and an ended region rejects `place` and `clear`. The child keeps running in its own page, which the shell lays over what of the element is seen, following it frame by frame: cut where an ancestor clips it (a scroller's edge, the sidebar as it folds), and nothing while the element is hidden. The page is made as small as that part, not cropped, and nothing the parent draws, its menus too, comes over it. Regions are shown while their mod is the one on screen, and a child comes and goes with it (didAppear, didDisappear, its keys). A child is its parent's from when it starts, through launching again, until it starts naming another interface or none, or another implementation is picked for it, when its view goes from the region and comes up in the new parent's; when the parent's screen fails, the child's view has no place and its function lifecycle runs on. A child pinned to the mod list is in the panel while it is on screen there, and back in its region after.
+A mod's view is shown in another's when that one gives a place in its view for an interface it provides (`shell.region(element, interface)`) and this one names the interface as its view's `parent`, in its `uses`, while that mod owns it: a dashboard shows its boards, each a mod, beside its own list of them. An interface that only gives a place needs no exports. The parent hears its children through `shell.children`, and a region answers `place(id)`, which puts that child's view in the region and out of any other, and `clear()`. Both resolve once done. A child whose `parent` is owned by a mod that does not speak the major it uses has no parent, as if there were none. `place` rejects for a mod that is not this one's child of that interface, and a mod is a child only from its first launch: a parent places the children `shell.children` lists. A region ends when its element, once in the page, leaves it, or with the parent's screen lifecycle, and an ended region rejects `place` and `clear`. The child keeps running in its own page, which the shell lays over what of the element is seen, following it frame by frame: cut where an ancestor clips it (a scroller's edge, the sidebar as it folds), and nothing while the element is hidden. The page is made as small as that part, not cropped, and nothing the parent draws, its menus too, comes over it. Regions are shown while their mod is the one on screen, and a child comes and goes with it (didAppear, didDisappear, its keys). A child is its parent's from when it starts, through launching again, until it starts naming another interface or none, or another mod comes to own it, when its view goes from the region and comes up in the new parent's; when the parent's screen fails, the child's view has no place and its function lifecycle runs on. A child pinned to the mod list is in the panel while it is on screen there, and back in its region after.
 
 ### dropDestination(element, { onDrop, onTargeted })
 
@@ -445,53 +447,58 @@ Whatever a layer calls once a lifecycle has started, a call that throws or rejec
 
 ## Dependencies and connections
 
-A mod relies on another's functions through an interface. It names the interface in `[dependencies]` and never the mod: who answers is the implementation picked for it, the person's to choose. It gets three things from that implementation, each in its own place: the exports it opens for the interface, on `deckit.dependencies`; a place in its view, by naming the interface as the view's `parent` (`shell.region`); and the load order, after it, for a required one. A mod's own exports are what it opens for the interfaces it implements, on `deckit.exports`.
+A mod reaches another's functions by one of two names. By id, it names the mod in `[dependencies]`: it relies on that mod and no other, and gets the exports that mod opens for the mods that depend on it and, for a required one, the load order after it. By interface, it names a role in `uses`: who answers is the interface's owner, one mod for each interface, which the person may change. It gets the exports the owner opens for the interface, and a place in the owner's view, by naming the interface as its view's `parent` (`shell.region`). Both come on `deckit.dependencies`. A mod's own exports are on `deckit.exports`: those for the mods that depend on it by id, and those for each interface it provides.
 
 What a mod offers anyone needs no dependency: addresses (`deckit.urls`), commands (`deckit.commands`) and events (`deckit.events`). They are public: anyone may ask at any time, and the one who asks may be no page at all (a CLI, the host app). Nothing says when a function handed over that way could be let go, so they carry values only, never a function. A dependency has a start and an end, a connection, so a function crosses it as a function.
 
-One question picks: could the host app do this if the other mod were not there? If it could, open an address, run a command, or hear an event. If it could not, depend on an interface.
+One question picks: could the host app do this if the other mod were not there? If it could, open an address, run a command, or hear an event. If it could not, depend on the mod, or use an interface when any mod that provides it will do.
 
-A caller that names who it calls names a mod by id: a command (`provider`), an event (`<mod id>:<name>`), a style. One that does not name who answers names a list: an address, the list of its scheme, and an interface, the list of its implementations. Who is first in a list is the person's.
+A caller that names who it calls names a mod by id: a dependency, a command (`provider`), an event (`<mod id>:<name>`), a style. One that does not name who answers names a role: an address, which its scheme's list answers in the person's order, and an interface, which its owner answers.
 
 ### Interfaces
 
-An interface is a name, a version and a document. The name is `<mod id>/<name>`, the defining mod's id first, so no two mods that do not know each other make up the same one; its document is that mod's README, which writes down what the exports hold, what each function takes and answers, the lifecycle that opens them, and whether it gives a place for views (`parent`). A change that breaks any of it is a new major. An interface that hands out handles (a session, a run) promises that a handle never repeats across implementations and runs, and that one it does not know is answered as not there: a dependent holds a handle as it was handed and never reads it.
+An interface is a name, its majors and a document. The name is `<mod id>/<name>`, the defining mod's id first, so no two mods that do not know each other make up the same one; its document is that mod's README, which writes down what the exports hold, what each function takes and answers, the lifecycle that opens them, and whether it gives a place for views (`parent`). A change that breaks any of it is a new major. The major is not part of the name: a provider lists the majors it speaks in `provides`, and a mod that uses the interface names the one it speaks in `uses`. An interface that hands out handles (a session, a run) promises that a handle never repeats across providers and runs, and that one it does not know is answered as not there: a dependent holds a handle as it was handed and never reads it.
 
-Each interface has one list: the mods whose manifest `implements` it, but for those that cannot load by their own manifest (a refused manifest, an `api` of another major). Whether what a mod requires is there, and whether it runs, keep no mod off a list. The person orders each list and switches implementations off in Settings (`deckit.mods.order`), and what they set stays, even while a mod is off the list for a while; removing the mod takes it out. Before they do, the host app places the mods it names (EMBEDDING.md, `implementations`). A mod no one placed comes after those placed, by id. While two or more mods are in a list that no one placed and that are on, and none placed is in it and on, the interface is undecided: it runs in that order, and Settings shows it for the person to place one.
+Each interface has one owner at a time, among the mods that provide it. deck keeps a queue of them for each interface, in the order they started providing it: a mod joins the end of the queue when it is installed, first read, or updated to provide the interface, and leaves it when it is removed, is no longer found, or is updated to stop providing it. An update that goes on providing it keeps its place. A mod that cannot load by its own manifest (a refused manifest, an `api` of another major) provides nothing. Whether what a mod requires is there, and whether it runs, keep no mod out of a queue.
 
-For each interface one implementation is picked: the first in its list that is on. Neither the version it implements nor whether it runs is looked at. Picked at a version a dependent does not take, it is as if there were none for that dependent. Picked and not running, its connections are down, and they stand once it runs: a failed or crashed implementation is not passed over for the next. The pick changes only as the list does: the person orders or switches one off, a mod is installed, updated or removed, the host app places others, or deckit's `api` changes. Then the dependents of that interface connect to the new pick: what is on screen in a region of the old one goes there, an optional one hears the old go and the new come (`onConnect`), and a required one launches again. An order of the person's whose pick would make a cycle among mods that load now is refused; a cycle among mods that do not load, or one any other change makes, stops every mod in it, and Settings shows why.
+The owner is the provider the person pinned (`deckit.mods.pin`, Settings), or else the first in the queue. Whether it runs is not looked at: while the owner is not running its connections are down, and they stand once it runs; one that fails or crashes stays the owner. So a mod installed later waits in the queue and does not take the interface, and the mods a host app ships own their interfaces because they are installed first, not by a place of their own (EMBEDDING.md). The load order has no part in it, and a mod sets no priority of its own. A pin goes when its mod leaves the queue. A provider that is not the owner runs as any mod does, and no one reaches it by that interface.
 
-A dependent never learns which mod implements what it depends on: the exports it is handed are the interface's, and an implementation's identity is no part of any interface. An implementation knows who it is connected to (`connect`), since what a dependent hands it is that dependent's: the switcher lists actions under the mod that handed them.
+The owner changes when it leaves the queue, when the person pins another or clears the pin, and when the first provider of an interface arrives; terminating the owner does not change it. Then the mods that use the interface connect to the new owner: their connections to the old one end and stand again to the new one (`onConnect`), and what is on screen in a region of the old one goes to the new one's. deck sends the event `<interface>:owner-changed`, of no args, to the mods listening for it (`deckit.events.on('switcher/actions:owner-changed', listener)`), so a mod that only hears an interface's events learns of it too. What a role keeps (a history, the actions handed over) is in its owner's storage and does not follow a new owner.
+
+There is one owner whatever the majors. An owner that does not speak the major a mod uses is, for that mod, as if there were none: no connection stands, and the mod's row in Settings says why. Using an interface is never required: the mod runs whether or not it has an owner, and what it uses comes and goes as an optional dependency does.
+
+A mod that uses an interface never learns which mod owns it: the exports it is handed are the interface's, and an owner's identity is no part of any interface. The owner knows who it is connected to (`connect`), since what a mod hands it is that mod's: the switcher lists actions under the mod that handed them.
 
 ### Required and optional
 
 | | Required | Optional |
 |---|---|---|
-| Written as | `"forge/workflows" = "1.0.0"` | `"switcher/actions" = { version = "1.0.0", optional = true }` |
+| Written as | `forge = "1.0.0"` | `bot = { version = "1.0.0", optional = true }` |
 | What it is | part of the mod | something that comes and goes |
-| Without an implementation | the mod does not load, and Settings says why | the mod runs |
-| As the implementation ends | the mod terminates first, before that one's `stop()` | the mod hears it go (`onConnect`) and runs on |
-| Load order | the mod loads after the implementation, and a cycle stops every mod in it | sets no order |
-| Picked at a version it does not take | the mod does not load | it is as if there were none, and the mod's row in Settings says why |
+| Without it | the mod does not load, and Settings says why | the mod runs |
+| As it ends | the mod terminates first, before that one's `stop()` | the mod hears it go (`onConnect`) and runs on |
+| Load order | the mod loads after it, and a cycle stops every mod in it | sets no order |
+| At a version it does not take | the mod does not load | it is as if it were not there, and the mod's row in Settings says why |
 
-A mod that requires an interface stays as it is when its implementation terminates or crashes, until it is launched again.
+A mod that requires another stays as it is when that one terminates or crashes, until it is launched again. Only a dependency by id is required: an interface a mod uses is as an optional one.
 
 ### Connections
 
-A connection stands between the exports a mod opened for an interface and one lifecycle of a mod that depends on that interface, while the mod is the implementation picked for it. A mod opens each interface's exports once for the run, in the lifecycle that has the job: `start` for what must work on a host app with no UI, `attach` for what means something only on screen, such as a switcher taking actions. Exports opened in `start` reach the dependent's `start` and `attach`; exports opened in `attach` reach only the dependent's `attach`. It is the rule between lifecycles, widened to mods: the function side never reaches the screen side. A slow `attach` does not keep the mods that depend on it from starting.
+A connection stands between the exports a mod opened and one lifecycle of a mod that reaches them: its own exports, for a mod that depends on it by id, or those of an interface, for a mod that uses the interface while the mod owns it. A mod opens each set of exports once for the run, in the lifecycle that has the job: `start` for what must work on a host app with no UI, `attach` for what means something only on screen, such as a switcher taking actions. Exports opened in `start` reach the dependent's `start` and `attach`; exports opened in `attach` reach only the dependent's `attach`. It is the rule between lifecycles, widened to mods: the function side never reaches the screen side. A slow `attach` does not keep the mods that depend on it from starting.
 
 | Exports opened in | The dependent's `start` | The dependent's `attach` |
 |---|---|---|
-| `start` | required: `dependencies['<interface>']`; optional: `onConnect` | required: `dependencies['<interface>']`; optional: `onConnect` |
-| `attach` | does not reach | required or optional: `onConnect` |
+| `start` | required: `dependencies.<id>`; optional or used: `onConnect` | required: `dependencies.<id>`; optional or used: `onConnect` |
+| `attach` | does not reach | `onConnect` |
 
-What lasts the whole lifecycle is `dependencies['<interface>']`; what comes and goes is `onConnect`.
+What lasts the whole lifecycle is `dependencies.<id>`; what comes and goes is `onConnect`.
 
-A connection stands when both ends are up: as the dependent's lifecycle begins, before its method is called, or as the exports join, once the method that opened them has ended. It stands whether or not the dependent uses it, and only at a version the dependent takes. It ends as either lifecycle ends, and the lifecycle ends as every lifecycle does: what is on screen goes, its end method (`detach` or `stop`) runs, what its handles made is cut, and then its connections are cut. So a call made in `detach` or `stop` still reaches the other end. As a connection is cut, only the end that lives on hears it: when the exports' lifecycle ends, the dependent's `onConnect` cleanup runs; when the dependent's lifecycle ends, the exports' `disconnect` runs. The end that ends tidies up in its own end method.
+A connection stands when both ends are up: as the dependent's lifecycle begins, before its method is called, or as the exports join, once the method that opened them has ended. It stands whether or not the dependent uses it, and only at a version, or a major, the dependent takes. It ends as either lifecycle ends, and the lifecycle ends as every lifecycle does: what is on screen goes, its end method (`detach` or `stop`) runs, what its handles made is cut, and then its connections are cut. So a call made in `detach` or `stop` still reaches the other end. As a connection is cut, only the end that lives on hears it: when the exports' lifecycle ends, the dependent's `onConnect` cleanup runs; when the dependent's lifecycle ends, the exports' `disconnect` runs. The end that ends tidies up in its own end method.
 
 ### deckit.exports.register(interface, { connect, disconnect })
 
 ```js
+// for the mods that use switcher/actions, while this mod owns it
 deckit.exports.register('switcher/actions', {
     connect: (connection) => ({
         setActions: (actions) => {
@@ -500,17 +507,20 @@ deckit.exports.register('switcher/actions', {
     }),
     disconnect: (connection) => this.actions.delete(connection),
 });
+
+// for the mods that depend on this one by id
+deckit.exports.register({ connect: () => this.forge });
 ```
 
-`interface` is one the manifest `implements`; any other is refused and shown on the mod's row. `connect(connection)` is called once for each connection and answers the exports for it, at once: an object of values and functions. `connection` is `{ mod: { id, name } }`, the mod on the other end, frozen, and `disconnect` is handed the same object. So the exports made for a connection know the mod that calls them, and a function keyed by the connection knows whose it is. Exports that need not know answer one object for every connection (`connect: () => this.forge`). `disconnect(connection)`, which may be left out, hears the dependent's lifecycle end while the exports are open. A mod that keeps what a dependent handed it keys it by the connection, and drops it in `disconnect` or once it has no more use for it.
+`interface` is one the manifest `provides`; any other is refused and shown on the mod's row. With no `interface`, the exports are the mod's own, for the mods that name it in `[dependencies]`. `connect(connection)` is called once for each connection and answers the exports for it, at once: an object of values and functions. `connection` is `{ mod: { id, name } }`, the mod on the other end, frozen, and `disconnect` is handed the same object. So the exports made for a connection know the mod that calls them, and a function keyed by the connection knows whose it is. Exports that need not know answer one object for every connection (`connect: () => this.forge`). `disconnect(connection)`, which may be left out, hears the dependent's lifecycle end while the exports are open. A mod that keeps what a dependent handed it keys it by the connection, and drops it in `disconnect` or once it has no more use for it.
 
-It is called once for the run for each interface, in `start` or in `attach`: once one lifecycle opened an interface's exports, a call for it in the other is refused. The exports end with the lifecycle that opened them. An interface that only gives a place for views is implemented with no exports.
+It is called once for the run for each interface, and once for the mod's own exports, in `start` or in `attach`: once one lifecycle opened a set of exports, a call for it in the other is refused. The exports end with the lifecycle that opened them. An interface that only gives a place for views is provided with no exports.
 
 ### deckit.dependencies
 
 ```js
 // lasts the lifecycle: a required dependency's exports, opened in start
-await deckit.dependencies['forge/workflows'].dispatch('review', inputs, { onRun: (run) => draw(run) });
+await deckit.dependencies.forge.dispatch('review', inputs, { onRun: (run) => draw(run) });
 
 // comes and goes: handed as each connection stands
 deckit.dependencies.onConnect('switcher/actions', (switcher) => {
@@ -519,10 +529,10 @@ deckit.dependencies.onConnect('switcher/actions', (switcher) => {
 });
 ```
 
-- `dependencies['<interface>']`: the exports the implementation of a required interface opened in `start`, there from before the lifecycle's method is called until the lifecycle ends. Each lifecycle has its own `dependencies`.
-- `dependencies.onConnect(interface, connected)`: `connected(exports)` each time a connection for `interface` stands that comes and goes: an optional dependency's, or a required one's opened in `attach`, and each new pick's. A connection already standing is handed at once. Called twice for one interface, both are handed it. A function `connected` answers is called as the connection is cut because the other end ended, while this lifecycle lasts. What `onConnect` adds is cut as its lifecycle ends.
+- `dependencies.<id>`: the exports a required dependency opened in `start`, there from before the lifecycle's method is called until the lifecycle ends. Each lifecycle has its own `dependencies`.
+- `dependencies.onConnect(name, connected)`: `connected(exports)` each time a connection for `name`, a mod id or an interface, stands that comes and goes: an optional dependency's, an interface's, each new owner's, or a required one's opened in `attach`. A connection already standing is handed at once. Called twice for one name, both are handed it. A function `connected` answers is called as the connection is cut because the other end ended, while this lifecycle lasts. What `onConnect` adds is cut as its lifecycle ends.
 - An `onConnect` in a lifecycle the exports do not reach (in `start`, for exports opened in `attach`) never connects, and the mod's row in Settings says so as those exports join.
-- An interface's name has a `/`, so `onConnect` is never one.
+- A mod id is lower case only, and an interface's name has a `/`, so `onConnect` is never a dependency's name.
 
 ### What crosses a connection
 
@@ -546,30 +556,29 @@ A `connect` that throws, answers a promise, or answers what does not cross leave
 | required, to the dependent's `attach` | that screen lifecycle ends, and the run goes on |
 | optional | only that connection is down, and the mod's row in Settings says why |
 
-### The version of an interface
+### Versions
 
-The version a mod `implements` an interface at is the version of the promise its exports keep, as the interface's document writes it down. A mod's own `version` is its release and promises nothing to another mod. Commands have no version (`deckit.commands.register`), and a change only to what the mod shows is no break.
+A mod's `version` is the version of the promise its own exports keep to the mods that depend on it by id, as its README writes them down: a change that breaks any of it is a new major. The majors a mod `provides` an interface at are those of the interface's document whose promise its exports for it keep. Commands have no version (`deckit.commands.register`), and a change only to what the mod shows is no break.
 
 ### What is outside
 
-- Passing a failed implementation over for the next.
-- Connecting a dependent to every implementation of an interface at once: one that gathers from many is an interface the gatherer implements and the many depend on (`switcher/actions`).
-- One implementation serving two majors of an interface at once.
-- An implementation that calls the next one in the list (a proxy, a decorator).
-- A different pick for each dependent.
+- Passing a failed owner over for the next in the queue.
+- Connecting a mod to every provider of an interface at once: one that gathers from many is an interface the gatherer provides and the many use (`switcher/actions`).
+- A provider that calls the next one in the queue (a proxy, a decorator).
+- A different owner for each mod that uses an interface, or for each major.
 
 ### What deckit's own mods open
 
 Each README writes down what its exports take.
 
-- `switcher/actions`, defined and implemented by the Switcher: `setActions(actions)`, the actions listed under the mod, opened in `attach`, so a mod names it as an optional dependency and hands its actions with `onConnect` ([README](../source/deckit/mods/switcher/README.md)).
-- `settings/buttons`, defined and implemented by Settings: `setButtons(buttons)`, buttons on the mod's settings, opened in `attach` ([README](../source/deckit/mods/settings/README.md)).
-- `calendar/accounts`, defined and implemented by Calendar: `setProvider(provider)`, an account the calendar shows ([README](../source/deckit/mods/calendar/README.md)).
-- `forge/workflows`, defined and implemented by Forge: its workflows and their runs ([README](../source/deckit/mods/forge/README.md)).
+- `switcher/actions`, defined and provided by the Switcher: `setActions(actions)`, the actions listed under the mod, opened in `attach`, so a mod uses it and hands its actions with `onConnect` ([README](../source/deckit/mods/switcher/README.md)).
+- `settings/buttons`, defined and provided by Settings: `setButtons(buttons)`, buttons on the mod's settings, opened in `attach` ([README](../source/deckit/mods/settings/README.md)).
+- `calendar/accounts`, defined and provided by Calendar: `setProvider(provider)`, an account the calendar shows ([README](../source/deckit/mods/calendar/README.md)).
+- Forge (`forge`), by id: its workflows and their runs ([README](../source/deckit/mods/forge/README.md)).
 
 ## Load order
 
-The mods load in an order deck keeps: `loadOrder` in `deck.json`, at the top of deckit's folder, a list of mod ids. A mod loads after the implementations picked for the interfaces it requires: one the list places later goes just before it. The person's order of each interface's implementations is kept beside it, as `implementations`. Otherwise each loads where the list places it. One the list does not place comes after those it places: in the order the host app ships them, then by id. Installing a mod the list does not place puts it in the list just before the first mod there that loads after it, and removing one takes it off; every other place stays, even one whose mod does not load or is not found. A `deck.json` that does not read as a JSON object is left as it is, and the order is not kept until it does. The person changes it by dragging the mods in Settings and applying the order (`deckit.mods.arrange`), and an order that puts a mod that loads before one it requires is refused. It is the order styles are worn in, the later over the earlier, so a mod's styles go over those of the implementations it requires, the order keys are tried in, and the order the mods are listed in (`deckit.mods.list()`, Settings). When a mod starts is not: it starts once what it requires has started.
+The mods load in an order deck keeps: `loadOrder` in `deck.json`, at the top of deckit's folder, a list of mod ids. A mod loads after the mods it requires: one the list places later goes just before it. Beside it deck keeps each interface's queue of providers, as `providers`, and the person's pins, as `pins` (Interfaces). Otherwise each loads where the list places it. One the list does not place comes after those it places: in the order the host app ships them, then by id. Installing a mod the list does not place puts it in the list just before the first mod there that loads after it, and removing one takes it off; every other place stays, even one whose mod does not load or is not found. A `deck.json` that does not read as a JSON object is left as it is, and nothing is kept in it until it does. The person changes it by dragging the mods in Settings and applying the order (`deckit.mods.arrange`), and an order that puts a mod that loads before one it requires is refused. It is the order styles are worn in, the later over the earlier, so a mod's styles go over those of the mods it requires, the order keys are tried in, and the order the mods are listed in (`deckit.mods.list()`, Settings). When a mod starts is not: it starts once what it requires has started.
 
 ## A main process module
 
