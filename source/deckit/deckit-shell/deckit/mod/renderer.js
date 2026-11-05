@@ -168,6 +168,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
             configuration: CONFIGURED.forScope(scope),
             commands: Object.freeze({
                 ...deck.commands,
+                tokens: COMMAND.tokens,
                 ...(has(COMMAND_PERMISSION.COMMAND_REGISTRY)
                     ? { ...COMMAND.registry, onChange: scoped(COMMAND.registry.onChange) }
                     : {}),

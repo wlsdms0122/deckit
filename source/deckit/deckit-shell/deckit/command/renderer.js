@@ -71,6 +71,17 @@ export function createCommand() {
         },
     });
 
+    // The mod's command tokens, for every mod: `mint(command, args)`, a token of one of its own commands, which resolves
+    // to the token, a string that crosses a connection as any value does; `cancel(token)`, one it minted ended;
+    // `run(token)`, which resolves to the command's result or null and rejects with why it did not run;
+    // `release(token)`, one it holds ended once it has no more use for it.
+    const tokens = Object.freeze({
+        mint: (command, args) => PROTOCOL.mint.invoke({ command: String(command), ...argsOf(args) }),
+        cancel: (token) => PROTOCOL.cancelToken.invoke({ token: String(token) }),
+        run: (token) => PROTOCOL.runToken.invoke({ token: String(token) }),
+        release: (token) => PROTOCOL.releaseToken.invoke({ token: String(token) }),
+    });
+
     // MARK: - Private
     function answer() {
         answering = true;
@@ -102,5 +113,5 @@ export function createCommand() {
         return args && typeof args === 'object' ? { args } : {};
     }
 
-    return { declare, registry };
+    return { declare, registry, tokens };
 }

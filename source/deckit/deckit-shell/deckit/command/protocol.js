@@ -20,3 +20,21 @@ export const completeOf = CHANNEL.pageToMain(
 );
 export const cancel = CHANNEL.pageToMain('deckit-shell:command-cancel', { call: 'number' });
 export const changed = CHANNEL.mainToPage('deckit-shell:command-changed');
+
+// A mod's command tokens: it mints one of its own commands and cancels it; whoever holds one runs it or releases it.
+export const mint = CHANNEL.pageToMain(
+    'deckit-shell:command-mint',
+    { command: 'string', args: 'object?' },
+    { reply: true }
+);
+export const runToken = CHANNEL.pageToMain('deckit-shell:command-run-token', { token: 'string' }, { reply: true });
+export const cancelToken = CHANNEL.pageToMain(
+    'deckit-shell:command-cancel-token',
+    { token: 'string' },
+    { reply: true }
+);
+export const releaseToken = CHANNEL.pageToMain(
+    'deckit-shell:command-release-token',
+    { token: 'string' },
+    { reply: true }
+);

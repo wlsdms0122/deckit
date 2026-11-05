@@ -43,6 +43,22 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
             const caller = IDENTITY.modOf(sender);
             if (caller) asking.get(`${caller.id}:${call}`)?.abort();
         });
+        PROTOCOL.mint.handle(({ command, args }, sender) => {
+            const { id } = IDENTITY.modFrom(sender);
+            return CORE.request('command/mint', { mod: id, command, ...(args ? { args } : {}) });
+        });
+        PROTOCOL.runToken.handle(({ token }, sender) => {
+            IDENTITY.modFrom(sender);
+            return runToken(token);
+        });
+        PROTOCOL.cancelToken.handle(({ token }, sender) => {
+            const { id } = IDENTITY.modFrom(sender);
+            return CORE.request('command/cancel', { mod: id, token });
+        });
+        PROTOCOL.releaseToken.handle(({ token }, sender) => {
+            IDENTITY.modFrom(sender);
+            return CORE.request('command/release', { token });
+        });
         for (const name of ['didLaunch', 'didJoin', 'didTerminate']) RUNNER.observe(name, changed);
     }
 
@@ -82,16 +98,13 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
     // did not run.
     async function run({ provider, command }, args = null) {
         await CORE.request('command/check', { provider, command, ...(args ? { args } : {}) });
-        if (hosts.has(provider))
-            return RESULT.resultOf(
-                await hosts
-                    .get(provider)
-                    .get(command)
-                    .run(args ?? {})
-            );
-        const page = IDENTITY.pageOf(provider);
-        if (!page) throw Object.assign(new Error(`${provider} is not running`), { kind: 'NOT_RUNNING' });
-        return PROTOCOL.run.invoke(page, { command, args });
+        return dispatch({ provider, command }, args);
+    }
+
+    // The command a token holds run with the args it was minted with, as `run` answers; one that has ended rejects.
+    async function runToken(token) {
+        const { sender, command, args } = await CORE.request('command/check-token', { token });
+        return dispatch({ provider: sender, command }, args ?? null);
     }
 
     // The candidates for `param` of `{ provider, command }` as `partial` is typed, `[{ value, title, hint, keywords }]`
@@ -133,6 +146,20 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
     }
 
     // MARK: - Private
+    // A command the core checked runs where its provider is: a host's here, a mod's in its page.
+    async function dispatch({ provider, command }, args) {
+        if (hosts.has(provider))
+            return RESULT.resultOf(
+                await hosts
+                    .get(provider)
+                    .get(command)
+                    .run(args ?? {})
+            );
+        const page = IDENTITY.pageOf(provider);
+        if (!page) throw Object.assign(new Error(`${provider} is not running`), { kind: 'NOT_RUNNING' });
+        return PROTOCOL.run.invoke(page, { command, args });
+    }
+
     // The host's listeners, and each running mod's page that may list commands.
     function changed() {
         for (const listener of listeners) listener();
@@ -142,5 +169,5 @@ export function createCommand({ LOG, IDENTITY, RUNNER, CORE }) {
         }
     }
 
-    return { start, register, list, run, complete, onChange };
+    return { start, register, list, run, runToken, complete, onChange };
 }
