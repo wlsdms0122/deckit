@@ -15,7 +15,7 @@ struct ManifestReader {
     let file = "manifest.toml"
 
     private let ownFields: Set<String> = [
-        "id", "name", "version", "api", "main", "interfaces", "dependencies", "permissions"
+        "id", "name", "version", "api", "main", "contributes", "interfaces", "dependencies", "permissions"
     ]
     private let parser = TOMLParser()
     private let store: Store
@@ -63,6 +63,7 @@ struct ManifestReader {
             version: string(of: raw["version"]),
             api: string(of: raw["api"]),
             main: string(of: raw["main"]),
+            contributes: string(of: raw["contributes"]),
             provides: provided(of: raw["interfaces"]),
             uses: used(of: raw["interfaces"]),
             dependencies: dependencies(of: raw["dependencies"]),
@@ -109,6 +110,7 @@ struct ManifestReader {
         }
 
         return mainProblem(raw)
+            ?? contributesProblem(raw)
             ?? interfacesProblem(raw)
             ?? dependenciesProblem(raw, id: id)
             ?? permissionsProblem(raw)
@@ -135,11 +137,27 @@ struct ManifestReader {
         guard case let .string(main) = raw["main"], !isBlank(main) else {
             return "\(file) needs main, the file deck runs, as \(example)"
         }
-        guard !main.hasPrefix("/"),
-            !main.contains("\\"),
-            !main.split(separator: "/", omittingEmptySubsequences: false).contains("..")
+
+        return pathProblem(main, of: "main", example: example)
+    }
+
+    // A path inside the mod's folder, when there is one, as main is.
+    private func contributesProblem(_ raw: [String: TOMLValue]) -> String? {
+        guard let written = raw["contributes"] else { return nil }
+        let example = "contributes = \"contributes.json\""
+        guard case let .string(contributes) = written, !isBlank(contributes) else {
+            return "contributes must be a path inside the mod's folder, as \(example), not \(written)"
+        }
+
+        return pathProblem(contributes, of: "contributes", example: example)
+    }
+
+    private func pathProblem(_ path: String, of field: String, example: String) -> String? {
+        guard !path.hasPrefix("/"),
+            !path.contains("\\"),
+            !path.split(separator: "/", omittingEmptySubsequences: false).contains("..")
         else {
-            return "main must be a path inside the mod's folder, as \(example), not \(TOMLValue.string(main))"
+            return "\(field) must be a path inside the mod's folder, as \(example), not \(TOMLValue.string(path))"
         }
 
         return nil

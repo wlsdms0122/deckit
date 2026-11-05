@@ -34,6 +34,9 @@ public struct Mod: Sendable {
     public internal(set) var dependents: [String]
     // The file its main names, where it really is.
     public let entry: URL?
+    // What the file its contributes names declares, by contribution point: deck reads it and does not judge it, and
+    // the layer that owns a contribution point reads what is under it.
+    public let contributes: [String: JSONValue]
 
     // MARK: - Initializer
     // MARK: - Public

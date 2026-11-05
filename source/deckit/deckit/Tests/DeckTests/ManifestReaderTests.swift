@@ -25,6 +25,15 @@ struct ManifestReaderTests {
             #"main must be a path inside the mod's folder, as main = "dist/main.js", not "../x.js""#
         ),
         (
+            minimal + #"contributes = "/etc/contributes.json""#,
+            #"contributes must be a path inside the mod's folder, as contributes = "contributes.json","#
+                + #" not "/etc/contributes.json""#
+        ),
+        (
+            minimal + #"contributes = 1"#,
+            #"contributes must be a path inside the mod's folder, as contributes = "contributes.json", not 1"#
+        ),
+        (
             minimal + #"[dependencies]\#n"b/c" = "1.0.0""#,
             #"dependencies b/c: "b/c" is not a usable mod id: lower case letters, digits,"#
                 + #" . _ - and at most 64 of them"#

@@ -45,6 +45,29 @@ struct CatalogTests {
         #expect(mods.last?.problem == #"main = "missing.js" names no file in the mod's folder"#)
     }
 
+    @Test("what a mod's contributes file declares is carried as written, and a file that holds no JSON object fails it")
+    func contributesAreCarried() throws {
+        // Given
+        try write("a", in: source, contributes: #"{ "commands": { "open": {} }, "unknown": [1] }"#)
+        try write("b", in: source, contributes: "[]")
+        try write("c", in: source, contributes: "{")
+        try write("d", in: source)
+        let sut = try catalog(sources: [source])
+
+        // When
+        let mods = sut.mods()
+
+        // Then
+        #expect(mods[0].contributes == [
+            "commands": .object(["open": .object([:])]),
+            "unknown": .array([.number(1)])
+        ])
+        #expect(mods[0].problem == nil)
+        #expect(mods[1].problem == "contributes.json must hold a JSON object")
+        #expect(mods[2].problem == "contributes.json must hold a JSON object")
+        #expect(mods[3].contributes.isEmpty)
+    }
+
     @Test("a mod read in place comes before an installed copy of its id, which it hides")
     func sourceHidesInstalled() throws {
         // Given
@@ -555,6 +578,7 @@ struct CatalogTests {
         folder: String? = nil,
         version: String = "1.0.0",
         main: String? = "main.js",
+        contributes: String? = nil,
         provides: [String: [Int]] = [:],
         uses: [String: Int] = [:],
         requires: [String: String] = [:],
@@ -581,8 +605,11 @@ struct CatalogTests {
             version = "\(version)"
             api = "1.0.0"
             main = "\(main ?? "missing.js")"
-            """ + relations + interfaces
+            """ + (contributes == nil ? "" : "\ncontributes = \"contributes.json\"") + relations + interfaces
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
+        if let contributes {
+            try Data(contributes.utf8).write(to: location.appending(path: "contributes.json"))
+        }
         if let main {
             try Data().write(to: location.appending(path: main))
         }

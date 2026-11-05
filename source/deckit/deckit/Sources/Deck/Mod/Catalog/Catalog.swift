@@ -304,7 +304,8 @@ public final class Catalog {
             relations: [],
             uses: [],
             dependents: [],
-            entry: manifest.main.flatMap { main in modFolder.entry(of: source, main: main) }
+            entry: manifest.main.flatMap { main in modFolder.file(main, in: source) },
+            contributes: modFolder.contributes(of: manifest, in: source) ?? [:]
         )
     }
 

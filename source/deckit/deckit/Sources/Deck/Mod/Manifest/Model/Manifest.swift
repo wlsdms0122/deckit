@@ -15,6 +15,8 @@ public struct Manifest: Sendable {
     public let version: String?
     public let api: String?
     public let main: String?
+    // The file of what it declares by contribution point, a JSON object, which deck reads before the mod runs.
+    public let contributes: String?
     // Interface -> the majors of it the mod provides.
     public let provides: [String: [Int]]
     // Interface -> the major of it the mod uses.

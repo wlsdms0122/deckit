@@ -24,6 +24,7 @@ extension Mod: Encodable {
         case uses
         case dependents
         case entry
+        case contributes
     }
 
     // MARK: - Initializer
@@ -42,6 +43,7 @@ extension Mod: Encodable {
         try container.encode(uses, forKey: .uses)
         try container.encode(dependents, forKey: .dependents)
         try container.encodeIfPresent(entry?.path(percentEncoded: false), forKey: .entry)
+        try container.encode(contributes, forKey: .contributes)
     }
 
     // MARK: - Private
