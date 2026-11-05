@@ -3,6 +3,7 @@ import * as IPC from '../../deck/ipc/main.js';
 import * as DECLARED from './protocol.js';
 import * as KEYMAP_PERMISSION from './model/permission.js';
 import * as KEY_SCOPE from './model/scope.js';
+import * as ORIGIN from '../../deck/runner/model/origin.js';
 
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
@@ -220,11 +221,19 @@ export function createKeymap({ LOG, IDENTITY, CATALOG, RUNNER, CORE, pages: PAGE
         return hosts.has(binding.provider) || binding.provider === IDENTITY.modOf(page)?.id;
     }
 
-    // A host's key runs here, what it throws logged, and a mod's in its page, which drops it behind a dialog.
+    // A host's key runs here, what it throws logged, and a mod's in its page, which drops it behind a dialog. A mod's
+    // key that works past its page launches the mod when it is not running, and runs once its start has ended.
     function run(binding) {
         if (hosts.has(binding.provider)) {
             (async () => hosts.get(binding.provider).get(binding.name)())().catch((error) =>
                 LOG.warn(`${binding.id} did not run`, error)
+            );
+            return true;
+        }
+        if (KEY_SCOPE.isWide(binding.scope) && RUNNER.runOf(binding.provider)?.state !== 'running') {
+            RUNNER.activate(binding.provider, ORIGIN.work({ key: binding.name })).then(
+                () => PROTOCOL.key.send(IDENTITY.pageOf(binding.provider), { name: binding.name }),
+                (error) => LOG.warn(`${binding.id} did not run`, error)
             );
             return true;
         }

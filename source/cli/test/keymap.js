@@ -1,9 +1,10 @@
 // The key map (deckit-shell/deckit/keymap) over a stand-in for the environment's keys, pages and messages: a key
 // pressed in a page is answered at once, taken or not, by what the core last told of the bindings, the page's own keys,
 // the shell's monitor and the page in front, the narrowest scope first, a field focused keeps a chord a field takes,
-// and recording takes every key. A host's key runs what it registered, and a mod's is told to its page. A key that
-// works in every app, a host's or a mod's, is held as a hotkey on the chord it is bound to now, and lands, pressed, in
-// the page that has the keyboard.
+// and recording takes every key. A host's key runs what it registered, and a mod's is told to its page, the mod
+// launched first for a key that works past its page while it is not running. A key that works in every app, a host's
+// or a mod's, is held as a hotkey on the chord it is bound to now, and lands, pressed, in the page that has the
+// keyboard.
 // Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -71,7 +72,17 @@ async function main() {
     });
 
     let bindingsChanged = null;
-    const RUNNER = { handleEffect: (name, handler) => name === 'bindingsChanged' && (bindingsChanged = handler) };
+    // Mod a runs, or launches as its key that works past its page asks for it.
+    let aRuns = true;
+    const activated = [];
+    const RUNNER = {
+        handleEffect: (name, handler) => name === 'bindingsChanged' && (bindingsChanged = handler),
+        runOf: (id) => (id === 'a' && aRuns ? { state: 'running' } : null),
+        activate: async (id, origin) => {
+            activated.push({ id, origin });
+            aRuns = true;
+        },
+    };
     const IDENTITY = {
         modOf: (page) => (page === mod ? { id: 'a' } : null),
         pageOf: (id) => (id === 'a' ? mod : null),
@@ -274,6 +285,18 @@ async function main() {
         "a mod's hotkey is told to its page",
         tells[0]?.[1]?.channel === 'deckit-shell:keymap-key' && tells[0]?.[1]?.payload?.name === 'call',
         tells
+    );
+    aRuns = false;
+    tells.length = 0;
+    call.handler();
+    await new Promise((resolve) => setImmediate(resolve));
+    check(
+        "a mod's key that works past its page launches the mod for the key when it is not running, then is told",
+        activated[0]?.id === 'a' &&
+            activated[0].origin.kind === 'work' &&
+            activated[0].origin.work.key === 'call' &&
+            tells[0]?.[1]?.payload?.name === 'call',
+        { activated, tells }
     );
     // A hotkey pressed where a listened page has the keyboard lands there, so a narrower key on its chord wins.
     bindingsChanged({
