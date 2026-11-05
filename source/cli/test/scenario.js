@@ -214,6 +214,42 @@ async function run({
     };
 
     await sleep(9000);
+    // Only the startup mods run as the app starts. Every other mod the scenario drives is opened from the panel's
+    // list as a person opens it: one with no view leaves the list once it has started, and the Editor is opened last,
+    // so it is on screen.
+    const launchedAtStart = (await targets()).map(({ url }) => url);
+    check(
+        'a startup mod runs as the app starts',
+        launchedAtStart.some((url) => url.startsWith('deckit://switcher.mod')),
+        launchedAtStart.join(' ')
+    );
+    check(
+        'a mod not in the startup list does not run as the app starts',
+        !launchedAtStart.some((url) => url.startsWith('deckit://editor.mod')),
+        launchedAtStart.join(' ')
+    );
+    const listFrame = await until(() => page('deckit://panel'));
+    const listedIds = () =>
+        listFrame.evaluate(`[...document.querySelectorAll('[data-mod-id]')].map((row) => row.dataset.modId)`);
+    const openFromList = async (id) => {
+        await listFrame.evaluate(
+            `document.querySelector('[data-mod-id="${id}"]')?.scrollIntoView({ block: 'nearest' })`
+        );
+        await listFrame.press(`[data-mod-id="${id}"]`);
+    };
+    const opened = new Set();
+    for (let round = 0; round < 3; round++) {
+        for (const id of (await listedIds()) || []) {
+            if (opened.has(id) || id === 'editor') continue;
+            opened.add(id);
+            await openFromList(id);
+            await sleep(300);
+        }
+        await sleep(3000);
+    }
+    await openFromList('editor');
+    await until(() => page('deckit://editor.mod'), 6000);
+    await sleep(3000);
     for (const target of await targets()) if (target.url.startsWith('deckit://')) await page(target.url);
     try {
         const editor = await page('deckit://editor.mod');

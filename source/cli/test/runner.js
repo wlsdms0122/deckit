@@ -4,8 +4,8 @@
 // has launched, one restarted with the mods that require it, each for its origin, the core asked first what the owners
 // come to as the catalog changes, with no new mod loaded for it and the owner change it delivers reaching the page that
 // listens, a changed mod that ran loaded again, a startup mod that failed loaded again unless it reached the relaunch
-// limit, the page closed, and the quit held while a run has not ended. Exits 1 with a line for each check that failed.
-// The packages are ES modules, so they are imported as such.
+// limit, a mod that quits its run, the page closed, and the quit held while a run has not ended. Exits 1 with a line
+// for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -305,6 +305,23 @@ async function main() {
     await tick();
     check('a startup mod at the relaunch limit does not load again', loadsNow() === loadsBefore, asked.slice(-2));
     check('a run says its mod reached the relaunch limit', RUNNER.runOf('a').relaunchLimited === true, null);
+    answers.set('runner/started', [[told('didLaunch', 'running')]]);
+    await RUNNER.ask('runner/started', { mod: 'a', run: 1 });
+
+    // A mod quits its own run; what an older run asks is not the latest's.
+    const unloads = () => methods('runner/unload').length;
+    const unloadsBefore = unloads();
+    fromPage('mod-quit', { run: 9 });
+    await tick();
+    check("an older run's quit ends nothing", unloads() === unloadsBefore, asked.slice(-1));
+    answers.set('runner/unload', [[told('didTerminate', 'notRunning')]]);
+    fromPage('mod-quit', { run: 1 });
+    await tick();
+    check(
+        'a mod that quits ends its run',
+        unloads() === unloadsBefore + 1 && RUNNER.runOf('a').state === 'notRunning',
+        asked.slice(-1)
+    );
     answers.set('runner/started', [[told('didLaunch', 'running')]]);
     await RUNNER.ask('runner/started', { mod: 'a', run: 1 });
 
