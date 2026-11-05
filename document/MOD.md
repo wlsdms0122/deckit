@@ -105,7 +105,7 @@ What a mod may reach beyond its own sandbox is asked for by name, with a reason.
 | `system.clipboard-write` | replacing what was copied with text of its own, which the person then pastes in any app | `deckit.clipboard.writeText` |
 | `system.file-handlers` | handing files on this Mac to whatever opens them, a mod or the app for them, which can start programs, and showing them in Finder | `deckit.urls.open` of a `file://` address, `deckit.reveal`, `web.downloads.open` and `reveal` |
 | `system.overlay-windows` | a window of its own over every app's, on every desktop, whichever app is in front | `overlay` on `shell.window.register` |
-| `system.notifications` | notifications in the corner of the screen | `deckit.notify` |
+| `system.notifications` | the system's notifications, in the corner of the screen | `deckit.notifications` |
 | `system.global-keys` | keys that work in every app, this one in front or not, taken from all of them | `scope: 'global'` on a key |
 | `deckit.command-registry` | listing the commands of every mod and of the app, and running them, doing whatever they do | `list`, `run`, `complete` and `onChange` on `deckit.commands` |
 | `deckit.mods` | every mod: listing, installing, removing, launching them again, putting them in an order and choosing the mod that owns each interface, picking and revealing their folders, the children pinned to the mod list, and restarting the app | `deckit.mods`, `shell.mods` |
@@ -273,7 +273,7 @@ The view came on screen, and went. They come in turn, never twice running, and a
 
 ### shell.window.register({ content, width, height, overlay, didAppear, didDisappear, didResignKey })
 
-Returns `{ open(), close() }`: the mod's page, `width` by `height` with `content` in it, in a window the host app makes, and `open` and `close` put it on screen and away. `overlay` floats the window over every app and needs `system.overlay-windows`; without it the window is refused and shown on the mod's row. `didAppear` and `didDisappear` are as a view's, and `didResignKey` is the keyboard leaving the window. A mod has a view or a window: a `shell.view.register` beside a window is refused ("shell.view.register() is for a mod with no window"). Its `local` keys work while the window is on screen.
+Returns `{ open({ activates }), close() }`: the mod's page, `width` by `height` with `content` in it, in a window the host app makes, and `open` and `close` put it on screen and away. The window takes the keyboard as it opens, unless `activates` is false, which leaves the keyboard where it is. `overlay` floats the window over every app and needs `system.overlay-windows`; without it the window is refused and shown on the mod's row. `didAppear` and `didDisappear` are as a view's, and `didResignKey` is the keyboard leaving the window. A mod has a view or a window: a `shell.view.register` beside a window is refused ("shell.view.register() is for a mod with no window"). Its `local` keys work while the window is on screen.
 
 ### shell.styles.register({ '<mod id>' or '*': css })
 
@@ -336,11 +336,12 @@ Each concept is one namespace. `register` puts up the mod's own (Registering). E
 | `fileURL(path)`, `filePath(url)` | a file's `file://` address, and back |
 | `reveal(path)` | with `system.file-handlers`: shows a file in the system's Finder |
 | `provider(id)` | with `deckit.command-registry` or `deckit.keymap`: who declares keys or commands as `id`, `{ id, name, host }`: a host by the name it gives, or a mod deck loads; null for neither |
+| `active()` | resolves to whether the app is in front: one of its windows has the keyboard |
 | `about()` | `{ name, app, version, source, engines, home, mods, data, log }`: the host app's name and version, deckit's version and the hash of its sources, the engines deckit runs on, outermost first, each `{ key, name, version }` with `key` its name in lower case (`electron` and `chrome` on Electron), the person's home folder, and the folders of deckit's mods, data and log |
 | `util` | below |
 | `clipboard.writeText(text)` | with `system.clipboard-write` |
 | `clipboard.readText()` | with `system.clipboard-read` |
-| `notify({ title, body, silent, onClick })` | with `system.notifications` |
+| `notifications.show({ title, body, silent })` | with `system.notifications`: shows a notification of the system's, and resolves to `{ shown, onPress(listener) }`, `shown` false where the system has none, and `onPress` hearing the person press it, which answers its off. That is all deckit does: which notifications a mod sends and how they are shown is the owner's of `deckit/notifications` (Standard interfaces), and a mod that tells the person something posts there |
 | `mainProcess(path)` | with `system.main-process` (below) |
 | `mods` | with `deckit.mods` (below) |
 | `modConfiguration` | with `deckit.mod-configuration`: `list()`, each mod that declares any configuration as `{ id, name, items }`, an item its declaration with `key` and `value`, what it reads as; `set(id, key, value)`, checked as the mod's own `set` is, which resolves to the value as kept |
@@ -401,7 +402,7 @@ With `deckit.mods`: `list`, `pick`, `planInstall`, `install`, `remove`, `relaunc
 
 ### events
 
-A mod says what happened to it, for whoever cares, as events. `deckit.events.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. `deckit.events.on('<mod id>:<name>', listener)` hears one and returns its off. A mod hears only names its manifest names: its own id, an id in `[dependencies]`, and an interface it uses or provides, whose signals (`<interface>:owner-changed`) are named after it; `on` with any other name is refused. Values are copied, and a function is not: an event that holds one is not sent, and the mod's row in Settings says why. Listening to a dependency, optional or not, waits for nothing: a mod's events go out while it is running, from when its `start` has finished until it terminates, and nothing arrives from one that is not running.
+A mod says what happened to it, for whoever cares, as events. `deckit.events.emit(name, ...args)` sends one, named after the mod: `bot` emitting `status` is `bot:status` to listeners, and no mod can send another's. The owner of an interface also sends the interface's signals, named after it: `emit('deckit/notifications:posted', id)` from the owner is `deckit/notifications:posted`, and from any other mod is named after that mod. `deckit.events.on('<mod id>:<name>', listener)` hears one and returns its off. A mod hears only names its manifest names: its own id, an id in `[dependencies]`, and an interface it uses or provides, whose signals (`<interface>:owner-changed`) are named after it; `on` with any other name is refused. Values are copied, and a function is not: an event that holds one is not sent, and the mod's row in Settings says why. Listening to a dependency, optional or not, waits for nothing: a mod's events go out while it is running, from when its `start` has finished until it terminates, and nothing arrives from one that is not running.
 
 ## shell
 

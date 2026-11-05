@@ -93,5 +93,27 @@ struct EventBusTests {
         #expect(own.listeners == ["c"])
     }
 
+    @Test("the owner of an interface sends a signal named after the interface, and another mod only its own event")
+    func ownerSendsInterfaceSignals() throws {
+        // Given
+        try fixture.write("a", provides: ["a/api": [1]])
+        try fixture.write("b", uses: ["a/api": 1])
+        let runner = try fixture.runner()
+        let sut = EventBus(runner: runner)
+        _ = try runner.load(["a", "b"])
+        _ = try runner.started("a", run: 1)
+        _ = try runner.started("b", run: 1)
+        sut.listen(mod: "a", run: 1, names: ["a/api:posted"])
+        sut.listen(mod: "b", run: 1, names: ["a/api:posted"])
+
+        // When
+        let owner = sut.emit(mod: "a", run: 1, name: "a/api:posted")
+        let other = sut.emit(mod: "b", run: 1, name: "a/api:posted")
+
+        // Then
+        #expect(owner == EventDelivery(name: "a/api:posted", listeners: ["a", "b"]))
+        #expect(other == EventDelivery(name: "b:a/api:posted", listeners: []))
+    }
+
     // MARK: - Private
 }
