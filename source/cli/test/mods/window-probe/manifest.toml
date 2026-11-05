@@ -3,6 +3,7 @@ name = "Window Probe"
 version = "1.0.0"
 api = "1.0.0"
 main = "main.js"
+contributes = "contributes.json"
 
 [permissions]
 "system.main-process" = "to test what a main process module finds of the panel's window"

@@ -6,6 +6,7 @@ import * as PAGE from './model/page-name.js';
 import * as LIST_ORDER from './model/list-order.js';
 import * as TOKEN from '../ui/token/index.js';
 import * as MATCH from '../../deckit/match/match.js';
+import * as MOD_DECLARED from './model/declared.js';
 
 // `deckit` is what connect answered, `host` the app's answers, `PAGES` the shell's pages, `OVERLAY` their overlays and
 // `makeStage()` a stage to lay them on (environment: SHELL.stage).
@@ -38,7 +39,6 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     let current = null;
     let returning = null; // the mod that was on screen while its page runs again, or that the person opened
     let opening = null; // the mod the person opened, while its launch has not settled
-    let inList = new Set(); // the mods in the list as it was last sent
     // How long main waits on a page's exit, or its answer to Escape, before it goes on: it guards a page that is
     // gone or stuck.
     const EXIT_LIMIT_MS = 400;
@@ -53,9 +53,9 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
 
     // MARK: - Initializer
     // MARK: - Public
-    // The mods that have something to show, on a stage the host app places, under the panel's frame. A mod
-    // whose view names a parent is that one's child: its view is shown where a region of the parent's shows it,
-    // and in the panel only once the person pins it to the list.
+    // The mods whose contributes declares a view, listed whether they run or not, their pages on a stage the host app
+    // places, under the panel's frame. A mod whose view names a parent is that one's child: its view is shown where a
+    // region of the parent's shows it, and in the panel only once the person pins it to the list.
     function start() {
         sidebar = { ...sidebar, ...deckit.state.read(SIDEBAR, {}) };
         pinned = new Set(deckit.state.read(PINNED, []));
@@ -147,7 +147,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
             return { guide, shown: sent.onScreen.has(sender) };
         });
         PROTOCOL.show.on((_payload, sender) => modOf(sender) && bringToFront(modOf(sender)));
-        PROTOCOL.icon.handle(({ mod }) => deckit.mods.listingOf(mod)?.icon || '');
+        PROTOCOL.icon.handle(({ mod }) => MOD_DECLARED.iconOf(deckit.mods.contributesOf(mod)));
         PROTOCOL.form.handle(({ mod }) => deckit.mods.listingOf(mod)?.form || {});
         PROTOCOL.pinned.handle((_payload, sender) => {
             deckit.mods.managerFrom(sender);
@@ -305,7 +305,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
             .map(({ id, name }) => ({
                 value: id,
                 title: name,
-                keywords: [...(deckit.mods.listingOf(id)?.keywords || [])],
+                keywords: MOD_DECLARED.keywordsOf(deckit.mods.contributesOf(id)),
             }));
         if (!partial.trim()) return candidates;
         return candidates
@@ -413,9 +413,15 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         broadcast();
     }
 
-    // In the panel's list: a mod whose view names no parent, or a child the person pinned.
+    // In the panel's list: a mod that declares a view naming no parent, or a child the person pinned.
     function listed(id) {
-        return !REGION.interfaceOf(id) || pinned.has(id);
+        return !!viewOf(id) && (!REGION.interfaceOf(id) || pinned.has(id));
+    }
+
+    // The view the mod's contributes declares, or null.
+    function viewOf(id) {
+        const mod = deckit.mods.list().find((one) => one.id === id);
+        return mod ? MOD_DECLARED.viewOf(deckit.mods.contributesOf(id), mod) : null;
     }
 
     // The mods' pages on screen while the panel is: the mod on screen, then the children its regions show.
@@ -552,7 +558,7 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
     function guideOf(page, parts) {
         const id = deckit.mods.modOf(page);
         const { width, height } = stage.size();
-        const lends = !!deckit.mods.runOf(id)?.summary?.sidebar;
+        const lends = !!viewOf(id)?.sidebar;
         if (id && id !== current && REGION.parentOf(id)) {
             const rect = REGION.rectOf(id);
             const laid = rect ? clip(rect, width, height) : { x: 0, y: 0, width: 0, height: 0 };
@@ -593,13 +599,11 @@ export function createPanel({ REGION, PAGES, OVERLAY, makeStage, deckit, host })
         };
     }
 
-    // A mod listed stays listed while it launches again, in this page or a new one (a replace), until its new run
-    // says whether it has something to show. One that does not run is listed for the person to open.
+    // Every mod in the list, running or not: one that does not run is there for the person to open.
     function stateOf() {
         const mods = inOrder()
-            .filter(({ id }) => shownInList(id) || (inList.has(id) && listed(id) && mayShow(id)) || launchable(id))
-            .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));
-        inList = new Set(mods.map(({ id }) => id));
+            .filter(({ id }) => listed(id))
+            .map(({ id, name }) => ({ id, name, icon: MOD_DECLARED.iconOf(deckit.mods.contributesOf(id)) }));
         return {
             mods,
             current,

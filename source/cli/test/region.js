@@ -1,8 +1,8 @@
 // The regions mods give in their views (deckit-shell/shell/region/main), over a stand-in for what connect answers: a
 // child is the child of the owner of the interface its view names as parent, at the major it uses, a region shows only
 // the children of its own interface, so a mod that gives regions for two keeps them apart, and a new owner takes a
-// child out of the old one's region and to the new one's children, and a view names as parent only an interface its
-// mod uses. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// child out of the old one's region and to the new one's children, a child that does not run launches as a region
+// shows it, and a view, as a mod's contributes declares it, names as parent only an interface its mod uses. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -20,18 +20,32 @@ async function main() {
     // `board` and `tool` are children of `dash/boards` and `dash/tools`, which `dash` provides, and `other` and `tool`
     // provide one of.
     const mods = [
-        { id: 'dash', name: 'Dash', provides: { 'dash/boards': [1], 'dash/tools': [1] } },
-        { id: 'other', name: 'Other', provides: { 'dash/boards': [1] } },
-        { id: 'board', name: 'Board', provides: {} },
-        { id: 'tool', name: 'Tool', provides: { 'dash/tools': [1] } },
+        { id: 'dash', name: 'Dash', provides: { 'dash/boards': [1], 'dash/tools': [1] }, uses: {} },
+        { id: 'other', name: 'Other', provides: { 'dash/boards': [1] }, uses: {} },
+        { id: 'board', name: 'Board', provides: {}, uses: { 'dash/boards': 1 } },
+        { id: 'tool', name: 'Tool', provides: { 'dash/tools': [1] }, uses: { 'dash/tools': 1 } },
+        { id: 'idle', name: 'Idle', provides: {}, uses: { 'dash/boards': 1 } },
     ];
+    // What each declares: every one a view, `board`, `tool` and `idle` naming a parent; `idle` does not run.
+    const contributes = {
+        dash: { view: { sidebar: true } },
+        other: { view: {} },
+        board: { view: { parent: 'dash/boards' }, icon: '<svg/>' },
+        tool: { view: { parent: 'dash/tools' } },
+        idle: { view: { parent: 'dash/boards' } },
+    };
+    const launched = [];
     const owners = new Map([
         ['dash/boards', 'dash'],
         ['dash/tools', 'dash'],
     ]);
     const unreached = new Set(); // the mods whose interface's owner does not provide the major they use
     const pages = Object.fromEntries(mods.map(({ id }) => [id, { mod: id }]));
-    const runs = Object.fromEntries(mods.map(({ id }) => [id, { mod: { id }, state: 'running', relaunches: false }]));
+    const runs = Object.fromEntries(
+        mods
+            .filter(({ id }) => id !== 'idle')
+            .map(({ id }) => [id, { mod: { id }, state: 'running', relaunches: false }])
+    );
     const handlers = {};
     const sent = [];
     const observers = {};
@@ -54,7 +68,8 @@ async function main() {
             },
             runOf: (id) => runs[id],
             runs: () => Object.values(runs).map((run) => ({ run, page: pages[run.mod.id] })),
-            listingOf: () => null,
+            contributesOf: (id) => contributes[id] ?? null,
+            launch: async (id) => launched.push(id),
             modOf: (page) => page?.mod ?? null,
             observe: (name, observer) => ((observers[name] ||= []).push(observer), () => {}),
             onChange: (listener) => (changes.push(listener), () => {}),
@@ -64,12 +79,6 @@ async function main() {
     const REGION = createRegion({ deckit });
     REGION.start();
     const channel = (name) => handlers[`deckit-shell:region-${name}`];
-    const join = (id, parent) =>
-        observers.didJoin.forEach((observer) => observer({ mod: { id }, summary: { view: true, parent } }));
-    join('dash', null);
-    join('other', null);
-    join('board', 'dash/boards');
-    join('tool', 'dash/tools');
     const rect = { x: 0, y: 0, width: 100, height: 100 };
     channel('rect')({ region: 1, interface: 'dash/boards', ...rect }, pages.dash);
     channel('rect')({ region: 2, interface: 'dash/tools', ...rect }, pages.dash);
@@ -79,7 +88,10 @@ async function main() {
         "a parent's children are listed by the interface they name",
         JSON.stringify(children) ===
             JSON.stringify({
-                'dash/boards': [{ id: 'board', name: 'Board', icon: '' }],
+                'dash/boards': [
+                    { id: 'board', name: 'Board', icon: '<svg/>' },
+                    { id: 'idle', name: 'Idle', icon: '' },
+                ],
                 'dash/tools': [{ id: 'tool', name: 'Tool', icon: '' }],
             }),
         children
@@ -105,7 +117,10 @@ async function main() {
     }
     check('a mod that does not own the interface has no children of it', !!refused, refused);
 
+    channel('place')({ region: 1, interface: 'dash/boards', id: 'idle' }, pages.dash);
+    check('a child that does not run launches as a region shows it', launched.join() === 'idle', launched);
     channel('place')({ region: 1, interface: 'dash/boards', id: 'board' }, pages.dash);
+    check('a child that runs is not launched again', launched.join() === 'idle', launched);
     channel('place')({ region: 2, interface: 'dash/tools', id: 'tool' }, pages.dash);
     const laid = [...REGION.laidOut('dash', () => true).keys()].join();
     check("each region shows its interface's child", laid === 'board,tool', laid);
@@ -118,7 +133,13 @@ async function main() {
     const told = sent.find(({ page }) => page === pages.other)?.payload.children;
     check(
         'the owner now hears the child among its children',
-        JSON.stringify(told) === JSON.stringify({ 'dash/boards': [{ id: 'board', name: 'Board', icon: '' }] }),
+        JSON.stringify(told) ===
+            JSON.stringify({
+                'dash/boards': [
+                    { id: 'board', name: 'Board', icon: '<svg/>' },
+                    { id: 'idle', name: 'Idle', icon: '' },
+                ],
+            }),
         sent
     );
     const before = sent.find(({ page }) => page === pages.dash)?.payload.children;
@@ -137,14 +158,27 @@ async function main() {
     check('the owner of the interface it names is no child', REGION.parentOf('tool') === null, '');
     check('a child with no parent is still a child', REGION.interfaceOf('tool') === 'dash/tools', '');
 
-    const { parentProblem } = await import(url('deckit-shell', 'shell', 'region', 'renderer.js'));
+    const DECLARED = await import(url('deckit-shell', 'shell', 'panel', 'model', 'declared.js'));
     const child = { uses: { 'dash/boards': 1 } };
-    check('a view may name as parent an interface its mod uses', parentProblem('dash/boards', child) === '', '');
+    const named = DECLARED.viewOf({ view: { parent: 'dash/boards', sidebar: true } }, child);
     check(
-        'a view naming as parent an interface its mod does not use is refused',
-        parentProblem('dash/tools', child) !== '',
-        parentProblem('dash/tools', child)
+        'a view may name as parent an interface its mod uses',
+        JSON.stringify(named) === JSON.stringify({ sidebar: true, parent: 'dash/boards' }),
+        named
     );
+    check(
+        'a view naming as parent an interface its mod does not use is left out',
+        DECLARED.viewOf({ view: { parent: 'dash/tools' } }, child) === null,
+        ''
+    );
+    check(
+        'a mod that declares no view has none',
+        DECLARED.viewOf({}, child) === null && DECLARED.viewOf({ view: 'yes' }, child) === null,
+        ''
+    );
+    const keywords = DECLARED.keywordsOf({ keywords: ['files', 3, '', 'folder'] }).join();
+    check('the declared keywords are the words among them', keywords === 'files,folder', keywords);
+    check('an icon that is no text is left out', DECLARED.iconOf({ icon: 3 }) === '', '');
 
     if (failed.length) {
         for (const line of failed) console.error(line);

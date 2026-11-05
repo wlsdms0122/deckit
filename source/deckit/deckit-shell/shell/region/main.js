@@ -1,5 +1,6 @@
 import * as CHANNEL from '../../deck/channel/index.js';
 import * as DECLARED from './protocol.js';
+import * as MOD_DECLARED from '../panel/model/declared.js';
 
 // `deckit` is what connect answered.
 export function createRegion({ deckit }) {
@@ -7,29 +8,16 @@ export function createRegion({ deckit }) {
     const PROTOCOL = CHANNEL.bindAll(deckit.channels, DECLARED);
     // a mod's page -> number -> { parent, interface, rect, child }: a place in the page that shows a child's view
     const regions = new Map();
-    // mod id -> { parent }: the interface its view names as parent, as its run that last started has it, kept while the
-    // mod launches again
-    const known = new Map();
     const sentChildren = new Map(); // parent mod id -> its children as its page was last told them, written
     const listeners = new Set();
 
     // MARK: - Initializer
     // MARK: - Public
-    // The places mods give in their views, and the children shown in them. A mod whose view names an interface as its
-    // parent is a child from when the shell's lifecycle of its run joins, through launching again, until one joins that
-    // names none; it is the child of the owner of that interface, and is shown in a region that mod gives for it. As
-    // another owns it, or the view names another interface, the child leaves the region it was in, and the owner now
-    // hears it among its children.
+    // The places mods give in their views, and the children shown in them. A mod whose contributes declares a view
+    // with an interface as its parent is a child, whether it runs or not; it is the child of the owner of that
+    // interface, and is shown in a region that mod gives for it. As another owns it, or the view names another
+    // interface, the child leaves the region it was in, and the owner now hears it among its children.
     function start() {
-        const judge = ({ mod, summary }) => {
-            if (!('view' in summary)) return;
-            const before = interfaceOf(mod.id);
-            if (summary.view) known.set(mod.id, { parent: summary.parent || null });
-            else known.delete(mod.id);
-            if (interfaceOf(mod.id) !== before) leave(mod.id);
-        };
-        deckit.mods.observe('didLaunch', judge);
-        deckit.mods.observe('didJoin', judge);
         for (const name of deckit.mods.notifications) deckit.mods.observe(name, changed);
         deckit.mods.onChange(changed);
         // What a page is answered is what it knows: a parent's new page hears every change from there.
@@ -49,7 +37,8 @@ export function createRegion({ deckit }) {
 
     // The interface the mod's view names as its parent, or null: it is a child whether or not a mod owns it.
     function interfaceOf(id) {
-        return known.get(id)?.parent || null;
+        const mod = deckit.mods.list().find((one) => one.id === id);
+        return (mod && MOD_DECLARED.viewOf(deckit.mods.contributesOf(id), mod)?.parent) || null;
     }
 
     // The mod whose regions the mod's view is shown in, the owner of the interface its view names, which the mod uses,
@@ -100,7 +89,7 @@ export function createRegion({ deckit }) {
     }
 
     // A child is in one region at a time: shown in another, it leaves the one it was in. A region shows only the
-    // children of its own interface.
+    // children of its own interface. A child that does not run launches as the person's screen shows it.
     function place(page, number, named, id) {
         const parent = deckit.mods.modOf(page);
         if (!parent) throw new Error('only a mod has regions');
@@ -112,6 +101,8 @@ export function createRegion({ deckit }) {
         if (region.interface !== named) throw new Error(`the region is for ${region.interface}, not ${named}`);
         if (id !== null) leave(id);
         region.child = id;
+        if (id !== null && !runs(id))
+            deckit.mods.launch(id).catch((error) => deckit.log.error(`${id} did not launch`, error));
         tell();
     }
 
@@ -139,13 +130,11 @@ export function createRegion({ deckit }) {
         return new Set(Object.keys(mod?.provides ?? {}));
     }
 
-    // A mod gone from the catalog is no one's child, and a child whose interface another mod owns now leaves
-    // the region it was in; each parent hears its children as they change.
+    // A child whose interface another mod owns now, or whose view names another, leaves the region it was in; each
+    // parent hears its children as they change.
     function changed() {
-        const installed = new Set(deckit.mods.list().map(({ id }) => id));
-        for (const id of [...known.keys()]) if (!installed.has(id)) known.delete(id);
         for (const region of every()) if (region.child && !holds(region, region.child)) region.child = null;
-        const parents = new Set([...sentChildren.keys(), ...[...known.keys()].map(parentOf)]);
+        const parents = new Set([...sentChildren.keys(), ...deckit.mods.list().map(({ id }) => parentOf(id))]);
         for (const parent of parents) {
             if (!parent) continue;
             const children = childrenOf(parent);
@@ -158,15 +147,15 @@ export function createRegion({ deckit }) {
         tell();
     }
 
-    // Interface -> its children that run, or launch again, in the mods' order, for each interface `parent` provides.
+    // Interface -> its children, running or not, in the mods' order, for each interface `parent` provides.
     function childrenOf(parent) {
         if (!parent) return {};
         const mods = deckit.mods.list();
         const children = {};
         for (const named of providesOf(parent))
             children[named] = mods
-                .filter(({ id }) => interfaceOf(id) === named && parentOf(id) === parent && runs(id))
-                .map(({ id, name }) => ({ id, name, icon: deckit.mods.listingOf(id)?.icon || '' }));
+                .filter(({ id }) => interfaceOf(id) === named && parentOf(id) === parent)
+                .map(({ id, name }) => ({ id, name, icon: MOD_DECLARED.iconOf(deckit.mods.contributesOf(id)) }));
         return children;
     }
 

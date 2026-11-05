@@ -189,10 +189,10 @@ function createPanel({ channels }) {
     return Object.freeze({ mount, show, iconOf, formOf, pins });
 }
 
-// Why what `shell.view` was handed is not a view, or ''. Its parent is the region's to judge.
+// Why what `shell.view` was handed is not a view, or ''.
 function viewProblem(value) {
     if (value?.content?.nodeType !== Node.ELEMENT_NODE)
-        return 'takes { content, sidebar, parent, didAppear, didDisappear }, content an element';
+        return 'takes { content, sidebar, didAppear, didDisappear }, content an element';
     return '';
 }
 

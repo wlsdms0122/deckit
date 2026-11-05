@@ -125,11 +125,3 @@ function seenRect(element) {
     }
     return { x: left, y: top, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
 }
-
-// Why a view's parent is not one a mod may name, or '': an interface in its `uses`.
-export function parentProblem(parent, mod) {
-    if (parent === undefined || parent === null) return '';
-    if (typeof parent !== 'string') return 'takes a parent that is an interface';
-    if (!Object.hasOwn(mod.uses ?? {}, parent)) return `names the parent ${parent}, which is not in its uses`;
-    return '';
-}

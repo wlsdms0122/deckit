@@ -22,8 +22,8 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // Deckit as a layer on deck (deckit-shell/deck/runner/renderer.js). It reads the class's `keywords`, which whatever
-    // lists the mods reads in its run's summary, and its `configuration`. `over` is what a layer over it is handed:
+    // Deckit as a layer on deck (deckit-shell/deck/runner/renderer.js). It reads the class's `configuration`. `over` is
+    // what a layer over it is handed:
     // `lifecycle({ method, registrations, start, end, join })`, a lifecycle of that layer's with deckit's handle in it,
     // deckit's registrations beside its own and the handle `deckit` handed its `start` with deckit's members, and
     // `join(parts, scope)` answering `{ keyProblem }`, `keyProblem(key)` why a key would never run once it has joined,
@@ -86,7 +86,7 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
             handle: 'deckit',
             read(Entry) {
                 CONFIGURED.declare(Entry.configuration);
-                return { keywords: strings(Entry.keywords) };
+                return {};
             },
             report: () => ({
                 // What it registered, by name, for deckit's core to judge it by.
@@ -225,9 +225,4 @@ export function createMod({ WEB, NOTIFICATION, KEYMAP, COMMAND, CONFIGURATION: C
     }
 
     return { layer };
-}
-
-// MARK: - Private
-function strings(list) {
-    return Array.isArray(list) ? list.filter((word) => typeof word === 'string' && word) : [];
 }

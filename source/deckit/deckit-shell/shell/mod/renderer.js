@@ -8,7 +8,8 @@ import * as FONTS_PERMISSION from '../fonts/model/permission.js';
 import * as MOD_PERMISSION from '../../deck/mod/permission.js';
 import { createPanel, viewProblem, keyProblem } from '../panel/renderer.js';
 import * as PAGE from '../page/renderer.js';
-import { createRegion, parentProblem } from '../region/renderer.js';
+import { createRegion } from '../region/renderer.js';
+import * as DECLARED from '../panel/model/declared.js';
 import { createDrop } from '../drop/renderer.js';
 import { createWindow } from '../window/renderer.js';
 
@@ -22,11 +23,12 @@ import { createWindow } from '../window/renderer.js';
 // and `view.register()`, `window.register()` and, with deckit.styles, `styles.register()`. The page wears the theme,
 // the kit and the styles from just before attach().
 // Once attach() has ended, a view is laid where the panel's guide says, or a region's for a child, unless the page is
-// in a window of its own, and a key that is never in front is left out. It reads the class's `icon` and `form` into
-// the run's summary, where whatever lists the mods reads them. `WEB` is deckit's web in the page, whose pages the
+// in a window of its own, and a key that is never in front is left out. A view is registered only by a mod whose
+// contributes declares one, with a sidebar only where it declares the view lends one. It reads the class's `form`
+// into the run's summary, where whatever lists the mods reads it. `WEB` is deckit's web in the page, whose pages the
 // shell hands the mod; `channels` binds the shell's channels in the page.
 function shellOf({ WEB, channels }) {
-    return ({ mod: running, deliver, fail, under: deckit }) => {
+    return ({ mod: running, contributes, deliver, fail, under: deckit }) => {
         const has = (permission) => running.permissions.some(({ id }) => id === permission);
         const WINDOW = createWindow({ running, fail, deliver, channels });
         const PANEL = createPanel({ channels });
@@ -34,7 +36,7 @@ function shellOf({ WEB, channels }) {
         const DROP = createDrop({ deliver, channels });
         // What it tells of the run: nothing until its lifecycle has joined, nothing on screen once it has ended.
         const ENDED = Object.freeze({
-            summary: { view: false, sidebar: false, parent: null, styles: [], window: null },
+            summary: { view: false, styles: [], window: null },
             contributions: { styles: {} },
         });
         let reported = {};
@@ -42,7 +44,7 @@ function shellOf({ WEB, channels }) {
         let mounted = { unmount() {}, remove() {} };
         deckit.blockKeysWhen(() => PRESENTATION.count() > 0);
         return {
-            read: (Entry) => ({ icon: iconOf(Entry, fail), form: formOf(Entry, fail) }),
+            read: (Entry) => ({ form: formOf(Entry, fail) }),
             report: () => reported,
             lifecycles: [
                 deckit.lifecycle({
@@ -50,7 +52,7 @@ function shellOf({ WEB, channels }) {
                     registrations: {
                         view: {
                             handle: 'shell',
-                            check: (value) => viewProblem(value) || parentProblem(value.parent, running),
+                            check: (value) => viewProblem(value) || declaredProblem(value),
                         },
                         ...(has(STYLE_PERMISSION.STYLES)
                             ? { styles: { handle: 'shell', check: STYLE.problemOf } }
@@ -112,8 +114,6 @@ function shellOf({ WEB, channels }) {
                         reported = {
                             summary: {
                                 view: !!view,
-                                sidebar: !!view?.sidebar,
-                                parent: view?.parent || null,
                                 styles: Object.keys(styles),
                                 window,
                             },
@@ -124,6 +124,15 @@ function shellOf({ WEB, channels }) {
                 }),
             ],
         };
+
+        // Why a view does not fit the view the mod's contributes declares, or ''.
+        function declaredProblem(value) {
+            const declared = DECLARED.viewOf(contributes, running);
+            if (!declared) return 'is for a mod whose contributes declares a view';
+            if (value.sidebar && !declared.sidebar)
+                return 'has a sidebar, which the view its contributes declares does not';
+            return '';
+        }
 
         // The page wears what the shell draws with.
         function wear() {
@@ -143,15 +152,6 @@ function themeOf(theme, scope) {
     for (const key of Object.keys(theme).filter((key) => key !== 'onChange'))
         Object.defineProperty(read, key, { get: () => theme[key], enumerable: true });
     return Object.freeze(read);
-}
-
-// What it reads of a class as it can: one that is not what the shell reads is left out, and a problem.
-function iconOf(Entry, fail) {
-    const { icon } = Entry;
-    if (icon === undefined) return '';
-    if (typeof icon === 'string') return icon;
-    fail('static icon is no string, so it is left out');
-    return '';
 }
 
 // Each hint for a key the class's configuration declares: `placeholder`, `unit`, `step`, and `choices`, the name of a
