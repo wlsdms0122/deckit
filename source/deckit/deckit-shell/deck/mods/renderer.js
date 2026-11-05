@@ -28,6 +28,7 @@ export function createMods({ RUN }) {
             load: (ids) => PROTOCOL.load.invoke({ ids: Array.from(ids, String) }),
             arrange: (ids) => PROTOCOL.arrange.invoke({ ids: Array.from(ids, String) }),
             pin: (named, id) => PROTOCOL.pin.invoke({ interface: String(named), mod: id == null ? null : String(id) }),
+            approveStartup: (id, approved) => PROTOCOL.approveStartup.invoke({ id: String(id), approved: !!approved }),
             usage: (id) => PROTOCOL.usage.invoke({ id: String(id) }),
         });
     }

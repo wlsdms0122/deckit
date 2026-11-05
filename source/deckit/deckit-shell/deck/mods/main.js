@@ -8,8 +8,8 @@ import * as ORIGIN from '../runner/model/origin.js';
 const PROTOCOL = CHANNEL.bindAll(IPC.ownChannels, DECLARED);
 
 // The mods as a mod with deckit.mods manages them: what it reads of every mod, and installing, removing, launching
-// again, loading and quitting as the person asks, putting them in an order, pinning the owner of each interface and
-// what one has where deck keeps it.
+// again, loading and quitting as the person asks, putting them in an order, pinning the owner of each interface,
+// approving the mods that ask to start with the app and what one has where deck keeps it.
 // `pages` is the environment's, which keeps what a mod's pages stored.
 export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // MARK: - Property
@@ -75,6 +75,10 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return CATALOG.pin(named, mod);
         });
+        PROTOCOL.approveStartup.handle(({ id, approved }, sender) => {
+            IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
+            return CATALOG.approveStartup(id, approved);
+        });
         PROTOCOL.usage.handle(({ id }, sender) => {
             IDENTITY.modFrom(sender, MOD_PERMISSION.MODS);
             return CORE.request('storage/usage', { mod: id });
@@ -98,7 +102,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
     // every mod the catalog found, in the mods' order whether it loads or not, each with `installed`, whether it is a
     // copy in deck's mods folder, `problem`, why it does not load, `declarationProblems`, what is wrong with what it
     // declares, `startupApproved`, whether the person approved it to start with the app, `run`, its latest run's
-    // `state`, `problem`, `origin`, `failed` and `relaunchLimited`, null for one with no sandbox, `hides`, folders of
+    // `state`, `problem`, `origin`, `failed`, `relaunchLimited` and `launchedAt`, null for one with no sandbox, `hides`, folders of
     // the same id that are not read, `launched`, while it starts or stops again, what its latest run that launched
     // contributed, as `running` lists it, `relations`, each mod in its [dependencies] and whether that one runs, and
     // `uses`, each interface it uses and what it comes to. `interfaces`: each interface's queue of providers and its
@@ -123,6 +127,7 @@ export function createMods({ CORE, LOG, IDENTITY, CATALOG, RUNNER, pages }) {
                         origin: run.origin,
                         failed: run.failed,
                         relaunchLimited: run.relaunchLimited,
+                        launchedAt: run.launchedAt,
                     },
                     launched:
                         TRANSITIONS.includes(run?.state) && RUNNER.launchedOf(mod.id)

@@ -66,6 +66,13 @@ export function createCatalog({ CORE, LOG, files }) {
         await refresh();
     }
 
+    // As the person's: the mod launches as the app starts from then on, for `approved`, or does not. Refused for a mod
+    // whose manifest does not ask to. Settled once the mods are read again.
+    async function approveStartup(id, approved) {
+        await CORE.request('catalog/approve-startup', { mod: id, approved });
+        await refresh();
+    }
+
     // What a folder would install, `{ manifest, replaces }`: whether it takes the place of an installed copy. Refused
     // with why for a folder install refuses.
     function planInstall(from) {
@@ -125,6 +132,7 @@ export function createCatalog({ CORE, LOG, files }) {
         owners,
         arrange,
         pin,
+        approveStartup,
         planInstall,
         install,
         remove,

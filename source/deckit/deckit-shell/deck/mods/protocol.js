@@ -19,6 +19,11 @@ export const pin = CHANNEL.pageToMain(
     { interface: 'string', mod: 'string?' },
     { reply: true }
 );
+export const approveStartup = CHANNEL.pageToMain(
+    'deckit-shell:mods-approve-startup',
+    { id: 'string', approved: 'boolean' },
+    { reply: true }
+);
 export const usage = CHANNEL.pageToMain('deckit-shell:mods-usage', { id: 'string' }, { reply: true });
 // The sending page hears modsChanged from then on, while it lasts.
 export const watchMods = CHANNEL.pageToMain('deckit-shell:mods-watch', {});

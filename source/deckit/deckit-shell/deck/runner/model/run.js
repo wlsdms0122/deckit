@@ -12,6 +12,7 @@
 // `relaunchLimited`, whether its mod reached the relaunch limit as it failed, so it loads again only as the person
 // opens it;
 // `endedWith`, the id of the mod it requires whose end ended it, or null;
+// `launchedAt`, when it came to run, in ms since the epoch as this process tells it, or null before;
 // `relaunches`, whether the runner loads the mod again once it has ended.
 function makeRun({ mod, number, relaunches = false }) {
     const facts = {
@@ -23,6 +24,7 @@ function makeRun({ mod, number, relaunches = false }) {
         failed: false,
         relaunchLimited: false,
         endedWith: null,
+        launchedAt: null,
         relaunches,
     };
     const run = Object.freeze({
@@ -52,11 +54,18 @@ function makeRun({ mod, number, relaunches = false }) {
         get endedWith() {
             return facts.endedWith;
         },
+        get launchedAt() {
+            return facts.launchedAt;
+        },
         get relaunches() {
             return facts.relaunches;
         },
     });
-    return { run, update: (told) => Object.assign(facts, told) };
+    const update = (told) => {
+        if (told.state === 'running' && facts.state !== 'running') facts.launchedAt = Date.now();
+        Object.assign(facts, told);
+    };
+    return { run, update };
 }
 
 // MARK: - Private
