@@ -377,7 +377,7 @@ async function run({
         const text = (await settings?.evaluate('document.body.innerText')) || '';
         check(
             'settings shows its sections',
-            ['Mods', 'Mod Settings', 'URL Schemes', 'Keyboard'].every((word) => text.includes(word)),
+            ['Mods', 'Mod Settings', 'URL Schemes', 'Interfaces', 'Keyboard'].every((word) => text.includes(word)),
             text.slice(0, 400)
         );
         check('settings lists the mods with versions', versions.test(text), '');
@@ -396,6 +396,17 @@ async function run({
             JSON.stringify(selectable)
         );
         await settings?.shot('settings');
+        const interfaces = `[...document.querySelectorAll('.settings-section')].find((section) => section.querySelector('.settings-section-title').textContent === 'Interfaces')`;
+        await settings?.evaluate(`${interfaces}.scrollIntoView({ block: 'start' })`);
+        await sleep(200);
+        await settings?.shot('settings-interfaces');
+        const actions = await settings?.evaluate(`[...${interfaces}.querySelectorAll('.settings-card')]
+            .find((card) => card.querySelector('.settings-interface-name').textContent === 'switcher/actions')?.innerText`);
+        check(
+            'settings lists an interface with the mod that implements it',
+            /Switcher/.test(actions || ''),
+            actions || ''
+        );
         // A menu is a layer, drawn in the page's overlay, which has the keys while it is open.
         const settingsOverlay = settings && (await overlayOf(settings));
         const menus = `document.querySelectorAll('.deckit-menu[data-state="open"]').length`;
