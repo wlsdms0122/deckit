@@ -134,6 +134,7 @@ What the mod declares, by contribution point: what is there from the time the mo
 | Contribution point | What it declares |
 |---|---|
 | `commands` | commands by name, `{ description, params }` each (`deckit.commands.register`) |
+| `keys` | `app` and `global` keys by name, `{ label, key, scope }` each (`deckit.keys.register`) |
 
 ## The entry
 
@@ -227,6 +228,8 @@ Keys and commands are named in one space for the mod. When `start` and `attach` 
 ```js
 deckit.keys.register({ home: { label: 'Open Home', key: 'mod+shift+h', scope: 'local', run: () => tabs.open('https://example.com') } });
 ```
+
+A key that works past its page, `app` or `global`, is declared under `keys` in `contributes`, `{ label, key, scope }`, and the run attaches its `run` by its name: `deckit.keys.register({ summon: { run: () => list.toggle() } })`. A declared key is bound, and listed in Settings, whether its mod runs or not; pressed while no `run` is attached, it does nothing. A `local` key belongs to what the mod shows and is registered with it, in `attach`, with its `label`, `key` and `scope` beside `run`; one declared is refused and shown on the mod's row. A name `contributes` declares takes its `label`, `key` and `scope` from there.
 
 Each key is `{ label, key, scope, run }`: `run()` is what pressing it does, in the mod's page, and `label` is what Settings calls it. A key takes no args: the same thing done two ways is two keys, each `run` with its own. What `run` throws is only logged, since no one asked to be told. A key is refused and shown on the mod's row when it has no `label` or no `run`. A key that does what one of the mod's commands does calls the same function. `key` is the default chord; the person can give the key another, or none, in Settings. Modifiers are `cmd`, `ctrl`, `alt`, `shift`, and `mod` (Cmd, or Ctrl without one); `meta`, `control`, `opt` and `option` are read as the same and written back as these.
 
