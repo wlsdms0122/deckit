@@ -40,6 +40,8 @@ An action, as the first three answer it:
 | `value` | what `run` is given. An action with none is read only |
 | `opens` | it opens a list of its own (`search(query, value)`) |
 
+The picked action's row shows it running, then done or failed. The list stays until the keyboard leaves it, and a throw that comes once it has gone is told in a notification. Whether the mod comes on screen is its own to ask, with `shell.show()` ([GUIDELINES.md](../../../../document/GUIDELINES.md), The switcher): the shell putting it on screen takes the keyboard from the switcher, which goes. The switcher ranks what was picked before by the mod and the `value`, so an action keeps one `value`.
+
 ## Declaring actions
 
 An action that is there whether the mod runs or not is declared in the mod's `contributes` under `interfaces`, and the mod need not use the interface. It runs a command of the mod's own, `command` with `args`, which may be left out; one that names no command is read only. The switcher lists the declared actions under the mod after those it set, each time it opens, and picking one runs its command by the token deckit hands the switcher with it ([MOD.md](../../../../document/MOD.md), Declared contributions).
@@ -54,6 +56,4 @@ An action that is there whether the mod runs or not is declared in the mod's `co
 }
 ```
 
-A declared action has the fields of one set over a connection but `value`, `opens` and `fallback`: `label`, `hint`, `icon`, `group`, `tone`, `attention` and `keywords`, then `command` and `args`. What it shows comes from the switcher's list, never from `now()` or `search()`.
-
-The picked action's row shows it running, then done or failed. The list stays until the keyboard leaves it, and a throw that comes once it has gone is told in a notification. Whether the mod comes on screen is its own to ask, with `shell.show()` ([GUIDELINES.md](../../../../document/GUIDELINES.md), The switcher): the shell putting it on screen takes the keyboard from the switcher, which goes. The switcher ranks what was picked before by the mod and the `value`, so an action keeps one `value`.
+A declared action has the fields of one set over a connection but `value`, `opens` and `fallback`: `label`, `hint`, `icon`, `group`, `tone`, `attention` and `keywords`, then `command` and `args`. It is listed, and found as the list is, but is never among the Now actions or what `search` answers.
