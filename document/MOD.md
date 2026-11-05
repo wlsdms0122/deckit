@@ -122,6 +122,11 @@ Each layer defines the names of what it adds and checks them where the mod asks;
 
 ```json
 {
+    "view": { "sidebar": true },
+    "icon": "<svg viewBox='0 0 24 24' …>…</svg>",
+    "keywords": ["browser", "web"],
+    "configuration": [{ "key": "homepage", "type": "string", "title": "Homepage", "default": "" }],
+    "form": { "homepage": { "placeholder": "Start page" } },
     "commands": {
         "open-tab": {
             "description": "Opens an address in a new tab",
@@ -135,6 +140,11 @@ What the mod declares, by contribution point: what is there from the time the mo
 
 | Contribution point | What it declares |
 |---|---|
+| `view` | the mod's screen in the panel, `{ sidebar, parent }`: `sidebar` true where the view lends the panel's sidebar, `parent` an interface in its `uses` whose owner's regions show it (shell, `region`). The panel lists a mod that declares one, running or not, and a child only once the person pins it; one with none is not listed. A view naming a parent it does not use is left out (deckit's shell) |
+| `icon` | an inline SVG string, about 18px, single-quoted attributes, which the shell draws rebuilt from its shapes (deckit's shell) |
+| `keywords` | other words the mod is matched by, as in the Show candidates (deckit) |
+| `configuration` | what the person can configure about the mod, a list of declarations (Configuration) |
+| `form` | how Settings draws the configuration, by key (Configuration, form) |
 | `commands` | commands by name, `{ description, params }` each (`deckit.commands.register`) |
 | `keys` | `app` and `global` keys by name, `{ label, key, scope }` each (`deckit.keys.register`) |
 | `styles` | `{ '<mod id>' or '*': a CSS file inside the folder, `/` separated }`, worn as `shell.styles.register`'s are, from the time the mod is installed, running or not, with `deckit.styles` |
@@ -144,11 +154,6 @@ What the mod declares, by contribution point: what is there from the time the mo
 
 ```js
 class Calendar {
-    static configuration = { notify: { type: 'string', title: 'Notify me', default: '5', oneOf: [ … ] } };
-    static form = { … };
-    static icon = `<svg …>`;
-    static keywords = ['calendar'];
-
     async start(deckit) {
         this.providers = new Map();
         deckit.commands.register({ … });
@@ -178,16 +183,12 @@ module.exports = Calendar;
 
 | Member | Read or called by | What it is |
 |---|---|---|
-| `static configuration` | deckit | what the person can configure about the mod (below) |
-| `static keywords` | deckit | other words the mod is matched by, as in the Show candidates |
-| `static icon` | deckit's shell | an inline SVG string, about 18px, which the shell draws rebuilt from its shapes |
-| `static form` | deckit's shell | how Settings draws the configuration (below) |
 | `start(deckit)` | deckit | the function lifecycle starts: it registers what the mod does; may be async, and the run waits for it |
 | `stop()` | deckit | the function lifecycle ends, with the run |
 | `attach(shell, deckit)` | deckit's shell | the screen lifecycle starts, once `start` has ended: it registers what the mod shows; may be async |
 | `detach()` | deckit's shell | the screen lifecycle ends, before `stop()` |
 
-Each layer reads only the members it knows, and every one is optional. The statics are read as the entry is evaluated, before an instance is made, so a mod whose `start` fails still has its icon and its configuration. A static of the wrong shape (an `icon` that is no string, a key in `form` the configuration does not declare) is read as far as it can be, with a warning on the mod's row in Settings. The class may have any other member it likes: no layer reads it, and none catches a misspelt `detatch`. Share state between the methods through `this`.
+Each layer reads only the members it knows, and every one is optional. What is listed and shown of a mod that does not run (its view, icon, keywords, configuration and form) is declared in its contributes, not in the class. The class may have any other member it likes: no layer reads it, and none catches a misspelt `detatch`. Share state between the methods through `this`.
 
 ## Lifecycles
 
@@ -260,11 +261,11 @@ What the mod does, by name, for anyone to run: another mod through `deckit.comma
 
 `handler(url, options)` answers for the addresses the manifest's `urls` patterns match: the mod is one of their handlers. `options` is `{ activates, target }`: whether the opener means for the person to go there, and the name a web page gave the window it opens; and the address is untrusted input. Return `true` when it opened the address; anything else passes it on. Whether to come on screen is the handler's to decide, with `shell.show()`. A mod that opens an address to show it (a browser's tab, an editor's file) registers its handler in `attach`; one that only does a job with it, in `start`. A handler registered while the manifest names no `urls` is shown on the mod's row in Settings, and nothing asks it. A run that registers no handler takes no address: each passes to the next handler.
 
-### shell.view.register({ content, sidebar, parent, didAppear, didDisappear })
+### shell.view.register({ content, sidebar, didAppear, didDisappear })
 
 `content` is the element shown in the panel, beside its sidebar and to the panel's top. Where a window's title bar lies over that top, the top of the view is its title bar area, as tall as the page's `--deckit-title-bar-area-height` and starting `--deckit-title-bar-area-x` from the left, past the window's buttons; both are `0px` where there is none. A mod lays its own bar there with `ui.titleBar(element)`, or uses the two values itself. Left of `--deckit-title-bar-area-x`, where the window's buttons stand, the panel takes presses to drag the window, whatever the mod draws there. Registering a view gives the mod a row in the mod list and lets it be on screen. `sidebar` is an element shown in the panel's sidebar, in the slot it lends under the mod list, and scrolled when it is taller. Both are laid in the mod's own page, where the panel's frame leaves them room: the mod list and its card are the panel's, drawn over and under the page. Folding the sidebar takes the mod's `sidebar` away with it and gives its room to `content`.
 
-`parent` is an interface whose owner's view this one is shown in: a child's view goes where a region the owner gives for it shows it (`shell.region`, below), and has no row in the mod list until the person pins it there in Settings. The interface is one named in its `uses`. A view that names any other is refused and shown on the mod's row, and the mod shows nothing. In a region the view is laid in the region: no mod list, the parent showing through around it, its `sidebar` at the region's start, as wide as the panel's sidebar opens and no wider than the region, and as much of the title bar area as lies over the region.
+A view is registered only by a mod whose contributes declares one (`view`), and with a `sidebar` only where that declaration lends one; otherwise it is refused and shown on the mod's row. The declared `parent` is an interface whose owner's view this one is shown in: a child's view goes where a region the owner gives for it shows it (`shell.region`, below), launching the child if it does not run, and has no row in the mod list until the person pins it there in Settings. In a region the view is laid in the region: no mod list, the parent showing through around it, its `sidebar` at the region's start, as wide as the panel's sidebar opens and no wider than the region, and as much of the title bar area as lies over the region.
 
 ### didAppear() and didDisappear()
 
@@ -282,19 +283,19 @@ Styles that are not made while the mod runs are declared under `styles` in `cont
 
 ## Configuration
 
-What the person can configure about the mod is declared in `static configuration`. deckit's core checks each value against its declaration and keeps it, the mod reads them through `deckit.configuration`, and Settings draws them, as `static form` says. A declaration is a subset of JSON Schema, as a command's `params` is:
+What the person can configure about the mod is declared under `configuration` in its contributes, a list in the order Settings shows it, read as the mods are read, whether the mod runs or not. deckit's core checks each value against its declaration and keeps it, the mod reads them through `deckit.configuration`, and Settings draws them, as `form` says. A declaration is its `key` and a subset of JSON Schema, as a command's `params` is:
 
-```js
-static configuration = {
-    wrap: { type: 'boolean', title: 'Wrap lines', default: true },
-    size: { type: 'number', title: 'Text size', default: 13, minimum: 9, maximum: 32 },
-    font: { type: 'string', title: 'Font', default: 'default' },
-    notify: { type: 'string', title: 'Notify me', default: '5', oneOf: [{ const: 'off', title: 'Off' }, { const: '5', title: '5 minutes before' }] },
-};
+```json
+"configuration": [
+    { "key": "wrap", "type": "boolean", "title": "Wrap lines", "default": true },
+    { "key": "size", "type": "number", "title": "Text size", "default": 13, "minimum": 9, "maximum": 32 },
+    { "key": "notify", "type": "string", "title": "Notify me", "default": "5", "oneOf": [{ "const": "off", "title": "Off" }, { "const": "5", "title": "5 minutes before" }] }
+]
 ```
 
 | Field | What it says |
 |---|---|
+| `key` | the name the mod reads it by |
 | `type` | `boolean`, `number` or `string` |
 | `title`, `description` | what a person reads |
 | `default` | what it reads as while nothing it takes is saved; without one it reads as nothing then |
@@ -303,9 +304,9 @@ static configuration = {
 
 A declaration deckit's core does not read (no `type`, a choice of another type, a `default` it does not take) is left out and shown on the mod's row in Settings; the rest stand. A value saved that its declaration does not take (another type, out of range, not one of the choices, a key no longer declared) reads as the default, with a warning on the row, and is left as it is saved: a mod never fails to start because of its configuration. What a value means is the mod's alone; one that only says how the mod draws (an editor's minimap) is declared the same way, and is read by nobody on a host app with no UI.
 
-### static form
+### form
 
-How Settings draws each key: `{ <key>: { placeholder, unit, step, inherits, choices } }`, read by deckit's shell. `placeholder` is the hint in an empty text field, `unit` is written after a number, `step` is what a number moves by. A number with no `default` may be left unset, drawn as Default, and `inherits` names the `theme` number it inherits then, which it steps from: `textSize`. `choices` names a list the shell has, a method of `ui` that answers it: `textFonts` or `monospacedFonts` (UI.md). A key with `choices` is declared `type: 'string'`; a value saved that the list does not have is drawn as the default.
+How Settings draws each key, declared under `form` in its contributes: `{ <key>: { placeholder, unit, step, inherits, choices } }`, read by deckit's shell; a key the configuration does not declare is left out. `placeholder` is the hint in an empty text field, `unit` is written after a number, `step` is what a number moves by. A number with no `default` may be left unset, drawn as Default, and `inherits` names the `theme` number it inherits then, which it steps from: `textSize`. `choices` names a list the shell has, a method of `ui` that answers it: `textFonts` or `monospacedFonts` (UI.md). A key with `choices` is declared `type: 'string'`; a value saved that the list does not have is drawn as the default.
 
 ### deckit.configuration
 
@@ -412,7 +413,7 @@ What `attach` receives as `shell`, from deckit's shell (the panel and the kit). 
 | `ui` | the kit, drawn in `theme` ([UI.md](UI.md)) |
 | `show()` | the calling mod asks for its view on screen, and the shell puts it there; a mod with no view in the panel, or one still starting, has nothing to show. A child not in the mod list brings its parent on screen |
 | `iconOf(mod)` | the icon of the mod's latest launched run, or `''` |
-| `formOf(mod)` | resolves to the mod's `static form` as the shell read it |
+| `formOf(mod)` | resolves to the mod's declared `form` as the shell reads it |
 | `region(element, interface)` | a place in the mod's view where the children of an interface it provides are shown (below) |
 | `dropDestination(element, { onDrop, onTargeted })` | takes the files the person drops on `element` from outside the app, by their paths (below) |
 | `children` | `list(interface)`, `[{ id, name, icon }]` of the mods whose view names that interface as its `parent`, while this mod owns it, and that run or are launching again, each from its first launch, in the mods' order, and `onChange(listener)`, `listener(interface, children)` each time an interface's children change, which returns its off. `region` and `children.list` throw for an interface the mod does not provide |

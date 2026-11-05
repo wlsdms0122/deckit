@@ -74,7 +74,6 @@ export function createApi({
                     const mod = CATALOG.mods().find((each) => each.id === id);
                     return mod ? CATALOG.readFile(mod, path) : null;
                 },
-                listingOf,
                 observe: (name, observer) => RUNNER.observe(name, (run) => observer(factsOf(run))),
                 modOf: (page) => IDENTITY.modOf(page)?.id || null,
                 // The mod in the page, which may drive mods; throws for any other page.
@@ -127,12 +126,6 @@ export function createApi({
     }
 
     // MARK: - Private
-    // How a mod is listed, as its latest run said once it read the mod's class, or else the latest that launched:
-    // kept while it launches again, so whatever lists the mods does not lose it then.
-    function listingOf(id) {
-        return copyOf(RUNNER.runOf(id)?.summary ?? RUNNER.launchedOf(id)?.summary ?? null);
-    }
-
     function manifestOf(mod) {
         return frozen(mod.manifest);
     }

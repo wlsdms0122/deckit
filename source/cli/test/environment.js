@@ -23,7 +23,6 @@ const USED = {
         ownerOf: 'function',
         runs: 'function',
         runOf: 'function',
-        listingOf: 'function',
         observe: 'function',
         modOf: 'function',
         managerFrom: 'function',

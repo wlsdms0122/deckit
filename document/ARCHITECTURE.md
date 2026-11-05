@@ -82,8 +82,8 @@ A core that ends is not started again. Main logs why, and refuses all that is as
 | which mod owns each interface | the core, `Deck/Mod/Owner`, from the manifests' `provides`, each interface's queue of providers and the person's pins, kept in `deck.json` |
 | which connections stand between mods, and whether a message on one goes | the core, `Deck/Reach/Connection`, from the manifests' `[dependencies]` and `uses`, the owner of each interface and what each run contributed; main carries the messages, `deckit-shell/deck/connection/main.js` |
 | what crosses a connection, and the references each one holds | each end's page, `deckit-shell/deck/connection/renderer.js` |
-| what the person can configure about a mod, and what each value takes | the core, `Deckit/Configuration`, from what the mod's class declared; main carries it, `deckit-shell/deckit/configuration/main.js` |
-| how Settings draws a mod's configuration (`static form`) | what the shell read of the class, in the run's summary |
+| what the person can configure about a mod, and what each value takes | the core, `Deckit/Configuration`, from the `configuration` the mod's contributes declares, as the mods are read; main carries it, `deckit-shell/deckit/configuration/main.js` |
+| how a mod is listed and shown while it does not run: its view, icon and keywords, and how Settings draws its configuration (`form`) | what the mod's contributes declares, as the shell reads it, `deckit-shell/shell/panel/model/declared.js` |
 | the lifecycles on a run, their order, and what each registered | the page, `deckit-shell/deck/runner/renderer.js`, with deckit's (`deckit-shell/deckit/mod`) and the shell's over it (`deckit-shell/shell/mod`) |
 | which mods hear an event | the core, `Deck/Reach/Event`; main carries the events, `deckit-shell/deck/event/main.js` |
 | which page is which mod, or which page runs none, and what a person just did in a page | `deckit-shell/deck/identity`, from what the environment tells of each page (`deckit-electron/environment`) |
