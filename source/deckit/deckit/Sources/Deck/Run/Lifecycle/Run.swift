@@ -20,6 +20,8 @@ public struct Run: Sendable {
     public private(set) var relaunchLimited = false
     // The first problem recorded against it while it launches or runs, or why it failed or crashed.
     public private(set) var problem: String?
+    // The id of the mod it requires whose end ended it, or nil when it ended otherwise or has not ended.
+    public private(set) var endedWith: String?
     // What its page reported: `summary`, what the layers read of its entry and what it contributes, as a person reads
     // it, carried and not read; and once it launched, what it contributes now.
     public private(set) var summary: JSONValue?
@@ -61,10 +63,11 @@ public struct Run: Sendable {
         return notification
     }
 
-    // Answers nil unless it launches or runs.
-    mutating func terminate() throws(LifecycleError) -> LifecycleNotification? {
+    // Answers nil unless it launches or runs. `required` is the id of the mod it requires whose end ends it.
+    mutating func terminate(with required: String? = nil) throws(LifecycleError) -> LifecycleNotification? {
         guard Transition.terminate.from.contains(state) else { return nil }
 
+        endedWith = required
         return try move(.terminate)
     }
 

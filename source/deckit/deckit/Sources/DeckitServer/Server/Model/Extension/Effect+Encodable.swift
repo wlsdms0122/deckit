@@ -25,6 +25,7 @@ extension Effect: Encodable {
         case failed
         case relaunchLimited
         case problem
+        case endedWith
         case summary
         case contributions
         case connection
@@ -93,6 +94,7 @@ extension Effect: Encodable {
         try container.encode(run.failed, forKey: .failed)
         try container.encode(run.relaunchLimited, forKey: .relaunchLimited)
         try container.encodeIfPresent(run.problem, forKey: .problem)
+        try container.encodeIfPresent(run.endedWith, forKey: .endedWith)
         try container.encodeIfPresent(run.summary, forKey: .summary)
         try container.encodeIfPresent(run.contributions, forKey: .contributions)
     }

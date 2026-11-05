@@ -135,6 +135,25 @@ struct RunnerTests {
         #expect(describe(loaded) == ["tell willLaunch a 2 launching", "loadPage a"])
     }
 
+    @Test("a run ended by the end of a mod it requires says which mod, and one ended as asked says none")
+    func runEndedWithItsRequirement() throws {
+        // Given
+        try write("a")
+        try write("b", requires: ["a": "1.0.0"])
+        try write("c", requires: ["b": "1.0.0"])
+        let (sut, catalog) = try runner()
+        _ = catalog.read()
+        try launch(["a", "b", "c"], with: sut)
+
+        // When
+        _ = try sut.unload(["a"])
+
+        // Then
+        #expect(try #require(sut.run(of: "a")).endedWith == nil)
+        #expect(try #require(sut.run(of: "b")).endedWith == "a")
+        #expect(try #require(sut.run(of: "c")).endedWith == "b")
+    }
+
     @Test("the first problem recorded against a run is kept, and told with no step, once")
     func problemIsKept() throws {
         // Given

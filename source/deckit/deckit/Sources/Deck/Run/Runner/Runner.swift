@@ -213,8 +213,8 @@ final class Runner {
         }
     }
 
-    private func terminate(_ sandbox: Sandbox) throws {
-        try move(sandbox) { run throws(LifecycleError) in try run.terminate() }
+    private func terminate(_ sandbox: Sandbox, with required: String? = nil) throws {
+        try move(sandbox) { run throws(LifecycleError) in try run.terminate(with: required) }
     }
 
     // A run that ends failing counts toward its mod's relaunch limit.
@@ -251,7 +251,7 @@ final class Runner {
 
     private func terminateDependents(of id: String) throws {
         for dependent in directDependents(of: id) {
-            try terminate(dependent)
+            try terminate(dependent, with: id)
         }
     }
 
