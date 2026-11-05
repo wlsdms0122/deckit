@@ -30,7 +30,7 @@ A person meets a mod through its view, its actions in the switcher, its keys, it
 
 ## The view
 
-`shell.view.register` lays two areas: `sidebar`, under the mod list, and `content`, beside it and up to the panel's top.
+`shell.view.register` lays two areas: `sidebar`, under the Dock, and `content`, beside it and up to the panel's top.
 
 - The sidebar lists what the content can show (files, tabs, notes, calendars) and lets the person pick, add, rename and arrange them. Controls for what is shown go in the content's title bar.
 - What the sidebar does has a key or a switcher action too, so the view works with the sidebar folded.
