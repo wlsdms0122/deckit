@@ -1,11 +1,12 @@
 // Deck's runner (deckit-shell/deck/runner) over a stand-in for the environment's pages, messages and app: the startup
 // mods loaded as it starts, a run's page made, known as the mod's and set up before it loads, what the core is told as
 // the page fails, crashes or is replaced, a run's end asked of its page, a mod loaded with what it requires, once that
-// has launched, one restarted with the mods that require it, each for its origin, the core asked first what the owners
-// come to as the catalog changes, with no new mod loaded for it and the owner change it delivers reaching the page that
-// listens, a changed mod that ran loaded again, a startup mod that failed loaded again unless it reached the relaunch
-// limit, a mod that quits its run, a mod activated for work, the page closed, and the quit held while a run has not
-// ended. Exits 1 with a line for each check that failed. The packages are ES modules, so they are imported as such.
+// has launched, one restarted with the mods that require it and run or ended with it, each for its origin, the core
+// asked first what the owners come to as the catalog changes, with no new mod loaded for it and the owner change it
+// delivers reaching the page that listens, a changed mod that ran loaded again, a startup mod that failed loaded again
+// unless it reached the relaunch limit, a mod that quits its run, a mod activated for work, the page closed, and the
+// quit held while a run has not ended. Exits 1 with a line for each check that failed. The packages are ES modules, so
+// they are imported as such.
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -234,6 +235,32 @@ async function main() {
     check('the mods that require a mod restarted say meanwhile that they load again', marked === true, marked);
     check('a run that launches while a reload is bringing its mod back says so too', markedAgain === true, markedAgain);
     check('a reload ended says so no more', RUNNER.runOf('a').relaunches === false, RUNNER.runOf('a').relaunches);
+
+    // A mod restarted while the mods that require it are down brings back the one whose run ended with it, and not one
+    // whose run ended otherwise.
+    const restartedAfter = async (ended) => {
+        answers.set('runner/stopped', [
+            [told('didTerminate', 'notRunning', 'b', ended), told('didTerminate', 'notRunning')],
+        ]);
+        await RUNNER.ask('runner/stopped', { mod: 'a', run: 1 });
+        const loadsBefore = methods('runner/load').length;
+        answers.set('runner/load', [
+            [told('willLaunch', 'launching'), told('didLaunch', 'running')],
+            [told('didLaunch', 'running', 'b')],
+        ]);
+        await RUNNER.relaunch(['a']);
+        answers.set('runner/load', []);
+        return methods('runner/load')
+            .slice(loadsBefore)
+            .map(({ params }) => params.requests.map(({ mod }) => mod).join())
+            .join(' ');
+    };
+    const withIt = await restartedAfter({ endedWith: 'a' });
+    check('a mod restarted brings back a mod that requires it whose run ended with it', withIt === 'a b', withIt);
+    const otherwise = await restartedAfter({});
+    check('a mod restarted does not bring back a mod whose run ended otherwise', otherwise === 'a', otherwise);
+    answers.set('runner/load', [[told('didLaunch', 'running', 'b')]]);
+    await RUNNER.load(['b'], { kind: 'person' });
 
     // A mod found anew, which may own an interface now: the core says first what the owners come to, delivering the
     // owner change to the mods that listen, and it does not load, while what runs runs on.

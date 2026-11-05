@@ -11,6 +11,7 @@
 // `failed`, whether it failed or crashed rather than ending as asked;
 // `relaunchLimited`, whether its mod reached the relaunch limit as it failed, so it loads again only as the person
 // opens it;
+// `endedWith`, the id of the mod it requires whose end ended it, or null;
 // `relaunches`, whether the runner loads the mod again once it has ended.
 function makeRun({ mod, number, relaunches = false }) {
     const facts = {
@@ -21,6 +22,7 @@ function makeRun({ mod, number, relaunches = false }) {
         origin: null,
         failed: false,
         relaunchLimited: false,
+        endedWith: null,
         relaunches,
     };
     const run = Object.freeze({
@@ -46,6 +48,9 @@ function makeRun({ mod, number, relaunches = false }) {
         },
         get relaunchLimited() {
             return facts.relaunchLimited;
+        },
+        get endedWith() {
+            return facts.endedWith;
         },
         get relaunches() {
             return facts.relaunches;

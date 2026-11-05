@@ -145,12 +145,15 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     // The mods terminate and load again as the person opens them, or load when they are not running, and the mods
-    // that require them and run load again with them, as they launched. Resolves once each has launched again, or
-    // failed to: one loaded while a mod it requires is not running fails as it launches.
+    // that require them and run, or whose run ended with one of these, load again with them, as they launched. Resolves
+    // once each has launched again, or failed to: one loaded while a mod it requires is not running fails as it
+    // launches.
     function relaunch(ids) {
         const dependents = dependentsOf(ids, new Map(CATALOG.mods().map((mod) => [mod.id, mod])));
+        const again = new Set([...ids, ...dependents]);
+        const comesBack = (id) => running(id) || again.has(runOf(id)?.endedWith);
         const requested = ids.map((id) => ({ id, origin: ORIGIN.PERSON }));
-        return reload(ids, [...requested, ...asLaunched(dependents.filter(running))]);
+        return reload(ids, [...requested, ...asLaunched(dependents.filter(comesBack))]);
     }
 
     // Every mod with a sandbox terminates and loads again as it launched, and one whose run ended for a quit the host
@@ -336,8 +339,9 @@ export function createRunner({ LOG, IDENTITY, CATALOG, CORE, pages: PAGES, app: 
     }
 
     function update(sandbox, told) {
-        const { state, origin, failed, relaunchLimited, problem = null, summary = null, contributions = null } = told;
-        sandbox.update({ state, origin, failed, relaunchLimited, problem, summary, contributions });
+        const { state, origin, failed, relaunchLimited, problem = null, endedWith = null } = told;
+        const { summary = null, contributions = null } = told;
+        sandbox.update({ state, origin, failed, relaunchLimited, problem, endedWith, summary, contributions });
     }
 
     // The page is made, known as the mod's and set up before it loads, so what it asks as it starts is the mod's. A
