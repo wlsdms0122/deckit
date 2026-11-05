@@ -39,7 +39,7 @@ struct DeckSettings {
     private func settings() throws -> [String: JSONValue] {
         guard let text = store.read(file) else { return [:] }
         guard case let .object(settings)? = try? JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) else {
-            throw LoadOrderError.unreadable(file.lastPathComponent)
+            throw DeckSettingsError.unreadable(file.lastPathComponent)
         }
 
         return settings

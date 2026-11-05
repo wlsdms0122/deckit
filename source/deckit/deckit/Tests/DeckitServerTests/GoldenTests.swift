@@ -29,7 +29,7 @@ struct GoldenTests {
         (InstallError.notInstalled("a"), "NOT_INSTALLED"),
         (InstallError.readInPlace(id: "a", folder: "/a"), "READ_IN_PLACE"),
         (LoadOrderError.requiredLater(mod: "b", requirement: "a"), "REQUIRED_LATER"),
-        (LoadOrderError.unreadable("deck.json"), "UNREADABLE"),
+        (DeckSettingsError.unreadable("deck.json"), "UNREADABLE"),
         (LoadOrderError.noInterface("x/none"), "INTERFACE"),
         (LoadOrderError.cycle(["a", "b", "a"]), "CYCLE"),
         (LifecycleError.transition(modId: "a", number: 1, transition: .crash, state: .notRunning), "TRANSITION"),

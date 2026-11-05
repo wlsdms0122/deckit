@@ -244,7 +244,7 @@ struct CatalogTests {
 
         // Then
         #expect(mods.map(\.manifest.id) == ["a", "b"])
-        #expect(throws: LoadOrderError.unreadable("deck.json")) { try refused.get() }
+        #expect(throws: DeckSettingsError.unreadable("deck.json")) { try refused.get() }
         #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"loadOrder":["b","a"],"#)
     }
 
