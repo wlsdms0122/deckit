@@ -12,28 +12,6 @@ const { START, tabList, tabLabel } = require('./tabs/tab-list.js');
 const { toolbar } = require('./toolbar/toolbar.js');
 
 class Browser {
-    static configuration = {
-        homepage: {
-            type: 'string',
-            title: 'Homepage',
-            description: 'The address a new tab opens. Empty, it opens the start page, the bookmarks as tiles.',
-            default: '',
-        },
-        searchEngine: {
-            type: 'string',
-            title: 'Search engine',
-            description: 'Where words typed in the address bar are searched.',
-            default: 'https://www.google.com/search?q=',
-            oneOf: [
-                { const: 'https://www.google.com/search?q=', title: 'Google' },
-                { const: 'https://duckduckgo.com/?q=', title: 'DuckDuckGo' },
-                { const: 'https://www.bing.com/search?q=', title: 'Bing' },
-            ],
-        },
-    };
-
-    static form = { homepage: { placeholder: 'Start page' } };
-
     attach(shell, deckit) {
         const { theme, ui } = shell;
         const { storage, configuration } = deckit;

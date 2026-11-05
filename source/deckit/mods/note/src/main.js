@@ -20,35 +20,6 @@ const { typefaceOf } = require('./editor/typeface.js');
 const STYLES = PARAGRAPH_STYLES.filter((style) => style !== '-');
 
 class Note {
-    static configuration = {
-        sort: {
-            type: 'string',
-            title: 'Sort notes by',
-            description: "How a folder's notes are laid out in its gallery.",
-            default: 'modified',
-            oneOf: [
-                { const: 'modified', title: 'Date Edited' },
-                { const: 'created', title: 'Date Created' },
-                { const: 'name', title: 'Name' },
-            ],
-        },
-        textSize: {
-            type: 'number',
-            title: 'Text size',
-            description: 'Default follows the text size in the General section.',
-            minimum: 11,
-            maximum: 22,
-        },
-        font: {
-            type: 'string',
-            title: 'Font',
-            description:
-                'The face a note is written in, its title too; code stays monospaced. Default follows the General section.',
-            default: 'default',
-        },
-    };
-    static form = { textSize: { unit: ' px', inherits: 'textSize' }, font: { choices: 'textFonts' } };
-
     // What detach() waits for: the open note written, its title typed and not yet applied too, so what was typed just
     // before the run ends is kept, and the notes folder no longer watched.
     end = null;

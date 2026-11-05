@@ -9,35 +9,6 @@ const { switcher, inFront } = require('./switcher/switcher.js');
 const PLACES = ['llmemory', 'brain'];
 
 class Bot {
-    static configuration = {
-        llmemory: {
-            type: 'string',
-            title: 'LLMemory command',
-            description:
-                "Where the llmemory program is, as a full path. Empty: the llmemory on your login shell's PATH.",
-            default: '',
-        },
-        brain: {
-            type: 'string',
-            title: 'Brain folder',
-            description: "The brain's folder, the one llmemory reads with --home. Brain lists nothing until it is set.",
-            default: '',
-        },
-        wrapCode: {
-            type: 'boolean',
-            title: 'Wrap code in notes',
-            description:
-                "Long lines in a note's code blocks wrap instead of scrolling sideways. " +
-                'The wrap button on a block switches it too.',
-            default: false,
-        },
-    };
-
-    static form = {
-        llmemory: { placeholder: 'llmemory' },
-        brain: { placeholder: 'Not set' },
-    };
-
     async attach(shell, deckit) {
         const { ui } = shell;
         const store = deckit.storage.values;

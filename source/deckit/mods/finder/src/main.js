@@ -24,21 +24,6 @@ const PLACES = [
 ];
 
 class Finder {
-    static configuration = {
-        showHidden: {
-            type: 'boolean',
-            title: 'Show hidden files',
-            description: 'Names that start with a dot, such as .git or .env.',
-            default: false,
-        },
-        foldersFirst: {
-            type: 'boolean',
-            title: 'Keep folders on top',
-            description: 'Folders come before files whichever column the list is sorted by.',
-            default: true,
-        },
-    };
-
     async attach(shell, deckit) {
         const { theme, ui } = shell;
         const { storage, configuration, util } = deckit;

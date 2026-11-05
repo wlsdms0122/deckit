@@ -26,40 +26,6 @@ const { workspaceModel } = require('./workspace/workspace-model.js');
 const { workspaceSearch, WORKSPACE_SEARCH_STYLE } = require('./workspace-search/workspace-search.js');
 
 class Editor {
-    static configuration = {
-        fontSize: {
-            type: 'number',
-            title: 'Font size',
-            description: 'Default follows the text size in the General section.',
-            minimum: 10,
-            maximum: 24,
-        },
-        font: {
-            type: 'string',
-            title: 'Font',
-            description: "The fixed-width faces installed on this Mac. Default is the system's.",
-            default: 'default',
-        },
-        wrap: {
-            type: 'boolean',
-            title: 'Wrap long lines',
-            description: "Continue a long line on the next one at the editor's edge, instead of scrolling sideways.",
-            default: false,
-        },
-        minimap: {
-            type: 'string',
-            title: 'Minimap',
-            description: "The file in miniature at the editor's right edge.",
-            default: 'scroll',
-            oneOf: [
-                { const: 'always', title: 'Always, beside the code' },
-                { const: 'scroll', title: 'While scrolling, over the code' },
-                { const: 'never', title: 'Never' },
-            ],
-        },
-    };
-    static form = { fontSize: { unit: ' px', inherits: 'textSize' }, font: { choices: 'monospacedFonts' } };
-
     // What detach() waits for: the unsaved text of every open file kept as a draft, typed until the run ends, and the
     // folders of the open files no longer watched.
     end = null;

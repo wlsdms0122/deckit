@@ -1,22 +1,7 @@
 const { calendar } = require('./calendar/calendar.js');
 const { calendarView } = require('./calendar/view.js');
-const { REMINDER_LEADS, DEFAULT_LEAD, leadText } = require('./reminder/reminder.js');
 
 class Calendar {
-    static configuration = {
-        notify: {
-            type: 'string',
-            title: 'Notify me',
-            description:
-                "Meetings you are invited to, and every event on your own calendars. A calendar's ✎ changes which it is. A hidden calendar reminds too.",
-            default: String(DEFAULT_LEAD),
-            oneOf: [
-                { const: 'off', title: leadText(null) },
-                ...REMINDER_LEADS.map((lead) => ({ const: String(lead), title: leadText(lead) })),
-            ],
-        },
-    };
-
     // What the view has put on screen for the function side to reach (calendar.js), while it is attached.
     screen = null;
 

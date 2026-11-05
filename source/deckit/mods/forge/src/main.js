@@ -4,26 +4,6 @@ const { runs } = require('./runs/runs.js');
 // hands the process that starts it, and runs forge's operations on them. Starting, stopping and restarting a daemon
 // are commands too. It has no view.
 class Forge {
-    static configuration = {
-        forge: {
-            type: 'string',
-            title: 'Forge command',
-            description: "Where the forge program is, as a full path. Empty: the forge on your login shell's PATH.",
-            default: '',
-        },
-        forgeConfig: {
-            type: 'string',
-            title: 'Forge configuration',
-            description:
-                "The config.toml the default session is served with. Empty: forge's own, in the session's folder.",
-            default: '',
-        },
-    };
-    static form = {
-        forge: { placeholder: 'forge' },
-        forgeConfig: { placeholder: '~/.config/forge/default/config.toml' },
-    };
-
     async start(deckit) {
         const { util } = deckit;
         const PLACES = ['forge', 'forgeConfig'];

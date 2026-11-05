@@ -2,6 +2,22 @@
     "view": { "sidebar": true },
     "icon": "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'/></svg>",
     "keywords": ["finder", "files", "file", "folder", "explorer", "browse", "파인더", "파일", "폴더", "탐색기"],
+    "configuration": [
+        {
+            "key": "showHidden",
+            "type": "boolean",
+            "title": "Show hidden files",
+            "description": "Names that start with a dot, such as .git or .env.",
+            "default": false
+        },
+        {
+            "key": "foldersFirst",
+            "type": "boolean",
+            "title": "Keep folders on top",
+            "description": "Folders come before files whichever column the list is sorted by.",
+            "default": true
+        }
+    ],
     "commands": {
         "open-folder": {
             "description": "Goes to a folder in the tab in front; a file goes to its folder, selected there.",

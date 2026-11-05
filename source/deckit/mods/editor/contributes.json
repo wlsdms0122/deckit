@@ -1,7 +1,58 @@
 {
     "view": { "sidebar": true },
     "icon": "<svg viewBox='0 0 24 24' aria-hidden='true' width='18' height='18' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 12.5 8 15l2 2.5'/><path d='m14 12.5 2 2.5-2 2.5'/><path d='M14 2v4a2 2 0 0 0 2 2h4'/><path d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z'/></svg>",
-    "keywords": ["editor", "edit", "code", "file", "folder", "workspace", "text", "에디터", "편집", "코드", "파일", "폴더", "워크스페이스"],
+    "keywords": [
+        "editor",
+        "edit",
+        "code",
+        "file",
+        "folder",
+        "workspace",
+        "text",
+        "에디터",
+        "편집",
+        "코드",
+        "파일",
+        "폴더",
+        "워크스페이스"
+    ],
+    "configuration": [
+        {
+            "key": "fontSize",
+            "type": "number",
+            "title": "Font size",
+            "description": "Default follows the text size in the General section.",
+            "minimum": 10,
+            "maximum": 24
+        },
+        {
+            "key": "font",
+            "type": "string",
+            "title": "Font",
+            "description": "The fixed-width faces installed on this Mac. Default is the system's.",
+            "default": "default"
+        },
+        {
+            "key": "wrap",
+            "type": "boolean",
+            "title": "Wrap long lines",
+            "description": "Continue a long line on the next one at the editor's edge, instead of scrolling sideways.",
+            "default": false
+        },
+        {
+            "key": "minimap",
+            "type": "string",
+            "title": "Minimap",
+            "description": "The file in miniature at the editor's right edge.",
+            "default": "scroll",
+            "oneOf": [
+                { "const": "always", "title": "Always, beside the code" },
+                { "const": "scroll", "title": "While scrolling, over the code" },
+                { "const": "never", "title": "Never" }
+            ]
+        }
+    ],
+    "form": { "fontSize": { "unit": " px", "inherits": "textSize" }, "font": { "choices": "monospacedFonts" } },
     "commands": {
         "open": {
             "description": "Opens a file of a workspace, the one in front unless its folder is given, without bringing it to the front.",
