@@ -7,19 +7,19 @@
 
 import Foundation
 
-// A lifecycle of a mod and the exports the implementation picked for an interface it names in its [dependencies]
-// opened for that interface, joined from when both are up until either ends. What crosses it, values and the functions
+// A lifecycle of a mod and the exports another mod opened for a name the first gives, a mod id or an interface, joined
+// from when both are up until either ends. What crosses it, values and the functions
 // each end hands the other, is the two pages'.
 public struct Connection: Equatable, Sendable {
     // MARK: - Property
     public let id: Int
-    // The name the dependent reaches the exports by.
+    // The mod id or the interface the dependent reaches the exports by.
     public let name: String
-    // The lifecycle that depends on the interface.
+    // The lifecycle that reaches the exports.
     public let dependent: Endpoint
     // The lifecycle that opened the exports it reaches.
     public let dependency: Endpoint
-    // Whether the dependent runs only with an implementation of the interface.
+    // Whether the dependent runs only with that mod: one it names in its [dependencies] without `optional`.
     public let required: Bool
 
     // MARK: - Initializer

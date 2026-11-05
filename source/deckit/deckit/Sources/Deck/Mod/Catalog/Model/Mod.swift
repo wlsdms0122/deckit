@@ -28,6 +28,8 @@ public struct Mod: Sendable {
     public let revision: String
     // The mods its manifest's [dependencies] names, by id, each with whether it is optional.
     public internal(set) var relations: [Relation]
+    // The interfaces its manifest's `uses` names, by name, each with what it comes to.
+    public internal(set) var uses: [InterfaceUse]
     // The mods that load and require it, directly or through another, by id.
     public internal(set) var dependents: [String]
     // The file its main names, where it really is.

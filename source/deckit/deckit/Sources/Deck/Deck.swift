@@ -24,18 +24,18 @@ public final class Deck {
     public let events: EventBus
     private let runner: Runner
     private var layers: [Layer] = []
+    // Interface -> its owner, as the runs were last told.
+    private var announced: [String: String] = [:]
 
     // MARK: - Initializer
     // `home` is deckit's folder, `ship` the folders of the mods the app ships, and `sources` folders of mods read in
     // place. A manifest is read against `api`, the mod contract the mods are run with, the `permissions` the layers on
-    // this host define, deck's own among them, and the `fields` the layers on deck add. `implementations` is, by
-    // interface, the mods the app places in its list, in order, until the person orders them.
+    // this host define, deck's own among them, and the `fields` the layers on deck add.
     public init(
         home: URL,
         ship: [URL],
         sources: [URL],
         api: Version,
-        implementations: [String: [String]],
         permissions: [Permission],
         fields: [any ManifestField]
     ) throws {
@@ -60,8 +60,7 @@ public final class Deck {
             dataFolder: dataFolder,
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
             loadOrder: LoadOrder(file: settings, store: store),
-            implementationOrder: ImplementationOrder(file: settings, store: store),
-            implementations: implementations,
+            ownershipStore: OwnershipStore(file: settings, store: store),
             store: store
         )
         let runner = Runner(catalog: catalog)
@@ -102,10 +101,9 @@ public final class Deck {
         catalog.read()
     }
 
-    // What the runs come to once the catalog was read again: a connection to a mod no longer picked for its interface
-    // ends, and the mod picked now connects. A mod that requires an interface picked anew is the caller's to load
-    // again.
-    public func repick() -> [Effect] {
+    // What the runs come to once the catalog was read again: a connection to an interface's owner ends as it has
+    // another, and one to the owner now stands.
+    public func reconnect() -> [Effect] {
         withChanges([])
     }
 
@@ -161,15 +159,17 @@ public final class Deck {
 
     // MARK: - Private
     // What deck and each layer find wrong with what the run contributes now is recorded against it, and what deck
-    // finds wrong with what the runs that depend on an interface it is picked for wait for, against each of those.
+    // finds wrong with what the runs that reach it wait for, against each of those.
     private func judged(_ id: String, run: Int, _ effects: [Effect]) throws -> [Effect] {
         var effects = effects
         for problem in problems(of: id, run: run) {
             effects += try runner.report(id, run: run, problem: problem)
         }
-        for mod in runner.mods()
-        where mod.manifest.dependencies.keys.contains(where: { interface in runner.pick(of: interface) == id }) {
-            guard let dependent = runner.run(of: mod.manifest.id) else { continue }
+        for mod in runner.mods() {
+            let names = Array(mod.manifest.dependencies.keys) + Array(mod.manifest.uses.keys)
+            guard names.contains(where: { name in connections.provider(of: name, for: mod.manifest.id) == id }),
+                let dependent = runner.run(of: mod.manifest.id)
+            else { continue }
             for problem in connections.problems(of: dependent) {
                 effects += try runner.report(mod.manifest.id, run: dependent.number, problem: problem)
             }
@@ -177,8 +177,10 @@ public final class Deck {
         return withChanges(effects)
     }
 
-    // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, and
-    // what each layer tells has changed of its own, once each layer has heard of the sandboxes that closed.
+    // What the runs moving to `effects` come to besides: what each is told has changed of what other mods give it, then
+    // `<interface>:owner-changed`, of no args, to those that listen for each interface whose owner changed since they
+    // were last told, and what each layer tells has changed of its own, once each layer has heard of the sandboxes that
+    // closed.
     private func withChanges(_ effects: [Effect]) -> [Effect] {
         events.dropEnded()
         for case let .close(modId) in effects {
@@ -187,8 +189,18 @@ public final class Deck {
             }
         }
 
+        let owners = runner.owners()
+        let changed = Set(owners.keys).union(announced.keys).filter { interface in
+            owners[interface] != announced[interface]
+        }
+        announced = owners
+        let deliveries = changed.sorted()
+            .map { interface in events.announce("\(interface):owner-changed") }
+            .filter { delivery in !delivery.listeners.isEmpty }
+
         return effects
             + connections.changes()
+            + deliveries.map(Effect.deliver)
             + layers.flatMap { layer in layer.changes() }.map(Effect.layer)
     }
 

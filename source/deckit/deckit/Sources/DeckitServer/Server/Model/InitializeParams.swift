@@ -14,8 +14,6 @@ struct InitializeParams: Decodable {
     let home: String
     // By scheme, the mods the app asks first to open an address.
     let schemeHandlers: [String: [String]]
-    // By interface, the mods the app places first in its list.
-    let implementations: [String: [String]]
     // The mod contract the mods are run with.
     let api: Version
     // The folders of the mods the app ships, and of those read in place.

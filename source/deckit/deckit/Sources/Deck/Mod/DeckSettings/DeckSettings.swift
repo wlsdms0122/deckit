@@ -26,9 +26,9 @@ struct DeckSettings {
         (try? settings())?[key]
     }
 
-    func write(_ value: JSONValue, as key: String) throws {
-        var settings = try settings()
-        settings[key] = value
+    // Each value under its key, in one write.
+    func write(_ values: [String: JSONValue]) throws {
+        let settings = try settings().merging(values) { _, value in value }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         try store.write(String(decoding: try encoder.encode(JSONValue.object(settings)), as: UTF8.self), to: file)

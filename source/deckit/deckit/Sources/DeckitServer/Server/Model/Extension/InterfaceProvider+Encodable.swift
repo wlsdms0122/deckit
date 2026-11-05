@@ -1,20 +1,19 @@
 //
-//  Implementation+Encodable.swift
+//  InterfaceProvider+Encodable.swift
 //  DeckitServer
 //
-//  Created by JSilver on 11/4/26.
+//  Created by JSilver on 11/6/26.
 //
 
 import Foundation
 import Deck
 
-extension Implementation: Encodable {
+extension InterfaceProvider: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case id
         case name
-        case version
-        case on
+        case majors
     }
 
     // MARK: - Initializer
@@ -23,8 +22,7 @@ extension Implementation: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
-        try container.encode(version, forKey: .version)
-        try container.encode(on, forKey: .on)
+        try container.encode(majors, forKey: .majors)
     }
 
     // MARK: - Private

@@ -7,9 +7,8 @@
 
 import Foundation
 
-// Each mod loads in a sandbox of its own and runs only while what it requires runs, the mods picked for the interfaces
-// it requires as it launches: one loaded while one of them does not run fails as it launches and stays as it is, and
-// one ends before what it requires does. Which mods load or
+// Each mod loads in a sandbox of its own and runs only while what it requires runs: one loaded while a mod it requires
+// does not run fails as it launches and stays as it is, and one ends before what it requires does. Which mods load or
 // unload, and when, is the caller's. The driver says what happened to a run, and is answered what to do, in order: the
 // runner never waits on it, and what comes of an effect comes back as what happened next.
 final class Runner {
@@ -42,9 +41,14 @@ final class Runner {
         sandbox(of: id)?.run
     }
 
-    // The id of the mod picked for `interface`, as the catalog was last read.
-    func pick(of interface: String) -> String? {
-        catalog.pick(of: interface)
+    // The id of the owner of `interface`, as the catalog was last read.
+    func owner(of interface: String) -> String? {
+        catalog.owner(of: interface)
+    }
+
+    // Interface -> its owner, as the catalog was last read.
+    func owners() -> [String: String] {
+        catalog.owners
     }
 
     // Each mod named that loads, as the catalog was last read, launches in the load order, in its page loaded anew.
@@ -58,7 +62,7 @@ final class Runner {
 
                 if let sandbox, sandbox.mod.revision == mod.revision {
                     sandbox.run = nextRun(of: mod.manifest.id)
-                    try launch(sandbox, as: mod)
+                    try launch(sandbox)
                 } else {
                     if let sandbox {
                         close(sandbox)
@@ -162,7 +166,7 @@ final class Runner {
         let sandbox = Sandbox(mod: mod, run: nextRun(of: mod.manifest.id))
         sandboxes.append(sandbox)
         effects.append(.open(mod))
-        try launch(sandbox, as: mod)
+        try launch(sandbox)
     }
 
     private func closeIfGone(_ sandbox: Sandbox) {
@@ -179,16 +183,13 @@ final class Runner {
         effects.append(.close(modId: sandbox.mod.manifest.id))
     }
 
-    // Its latest run launches, requiring what `mod`, as the catalog was last read, is picked. While a mod it requires
-    // does not run, the run fails as it launches, and its page does not load.
-    private func launch(_ sandbox: Sandbox, as mod: Mod) throws {
+    // Its latest run launches. While a mod it requires does not run, the run fails as it launches, and its page does
+    // not load.
+    private func launch(_ sandbox: Sandbox) throws {
         sandbox.stopAsked = false
-        sandbox.requires = mod.relations.filter { relation in !relation.optional && relation.id != nil }
         try tell(.willLaunch, sandbox.run, of: sandbox)
         if let missing = missing(sandbox) {
-            try move(sandbox) { run throws(LifecycleError) in
-                try run.crash("needs \(missing.interface), which was not running")
-            }
+            try move(sandbox) { run throws(LifecycleError) in try run.crash("needs \(missing), which was not running") }
         } else {
             effects.append(.loadPage(modId: sandbox.mod.manifest.id))
         }
@@ -253,12 +254,12 @@ final class Runner {
     }
 
     private func directDependents(of id: String) -> [Sandbox] {
-        sandboxes.filter { sandbox in sandbox.requires.contains { relation in relation.id == id } }
+        sandboxes.filter { sandbox in sandbox.mod.manifest.required.contains(id) }
     }
 
-    // The first interface it requires, by name, whose mod picked does not run, or nil.
-    private func missing(_ sandbox: Sandbox) -> Relation? {
-        sandbox.requires.first { relation in self.sandbox(of: relation.id!)?.state != .running }
+    // The first mod it requires, by id, that does not run, or nil.
+    private func missing(_ sandbox: Sandbox) -> String? {
+        sandbox.mod.manifest.required.first { id in self.sandbox(of: id)?.state != .running }
     }
 
     private func sandbox(of id: String) -> Sandbox? {

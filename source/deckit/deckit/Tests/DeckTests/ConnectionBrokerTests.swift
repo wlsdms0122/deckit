@@ -16,14 +16,14 @@ struct ConnectionBrokerTests {
 
     // MARK: - Initializer
     // MARK: - Test
-    @Test("a lifecycle that begins connects to the exports picked for what it requires, and a message goes across")
+    @Test("a lifecycle that begins connects to the exports of the mods it requires, and a message goes across")
     func beginningLifecycleConnects() throws {
         // Given
-        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
-        try fixture.write("a", requires: ["dep/api": "1.0.0"])
+        try fixture.write("dep")
+        try fixture.write("a", requires: ["dep": "1.0.0"])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
-        try start("dep", exportedIn: ["dep/api": 0], runner: runner, sut: sut)
+        try start("dep", exportedIn: ["dep": 0], runner: runner, sut: sut)
         _ = try runner.load(["a"])
 
         // When
@@ -45,12 +45,12 @@ struct ConnectionBrokerTests {
         #expect(sut.changes().isEmpty)
     }
 
-    @Test("exports opened in a lifecycle reach it and those above, and an optional dependency connects as it comes")
+    @Test("exports opened in a lifecycle reach it and those above, and a user of the major the owner provides connects")
     func exportsReachTheirLifecycleAndAbove() throws {
         // Given
-        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
-        try fixture.write("a", optional: ["dep/api": "1.0.0"])
-        try fixture.write("old", optional: ["dep/api": "2.0.0"])
+        try fixture.write("dep", provides: ["dep/api": [1, 2]])
+        try fixture.write("a", uses: ["dep/api": 1])
+        try fixture.write("old", uses: ["dep/api": 0])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
         for id in ["a", "old"] {
@@ -77,12 +77,52 @@ struct ConnectionBrokerTests {
         #expect(after.map(\.line) == ["connect 1 a#1@1 -> dep#1@1"])
     }
 
+    @Test("a mod named in [dependencies] connects at a version the dependent takes, by the exports it opened for its id")
+    func idDependencyConnectsAtItsVersion() throws {
+        // Given
+        try fixture.write("dep", version: "1.2.0", provides: ["dep/api": [1]])
+        try fixture.write("a", optional: ["dep": "1.0.0"])
+        try fixture.write("newer", optional: ["dep": "2.0.0"])
+        let runner = try fixture.runner()
+        let sut = ConnectionBroker(runner: runner)
+        for id in ["a", "newer"] {
+            try start(id, runner: runner, sut: sut)
+        }
+
+        // When
+        try start("dep", exportedIn: ["dep/api": 0], runner: runner, sut: sut)
+        let interfaceOnly = sut.changes()
+        _ = try runner.joined("dep", run: 1, summary: .object([:]), contributions: contribution(exportedIn: ["dep": 0]))
+        let opened = sut.changes()
+
+        // Then
+        #expect(interfaceOnly.isEmpty)
+        #expect(opened.map(\.line) == ["connect 1 a#1@0 -> dep#1@0"])
+    }
+
+    @Test("a mod that owns an interface it uses reaches no one by it")
+    func ownerUsingItsInterfaceReachesNoOne() throws {
+        // Given
+        try fixture.write("a", provides: ["x/api": [1]], uses: ["x/api": 1])
+        try fixture.write("b", provides: ["x/api": [1]])
+        let runner = try fixture.runner()
+        let sut = ConnectionBroker(runner: runner)
+
+        // When
+        try start("b", exportedIn: ["x/api": 0], runner: runner, sut: sut)
+        try start("a", exportedIn: ["x/api": 0], runner: runner, sut: sut)
+
+        // Then
+        #expect(sut.changes().isEmpty)
+        #expect(sut.provider(of: "x/api", for: "a") == nil)
+    }
+
     @Test("a connection ends with either lifecycle, and only once")
     func connectionEndsWithEitherLifecycle() throws {
         // Given
-        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
-        try fixture.write("a", optional: ["dep/api": "1.0.0"])
-        try fixture.write("b", optional: ["dep/api": "1.0.0"])
+        try fixture.write("dep", provides: ["dep/api": [1]])
+        try fixture.write("a", uses: ["dep/api": 1])
+        try fixture.write("b", uses: ["dep/api": 1])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
         try start("dep", exportedIn: ["dep/api": 0], runner: runner, sut: sut)
@@ -107,8 +147,8 @@ struct ConnectionBrokerTests {
     @Test("a connection its dependency's page refused is not made again while both its ends are up")
     func refusedConnectionStaysDown() throws {
         // Given
-        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
-        try fixture.write("a", optional: ["dep/api": "1.0.0"])
+        try fixture.write("dep", provides: ["dep/api": [1]])
+        try fixture.write("a", uses: ["dep/api": 1])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
         try start("a", runner: runner, sut: sut)
@@ -133,8 +173,8 @@ struct ConnectionBrokerTests {
     @Test("a run that waits for exports in a lifecycle they do not reach is told so")
     func unreachedWaitIsAProblem() throws {
         // Given
-        try fixture.write("dep", implements: ["dep/api": "1.0.0"])
-        try fixture.write("a", optional: ["dep/api": "1.0.0"])
+        try fixture.write("dep", provides: ["dep/api": [1]])
+        try fixture.write("a", uses: ["dep/api": 1])
         let runner = try fixture.runner()
         let sut = ConnectionBroker(runner: runner)
         try start("dep", exportedIn: ["dep/api": 1], runner: runner, sut: sut)
@@ -153,16 +193,17 @@ struct ConnectionBrokerTests {
         )
     }
 
-    @Test("once another mod is picked for an interface, the connection to the old pick ends and the new pick connects")
-    func repickConnectsTheNewPick() throws {
+    @Test("as an interface's owner changes, the connection to the old owner ends and the new owner connects")
+    func ownerChangeConnectsTheNewOwner() throws {
         // Given
-        try fixture.write("b", implements: ["x/api": "1.0.0"])
-        try fixture.write("c", implements: ["x/api": "1.0.0"])
-        try fixture.write("a", optional: ["x/api": "1.0.0"])
+        try fixture.write("b", provides: ["x/api": [1]])
+        try fixture.write("c", provides: ["x/api": [1]])
+        try fixture.write("d", provides: ["x/api": [1]])
+        try fixture.write("a", uses: ["x/api": 1])
         let catalog = try fixture.catalog()
         let runner = Runner(catalog: catalog)
         let sut = ConnectionBroker(runner: runner)
-        for id in ["b", "c"] {
+        for id in ["b", "c", "d"] {
             try start(id, exportedIn: ["x/api": 0], runner: runner, sut: sut)
         }
         _ = try runner.load(["a"])
@@ -170,22 +211,55 @@ struct ConnectionBrokerTests {
         _ = try runner.started("a", run: 1)
 
         // When
-        try catalog.order("x/api", order: ["c"], off: [])
+        try catalog.pin("x/api", to: "c")
         let unread = sut.changes()
         _ = catalog.read()
-        let repicked = sut.changes()
+        let pinned = sut.changes()
+        try catalog.pin("x/api", to: nil)
+        _ = catalog.read()
+        let cleared = sut.changes()
+        try fixture.remove("b")
+        _ = catalog.read()
+        let removed = sut.changes()
         let again = sut.changes()
 
         // Then
         #expect(connected.map(\.line) == ["1 a#1@0 -> b#1@0"])
         #expect(unread.isEmpty)
-        #expect(repicked.map(\.line) == ["disconnect 1 a#1@0 -> b#1@0", "connect 2 a#1@0 -> c#1@0"])
+        #expect(pinned.map(\.line) == ["disconnect 1 a#1@0 -> b#1@0", "connect 2 a#1@0 -> c#1@0"])
+        #expect(cleared.map(\.line) == ["disconnect 2 a#1@0 -> c#1@0", "connect 3 a#1@0 -> b#1@0"])
+        #expect(removed.map(\.line) == ["disconnect 3 a#1@0 -> b#1@0", "connect 4 a#1@0 -> c#1@0"])
         #expect(again.isEmpty)
     }
 
+    @Test("an owner that does not provide the major a mod uses is as none to it, and another owner that does connects")
+    func ownerOfAnotherMajorDoesNotConnect() throws {
+        // Given
+        try fixture.write("b", provides: ["x/api": [2]])
+        try fixture.write("c", provides: ["x/api": [1, 2]])
+        try fixture.write("a", uses: ["x/api": 1])
+        let catalog = try fixture.catalog()
+        let runner = Runner(catalog: catalog)
+        let sut = ConnectionBroker(runner: runner)
+        for id in ["b", "c"] {
+            try start(id, exportedIn: ["x/api": 0], runner: runner, sut: sut)
+        }
+
+        // When
+        try start("a", runner: runner, sut: sut)
+        let unspoken = sut.changes()
+        try catalog.pin("x/api", to: "c")
+        _ = catalog.read()
+        let spoken = sut.changes()
+
+        // Then
+        #expect(unspoken.isEmpty)
+        #expect(spoken.map(\.line) == ["connect 1 a#1@0 -> c#1@0"])
+    }
+
     // MARK: - Private
-    // The mod launches, begins its first lifecycle and starts, the exports of each interface in `exportedIn` opened in
-    // the lifecycle given.
+    // The mod launches, begins its first lifecycle and starts, the exports for each name in `exportedIn` opened in the
+    // lifecycle given.
     private func start(
         _ id: String,
         exportedIn: [String: Int] = [:],

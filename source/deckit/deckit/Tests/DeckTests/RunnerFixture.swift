@@ -23,27 +23,35 @@ struct RunnerFixture {
     }
 
     // MARK: - Public
-    // A mod that implements each interface in `implements` at the version given, and depends on those in `requires`
-    // and `optional` at the version given.
+    // A mod that provides each interface in `provides` at the majors given, uses each in `uses` at the major given,
+    // and depends on the mods in `requires` and `optional`, by id, at the version given.
     func write(
         _ id: String,
         version: String = "1.0.0",
-        implements: [String: String] = [:],
+        provides: [String: [Int]] = [:],
+        uses: [String: Int] = [:],
         requires: [String: String] = [:],
         optional: [String: String] = [:]
     ) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let implemented = implements.map { interface, version in "\"\(interface)\" = \"\(version)\"" }
-        let dependencies = requires.map { interface, want in "\"\(interface)\" = \"\(want)\"" }
-            + optional.map { interface, want in "\"\(interface)\" = { version = \"\(want)\", optional = true }" }
+        let provided = provides.sorted { one, other in one.key < other.key }.map { interface, majors in
+            "\"\(interface)\" = [" + majors.map(String.init).joined(separator: ", ") + "]"
+        }
+        let used = uses.sorted { one, other in one.key < other.key }.map { interface, major in
+            "\"\(interface)\" = \(major)"
+        }
+        let dependencies = requires.map { other, want in "\(other) = \"\(want)\"" }
+            + optional.map { other, want in "\(other) = { version = \"\(want)\", optional = true }" }
         let text = """
             id = "\(id)"
             version = "\(version)"
             api = "1.0.0"
             main = "main.js"
             """
-            + (implemented.isEmpty ? "" : "\n[implements]\n" + implemented.joined(separator: "\n"))
+            + (provided.isEmpty && used.isEmpty ? "" : "\n[interfaces]")
+            + (provided.isEmpty ? "" : "\nprovides = { " + provided.joined(separator: ", ") + " }")
+            + (used.isEmpty ? "" : "\nuses = { " + used.joined(separator: ", ") + " }")
             + (dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n"))
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         try Data().write(to: location.appending(path: "main.js"))
@@ -64,8 +72,8 @@ struct RunnerFixture {
         Runner(catalog: try catalog())
     }
 
-    // A catalog over what is written, read, the host app placing `implementations` in each interface's list.
-    func catalog(implementations: [String: [String]] = [:]) throws -> Catalog {
+    // A catalog over what is written, read.
+    func catalog() throws -> Catalog {
         let store = Store()
         let reader = try ManifestReader(
             api: try #require(Version("1.0.0")),
@@ -84,8 +92,7 @@ struct RunnerFixture {
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
             loadOrder: LoadOrder(file: settings, store: store),
-            implementationOrder: ImplementationOrder(file: settings, store: store),
-            implementations: implementations,
+            ownershipStore: OwnershipStore(file: settings, store: store),
             store: store
         )
         _ = catalog.read()

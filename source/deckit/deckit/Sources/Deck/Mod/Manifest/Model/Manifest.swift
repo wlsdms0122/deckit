@@ -15,9 +15,11 @@ public struct Manifest: Sendable {
     public let version: String?
     public let api: String?
     public let main: String?
-    // Interface -> the version of it the mod implements.
-    public let implements: [String: String]
-    // Interface -> how the mod depends on it.
+    // Interface -> the majors of it the mod provides.
+    public let provides: [String: [Int]]
+    // Interface -> the major of it the mod uses.
+    public let uses: [String: Int]
+    // Mod id -> how it depends on that mod.
     public let dependencies: [String: Dependency]
     public let permissions: [PermissionRequest]
     // What the layers' fields hold, by the key each is held under.
@@ -25,9 +27,14 @@ public struct Manifest: Sendable {
 
     // MARK: - Initializer
     // MARK: - Public
-    // The interfaces it runs only with.
+    // The mods it runs only with, by id.
     public var required: [String] {
         dependencies.filter { _, dependency in !dependency.optional }.keys.sorted()
+    }
+
+    // Whether `other` is one of its dependencies, at the version it names for it.
+    func depends(on other: Manifest) -> Bool {
+        dependencies[other.id]?.isSatisfied(by: other) ?? false
     }
 
     // What the manifest holds of a field the layer that asks added to deck: the reader reads each added field into it.

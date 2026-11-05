@@ -7,24 +7,20 @@
 
 import Foundation
 
-// The mods found, joined by their dependencies through the implementation picked for each interface: whether each
-// loads by what it requires, and who requires whom. A mod requires the mods picked for the interfaces it names without
-// `optional`.
+// The mods found, joined by their dependencies: whether each loads by what it requires, and who requires whom. A mod
+// requires its dependencies that are not optional.
 struct DependencyGraph {
     // MARK: - Property
     private let found: [Mod]
     // Mod id -> its place in `found`, the first of an id.
     private let places: [String: Int]
-    // Interface -> the id of the mod picked for it.
-    private let picks: [String: String]
 
     // MARK: - Initializer
-    init(_ found: [Mod], picks: [String: String]) {
+    init(_ found: [Mod]) {
         self.found = found
         self.places = Dictionary(found.enumerated().map { place, mod in (mod.manifest.id, place) }) { first, _ in
             first
         }
-        self.picks = picks
     }
 
     // MARK: - Public
@@ -44,9 +40,11 @@ struct DependencyGraph {
             changed = false
             for place in mods.indices where mods[place].problem == nil {
                 let manifest = mods[place].manifest
-                for interface in manifest.required {
-                    let dependency = manifest.dependencies[interface]!
-                    guard let problem = problem(interface, dependency, of: manifest, in: mods) else { continue }
+                for id in manifest.required {
+                    let dependency = manifest.dependencies[id]!
+                    guard let problem = problem(id, dependency, provider: places[id].map { mods[$0] }) else {
+                        continue
+                    }
 
                     mods[place].problem = problem
                     changed = true
@@ -55,11 +53,11 @@ struct DependencyGraph {
             }
         }
 
-        let resolved = mods
+        let provided = mods
         for place in mods.indices {
             let manifest = mods[place].manifest
-            mods[place].relations = relations(of: manifest, in: resolved)
-            mods[place].dependents = dependents(of: manifest.id, in: resolved)
+            mods[place].relations = relations(manifest.dependencies, in: provided)
+            mods[place].dependents = dependents(of: manifest.id, in: provided)
         }
 
         return mods
@@ -74,7 +72,7 @@ struct DependencyGraph {
         func place(_ mod: Mod) {
             guard ids.insert(mod.manifest.id).inserted else { return }
             if mod.problem == nil {
-                for other in requirements(of: mod.manifest).compactMap({ id in places[id] }).sorted() {
+                for other in mod.manifest.required.compactMap({ id in places[id] }).sorted() {
                     place(mods[other])
                 }
             }
@@ -95,7 +93,7 @@ struct DependencyGraph {
         let loading = Set(mods.map(\.manifest.id))
         var placed: Set<String> = []
         for mod in mods {
-            let later = requirements(of: mod.manifest).first { id in loading.contains(id) && !placed.contains(id) }
+            let later = mod.manifest.required.first { id in loading.contains(id) && !placed.contains(id) }
             if let later {
                 return (mod.manifest.id, later)
             }
@@ -105,8 +103,56 @@ struct DependencyGraph {
         return nil
     }
 
-    // Each cycle of mods that require one another, as `<id> → … → <id>`, the first id again at its end.
-    func cycles() -> [[String]] {
+    // MARK: - Private
+    // The mods that load and require `id`, directly or through another, by id: none of them loads without it. One that
+    // does not load, for this or another reason, is not among them.
+    private func dependents(of id: String, in mods: [Mod]) -> [String] {
+        var reached: Set<String> = []
+        var next = [id]
+        while let current = next.popLast() {
+            for mod in mods where mod.problem == nil && mod.manifest.required.contains(current) {
+                guard reached.insert(mod.manifest.id).inserted else { continue }
+                next.append(mod.manifest.id)
+            }
+        }
+        reached.remove(id)
+
+        return reached.sorted()
+    }
+
+    private func relations(_ dependencies: [String: Dependency], in mods: [Mod]) -> [Relation] {
+        dependencies.sorted { one, other in one.key < other.key }.map { id, dependency in
+            let provider = places[id].map { place in mods[place] }
+            return Relation(
+                id: id,
+                optional: dependency.optional,
+                version: dependency.version,
+                name: provider?.manifest.name ?? id,
+                problem: dependency.optional
+                    ? mismatch(id, dependency, provider: provider)
+                    : problem(id, dependency, provider: provider)
+            )
+        }
+    }
+
+    // What is wrong with an optional dependency: only a version that does not satisfy, of one that loads.
+    private func mismatch(_ id: String, _ dependency: Dependency, provider: Mod?) -> String? {
+        guard let provider, provider.problem == nil, !dependency.isSatisfied(by: provider.manifest) else { return nil }
+        return "uses \(id) \(dependency.version), and \(id) is \(provider.manifest.version ?? "of no version"), so it "
+            + "runs without it"
+    }
+
+    private func problem(_ id: String, _ dependency: Dependency, provider: Mod?) -> String? {
+        guard let provider else { return "needs \(id), which is not installed" }
+        guard provider.problem == nil else { return "needs \(id), which did not load" }
+        guard dependency.isSatisfied(by: provider.manifest) else {
+            return "needs \(id) \(dependency.version), and \(id) is \(provider.manifest.version ?? "of no version")"
+        }
+
+        return nil
+    }
+
+    private func cycles() -> [[String]] {
         var visiting: Set<String> = []
         var visited: Set<String> = []
         var loops: [[String]] = []
@@ -118,7 +164,7 @@ struct DependencyGraph {
             }
 
             visiting.insert(id)
-            for other in requirements(of: found[places[id]!].manifest) where places[other] != nil {
+            for other in found[places[id]!].manifest.required where places[other] != nil {
                 visit(other, trail: trail + [id])
             }
             visiting.remove(id)
@@ -130,83 +176,5 @@ struct DependencyGraph {
         }
 
         return loops
-    }
-
-    // MARK: - Private
-    // The id of the mod picked for `interface` as `manifest` sees it, or nil: the mod itself is as if none were picked.
-    private func pick(of interface: String, for manifest: Manifest) -> String? {
-        guard let id = picks[interface], id != manifest.id else { return nil }
-        return id
-    }
-
-    // The ids of the mods picked for the interfaces it requires, in the order of those interfaces, each once.
-    private func requirements(of manifest: Manifest) -> [String] {
-        var seen: Set<String> = []
-        return manifest.required.compactMap { interface in pick(of: interface, for: manifest) }
-            .filter { id in seen.insert(id).inserted }
-    }
-
-    // The mods that load and require `id`, directly or through another, by id: none of them loads without it. One that
-    // does not load, for this or another reason, is not among them.
-    private func dependents(of id: String, in mods: [Mod]) -> [String] {
-        var reached: Set<String> = []
-        var next = [id]
-        while let current = next.popLast() {
-            for mod in mods where mod.problem == nil && requirements(of: mod.manifest).contains(current) {
-                guard reached.insert(mod.manifest.id).inserted else { continue }
-                next.append(mod.manifest.id)
-            }
-        }
-        reached.remove(id)
-
-        return reached.sorted()
-    }
-
-    private func relations(of manifest: Manifest, in mods: [Mod]) -> [Relation] {
-        manifest.dependencies.sorted { one, other in one.key < other.key }.map { interface, dependency in
-            let pick = pick(of: interface, for: manifest).flatMap { id in places[id] }.map { place in mods[place] }
-            return Relation(
-                interface: interface,
-                optional: dependency.optional,
-                version: dependency.version,
-                id: pick?.manifest.id,
-                name: pick?.manifest.name,
-                problem: dependency.optional
-                    ? mismatch(interface, dependency, pick: pick)
-                    : problem(interface, dependency, of: manifest, in: mods)
-            )
-        }
-    }
-
-    // What is wrong with an optional dependency: only a version that does not satisfy, of a mod picked for it that
-    // loads.
-    private func mismatch(_ interface: String, _ dependency: Dependency, pick: Mod?) -> String? {
-        guard let pick,
-            pick.problem == nil,
-            !dependency.isSatisfied(by: pick.manifest.implements[interface])
-        else { return nil }
-
-        return "uses \(interface) \(dependency.version), and \(pick.manifest.id) implements it at "
-            + "\(pick.manifest.implements[interface] ?? "no version"), so it runs without it"
-    }
-
-    private func problem(
-        _ interface: String,
-        _ dependency: Dependency,
-        of manifest: Manifest,
-        in mods: [Mod]
-    ) -> String? {
-        guard let id = pick(of: interface, for: manifest) else {
-            return "needs \(interface), and no implementation of it is on"
-        }
-        guard let pick = places[id].map({ place in mods[place] }), pick.problem == nil else {
-            return "needs \(interface), which \(id) implements and did not load"
-        }
-        let implemented = pick.manifest.implements[interface]
-        guard dependency.isSatisfied(by: implemented) else {
-            return "needs \(interface) \(dependency.version), and \(id) implements it at \(implemented ?? "no version")"
-        }
-
-        return nil
     }
 }

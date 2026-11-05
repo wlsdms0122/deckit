@@ -80,11 +80,11 @@ struct CatalogTests {
     @Test("a cycle fails every mod in it, and a failure spreads to whoever requires it")
     func requirementsFail() throws {
         // Given
-        try write("a", in: source, implements: ["a/api": "1.0.0"], requires: ["b/api": "1.0.0"])
-        try write("b", in: source, implements: ["b/api": "1.0.0"], requires: ["a/api": "1.0.0"])
-        try write("c", in: source, requires: ["a/api": "1.0.0"])
-        try write("d", in: source, requires: ["e/api": "2.0.0"])
-        try write("e", in: source, implements: ["e/api": "1.0.0"])
+        try write("a", in: source, requires: ["b": "1.0.0"])
+        try write("b", in: source, requires: ["a": "1.0.0"])
+        try write("c", in: source, requires: ["a": "1.0.0"])
+        try write("d", in: source, requires: ["e": "2.0.0"])
+        try write("e", in: source)
         let sut = try catalog(sources: [source])
 
         // When
@@ -93,32 +93,32 @@ struct CatalogTests {
         // Then
         #expect(problems["a"] == "requires itself: a → b → a")
         #expect(problems["b"] == "requires itself: a → b → a")
-        #expect(problems["c"] == "needs a/api, which a implements and did not load")
-        #expect(problems["d"] == "needs e/api 2.0.0, and e implements it at 1.0.0")
+        #expect(problems["c"] == "needs a, which did not load")
+        #expect(problems["d"] == "needs e 2.0.0, and e is 1.0.0")
         #expect(problems["e"] == .some(nil))
     }
 
     @Test("a relation says why it is not there at the version named, an optional one only of a version not satisfied")
     func relationSaysWhy() throws {
         // Given
-        try write("x", in: source, implements: ["x/api": "1.2.0"])
-        try write("y", in: source, requires: ["x/api": "2.0.0"], optional: ["v/api": "1.0.0"])
-        try write("z", in: source, optional: ["x/api": "2.0.0"])
+        try write("x", in: source, version: "1.2.0")
+        try write("y", in: source, requires: ["x": "2.0.0"], optional: ["v": "1.0.0"])
+        try write("z", in: source, optional: ["x": "2.0.0"])
         let sut = try catalog(sources: [source])
 
         // When
         let problems = Dictionary(
             uniqueKeysWithValues: sut.mods().flatMap { mod in
-                mod.relations.map { relation in ("\(mod.manifest.id) \(relation.interface)", relation.problem) }
+                mod.relations.map { relation in ("\(mod.manifest.id) \(relation.id)", relation.problem) }
             }
         )
 
         // Then
         #expect(
             problems == [
-                "y x/api": "needs x/api 2.0.0, and x implements it at 1.2.0",
-                "y v/api": nil,
-                "z x/api": "uses x/api 2.0.0, and x implements it at 1.2.0, so it runs without it",
+                "y x": "needs x 2.0.0, and x is 1.2.0",
+                "y v": nil,
+                "z x": "uses x 2.0.0, and x is 1.2.0, so it runs without it",
             ]
         )
     }
@@ -126,10 +126,10 @@ struct CatalogTests {
     @Test("a mod lists the mods that load and require it, directly or through another")
     func dependentsReachThrough() throws {
         // Given
-        try write("x", in: source, implements: ["x/api": "1.0.0"])
-        try write("y", in: source, implements: ["y/api": "1.0.0"], requires: ["x/api": "1.0.0"])
-        try write("z", in: source, requires: ["y/api": "1.0.0"])
-        try write("w", in: source, requires: ["x/api": "1.0.0", "v/api": "1.0.0"])
+        try write("x", in: source)
+        try write("y", in: source, requires: ["x": "1.0.0"])
+        try write("z", in: source, requires: ["y": "1.0.0"])
+        try write("w", in: source, requires: ["x": "1.0.0", "v": "1.0.0"])
         let sut = try catalog(sources: [source])
 
         // When
@@ -139,11 +139,11 @@ struct CatalogTests {
         #expect(dependents == ["x": ["y", "z"], "y": ["z"], "z": [], "w": []])
     }
 
-    @Test("each loads after what it requires, otherwise where the load order kept places it, which reading leaves")
+    @Test("each loads after what it requires, otherwise as the load order kept places it, which reading leaves as it is")
     func loadOrderPutsRequirementsFirst() throws {
         // Given
-        try write("a", in: source, implements: ["a/api": "1.0.0"])
-        try write("b", in: source, requires: ["a/api": "1.0.0"])
+        try write("a", in: source)
+        try write("b", in: source, requires: ["a": "1.0.0"])
         try write("c", in: source)
         try write("d", in: source, main: nil)
         let settings = home.appending(path: "deck.json")
@@ -159,7 +159,7 @@ struct CatalogTests {
         #expect(try String(contentsOf: settings, encoding: .utf8) == #"{"loadOrder":["c","b","a"],"other":1}"#)
     }
 
-    @Test("installing keeps the load order as the mods come: one installed takes its place, one removed leaves")
+    @Test("installing or removing keeps the load order as the mods come: one installed takes its place, one removed leaves")
     func installKeepsLoadOrder() throws {
         // Given
         try write("a", in: home.appending(path: "mods"))
@@ -184,21 +184,21 @@ struct CatalogTests {
     func failedModKeepsItsPlace() throws {
         // Given
         try write("a", in: source)
-        try write("x", in: source, requires: ["y/api": "1.0.0"])
+        try write("x", in: source, requires: ["y": "1.0.0"])
         try write("b", in: source)
-        try write("y", in: source, implements: ["y/api": "1.0.0"])
+        try write("y", in: source)
         let sut = try catalog(sources: [source])
         try sut.arrange(["a", "y", "x", "b"])
         try FileManager.default.removeItem(at: source.appending(path: "y"))
 
         // When
         let failed = sut.read()
-        try write("y", in: source, implements: ["y/api": "1.0.0"])
+        try write("y", in: source)
         let back = sut.read()
 
         // Then
         #expect(failed.map(\.manifest.id) == ["a", "x", "b"])
-        #expect(failed.map(\.problem) == [nil, "needs y/api, and no implementation of it is on", nil])
+        #expect(failed.map(\.problem) == [nil, "needs y, which is not installed", nil])
         #expect(back.map(\.manifest.id) == ["a", "y", "x", "b"])
         #expect(back.allSatisfy { mod in mod.problem == nil })
     }
@@ -206,15 +206,14 @@ struct CatalogTests {
     @Test("arranging moves the ids named among the places they held, refusing one that loads before what it requires")
     func arrangeKeepsRequirementsFirst() throws {
         // Given
-        for id in ["c", "d"] {
+        for id in ["a", "c", "d"] {
             try write(id, in: source)
         }
-        try write("a", in: source, implements: ["a/api": "1.0.0"])
-        try write("b", in: source, requires: ["a/api": "1.0.0"])
-        try write("e", in: source, implements: ["e/api": "1.0.0"], requires: ["f/api": "1.0.0"])
-        try write("f", in: source, implements: ["f/api": "1.0.0"], requires: ["e/api": "1.0.0"])
-        try write("g", in: source, optional: ["h/api": "1.0.0"])
-        try write("h", in: source, implements: ["h/api": "1.0.0"])
+        try write("b", in: source, requires: ["a": "1.0.0"])
+        try write("e", in: source, requires: ["f": "1.0.0"])
+        try write("f", in: source, requires: ["e": "1.0.0"])
+        try write("g", in: source, optional: ["h": "1.0.0"])
+        try write("h", in: source)
         let sut = try catalog(sources: [source])
 
         // When
@@ -276,8 +275,8 @@ struct CatalogTests {
     func installShippedKeepsLoadOrder() throws {
         // Given
         try write("x", in: source)
-        try write("a", in: ship, implements: ["a/api": "1.0.0"])
-        try write("b", in: ship, requires: ["a/api": "1.0.0"])
+        try write("a", in: ship)
+        try write("b", in: ship, requires: ["a": "1.0.0"])
         let settings = home.appending(path: "deck.json")
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
         try Data(#"{"loadOrder":["x","gone","b"]}"#.utf8).write(to: settings)
@@ -372,103 +371,8 @@ struct CatalogTests {
         #expect(own == true)
     }
 
-    @Test("ordering an interface's list keeps the person's order and switches, refusing an interface with no list")
-    func orderKeepsThePersonsList() throws {
-        // Given
-        for id in ["a", "b", "c"] {
-            try write(id, in: source, implements: ["x/api": "1.0.0"])
-        }
-        let sut = try catalog(sources: [source], implementations: ["x/api": ["b"]])
-
-        // When
-        try sut.order("x/api", order: ["c", "b"], off: ["b"])
-        _ = sut.read()
-        let refused = Result { try sut.order("x/none", order: [], off: []) }
-
-        // Then
-        let list = try #require(sut.interfaces.first)
-        #expect(list.implementations.map(\.id) == ["c", "b", "a"])
-        #expect(list.implementations.map(\.on) == [true, false, true])
-        #expect(sut.pick(of: "x/api") == "c")
-        #expect(throws: LoadOrderError.noInterface("x/none")) { try refused.get() }
-    }
-
-    @Test("an order whose pick would make a cycle of mods that load now is refused, and nothing is kept")
-    func orderRefusesACycle() throws {
-        // Given
-        try write("a", in: source, implements: ["x/one": "1.0.0"], requires: ["x/two": "1.0.0"])
-        try write("b", in: source, implements: ["x/two": "1.0.0"])
-        try write("c", in: source, implements: ["x/two": "1.0.0"], requires: ["x/one": "1.0.0"])
-        let sut = try catalog(sources: [source])
-
-        // When
-        let refused = Result { try sut.order("x/two", order: ["c"], off: []) }
-        _ = sut.read()
-
-        // Then
-        #expect(throws: LoadOrderError.cycle(["a", "c", "a"])) { try refused.get() }
-        #expect(sut.pick(of: "x/two") == "b")
-        #expect(!FileManager.default.fileExists(atPath: home.appending(path: "deck.json").path(percentEncoded: false)))
-    }
-
-    @Test("a pick the load order places after a mod that requires it loads just before that mod")
-    func orderLoadsAPickBeforeItsDependent() throws {
-        // Given
-        try write("a", in: source, requires: ["x/api": "1.0.0"])
-        try write("b", in: source, implements: ["x/api": "1.0.0"])
-        try write("z", in: source, implements: ["x/api": "1.0.0"])
-        let sut = try catalog(sources: [source])
-
-        // When
-        try sut.order("x/api", order: ["z"], off: [])
-        let mods = sut.read()
-
-        // Then
-        #expect(sut.pick(of: "x/api") == "z")
-        #expect(mods.map(\.manifest.id) == ["z", "a", "b"])
-        #expect(mods.allSatisfy { mod in mod.problem == nil })
-    }
-
-    @Test("what the person set of a mod stays while it is off the list for a while, and goes once it is removed")
-    func orderOutlivesAbsenceNotRemoval() throws {
-        // Given
-        let mods = home.appending(path: "mods")
-        try write("a", in: mods, implements: ["x/api": "1.0.0"])
-        try write("b", in: mods, implements: ["x/api": "1.0.0"])
-        let settings = home.appending(path: "deck.json")
-        let sut = try catalog()
-        try sut.order("x/api", order: ["b", "a"], off: ["a"])
-        try FileManager.default.removeItem(at: mods.appending(path: "a"))
-
-        // When
-        _ = sut.read()
-        let absent = sut.interfaces.first?.implementations.map(\.id)
-        try sut.order("x/api", order: ["b"], off: [])
-        try write("a", in: mods, implements: ["x/api": "1.0.0"])
-        _ = sut.read()
-        let back = try #require(sut.interfaces.first)
-        _ = try sut.remove("a")
-        let removed = try JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: settings))
-
-        // Then
-        #expect(absent == ["b"])
-        #expect(back.implementations.map(\.id) == ["b", "a"])
-        #expect(back.implementations.map(\.on) == [true, false])
-        #expect(
-            removed == .object([
-                "implementations": .object([
-                    "x/api": .object(["order": .array([.string("b")]), "off": .array([])])
-                ])
-            ])
-        )
-    }
-
     // MARK: - Private
-    private func catalog(
-        sources: [URL] = [],
-        ship: [URL] = [],
-        implementations: [String: [String]] = [:]
-    ) throws -> Catalog {
+    private func catalog(sources: [URL] = [], ship: [URL] = []) throws -> Catalog {
         let store = Store()
         let reader = try ManifestReader(
             api: try #require(Version("1.0.0")),
@@ -478,7 +382,6 @@ struct CatalogTests {
         )
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
-        let settings = home.appending(path: "deck.json")
         return Catalog(
             folder: folder,
             sources: sources,
@@ -486,9 +389,8 @@ struct CatalogTests {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: ship, modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: settings, store: store),
-            implementationOrder: ImplementationOrder(file: settings, store: store),
-            implementations: implementations,
+            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
+            ownershipStore: OwnershipStore(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
     }
@@ -499,23 +401,33 @@ struct CatalogTests {
         folder: String? = nil,
         version: String = "1.0.0",
         main: String? = "main.js",
-        implements: [String: String] = [:],
+        provides: [String: [Int]] = [:],
+        uses: [String: Int] = [:],
         requires: [String: String] = [:],
         optional: [String: String] = [:]
     ) throws {
         let location = parent.appending(path: folder ?? id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let implemented = implements.map { interface, version in "\"\(interface)\" = \"\(version)\"" }
-        let dependencies = requires.map { interface, want in "\"\(interface)\" = \"\(want)\"" }
-            + optional.map { interface, want in "\"\(interface)\" = { version = \"\(want)\", optional = true }" }
+        let dependencies = requires.map { other, want in "\(other) = \"\(want)\"" }
+            + optional.map { other, want in "\(other) = { version = \"\(want)\", optional = true }" }
+        let relations = dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n")
+        let provided = provides.sorted { one, other in one.key < other.key }.map { interface, majors in
+            "\"\(interface)\" = [" + majors.map(String.init).joined(separator: ", ") + "]"
+        }
+        let used = uses.sorted { one, other in one.key < other.key }.map { interface, major in
+            "\"\(interface)\" = \(major)"
+        }
+        let interfaces = provided.isEmpty && used.isEmpty
+            ? ""
+            : "\n[interfaces]"
+                + (provided.isEmpty ? "" : "\nprovides = { " + provided.joined(separator: ", ") + " }")
+                + (used.isEmpty ? "" : "\nuses = { " + used.joined(separator: ", ") + " }")
         let text = """
             id = "\(id)"
             version = "\(version)"
             api = "1.0.0"
             main = "\(main ?? "missing.js")"
-            """
-            + (implemented.isEmpty ? "" : "\n[implements]\n" + implemented.joined(separator: "\n"))
-            + (dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n"))
+            """ + relations + interfaces
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         if let main {
             try Data().write(to: location.appending(path: main))

@@ -36,12 +36,12 @@ struct ManifestReaderTests {
             version = "1.0.0"
             api = "1.1.0"
             main = "dist/main.js"
-            [implements]
-            "notes/pages" = "2.1.0"
-            "files/open" = "1.0.0"
+            [interfaces]
+            provides = { "notes/pages" = [1, 2], "files/open" = [0] }
+            uses = { "notes/pages" = 2, "files/store" = 1 }
             [dependencies]
-            "files/store" = "1.0.0"
-            "notes/pages" = { version = "1.2.0", optional = true }
+            files = "1.0.0"
+            sync = { version = "1.2.0", optional = true }
             [permissions]
             "deckit.mods" = " to list them "
             "system.network" = "to sync"
@@ -54,14 +54,15 @@ struct ManifestReaderTests {
         // Then
         #expect(sut.problem(of: text) == nil)
         #expect(manifest.id == "notes")
-        #expect(manifest.implements == ["notes/pages": "2.1.0", "files/open": "1.0.0"])
+        #expect(manifest.provides == ["notes/pages": [1, 2], "files/open": [0]])
+        #expect(manifest.uses == ["notes/pages": 2, "files/store": 1])
         #expect(
             manifest.dependencies == [
-                "files/store": Dependency(version: "1.0.0", optional: false),
-                "notes/pages": Dependency(version: "1.2.0", optional: true)
+                "files": Dependency(version: "1.0.0", optional: false),
+                "sync": Dependency(version: "1.2.0", optional: true)
             ]
         )
-        #expect(manifest.required == ["files/store"])
+        #expect(manifest.required == ["files"])
         #expect(
             manifest.permissions == [
                 PermissionRequest(id: network.id, reason: "to sync", permission: network),
@@ -99,44 +100,68 @@ struct ManifestReaderTests {
                 #"main must be a path inside the mod's folder, as main = "dist/main.js", not "../x.js""#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = "1.0.0""#,
-                #"dependencies b: "b" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#n"b/c" = "1.0.0""#,
+                #"dependencies b/c: "b/c" is not a usable mod id: lower case letters, digits, . _ - and at most 64 of them"#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#n"b/c/d" = "1.0.0""#,
-                #"dependencies b/c/d: "b/c/d" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#na = "1.0.0""#,
+                "a names itself in [dependencies]"
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[implements]\#n"B/c" = "1.0.0""#,
-                #"implements B/c: "B/c" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { optional = true }"#,
+                #"dependencies b needs a version written as "MAJOR.MINOR.PATCH", as other = "1.0.0", or other = { version = "1.0.0", optional = true }"#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[implements]\#n"a/c" = "1.0""#,
-                #"implements a/c must be written as "MAJOR.MINOR.PATCH", not "1.0""#
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { version = "1.0.0", optional = 1 }"#,
+                "dependencies b: optional must be true or false"
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#nimplements = "a/c""#,
-                #"implements must be an [implements] table of interface = version, as "other/name" = "1.0.0""#
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#nb = { version = "1.0.0", lazy = true }"#,
+                #"dependencies b has "lazy"; it takes version and optional"#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[implements]\#n"b/c" = "1.0.0"\#n[dependencies]\#n"b/c" = "1.0.0""#,
-                "a requires b/c, which it implements: it may name it as optional"
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#ninterfaces = 1"#,
+                #"interfaces must be an [interfaces] table, as provides = { "other/name" = [1] } and uses = { "other/name" = 1 }"#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[implements]\#n"b/c" = "1.0.0"\#n[dependencies]\#n"b/c" = { version = "1.0.0" }"#,
-                "a requires b/c, which it implements: it may name it as optional"
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nimplements = 1"#,
+                #"interfaces has "implements"; it takes provides and uses"#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#n"b/c" = { optional = true }"#,
-                #"dependencies b/c needs a version written as "MAJOR.MINOR.PATCH", as "other/name" = "1.0.0", or "other/name" = { version = "1.0.0", optional = true }"#
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = 1"#,
+                #"interfaces.provides must be written as provides = { "other/name" = [1] }"#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#n"b/c" = { version = "1.0.0", optional = 1 }"#,
-                "dependencies b/c: optional must be true or false"
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "B/c" = [1] }"#,
+                #"interfaces.provides B/c: "B/c" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
             ),
             (
-                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[dependencies]\#n"b/c" = { version = "1.0.0", lazy = true }"#,
-                #"dependencies b/c has "lazy"; it takes version and optional"#
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "b" = [1] }"#,
+                #"interfaces.provides b: "b" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "b/c" = [] }"#,
+                #"interfaces.provides b/c must be a list of majors, as [1], not []"#
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "b/c" = 1 }"#,
+                #"interfaces.provides b/c must be a list of majors, as [1], not 1"#
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nprovides = { "b/c" = ["1.0.0"] }"#,
+                #"interfaces.provides b/c must be a list of majors, as [1], not ["1.0.0"]"#
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nuses = { "b/c/d" = 1 }"#,
+                #"interfaces.uses b/c/d: "b/c/d" is not an interface: <mod id>/<name>, each lower case letters, digits, . _ - and at most 64 of them"#
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nuses = { "b/c" = -1 }"#,
+                #"interfaces.uses b/c must be a major, as 1, not -1"#
+            ),
+            (
+                #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[interfaces]\#nuses = { "b/c" = [1] }"#,
+                #"interfaces.uses b/c must be a major, as 1, not [1]"#
             ),
             (
                 #"id = "a"\#nversion = "1.0.0"\#napi = "1.0.0"\#nmain = "m.js"\#n[permissions]\#n"deckit.mods" = " ""#,

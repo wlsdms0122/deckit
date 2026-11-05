@@ -18,16 +18,14 @@ public final class Deckit {
     public let configuration: Configuration
 
     // MARK: - Initializer
-    // `schemeHandlers` is, by scheme, the mods the app asks first to open an address, `implementations`, by interface,
-    // the mods the app places first in its list, and `permissions` those the layers the driver runs define; deckit adds
-    // those it checks itself.
+    // `schemeHandlers` is, by scheme, the mods the app asks first to open an address, and `permissions` those the layers
+    // the driver runs define; deckit adds those it checks itself.
     public init(
         home: URL,
         ship: [URL],
         sources: [URL],
         api: Version,
         schemeHandlers: [String: [String]],
-        implementations: [String: [String]],
         permissions: [Permission]
     ) throws {
         let urls = URLsField()
@@ -37,7 +35,6 @@ public final class Deckit {
             ship: ship,
             sources: sources,
             api: api,
-            implementations: implementations,
             permissions: permissions + own,
             fields: [urls]
         )

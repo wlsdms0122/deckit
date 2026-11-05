@@ -24,7 +24,7 @@ struct DeckitFixture {
     }
 
     // MARK: - Public
-    // `requires` are the interfaces it requires, at 1.0.0.
+    // `requires` are the mods it requires, by id, at 1.0.0.
     func write(
         _ id: String,
         api: String = "1.0.0",
@@ -40,7 +40,7 @@ struct DeckitFixture {
                 .joined(separator: "\n")
         let required = requires.isEmpty
             ? ""
-            : "\n[dependencies]\n" + requires.map { interface in "\"\(interface)\" = \"1.0.0\"" }
+            : "\n[dependencies]\n" + requires.map { other in "\(other) = \"1.0.0\"" }
                 .joined(separator: "\n")
         let patterns = urls.isEmpty
             ? ""
@@ -69,7 +69,6 @@ struct DeckitFixture {
             sources: [source],
             api: try #require(Version("1.0.0")),
             schemeHandlers: schemeHandlers,
-            implementations: [:],
             permissions: []
         )
         let mods = sut.deck.readCatalog()

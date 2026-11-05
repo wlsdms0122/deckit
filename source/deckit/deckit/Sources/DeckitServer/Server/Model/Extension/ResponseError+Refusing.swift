@@ -74,17 +74,18 @@ extension ResponseError {
             case .requiredLater:
                 "REQUIRED_LATER"
 
-            case .noInterface:
-                "INTERFACE"
-
-            case .cycle:
-                "CYCLE"
             }
 
         case let error as DeckSettingsError:
             switch error {
             case .unreadable:
                 "UNREADABLE"
+            }
+
+        case let error as PinError:
+            switch error {
+            case .notProvider:
+                "NOT_PROVIDER"
             }
 
         case let error as ManifestError:

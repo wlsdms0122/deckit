@@ -7,12 +7,14 @@
 
 import Foundation
 
-// A mod reaches another only through a connection: a lifecycle of its run and the exports the mod picked for an
-// interface it names in its [dependencies] opened for that interface, while that mod implements it at a version the
-// dependent takes. A mod picked for an interface it depends on itself is none. Exports opened in lifecycle g reach the
-// lifecycles stacked at g and above. A connection stands from when both lifecycles are up, the dependent's run
-// launching or running and the dependency's running, until either lifecycle ends or another mod is picked for the
-// interface. A lifecycle is up from when its page begins it until its page says it ended, or its run has ended.
+// A mod reaches another only through a connection, by a name its manifest gives: a lifecycle of its run and the exports
+// another mod opened for that name. By a mod id it names in its [dependencies], the exports that mod opened for its
+// dependents, while it is at a version the dependent takes. By an interface it names in its `uses`, the exports the
+// interface's owner opened for it, while the owner provides the major the dependent uses; a mod that owns an interface
+// it uses reaches no one by it. Exports opened in lifecycle g reach the lifecycles stacked at g and above. A connection
+// stands from when both lifecycles are up, the dependent's run launching or running and the dependency's running, until
+// either lifecycle ends or the interface has another owner. A lifecycle is up from when its page begins it until its
+// page says it ended, or its run has ended.
 public final class ConnectionBroker {
     // MARK: - Property
     private let runner: Runner
@@ -66,7 +68,7 @@ public final class ConnectionBroker {
     }
 
     // The connections that ended since, then those that stand since and were not answered to a beginning lifecycle.
-    // A run that ended has no lifecycle up, and a connection to a mod no longer picked for its interface ends.
+    // A run that ended has no lifecycle up, and a connection to an interface's owner ends as it has another.
     func changes() -> [Effect] {
         up = up.filter { id, up in
             runner.run(of: id).map { run in run.number == up.run && run.state != .notRunning } ?? false
@@ -74,11 +76,12 @@ public final class ConnectionBroker {
         let ended = connections.filter { connection in
             !isUp(connection.dependent)
                 || !isUp(connection.dependency)
-                || runner.pick(of: connection.name) != connection.dependency.modId
+                || provider(of: connection.name, for: connection.dependent.modId) != connection.dependency.modId
         }
         connections.removeAll { connection in ended.contains(connection) }
         refused = refused.filter { refusal in
-            refusal.ends.allSatisfy(isUp) && runner.pick(of: refusal.name) == refusal.ends[1].modId
+            refusal.ends.allSatisfy(isUp)
+                && provider(of: refusal.name, for: refusal.ends[0].modId) == refusal.ends[1].modId
         }
         var effects = ended.map(Effect.disconnect)
         for (id, up) in up.sorted(by: { one, other in one.key < other.key }) {
@@ -93,25 +96,35 @@ public final class ConnectionBroker {
     }
 
     // What the run waits for in a lifecycle the exports it waits for do not reach: `awaits` names the lowest lifecycle
-    // that waits for each interface, whose exports are those of the mod picked for it.
+    // that waits for each name, whose exports are those of the mod it reaches by it.
     func problems(of run: Run) -> [String] {
         guard let awaits = run.contributions?.awaits else { return [] }
 
-        return awaits.keys.sorted().compactMap { interface in
-            guard let pick = runner.pick(of: interface),
-                pick != run.modId,
-                let opened = runner.run(of: pick)?.contributions?.exportedIn[interface],
-                let lifecycle = awaits[interface],
+        return awaits.keys.sorted().compactMap { name in
+            guard let id = provider(of: name, for: run.modId),
+                let opened = runner.run(of: id)?.contributions?.exportedIn[name],
+                let lifecycle = awaits[name],
                 opened > lifecycle
             else { return nil }
-            return "it waits for \(interface) in a lifecycle its exports do not reach: they are opened in one stacked "
-                + "above"
+            return "it waits for \(name) in a lifecycle its exports do not reach: they are opened in one stacked above"
         }
     }
 
+    // The id of the mod the mod of `id` reaches by `name`, or nil: the mod a mod id names, the owner of an interface
+    // but for the mod itself, as the catalog was last read. Nil for a name its manifest does not give.
+    func provider(of name: String, for id: String) -> String? {
+        guard let manifest = runner.mod(of: id)?.manifest else { return nil }
+        if manifest.dependencies[name] != nil {
+            return name
+        }
+        guard manifest.uses[name] != nil, let owner = runner.owner(of: name), owner != id else { return nil }
+
+        return owner
+    }
+
     // MARK: - Private
-    // The connections the dependent lifecycle has but did not have, now made: one for each interface its mod depends
-    // on whose pick implements it at a version the mod takes, runs, and opened its exports at the lifecycle or under.
+    // The connections the dependent lifecycle has but did not have, now made: one for each name its mod gives whose
+    // mod takes it, runs, and opened its exports for the name at the lifecycle or under.
     private func open(for dependent: Endpoint) -> [Connection] {
         guard let mod = runner.mod(of: dependent.modId),
             let run = runner.run(of: dependent.modId),
@@ -119,41 +132,51 @@ public final class ConnectionBroker {
         else { return [] }
 
         var opened: [Connection] = []
-        for (interface, dependency) in mod.manifest.dependencies.sorted(by: { one, other in one.key < other.key }) {
-            guard let id = runner.pick(of: interface),
-                id != mod.manifest.id,
+        let names = (Array(mod.manifest.dependencies.keys) + Array(mod.manifest.uses.keys)).sorted()
+        for name in names {
+            guard let id = provider(of: name, for: mod.manifest.id),
                 let other = runner.mod(of: id),
-                dependency.isSatisfied(by: other.manifest.implements[interface]),
+                takes(other.manifest, by: name, for: mod.manifest),
                 let otherRun = runner.run(of: id),
                 otherRun.state == .running,
-                let lifecycle = otherRun.contributions?.exportedIn[interface],
+                let lifecycle = otherRun.contributions?.exportedIn[name],
                 lifecycle <= dependent.lifecycle
             else { continue }
 
             let exports = Endpoint(modId: id, run: otherRun.number, lifecycle: lifecycle)
             let standing = connections.contains { connection in
-                connection.name == interface
+                connection.name == name
                     && connection.dependent == dependent
                     && connection.dependency == exports
             }
             let refusedBefore = refused.contains { refusal in
-                refusal.name == interface && refusal.ends == [dependent, exports]
+                refusal.name == name && refusal.ends == [dependent, exports]
             }
             guard isUp(exports), !standing, !refusedBefore else { continue }
 
             lastId += 1
             let connection = Connection(
                 id: lastId,
-                name: interface,
+                name: name,
                 dependent: dependent,
                 dependency: exports,
-                required: !dependency.optional
+                required: !(mod.manifest.dependencies[name]?.optional ?? true)
             )
             connections.append(connection)
             opened.append(connection)
         }
 
         return opened
+    }
+
+    // Whether `dependent` takes `provider` by `name`: a mod at the version it names for it, an owner that provides the
+    // major it uses.
+    private func takes(_ provider: Manifest, by name: String, for dependent: Manifest) -> Bool {
+        if let major = dependent.uses[name] {
+            return provider.provides[name]?.contains(major) ?? false
+        }
+
+        return dependent.depends(on: provider)
     }
 
     private func isUp(_ endpoint: Endpoint) -> Bool {

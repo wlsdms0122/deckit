@@ -44,6 +44,9 @@ extension Effect {
         case let .disconnect(connection):
             "disconnect \(connection.line)"
 
+        case let .deliver(delivery):
+            "deliver \(delivery.name) to \(delivery.listeners.joined(separator: ", "))"
+
         case let .layer(change):
             "layer \(type(of: change))"
         }

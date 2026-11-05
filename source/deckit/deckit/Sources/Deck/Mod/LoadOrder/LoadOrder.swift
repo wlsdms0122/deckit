@@ -29,7 +29,7 @@ final class LoadOrder {
     }
 
     func write(_ ids: [String]) throws {
-        try settings.write(.array(ids.map(JSONValue.string)), as: key)
+        try settings.write([key: .array(ids.map(JSONValue.string))])
     }
 
     // MARK: - Private

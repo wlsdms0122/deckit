@@ -25,6 +25,8 @@ public enum Effect: Sendable {
     case connect(Connection)
     // Tell both pages the connection has ended.
     case disconnect(Connection)
+    // Tell the listeners' pages the event.
+    case deliver(EventDelivery)
     // What a layer on deck tells has changed of its own.
     case layer(any LayerChange)
 

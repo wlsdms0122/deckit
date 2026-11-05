@@ -143,7 +143,7 @@ struct URLRouterTests {
         // Given
         try fixture.write("a", urls: ["https:*"])
         try fixture.write("other-api", api: "2.0.0", urls: ["https:*"])
-        try fixture.write("wanting", urls: ["https:*"], requires: ["x/missing"])
+        try fixture.write("wanting", urls: ["https:*"], requires: ["missing"])
         let sut = try fixture.deckit()
 
         // When

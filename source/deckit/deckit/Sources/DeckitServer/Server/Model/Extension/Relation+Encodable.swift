@@ -11,10 +11,9 @@ import Deck
 extension Relation: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
-        case interface
+        case id
         case optional
         case version
-        case id
         case name
         case problem
     }
@@ -23,11 +22,10 @@ extension Relation: Encodable {
     // MARK: - Public
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(interface, forKey: .interface)
+        try container.encode(id, forKey: .id)
         try container.encode(optional, forKey: .optional)
         try container.encode(version, forKey: .version)
-        try container.encodeIfPresent(id, forKey: .id)
-        try container.encodeIfPresent(name, forKey: .name)
+        try container.encode(name, forKey: .name)
         try container.encodeIfPresent(problem, forKey: .problem)
     }
 

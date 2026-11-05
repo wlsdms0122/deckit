@@ -7,8 +7,8 @@
 
 import Foundation
 
-// How the person arranged a list of mods, an interface's implementations or a scheme's handlers: the mods placed, in
-// order, and those switched off, by id.
+// How the person arranged a list of mods, such as a scheme's handlers: the mods placed, in order, and those switched
+// off, by id.
 public struct ListPreference: Codable, Equatable, Sendable {
     // MARK: - Property
     public static let none = ListPreference(order: [], off: [])

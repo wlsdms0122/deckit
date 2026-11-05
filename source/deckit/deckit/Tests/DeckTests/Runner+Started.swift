@@ -12,8 +12,8 @@ extension Runner {
     // MARK: - Property
     // MARK: - Initializer
     // MARK: - Public
-    // It started, the exports of each interface in `exportedIn` opened in the lifecycle given, and waiting for the
-    // interfaces in `awaits` from the lifecycles given.
+    // It started, its exports for each name in `exportedIn` opened in the lifecycle given, and waiting for the exports
+    // it reaches by the names in `awaits` from the lifecycles given.
     func started(
         _ id: String,
         run number: Int,

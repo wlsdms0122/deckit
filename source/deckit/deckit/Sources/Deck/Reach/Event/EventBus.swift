@@ -8,8 +8,8 @@
 import Foundation
 
 // Mods say what happened to them through deck, never to each other: an event is named after the mod that sent it, so
-// none speaks for another. It goes to the runs that listen to it, and only from a run that is running. A run that has
-// ended hears nothing.
+// none speaks for another, and deck's own after the interface it tells of. It goes to the runs that listen to it, and
+// only from a run that is running. A run that has ended hears nothing.
 public final class EventBus {
     // MARK: - Property
     private let runner: Runner
@@ -36,6 +36,12 @@ public final class EventBus {
         let listeners = listening.filter { _, listens in listens.names.contains(scoped) }
 
         return EventDelivery(name: scoped, listeners: listeners.keys.sorted())
+    }
+
+    // Deck's own event `name`, of no run, and the mods to tell it.
+    func announce(_ name: String) -> EventDelivery {
+        let listeners = listening.filter { _, listens in listens.names.contains(name) }
+        return EventDelivery(name: name, listeners: listeners.keys.sorted())
     }
 
     // The runs that ended listen no more.

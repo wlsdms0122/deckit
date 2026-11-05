@@ -11,7 +11,7 @@ import Deckit
 
 // Each as `effect`, its name, with the mod's id as `mod` and a run's number as `run`, as main names them in what it
 // asks; the mod a sandbox opens for is `found`, as the catalog reads it. A layer's change is named by what it is: the
-// keymap is `bindingsChanged`.
+// keymap is `bindingsChanged`. An event delivered is `name` and `listeners`, as `event/emit` answers it.
 extension Effect: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
@@ -66,6 +66,10 @@ extension Effect: Encodable {
         case let .disconnect(connection):
             try container.encode("disconnect", forKey: .effect)
             try container.encode(connection, forKey: .connection)
+
+        case let .deliver(delivery):
+            try delivery.encode(to: encoder)
+            try container.encode("deliver", forKey: .effect)
 
         case let .layer(keymap as ResolvedKeymap):
             try keymap.encode(to: encoder)

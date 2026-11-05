@@ -59,8 +59,8 @@ struct RunnerTests {
     @Test("a mod loaded while what it requires launches fails as it launches, and launches once that runs")
     func dependentLoadsOnceItsRequirementRuns() throws {
         // Given
-        try write("a", implements: ["a/api": "1.0.0"])
-        try write("b", requires: ["a/api": "1.0.0"])
+        try write("a")
+        try write("b", requires: ["a": "1.0.0"])
         let (sut, catalog) = try runner()
         _ = catalog.read()
 
@@ -86,8 +86,8 @@ struct RunnerTests {
     @Test("a mod terminates before what it requires, whose stop() is asked once it has ended")
     func dependentsEndFirst() throws {
         // Given
-        try write("a", implements: ["a/api": "1.0.0"])
-        try write("b", requires: ["a/api": "1.0.0"])
+        try write("a")
+        try write("b", requires: ["a": "1.0.0"])
         let (sut, catalog) = try runner()
         _ = catalog.read()
         try launch(["a", "b"], with: sut)
@@ -112,8 +112,8 @@ struct RunnerTests {
     @Test("a mod whose requirement crashed terminates, and stays down once that runs again")
     func dependentStaysDownAfterItsRequirement() throws {
         // Given
-        try write("a", implements: ["a/api": "1.0.0"])
-        try write("b", requires: ["a/api": "1.0.0"])
+        try write("a")
+        try write("b", requires: ["a": "1.0.0"])
         let (sut, catalog) = try runner()
         _ = catalog.read()
         try launch(["a", "b"], with: sut)
@@ -313,9 +313,9 @@ struct RunnerTests {
         let (sut, catalog) = try runner()
         _ = catalog.read()
         _ = try sut.load(["a"])
-        let joining = Contribution(exportedIn: ["a/api": 1], awaits: ["b/api": 1], layers: ["layer": .array([])])
+        let joining = Contribution(exportedIn: ["a": 1], awaits: ["b": 1], layers: ["layer": .array([])])
         let early = try sut.joined("a", run: 1, summary: .object([:]), contributions: joining)
-        _ = try sut.started("a", run: 1, exportedIn: ["a/api": 0])
+        _ = try sut.started("a", run: 1, exportedIn: ["a": 0])
 
         // When
         let joined = try sut.joined("a", run: 1, summary: .object(["x": .bool(true)]), contributions: joining)
@@ -325,8 +325,8 @@ struct RunnerTests {
         #expect(early.isEmpty)
         #expect(describe(joined) == ["keep a 1 "])
         #expect(run.summary == .object(["x": .bool(true)]))
-        #expect(run.contributions?.exportedIn == ["a/api": 1])
-        #expect(run.contributions?.awaits == ["b/api": 1])
+        #expect(run.contributions?.exportedIn == ["a": 1])
+        #expect(run.contributions?.awaits == ["b": 1])
         #expect(run.contributions?.layers == ["layer": .array([])])
     }
 
@@ -341,7 +341,6 @@ struct RunnerTests {
         )
         let modFolder = ModFolder(reader: reader, store: store)
         let folder = home.appending(path: "mods")
-        let settings = home.appending(path: "deck.json")
         let catalog = Catalog(
             folder: folder,
             sources: [source],
@@ -349,9 +348,8 @@ struct RunnerTests {
             modFolder: modFolder,
             dataFolder: DataFolder(folder: home.appending(path: "data"), store: store),
             installer: Installer(home: home, folder: folder, ship: [], modFolder: modFolder, store: store),
-            loadOrder: LoadOrder(file: settings, store: store),
-            implementationOrder: ImplementationOrder(file: settings, store: store),
-            implementations: [:],
+            loadOrder: LoadOrder(file: home.appending(path: "deck.json"), store: store),
+            ownershipStore: OwnershipStore(file: home.appending(path: "deck.json"), store: store),
             store: store
         )
 
@@ -362,21 +360,19 @@ struct RunnerTests {
         _ id: String,
         version: String = "1.0.0",
         main: String? = "main.js",
-        implements: [String: String] = [:],
         requires: [String: String] = [:]
     ) throws {
         let location = source.appending(path: id)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let implemented = implements.map { interface, version in "\"\(interface)\" = \"\(version)\"" }
-        let dependencies = requires.map { interface, want in "\"\(interface)\" = \"\(want)\"" }
+        let dependencies = requires.isEmpty
+            ? ""
+            : "\n[dependencies]\n" + requires.map { other, want in "\(other) = \"\(want)\"" }.joined(separator: "\n")
         let text = """
             id = "\(id)"
             version = "\(version)"
             api = "1.0.0"
             main = "\(main ?? "missing.js")"
-            """
-            + (implemented.isEmpty ? "" : "\n[implements]\n" + implemented.joined(separator: "\n"))
-            + (dependencies.isEmpty ? "" : "\n[dependencies]\n" + dependencies.joined(separator: "\n"))
+            """ + dependencies
         try Data(text.utf8).write(to: location.appending(path: "manifest.toml"))
         if let main {
             try Data().write(to: location.appending(path: main))

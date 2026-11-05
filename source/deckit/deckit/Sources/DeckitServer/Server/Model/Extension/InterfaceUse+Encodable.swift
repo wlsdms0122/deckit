@@ -1,21 +1,21 @@
 //
-//  InterfaceList+Encodable.swift
+//  InterfaceUse+Encodable.swift
 //  DeckitServer
 //
-//  Created by JSilver on 11/4/26.
+//  Created by JSilver on 11/6/26.
 //
 
 import Foundation
 import Deck
 
-extension InterfaceList: Encodable {
+extension InterfaceUse: Encodable {
     // MARK: - Property
     private enum CodingKeys: String, CodingKey {
         case interface
+        case major
+        case owner
         case name
-        case undecided
-        case implementations
-        case pick
+        case problem
     }
 
     // MARK: - Initializer
@@ -23,10 +23,10 @@ extension InterfaceList: Encodable {
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(interface, forKey: .interface)
+        try container.encode(major, forKey: .major)
+        try container.encodeIfPresent(owner, forKey: .owner)
         try container.encodeIfPresent(name, forKey: .name)
-        try container.encode(undecided, forKey: .undecided)
-        try container.encode(implementations, forKey: .implementations)
-        try container.encodeIfPresent(pick?.id, forKey: .pick)
+        try container.encodeIfPresent(problem, forKey: .problem)
     }
 
     // MARK: - Private
