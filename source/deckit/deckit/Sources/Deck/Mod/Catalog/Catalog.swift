@@ -84,6 +84,7 @@ public final class Catalog {
         for place in lastRead.indices where lastRead[place].problem == nil {
             lastRead[place].declarationProblems = lastRead[place].declared.problems + judge(lastRead[place])
         }
+        listed = listed.compactMap { mod in lastRead.first { read in read.manifest.id == mod.manifest.id } }
 
         return lastRead
     }
