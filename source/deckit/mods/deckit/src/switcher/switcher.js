@@ -1,5 +1,5 @@
-// What Deckit adds to the switcher through its `setActions(actions)`: what its commands do, those with an arg
-// searched inside the action. Each action's value is `{ action, ...args }`, run by `does[action](args)`; one that
+// What Deckit adds to the switcher through its `setActions(actions)`: what its commands do that needs the run, those
+// with an arg searched inside the action; the others are declared in contributes.json. Each action's value is `{ action, ...args }`, run by `does[action](args)`; one that
 // opens a search is the value its results add an arg to. `address`, `modsFor(query)` and `versions()` answer what is
 // searched, and `appName` is the app's.
 function switcher({ util, appName, address, modsFor, versions, does }) {
@@ -20,9 +20,6 @@ function switcher({ util, appName, address, modsFor, versions, does }) {
                 value: { action: 'restart-mod' },
             },
             { label: 'Restart ' + appName, keywords: ['relaunch', '재시작'], value: { action: 'restart-app' } },
-            { label: 'Show Mods Folder', keywords: ['finder', 'reveal'], value: { action: 'show-mods-folder' } },
-            { label: 'Show Data Folder', keywords: ['finder', 'reveal'], value: { action: 'show-data-folder' } },
-            { label: 'Show Log', keywords: ['finder', 'reveal', '로그'], value: { action: 'show-log' } },
             {
                 label: 'About ' + appName,
                 keywords: ['version', '버전', 'copy'],

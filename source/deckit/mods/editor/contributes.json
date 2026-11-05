@@ -15,5 +15,14 @@
             "description": "Opens a folder as a workspace, or brings it to the front; with none given, asks for one.",
             "params": { "type": "object", "properties": { "path": { "type": "string", "title": "Folder" } } }
         }
+    },
+    "interfaces": {
+        "switcher/actions": [
+            {
+                "label": "Open Folder…",
+                "keywords": ["열기", "폴더", "워크스페이스", "open", "folder", "workspace", "project"],
+                "command": "open-folder"
+            }
+        ]
     }
 }

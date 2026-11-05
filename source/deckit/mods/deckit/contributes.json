@@ -26,5 +26,12 @@
         "show-mods-folder": { "description": "Shows the folder of the installed mods in Finder." },
         "show-data-folder": { "description": "Shows the folder where mods keep their data in Finder." },
         "show-log": { "description": "Shows the app's log in Finder." }
+    },
+    "interfaces": {
+        "switcher/actions": [
+            { "label": "Show Mods Folder", "keywords": ["finder", "reveal"], "command": "show-mods-folder" },
+            { "label": "Show Data Folder", "keywords": ["finder", "reveal"], "command": "show-data-folder" },
+            { "label": "Show Log", "keywords": ["finder", "reveal", "로그"], "command": "show-log" }
+        ]
     }
 }

@@ -1,7 +1,8 @@
 const { nameOf } = require('../path/path.js');
 
 // What the Editor adds to the switcher through its `setActions(actions)`: New File named for the workspace in front,
-// the workspaces and recent folders to go to, a search of each workspace's files, and what its keys do. Each action's
+// the workspaces and recent folders to go to, a search of each workspace's files, and what its keys do. Open Folder…
+// is declared in contributes.json. Each action's
 // value is `{ action, ...args }`, run by `does[action](args, { ready })`; one that opens a search is the value its
 // results add an arg to. `filesOf(workspace, query)` answers the files found in one.
 function switcher({ ui, util, workspaces, recentFolders, filesOf, show, does }) {
@@ -55,11 +56,6 @@ function switcher({ ui, util, workspaces, recentFolders, filesOf, show, does }) 
                 label: 'Open File…',
                 keywords: ['열기', '파일', 'open', 'file'],
                 value: { action: 'open-file' },
-            },
-            {
-                label: 'Open Folder…',
-                keywords: ['열기', '폴더', '워크스페이스', 'open', 'folder', 'workspace', 'project'],
-                value: { action: 'open-folder' },
             },
             { label: 'New Folder', value: { action: 'new-folder' } },
             { label: 'Move to Trash', value: { action: 'trash' } },

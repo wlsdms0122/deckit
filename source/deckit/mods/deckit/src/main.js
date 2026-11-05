@@ -54,9 +54,6 @@ class Deckit {
                 'open-address': ({ address: given }) => address.go(given),
                 'restart-mod': ({ mod }) => restartMod(mod),
                 'restart-app': () => deckit.mods.restart(),
-                'show-mods-folder': () => reveal('mods'),
-                'show-data-folder': () => reveal('data'),
-                'show-log': () => reveal('log'),
                 'copy-version': copyVersion,
             },
         };
